@@ -1398,8 +1398,11 @@ namespace marco::runtime::ida
 
           // Move to the next equation.
           ++processedEquations;
-          equation = equationsProcessingOrder[processedEquations];
-          getEquationBeginIndices(equation, equationIndices);
+
+          if (processedEquations < numOfVectorizedEquations) {
+            equation = equationsProcessingOrder[processedEquations];
+            getEquationBeginIndices(equation, equationIndices);
+          }
         } else {
           // Only part of the indices can be processed before exceeding the
           // maximum chunk size.
