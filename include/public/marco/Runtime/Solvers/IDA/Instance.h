@@ -262,6 +262,8 @@ namespace marco::runtime::ida
 
       void computeNNZ();
 
+      void computeThreadChunks();
+
       void copyVariablesFromMARCO(
           N_Vector algebraicAndStateVariablesVector,
           N_Vector derivativeVariablesVector);
@@ -421,6 +423,19 @@ namespace marco::runtime::ida
 
       // Thread pool
       ThreadPool threadPool;
+
+      // A chunk of equations to be processed by a thread.
+      // A chunk is composed of:
+      //   - the identifier (position) of the equation.
+      //   - the begin indices (included)
+      //   - the end indices (exluded)
+      using ThreadEquationsChunk = std::tuple
+          <size_t, std::vector<int64_t>, std::vector<int64_t>>;
+
+      // How the equations are divided among multiple threads.
+      // The information is computed only once during the initialization to
+      // save time during the actual simulation.
+      std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
   };
 }
 
