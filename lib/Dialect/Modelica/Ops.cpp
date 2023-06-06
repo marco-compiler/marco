@@ -6386,6 +6386,23 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ProductOp
+
+namespace mlir::modelica
+{
+  void ProductOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getArray(),
+        mlir::SideEffects::DefaultResource::get());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // RemOp
 
 namespace mlir::modelica
@@ -7012,6 +7029,23 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
     // No regions to be derived.
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SumOp
+
+namespace mlir::modelica
+{
+  void SumOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getArray(),
+        mlir::SideEffects::DefaultResource::get());
   }
 }
 

@@ -829,7 +829,7 @@ def Modelica_ComponentSetOp : Modelica_Op<"component_set",
 
 def Modelica_ConstantOp : Modelica_Op<"constant",
     [ConstantLike,
-    NoMemoryEffect,
+    Pure,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
@@ -887,6 +887,7 @@ def Modelica_NegateOp : Modelica_Op<"neg",
 def Modelica_AddOp : Modelica_Op<"add",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -922,6 +923,7 @@ def Modelica_AddOp : Modelica_Op<"add",
 def Modelica_AddEWOp : Modelica_Op<"add_ew",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -955,6 +957,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
 
 def Modelica_SubOp : Modelica_Op<"sub",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -989,6 +992,7 @@ def Modelica_SubOp : Modelica_Op<"sub",
 
 def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -1022,6 +1026,7 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
 
 def Modelica_MulOp : Modelica_Op<"mul",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1058,6 +1063,7 @@ def Modelica_MulOp : Modelica_Op<"mul",
 def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1237,7 +1243,7 @@ class Modelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
     }];
 }
 
-def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative]>
+def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative, Pure]>
 {
     let summary = "Check if two values are equal.";
 
@@ -1256,7 +1262,7 @@ def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative]>
     let hasFolder = 1;
 }
 
-def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative]>
+def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative, Pure]>
 {
     let summary = "Check if two values are not equal.";
 
@@ -1275,7 +1281,7 @@ def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative]>
     let hasFolder = 1;
 }
 
-def Modelica_GtOp : Modelica_ComparisonOp<"gt", []>
+def Modelica_GtOp : Modelica_ComparisonOp<"gt", [Pure]>
 {
     let summary = "Check if a value is greater than another one.";
 
@@ -1294,7 +1300,7 @@ def Modelica_GtOp : Modelica_ComparisonOp<"gt", []>
     let hasFolder = 1;
 }
 
-def Modelica_GteOp : Modelica_ComparisonOp<"gte", []>
+def Modelica_GteOp : Modelica_ComparisonOp<"gte", [Pure]>
 {
     let summary = "Check if a value is greater or equal than another one.";
 
@@ -1313,7 +1319,7 @@ def Modelica_GteOp : Modelica_ComparisonOp<"gte", []>
     let hasFolder = 1;
 }
 
-def Modelica_LtOp : Modelica_ComparisonOp<"lt", []>
+def Modelica_LtOp : Modelica_ComparisonOp<"lt", [Pure]>
 {
     let summary = "Check if a value is less than another one.";
 
@@ -1332,7 +1338,7 @@ def Modelica_LtOp : Modelica_ComparisonOp<"lt", []>
     let hasFolder = 1;
 }
 
-def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
+def Modelica_LteOp : Modelica_ComparisonOp<"lte", [Pure]>
 {
     let summary = "Check if a value is less or equal than another one.";
 
@@ -1355,7 +1361,8 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
 //===---------------------------------------------------------------------===//
 
 def Modelica_NotOp : Modelica_Op<"not",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Compute the logical NOT of a boolean value.";
 
@@ -1392,7 +1399,8 @@ def Modelica_NotOp : Modelica_Op<"not",
 }
 
 def Modelica_AndOp : Modelica_Op<"and",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Compute the logical AND between two boolean values.";
 
@@ -1432,7 +1440,8 @@ def Modelica_AndOp : Modelica_Op<"and",
 }
 
 def Modelica_OrOp : Modelica_Op<"or",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Compute the logical OR between two boolean values.";
 
@@ -1471,7 +1480,8 @@ def Modelica_OrOp : Modelica_Op<"or",
     let hasFolder = 1;
 }
 
-def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
+def Modelica_SelectOp : Modelica_Op<"select",
+    [SameVariadicOperandSize, AlwaysSpeculatable]>
 {
     let summary = "Ternary operator";
 
@@ -1496,6 +1506,7 @@ def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
 
 def Modelica_AbsOp : Modelica_Op<"abs",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Compute the absolute value.";
@@ -1579,6 +1590,7 @@ def Modelica_AsinOp : Modelica_Op<"asin",
 
 def Modelica_AtanOp : Modelica_Op<"atan",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1635,6 +1647,7 @@ def Modelica_Atan2Op : Modelica_Op<"atan2",
 
 def Modelica_CeilOp : Modelica_Op<"ceil",
   [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  AlwaysSpeculatable,
   DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Ceil function.";
@@ -1662,6 +1675,7 @@ def Modelica_CeilOp : Modelica_Op<"ceil",
 
 def Modelica_CosOp : Modelica_Op<"cos",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1690,6 +1704,7 @@ def Modelica_CosOp : Modelica_Op<"cos",
 
 def Modelica_CoshOp : Modelica_Op<"cosh",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1717,7 +1732,8 @@ def Modelica_CoshOp : Modelica_Op<"cosh",
 }
 
 def Modelica_DiagonalOp : Modelica_Op<"diagonal",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get a diagonal matrix with the given values";
 
@@ -1770,6 +1786,7 @@ def Modelica_DivTruncOp : Modelica_Op<"div_trunc", []>
 
 def Modelica_ExpOp : Modelica_Op<"exp",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1798,6 +1815,7 @@ def Modelica_ExpOp : Modelica_Op<"exp",
 
 def Modelica_FloorOp : Modelica_Op<"floor",
    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+   AlwaysSpeculatable,
    DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Floor function.";
@@ -1824,7 +1842,8 @@ def Modelica_FloorOp : Modelica_Op<"floor",
 }
 
 def Modelica_IdentityOp : Modelica_Op<"identity",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Returns an identity matrix with a given dimensions size.";
 
@@ -1850,6 +1869,7 @@ def Modelica_IdentityOp : Modelica_Op<"identity",
 
 def Modelica_IntegerOp : Modelica_Op<"integer",
   [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  AlwaysSpeculatable,
   DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Integer function.";
@@ -1953,7 +1973,8 @@ def Modelica_Log10Op : Modelica_Op<"log10",
 }
 
 def Modelica_MaxOp : Modelica_Op<"max",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get the greatest value among an array or two scalar values.";
 
@@ -1991,7 +2012,8 @@ def Modelica_MaxOp : Modelica_Op<"max",
 }
 
 def Modelica_MinOp : Modelica_Op<"min",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get the smallest value among an array or two scalar values.";
 
@@ -2055,7 +2077,7 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
     let hasFolder = 1;
 }
 
-def Modelica_NDimsOp : Modelica_Op<"ndims", []>
+def Modelica_NDimsOp : Modelica_Op<"ndims", [Pure]>
 {
     let summary = "Get the number of dimensions of an array.";
 
@@ -2081,7 +2103,8 @@ def Modelica_NDimsOp : Modelica_Op<"ndims", []>
 }
 
 def Modelica_OnesOp : Modelica_Op<"ones",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get an array with all the elements set to '1'";
 
@@ -2108,7 +2131,9 @@ def Modelica_OnesOp : Modelica_Op<"ones",
     }];
 }
 
-def Modelica_ProductOp : Modelica_Op<"product", []>
+def Modelica_ProductOp : Modelica_Op<"product",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get the product of the values of an array.";
 
@@ -2160,6 +2185,7 @@ def Modelica_RemOp : Modelica_Op<"rem", []>
 
 def Modelica_SignOp : Modelica_Op<"sign",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Get an integer representing the sign of a value.";
@@ -2188,6 +2214,7 @@ def Modelica_SignOp : Modelica_Op<"sign",
 
 def Modelica_SinOp : Modelica_Op<"sin",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2212,6 +2239,7 @@ def Modelica_SinOp : Modelica_Op<"sin",
 
 def Modelica_SinhOp : Modelica_Op<"sinh",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2239,7 +2267,8 @@ def Modelica_SinhOp : Modelica_Op<"sinh",
 }
 
 def Modelica_SizeOp : Modelica_Op<"size",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get the dimensions of an array.";
 
@@ -2307,7 +2336,9 @@ def Modelica_SqrtOp : Modelica_Op<"sqrt",
     let hasFolder = 1;
 }
 
-def Modelica_SumOp : Modelica_Op<"sum", []>
+def Modelica_SumOp : Modelica_Op<"sum",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get the sum of the values of an array.";
 
@@ -2331,7 +2362,8 @@ def Modelica_SumOp : Modelica_Op<"sum", []>
 }
 
 def Modelica_SymmetricOp : Modelica_Op<"symmetric",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get a symmetric matrix.";
 
@@ -2390,6 +2422,7 @@ def Modelica_TanOp : Modelica_Op<"tan",
 
 def Modelica_TanhOp : Modelica_Op<"tanh",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2417,7 +2450,8 @@ def Modelica_TanhOp : Modelica_Op<"tanh",
 }
 
 def Modelica_TransposeOp : Modelica_Op<"transpose",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Matrix transposition.";
 
@@ -2445,7 +2479,8 @@ def Modelica_TransposeOp : Modelica_Op<"transpose",
 }
 
 def Modelica_ZerosOp : Modelica_Op<"zeros",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AlwaysSpeculatable]>
 {
     let summary = "Get an array with all the elements set to '0'";
 
