@@ -20,12 +20,18 @@ namespace marco::runtime::profiling
 
       void incrementStepsCounter();
 
+      void incrementResidualsCallCounter();
+
+      void incrementPartialDerivativesCallCounter();
+
     public:
       Timer initialConditionsTimer;
       int64_t stepsCounter;
       Timer stepsTimer;
       Timer algebraicVariablesTimer;
+      int64_t residualsCallCounter;
       Timer residualsTimer;
+      int64_t partialDerivativesCallCounter;
       Timer partialDerivativesTimer;
       Timer copyVarsFromMARCOTimer;
       Timer copyVarsIntoMARCOTimer;
@@ -47,8 +53,12 @@ namespace marco::runtime::profiling
 #define IDA_PROFILER_ALGEBRAIC_VARS_START ::marco::runtime::profiling::idaProfiler().algebraicVariablesTimer.start()
 #define IDA_PROFILER_ALGEBRAIC_VARS_STOP ::marco::runtime::profiling::idaProfiler().algebraicVariablesTimer.stop()
 
+#define IDA_PROFILER_RESIDUALS_CALL_COUNTER_INCREMENT ::marco::runtime::profiling::idaProfiler().incrementResidualsCallCounter()
+
 #define IDA_PROFILER_RESIDUALS_START ::marco::runtime::profiling::idaProfiler().residualsTimer.start()
 #define IDA_PROFILER_RESIDUALS_STOP ::marco::runtime::profiling::idaProfiler().residualsTimer.stop()
+
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_CALL_COUNTER_INCREMENT ::marco::runtime::profiling::idaProfiler().incrementPartialDerivativesCallCounter()
 
 #define IDA_PROFILER_PARTIAL_DERIVATIVES_START ::marco::runtime::profiling::idaProfiler().partialDerivativesTimer.start()
 #define IDA_PROFILER_PARTIAL_DERIVATIVES_STOP ::marco::runtime::profiling::idaProfiler().partialDerivativesTimer.stop()
@@ -74,8 +84,12 @@ namespace marco::runtime::profiling
 #define IDA_PROFILER_ALGEBRAIC_VARS_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_ALGEBRAIC_VARS_STOP IDA_PROFILER_DO_NOTHING
 
+#define IDA_PROFILER_RESIDUALS_CALL_COUNTER_INCREMENT IDA_PROFILER_DO_NOTHING
+
 #define IDA_PROFILER_RESIDUALS_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_RESIDUALS_STOP IDA_PROFILER_DO_NOTHING
+
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_CALL_COUNTER_INCREMENT IDA_PROFILER_DO_NOTHING
 
 #define IDA_PROFILER_PARTIAL_DERIVATIVES_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_PARTIAL_DERIVATIVES_STOP IDA_PROFILER_DO_NOTHING

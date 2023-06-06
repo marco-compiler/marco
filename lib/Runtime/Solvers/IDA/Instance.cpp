@@ -1083,6 +1083,8 @@ namespace marco::runtime::ida
       N_Vector residuals,
       void* userData)
   {
+    IDA_PROFILER_RESIDUALS_CALL_COUNTER_INCREMENT;
+
     realtype* rval = N_VGetArrayPointer(residuals);
     auto* instance = static_cast<IDAInstance*>(userData);
 
@@ -1127,8 +1129,9 @@ namespace marco::runtime::ida
       void* userData,
       N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
   {
-    realtype* jacobian = SUNSparseMatrix_Data(jacobianMatrix);
+    IDA_PROFILER_PARTIAL_DERIVATIVES_CALL_COUNTER_INCREMENT;
 
+    realtype* jacobian = SUNSparseMatrix_Data(jacobianMatrix);
     auto* instance = static_cast<IDAInstance*>(userData);
 
     // Copy the values of the variables and derivatives provided by IDA into

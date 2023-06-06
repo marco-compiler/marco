@@ -21,7 +21,9 @@ namespace marco::runtime::profiling
     stepsCounter = 0;
     stepsTimer.reset();
     algebraicVariablesTimer.reset();
+    residualsCallCounter = 0;
     residualsTimer.reset();
+    partialDerivativesCallCounter = 0;
     partialDerivativesTimer.reset();
     copyVarsFromMARCOTimer.reset();
     copyVarsIntoMARCOTimer.reset();
@@ -35,7 +37,9 @@ namespace marco::runtime::profiling
     std::cerr << "Number of IDA steps: " << stepsCounter << "\n";
     std::cerr << "Time spent on IDA steps: " << stepsTimer.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on computing the algebraic variables: " << algebraicVariablesTimer.totalElapsedTime() << " ms\n";
+    std::cerr << "Number of computations of the residuals: " << residualsCallCounter << "\n";
     std::cerr << "Time spent on computing the residuals: " << residualsTimer.totalElapsedTime() << " ms\n";
+    std::cerr << "Number of computations of the partial derivatives: " << partialDerivativesCallCounter << "\n";
     std::cerr << "Time spent on computing the partial derivatives: " << partialDerivativesTimer.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on copying the variables from MARCO: " << copyVarsFromMARCOTimer.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on copying the variables into MARCO: " << copyVarsIntoMARCOTimer.totalElapsedTime() << " ms\n";
@@ -45,6 +49,18 @@ namespace marco::runtime::profiling
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
     ++stepsCounter;
+  }
+
+  void IDAProfiler::incrementResidualsCallCounter()
+  {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+    ++residualsCallCounter;
+  }
+
+  void IDAProfiler::incrementPartialDerivativesCallCounter()
+  {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+    ++partialDerivativesCallCounter;
   }
 
   IDAProfiler& idaProfiler()
