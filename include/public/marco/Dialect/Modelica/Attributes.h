@@ -1,6 +1,7 @@
 #ifndef MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
 #define MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
 
+#include "marco/Dialect/Modelica/Types.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/Support/StorageUniquer.h"
@@ -11,8 +12,11 @@
 
 namespace mlir::modelica
 {
-  mlir::Attribute getAttr(mlir::Type type, long value);
+  mlir::Attribute getAttr(mlir::Type type, int64_t value);
   mlir::Attribute getAttr(mlir::Type type, double value);
+
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
 
   mlir::Attribute getZeroAttr(mlir::Type type);
 

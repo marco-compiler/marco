@@ -29,10 +29,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::Attribute getAttr(mlir::Type type, long value)
+  mlir::Attribute getAttr(mlir::Type type, int64_t value)
   {
     if (type.isa<BooleanType>()) {
-      return BooleanAttr::get(type.getContext(), value > 0);
+      return BooleanAttr::get(type.getContext(), value != 0);
     }
 
     if (type.isa<IntegerType>()) {
@@ -40,7 +40,7 @@ namespace mlir::modelica
     }
 
     if (type.isa<RealType>()) {
-      return RealAttr::get(type.getContext(), value);
+      return RealAttr::get(type.getContext(), static_cast<double>(value));
     }
 
     if (type.isa<mlir::IndexType>()) {
@@ -49,6 +49,36 @@ namespace mlir::modelica
 
     if (type.isa<mlir::IntegerType>()) {
       return mlir::IntegerAttr::get(type, value);
+    }
+
+    if (type.isa<mlir::FloatType>()) {
+      return mlir::FloatAttr::get(type, static_cast<double>(value));
+    }
+
+    llvm_unreachable("Unknown Modelica type");
+    return {};
+  }
+
+  mlir::Attribute getAttr(mlir::Type type, double value)
+  {
+    if (type.isa<BooleanType>()) {
+      return BooleanAttr::get(type.getContext(), value != 0);
+    }
+
+    if (type.isa<IntegerType>()) {
+      return IntegerAttr::get(type.getContext(), static_cast<int64_t>(value));
+    }
+
+    if (type.isa<RealType>()) {
+      return RealAttr::get(type.getContext(), value);
+    }
+
+    if (type.isa<mlir::IndexType>()) {
+      return mlir::IntegerAttr::get(type, static_cast<int64_t>(value));
+    }
+
+    if (type.isa<mlir::IntegerType>()) {
+      return mlir::IntegerAttr::get(type, static_cast<int64_t>(value));
     }
 
     if (type.isa<mlir::FloatType>()) {
@@ -59,33 +89,109 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getAttr(mlir::Type type, double value)
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values)
   {
-    if (type.isa<BooleanType>()) {
-      return BooleanAttr::get(type.getContext(), value > 0);
+    mlir::Type elementType = arrayType.getElementType();
+
+    if (elementType.isa<BooleanType>()) {
+      llvm::SmallVector<bool> casted;
+
+      for (int64_t value : values) {
+        casted.push_back(value != 0);
+      }
+
+      return BooleanArrayAttr::get(arrayType, casted);
     }
 
-    if (type.isa<IntegerType>()) {
-      return IntegerAttr::get(type.getContext(), value);
+    if (elementType.isa<IntegerType>()) {
+      return IntegerArrayAttr::get(arrayType, values);
     }
 
-    if (type.isa<RealType>()) {
-      return RealAttr::get(type.getContext(), value);
+    if (elementType.isa<RealType>()) {
+      llvm::SmallVector<double> casted;
+
+      for (int64_t value : values) {
+        casted.push_back(static_cast<double>(value));
+      }
+
+      return RealArrayAttr::get(arrayType, casted);
     }
 
-    if (type.isa<mlir::IndexType>()) {
-      return mlir::IntegerAttr::get(type, value);
+    if (elementType.isa<mlir::IndexType>()) {
+      return IntegerArrayAttr::get(arrayType, values);
     }
 
-    if (type.isa<mlir::IntegerType>()) {
-      return mlir::IntegerAttr::get(type, value);
+    if (elementType.isa<mlir::IntegerType>()) {
+      return IntegerArrayAttr::get(arrayType, values);
     }
 
-    if (type.isa<mlir::FloatType>()) {
-      return mlir::FloatAttr::get(type, value);
+    if (elementType.isa<mlir::FloatType>()) {
+      llvm::SmallVector<double> casted;
+
+      for (int64_t value : values) {
+        casted.push_back(static_cast<double>(value));
+      }
+
+      return RealArrayAttr::get(arrayType, casted);
     }
 
-    llvm_unreachable("Unknown Modelica type");
+    llvm_unreachable("Unknown Modelica array type");
+    return {};
+  }
+
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values)
+  {
+    mlir::Type elementType = arrayType.getElementType();
+
+    if (elementType.isa<BooleanType>()) {
+      llvm::SmallVector<bool> casted;
+
+      for (double value : values) {
+        casted.push_back(value != 0);
+      }
+
+      return BooleanArrayAttr::get(arrayType, casted);
+    }
+
+    if (elementType.isa<IntegerType>()) {
+      llvm::SmallVector<int64_t> casted;
+
+      for (double value : values) {
+        casted.push_back(static_cast<int64_t>(value));
+      }
+
+      return IntegerArrayAttr::get(arrayType, casted);
+    }
+
+    if (elementType.isa<RealType>()) {
+      return RealArrayAttr::get(arrayType, values);
+    }
+
+    if (elementType.isa<mlir::IndexType>()) {
+      llvm::SmallVector<int64_t> casted;
+
+      for (double value : values) {
+        casted.push_back(static_cast<int64_t>(value));
+      }
+
+      return IntegerArrayAttr::get(arrayType, casted);
+    }
+
+    if (elementType.isa<mlir::IntegerType>()) {
+      llvm::SmallVector<int64_t> casted;
+
+      for (double value : values) {
+        casted.push_back(static_cast<int64_t>(value));
+      }
+
+      return IntegerArrayAttr::get(arrayType, casted);
+    }
+
+    if (elementType.isa<mlir::FloatType>()) {
+      return RealArrayAttr::get(arrayType, values);
+    }
+
+    llvm_unreachable("Unknown Modelica array type");
     return {};
   }
 
@@ -101,6 +207,32 @@ namespace mlir::modelica
 
     if (type.isa<RealType>()) {
       return RealAttr::get(type.getContext(), 0);
+    }
+
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      mlir::Type elementType = arrayType.getElementType();
+
+      if (elementType.isa<BooleanType>()) {
+        llvm::SmallVector<bool> values(arrayType.getNumElements(), false);
+        return BooleanArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<IntegerType>()) {
+        llvm::SmallVector<int64_t> values(arrayType.getNumElements(), 0);
+        return IntegerArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<RealType>()) {
+        llvm::SmallVector<double> values(arrayType.getNumElements(), 0);
+        return RealArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<mlir::IndexType>()) {
+        llvm::SmallVector<int64_t> values(arrayType.getNumElements(), 0);
+        return IntegerArrayAttr::get(type, values);
+      }
+
+      llvm_unreachable("Unknown Modelica array element type");
     }
 
     if (type.isa<mlir::IndexType>()) {

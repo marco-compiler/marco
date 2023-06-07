@@ -115,6 +115,12 @@ def Modelica_BooleanArrayAttr
         ArrayRefParameter<"bool", "elements">:$values);
 
     let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        AttrBuilderWithInferredContext<(ins "Type":$type, "llvm::ArrayRef<bool>":$values), [{
+            return $_get(type.getContext(), type, values);
+        }]>
+    ];
 }
 
 def Modelica_IntegerArrayAttr
