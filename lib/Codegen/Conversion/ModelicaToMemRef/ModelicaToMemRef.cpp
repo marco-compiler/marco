@@ -141,6 +141,153 @@ namespace
     }
   };
 
+  class ConstantOpArrayLowering : public ModelicaOpConversionPattern<ConstantOp>
+  {
+    public:
+      ConstantOpArrayLowering(
+          mlir::TypeConverter& typeConverter,
+          mlir::MLIRContext* context,
+          mlir::SymbolTableCollection& symbolTableCollection)
+          : ModelicaOpConversionPattern<ConstantOp>(typeConverter, context),
+            symbolTableCollection(&symbolTableCollection)
+      {
+      }
+
+      mlir::LogicalResult matchAndRewrite(
+          ConstantOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        auto memRefType =
+            getTypeConverter()->convertType(op.getResult().getType())
+                .cast<mlir::MemRefType>();
+
+        /*
+        auto flatMemRefType = mlir::MemRefType::get(
+            memRefType.getNumElements(),
+            memRefType.getElementType());
+            */
+
+        mlir::Attribute denseAttr =
+            getDenseAttr(memRefType.getShape(), op.getValue());
+
+        if (!denseAttr) {
+          return rewriter.notifyMatchFailure(
+              op, "Unknown attribute data type");
+        }
+
+        // Create the global constant.
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+        auto globalOp = getOrCreateGlobalMemRef(
+            rewriter, moduleOp, loc, memRefType, denseAttr);
+
+        // Get the global constant.
+        mlir::Value replacement = rewriter.create<mlir::memref::GetGlobalOp>(
+            loc, memRefType, globalOp.getSymName());
+
+        /*
+        if (memRefType.getRank() != 1) {
+          mlir::ReassociationIndices reassociationIndices;
+
+          for (int64_t i = 0, e = memRefType.getRank(); i < e; ++i) {
+            reassociationIndices.push_back(i);
+          }
+
+          replacement = rewriter.create<mlir::memref::ExpandShapeOp>(
+              loc, memRefType, replacement, reassociationIndices);
+        }
+         */
+
+        rewriter.replaceOp(op, replacement);
+
+        return mlir::success();
+      }
+
+    private:
+      mlir::Attribute getDenseAttr(
+          llvm::ArrayRef<int64_t> shape,
+          mlir::Attribute values) const
+      {
+        if (auto booleanArrayAttr = values.dyn_cast<BooleanArrayAttr>()) {
+          auto elementType = getTypeConverter()->convertType(
+              booleanArrayAttr.getType().cast<ArrayType>().getElementType());
+
+          auto tensorType = mlir::RankedTensorType::get(shape, elementType);
+
+          return mlir::DenseIntElementsAttr::get(
+              tensorType, booleanArrayAttr.getValues());
+        }
+
+        if (auto integerArrayAttr = values.dyn_cast<IntegerArrayAttr>()) {
+          llvm::SmallVector<int64_t> casted;
+
+          for (const auto& value : integerArrayAttr.getValues()) {
+            casted.push_back(value.getSExtValue());
+          }
+
+          auto elementType = getTypeConverter()->convertType(
+              integerArrayAttr.getType().cast<ArrayType>().getElementType());
+
+          auto tensorType = mlir::RankedTensorType::get(shape, elementType);
+          return mlir::DenseIntElementsAttr::get(tensorType, casted);
+        }
+
+        if (auto realArrayAttr = values.dyn_cast<RealArrayAttr>()) {
+          llvm::SmallVector<double> casted;
+
+          for (const auto& value : realArrayAttr.getValues()) {
+            casted.push_back(value.convertToDouble());
+          }
+          auto elementType = getTypeConverter()->convertType(
+              realArrayAttr.getType().cast<ArrayType>().getElementType());
+
+          auto tensorType = mlir::RankedTensorType::get(shape, elementType);
+          return mlir::DenseFPElementsAttr::get(tensorType, casted);
+        }
+
+        return {};
+      }
+
+      mlir::memref::GlobalOp getOrCreateGlobalMemRef(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          mlir::MemRefType memRefType,
+          mlir::Attribute denseAttr) const
+      {
+        for (mlir::memref::GlobalOp op :
+             moduleOp.getOps<mlir::memref::GlobalOp>()) {
+          auto initialValue = op.getInitialValue();
+
+          if (!initialValue) {
+            continue;
+          }
+
+          if (initialValue == denseAttr && op.getConstant()) {
+            return op;
+          }
+        }
+
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPointToStart(moduleOp.getBody());
+
+        auto globalOp = builder.create<mlir::memref::GlobalOp>(
+            loc, "cst", builder.getStringAttr("private"), memRefType,
+            mlir::cast<mlir::ElementsAttr>(denseAttr), true, nullptr);
+
+        symbolTableCollection->getSymbolTable(moduleOp)
+            .insert(globalOp, moduleOp.getBody()->begin());
+
+        return globalOp;
+      }
+
+    private:
+      mlir::SymbolTableCollection* symbolTableCollection;
+  };
+
   class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp>
   {
     using ModelicaOpConversionPattern<AllocaOp>::ModelicaOpConversionPattern;
@@ -583,7 +730,8 @@ namespace
 static void populateModelicaToMemRefPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
-    mlir::TypeConverter& typeConverter)
+    mlir::TypeConverter& typeConverter,
+    mlir::SymbolTableCollection& symbolTableCollection)
 {
   patterns.insert<
       ArrayCastOpLowering>(typeConverter, context);
@@ -594,6 +742,9 @@ static void populateModelicaToMemRefPatterns(
 
   patterns.insert<
       AssignmentOpScalarLowering>(typeConverter, context);
+
+  patterns.insert<
+      ConstantOpArrayLowering>(typeConverter, context, symbolTableCollection);
 
   patterns.insert<
       AllocaOpLowering,
@@ -648,6 +799,10 @@ namespace
             ArrayCastOp,
             AssignmentOp>();
 
+        target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+          return !op.getResult().getType().isa<ArrayType>();
+        });
+
         target.addIllegalOp<
             AllocaOp,
             AllocOp,
@@ -676,7 +831,10 @@ namespace
         });
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateModelicaToMemRefPatterns(patterns, &getContext(), typeConverter);
+        mlir::SymbolTableCollection symbolTableCollection;
+
+        populateModelicaToMemRefPatterns(
+            patterns, &getContext(), typeConverter, symbolTableCollection);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
@@ -690,7 +848,8 @@ namespace mlir
     return std::make_unique<ModelicaToMemRefConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass(const ModelicaToMemRefConversionPassOptions& options)
+  std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass(
+      const ModelicaToMemRefConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToMemRefConversionPass>(options);
   }

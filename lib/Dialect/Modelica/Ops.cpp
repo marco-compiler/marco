@@ -124,6 +124,37 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
   return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
+namespace
+{
+  template<typename T>
+  static llvm::Optional<T> getAttributeValue(mlir::Attribute attribute)
+  {
+    if (isScalarIntegerLike(attribute)) {
+      return static_cast<T>(getScalarIntegerLikeValue(attribute));
+    } else if (isScalarFloatLike(attribute)) {
+      return static_cast<T>(getScalarFloatLikeValue(attribute));
+    } else {
+      return llvm::None;
+    }
+  }
+
+  template<typename T>
+  static bool getAttributesValues(
+      llvm::ArrayRef<mlir::Attribute> attributes,
+      llvm::SmallVectorImpl<T>& result)
+  {
+    for (mlir::Attribute attribute : attributes) {
+      if (auto value = getAttributeValue<T>(attribute)) {
+        result.push_back(*value);
+      } else {
+        return false;
+      }
+    }
+
+    return true;
+  }
+}
+
 static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
 {
   llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
@@ -311,6 +342,54 @@ namespace mlir::modelica
     }
 
     return mlir::success();
+  }
+
+  mlir::OpFoldResult ArrayFromElementsOp::fold(
+      llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    if (llvm::all_of(operands, [](mlir::Attribute attr) {
+          return attr != nullptr;
+        })) {
+      ArrayType arrayType = getArrayType();
+
+      if (!arrayType.hasStaticShape()) {
+        return {};
+      }
+
+      mlir::Type elementType = arrayType.getElementType();
+
+      if (elementType.isa<BooleanType>()) {
+        llvm::SmallVector<bool> casted;
+
+        if (!getAttributesValues(operands, casted)) {
+          return {};
+        }
+
+        return BooleanArrayAttr::get(arrayType, casted);
+      }
+
+      if (elementType.isa<IntegerType>()) {
+        llvm::SmallVector<int64_t> casted;
+
+        if (!getAttributesValues(operands, casted)) {
+          return {};
+        }
+
+        return IntegerArrayAttr::get(arrayType, casted);
+      }
+
+      if (elementType.isa<RealType>()) {
+        llvm::SmallVector<double> casted;
+
+        if (!getAttributesValues(operands, casted)) {
+          return {};
+        }
+
+        return RealArrayAttr::get(arrayType, casted);
+      }
+    }
+
+    return {};
   }
 
   void ArrayFromElementsOp::getEffects(

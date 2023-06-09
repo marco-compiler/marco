@@ -1350,7 +1350,8 @@ namespace
 
 namespace
 {
-  struct ConstantOpLowering : public ModelicaOpConversionPattern<ConstantOp>
+  struct ConstantOpScalarLowering
+      : public ModelicaOpConversionPattern<ConstantOp>
   {
     public:
       using ModelicaOpConversionPattern<ConstantOp>
@@ -1363,6 +1364,11 @@ namespace
       {
         mlir::Attribute attribute = convertAttribute(
             rewriter, op.getResult().getType(), op.getValue());
+
+        if (!attribute) {
+          return rewriter.notifyMatchFailure(
+              op, "Unknown attribute conversion");
+        }
 
         rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, attribute);
         return mlir::success();
@@ -1394,8 +1400,7 @@ namespace
           return builder.getFloatAttr(resultType, realAttribute.getValue());
         }
 
-        llvm_unreachable("Unknown attribute type");
-        return nullptr;
+        return {};
       }
   };
 
@@ -3621,7 +3626,7 @@ static void populateModelicaToArithPatterns(
       PowOpMatrixLowering>(context, assertions);
 
   patterns.insert<
-      ConstantOpLowering,
+      ConstantOpScalarLowering,
       NegateOpLowering,
       AddOpLowering,
       SubOpLowering,
@@ -3678,8 +3683,11 @@ namespace
             AndOp,
             OrOp>();
 
+        target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+          return op.getResult().getType().isa<ArrayType>();
+        });
+
         target.addIllegalOp<
-            ConstantOp,
             NegateOp,
             AddOp,
             AddEWOp,

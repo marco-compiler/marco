@@ -132,7 +132,7 @@ def Modelica_IntegerArrayAttr
         Attribute representing a Integer-typed array value.
     }];
 
-    let mnemonic = "integer_array";
+    let mnemonic = "int_array";
 
     let parameters = (ins
         AttributeSelfTypeParameter<"">:$type,

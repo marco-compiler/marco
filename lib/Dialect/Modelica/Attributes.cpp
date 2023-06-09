@@ -387,7 +387,7 @@ namespace mlir::modelica
 
     for (const auto& value : llvm::enumerate(getValues())) {
       if (value.index() != 0) {
-        printer << ",";
+        printer << ", ";
       }
 
       printer << (value.value() ? "true" : "false");
@@ -446,7 +446,7 @@ namespace mlir::modelica
 
     for (const auto& value : llvm::enumerate(getValues())) {
       if (value.index() != 0) {
-        printer << ",";
+        printer << ", ";
       }
 
       printer << value.value();
@@ -505,7 +505,7 @@ namespace mlir::modelica
 
     for (const auto& value : llvm::enumerate(getValues())) {
       if (value.index() != 0) {
-        printer << ",";
+        printer << ", ";
       }
 
       printer << value.value();

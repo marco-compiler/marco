@@ -252,6 +252,7 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     }];
 
     let hasVerifier = 1;
+    let hasFolder = 1;
 
     let builders = [
         OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$values), [{

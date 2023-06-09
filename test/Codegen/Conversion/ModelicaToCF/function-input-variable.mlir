@@ -127,17 +127,15 @@ func.func @caller() {
 // Array default value.
 
 // CHECK-LABEL: @caller
-// CHECK: %[[zero:.*]] = modelica.constant #modelica.int<0>
-// CHECK: %[[default:.*]] = modelica.array_broadcast %[[zero]] : !modelica.int -> !modelica.array<3x!modelica.int>
-// CHECK: modelica.call @arrayDefaultValue(%[[default]]) : (!modelica.array<3x!modelica.int>) -> ()
+// CHECK: %[[cst:.*]] = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
+// CHECK: modelica.call @arrayDefaultValue(%[[cst]]) : (!modelica.array<3x!modelica.int>) -> ()
 
 modelica.function @arrayDefaultValue {
     modelica.variable @x : !modelica.variable<3x!modelica.int, input>
 
     modelica.default @x {
-        %0 = modelica.constant #modelica.int<0>
-        %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x!modelica.int>
-        modelica.yield %1 : !modelica.array<3x!modelica.int>
+        %0 = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
+        modelica.yield %0 : !modelica.array<3x!modelica.int>
     }
 
     modelica.algorithm {

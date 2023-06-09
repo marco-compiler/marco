@@ -191,12 +191,10 @@ modelica.function @scalarDefaultValue {
 // Array default value.
 
 // CHECK:       modelica.raw_function @arrayDefaultValue() -> !modelica.array<3x!modelica.int> {
-// CHECK-DAG:       %[[zero:.*]] = modelica.constant #modelica.int<0>
-// CHECK-DAG:       %[[one:.*]] = modelica.constant #modelica.int<1>
+// CHECK-DAG:       %[[default:.*]] = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
+// CHECK-DAG:       %[[non_default:.*]] = modelica.constant #modelica.int_array<[1, 1, 1]> : !modelica.array<3x!modelica.int>
 // CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x!modelica.int, output> {name = "x"}
-// CHECK:           %[[default:.*]] = modelica.array_broadcast %[[zero]]
 // CHECK:           modelica.raw_variable_set %[[x]], %[[default]]
-// CHECK:           %[[non_default:.*]] = modelica.array_broadcast %[[one]]
 // CHECK:           modelica.raw_variable_set %[[x]], %[[non_default]]
 // CHECK:       }
 
@@ -204,14 +202,12 @@ modelica.function @arrayDefaultValue {
     modelica.variable @x : !modelica.variable<3x!modelica.int, output>
 
     modelica.default @x {
-        %0 = modelica.constant #modelica.int<0>
-        %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x!modelica.int>
-        modelica.yield %1 : !modelica.array<3x!modelica.int>
+        %0 = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
+        modelica.yield %0 : !modelica.array<3x!modelica.int>
     }
 
     modelica.algorithm {
-        %0 = modelica.constant #modelica.int<1>
-        %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x!modelica.int>
-        modelica.variable_set @x, %1 : !modelica.array<3x!modelica.int>
+        %0 = modelica.constant #modelica.int_array<[1, 1, 1]> : !modelica.array<3x!modelica.int>
+        modelica.variable_set @x, %0 : !modelica.array<3x!modelica.int>
     }
 }
