@@ -98,7 +98,9 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
     GiNaC::ex expression = getExpressionFromEquation(equation, symbolNameToInfoMap);
 
-    std::cerr << '\n' << "Expression: " << expression << '\n';
+    expression = expression.expand();
+
+//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
     if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -115,8 +117,8 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
     }
   }
 
-  std::cerr << "System equations: " << systemEquations << '\n' << std::flush;
-  std::cerr << "Matched variables: " << matchedVariables << '\n' << std::flush;
+//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
+//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
 
   GiNaC::ex solutionEquations;
   try {
@@ -128,23 +130,27 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   };
 
   // todo: check that there are new equations
+  // todo: swap the hash for std::map<..., ..., GiNaC::ex_is_less>
+  // todo: maybe expand the equation to ensure solution compare to system equations
+
   GiNaC::lst newEquations;
-  std::map<unsigned int, GiNaC::ex> equationsMap;
 
-  for (const auto& ex : systemEquations) {
-    equationsMap[ex.gethash()] = ex;
-  }
-
-  for (const auto& ex : solutionEquations) {
-    if (equationsMap.count(ex.gethash())) {
-      newEquations.append(ex);
+  for (const auto& solutionEquation : solutionEquations) {
+    bool solutionIsNew = true;
+    GiNaC::ex expandedSolutionEquation = solutionEquation.expand();
+    for (const auto& systemEquation : systemEquations) {
+      if (systemEquation.is_equal(expandedSolutionEquation)) {
+        solutionIsNew = false;
+      }
     }
+    if (solutionIsNew)
+      newEquations.append(expandedSolutionEquation);
   }
 
-  std::cerr << "Solution: " << solutionEquations << '\n';
-  std::cerr << "New Equations: " << newEquations << '\n';
+//  std::cerr << "Solution: \n" << solutionEquations << '\n';
+//  std::cerr << "New Equations: \n" << newEquations << '\n';
 
-  if (!newEquations.nops()) {
+  if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
       std::string matchedVariableName;
       if (GiNaC::is_a<GiNaC::symbol>(expr.lhs())) {
@@ -156,8 +162,6 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       auto equation = symbolNameToInfoMap[matchedVariableName].matchedEquation;
 
       equation->setPath(EquationPath::LEFT);
-      // todo: how does one modify the EquationOp attributes?
-//      equation->getOperation()->setAttr("path", );
 
       auto equationOp = equation->getOperation();
       auto loc = equationOp.getLoc();
@@ -171,17 +175,15 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       SymbolicToModelicaEquationVisitor visitor = SymbolicToModelicaEquationVisitor(builder, loc, equation, symbolNameToInfoMap);
       expr.traverse_postorder(visitor);
 
-      equation->dumpIR();
-      equation->getWrite().getPath().dump();
       auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
-      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), equation->getWrite().getPath())));
+      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), EquationPath::LEFT)));
       solvedEquations_.push_back(equation);
     }
 
     return true;
   }
 
-  std::cerr << "The system of equations was already solved." << std::endl;
+//  std::cerr << "The system of equations was already solved." << std::endl;
   return true;
 }
 
