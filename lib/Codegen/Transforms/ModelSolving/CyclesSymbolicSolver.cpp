@@ -100,7 +100,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
     expression = expression.expand();
 
-//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    std::cerr << '\n' << "Expression: \n" << expression << '\n';
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
     if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -117,8 +117,8 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
     }
   }
 
-//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
-//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
+  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
 
   GiNaC::ex solutionEquations;
   try {
@@ -138,17 +138,11 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   for (const auto& solutionEquation : solutionEquations) {
     bool solutionIsNew = true;
     GiNaC::ex expandedSolutionEquation = solutionEquation.expand();
-    for (const auto& systemEquation : systemEquations) {
-      if (systemEquation.is_equal(expandedSolutionEquation)) {
-        solutionIsNew = false;
-      }
-    }
-    if (solutionIsNew)
-      newEquations.append(expandedSolutionEquation);
+    newEquations.append(expandedSolutionEquation);
   }
 
-//  std::cerr << "Solution: \n" << solutionEquations << '\n';
-//  std::cerr << "New Equations: \n" << newEquations << '\n';
+  std::cerr << "Solution: \n" << solutionEquations << '\n';
+  std::cerr << "New Equations: \n" << newEquations << '\n';
 
   if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
@@ -183,7 +177,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
     return true;
   }
 
-//  std::cerr << "The system of equations was already solved." << std::endl;
+  std::cerr << "The system of equations was already solved." << std::endl;
   return true;
 }
 
