@@ -1,6 +1,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSymbolicSolver.h"
 #include "ginac/ginac.h"
 #include <string>
+#include <utility>
 
 #include "llvm/ADT/PostOrderIterator.h"
 
@@ -27,11 +28,11 @@ static double getDoubleFromAttribute(mlir::Attribute attribute)
   llvm_unreachable("Unknown attribute type");
 }
 
-GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap) {
+GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap, marco::modeling::IndexSet subscriptionIndices) {
   auto terminator = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(matchedEquation->getOperation().bodyBlock()->getTerminator());
 
   GiNaC::ex solution;
-  ModelicaToSymbolicEquationVisitor visitor(matchedEquation, symbolNameToInfoMap, solution);
+  ModelicaToSymbolicEquationVisitor visitor(matchedEquation, symbolNameToInfoMap, solution, subscriptionIndices);
 
   auto operation = matchedEquation->getOperation().bodyBlock()->begin();
   while (operation != matchedEquation->getOperation().bodyBlock()->end()) {
@@ -78,7 +79,7 @@ CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(b
 {
 }
 
-bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
+bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>& equationSet)
 {
   GiNaC::lst systemEquations;
   GiNaC::lst matchedVariables;
@@ -94,15 +95,17 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   GiNaC::lst trivialEquations;
 
   for (auto& equation : equationSet) {
-    auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+    auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation.equation->getOperation().bodyBlock()->getTerminator());
 
-    GiNaC::ex expression = getExpressionFromEquation(equation, symbolNameToInfoMap);
+    GiNaC::ex expression = getExpressionFromEquation(equation.equation, symbolNameToInfoMap, equation.solvedIndices);
 
     expression = expression.expand();
 
     std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    std::cerr << equation.equation;
 
-//    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
+    // todo: trivial equations should go in the new equations
+    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
     if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
       trivialEquations.append(expression);
     } else {
@@ -119,6 +122,8 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
   std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
   std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+
+  assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
   GiNaC::ex solutionEquations;
   try {
@@ -153,7 +158,14 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
         llvm_unreachable("Expected the left hand side of the solutionEquations equation to be a symbol.");
       }
 
-      auto equation = symbolNameToInfoMap[matchedVariableName].matchedEquation;
+      SymbolInfo symbolInfo = symbolNameToInfoMap[matchedVariableName];
+      auto equation = symbolInfo.matchedEquation;
+
+      if (hasSolvedEquation(equation, symbolInfo.subscriptionIndices)) {
+        // If the equation to be inserted has already been solved, then the cycle
+        // doesn't exist anymore.
+        continue;
+      }
 
       equation->setPath(EquationPath::LEFT);
 
@@ -170,8 +182,11 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       expr.traverse_postorder(visitor);
 
       auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
-      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), EquationPath::LEFT)));
-      solvedEquations_.push_back(equation);
+      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), symbolInfo.subscriptionIndices, EquationPath::LEFT)));
+
+      addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
+
+      equation->dumpIR();
     }
 
     return true;
@@ -334,8 +349,8 @@ Equations<MatchedEquation> CyclesSymbolicSolver::getUnsolvedEquations() const
 ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
     MatchedEquation* matchedEquation,
     std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
-    GiNaC::ex& solution
-    ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution)
+    GiNaC::ex& solution, modeling::IndexSet subscriptionIndices
+    ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution), subscriptionIndices(std::move(subscriptionIndices))
 {
   // Initialize the block arguments of the valueToExpressionMap
   auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
@@ -376,6 +391,7 @@ void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp vari
     auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
     if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
       symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+      symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
     }
   }
 
@@ -423,6 +439,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
         if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
           symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+          symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
         }
       }
 

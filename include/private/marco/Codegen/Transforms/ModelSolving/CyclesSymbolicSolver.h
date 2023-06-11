@@ -3,6 +3,8 @@
 
 #include "marco/Codegen/Transforms/ModelSolving/Matching.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Modeling/Cycles.h"
+
 
 #include "marco/Codegen/Utils.h"
 #include "mlir/IR/Builders.h"
@@ -15,12 +17,50 @@
 #include <ginac/ginac.h>
 
 namespace marco::codegen {
+  struct MatchedEquationSubscription
+  {
+    MatchedEquationSubscription(MatchedEquation* equation, llvm::ArrayRef<modeling::IndexSet> subscriptionIndices)
+        : equation(std::move(equation))
+    {
+      for (const auto& indices : subscriptionIndices) {
+        this->solvedIndices += indices;
+      }
+    }
+
+    // The equation which originally had cycles.
+    // The pointer refers to the original equation, which presented (and still presents) cycles.
+    MatchedEquation* equation;
+
+    // The indices of the equations for which the cycles have been solved
+    modeling::IndexSet solvedIndices;
+  };
+
+  /// An equation which originally presented cycles but now, for some indices, does not anymore.
+  struct SolvedEquation
+  {
+    SolvedEquation(const Equation* equation, llvm::ArrayRef<modeling::IndexSet> solvedIndices)
+        : equation(std::move(equation))
+    {
+      for (const auto& indices : solvedIndices) {
+        this->solvedIndices += indices;
+      }
+    }
+
+    // The equation which originally had cycles.
+    // The pointer refers to the original equation, which presented (and still presents) cycles.
+    const Equation* equation;
+
+    // The indices of the equations for which the cycles have been solved
+    modeling::IndexSet solvedIndices;
+  };
+
   struct SymbolInfo {
     GiNaC::symbol symbol;
     std::string variableName;
     mlir::Type variableType;
     std::vector<GiNaC::ex> indices;
     MatchedEquation* matchedEquation;
+    modeling::IndexSet subscriptionIndices;
   };
 
   class CyclesSymbolicSolver
@@ -29,7 +69,7 @@ namespace marco::codegen {
     mlir::OpBuilder& builder;
 
     // The equations which originally had cycles but have been partially or fully solved.
-    std::vector<MatchedEquation*> solvedEquations_;
+    std::vector<SolvedEquation> solvedEquations_;
 
     // The newly created equations which has no cycles anymore.
     Equations<MatchedEquation> newEquations_;
@@ -38,9 +78,35 @@ namespace marco::codegen {
     std::vector<MatchedEquation*> unsolvedCycles_;
 
   public:
+    void addSolvedEquation(
+        std::vector<SolvedEquation>& solvedEquations,
+        Equation* const equation,
+        modeling::IndexSet indices)
+    {
+        auto it = llvm::find_if(solvedEquations, [&](SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation;
+        });
+
+        if (it != solvedEquations.end()) {
+          modeling::IndexSet& solvedIndices = it->solvedIndices;
+          solvedIndices += indices;
+        } else {
+          solvedEquations.push_back(SolvedEquation(equation, indices));
+        }
+    }
+
+    bool hasSolvedEquation(Equation* const equation, modeling::IndexSet indices) const
+    {
+        auto it = llvm::find_if(solvedEquations_, [&](const SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation && solvedEquation.solvedIndices.contains(indices);
+        });
+
+        return it != solvedEquations_.end();
+    }
+
     explicit CyclesSymbolicSolver(mlir::OpBuilder& builder);
 
-    bool solve(const std::set<MatchedEquation*>& equationSet);
+    bool solve(const std::vector<MatchedEquationSubscription>& equations);
 
     [[nodiscard]] Equations<MatchedEquation> getSolution() const;
 
@@ -92,12 +158,13 @@ namespace marco::codegen {
       std::map<std::string, SymbolInfo>& symbolNameToInfoMap;
       llvm::DenseMap<mlir::Value, GiNaC::ex> valueToExpressionMap;
       GiNaC::ex& solution;
+      modeling::IndexSet subscriptionIndices;
 
       public:
       ModelicaToSymbolicEquationVisitor(
           MatchedEquation* matchedEquation,
           std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
-          GiNaC::ex& solution);
+          GiNaC::ex& solution, modeling::IndexSet subscriptionIndices);
 
       void visit(mlir::modelica::VariableGetOp);
       void visit(mlir::modelica::SubscriptionOp);
