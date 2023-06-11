@@ -100,6 +100,22 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   return allCyclesSolved;
 }
 
+void getLoopEquationSet(const CyclesFinder<Variable*, MatchedEquation*>::Cycle& cycle, std::vector<MatchedEquationSubscription>& equations) {
+  // Get the unique equations of the loop
+  std::cerr << std::endl << cycle.getEquation() << std::endl;
+  cycle.getEquation()->dumpIR();
+  std::cerr << std::endl;
+
+  for (const auto& it : cycle) {
+    equations.emplace_back(cycle.getEquation(), marco::modeling::IndexSet(it.getRange()));
+
+    auto destinations = it.getDestinations();
+    for (const auto& dest : destinations) {
+      getLoopEquationSet(dest.getNode(), equations);
+    }
+  }
+}
+
 static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles)
 {
   bool allCyclesSolved;
@@ -127,6 +143,7 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
     // Solve the cycles one by one
     CyclesSymbolicSolver solver(builder);
 
+    std::cerr << "Number of cycles: " << cycles.size() << std::endl;
     for (const auto& cycle : cycles) {
       IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
 
@@ -134,15 +151,14 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
         indexesWithoutCycles -= interval.getRange();
       }
 
+      cycle.dump();
+
       // Get the unique equations of the loop
-      std::set<MatchedEquation*> equationSet;
-      equationSet.insert(cycle.getEquation());
-      for (const auto& it : cycle) {
-        auto destinations = it.getDestinations();
-        for (const auto& dest : destinations) {
-          equationSet.insert(dest.getNode().getEquation());
-        }
-      }
+      std::vector<MatchedEquationSubscription> equationSet;
+      getLoopEquationSet(cycle, equationSet);
+
+
+      std::cerr << "Equation set size: " << equationSet.size() << std::endl;
 
       solver.solve(equationSet);
 
@@ -178,6 +194,7 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
     unsolvedEquations.clear();
 
     if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
+      std::cerr << "Current solution size: " << currentSolution.size() << std::endl;
       for (auto& equation : currentSolution) {
         auto& movedEquation = newEquations.emplace_back(std::move(equation));
         toBeProcessed.push_back(movedEquation.get());
@@ -198,6 +215,8 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
 
   // Set the new equations of the model
   model.setEquations(solution);
+
+  std::cerr << "Solution set" << std::endl;
 
   return allCyclesSolved;
 }
