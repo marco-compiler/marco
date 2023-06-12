@@ -134,9 +134,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     return false;
   };
 
-  // todo: check that there are new equations
-  // todo: swap the hash for std::map<..., ..., GiNaC::ex_is_less>
-  // todo: maybe expand the equation to ensure solution compare to system equations
+  // todo: may be better swap the hash for std::map<..., ..., GiNaC::ex_is_less>
 
   GiNaC::lst newEquations;
 
@@ -164,6 +162,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       if (hasSolvedEquation(equation, symbolInfo.subscriptionIndices)) {
         // If the equation to be inserted has already been solved, then the cycle
         // doesn't exist anymore.
+        std::cerr << "Equation already solved, continuing." << std::endl;
         continue;
       }
 
@@ -353,8 +352,11 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
     ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution), subscriptionIndices(std::move(subscriptionIndices))
 {
   // Initialize the block arguments of the valueToExpressionMap
+  numberOfForLoops = 0;
   auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
   while (forEquationOp) {
+    ++numberOfForLoops;
+
     mlir::BlockArgument blockArgument = forEquationOp.bodyBlock()->getArgument(0);
     std::string argumentName = "%arg" + std::to_string(blockArgument.getArgNumber());
 
@@ -412,15 +414,48 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
       std::string offset;
 
       std::vector<GiNaC::ex> indices;
+
+      // Populate the indices vector with the arguments of the SubscriptionOp
       for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
+        GiNaC::ex index = valueToExpressionMap[subscriptionOp->getOperand(i)];
+        indices.push_back(index);
+
         offset += '[';
 
-        GiNaC::ex expression = valueToExpressionMap[subscriptionOp->getOperand(i)];
-        indices.push_back(expression);
+        // Assuming there is only one range for now
+        // todo: is it possible to have more than one range and how will the code change?
+        auto range = *subscriptionIndices.rangesBegin();
+        auto iterator = range.begin();
+        marco::modeling::Point leftPoint = *iterator;
+        marco::modeling::Point rightPoint = leftPoint;
+        while (iterator != range.end()) {
+          rightPoint = *iterator;
+          ++iterator;
+        }
+
+        GiNaC::ex leftIndex = index;
+        GiNaC::ex rightIndex = index;
+
+        if (leftPoint.rank() == 0) {
+          std::cerr << "The rank is zero: scalar variable" << std::endl;
+        }
+
+        for (size_t j = 0; j < leftPoint.rank(); ++j) {
+          GiNaC::symbol argument = symbolNameToInfoMap["%arg" + std::to_string(j)].symbol;
+
+          leftIndex = leftIndex.subs(argument == leftPoint[j]);
+          rightIndex = rightIndex.subs(argument == rightPoint[j]);
+        }
+
+        std::cerr << "Left index: " << leftIndex << std::endl;
+        std::cerr << "Right index: " << rightIndex << std::endl;
 
         std::ostringstream oss;
-        oss << expression;
+        oss << leftIndex;
+        oss << ':';
+        oss << rightIndex;
         offset += oss.str();
+
         offset += ']';
       }
 

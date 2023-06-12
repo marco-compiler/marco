@@ -159,6 +159,7 @@ namespace marco::codegen {
       llvm::DenseMap<mlir::Value, GiNaC::ex> valueToExpressionMap;
       GiNaC::ex& solution;
       modeling::IndexSet subscriptionIndices;
+      size_t numberOfForLoops;
 
       public:
       ModelicaToSymbolicEquationVisitor(
