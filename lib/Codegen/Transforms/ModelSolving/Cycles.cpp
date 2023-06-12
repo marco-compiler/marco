@@ -102,12 +102,15 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
 
 void getLoopEquationSet(const CyclesFinder<Variable*, MatchedEquation*>::Cycle& cycle, std::vector<MatchedEquationSubscription>& equations) {
   // Get the unique equations of the loop
-  std::cerr << std::endl << cycle.getEquation() << std::endl;
-  cycle.getEquation()->dumpIR();
-  std::cerr << std::endl;
 
   for (const auto& it : cycle) {
-    equations.emplace_back(cycle.getEquation(), marco::modeling::IndexSet(it.getRange()));
+    std::cerr << std::endl << cycle.getEquation() << std::endl;
+    cycle.getEquation()->dumpIR();
+    std::cerr << std::endl;
+    auto range = marco::modeling::IndexSet(it.getRange());
+    equations.emplace_back(cycle.getEquation(), range);
+    std::cerr << "Range: " << range << std::endl;
+
 
     auto destinations = it.getDestinations();
     for (const auto& dest : destinations) {
