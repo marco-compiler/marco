@@ -241,10 +241,7 @@ namespace marco::frontend
     }
 
     if (const auto& args = ci.getFrontendOptions().omcCustomArgs; args.empty()) {
-      cmd += " -f";
-      cmd += " -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes";
-      cmd += " --newBackend";
-      cmd += " --showStructuralAnnotations";
+      cmd += " -f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations";
     } else {
       for (const auto& arg : args) {
         cmd += " " + arg;
