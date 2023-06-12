@@ -13,3 +13,7 @@ marco_add_runtime_library(runtimeMultithreading
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimeMultithreading PUBLIC MARCO_PROFILING)
+endif()

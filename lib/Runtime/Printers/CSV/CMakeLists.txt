@@ -11,3 +11,7 @@ marco_add_runtime_library(runtimePrinterCSV
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimePrinterCSV PUBLIC MARCO_PROFILING)
+endif()

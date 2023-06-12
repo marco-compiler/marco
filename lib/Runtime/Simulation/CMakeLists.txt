@@ -8,3 +8,7 @@ marco_add_runtime_library(runtime
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtime PUBLIC MARCO_PROFILING)
+endif()

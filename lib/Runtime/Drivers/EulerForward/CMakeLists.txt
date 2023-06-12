@@ -10,3 +10,7 @@ marco_add_runtime_library(runtimeDriverEulerForward
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimeDriverEulerForward PUBLIC MARCO_PROFILING)
+endif()

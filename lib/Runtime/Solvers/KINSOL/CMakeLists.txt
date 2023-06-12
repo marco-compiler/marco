@@ -12,3 +12,7 @@ marco_add_runtime_library(runtimeSolversKINSOL
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimeSolversKINSOL PUBLIC MARCO_PROFILING)
+endif()

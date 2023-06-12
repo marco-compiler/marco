@@ -13,3 +13,7 @@ marco_add_runtime_library(runtimeSolversIDA
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimeSolversIDA PUBLIC MARCO_PROFILING)
+endif()

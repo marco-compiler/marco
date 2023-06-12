@@ -27,7 +27,7 @@ config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%llvm_include_dirs', config.llvm_include_dirs))
 config.substitutions.append(('%marco_include_dirs', config.marco_include_dirs))
 config.substitutions.append(('%libs', config.marco_libs_dir))
-config.substitutions.append(('%runtime_lib', os.path.join(config.marco_libs_dir, 'libMARCORuntimeShared') + config.llvm_shlib_ext))
+config.substitutions.append(('%runtime_lib', os.path.join(config.marco_libs_dir, 'libMARCORuntimeSupportShared') + config.llvm_shlib_ext))
 
 llvm_config.with_system_environment(['HOME', 'INCLUDE', 'LIB', 'TMP', 'TEMP'])
 

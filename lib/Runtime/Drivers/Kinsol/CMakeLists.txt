@@ -8,3 +8,7 @@ marco_add_runtime_library(runtimeDriverKINSOL
 
     LINK_LIBS
     ${LIBS})
+
+if (MARCO_PROFILING)
+    target_compile_definitions(runtimeDriverKINSOL PUBLIC MARCO_PROFILING)
+endif()

@@ -205,10 +205,6 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 option(MARCO_PROFILING "Generate code for runtime profiling." OFF)
 
-if (MARCO_PROFILING)
-	add_compile_definitions(MARCO_PROFILING)
-endif()
-
 #-------------------------------------------------------------------------------
 # Directory setup
 #-------------------------------------------------------------------------------
