@@ -139,7 +139,7 @@ namespace marco::codegen {
           mlir::OpBuilder& builder,
           mlir::Location loc,
           MatchedEquation* matchedEquation,
-          std::map<std::string, SymbolInfo>& symbolNameToInfoMap
+          std::map<std::string, SymbolInfo> symbolNameToInfoMap
       );
 
       void visit(const GiNaC::add & x) override;
