@@ -72,6 +72,11 @@ GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<s
     ++operation;
   }
 
+  std::cerr << "Before the for loop" << std::endl;
+  for (const auto& [name, info] : symbolNameToInfoMap) {
+    std::cerr << name << '\n' << info.symbol << std::endl;
+  }
+
   return solution;
 }
 
@@ -199,7 +204,7 @@ SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     mlir::OpBuilder& builder,
     mlir::Location loc,
     MatchedEquation* matchedEquation,
-    std::map<std::string, SymbolInfo>& symbolNameToInfoMap
+    std::map<std::string, SymbolInfo> symbolNameToInfoMap
     ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
   auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
@@ -218,6 +223,13 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::add & x) {
   mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
 
   for (size_t i = 1; i < x.nops(); ++i) {
+    std::cerr << "Addition: " << x.op(i);
+
+    for (const auto& [hash, value] : expressionHashToValueMap) {
+      std::cerr << "Hash: " << hash << std::endl;
+      std::cerr << "Value: " << &value << std::endl;
+    }
+
     mlir::Value rhs = expressionHashToValueMap[x.op(i).gethash()];
     mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
     lhs = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
@@ -296,22 +308,27 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
       std::vector<mlir::Value> currentIndices;
 
       std::string variableName = x.get_name();
+      SymbolInfo info = symbolNameToInfoMap[variableName];
 
-      for (const auto& index : symbolNameToInfoMap[variableName].indices) {
+      for (const auto& index : info.indices) {
         if (expressionHashToValueMap[index.gethash()] == nullptr) {
+          std::cerr << "INDEX: " << index << std::endl;
           index.traverse_postorder(*this);
         }
 
         currentIndices.push_back(expressionHashToValueMap[index.gethash()]);
       }
 
-      mlir::Type type = symbolNameToInfoMap[x.get_name()].variableType;
-      std::string baseVariableName = symbolNameToInfoMap[variableName].variableName;
-      value = builder.create<mlir::modelica::VariableGetOp>(loc, type, baseVariableName);
-
-      if (!currentIndices.empty()) {
-        value = builder.create<mlir::modelica::SubscriptionOp>(loc, value, currentIndices);
-        value = builder.create<mlir::modelica::LoadOp>(loc, value);
+      mlir::Type type = info.variableType;
+      std::string baseVariableName = info.variableName;
+      if (variableName.find("%arg") != std::string::npos) {
+        value = expressionHashToValueMap[x.gethash()];
+      } else {
+        value = builder.create<mlir::modelica::VariableGetOp>(loc, type, baseVariableName);
+        if (!currentIndices.empty()) {
+          value = builder.create<mlir::modelica::SubscriptionOp>(loc, value, currentIndices);
+          value = builder.create<mlir::modelica::LoadOp>(loc, value);
+        }
       }
     }
 
@@ -366,7 +383,9 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
       symbolNameToInfoMap[argumentName].variableName = argumentName;
       symbolNameToInfoMap[argumentName].variableType = blockArgument.getType();
       symbolNameToInfoMap[argumentName].indices = {};
+      std::cerr << "This is the symbol: " << symbolNameToInfoMap[argumentName].symbol << std::endl;
     }
+
 
     if (!valueToExpressionMap.count(blockArgument)) {
       valueToExpressionMap[blockArgument] = symbolNameToInfoMap[argumentName].symbol;
@@ -374,6 +393,8 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
 
     forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
   }
+
+  std::cerr << std::endl;
 }
 
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
@@ -419,6 +440,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
       for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
         GiNaC::ex index = valueToExpressionMap[subscriptionOp->getOperand(i)];
         indices.push_back(index);
+        std::cerr << "Creating index: " << index << std::endl;
 
         offset += '[';
 
@@ -436,15 +458,25 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         GiNaC::ex leftIndex = index;
         GiNaC::ex rightIndex = index;
 
+        // todo: probably the mistake lies here
         if (leftPoint.rank() == 0) {
           std::cerr << "The rank is zero: scalar variable" << std::endl;
         }
 
-        for (size_t j = 0; j < leftPoint.rank(); ++j) {
-          GiNaC::symbol argument = symbolNameToInfoMap["%arg" + std::to_string(j)].symbol;
+        for (const auto& [name, info] : symbolNameToInfoMap) {
+          std::cerr << name << std::endl;
+        }
 
-          leftIndex = leftIndex.subs(argument == leftPoint[j]);
-          rightIndex = rightIndex.subs(argument == rightPoint[j]);
+        for (size_t j = 0; j < leftPoint.rank(); ++j) {
+          std::string blockArgumentName = "%arg" + std::to_string(j);
+          if (symbolNameToInfoMap.count(blockArgumentName)) {
+            std::cerr << "SUBSTITUTING" << std::endl;
+
+            GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
+
+            leftIndex = leftIndex.subs(argument == leftPoint[j]);
+            rightIndex = rightIndex.subs(argument == rightPoint[j]);
+          }
         }
 
         std::cerr << "Left index: " << leftIndex << std::endl;
