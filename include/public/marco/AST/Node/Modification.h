@@ -10,13 +10,14 @@
 
 namespace marco::ast
 {
-	class Argument;
-	class ClassModification;
-	class ElementModification;
-	class ElementRedeclaration;
-	class ElementReplaceable;
+  class Argument;
+  class ClassModification;
+  class ElementModification;
+  class ElementRedeclaration;
+  class ElementReplaceable;
   class Expression;
-	class Modification;
+  class Modification;
+  class Array;
 
 	class Modification : public ASTNode
 	{
@@ -61,6 +62,7 @@ namespace marco::ast
 
       const Expression* getStartExpression() const;
 
+      // FIXME: might not be uniform in case of arrays
       bool getFixedProperty() const;
 
       bool getEachProperty() const;
@@ -103,6 +105,7 @@ namespace marco::ast
 
       const Expression* getStartExpression() const;
 
+      // FIXME: might not be uniform in case of arrays
       bool getFixedProperty() const;
 
       bool getEachProperty() const;
@@ -110,8 +113,10 @@ namespace marco::ast
       /// }
 
     private:
-		  llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
-	};
+      llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
+
+      static llvm::Optional<bool> isArrayUniformConstBool(const Array *array);
+  };
 
   class Argument : public ASTNode
   {
@@ -147,8 +152,10 @@ namespace marco::ast
 
       void setEachProperty(bool value);
 
+      // FIXME: might not be uniform in case of arrays
       bool hasFinalProperty() const;
 
+      // FIXME: might not be uniform in case of arrays
       void setFinalProperty(bool value);
 
       llvm::StringRef getName() const;

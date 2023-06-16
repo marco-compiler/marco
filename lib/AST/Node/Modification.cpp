@@ -2,6 +2,7 @@
 #include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
+#include "marco/AST/Node/Array.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -255,6 +256,35 @@ namespace marco::ast
     llvm_unreachable("Start property not found");
   }
 
+  llvm::Optional<bool> ClassModification::isArrayUniformConstBool(const Array *array)
+  {
+    size_t elements = array->size();
+    llvm::Optional<bool> lastValue = llvm::None;
+
+    for (size_t i = 0; i < elements; i++) {
+      const Expression *exp = (*array)[i];
+      bool value;
+      if (exp->isa<Array>()) {
+        auto tmp = isArrayUniformConstBool(exp->cast<Array>());
+        if (!tmp) {
+          return llvm::None;
+        } else {
+          value = tmp.value();
+        }
+      } else if (exp->isa<Constant>()) {
+        value = exp->cast<Constant>()->as<bool>();
+      } else {
+        return llvm::None;
+      }
+      if (!lastValue)
+        lastValue = value;
+      else if (lastValue.value() != value)
+        return llvm::None;
+    }
+
+    return lastValue;
+  }
+
   bool ClassModification::getFixedProperty() const
   {
     for (const auto& argument : arguments) {
@@ -272,8 +302,18 @@ namespace marco::ast
       const auto* modification = elementModification->getModification();
       assert(modification->hasExpression());
       const auto* modificationExpression = modification->getExpression();
-      assert(modificationExpression->isa<Constant>());
-      return modificationExpression->cast<Constant>()->as<bool>();
+      if (modificationExpression->isa<Constant>()) {
+        return modificationExpression->cast<Constant>()->as<bool>();
+      } else if (modificationExpression->isa<Array>()) {
+        // FIXME: Handle this case without special casing
+        // fixed = {{{{true, true}, {true, true}}, {{true, true}, {true, ...
+        const auto *array = modificationExpression->cast<Array>();
+        auto val = isArrayUniformConstBool(array);
+        assert(val);
+        return val.value();
+      }
+      assert(false);
+      return false;
     }
 
     return false;
