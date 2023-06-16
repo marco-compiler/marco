@@ -587,7 +587,7 @@ namespace marco::parser
     auto loc = lexer.getTokenPosition();
 
     EXPECT(Token::For);
-    TRY(induction, parseInduction());
+    TRY(induction, parseForIndex());
     EXPECT(Token::Loop);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> statements;
@@ -1048,9 +1048,19 @@ namespace marco::parser
       loc.end = lexer.getTokenPosition().end;
       EXPECT(Token::RCurly);
 
-      auto newResult = std::make_unique<Array>(loc);
-      newResult->setValues(*arrayArguments);
-      result = std::move(newResult);
+      auto &expressions = arrayArguments->first;
+      auto &forIndices = arrayArguments->second;
+      if (forIndices.size() == 0) {
+        auto newResult = std::make_unique<ArrayConstant>(loc);
+        newResult->setValues(expressions);
+        result = std::move(newResult);
+      } else {
+        assert(expressions.size() == 1);
+        auto newResult = std::make_unique<ArrayForGenerator>(loc);
+        newResult->setValue(std::move(expressions[0]));
+        newResult->setIndices(forIndices);
+        result = std::move(newResult);
+      }
 
     } else if (accept<Token::Der>()) {
       auto callee = std::make_unique<ast::ComponentReference>(loc);
@@ -1209,10 +1219,11 @@ namespace marco::parser
     return arguments;
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArrayArguments()
+  llvm::Optional<std::pair<std::vector<std::unique_ptr<ASTNode>>, std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArrayArguments()
   {
     auto loc = lexer.getTokenPosition();
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+		std::vector<std::unique_ptr<ast::ASTNode>> inductions;
 
     TRY(argument, parseExpression());
     loc.end = (*argument)->getLocation().end;
@@ -1225,9 +1236,15 @@ namespace marco::parser
         loc.end = otherArgument->getLocation().end;
         arguments.push_back(std::move(otherArgument));
       }
+    } else if (accept<Token::For>()) {
+      // for-indices
+      do {
+        TRY(induction, parseForIndex());
+        inductions.push_back(std::move(*induction));
+      } while (accept<Token::Comma>());
     }
 
-    return arguments;
+    return std::make_pair(std::move(arguments), std::move(inductions));
   }
 
   llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArrayArgumentsNonFirst()
@@ -1355,7 +1372,7 @@ namespace marco::parser
     std::vector<std::unique_ptr<ast::ASTNode>> result;
 
     EXPECT(Token::For);
-    TRY(induction, parseInduction());
+    TRY(induction, parseForIndex());
     EXPECT(Token::Loop);
 
     while (current != Token::End) {
@@ -1406,7 +1423,7 @@ namespace marco::parser
     return result;
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseInduction()
+  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -1415,6 +1432,8 @@ namespace marco::parser
 
     EXPECT(Token::In);
 
+    // Hardcode a simple-expression because any other expression, while legal,
+    // does not make any semantic sense
     TRY(firstExpression, parseLogicalExpression());
     EXPECT(Token::Colon);
     TRY(secondExpression, parseLogicalExpression());

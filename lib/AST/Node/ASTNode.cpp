@@ -39,8 +39,8 @@ static std::string toString(ASTNode::Kind kind)
       return "equation";
     case ASTNode::Kind::EquationsBlock:
       return "equations_block";
-    case ASTNode::Kind::Expression_Array:
-      return "array";
+    case ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant:
+      return "array_constant";
     case ASTNode::Kind::Expression_Call:
       return "call";
     case ASTNode::Kind::Expression_ComponentReference:

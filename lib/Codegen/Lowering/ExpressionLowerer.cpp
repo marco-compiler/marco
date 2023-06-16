@@ -13,7 +13,7 @@ namespace marco::codegen::lowering
 
   Results ExpressionLowerer::lower(const ast::Expression& expression)
   {
-    if (auto array = expression.dyn_cast<ast::Array>()) {
+    if (auto array = expression.dyn_cast<ast::ArrayGenerator>()) {
       return lower(*array);
     }
 

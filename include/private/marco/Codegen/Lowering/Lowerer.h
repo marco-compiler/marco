@@ -140,7 +140,7 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Expression& expression) override;
 
-      virtual Results lower(const ast::Array& node) override;
+      virtual Results lower(const ast::ArrayGenerator& node) override;
 
       virtual Results lower(const ast::Call& node) override;
 

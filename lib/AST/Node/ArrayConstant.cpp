@@ -1,27 +1,27 @@
-#include "marco/AST/Node/Array.h"
+#include "marco/AST/Node/ArrayConstant.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Array::Array(SourceRange location)
-      : Expression(ASTNode::Kind::Expression_Array, std::move(location))
+  ArrayConstant::ArrayConstant(SourceRange location)
+      : ArrayGenerator(ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant, std::move(location))
   {
   }
 
-  Array::Array(const Array& other)
-      : Expression(other)
+  ArrayConstant::ArrayConstant(const ArrayConstant& other)
+      : ArrayGenerator(other)
   {
     setValues(other.values);
   }
 
-  std::unique_ptr<ASTNode> Array::clone() const
+  std::unique_ptr<ASTNode> ArrayConstant::clone() const
   {
-    return std::make_unique<Array>(*this);
+    return std::make_unique<ArrayConstant>(*this);
   }
 
-  llvm::json::Value Array::toJSON() const
+  llvm::json::Value ArrayConstant::toJSON() const
   {
     llvm::json::Object result;
 
@@ -37,29 +37,24 @@ namespace marco::ast
     return result;
   }
 
-  bool Array::isLValue() const
-  {
-    return false;
-  }
-
-  size_t Array::size() const
+  size_t ArrayConstant::size() const
   {
     return values.size();
   }
 
-  Expression* Array::operator[](size_t index)
+  Expression* ArrayConstant::operator[](size_t index)
   {
     assert(index < values.size());
     return values[index]->cast<Expression>();
   }
 
-  const Expression* Array::operator[](size_t index) const
+  const Expression* ArrayConstant::operator[](size_t index) const
   {
     assert(index < values.size());
     return values[index]->cast<Expression>();
   }
 
-  void Array::setValues(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  void ArrayConstant::setValues(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
     values.clear();
 

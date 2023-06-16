@@ -70,7 +70,7 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Expression& expression) = 0;
 
-      virtual Results lower(const ast::Array& array) = 0;
+      virtual Results lower(const ast::ArrayGenerator& array) = 0;
 
       virtual Results lower(const ast::Call& call) = 0;
 

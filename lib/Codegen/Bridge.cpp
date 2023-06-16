@@ -2,7 +2,7 @@
 #include "marco/Codegen/BridgeInterface.h"
 #include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/AlgorithmLowerer.h"
-#include "marco/Codegen/Lowering/ArrayLowerer.h"
+#include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
 #include "marco/Codegen/Lowering/AssignmentStatementLowerer.h"
 #include "marco/Codegen/Lowering/BreakStatementLowerer.h"
 #include "marco/Codegen/Lowering/CallLowerer.h"
@@ -106,7 +106,7 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Expression& expression) override;
 
-      Results lower(const ast::Array& node) override;
+      Results lower(const ast::ArrayGenerator& node) override;
 
       Results lower(const ast::Call& node) override;
 
@@ -159,7 +159,7 @@ namespace marco::codegen::lowering
       std::unique_ptr<PartialDerFunctionLowerer> partialDerFunctionLowerer;
       std::unique_ptr<StandardFunctionLowerer> standardFunctionLowerer;
       std::unique_ptr<ExpressionLowerer> expressionLowerer;
-      std::unique_ptr<ArrayLowerer> arrayLowerer;
+      std::unique_ptr<ArrayGeneratorLowerer> arrayLowerer;
       std::unique_ptr<CallLowerer> callLowerer;
       std::unique_ptr<ConstantLowerer> constantLowerer;
       std::unique_ptr<OperationLowerer> operationLowerer;
@@ -199,7 +199,7 @@ namespace marco::codegen::lowering
         std::make_unique<StandardFunctionLowerer>(this);
 
     this->expressionLowerer = std::make_unique<ExpressionLowerer>(this);
-    this->arrayLowerer = std::make_unique<ArrayLowerer>(this);
+    this->arrayLowerer = std::make_unique<ArrayGeneratorLowerer>(this);
     this->callLowerer = std::make_unique<CallLowerer>(this);
 
     this->componentReferenceLowerer =
@@ -429,7 +429,7 @@ namespace marco::codegen::lowering
     return expressionLowerer->lower(expression);
   }
 
-  Results Bridge::Impl::lower(const ast::Array& array)
+  Results Bridge::Impl::lower(const ast::ArrayGenerator& array)
   {
     assert(arrayLowerer != nullptr);
     return arrayLowerer->lower(array);

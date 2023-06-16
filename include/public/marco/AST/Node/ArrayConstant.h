@@ -1,32 +1,30 @@
-#ifndef MARCO_AST_NODE_ARRAY_H
-#define MARCO_AST_NODE_ARRAY_H
+#ifndef MARCO_AST_NODE_ARRAY_CONSTANT_H
+#define MARCO_AST_NODE_ARRAY_CONSTANT_H
 
-#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/ArrayGenerator.h"
 #include "marco/AST/Node/Type.h"
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 namespace marco::ast
 {
-	class Expression;
+	class ArrayGenerator;
 
-	class Array : public Expression
+	class ArrayConstant : public ArrayGenerator
 	{
 		public:
-      explicit Array(SourceRange location);
+      explicit ArrayConstant(SourceRange location);
 
-      Array(const Array& other);
+      ArrayConstant(const ArrayConstant& other);
 
       static bool classof(const ASTNode* node)
       {
-        return node->getKind() == ASTNode::Kind::Expression_Array;
+        return node->getKind() == ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant;
       }
 
       std::unique_ptr<ASTNode> clone() const override;
 
       llvm::json::Value toJSON() const override;
-
-      bool isLValue() const override;
 
       size_t size() const;
 
@@ -41,4 +39,4 @@ namespace marco::ast
 	};
 }
 
-#endif // MARCO_AST_NODE_ARRAY_H
+#endif // MARCO_AST_NODE_ARRAY_CONSTANT_H

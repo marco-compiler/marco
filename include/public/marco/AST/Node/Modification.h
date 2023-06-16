@@ -17,7 +17,7 @@ namespace marco::ast
   class ElementReplaceable;
   class Expression;
   class Modification;
-  class Array;
+  class ArrayConstant;
 
 	class Modification : public ASTNode
 	{
@@ -115,7 +115,7 @@ namespace marco::ast
     private:
       llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
 
-      static llvm::Optional<bool> isArrayUniformConstBool(const Array *array);
+      static llvm::Optional<bool> isArrayUniformConstBool(const ArrayConstant *array);
   };
 
   class Argument : public ASTNode

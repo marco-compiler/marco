@@ -170,7 +170,7 @@ namespace marco::parser
       llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArgumentsNonFirst();
 
       /// Parse the 'array-arguments' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArguments();
+      llvm::Optional<std::pair<std::vector<std::unique_ptr<ast::ASTNode>>, std::vector<std::unique_ptr<ast::ASTNode>>>> parseArrayArguments();
 
       /// Parse the 'array-arguments-non-first' symbol.
       llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArgumentsNonFirst();
@@ -195,7 +195,8 @@ namespace marco::parser
 
       llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseForEquations();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseInduction();
+      /// Parse the 'for-index' symbol.
+      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
 
       llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseElementList(bool publicSection);
 

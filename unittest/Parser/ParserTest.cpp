@@ -1347,8 +1347,8 @@ TEST(Parser, expression_array)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 15);
 
-  ASSERT_TRUE((*node)->isa<Array>());
-  const auto& array = *(*node)->cast<Array>();
+  ASSERT_TRUE((*node)->isa<ArrayConstant>());
+  const auto& array = *(*node)->cast<ArrayConstant>();
   ASSERT_EQ(array.size(), 5);
 
   ASSERT_TRUE(array[0]->isa<Constant>());
@@ -1365,6 +1365,55 @@ TEST(Parser, expression_array)
 
   ASSERT_TRUE(array[4]->isa<Constant>());
   EXPECT_EQ(array[4]->cast<Constant>()->as<int64_t>(), 5);
+}
+
+TEST(Parser, expression_array_induction)
+{
+  std::string str = "{666 for i in 1:3, j in 7:12, k in 8:39}";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 40);
+
+  ASSERT_TRUE((*node)->isa<ArrayForGenerator>());
+  const auto& array = *(*node)->cast<ArrayForGenerator>();
+  ASSERT_EQ(array.getNumIndices(), 3);
+
+  ASSERT_TRUE(array.getValue()->isa<Constant>());
+  EXPECT_EQ(array.getValue()->cast<Constant>()->as<int64_t>(), 666);
+
+  ASSERT_TRUE(array.getIndex(0)->isa<Induction>());
+  ASSERT_TRUE(array.getIndex(0)->getBegin()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(0)->getBegin()->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(array.getIndex(0)->getEnd()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(0)->getEnd()->cast<Constant>()->as<int64_t>(), 3);
+  ASSERT_TRUE(array.getIndex(0)->getStep()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(0)->getStep()->cast<Constant>()->as<int64_t>(), 1);
+
+  ASSERT_TRUE(array.getIndex(1)->isa<Induction>());
+  ASSERT_TRUE(array.getIndex(1)->getBegin()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(1)->getBegin()->cast<Constant>()->as<int64_t>(), 7);
+  ASSERT_TRUE(array.getIndex(1)->getEnd()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(1)->getEnd()->cast<Constant>()->as<int64_t>(), 12);
+  ASSERT_TRUE(array.getIndex(1)->getStep()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(1)->getStep()->cast<Constant>()->as<int64_t>(), 1);
+
+  ASSERT_TRUE(array.getIndex(2)->isa<Induction>());
+  ASSERT_TRUE(array.getIndex(2)->getBegin()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(2)->getBegin()->cast<Constant>()->as<int64_t>(), 8);
+  ASSERT_TRUE(array.getIndex(2)->getEnd()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(2)->getEnd()->cast<Constant>()->as<int64_t>(), 39);
+  ASSERT_TRUE(array.getIndex(2)->getStep()->cast<Constant>());
+  EXPECT_EQ(array.getIndex(2)->getStep()->cast<Constant>()->as<int64_t>(), 1);
 }
 
 TEST(Parser, expression_subscription)
@@ -1424,7 +1473,7 @@ TEST(Parser, expression_subscriptionOfInlineArray)
 
   auto args = (*node)->cast<Operation>()->getArguments();
 
-  EXPECT_TRUE(args[0]->isa<Array>());
+  EXPECT_TRUE(args[0]->isa<ArrayConstant>());
   ASSERT_TRUE(args[1]->isa<ast::ComponentReference>());
 }
 

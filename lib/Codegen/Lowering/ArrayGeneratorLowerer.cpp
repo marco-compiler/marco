@@ -1,4 +1,4 @@
-#include "marco/Codegen/Lowering/ArrayLowerer.h"
+#include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
 #include <stack>
 
 using namespace ::marco;
@@ -7,12 +7,23 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  ArrayLowerer::ArrayLowerer(BridgeInterface* bridge)
+  ArrayGeneratorLowerer::ArrayGeneratorLowerer(BridgeInterface* bridge)
       : Lowerer(bridge)
   {
   }
 
-  Results ArrayLowerer::lower(const ast::Array& array)
+  Results ArrayGeneratorLowerer::lower(const ast::ArrayGenerator& array)
+  {
+    if (array.isa<ast::ArrayConstant>()) {
+      return lower(*array.cast<ast::ArrayConstant>());
+    } else if (array.isa<ast::ArrayForGenerator>()) {
+      return lower(*array.cast<ast::ArrayForGenerator>());
+    } else {
+      llvm_unreachable("Unknown type of array generator");
+    }
+  }
+
+  Results ArrayGeneratorLowerer::lower(const ast::ArrayConstant& array)
   {
     mlir::Location location = loc(array.getLocation());
 
@@ -22,13 +33,13 @@ namespace marco::codegen::lowering
     // TODO determine minimum required type
     mlir::Type elementType = RealType::get(builder().getContext());;
 
-    std::stack<const ast::Array*> nestedArrays;
+    std::stack<const ast::ArrayConstant*> nestedArrays;
 
     // Determine the shape.
     nestedArrays.push(&array);
 
     while (!nestedArrays.empty()) {
-      const ast::Array* current = nestedArrays.top();
+      const ast::ArrayConstant* current = nestedArrays.top();
       nestedArrays.pop();
 
       size_t numOfChildren = current->size();
@@ -37,7 +48,7 @@ namespace marco::codegen::lowering
       if (numOfChildren > 0) {
         const ast::Expression* child = (*current)[0];
 
-        if (auto arrayChild = child->dyn_cast<ast::Array>()) {
+        if (auto arrayChild = child->dyn_cast<ast::ArrayConstant>()) {
           nestedArrays.push(arrayChild);
         }
       }
@@ -53,7 +64,7 @@ namespace marco::codegen::lowering
       const ast::Expression* node = s1.top();
       s1.pop();
 
-      if (auto arrayNode = node->dyn_cast<ast::Array>()) {
+      if (auto arrayNode = node->dyn_cast<ast::ArrayConstant>()) {
         for (size_t i = 0, e = arrayNode->size(); i < e; ++i) {
           s1.push((*arrayNode)[i]);
         }
@@ -76,5 +87,10 @@ namespace marco::codegen::lowering
         location, arrayType, values);
 
     return Reference::memory(builder(), result);
+  }
+
+  Results ArrayGeneratorLowerer::lower(const ast::ArrayForGenerator& array)
+  {
+    llvm_unreachable("Unsupported kind of array generator");
   }
 }

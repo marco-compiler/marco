@@ -1,8 +1,10 @@
 set(AST_NODES
 	Node/Algorithm.cpp
 	Node/Annotation.cpp
-	Node/Array.cpp
+	Node/ArrayConstant.cpp
 	Node/ArrayDimension.cpp
+	Node/ArrayGenerator.cpp
+	Node/ArrayForGenerator.cpp
 	Node/AssignmentStatement.cpp
 	Node/ASTNode.cpp
 	Node/BreakStatement.cpp

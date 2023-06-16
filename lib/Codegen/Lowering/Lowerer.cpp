@@ -373,7 +373,7 @@ namespace marco::codegen::lowering
     return bridge->lower(expression);
   }
 
-  Results Lowerer::lower(const ast::Array& array)
+  Results Lowerer::lower(const ast::ArrayGenerator& array)
   {
     return bridge->lower(array);
   }

@@ -2,7 +2,7 @@
 #include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
-#include "marco/AST/Node/Array.h"
+#include "marco/AST/Node/ArrayConstant.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -256,7 +256,7 @@ namespace marco::ast
     llvm_unreachable("Start property not found");
   }
 
-  llvm::Optional<bool> ClassModification::isArrayUniformConstBool(const Array *array)
+  llvm::Optional<bool> ClassModification::isArrayUniformConstBool(const ArrayConstant *array)
   {
     size_t elements = array->size();
     llvm::Optional<bool> lastValue = llvm::None;
@@ -264,8 +264,8 @@ namespace marco::ast
     for (size_t i = 0; i < elements; i++) {
       const Expression *exp = (*array)[i];
       bool value;
-      if (exp->isa<Array>()) {
-        auto tmp = isArrayUniformConstBool(exp->cast<Array>());
+      if (exp->isa<ArrayConstant>()) {
+        auto tmp = isArrayUniformConstBool(exp->cast<ArrayConstant>());
         if (!tmp) {
           return llvm::None;
         } else {
@@ -304,10 +304,10 @@ namespace marco::ast
       const auto* modificationExpression = modification->getExpression();
       if (modificationExpression->isa<Constant>()) {
         return modificationExpression->cast<Constant>()->as<bool>();
-      } else if (modificationExpression->isa<Array>()) {
+      } else if (modificationExpression->isa<ArrayConstant>()) {
         // FIXME: Handle this case without special casing
         // fixed = {{{{true, true}, {true, true}}, {{true, true}, {true, ...
-        const auto *array = modificationExpression->cast<Array>();
+        const auto *array = modificationExpression->cast<ArrayConstant>();
         auto val = isArrayUniformConstBool(array);
         assert(val);
         return val.value();

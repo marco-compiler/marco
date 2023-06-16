@@ -1,6 +1,6 @@
 set(SOURCES
     Lowering/AlgorithmLowerer.cpp
-    Lowering/ArrayLowerer.cpp
+    Lowering/ArrayGeneratorLowerer.cpp
     Lowering/AssignmentStatementLowerer.cpp
     Lowering/BreakStatementLowerer.cpp
     Lowering/CallLowerer.cpp

@@ -5,8 +5,10 @@
 
 #include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Annotation.h"
-#include "marco/AST/Node/Array.h"
+#include "marco/AST/Node/ArrayConstant.h"
 #include "marco/AST/Node/ArrayDimension.h"
+#include "marco/AST/Node/ArrayForGenerator.h"
+#include "marco/AST/Node/ArrayGenerator.h"
 #include "marco/AST/Node/AssignmentStatement.h"
 #include "marco/AST/Node/BreakStatement.h"
 #include "marco/AST/Node/Call.h"
