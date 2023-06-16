@@ -1235,7 +1235,7 @@ namespace marco::parser
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
     do {
-      TRY(argument, parseFunctionArgument());
+      TRY(argument, parseExpression());
       arguments.push_back(std::move(*argument));
     } while (accept<Token::Comma>());
 
