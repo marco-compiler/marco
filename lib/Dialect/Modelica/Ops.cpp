@@ -336,7 +336,7 @@ namespace mlir::modelica
 
     if (numOfValues != static_cast<size_t>(arrayFlatSize)) {
       return emitOpError(
-          "incorrent number of values (expected " +
+          "incoherent number of values (expected " +
           std::to_string(arrayFlatSize) + ", got " +
           std::to_string(numOfValues) + ")");
     }
