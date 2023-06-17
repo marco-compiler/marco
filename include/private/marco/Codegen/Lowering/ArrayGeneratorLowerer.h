@@ -21,6 +21,10 @@ namespace marco::codegen::lowering
       Results lower(const ast::ArrayConstant& array);
 
       Results lower(const ast::ArrayForGenerator& array);
+
+      void computeShape(const ast::ArrayGenerator& array, llvm::SmallVectorImpl<int64_t>& outShape);
+
+      void lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues);
   };
 }
 
