@@ -101,8 +101,8 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 
     expression = expression.expand();
 
-    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-    std::cerr << equation.equation;
+//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+//    std::cerr << equation.equation;
 
 //    // todo: trivial equations should go in the new equations
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
@@ -122,8 +122,8 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     }
   }
 
-  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
-  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
+//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -132,7 +132,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     solutionEquations = GiNaC::lsolve(systemEquations, matchedVariables);
   } catch (std::logic_error& e) {
       // The system is not linear so it cannot be solved by the symbolic solver.
-    std::cerr << "The system of equations is not linear" << std::endl;
+//    std::cerr << "The system of equations is not linear" << std::endl;
     return false;
   };
 
@@ -144,7 +144,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     newEquations.append(expandedSolutionEquation);
   }
 
-  std::cerr << "Solution: \n" << solutionEquations << '\n';
+//  std::cerr << "Solution: \n" << solutionEquations << '\n';
 
   if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
@@ -161,13 +161,14 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       if (hasSolvedEquation(equation, symbolInfo.subscriptionIndices)) {
         // If the equation to be inserted has already been solved, then the cycle
         // doesn't exist anymore.
-        std::cerr << "Equation already solved, continuing." << std::endl;
+//        std::cerr << "Equation already solved, continuing." << std::endl;
         continue;
       }
 
-      equation->setPath(EquationPath::LEFT);
+      auto simpleEquation = Equation::build(equation->cloneIR(), equation->getVariables());
+      auto matchedEquation = newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), symbolInfo.subscriptionIndices, EquationPath::LEFT)));
 
-      auto equationOp = equation->getOperation();
+      auto equationOp = matchedEquation->getOperation();
       auto loc = equationOp.getLoc();
       builder.setInsertionPoint(equationOp);
 
@@ -176,18 +177,20 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
       builder.setInsertionPointToStart(equationBodyBlock);
 
-      MatchedEquationSubscription matchedEquationSubscription(equation, symbolInfo.subscriptionIndices);
+      MatchedEquationSubscription matchedEquationSubscription(matchedEquation, symbolInfo.subscriptionIndices);
 
       SymbolicToModelicaEquationVisitor visitor = SymbolicToModelicaEquationVisitor(builder, loc, matchedEquationSubscription, symbolNameToInfoMap);
 
       expr.traverse_postorder(visitor);
 
-      auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
-      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), symbolInfo.subscriptionIndices, EquationPath::LEFT)));
-
       addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
 
     }
+
+//    for (const auto& equation : newEquations_) {
+//      std::cerr << std::endl << "New equation: " << std::endl;
+//      equation->dumpIR();
+//    }
 
     return true;
   }
@@ -310,6 +313,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
       std::string variableName = x.get_name();
       SymbolInfo info = symbolNameToInfoMap[variableName];
 
+      // todo: generalize to multiple inductions
       size_t lsb_pos = variableName.find('[', 0);
       int inductionArgument = 0;
       while (lsb_pos != std::string::npos) {
@@ -319,10 +323,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
         size_t rsb_pos = variableName.find(']', colon_pos);
         long to = std::stoi(variableName.substr(colon_pos + 1, rsb_pos -  1 - colon_pos));
 
-        std::cerr << "VARIABLE: " << variableName << std::endl;
         long startIndex = *matchedEquation.solvedIndices.begin().operator*().begin();
-        std::cerr << "FROM: " << from << std::endl;
-        std::cerr << "INDEX: " << startIndex << std::endl;
 
         mlir::Attribute offset = mlir::modelica::IntegerAttr::get(builder.getContext(), from - startIndex);
         mlir::Value rhs = builder.create<mlir::modelica::ConstantOp>(loc, offset);
@@ -418,7 +419,7 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
     forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
   }
 
-  std::cerr << std::endl;
+//  std::cerr << std::endl;
 }
 
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
