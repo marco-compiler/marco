@@ -194,9 +194,10 @@ namespace marco::codegen
           values.resize(newSize);
         }
 
-        void add(std::unique_ptr<ElementType> value)
+        ElementType* add(std::unique_ptr<ElementType> value)
         {
           values.push_back(std::move(value));
+          return values.back().get();
         }
 
         /// @name Iterators
@@ -272,9 +273,9 @@ namespace marco::codegen
         return (*impl)[index];
       }
 
-      void add(std::unique_ptr<ElementType> equation)
+      ElementType* add(std::unique_ptr<ElementType> equation)
       {
-        impl->add(std::move(equation));
+        return impl->add(std::move(equation));
       }
 
       void resize(size_t newSize)
