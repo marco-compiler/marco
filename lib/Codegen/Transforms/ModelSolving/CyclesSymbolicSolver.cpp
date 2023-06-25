@@ -79,6 +79,14 @@ CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(b
 {
 }
 
+void printExpressions(GiNaC::ex system) {
+  std::cerr << '{' << std::endl;
+  for (size_t i = 0; i < system.nops(); ++i) {
+    std::cerr << "  " << system.op(i) << std::endl;
+  }
+  std::cerr << '}' << std::endl << std::endl;
+}
+
 bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>& equationSet)
 {
   GiNaC::lst systemEquations;
@@ -105,7 +113,6 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 //    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
 //    equation.equation->dumpIR();
 
-//    // todo: trivial equations should go in the new equations
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
 //    if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
 //      trivialEquations.append(expression);
@@ -123,8 +130,10 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     }
   }
 
-//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
-//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+  std::cerr << "System equations: \n";
+  printExpressions(systemEquations);
+  std::cerr << "Matched variables: \n";
+  printExpressions(matchedVariables);
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -145,7 +154,10 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     newEquations.append(expandedSolutionEquation);
   }
 
-//  std::cerr << "Solution: \n" << solutionEquations << '\n';
+  std::cerr << "Solution: \n";
+  printExpressions(solutionEquations);
+
+  GiNaC::lst checkEquations;
 
   if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
@@ -162,7 +174,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       if (hasSolvedEquation(equation, symbolInfo.subscriptionIndices)) {
         // If the equation to be inserted has already been solved, then the cycle
         // doesn't exist anymore.
-//        std::cerr << "Equation already solved, continuing." << std::endl;
+        std::cerr << "Equation already solved, continuing." << std::endl;
         continue;
       }
 
@@ -186,7 +198,18 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 
       addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
 
+      GiNaC::ex checkExpression = getExpressionFromEquation(matchedEquation, symbolNameToInfoMap, symbolInfo.subscriptionIndices);
+      checkEquations.append(checkExpression);
+
+//      std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
+//      std::cerr << "New equation: " << std::endl;
+//      matchedEquation->dumpIR();
     }
+
+    std::cerr << "Check: \n";
+    printExpressions(checkEquations);
+
+
 
 //    for (const auto& equation : newEquations_) {
 //      std::cerr << std::endl << "New equation: " << std::endl;
@@ -328,6 +351,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
       size_t lsb_pos = variableName.find('[', 0);
       int inductionArgument = 0;
 //      std::cerr << "Symbol: " << x << std::endl;
+      auto indexIterator = *matchedEquation.solvedIndices.begin().operator*().begin();
       while (lsb_pos != std::string::npos) {
         size_t colon_pos = variableName.find(':', lsb_pos);
         long from = std::stoi(variableName.substr(lsb_pos + 1, colon_pos - 1 - lsb_pos));
@@ -335,7 +359,11 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
         size_t rsb_pos = variableName.find(']', colon_pos);
         long to = std::stoi(variableName.substr(colon_pos + 1, rsb_pos -  1 - colon_pos));
 
-        long startIndex = *matchedEquation.solvedIndices.begin().operator*().begin();
+        // startIndex should be the index with which the subscripted range begins.
+        long startIndex = (*matchedEquation.solvedIndices.begin())[inductionArgument];
+
+//        std::cerr << "Matched indices: " << matchedEquation.solvedIndices << std::endl;
+//        std::cerr << "Matched indices: " << (*matchedEquation.solvedIndices.begin())[inductionArgument] << std::endl;
 
 //        for (const auto& [name, infos] : symbolNameToInfoMap) {
 //          std::cerr << "Key: " << name << std::endl;
@@ -345,6 +373,10 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
         mlir::Attribute offset = mlir::modelica::IntegerAttr::get(builder.getContext(), from - startIndex);
         mlir::Value rhs = builder.create<mlir::modelica::ConstantOp>(loc, offset);
         GiNaC::symbol argSymbol = symbolNameToInfoMap["%arg" + std::to_string(inductionArgument)].symbol;
+
+//        std::cerr << "Symbol: " << x << std::endl;
+//        std::cerr << "Start index: " << startIndex << std::endl;
+//        std::cerr << "from: " << from << std::endl;
 
 //        std::cerr << "Argument symbol: " << argSymbol << std::endl;
 
