@@ -101,9 +101,9 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 
     expression = expression.expand();
 
-    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
-    equation.equation->dumpIR();
+//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+//    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+//    equation.equation->dumpIR();
 
 //    // todo: trivial equations should go in the new equations
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
@@ -123,8 +123,8 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     }
   }
 
-  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
-  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
+//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -145,7 +145,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     newEquations.append(expandedSolutionEquation);
   }
 
-  std::cerr << "Solution: \n" << solutionEquations << '\n';
+//  std::cerr << "Solution: \n" << solutionEquations << '\n';
 
   if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
@@ -207,20 +207,30 @@ SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     std::map<std::string, SymbolInfo> symbolNameToInfoMap
     ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
+  std::stack<mlir::modelica::ForEquationOp> forEquations;
   auto forEquationOp = matchedEquation.equation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
   while (forEquationOp) {
-    llvm::APInt from = forEquationOp.getFrom();
-    llvm::APInt to = forEquationOp.getTo();
+    forEquations.push(forEquationOp);
+    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+  }
+
+  size_t index = 0;
+  while (!forEquations.empty()) {
+    mlir::modelica::ForEquationOp op = forEquations.top();
+    forEquations.pop();
+
+    llvm::APInt from = op.getFrom();
+    llvm::APInt to = op.getTo();
 
     matchedEquationForEquationRanges.emplace_back(from, to);
 
-    mlir::BlockArgument blockArgument = forEquationOp.bodyBlock()->getArgument(0);
-    std::string argumentName = "%arg" + std::to_string(blockArgument.getArgNumber());
+    mlir::BlockArgument blockArgument = op.bodyBlock()->getArgument(0);
+    std::string argumentName = "%arg" + std::to_string(index);
 
     GiNaC::symbol argumentSymbol = symbolNameToInfoMap[argumentName].symbol;
     expressionHashToValueMap[argumentSymbol] = blockArgument;
 
-    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+    ++index;
   }
 }
 
@@ -317,6 +327,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
       // todo: generalize to multiple inductions
       size_t lsb_pos = variableName.find('[', 0);
       int inductionArgument = 0;
+//      std::cerr << "Symbol: " << x << std::endl;
       while (lsb_pos != std::string::npos) {
         size_t colon_pos = variableName.find(':', lsb_pos);
         long from = std::stoi(variableName.substr(lsb_pos + 1, colon_pos - 1 - lsb_pos));
@@ -326,9 +337,25 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
 
         long startIndex = *matchedEquation.solvedIndices.begin().operator*().begin();
 
+//        for (const auto& [name, infos] : symbolNameToInfoMap) {
+//          std::cerr << "Key: " << name << std::endl;
+//          std::cerr << "Value: " << infos.symbol << std::endl;
+//        }
+
         mlir::Attribute offset = mlir::modelica::IntegerAttr::get(builder.getContext(), from - startIndex);
         mlir::Value rhs = builder.create<mlir::modelica::ConstantOp>(loc, offset);
-        mlir::Value lhs = expressionHashToValueMap[symbolNameToInfoMap["%arg" + std::to_string(inductionArgument)].symbol];
+        GiNaC::symbol argSymbol = symbolNameToInfoMap["%arg" + std::to_string(inductionArgument)].symbol;
+
+//        std::cerr << "Argument symbol: " << argSymbol << std::endl;
+
+//        for (auto& [expression, expValue] : expressionHashToValueMap) {
+//          std::cerr << "Key: " << expression << std::endl;
+//          std::cerr << "Value: ";
+//          expValue.dump();
+//          std::cerr << std::endl;
+//        }
+
+        mlir::Value lhs = expressionHashToValueMap[argSymbol];
         mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
         mlir::Value index = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
 
@@ -483,7 +510,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         // Assuming there is only one range for now
         // todo: is it possible to have more than one range and how will the code change?
         auto range = *subscriptionIndices.rangesBegin();
-        std::cerr << "Subscription indices: " << subscriptionIndices << std::endl;
+//        std::cerr << "Subscription indices: " << subscriptionIndices << std::endl;
         auto iterator = range.begin();
         marco::modeling::Point leftPoint = *iterator;
         marco::modeling::Point rightPoint = leftPoint;
@@ -492,19 +519,12 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
           ++iterator;
         }
 
-        std::cerr << "Right point: " << rightPoint << std::endl;
-        std::cerr << "Left point: " << leftPoint << std::endl;
-
         GiNaC::ex leftIndex = index;
         GiNaC::ex rightIndex = index;
 
-        // todo: probably the mistake lies here
         if (leftPoint.rank() == 0) {
           std::cerr << "The rank is zero: scalar variable" << std::endl;
         }
-
-        std::cerr << "Left index before substitution: " << leftIndex << std::endl;
-        std::cerr << "Right index before substitution: " << rightIndex << std::endl;
 
 //        for (size_t j = 0; j < leftPoint.rank(); ++j) {
 //          std::string blockArgumentName = "%arg" + std::to_string(j);
