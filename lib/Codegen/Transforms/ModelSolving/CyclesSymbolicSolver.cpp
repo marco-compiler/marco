@@ -171,13 +171,6 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       SymbolInfo symbolInfo = symbolNameToInfoMap[matchedVariableName];
       auto equation = symbolInfo.matchedEquation;
 
-      if (hasSolvedEquation(equation, symbolInfo.subscriptionIndices)) {
-        // If the equation to be inserted has already been solved, then the cycle
-        // doesn't exist anymore.
-        std::cerr << "Equation already solved, continuing." << std::endl;
-        continue;
-      }
-
       auto simpleEquation = Equation::build(equation->cloneIR(), equation->getVariables());
       auto matchedEquation = newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), symbolInfo.subscriptionIndices, EquationPath::LEFT)));
 
