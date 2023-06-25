@@ -100,7 +100,10 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   return allCyclesSolved;
 }
 
-void getLoopEquationSet(const CyclesFinder<Variable*, MatchedEquation*>::Cycle& cycle, std::vector<MatchedEquationSubscription>& equations) {
+void getLoopEquationSet(
+    const CyclesFinder<Variable*, MatchedEquation*>::Cycle& cycle,
+    std::vector<MatchedEquationSubscription>& equations,
+    CyclesSymbolicSolver solver) {
   // Get the unique equations of the loop
 
   for (const auto& it : cycle) {
@@ -108,13 +111,17 @@ void getLoopEquationSet(const CyclesFinder<Variable*, MatchedEquation*>::Cycle& 
 //    cycle.getEquation()->dumpIR();
 //    std::cerr << std::endl;
     auto range = marco::modeling::IndexSet(it.getRange());
-    equations.emplace_back(cycle.getEquation(), range);
+
+    if (!solver.hasSolvedEquation(cycle.getEquation(), range)) {
+      equations.emplace_back(cycle.getEquation(), range);
+    }
+
 //    std::cerr << "Range: " << range << std::endl;
 
 
     auto destinations = it.getDestinations();
     for (const auto& dest : destinations) {
-      getLoopEquationSet(dest.getNode(), equations);
+      getLoopEquationSet(dest.getNode(), equations, solver);
     }
   }
 }
@@ -158,12 +165,14 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
 
       // Get the unique equations of the loop
       std::vector<MatchedEquationSubscription> equationSet;
-      getLoopEquationSet(cycle, equationSet);
+      getLoopEquationSet(cycle, equationSet, solver);
 
 
 //      std::cerr << "Equation set size: " << equationSet.size() << std::endl;
 
-      solver.solve(equationSet);
+      if (!equationSet.empty()) {
+        solver.solve(equationSet);
+      }
 
       // Add the indices that do not present any loop
       for (const auto& range : llvm::make_range(indexesWithoutCycles.rangesBegin(), indexesWithoutCycles.rangesEnd())) {
