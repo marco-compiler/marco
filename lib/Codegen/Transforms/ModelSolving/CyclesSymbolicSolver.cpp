@@ -101,8 +101,9 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 
     expression = expression.expand();
 
-//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-//    std::cerr << equation.equation;
+    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+    equation.equation->dumpIR();
 
 //    // todo: trivial equations should go in the new equations
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
@@ -122,8 +123,8 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     }
   }
 
-//  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
-//  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
+  std::cerr << "System equations: \n" << systemEquations << '\n' << std::flush;
+  std::cerr << "Matched variables: \n" << matchedVariables << '\n' << std::flush;
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -132,7 +133,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     solutionEquations = GiNaC::lsolve(systemEquations, matchedVariables);
   } catch (std::logic_error& e) {
       // The system is not linear so it cannot be solved by the symbolic solver.
-//    std::cerr << "The system of equations is not linear" << std::endl;
+    std::cerr << "The system of equations is not linear" << std::endl;
     return false;
   };
 
@@ -144,7 +145,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     newEquations.append(expandedSolutionEquation);
   }
 
-//  std::cerr << "Solution: \n" << solutionEquations << '\n';
+  std::cerr << "Solution: \n" << solutionEquations << '\n';
 
   if (newEquations.nops()) {
     for (const GiNaC::ex& expr : newEquations) {
@@ -395,13 +396,24 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
     ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution), subscriptionIndices(std::move(subscriptionIndices))
 {
   // Initialize the block arguments of the valueToExpressionMap
-  numberOfForLoops = 0;
-  auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
-  while (forEquationOp) {
-    ++numberOfForLoops;
 
-    mlir::BlockArgument blockArgument = forEquationOp.bodyBlock()->getArgument(0);
-    std::string argumentName = "%arg" + std::to_string(blockArgument.getArgNumber());
+  std::stack<mlir::modelica::ForEquationOp> forEquations;
+  auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
+
+  while (forEquationOp) {
+    forEquations.push(forEquationOp);
+    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+  }
+
+  numberOfForLoops = forEquations.size();
+
+  size_t index = 0;
+  while (!forEquations.empty()) {
+    mlir::modelica::ForEquationOp op = forEquations.top();
+    forEquations.pop();
+
+    mlir::BlockArgument blockArgument = op.bodyBlock()->getArgument(0);
+    std::string argumentName = "%arg" + std::to_string(index);
 
     if (!symbolNameToInfoMap.count(argumentName)) {
       symbolNameToInfoMap[argumentName] = SymbolInfo();
@@ -416,7 +428,7 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
       valueToExpressionMap[blockArgument] = symbolNameToInfoMap[argumentName].symbol;
     }
 
-    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+    ++index;
   }
 
 //  std::cerr << std::endl;
@@ -471,6 +483,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         // Assuming there is only one range for now
         // todo: is it possible to have more than one range and how will the code change?
         auto range = *subscriptionIndices.rangesBegin();
+        std::cerr << "Subscription indices: " << subscriptionIndices << std::endl;
         auto iterator = range.begin();
         marco::modeling::Point leftPoint = *iterator;
         marco::modeling::Point rightPoint = leftPoint;
@@ -478,6 +491,9 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
           rightPoint = *iterator;
           ++iterator;
         }
+
+        std::cerr << "Right point: " << rightPoint << std::endl;
+        std::cerr << "Left point: " << leftPoint << std::endl;
 
         GiNaC::ex leftIndex = index;
         GiNaC::ex rightIndex = index;
@@ -487,14 +503,25 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
           std::cerr << "The rank is zero: scalar variable" << std::endl;
         }
 
-        for (size_t j = 0; j < leftPoint.rank(); ++j) {
-          std::string blockArgumentName = "%arg" + std::to_string(j);
-          if (symbolNameToInfoMap.count(blockArgumentName)) {
-            GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
+        std::cerr << "Left index before substitution: " << leftIndex << std::endl;
+        std::cerr << "Right index before substitution: " << rightIndex << std::endl;
 
-            leftIndex = leftIndex.subs(argument == leftPoint[j]);
-            rightIndex = rightIndex.subs(argument == rightPoint[j]);
-          }
+//        for (size_t j = 0; j < leftPoint.rank(); ++j) {
+//          std::string blockArgumentName = "%arg" + std::to_string(j);
+//          if (symbolNameToInfoMap.count(blockArgumentName)) {
+//            GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
+//
+//            leftIndex = leftIndex.subs(argument == leftPoint[j]);
+//            rightIndex = rightIndex.subs(argument == rightPoint[j]);
+//          }
+//        }
+
+        std::string blockArgumentName = "%arg" + std::to_string(i - 1);
+        if (symbolNameToInfoMap.count(blockArgumentName)) {
+          GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
+
+          leftIndex = leftIndex.subs(argument == leftPoint[i - 1]);
+          rightIndex = rightIndex.subs(argument == rightPoint[i - 1]);
         }
 
         std::ostringstream oss;
