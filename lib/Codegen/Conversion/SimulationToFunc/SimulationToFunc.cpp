@@ -1431,6 +1431,7 @@ void ModuleOpLowering::createGetVariablePrintableRangeBoundariesFunction(
     // The switch operates on the index of the multidimensional range.
     llvm::SmallVector<int64_t, 1> caseValues;
     llvm::SmallVector<mlir::Block*, 1> caseBlocks;
+    llvm::SmallVector<llvm::SmallVector<mlir::Value, 2>, 1> caseOperands;
     llvm::SmallVector<mlir::ValueRange, 1> caseOperandsRefs;
 
     for (const auto& multidimensionalRange : llvm::enumerate(ranges)) {
@@ -1439,7 +1440,9 @@ void ModuleOpLowering::createGetVariablePrintableRangeBoundariesFunction(
       caseBlocks.push_back(
           multidimensionalRangeBlocks[multidimensionalRange.value()]);
 
-      caseOperandsRefs.push_back(block->getArgument(1));
+      caseOperands.resize(1);
+      caseOperands[0].push_back(block->getArgument(1));
+      caseOperandsRefs.push_back(caseOperands[0]);
     }
 
     builder.setInsertionPointToStart(block);
