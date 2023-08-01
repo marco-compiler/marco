@@ -277,7 +277,8 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
     let dependentDialects = [
         "mlir::arith::ArithDialect",
         "mlir::func::FuncDialect",
-        "mlir::LLVM::LLVMDialect"
+        "mlir::LLVM::LLVMDialect",
+        "mlir::cf::ControlFlowDialect"
     ];
 
     let options = [
