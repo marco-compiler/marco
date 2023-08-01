@@ -130,10 +130,10 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     }
   }
 
-  std::cerr << "System equations: \n";
-  printExpressions(systemEquations);
-  std::cerr << "Matched variables: \n";
-  printExpressions(matchedVariables);
+//  std::cerr << "System equations: \n";
+//  printExpressions(systemEquations);
+//  std::cerr << "Matched variables: \n";
+//  printExpressions(matchedVariables);
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -154,8 +154,8 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
     newEquations.append(expandedSolutionEquation);
   }
 
-  std::cerr << "Solution: \n";
-  printExpressions(solutionEquations);
+//  std::cerr << "Solution: \n";
+//  printExpressions(solutionEquations);
 
   GiNaC::lst checkEquations;
 
@@ -191,16 +191,16 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
 
       addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
 
-      GiNaC::ex checkExpression = getExpressionFromEquation(matchedEquation, symbolNameToInfoMap, symbolInfo.subscriptionIndices);
-      checkEquations.append(checkExpression);
+//      GiNaC::ex checkExpression = getExpressionFromEquation(matchedEquation, symbolNameToInfoMap, symbolInfo.subscriptionIndices);
+//      checkEquations.append(checkExpression);
 
 //      std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
 //      std::cerr << "New equation: " << std::endl;
 //      matchedEquation->dumpIR();
     }
 
-    std::cerr << "Check: \n";
-    printExpressions(checkEquations);
+//    std::cerr << "Check: \n";
+//    printExpressions(checkEquations);
 
 
 

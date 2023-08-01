@@ -252,7 +252,8 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
         "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
-        "mlir::LLVM::LLVMDialect"
+        "mlir::LLVM::LLVMDialect",
+        "mlir::cf::ControlFlowDialect"
     ];
 
     let constructor = "mlir::createSimulationToFuncConversionPass()";
