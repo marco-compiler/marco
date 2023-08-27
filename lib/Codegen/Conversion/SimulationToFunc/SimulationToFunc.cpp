@@ -1440,9 +1440,9 @@ void ModuleOpLowering::createGetVariablePrintableRangeBoundariesFunction(
       caseBlocks.push_back(
           multidimensionalRangeBlocks[multidimensionalRange.value()]);
 
-      caseOperands.resize(1);
-      caseOperands[0].push_back(block->getArgument(1));
-      caseOperandsRefs.push_back(caseOperands[0]);
+      auto& caseOperandsVector = caseOperands.emplace_back();
+      caseOperandsVector.push_back(block->getArgument(1));
+      caseOperandsRefs.push_back(caseOperandsVector);
     }
 
     builder.setInsertionPointToStart(block);
