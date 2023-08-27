@@ -486,7 +486,7 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
 //  std::cerr << std::endl;
 }
 
-void ModelicaToSymbolicEquationVisitor::visitVariableGetOp(mlir::modelica::VariableGetOp variableGetOp)
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
 {
   std::string variableName = variableGetOp.getVariable().str();
 
@@ -515,7 +515,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::Subscription
   // As of now we don't need to do anything when we visit a SubscriptionOp, as array loading is managed by LoadOp
 }
 
-void ModelicaToSymbolicEquationVisitor::visitLoadOp(const mlir::modelica::LoadOp loadOp)
+void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadOp)
 {
   if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
     if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(subscriptionOp->getOperand(0).getDefiningOp())) {
