@@ -486,7 +486,7 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
 //  std::cerr << std::endl;
 }
 
-void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
+void ModelicaToSymbolicEquationVisitor::visitVariableGetOp(mlir::modelica::VariableGetOp variableGetOp)
 {
   std::string variableName = variableGetOp.getVariable().str();
 
@@ -515,7 +515,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::Subscription
   // As of now we don't need to do anything when we visit a SubscriptionOp, as array loading is managed by LoadOp
 }
 
-void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadOp)
+void ModelicaToSymbolicEquationVisitor::visitLoadOp(const mlir::modelica::LoadOp loadOp)
 {
   if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
     if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(subscriptionOp->getOperand(0).getDefiningOp())) {
@@ -525,24 +525,20 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
 
       std::vector<GiNaC::ex> indices;
 
+      llvm::SmallVector<size_t> sizes;
+      auto multidimensionalRange = *subscriptionIndices.rangesBegin();
+      multidimensionalRange.getSizes(sizes);
+
+      auto range = *subscriptionIndices.rangesBegin();
+      auto iterator = range.begin();
+      marco::modeling::Point leftPoint = *iterator;
+
       // Populate the indices vector with the arguments of the SubscriptionOp
       for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
         GiNaC::ex index = valueToExpressionMap[subscriptionOp->getOperand(i)];
         indices.push_back(index);
 
         offset += '[';
-
-        // Assuming there is only one range for now
-        // todo: is it possible to have more than one range and how will the code change?
-        auto range = *subscriptionIndices.rangesBegin();
-//        std::cerr << "Subscription indices: " << subscriptionIndices << std::endl;
-        auto iterator = range.begin();
-        marco::modeling::Point leftPoint = *iterator;
-        marco::modeling::Point rightPoint = leftPoint;
-        while (iterator != range.end()) {
-          rightPoint = *iterator;
-          ++iterator;
-        }
 
         GiNaC::ex leftIndex = index;
         GiNaC::ex rightIndex = index;
@@ -551,22 +547,12 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
           std::cerr << "The rank is zero: scalar variable" << std::endl;
         }
 
-//        for (size_t j = 0; j < leftPoint.rank(); ++j) {
-//          std::string blockArgumentName = "%arg" + std::to_string(j);
-//          if (symbolNameToInfoMap.count(blockArgumentName)) {
-//            GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
-//
-//            leftIndex = leftIndex.subs(argument == leftPoint[j]);
-//            rightIndex = rightIndex.subs(argument == rightPoint[j]);
-//          }
-//        }
-
         std::string blockArgumentName = "%arg" + std::to_string(i - 1);
         if (symbolNameToInfoMap.count(blockArgumentName)) {
           GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
 
           leftIndex = leftIndex.subs(argument == leftPoint[i - 1]);
-          rightIndex = rightIndex.subs(argument == rightPoint[i - 1]);
+          rightIndex = rightIndex.subs(argument == leftPoint[i - 1] + sizes[i - 1]);
         }
 
         std::ostringstream oss;
