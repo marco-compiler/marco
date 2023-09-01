@@ -4,49 +4,81 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include "marco/Modeling/LocalMatchingSolutionsImpl.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 #include <memory>
 
 namespace marco::modeling::internal
 {
-  /// Compute the local matching solution starting from a given set of variable access functions (VAF).
-  /// The computation is done in a lazy way, that is each result is computed only when requested.
+  /// Compute the local matching solution starting from a given set of variable
+  /// access functions (VAF). The computation is done in a lazy way, that is
+  /// each result is computed only when requested.
   class VAFSolutions : public LocalMatchingSolutions::ImplInterface
   {
     public:
+      class Generator
+      {
+        public:
+          virtual ~Generator() = default;
+
+          virtual bool hasValue() const = 0;
+
+          virtual MCIM getValue() const = 0;
+
+          virtual void fetchNext() = 0;
+      };
+
       VAFSolutions(
           llvm::ArrayRef<AccessFunction> accessFunctions,
-          MultidimensionalRange equationRanges,
-          MultidimensionalRange variableRanges);
+          IndexSet equationIndices,
+          IndexSet variableIndices);
 
       MCIM& operator[](size_t index) override;
 
       size_t size() const override;
 
     private:
+      void initialize();
+
       void fetchNext();
 
-      void getInductionVariablesUsage(
-          llvm::SmallVectorImpl<size_t>& usages,
+      bool compareAccessFunctions(
+          const AccessFunction& lhs,
+          const AccessFunction& rhs) const;
+
+      bool compareAccessFunctions(
+          const AccessFunctionRotoTranslation& lhs,
+          const AccessFunction& rhs) const;
+
+      bool compareAccessFunctions(
+          const AccessFunctionRotoTranslation& lhs,
+          const AccessFunctionRotoTranslation& rhs) const;
+
+      size_t getSolutionsAmount(const AccessFunction& accessFunction) const;
+
+      size_t getSolutionsAmount(
+          const AccessFunctionRotoTranslation& accessFunction) const;
+
+      std::unique_ptr<Generator> getGenerator(
           const AccessFunction& accessFunction) const;
 
+    private:
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
-      MultidimensionalRange equationRanges;
-      MultidimensionalRange variableRanges;
+      IndexSet equationIndices;
+      IndexSet variableIndices;
 
-      // Total number of possible match matrices
+      // Total number of possible match matrices.
       size_t solutionsAmount;
 
-      // List of the computed match matrices
+      // List of the computed match matrices.
       llvm::SmallVector<MCIM, 3> matrices;
 
+      // The access function being processed.
       size_t currentAccessFunction = 0;
-      llvm::SmallVector<Range, 3> ranges;
-      std::unique_ptr<MultidimensionalRange> unusedRange;
-      llvm::SmallVector<size_t, 3> unusedRangeOriginalPosition;
-      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeIt;
-      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeEnd;
+
+      // The current generator.
+      std::unique_ptr<Generator> generator;
   };
 }
 

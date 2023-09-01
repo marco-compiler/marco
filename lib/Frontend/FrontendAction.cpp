@@ -5,6 +5,7 @@
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
+using namespace ::marco::io;
 
 //===---------------------------------------------------------------------===//
 // FrontendAction
@@ -36,7 +37,7 @@ namespace marco::frontend
     instance = value;
   }
 
-  const FrontendInputFile& FrontendAction::getCurrentInput() const
+  const InputFile& FrontendAction::getCurrentInput() const
   {
     return currentInput;
   }
@@ -56,7 +57,7 @@ namespace marco::frontend
         : currentInput.getBuffer()->getBufferIdentifier();
   }
 
-  void FrontendAction::setCurrentInput(const FrontendInputFile& input)
+  void FrontendAction::setCurrentInput(const InputFile& input)
   {
     this->currentInput = input;
   }
@@ -67,9 +68,9 @@ namespace marco::frontend
   }
 
   bool FrontendAction::beginSourceFile(
-      CompilerInstance& ci, const FrontendInputFile& realInput)
+      CompilerInstance& ci, const InputFile& realInput)
   {
-    FrontendInputFile input(realInput);
+    InputFile input(realInput);
     assert(!instance && "Already processing a source file");
     assert(!input.isEmpty() && "Unexpected empty file name");
 
@@ -78,7 +79,7 @@ namespace marco::frontend
 
     auto failureCleanup = llvm::make_scope_exit([&]() {
       ci.clearOutputFiles(true);
-      setCurrentInput(FrontendInputFile());
+      setCurrentInput(InputFile());
       setInstance(nullptr);
     });
 
@@ -113,7 +114,7 @@ namespace marco::frontend
     ci.clearOutputFiles(shouldEraseOutputFiles());
 
     setInstance(nullptr);
-    setCurrentInput(FrontendInputFile());
+    setCurrentInput(InputFile());
   }
 
   bool FrontendAction::shouldEraseOutputFiles() const

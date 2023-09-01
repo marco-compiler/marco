@@ -66,8 +66,8 @@ namespace marco::modeling::internal
 
       LocalMatchingSolutions(
           llvm::ArrayRef<AccessFunction> accessFunctions,
-          MultidimensionalRange equationRanges,
-          MultidimensionalRange variableRanges);
+          IndexSet equationIndices,
+          IndexSet variableIndices);
 
       explicit LocalMatchingSolutions(const MCIM& mcim);
 
@@ -86,8 +86,8 @@ namespace marco::modeling::internal
   };
 
   LocalMatchingSolutions solveLocalMatchingProblem(
-      const MultidimensionalRange& equationRanges,
-      const MultidimensionalRange& variableRanges,
+      const IndexSet& equationRanges,
+      const IndexSet& variableRanges,
       llvm::ArrayRef<AccessFunction> accessFunctions);
 
   LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& matrix);

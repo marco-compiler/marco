@@ -7,6 +7,28 @@ include "marco/Dialect/Simulation/SimulationTypes.td"
 include "marco/Dialect/Simulation/SimulationDialect.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/IR/FunctionInterfaces.td"
+
+// Multidimensional range attribute.
+def MultidimensionalRangeAttr
+    : Attr<CPred<"$_self.isa<::mlir::simulation::MultidimensionalRangeAttr>()">,
+                 "Multidimensional range attribute">
+{
+  let storageType = [{ ::mlir::simulation::MultidimensionalRangeAttr }];
+  let returnType = [{ ::mlir::simulation::MultidimensionalRangeAttr }];
+  let convertFromStorage = "$_self";
+}
+
+// Index set attribute.
+def IndexSetAttr
+    : Attr<CPred<"$_self.isa<::mlir::simulation::IndexSetAttr>()">,
+                 "Index set attribute">
+{
+  let storageType = [{ ::mlir::simulation::IndexSetAttr }];
+  let returnType = [{ ::mlir::simulation::IndexSetAttr }];
+  let convertFromStorage = "$_self";
+}
 
 //===---------------------------------------------------------------------===//
 // Simulation operation definitions
@@ -15,93 +37,192 @@ include "mlir/Interfaces/CallInterfaces.td"
 class Simulation_Op<string mnemonic, list<Trait> traits = []> :
     Op<Simulation_Dialect, mnemonic, traits>;
 
-def Simulation_ModuleOp : Simulation_Op<"module",
-    [IsolatedFromAbove,
-    NoRegionArguments,
-    SingleBlock,
-    NoTerminator,
-    HasParent<"mlir::ModuleOp">]>
+def Simulation_VariableOp : Simulation_Op<"variable",
+    [HasParent<"mlir::ModuleOp">, Symbol]>
 {
-    let summary = "The module containing all the simulation functions.";
+    let summary = "Variable of the simulation.";
 
     let description = [{
-        The operation is intended to contain all the operations that are
-        tightly related to the functions managing the simulation.
+        The operation represents a variable of the simulation.
+    }];
 
-        It expects three attributes:
-          1. the name of the model
-          2. the list of variables
-          3. the map of the derivatives (in form of list)
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttr:$type,
+        I64ArrayAttr:$dimensions,
+        DefaultValuedAttr<BoolAttr, "false">:$printable,
+        OptionalAttr<TypedArrayAttrBase<
+            MultidimensionalRangeAttr, "Printable indices">>:$printable_indices);
+
+    let results = (outs);
+
+    let assemblyFormat = "$sym_name attr-dict `:` $type";
+}
+
+def Simulation_ModelNameOp : Simulation_Op<"model_name",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the information about the name of the model.
+    }];
+
+    let description = [{
+        The operation holds the information about the name of the compiled
+        model.
 
         Example:
 
         ```mlir
-        #var0 = #simulation.variable<...>
-        #var1 = #simulation.variable<...>
-        #der0 = #simulation.derivative<...>
-
-        simulation.module attributes {modelName = "test", variables = [#var0, #var1], derivatives = [#der0]} {
-
-        }
+        simulation.model_name "model"
         ```
     }];
 
-    let arguments = (ins
-        DefaultValuedStrAttr<StrAttr, "<unknown>">:$modelName,
-        DefaultValuedAttr<VariablesListAttr, "llvm::None">:$variables,
-        DefaultValuedAttr<DerivativesListAttr, "llvm::None">:$derivatives);
+    let arguments = (ins StrAttr:$name);
 
-    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$name attr-dict";
+}
 
-    let assemblyFormat = "attr-dict-with-keyword $bodyRegion";
-    let skipDefaultBuilders = 1;
-
-    let builders = [
-        OpBuilder<(ins
-            "::llvm::StringRef":$modelName,
-            "::llvm::ArrayRef<::mlir::Attribute>":$variables,
-            "::llvm::ArrayRef<::mlir::Attribute>":$derivatives)>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the types of the variables.
-        ::llvm::SmallVector<::mlir::Type> getVariablesTypes();
-
-        /// Get a map from each derivative name to the its derived variable
-        /// name.
-        ::llvm::StringMap<::llvm::StringRef> getDerivativesMap();
+def Simulation_NumberOfVariablesOp : Simulation_Op<"number_of_variables",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the information about the number of array variables.
     }];
+
+    let description = [{
+        The operation holds the information about the number of array variables
+        of the simulation.
+
+        Example:
+
+        ```mlir
+        simulation.number_of_variables 5
+        ```
+    }];
+
+    let arguments = (ins I64Attr:$numberOfVariables);
+
+    let assemblyFormat = "$numberOfVariables attr-dict";
+}
+
+def Simulation_VariableNamesOp : Simulation_Op<"variable_names",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the variable names.
+    }];
+
+    let description = [{
+        The operation holds the the variable names.
+
+        Example:
+
+        ```mlir
+        simulation.variable_names ["x", "y", "z"]
+        ```
+    }];
+
+    let arguments = (ins StrArrayAttr:$names);
+
+    let assemblyFormat = "$names attr-dict";
+}
+
+def Simulation_VariableRanksOp : Simulation_Op<"variable_ranks",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the variable ranks.
+    }];
+
+    let description = [{
+        The operation holds the the variable ranks.
+
+        Example:
+
+        ```mlir
+        simulation.variable_ranks [0, 1, 2]
+        ```
+    }];
+
+    let arguments = (ins I64ArrayAttr:$ranks);
+
+    let assemblyFormat = "$ranks attr-dict";
+}
+
+def Simulation_DerivativesMapOp : Simulation_Op<"derivatives_map",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the derivative index of each variable.
+    }];
+
+    let description = [{
+        The operation holds the list of derivative mappings.
+        The i-th element of the array contains the index of the derivative of
+        variable i.
+        The value -1 is used to indicate that the variable has no derivative.
+
+        Example:
+
+        ```mlir
+        simulation.derivatives_map [-1, 2, -1]
+        ```
+    }];
+
+    let arguments = (ins I64ArrayAttr:$derivatives);
+
+    let assemblyFormat = "$derivatives attr-dict";
+}
+
+def Simulation_PrintableIndicesOp : Simulation_Op<"printable_indices",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the information about the printable indices of
+        variables.
+    }];
+
+    let description = [{
+        The operation holds the information about the printable indices of
+        variables.
+        The i-th element of the array contains the information about the
+        printable indices of variable i.
+        The information can be a boolean for scalar variables (i.e., the ones
+        with rank zero), while it must be an index set for non-scalar ones.
+
+        Example:
+
+        ```mlir
+        simulation.derivatives_map [false, true, #modeling<index_set {[0,1][2,3], [3,7][2,3]}>]
+        ```
+    }];
+
+    let arguments = (ins ArrayAttr:$value);
+
+    let assemblyFormat = "$value attr-dict";
 }
 
 def Simulation_InitFunctionOp : Simulation_Op<"init_function",
-    [IsolatedFromAbove,
-    AutomaticAllocationScope,
-    HasParent<"ModuleOp">,
-    Simulation_FunctionOpInterface]>
+    [AutomaticAllocationScope,
+    CallableOpInterface,
+    FunctionOpInterface,
+    IsolatedFromAbove,
+    HasParent<"mlir::ModuleOp">]>
 {
     let summary = [{
-        Function in charge of creating and initializing the simulation data.
+        Function in charge of initializing the simulation data.
     }];
 
     let description = [{
         The operation represents the function in charge of creating an
         initializing the simulation data.
-        The body should contain the operations used to allocate (and, if
-        necessary, initialize) the data structure representing each variable.
-        The yielded values are the ones that will be stored (through copies) in
-        the runtime data structure as representative of the variables (and,
-        thus, must have value semantics).
 
         Example:
 
         ```mlir
-        #var0 = simulation.variable<...> : !llvm.ptr<f64>
-        #var1 = simulation.variable<...> : !llvm.ptr<f64>
-
-        simulation.init_function () -> (!llvm.ptr<f64>, !llvm.ptr<f64>) {
-            %0 = ... : !llvm.ptr<f64>
-            %1 = ... : !llvm.ptr<f64>
-            simulation.yield %0, %1 : !llvm.ptr<f64>, !llvm.ptr<f64>
+        simulation.init_function {
+           ...
+            simulation.yield
         }
         ```
     }];
@@ -112,25 +233,39 @@ def Simulation_InitFunctionOp : Simulation_Op<"init_function",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "::mlir::TypeRange":$variableTypes), [{
+        OpBuilder<(ins), [{
             auto functionType =
-                $_builder.getFunctionType(llvm::None, variableTypes);
+                $_builder.getFunctionType(llvm::None, llvm::None);
 
             build($_builder, $_state, functionType);
         }]>
     ];
 
     let extraClassDeclaration = [{
-        /// @name FunctionOpInterface
+        /// @name CallableOpInterface methods
         /// {
 
-        /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes() {
+        ::mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBodyRegion();
+        }
+
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
+
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
             return getFunctionType().getInputs();
         }
 
-        /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
             return getFunctionType().getResults();
         }
 
@@ -139,29 +274,25 @@ def Simulation_InitFunctionOp : Simulation_Op<"init_function",
 }
 
 def Simulation_DeinitFunctionOp : Simulation_Op<"deinit_function",
-    [IsolatedFromAbove,
-    AutomaticAllocationScope,
-    HasParent<"ModuleOp">,
-    Simulation_FunctionOpInterface]>
+    [AutomaticAllocationScope,
+    CallableOpInterface,
+    FunctionOpInterface,
+    IsolatedFromAbove,
+    HasParent<"mlir::ModuleOp">]>
 {
-    let summary = "Function in charge of deleting the simulation data.";
+    let summary = [{
+        Function in charge of deinitializing the simulation data.
+    }];
 
     let description = [{
-        The operation represents the function in charge of deleting the
+        The operation represents the function in charge of deinitializing the
         simulation data.
-        The arguments represent the variables of the simulation.
-        The body should contain the operations used to deallocate the data
-        structure representing each variable.
 
         Example:
 
         ```mlir
-        #var0 = #simulation.variable<...> : memref<3xf64>
-        #var0 = #simulation.variable<...> : memref<5xf64>
-
-        simulation.deinit_function (%arg0 : memref<3xf64>, %arg1: memref<5xf64>) {
-            memref.dealloc %arg0 : memref<3xf64>
-            memref.dealloc %arg1 : memref<5xf64>
+        simulation.deinit_function {
+           ...
             simulation.yield
         }
         ```
@@ -173,277 +304,66 @@ def Simulation_DeinitFunctionOp : Simulation_Op<"deinit_function",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "::mlir::TypeRange":$variableTypes), [{
+        OpBuilder<(ins), [{
             auto functionType =
-                $_builder.getFunctionType(variableTypes, llvm::None);
+                $_builder.getFunctionType(llvm::None, llvm::None);
 
             build($_builder, $_state, functionType);
         }]>
     ];
 
     let extraClassDeclaration = [{
-        /// Get the arguments of the function representing the variables.
-        ::mlir::ValueRange getVariables();
-
-        /// @name FunctionOpInterface
+        /// @name CallableOpInterface methods
         /// {
 
-        /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
+        ::mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBodyRegion();
         }
 
-        /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
             return getFunctionType().getResults();
         }
 
         /// }
-    }];
-}
-
-class Simulation_InitSolversFunctionOp<string mnemonic>
-    : Simulation_Op<mnemonic,
-        [IsolatedFromAbove,
-        AutomaticAllocationScope,
-        HasParent<"ModuleOp">,
-        Simulation_FunctionOpInterface]>
-{
-    let arguments = (ins TypeAttrOf<FunctionType>:$function_type);
-    let regions = (region AnyRegion:$bodyRegion);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins "::mlir::TypeRange":$solverTypes, "::mlir::TypeRange":$variableTypes), [{
-            ::mlir::OpBuilder::InsertionGuard guard($_builder);
-
-            auto functionType =
-                $_builder.getFunctionType(variableTypes, solverTypes);
-
-            build($_builder, $_state, functionType);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the types of the solvers.
-        ::mlir::TypeRange getSolverTypes()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// Get the types of the variables.
-        ::mlir::TypeRange getVariableTypes()
-        {
-            return getFunctionType().getInputs();
-        }
-
-        /// Get the arguments of the function representing the variables.
-        ::llvm::ArrayRef<::mlir::BlockArgument> getVariables()
-        {
-            return getBodyRegion().getArguments();
-        }
-
-        /// @name FunctionOpInterface
+        /// @name FunctionOpInterface methods
         /// {
 
-        /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes() {
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
             return getFunctionType().getInputs();
         }
 
-        /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
             return getFunctionType().getResults();
         }
 
         /// }
-    }];
-}
-
-def Simulation_InitICSolversFunctionOp
-    : Simulation_InitSolversFunctionOp<"init_ic_solvers_function">
-{
-    let summary = [{
-        Function in charge of creating and initializing the 'initial
-        conditions' solvers.
-    }];
-
-    let description = [{
-        The operation represents the function in charge of creating and
-        initializing the solvers used to solve the 'initial conditions' model.
-        The arguments of the function represent the variables of the
-        simulation, which may need to be used for the initialization of the
-        solvers.
-        The yielded values are the ones that will be stored (through copies) in
-        the runtime data structure as representative of the solvers (and, thus,
-        must have value semantics).
-
-        Example:
-
-        ```mlir
-        #var0 = #simulation.variable<...> : !llvm.ptr<f64>
-        #var1 = #simulation.variable<...> : !llvm.ptr<f64>
-
-        simulation.init_ic_solvers_function (%arg0: !llvm.ptr<f64>, %arg1: !llvm.ptr<f64>) {
-            %0 = ... : !solver.type1
-            %1 = ... : !solver.type2
-            simulation.yield %0, %1 : !solver.type1, !solver.type2
-        }
-        ```
-    }];
-}
-
-def Simulation_InitMainSolversFunctionOp
-    : Simulation_InitSolversFunctionOp<"init_main_solvers_function">
-{
-    let summary = [{
-        Function in charge of creating and initializing the 'main' solvers.
-    }];
-
-    let description = [{
-        The operation represents the function in charge of creating and
-        initializing the solvers used to solve the 'main' model.
-        The arguments of the function represent the variables of the
-        simulation, which may need to be used for the initialization of the
-        solvers.
-        The yielded values are the ones that will be stored (through copies) in
-        the runtime data structure as representative of the solvers (and, thus,
-        must have value semantics).
-
-        Example:
-
-        ```mlir
-        #var0 = #simulation.variable<...> : !llvm.ptr<f64>
-        #var1 = #simulation.variable<...> : !llvm.ptr<f64>
-
-        simulation.init_main_solvers_function (%arg0: !llvm.ptr<f64>, %arg1: !llvm.ptr<f64>) {
-            %0 = ... : !solver.type1
-            %1 = ... : !solver.type2
-            simulation.yield %0, %1 : !solver.type1, !solver.type2
-        }
-        ```
-    }];
-}
-
-class Simulation_DeinitSolversFunctionOp<string mnemonic>
-    : Simulation_Op<mnemonic,
-        [IsolatedFromAbove,
-        AutomaticAllocationScope,
-        HasParent<"ModuleOp">,
-        Simulation_FunctionOpInterface]>
-{
-    let arguments = (ins TypeAttrOf<FunctionType>:$function_type);
-    let regions = (region AnyRegion:$bodyRegion);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins "::mlir::TypeRange":$solverTypes), [{
-            ::mlir::OpBuilder::InsertionGuard guard($_builder);
-
-            auto functionType =
-                $_builder.getFunctionType(solverTypes, llvm::None);
-
-            build($_builder, $_state, functionType);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the types of the solvers.
-        ::mlir::TypeRange getSolverTypes()
-        {
-            return getFunctionType().getInputs();
-        }
-
-        /// Get the arguments of the function representing the solvers.
-        ::llvm::ArrayRef<::mlir::BlockArgument> getSolvers()
-        {
-            return getBodyRegion().getArguments();
-        }
-
-        /// @name FunctionOpInterface
-        /// {
-
-        /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
-
-        /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-    }];
-}
-
-def Simulation_DeinitICSolversFunctionOp
-    : Simulation_DeinitSolversFunctionOp<"deinit_ic_solvers_function">
-{
-    let summary = [{
-        Function in charge of deleting the 'initial conditions' solvers.
-    }];
-
-    let description = [{
-        The operation represents the function in charge of deleting the solvers
-        used to solve the 'initial conditions' model.
-        The arguments of the function represent the solvers of the simulation.
-
-        Example:
-
-        ```mlir
-        simulation.deinit_ic_solvers_function (%arg0: !solver.type1, %arg1: !solver.type2) {
-            simulation.yield
-        }
-        ```
-    }];
-}
-
-def Simulation_DeinitMainSolversFunctionOp
-    : Simulation_DeinitSolversFunctionOp<"deinit_main_solvers_function">
-{
-    let summary = "Function in charge of deleting the 'main' solvers.";
-
-    let description = [{
-        The operation represents the function in charge of deleting the solvers
-        used to solve the 'main' model.
-        The arguments of the function represent the solvers of the simulation.
-
-        Example:
-
-        ```mlir
-        simulation.deinit_main_solvers_function (%arg0: !solver.type1, %arg1: !solver.type2) {
-            simulation.yield
-        }
-        ```
     }];
 }
 
 def Simulation_VariableGetterOp : Simulation_Op<"variable_getter",
-    [IsolatedFromAbove,
-    AutomaticAllocationScope,
-    HasParent<"ModuleOp">,
-    Simulation_FunctionOpInterface]>
+    [AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface,
+    IsolatedFromAbove,
+    HasParent<"mlir::ModuleOp">]>
 {
     let summary = "Getter interface for a simulation variable.";
 
     let description = [{
         The operation represents a function to be called to retrieve the value
         of a specific scalar variable.
-        It takes as argument the (possibly) array variable and an amount of
-        indices equal to its rank (zero, if the variable is a scalar one).
-        A getter can be attached to multiple variables, as long they all have
-        the same type, in order to avoid code duplication.
+        It takes as argument an amount of indices equal to its rank (zero, if
+        the variable is a scalar one).
 
         Example:
 
         ```mlir
-        #var0 = #simulation.variable<...> : !llvm.ptr<f64>
-        #var1 = #simulation.variable<...> : !llvm.ptr<f64>
-
-        simulation.variable_getter [#var0, #var1](%arg0: !llvm.ptr<f64>, %arg1: index) -> f64 {
+        simulation.variable_getter @name(%arg0: index, %arg1: index) -> f64 {
             %result = ... f64
             simulation.yield %result : f64
         }
@@ -451,29 +371,15 @@ def Simulation_VariableGetterOp : Simulation_Op<"variable_getter",
     }];
 
     let arguments = (ins
-        TypeAttrOf<FunctionType>:$function_type,
-        TypedArrayAttrBase<
-            VariableAttr,
-            "The variables to which the function can be applied">:$variables);
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type);
 
     let regions = (region AnyRegion:$bodyRegion);
 
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins
-            "::llvm::ArrayRef<::mlir::Attribute>":$variables,
-            "::mlir::Type":$resultType,
-            "::mlir::Type":$variableType,
-            "int64_t":$variableRank), [{
-                llvm::SmallVector<mlir::Type, 4> argTypes;
-                argTypes.push_back(variableType);
-                argTypes.append(variableRank, $_builder.getIndexType());
-
-                build($_builder, $_state,
-                      $_builder.getFunctionType(argTypes, resultType),
-                      $_builder.getArrayAttr(variables));
-            }]>
+        OpBuilder<(ins "::llvm::StringRef":$name, "uint64_t":$variableRank)>
     ];
 
     let extraClassDeclaration = [{
@@ -481,37 +387,82 @@ def Simulation_VariableGetterOp : Simulation_Op<"variable_getter",
         ::mlir::BlockArgument getVariable();
 
         /// Get the rank of the variable.
-        int64_t getVariableRank();
+        uint64_t getVariableRank();
 
         /// Get the arguments representing the indices of the scalar variable.
         ::llvm::ArrayRef<::mlir::BlockArgument> getIndices();
 
         /// Get the argument representing the index of a specific dimension.
-        ::mlir::BlockArgument getIndex(int64_t dimension);
+        ::mlir::BlockArgument getIndex(uint64_t dimension);
 
-        /// @name FunctionOpInterface
+        /// @name CallableOpInterface methods
         /// {
 
-        /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes() {
+        ::mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBodyRegion();
+        }
+
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
+
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
             return getFunctionType().getInputs();
         }
 
-        /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
             return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name SymbolOpInterface methods
+        /// {
+
+        bool isDeclaration() {
+            return isExternal();
         }
 
         /// }
     }];
 }
 
+def Simulation_VariableGettersOp : Simulation_Op<"variable_getters",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let summary = [{
+        Operation holding the names of the function to be called to get the
+        values of the variables.
+    }];
+
+    let description = [{
+        The operation holds the the names of the function to be called to get the
+        values of the variables.
+        The i-th element of the array contains the name of the function to query
+        the array variable at position i.
+
+        Example:
+
+        ```mlir
+        simulation.variable_getters [@getter1, @getter2, @getter3]
+        ```
+    }];
+
+    let arguments = (ins ArrayAttr:$names);
+
+    let assemblyFormat = "$names attr-dict";
+}
+
 def Simulation_YieldOp : Simulation_Op<"yield",
     [Terminator,
-    ParentOneOf<["InitFunctionOp", "DeinitFunctionOp",
-                 "InitICSolversFunctionOp", "InitMainSolversFunctionOp",
-                 "DeinitICSolversFunctionOp", "DeinitMainSolversFunctionOp",
-                 "VariableGetterOp"]>]>
+    ParentOneOf<["InitFunctionOp", "DeinitFunctionOp", "VariableGetterOp"]>]>
 {
     let summary = "Yield values to the parent operation.";
 
@@ -528,28 +479,26 @@ def Simulation_YieldOp : Simulation_Op<"yield",
 }
 
 def Simulation_FunctionOp : Simulation_Op<"function",
-    [IsolatedFromAbove,
-    AutomaticAllocationScope,
+    [AutomaticAllocationScope,
     Symbol,
-    Simulation_FunctionOpInterface,
     CallableOpInterface,
-    HasParent<"ModuleOp">]>
+    FunctionOpInterface,
+    IsolatedFromAbove,
+    HasParent<"mlir::ModuleOp">]>
 {
     let summary = "Generic simulation function.";
 
     let description = [{
         The operation represents a generic function that is requested by the
         runtime library in order to run the simulation.
-        The arguments consist in the instances of the solvers, the time
-        variable, the simulation variables and optional extra arguments.
         The function is allowed to return at most one result.
 
         Example:
 
         ```mlir
-        simulation.func @foo(solvers: [], time: [%arg0 : f64], variables: [], extra_args: []) -> f64 {
+        simulation.func @foo(%arg0: i64, %arg1: f64) -> f64 {
             ...
-            simulation.return %arg0 : f64
+            simulation.return %arg1 : f64
         }
         ```
     }];
@@ -557,9 +506,7 @@ def Simulation_FunctionOp : Simulation_Op<"function",
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         OptionalAttr<StrAttr>:$sym_visibility,
-        TypeAttrOf<FunctionType>:$function_type,
-        I64Attr:$solversAmount,
-        I64Attr:$variablesAmount);
+        TypeAttrOf<FunctionType>:$function_type);
 
     let regions = (region AnyRegion:$bodyRegion);
 
@@ -567,55 +514,23 @@ def Simulation_FunctionOp : Simulation_Op<"function",
     let skipDefaultBuilders = 1;
 
     let builders = [
-        OpBuilder<(ins
-            "::llvm::StringRef":$name,
-            "::mlir::TypeRange":$solverTypes,
-            "::mlir::Type":$timeType,
-            "::mlir::TypeRange":$variableTypes,
-            "::mlir::TypeRange":$extraArgs,
-            "::mlir::TypeRange":$resultTypes)>
+        OpBuilder<(ins "::llvm::StringRef":$name, "mlir::FunctionType":$type)>
     ];
 
     let extraClassDeclaration = [{
-        /// Get the types of the solvers.
-        ::llvm::SmallVector<::mlir::Type> getSolverTypes();
-
-        /// Get the type of the time variable.
-        ::mlir::Type getTimeType();
-
-        /// Get the types of the variables.
-        ::llvm::SmallVector<::mlir::Type> getVariableTypes();
-
-        /// Get the types of the extra arguments.
-        ::llvm::SmallVector<::mlir::Type> getExtraArgTypes();
-
-        /// Get the arguments of the function representing the solvers.
-        ::llvm::ArrayRef<::mlir::BlockArgument> getSolvers();
-
-        /// Get the argument of the function representing the time variable.
-        ::mlir::BlockArgument getTime();
-
-        /// Get the arguments of the function representing the variables.
-        ::llvm::ArrayRef<::mlir::BlockArgument> getVariables();
-
-        /// Get the arguments of the function representing the extra arguments.
-        ::llvm::ArrayRef<::mlir::BlockArgument> getExtraArgs();
-
         /// @name CallableOpInterface methods
         /// {
 
-        /// Returns the region on the current operation that is callable. This
-        /// may return null in the case of an external callable object, e.g. an
-        /// external function.
-        ::mlir::Region* getCallableRegion()
-        {
-            return &getBodyRegion();
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion() {
+            return isExternal() ? nullptr : &getBodyRegion();
         }
 
         /// Returns the results types that the callable region produces when
         /// executed.
-        ::llvm::ArrayRef<::mlir::Type> getCallableResults()
-        {
+        llvm::ArrayRef<mlir::Type> getCallableResults() {
             return getFunctionType().getResults();
         }
 
@@ -624,14 +539,12 @@ def Simulation_FunctionOp : Simulation_Op<"function",
         /// {
 
         /// Returns the argument types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getArgumentTypes()
-        {
+        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
             return getFunctionType().getInputs();
         }
 
         /// Returns the result types of this function.
-        ::llvm::ArrayRef<::mlir::Type> getResultTypes()
-        {
+        llvm::ArrayRef<mlir::Type> getResultTypes() {
             return getFunctionType().getResults();
         }
 
@@ -639,9 +552,8 @@ def Simulation_FunctionOp : Simulation_Op<"function",
         /// @name SymbolOpInterface methods
         /// {
 
-        bool isDeclaration()
-        {
-            return false;
+        bool isDeclaration() {
+            return isExternal();
         }
 
         /// }
@@ -650,7 +562,7 @@ def Simulation_FunctionOp : Simulation_Op<"function",
 
 def Simulation_ReturnOp : Simulation_Op<"return",
     [Terminator,
-    HasParent<"FunctionOp">]>
+    ParentOneOf<["FunctionOp", "VariableGetterOp"]>]>
 {
     let summary = "Function return operation.";
 
@@ -662,7 +574,7 @@ def Simulation_ReturnOp : Simulation_Op<"return",
         Example:
 
         ```mlir
-        simulation.func @foo(solvers: [], time: [%arg0 : f64], variables: []) -> f64 {
+        simulation.func @foo(%arg0: f64) -> f64 {
             ...
             simulation.return %arg0 : f64
         }

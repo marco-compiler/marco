@@ -1,19 +1,20 @@
+#include "marco/Frontend/CompilerInstance.h"
+#include "marco/Diagnostic/Printer.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Frontend/CompilerInvocation.h"
+#include "marco/Frontend/FrontendActions.h"
+#include "marco/Options/Options.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "marco/Diagnostic/Printer.h"
-#include "marco/Frontend/CompilerInstance.h"
-#include "marco/Frontend/CompilerInvocation.h"
-#include "marco/Frontend/FrontendActions.h"
-#include "marco/Frontend/Options.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
 
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
+using namespace ::marco::io;
 
 //===---------------------------------------------------------------------===//
 // Messages
@@ -153,7 +154,7 @@ namespace marco::frontend
       return false;
     }
 
-    for (const FrontendInputFile& fif : getFrontendOptions().inputs) {
+    for (const InputFile& fif : getFrontendOptions().inputs) {
       if (act.beginSourceFile(*this, fif)) {
         if (llvm::Error err = act.execute()) {
           consumeError(std::move(err));

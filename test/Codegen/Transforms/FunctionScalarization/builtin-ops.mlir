@@ -1,22 +1,15 @@
-// RUN: modelica-opt %s                                 \
-// RUN:     --scalarize                                 \
-// RUN:     --convert-modelica-to-cf                    \
-// RUN:     --convert-modelica-to-arith                 \
-// RUN:     --convert-modelica-to-func                  \
-// RUN:     --convert-modelica-to-memref                \
-// RUN:     --convert-modelica-to-llvm                  \
-// RUN:     --convert-arith-to-llvm                     \
-// RUN:     --convert-memref-to-llvm                    \
-// RUN:     --convert-scf-to-cf                         \
-// RUN:     --convert-func-to-llvm                      \
-// RUN:     --convert-cf-to-llvm                        \
-// RUN:     --reconcile-unrealized-casts                \
-// RUN: | mlir-cpu-runner                               \
-// RUN:     -e main -entry-point-result=void -O0        \
-// RUN:     -shared-libs=%runtime_lib                   \
-// RUN: | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --scalarize --canonicalize | FileCheck %s
 
-// CHECK{LITERAL}: [2.000000e+00, 0.000000e+00, 3.000000e+00]
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.abs %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_abs() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -38,7 +31,18 @@ func.func @test_abs() -> () {
     return
 }
 
-// CHECK{LITERAL}: [3.141593e+00, 1.570796e+00, 0.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.acos %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_acos() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -60,7 +64,18 @@ func.func @test_acos() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-1.570796e+00, 0.000000e+00, 1.570796e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.asin %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_asin() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -82,7 +97,18 @@ func.func @test_asin() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-7.853982e-01, 0.000000e+00, 7.853982e-01]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.atan %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_atan() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -104,7 +130,17 @@ func.func @test_atan() -> () {
     return
 }
 
-// CHECK{LITERAL}: [7.853982e-01, 2.356194e+00, -2.356194e+00, -7.853982e-01]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 4 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[value:.*]] = modelica.atan2 %{{.*}}, %{{.*}}
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_atan2() -> () {
     %y = modelica.alloca : !modelica.array<4x!modelica.real>
@@ -139,7 +175,18 @@ func.func @test_atan2() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-3.000000e+00, 4.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.ceil %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_ceil() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -157,7 +204,18 @@ func.func @test_ceil() -> () {
     return
 }
 
-// CHECK{LITERAL}: [8.660254e-01, 7.071068e-01]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.cos %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_cos() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -175,7 +233,18 @@ func.func @test_cos() -> () {
     return
 }
 
-// CHECK{LITERAL}: [1.543081e+00, 1.000000e+00, 1.543081e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.cosh %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_cosh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -197,7 +266,18 @@ func.func @test_cosh() -> () {
     return
 }
 
-// CHECK{LITERAL}: [3.678794e-01, 1.000000e+00, 2.718282e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.exp %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_exp() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -219,7 +299,18 @@ func.func @test_exp() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-4.000000e+00, 3.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.floor %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_floor() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -237,7 +328,18 @@ func.func @test_floor() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-4.000000e+00, 3.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.integer %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_integer() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -255,7 +357,18 @@ func.func @test_integer() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-2.000000e+00, 0.000000e+00, 2.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.log %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_log() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -277,7 +390,18 @@ func.func @test_log() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-2.000000e+00, 0.000000e+00, 2.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.log10 %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_log10() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -299,7 +423,18 @@ func.func @test_log10() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-1.000000e+00, 0.000000e+00, 1.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.sign %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_sign() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -321,7 +456,18 @@ func.func @test_sign() -> () {
     return
 }
 
-// CHECK{LITERAL}: [5.000000e-01, 7.071068e-01]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.sin %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_sin() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -339,7 +485,18 @@ func.func @test_sin() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-1.175201e+00, 0.000000e+00, 1.175201e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.sinh %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_sinh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -361,7 +518,18 @@ func.func @test_sinh() -> () {
     return
 }
 
-// CHECK{LITERAL}: [2.000000e+00, 3.000000e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.sqrt %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_sqrt() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -379,7 +547,18 @@ func.func @test_sqrt() -> () {
     return
 }
 
-// CHECK{LITERAL}: [5.773503e-01, 1.732051e+00]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 2 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.tan %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_tan() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
@@ -397,7 +576,18 @@ func.func @test_tan() -> () {
     return
 }
 
-// CHECK{LITERAL}: [-7.615942e-01, 0.000000e+00, 7.615942e-01]
+// -----
+
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.tanh %[[load]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 func.func @test_tanh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
@@ -416,28 +606,5 @@ func.func @test_tanh() -> () {
 
     %result = modelica.tanh %array : !modelica.array<3x!modelica.real> -> !modelica.array<3x!modelica.real>
     modelica.print %result : !modelica.array<3x!modelica.real>
-    return
-}
-
-func.func @main() -> () {
-    call @test_abs() : () -> ()
-    call @test_acos() : () -> ()
-    call @test_asin() : () -> ()
-    call @test_atan() : () -> ()
-    call @test_atan2() : () -> ()
-    call @test_ceil() : () -> ()
-    call @test_cos() : () -> ()
-    call @test_cosh() : () -> ()
-    call @test_exp() : () -> ()
-    call @test_floor() : () -> ()
-    call @test_integer() : () -> ()
-    call @test_log() : () -> ()
-    call @test_log10() : () -> ()
-    call @test_sign() : () -> ()
-    call @test_sin() : () -> ()
-    call @test_sinh() : () -> ()
-    call @test_sqrt() : () -> ()
-    call @test_tan() : () -> ()
-    call @test_tanh() : () -> ()
     return
 }

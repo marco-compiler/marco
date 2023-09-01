@@ -1,9 +1,9 @@
-#include "llvm/Support/CommandLine.h"
+#include "marco/Options/Options.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
-#include "marco/Frontend/Options.h"
+#include "llvm/Support/CommandLine.h"
 
-using namespace marco::frontend;
+using namespace ::marco::frontend;
 
 static std::unique_ptr<FrontendAction> createFrontendBaseAction(
     CompilerInstance& ci)
@@ -61,10 +61,10 @@ namespace marco::frontend
   {
     // Honor --help.
     if (ci->getFrontendOptions().showHelp) {
-      getDriverOptTable().printHelp(
+      options::getDriverOptTable().printHelp(
           llvm::outs(),
-          "marco-driver [options] input-files", "MLIR Modelica compiler",
-          marco::frontend::options::MC1Option,
+          "marco -mc1 [options] input-files", "MARCO Modelica frontend",
+          options::MC1Option,
           llvm::opt::DriverFlag::HelpHidden,
           false);
 
@@ -73,8 +73,7 @@ namespace marco::frontend
 
     // Honor --version.
     if (ci->getFrontendOptions().showVersion) {
-      llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
-      llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
+      options::printHelp();
       return true;
     }
 

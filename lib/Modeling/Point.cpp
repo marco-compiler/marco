@@ -17,6 +17,12 @@ namespace marco::modeling
   {
   }
 
+  llvm::hash_code hash_value(const Point& value)
+  {
+    return llvm::hash_combine_range(
+        value.values.begin(), value.values.end());
+  }
+
   bool Point::operator==(const Point& other) const
   {
     if (values.size() != other.values.size()) {
@@ -66,6 +72,11 @@ namespace marco::modeling
   Point::const_iterator Point::end() const
   {
     return values.end();
+  }
+
+  Point::operator llvm::ArrayRef<data_type>() const
+  {
+    return values;
   }
 
   std::ostream& operator<<(std::ostream& stream, const Point& obj)

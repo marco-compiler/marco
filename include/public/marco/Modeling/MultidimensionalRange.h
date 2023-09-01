@@ -2,7 +2,9 @@
 #define MARCO_MODELING_MULTIDIMENSIONALRANGE_H
 
 #include "marco/Modeling/Range.h"
+#include "mlir/IR/AffineMap.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace marco::modeling
@@ -47,6 +49,8 @@ namespace marco::modeling
       MultidimensionalRange(llvm::ArrayRef<Range> ranges);
 
       MultidimensionalRange(Point point);
+
+      friend llvm::hash_code hash_value(const MultidimensionalRange& value);
 
       bool operator==(const Point& other) const;
 
@@ -93,6 +97,19 @@ namespace marco::modeling
       const_iterator end() const;
 
       MultidimensionalRange slice(size_t dimensions) const;
+
+      MultidimensionalRange takeFirstDimensions(size_t n) const;
+
+      MultidimensionalRange takeLastDimensions(size_t n) const;
+
+      MultidimensionalRange takeDimensions(
+          const llvm::SmallBitVector& dimensions) const;
+
+      MultidimensionalRange dropFirstDimensions(size_t n) const;
+
+      MultidimensionalRange dropLastDimensions(size_t n) const;
+
+      MultidimensionalRange append(const MultidimensionalRange& other) const;
 
     private:
       llvm::SmallVector<Range, 2> ranges;

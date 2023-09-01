@@ -280,13 +280,6 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
         "mlir::LLVM::LLVMDialect"
     ];
 
-    let options = [
-        Option<"bitWidth", "bitWidth", "unsigned int", "64",
-               "Specify the bit-width for the simulation data">,
-        Option<"emitMainFunction", "emit-main-function", "bool", "true",
-               "Emit the 'main' function of the simulation">
-    ];
-
     let constructor = "mlir::createSimulationToFuncConversionPass()";
 }
 

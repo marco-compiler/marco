@@ -18,29 +18,6 @@ class Simulation_Attr<
     let mnemonic = attrMnemonic;
 }
 
-def Simulation_MultidimensionalRange
-    : Simulation_Attr<"MultidimensionalRange", "multidimensional_range">
-{
-    let summary = "Multidimensional range.";
-
-    let description = [{
-        Attribute representing a multidimensional range.
-    }];
-
-    let parameters = (ins
-        ArrayRefParameter<"std::pair<int64_t, int64_t>">:$ranges);
-
-    let hasCustomAssemblyFormat = 1;
-}
-
-def MultidimensionalRangeAttr
-    : Attr<CPred<"$_self.isa<::mlir::simulation::MultidimensionalRangeAttr>()">,
-           "Multidimensional range attribute">;
-
-def MultidimensionalRangeListAttr
-    : TypedArrayAttrBase<MultidimensionalRangeAttr,
-                         "Multidimensional range array attribute">;
-
 def ArrayOfDimensionsParam
     : OptionalArrayRefParameter<"int64_t">
 {

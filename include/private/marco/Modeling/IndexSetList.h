@@ -49,6 +49,8 @@ namespace marco::modeling::impl
 
       std::unique_ptr<Impl> clone() const override;
 
+      friend llvm::hash_code hash_value(const ListIndexSet& value);
+
       bool operator==(const Point& rhs) const override;
 
       bool operator==(const MultidimensionalRange& rhs) const override;
@@ -119,11 +121,22 @@ namespace marco::modeling::impl
 
       IndexSet complement(const MultidimensionalRange& other) const override;
 
+      std::unique_ptr<IndexSet::Impl> takeFirstDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> takeLastDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> takeDimensions(
+          const llvm::SmallBitVector& dimensions) const override;
+
+      std::unique_ptr<IndexSet::Impl> dropFirstDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> dropLastDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> append(const IndexSet& other) const override;
+
       std::unique_ptr<IndexSet::Impl> getCanonicalRepresentation() const override;
 
     private:
-      void sort();
-
       void split();
 
       bool shouldSplitRange(
@@ -135,6 +148,10 @@ namespace marco::modeling::impl
           const MultidimensionalRange& range,
           const MultidimensionalRange& grid,
           size_t dimension) const;
+
+      void sort();
+
+      void removeDuplicates();
 
       void merge();
 

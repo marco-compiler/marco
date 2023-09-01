@@ -1,41 +1,27 @@
 // RUN: modelica-opt %s --split-input-file --convert-simulation-to-func | FileCheck %s
 
-// No variables
+// Empty function.
 
-// CHECK:       func.func @init() -> !llvm.ptr<i8> {
-// CHECK:           %[[structValue:.*]] = llvm.mlir.undef : !llvm.struct<(ptr<i8>, f64)>
-// CHECK:           %[[structPtr:.*]] = llvm.bitcast %{{.*}} : !llvm.ptr<i8> to !llvm.ptr<struct<(ptr<i8>, f64)>>
-// CHECK:           llvm.store %[[structValue]], %[[structPtr]]
-// CHECK:           %[[result:.*]] = llvm.bitcast %[[structPtr]] : !llvm.ptr<struct<(ptr<i8>, f64)>> to !llvm.ptr<i8>
-// CHECK:           return %[[result]]
+// CHECK:       func.func @init() {
+// CHECK:           return
 // CHECK-NEXT:  }
 
-simulation.module {
-    simulation.init_function () -> () {
-        simulation.yield
-    }
+simulation.init_function {
+    simulation.yield
 }
 
 // -----
 
-// Generic case
+// Non-empty function.
 
-// CHECK:       func.func @init() -> !llvm.ptr<i8> {
-// CHECK-DAG:       %[[var1:.*]] = arith.constant 0 : i64
-// CHECK-DAG:       %[[var2:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK:           %[[structValue_1:.*]] = llvm.mlir.undef : !llvm.struct<(ptr<i8>, f64, i64, f64)>
-// CHECK:           %[[structValue_2:.*]] = llvm.insertvalue %[[var1]], %[[structValue_1]][2]
-// CHECK:           %[[structValue_3:.*]] = llvm.insertvalue %[[var2]], %[[structValue_2]][3]
-// CHECK:           %[[structPtr:.*]] = llvm.bitcast %{{.*}} : !llvm.ptr<i8> to !llvm.ptr<struct<(ptr<i8>, f64, i64, f64)>>
-// CHECK:           llvm.store %[[structValue_3]], %[[structPtr]]
-// CHECK:           %[[result:.*]] = llvm.bitcast %[[structPtr]] : !llvm.ptr<struct<(ptr<i8>, f64, i64, f64)>> to !llvm.ptr<i8>
-// CHECK:           return %[[result]]
+// CHECK:       func.func @init() {
+// CHECK:           %[[cst:.*]] = modelica.constant #modelica.int<0>
+// CHECK:           modelica.print %[[cst]]
+// CHECK:           return
 // CHECK-NEXT:  }
 
-simulation.module {
-    simulation.init_function () -> (i64, f64) {
-        %0 = arith.constant 0 : i64
-        %1 = arith.constant 0.0 : f64
-        simulation.yield %0, %1 : i64, f64
-    }
+simulation.init_function {
+    %0 = modelica.constant #modelica.int<0>
+    modelica.print %0 : !modelica.int
+    simulation.yield
 }

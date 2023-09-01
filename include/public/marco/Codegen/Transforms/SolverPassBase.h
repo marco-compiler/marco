@@ -1,8 +1,9 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_SOLVERPASSBASE_H
 #define MARCO_CODEGEN_TRANSFORMS_SOLVERPASSBASE_H
 
-#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
@@ -26,64 +27,154 @@ namespace mlir::modelica::impl
 
       mlir::LogicalResult convert(
           ModelOp modelOp,
+          const DerivativesMap& derivativesMap,
           const marco::VariableFilter& variablesFilter,
           bool processICModel = true,
           bool processMainModel = true);
 
-      mlir::LogicalResult legalizeFuncOps(
-          mlir::ModuleOp moduleOp,
-          mlir::TypeConverter& typeConverter) const;
-
     private:
-      mlir::simulation::ModuleOp createSimulationModule(
+      mlir::LogicalResult createModelNameOp(
           mlir::OpBuilder& builder,
-          ModelOp modelOp,
-          const marco::codegen::DerivativesMap& derivativesMap,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          ModelOp modelOp);
+
+      mlir::LogicalResult createNumOfVariablesOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps);
+
+      mlir::LogicalResult createVariableNamesOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps);
+
+      mlir::LogicalResult createVariableRanksOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps);
+
+      mlir::LogicalResult createPrintableIndicesOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap,
           const marco::VariableFilter& variablesFilter);
 
-      marco::modeling::IndexSet getPrintableIndices(
-          ModelOp modelOp,
-          const marco::codegen::DerivativesMap& derivativesMap,
-          const marco::VariableFilter& variablesFilter,
-          VariableOp variableOp) const;
+      mlir::LogicalResult createDerivativesMapOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap);
 
-      /// Create the initialization function that allocates the variables and
-      /// stores them into an appropriate data structure to be passed to the
-      /// other simulation functions.
+      mlir::LogicalResult createGlobalVariables(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          llvm::ArrayRef<VariableOp> variableOps,
+          llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
+
+      mlir::LogicalResult createVariableGetters(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
+
+      /// Create the function that is called before starting the simulation.
       mlir::LogicalResult createInitFunction(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
           mlir::modelica::ModelOp modelOp,
-          mlir::simulation::ModuleOp simulationModuleOp) const;
+          llvm::ArrayRef<VariableOp> variableOps,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
 
-      /// Create a function to be called when the simulation has finished and
-      /// the variables together with its data structure are not required
-      /// anymore and thus can be deallocated.
+      /// Create the function that is called when the simulation has finished.
       mlir::LogicalResult createDeinitFunction(
           mlir::OpBuilder& builder,
-          mlir::modelica::ModelOp modelOp,
-          mlir::simulation::ModuleOp simulationModuleOp) const;
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc);
 
-      mlir::LogicalResult createVariableGetterFunctions(
+      GlobalVariableOp declareTimeVariable(
           mlir::OpBuilder& builder,
-          mlir::modelica::ModelOp modelOp,
-          mlir::simulation::ModuleOp simulationModuleOp) const;
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          mlir::SymbolTableCollection& symbolTableCollection);
+
+      mlir::LogicalResult createTimeGetterOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          GlobalVariableOp timeVariableOp);
+
+      mlir::LogicalResult createTimeSetterOp(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          GlobalVariableOp timeVariableOp);
+
+      mlir::LogicalResult convertTimeOp(mlir::ModuleOp moduleOp);
 
     protected:
       /// Convert the initial scheduled model into the algorithmic functions
       /// used to determine the initial values of the simulation.
       virtual mlir::LogicalResult solveICModel(
-          mlir::OpBuilder& builder,
-          mlir::simulation::ModuleOp simulationModuleOp,
-          const marco::codegen::Model<
-              marco::codegen::ScheduledEquationsBlock>& model) = 0;
+          mlir::IRRewriter& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::modelica::ModelOp modelOp,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+          llvm::ArrayRef<SCCOp> SCCs) = 0;
 
       /// Convert the main scheduled model into the algorithmic functions that
       /// compose the simulation.
       virtual mlir::LogicalResult solveMainModel(
+          mlir::IRRewriter& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::modelica::ModelOp modelOp,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+          llvm::ArrayRef<SCCOp> SCCs) = 0;
+
+      /// Count how many instances do exist of each equation template.
+      void getEquationTemplatesUsageCount(
+          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::DenseMap<EquationTemplateOp, size_t>& usages) const;
+
+      RawFunctionOp createEquationTemplateFunction(
           mlir::OpBuilder& builder,
-          mlir::simulation::ModuleOp simulationModuleOp,
-          const marco::codegen::Model<
-              marco::codegen::ScheduledEquationsBlock>& model) = 0;
+          mlir::ModuleOp moduleOp,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          EquationTemplateOp equationTemplateOp,
+          uint64_t elementViewIndex,
+          mlir::ArrayAttr iterationDirections,
+          llvm::StringRef functionName,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
+
+    private:
+      void createIterationLoops(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          llvm::ArrayRef<mlir::Value> beginIndices,
+          llvm::ArrayRef<mlir::Value> endIndices,
+          llvm::ArrayRef<mlir::Value> steps,
+          mlir::ArrayAttr iterationDirections,
+          llvm::SmallVectorImpl<mlir::Value>& inductions);
+
+    protected:
+      mlir::LogicalResult callEquationFunction(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          ScheduledEquationInstanceOp equationOp,
+          RawFunctionOp rawFunctionOp) const;
   };
 }
 

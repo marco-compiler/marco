@@ -1,8 +1,11 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(ida{model=Test})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
 
-// CHECK:       simulation.function @calcIC(solvers: [%[[ida:.*]]: !ida.instance], time: [%[[time:.*]]: !modelica.real], variables: [], extra_args: []) -> () {
-// CHECK-NEXT:      ida.calc_ic %[[ida]]
-// CHECK-NEXT:      simulation.return
+// Empty model.
+
+// CHECK: ida.instance @ida_main
+// CHECK:       simulation.function @calcIC() {
+// CHECK:           ida.calc_ic @ida_main
+// CHECK:           simulation.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

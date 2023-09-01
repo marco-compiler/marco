@@ -5,6 +5,106 @@
 
 using namespace ::mlir::modelica;
 
+namespace mlir
+{
+  template<>
+  struct FieldParser<mlir::modelica::EquationPath>
+  {
+    static FailureOr<mlir::modelica::EquationPath>
+    parse(mlir::AsmParser& parser)
+    {
+      EquationPath::EquationSide side = EquationPath::LEFT;
+      llvm::SmallVector<uint64_t> path;
+
+      if (parser.parseLSquare()) {
+        return mlir::failure();
+      }
+
+      if (mlir::succeeded(parser.parseOptionalKeyword("R"))) {
+        side = EquationPath::RIGHT;
+      } else {
+        if (parser.parseKeyword("L")) {
+          return mlir::failure();
+        }
+      }
+
+      while (mlir::succeeded(parser.parseOptionalComma())) {
+        int64_t index;
+
+        if (parser.parseInteger(index)) {
+          return mlir::failure();
+        }
+
+        path.push_back(index);
+      }
+
+      return EquationPath(side, path);
+    }
+  };
+
+  mlir::AsmPrinter& operator<<(
+      mlir::AsmPrinter& printer,
+      const mlir::modelica::EquationPath& path)
+  {
+    printer << "[";
+
+    if (path.getEquationSide() == EquationPath::LEFT) {
+      printer << "L";
+    } else {
+      printer << "R";
+    }
+
+    for (int64_t index : path) {
+      printer << ", " << index;
+    }
+
+    printer << "]";
+    return printer;
+  }
+
+  template<>
+  struct FieldParser<mlir::modelica::EquationScheduleDirection>
+  {
+    static FailureOr<mlir::modelica::EquationScheduleDirection>
+    parse(mlir::AsmParser& parser)
+    {
+      EquationScheduleDirection direction =
+          EquationScheduleDirection::Unknown;
+
+      if (mlir::succeeded(parser.parseOptionalKeyword("forward"))) {
+        direction = EquationScheduleDirection::Forward;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("backward"))) {
+        direction = EquationScheduleDirection::Backward;
+      } else if (parser.parseKeyword("unknown")) {
+        return mlir::failure();
+      }
+
+      return direction;
+    }
+  };
+
+  mlir::AsmPrinter& operator<<(
+      mlir::AsmPrinter& printer,
+      const mlir::modelica::EquationScheduleDirection& direction)
+  {
+    switch (direction) {
+      case EquationScheduleDirection::Forward:
+        printer << "forward";
+        break;
+
+      case EquationScheduleDirection::Backward:
+        printer << "backward";
+        break;
+
+      case EquationScheduleDirection::Unknown:
+        printer << "unknown";
+        break;
+    }
+
+    return printer;
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Tablegen attribute definitions
 //===----------------------------------------------------------------------===//
@@ -237,6 +337,54 @@ namespace mlir::modelica
 
     if (type.isa<mlir::IndexType>()) {
       return mlir::IntegerAttr::get(type, 0);
+    }
+
+    llvm_unreachable("Unknown Modelica type");
+    return {};
+  }
+
+  mlir::Attribute getOneAttr(mlir::Type type)
+  {
+    if (type.isa<BooleanType>()) {
+      return BooleanAttr::get(type.getContext(), true);
+    }
+
+    if (type.isa<IntegerType>()) {
+      return IntegerAttr::get(type.getContext(), 1);
+    }
+
+    if (type.isa<RealType>()) {
+      return RealAttr::get(type.getContext(), 1);
+    }
+
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      mlir::Type elementType = arrayType.getElementType();
+
+      if (elementType.isa<BooleanType>()) {
+        llvm::SmallVector<bool> values(arrayType.getNumElements(), true);
+        return BooleanArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<IntegerType>()) {
+        llvm::SmallVector<int64_t> values(arrayType.getNumElements(), 1);
+        return IntegerArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<RealType>()) {
+        llvm::SmallVector<double> values(arrayType.getNumElements(), 1);
+        return RealArrayAttr::get(type, values);
+      }
+
+      if (elementType.isa<mlir::IndexType>()) {
+        llvm::SmallVector<int64_t> values(arrayType.getNumElements(), 1);
+        return IntegerArrayAttr::get(type, values);
+      }
+
+      llvm_unreachable("Unknown Modelica array element type");
+    }
+
+    if (type.isa<mlir::IndexType>()) {
+      return mlir::IntegerAttr::get(type, 1);
     }
 
     llvm_unreachable("Unknown Modelica type");

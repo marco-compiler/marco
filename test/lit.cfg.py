@@ -50,7 +50,6 @@ tool_dirs = [
 tools = [
     'mlir-cpu-runner',
     'marco',
-    'marco-driver',
     'modelica-opt'
 ]
 

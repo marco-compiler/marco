@@ -1,7 +1,8 @@
-#include "llvm/Support/Casting.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MCIMImpl.h"
+#include "marco/Modeling/AccessFunction.h"
 #include "llvm/ADT/iterator_range.h"
+#include "llvm/Support/Casting.h"
 #include <numeric>
 
 using namespace ::marco;
@@ -205,62 +206,55 @@ namespace marco::modeling::internal
     apply(equationRanges, access);
   }
 
-  void MCIM::Impl::apply(const MultidimensionalRange& equations, const AccessFunction& access)
+  void MCIM::Impl::apply(
+      const MultidimensionalRange& equations, const AccessFunction& access)
   {
     assert(equationRanges.contains(equations));
-
-    bool isIdentityLike = llvm::all_of(llvm::enumerate(access), [](const auto& dimensionAccess) {
-      if (dimensionAccess.value().isConstantAccess()) {
-        return false;
-      }
-
-      return dimensionAccess.index() == dimensionAccess.value().getInductionVariableIndex();
-    });
-
-    if (isIdentityLike) {
-      auto mappedVariableRanges = access.map(equations);
-      set(equations, mappedVariableRanges);
-
-    } else {
-      // In case of constant accesses or out-of-order induction variables
-      // the delta would be wrong. Thus, we need to iterate over all the
-      // equations indices.
-
-      for (const auto& equationIndices : equations) {
-        auto variableIndices = access.map(equationIndices);
-        set(equationIndices, variableIndices);
-      }
-    }
+    apply(IndexSet(equations), access);
   }
 
   void MCIM::Impl::apply(const IndexSet& equations, const AccessFunction& access)
   {
     assert(equationRanges.contains(equations));
 
-    bool isIdentityLike = llvm::all_of(llvm::enumerate(access), [](const auto& dimensionAccess) {
-      if (dimensionAccess.value().isConstantAccess()) {
-        return false;
-      }
-
-      return dimensionAccess.index() == dimensionAccess.value().getInductionVariableIndex();
-    });
-
-    if (isIdentityLike) {
-      for (const auto& equationsRange : llvm::make_range(
-               equations.rangesBegin(), equations.rangesEnd())) {
-        auto mappedVariableRanges = access.map(equationsRange);
-        set(equationsRange, mappedVariableRanges);
-      }
-    } else {
-      // In case of constant accesses or out-of-order induction variables
-      // the delta would be wrong. Thus, we need to iterate over all the
-      // equations indices.
-
-      for (const auto& equationIndices : equations) {
-        auto variableIndices = access.map(equationIndices);
-        set(equationIndices, variableIndices);
+    if (auto rotoTranslation =
+            access.dyn_cast<AccessFunctionRotoTranslation>()) {
+      if (apply(equations, *rotoTranslation)) {
+        return;
       }
     }
+
+    for (const Point& equationPoint : equations) {
+      auto variablePoint = access.map(equationPoint);
+      set(equationPoint, variablePoint);
+    }
+  }
+
+  bool MCIM::Impl::apply(
+      const IndexSet& equations,
+      const AccessFunctionRotoTranslation& accessFunction)
+  {
+    if (accessFunction.isIdentityLike()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(equations.rangesBegin(), equations.rangesEnd())) {
+        apply(range, accessFunction);
+      }
+
+      return true;
+    }
+
+    // In case of constant accesses or out-of-order induction variables the
+    // delta would be wrong.
+    return false;
+  }
+
+  bool MCIM::Impl::apply(
+      const MultidimensionalRange& equations,
+      const AccessFunctionRotoTranslation& accessFunction)
+  {
+    MultidimensionalRange variables = accessFunction.map(equations);
+    set(equations, variables);
+    return true;
   }
 
   bool MCIM::Impl::get(const Point& equation, const Point& variable) const
@@ -946,23 +940,39 @@ namespace marco::modeling::internal
     // will be properly aligned.
     llvm::SmallVector<size_t, 3> equationIndexesCols;
 
-    for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
-      equationIndexesCols.push_back(getRangeMaxColumns(equationRanges.minContainingRange()[i]));
+    for (const MultidimensionalRange& range : llvm::make_range(
+             equationRanges.rangesBegin(), equationRanges.rangesEnd())) {
+      for (size_t i = 0, e = range.rank(); i < e; ++i) {
+        equationIndexesCols.push_back(getRangeMaxColumns(range[i]));
+      }
     }
 
-    size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), static_cast<size_t>(0));
-    size_t equationIndexesColumnWidth = getWrappedIndexesLength(equationIndexesMaxWidth, equationRanges.rank());
+    size_t equationIndexesMaxWidth = std::accumulate(
+        equationIndexesCols.begin(),
+        equationIndexesCols.end(),
+        static_cast<size_t>(0));
+
+    size_t equationIndexesColumnWidth = getWrappedIndexesLength(
+        equationIndexesMaxWidth, equationRanges.rank());
 
     // Determine the max column width, so that the horizontal spacing is the
     // same among all the items.
     llvm::SmallVector<size_t, 3> variableIndexesCols;
 
-    for (size_t i = 0, e = variableRanges.rank(); i < e; ++i) {
-      variableIndexesCols.push_back(getRangeMaxColumns(variableRanges.minContainingRange()[i]));
+    for (const MultidimensionalRange& range : llvm::make_range(
+             variableRanges.rangesBegin(), variableRanges.rangesEnd())) {
+      for (size_t i = 0, e = range.rank(); i < e; ++i) {
+        variableIndexesCols.push_back(getRangeMaxColumns(range[i]));
+      }
     }
 
-    size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), static_cast<size_t>(0));
-    size_t variableIndexesColumnWidth = getWrappedIndexesLength(variableIndexesMaxWidth, variableRanges.rank());
+    size_t variableIndexesMaxWidth = std::accumulate(
+        variableIndexesCols.begin(),
+        variableIndexesCols.end(),
+        static_cast<size_t>(0));
+
+    size_t variableIndexesColumnWidth = getWrappedIndexesLength(
+        variableIndexesMaxWidth, variableRanges.rank());
 
     // Print the spacing of the first line
     for (size_t i = 0, e = equationIndexesColumnWidth; i < e; ++i) {
@@ -986,7 +996,8 @@ namespace marco::modeling::internal
 
     // Print a line for each equation
     for (const auto& equation : equationRanges) {
-      for (size_t i = getIndicesWidth(equation); i < equationIndexesMaxWidth; ++i) {
+      for (size_t i = getIndicesWidth(equation);
+           i < equationIndexesMaxWidth; ++i) {
         stream << " ";
       }
 

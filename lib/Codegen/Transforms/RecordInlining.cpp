@@ -65,6 +65,16 @@ namespace
         return type.isa<RecordType>();
       }
 
+      void mergeShapes(
+          llvm::SmallVectorImpl<int64_t>& result,
+          llvm::ArrayRef<int64_t> parent,
+          llvm::ArrayRef<int64_t> child) const
+      {
+        result.clear();
+        result.append(parent.begin(), parent.end());
+        result.append(child.begin(), child.end());
+      }
+
       void replaceRecordUsage(
           mlir::PatternRewriter& rewriter,
           std::function<mlir::Value(
@@ -91,6 +101,10 @@ namespace
               replaceRecordUsage(rewriter, componentGetter, componentSetter,
                                  subscriptions, userResult, nestedUser);
             }
+          }
+
+          if (user->use_empty()) {
+            rewriter.eraseOp(user);
           }
 
           subscriptions.pop_back();
@@ -160,8 +174,6 @@ namespace
 
           rewriter.replaceOp(callOp, newCallOp->getResults());
         }
-
-        cleanSubscriptions(rewriter, subscriptions);
       }
 
       CallOp unpackCallArg(
@@ -252,17 +264,6 @@ namespace
         }
 
         return result;
-      }
-
-      void cleanSubscriptions(
-          mlir::PatternRewriter& rewriter,
-          llvm::ArrayRef<mlir::Operation*> subscriptions) const
-      {
-        for (mlir::Operation* op : llvm::reverse(subscriptions)) {
-          if (op->use_empty()) {
-            rewriter.eraseOp(op);
-          }
-        }
       }
 
     private:
@@ -455,18 +456,25 @@ namespace
 
         for (auto& bodyOp : cls->getRegion(0).getOps()) {
           if (auto startOp = mlir::dyn_cast<StartOp>(bodyOp)) {
-            if (startOp.getVariableOp(getSymbolTable()).getVariableType()
+            if (startOp.getVariable() == op.getSymName() &&
+                startOp.getVariableOp(getSymbolTable()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               startOps.push_back(startOp);
             }
-          } else if (auto defaultOp = mlir::dyn_cast<DefaultOp>(bodyOp)) {
-            if (defaultOp.getVariableOp(getSymbolTable()).getVariableType()
+          }
+
+          if (auto defaultOp = mlir::dyn_cast<DefaultOp>(bodyOp)) {
+            if (defaultOp.getVariable() == op.getSymName() &&
+                defaultOp.getVariableOp(getSymbolTable()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               defaultOps.push_back(defaultOp);
             }
-          } else if (auto bindingEquationOp =
+          }
+
+          if (auto bindingEquationOp =
                          mlir::dyn_cast<BindingEquationOp>(bodyOp)) {
-            if (bindingEquationOp.getVariableOp(getSymbolTable()).getVariableType()
+            if (bindingEquationOp.getVariable() == op.getSymName() &&
+                bindingEquationOp.getVariableOp(getSymbolTable()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               bindingEquationOps.push_back(bindingEquationOp);
             }
@@ -521,6 +529,13 @@ namespace
         auto recordOp = getRecordOp(recordType);
 
         for (VariableOp component : recordOp.getVariables()) {
+          llvm::SmallVector<int64_t, 3> shape;
+
+          mergeShapes(
+              shape,
+              variableOp.getVariableType().getShape(),
+              component.getVariableType().getShape());
+
           auto clonedOp = mlir::cast<StartOp>(
               rewriter.clone(*op.getOperation()));
 
@@ -534,7 +549,7 @@ namespace
 
           mlir::Value componentValue = rewriter.create<ComponentGetOp>(
               yieldOp.getLoc(),
-              component.getVariableType().unwrap(),
+              component.getVariableType().withShape(shape).unwrap(),
               yieldOp.getValues()[0],
               component.getSymName());
 
@@ -560,6 +575,13 @@ namespace
         auto recordOp = getRecordOp(recordType);
 
         for (VariableOp component : recordOp.getVariables()) {
+          llvm::SmallVector<int64_t, 3> shape;
+
+          mergeShapes(
+              shape,
+              variableOp.getVariableType().getShape(),
+              component.getVariableType().getShape());
+
           auto clonedOp = mlir::cast<DefaultOp>(
               rewriter.clone(*op.getOperation()));
 
@@ -573,7 +595,7 @@ namespace
 
           mlir::Value componentValue = rewriter.create<ComponentGetOp>(
               yieldOp.getLoc(),
-              component.getVariableType().unwrap(),
+              component.getVariableType().withShape(shape).unwrap(),
               yieldOp.getValues()[0],
               component.getSymName());
 
@@ -599,6 +621,13 @@ namespace
         auto recordOp = getRecordOp(recordType);
 
         for (VariableOp component : recordOp.getVariables()) {
+          llvm::SmallVector<int64_t, 3> shape;
+
+          mergeShapes(
+              shape,
+              variableOp.getVariableType().getShape(),
+              component.getVariableType().getShape());
+
           auto clonedOp = mlir::cast<BindingEquationOp>(
               rewriter.clone(*op.getOperation()));
 
@@ -612,7 +641,7 @@ namespace
 
           mlir::Value componentValue = rewriter.create<ComponentGetOp>(
               yieldOp.getLoc(),
-              component.getVariableType().unwrap(),
+              component.getVariableType().withShape(shape).unwrap(),
               yieldOp.getValues()[0],
               component.getSymName());
 
@@ -832,6 +861,114 @@ namespace
       }
   };
 
+  class ArrayFromElementsUnpackPattern
+      : public RecordInliningPattern<ArrayFromElementsOp>
+  {
+    public:
+      using RecordInliningPattern<ArrayFromElementsOp>::RecordInliningPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ArrayFromElementsOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Type resultType = op.getResult().getType();
+        mlir::Type resultBaseType = resultType;
+
+        if (auto arrayType = resultType.dyn_cast<ArrayType>()) {
+          resultBaseType = arrayType.getElementType();
+        }
+
+        auto recordType = resultBaseType.dyn_cast<RecordType>();
+
+        if (!recordType) {
+          return mlir::failure();
+        }
+
+        auto recordOp = getRecordOp(recordType);
+
+        llvm::SmallVector<ComponentGetOp> componentGetOps;
+        llvm::SmallVector<ComponentSetOp> componentSetOps;
+
+        for (mlir::Operation* user : op->getUsers()) {
+          if (auto getOp = mlir::dyn_cast<ComponentGetOp>(user)) {
+            componentGetOps.push_back(getOp);
+          } else if (auto setOp = mlir::dyn_cast<ComponentSetOp>(user)) {
+            componentSetOps.push_back(setOp);
+          }
+        }
+
+        if (componentSetOps.empty() && componentGetOps.empty()) {
+          return mlir::failure();
+        }
+
+        llvm::StringMap<mlir::Value> componentsMap;
+
+        for (VariableOp component : recordOp.getVariables()) {
+          llvm::SmallVector<mlir::Value, 3> componentValues;
+
+          for (mlir::Value element : op.getValues()) {
+            llvm::SmallVector<int64_t, 3> shape;
+            llvm::ArrayRef<int64_t> elementShape = llvm::None;
+
+            if (auto elementArrayType = element.getType().dyn_cast<ArrayType>()) {
+              elementShape = elementArrayType.getShape();
+            }
+
+            mergeShapes(
+                shape, elementShape, component.getVariableType().getShape());
+
+            auto componentGetOp = rewriter.create<ComponentGetOp>(
+                op.getLoc(),
+                component.getVariableType().withShape(shape).unwrap(),
+                element,
+                component.getSymName());
+
+            componentValues.push_back(componentGetOp);
+          }
+
+          llvm::SmallVector<int64_t, 3> shape;
+
+          mergeShapes(
+              shape,
+              op.getArrayType().getShape(),
+              component.getVariableType().getShape());
+
+          auto sliceOp = rewriter.create<ArrayFromElementsOp>(
+              op.getLoc(),
+              op.getArrayType().withShape(shape).toElementType(
+                  component.getVariableType().getElementType()),
+              componentValues);
+
+          componentsMap[component.getSymName()] = sliceOp;
+        }
+
+        llvm::SmallVector<mlir::Operation*> subscriptions;
+
+        auto componentGetter =
+            [&](mlir::OpBuilder& builder,
+                mlir::Location loc,
+                llvm::StringRef componentName) -> mlir::Value {
+          return componentsMap[componentName];
+        };
+
+        auto componentSetter =
+            [&](mlir::OpBuilder& builder,
+                mlir::Location loc,
+                llvm::StringRef componentName,
+                mlir::Value value) {
+              builder.create<AssignmentOp>(
+                  loc, componentsMap[componentName], value);
+            };
+
+        for (mlir::Operation* user : op.getResult().getUsers()) {
+          replaceRecordUsage(rewriter, componentGetter, componentSetter,
+                             subscriptions, op.getResult(), user);
+        }
+
+        return mlir::success();
+      }
+  };
+
   class RecordCreateOpFoldPattern
       : public mlir::OpRewritePattern<RecordCreateOp>
   {
@@ -927,8 +1064,9 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps()
 
   mlir::RewritePatternSet patterns(&getContext());
 
-  patterns.add<RecordCreateOpUnpackPattern>(
-      &getContext(), moduleOp, symbolTable);
+  patterns.add<
+      RecordCreateOpUnpackPattern,
+      ArrayFromElementsUnpackPattern>(&getContext(), moduleOp, symbolTable);
 
   patterns.add<RecordCreateOpFoldPattern>(&getContext());
 

@@ -8,7 +8,6 @@
 #include <queue>
 
 using namespace ::marco;
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 static std::string getPartialDerFunctionName(llvm::StringRef baseName)
@@ -54,7 +53,7 @@ static bool isFullDerivative(
   return false;
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   bool ForwardAD::isDerived(mlir::Operation* op) const
   {
@@ -79,8 +78,6 @@ namespace marco::codegen
     unsigned int order = derivativeAttribute.getOrder();
 
     // Check if the derivative is already existing.
-    auto moduleOp = functionOp->getParentOfType<mlir::ModuleOp>();
-
     mlir::Operation* symbolTableOp =
         functionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
@@ -282,7 +279,6 @@ namespace marco::codegen
         getPartialDerBaseFunction(templateFunction);
 
     mlir::Location loc = derFunctionOp.getLoc();
-    auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
     mlir::Operation* parentSymbolTable =
         derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
@@ -435,8 +431,6 @@ namespace marco::codegen
       mlir::SymbolTableCollection& symbolTable,
       DerFunctionOp derFunctionOp)
   {
-    auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
-
     mlir::Operation* parentSymbolTable =
         derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 

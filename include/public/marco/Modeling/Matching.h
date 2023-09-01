@@ -227,28 +227,34 @@ namespace marco::modeling
       public:
         using Property = AccessProperty;
 
-        Access(const VariableProperty& variable, AccessFunction accessFunction, AccessProperty property)
+        Access(
+            const VariableProperty& variable,
+            std::unique_ptr<AccessFunction> accessFunction,
+            AccessProperty property = {})
             : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
         {
         }
 
-        template<typename... T>
-        Access(VariableProperty variable, T&& ... accesses)
-            : variable(VariableTraits<VariableProperty>::getId(&variable)),
-              accessFunction(llvm::ArrayRef<DimensionAccess>({std::forward<T>(accesses)...}))
+        Access(const Access& other)
+            : variable(other.variable),
+              accessFunction(other.accessFunction->clone()),
+              property(other.property)
         {
         }
+
+        ~Access() = default;
 
         typename VariableTraits<VariableProperty>::Id getVariable() const
         {
           return variable;
         }
 
-        AccessFunction getAccessFunction() const
+        const AccessFunction& getAccessFunction() const
         {
-          return accessFunction;
+          assert(accessFunction != nullptr);
+          return *accessFunction;
         }
 
         const AccessProperty& getProperty() const
@@ -258,7 +264,7 @@ namespace marco::modeling
 
       private:
         typename VariableTraits<VariableProperty>::Id variable;
-        AccessFunction accessFunction;
+        std::unique_ptr<AccessFunction> accessFunction;
         AccessProperty property;
     };
   }
@@ -386,7 +392,7 @@ namespace marco::modeling
              typename Equation::Access access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
-              accessFunction(access.getAccessFunction()),
+              accessFunction(access.getAccessFunction().clone()),
               accessProperty(access.getProperty()),
               incidenceMatrix(equationRanges, variableRanges),
               matchMatrix(equationRanges, variableRanges),
@@ -413,7 +419,7 @@ namespace marco::modeling
 
         const AccessFunction& getAccessFunction() const
         {
-          return accessFunction;
+          return *accessFunction;
         }
 
         const AccessProperty& getAccessProperty() const
@@ -463,7 +469,7 @@ namespace marco::modeling
         // Variable's ID. Just for debugging purpose
         typename Variable::Id variable;
 
-        AccessFunction accessFunction;
+        std::unique_ptr<AccessFunction> accessFunction;
         AccessProperty accessProperty;
         MCIM incidenceMatrix;
         MCIM matchMatrix;
@@ -471,12 +477,14 @@ namespace marco::modeling
         bool visible;
     };
 
-    template<typename Graph>
+    template<typename Graph, typename Variable, typename Equation>
     class BFSStep : public Dumpable
     {
       public:
         using VertexDescriptor = typename Graph::VertexDescriptor;
         using EdgeDescriptor = typename Graph::EdgeDescriptor;
+
+        using VertexProperty = typename Graph::VertexProperty;
 
         BFSStep(const Graph& graph,
                 VertexDescriptor node,
@@ -519,8 +527,8 @@ namespace marco::modeling
 
         BFSStep& operator=(const BFSStep& other);
 
-        template<typename G>
-        friend void swap(BFSStep<G>& first, BFSStep<G>& second);
+        template<typename G, typename V, typename E>
+        friend void swap(BFSStep<G, V, E>& first, BFSStep<G, V, E>& second);
 
         using Dumpable::dump;
 
@@ -531,18 +539,19 @@ namespace marco::modeling
           TreeOStream os(stream);
           os << "BFS step\n";
 
-          auto idVisitor = [](const auto& vertex) { return vertex.getId(); };
+          os << tree_property << "Node: ";
+          dumpId(os, getNode());
+          os << "\n";
 
-          os << tree_property << "Node: " << std::visit(idVisitor, (*graph)[getNode()]) << "\n";
           os << tree_property << "Candidates:\n" << getCandidates();
 
           if (hasPrevious()) {
             os << "\n";
-            os << tree_property << "Edge: "
-               << std::visit(idVisitor, (*graph)[getEdge().from])
-               << " - "
-               << std::visit(idVisitor, (*graph)[getEdge().to])
-               << "\n";
+            os << tree_property << "Edge: ";
+            dumpId(os, getEdge().from);
+            os << " - ";
+            dumpId(os, getEdge().to);
+            os << "\n";
 
             os << tree_property << "Mapped flow:\n" << getMappedFlow() << "\n";
 
@@ -553,7 +562,7 @@ namespace marco::modeling
 
         bool hasPrevious() const
         {
-          return previous.get() != nullptr;
+          return previous != nullptr;
         }
 
         const BFSStep *getPrevious() const
@@ -584,6 +593,18 @@ namespace marco::modeling
         }
 
       private:
+        void dumpId(marco::utils::TreeOStream& os, VertexDescriptor descriptor) const
+        {
+          const VertexProperty& nodeProperty = (*graph)[descriptor];
+
+          if (std::holds_alternative<Variable>(nodeProperty)) {
+            os << std::get<Variable>(nodeProperty).getId();
+          } else {
+            os << std::get<Equation>(nodeProperty).getId();
+          }
+        }
+
+      private:
         // Stored for debugging purpose
         const Graph* graph;
 
@@ -594,8 +615,9 @@ namespace marco::modeling
         llvm::Optional<MCIM> mappedFlow;
     };
 
-    template<typename Graph>
-    void swap(BFSStep<Graph>& first, BFSStep<Graph>& second)
+    template<typename Graph, typename Variable, typename Equation>
+    void swap(BFSStep<Graph, Variable, Equation>& first,
+              BFSStep<Graph, Variable, Equation>& second)
     {
       using std::swap;
 
@@ -606,10 +628,12 @@ namespace marco::modeling
       swap(first.mappedFlow, second.mappedFlow);
     }
 
-    template<typename Graph>
-    BFSStep<Graph>& BFSStep<Graph>::operator=(const BFSStep<Graph>& other)
+    template<typename Graph, typename Variable, typename Equation>
+    BFSStep<Graph, Variable, Equation>&
+    BFSStep<Graph, Variable, Equation>::operator=(
+        const BFSStep<Graph, Variable, Equation>& other)
     {
-      BFSStep<Graph> result(other);
+      BFSStep<Graph, Variable, Equation> result(other);
       swap(*this, result);
       return *this;
     }
@@ -704,12 +728,14 @@ namespace marco::modeling
         Container<BFSStep> steps;
     };
 
-    template<typename Graph>
+    template<typename Graph, typename Variable, typename Equation>
     class Flow : public Dumpable
     {
       private:
         using VertexDescriptor = typename Graph::VertexDescriptor;
         using EdgeDescriptor = typename Graph::EdgeDescriptor;
+
+        using VertexProperty = typename Graph::VertexProperty;
 
       public:
         Flow(const Graph& graph, VertexDescriptor source, EdgeDescriptor edge, const MCIM& delta)
@@ -730,12 +756,29 @@ namespace marco::modeling
           TreeOStream os(stream);
           os << "Flow\n";
 
-          auto idVisitor = [](const auto& obj) { return obj.getId(); };
+          os << tree_property << "Source: ";
+          dumpId(os, source);
+          os << "\n";
 
-          os << tree_property << "Source: " << std::visit(idVisitor, (*graph)[source]) << "\n";
           os << tree_property << "Edge: ";
-          os << std::visit(idVisitor, (*graph)[edge.from]) << " - " << std::visit(idVisitor, (*graph)[edge.to]) << "\n";
+          dumpId(os, edge.from);
+          os << " - ";
+          dumpId(os, edge.to);
+          os << "\n";
+
           os << tree_property << "Delta:\n" << delta;
+        }
+
+      private:
+        void dumpId(marco::utils::TreeOStream& os, VertexDescriptor descriptor) const
+        {
+          const VertexProperty& nodeProperty = (*graph)[descriptor];
+
+          if (std::holds_alternative<Variable>(nodeProperty)) {
+            os << std::get<Variable>(nodeProperty).getId();
+          } else {
+            os << std::get<Equation>(nodeProperty).getId();
+          }
         }
 
       private:
@@ -869,9 +912,9 @@ namespace marco::modeling
       using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
       using MCIM = internal::MCIM;
-      using BFSStep = internal::matching::BFSStep<Graph>;
+      using BFSStep = internal::matching::BFSStep<Graph, Variable, Equation>;
       using Frontier = internal::matching::Frontier<BFSStep>;
-      using Flow = internal::matching::Flow<Graph>;
+      using Flow = internal::matching::Flow<Graph, Variable, Equation>;
       using AugmentingPath = internal::matching::AugmentingPath<Flow>;
 
     public:
@@ -931,6 +974,7 @@ namespace marco::modeling
 
       mlir::MLIRContext* getContext() const
       {
+        assert(context != nullptr);
         return context;
       }
 
@@ -1167,12 +1211,9 @@ namespace marco::modeling
 
           const auto& u = edge.getIncidenceMatrix();
 
-          assert(u.getEquationRanges().isSingleMultidimensionalRange());
-          assert(u.getVariableRanges().isSingleMultidimensionalRange());
-
           auto matchOptions = internal::solveLocalMatchingProblem(
-              *u.getEquationRanges().rangesBegin(),
-              *u.getVariableRanges().rangesBegin(),
+              u.getEquationRanges(),
+              u.getVariableRanges(),
               edge.getAccessFunction());
 
           // The simplification steps is executed only in case of a single
@@ -1291,12 +1332,13 @@ namespace marco::modeling
       }
 
       /// Get the solution of the matching problem.
-      std::vector<MatchingSolution> getMatch() const
+      bool getMatch(llvm::SmallVectorImpl<MatchingSolution>& result) const
       {
         std::lock_guard<std::mutex> lockGuard(mutex);
 
-        assert(allNodesMatched() && "Not all the nodes have been fully matched");
-        std::vector<MatchingSolution> result;
+        if (!allNodesMatched()) {
+          return false;
+        }
 
         auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
 
@@ -1319,7 +1361,7 @@ namespace marco::modeling
           }
         }
 
-        return result;
+        return true;
       }
 
     private:

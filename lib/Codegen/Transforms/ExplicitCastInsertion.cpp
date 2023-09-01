@@ -12,6 +12,24 @@ namespace mlir::modelica
 
 using namespace ::mlir::modelica;
 
+static void getArgumentTypes(
+    mlir::Operation* function,
+    llvm::SmallVectorImpl<mlir::Type>& argumentTypes)
+{
+  if (auto functionOp = mlir::dyn_cast<FunctionOp>(function)) {
+    argumentTypes = functionOp.getArgumentTypes();
+    return;
+  }
+
+  if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(function)) {
+    for (mlir::Type type : rawFunctionOp.getArgumentTypes()) {
+      argumentTypes.push_back(type);
+    }
+
+    return;
+  }
+}
+
 namespace
 {
   class CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
@@ -29,16 +47,13 @@ namespace
       {
         auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-        auto calleeFunctionOp = mlir::cast<FunctionOp>(
-            op.getFunction(moduleOp, *symbolTable));
+        mlir::Operation* calleeOp = op.getFunction(moduleOp, *symbolTable);
+        llvm::SmallVector<mlir::Type, 3> argumentTypes;
+        getArgumentTypes(calleeOp, argumentTypes);
 
-        assert(op.getArgs().size() ==
-               calleeFunctionOp.getArgumentTypes().size());
+        assert(op.getArgs().size() == argumentTypes.size());
 
-        auto pairs = llvm::zip(
-            op.getArgs(), calleeFunctionOp.getArgumentTypes());
-
-        for (auto [ arg, type ] : pairs) {
+        for (auto [ arg, type ] : llvm::zip(op.getArgs(), argumentTypes)) {
           mlir::Type actualType = arg.getType();
 
           if (!actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
@@ -62,8 +77,7 @@ namespace
         mlir::Location location = op->getLoc();
         llvm::SmallVector<mlir::Value, 3> args;
 
-        for (auto [ arg, type ] : llvm::zip(
-                 op.getArgs(), calleeFunctionOp.getArgumentTypes())) {
+        for (auto [ arg, type ] : llvm::zip(op.getArgs(), argumentTypes)) {
           if (arg.getType() != type) {
             if (arg.getType().isa<ArrayType>()) {
               arg = rewriter.create<ArrayCastOp>(location, type, arg);
@@ -158,22 +172,22 @@ namespace
         mlir::SymbolTableCollection symbolTable;
 
         target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          auto calleeFunctionOp = mlir::cast<FunctionOp>(
-              op.getFunction(moduleOp, symbolTable));
+          auto calleeOp = op.getFunction(moduleOp, symbolTable);
 
-          if (calleeFunctionOp == nullptr) {
+          if (calleeOp == nullptr) {
             return true;
           }
 
-          assert(op.getArgs().size() ==
-                 calleeFunctionOp.getArgumentTypes().size());
+          llvm::SmallVector<mlir::Type, 3> argumentTypes;
+          getArgumentTypes(calleeOp, argumentTypes);
 
-          auto pairs = llvm::zip(
-              op.getArgs(), calleeFunctionOp.getArgumentTypes());
+          assert(op.getArgs().size() == argumentTypes.size());
 
-          return llvm::all_of(pairs, [&](const auto& pair) {
-            return std::get<0>(pair).getType() == std::get<1>(pair);
-          });
+          return llvm::all_of(
+              llvm::zip(op.getArgs(), argumentTypes),
+              [&](const auto& pair) {
+                return std::get<0>(pair).getType() == std::get<1>(pair);
+              });
         });
 
         target.addDynamicallyLegalOp<SubscriptionOp>([](SubscriptionOp op) {

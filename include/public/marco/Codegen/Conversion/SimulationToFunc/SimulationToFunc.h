@@ -16,9 +16,6 @@ namespace mlir
       mlir::ConversionTarget& target);
 
   std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass();
-
-  std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass(
-      const SimulationToFuncConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_SIMULATIONTOFUNC_SIMULATIONTOFUNC_H

@@ -18,28 +18,42 @@ namespace
   class DistributionPass
   {
     public:
-      void run(mlir::ModuleOp module)
+      void run(mlir::ModuleOp moduleOp)
       {
         llvm::SmallVector<DistributableOp> distributableOps;
 
-        module.walk([&](DistributableOp op) {
+        moduleOp.walk([&](DistributableOp op) {
           distributableOps.push_back(op);
         });
 
         for (auto op : distributableOps) {
           mlir::OpBuilder builder(op);
 
-          auto distributableOp = mlir::cast<DistributableOpInterface>(op.getOperation());
-          mlir::Operation* result = distributableOp.distribute(builder).getDefiningOp();
+          auto distributableOp =
+              mlir::cast<DistributableOpInterface>(op.getOperation());
 
-          if (result != op) {
-            op->replaceAllUsesWith(result);
+          llvm::SmallVector<mlir::Value> replacements;
+
+          if (mlir::succeeded(distributableOp.distribute(
+                  replacements, builder))) {
+            for (size_t i = 0, e = distributableOp->getNumResults();
+                 i < e; ++i) {
+              mlir::Value oldValue = distributableOp->getResult(i);
+              mlir::Value newValue = replacements[i];
+
+              if (oldValue != newValue) {
+                oldValue.replaceAllUsesWith(newValue);
+              }
+            }
           }
         }
       }
   };
 
-  class NegateOpDistributionPass : public mlir::modelica::impl::NegateOpDistributionPassBase<NegateOpDistributionPass>, DistributionPass<NegateOp>
+  class NegateOpDistributionPass
+      : public mlir::modelica::impl::NegateOpDistributionPassBase<
+          NegateOpDistributionPass>,
+          DistributionPass<NegateOp>
   {
     void runOnOperation() override
     {
@@ -47,7 +61,10 @@ namespace
     }
   };
 
-  class MulOpDistributionPass : public mlir::modelica::impl::MulOpDistributionPassBase<MulOpDistributionPass>, DistributionPass<MulOp>
+  class MulOpDistributionPass
+      : public mlir::modelica::impl::MulOpDistributionPassBase<
+          MulOpDistributionPass>,
+          DistributionPass<MulOp>
   {
     void runOnOperation() override
     {
@@ -55,7 +72,10 @@ namespace
     }
   };
 
-  class DivOpDistributionPass : public mlir::modelica::impl::DivOpDistributionPassBase<DivOpDistributionPass>, DistributionPass<DivOp>
+  class DivOpDistributionPass
+      : public mlir::modelica::impl::DivOpDistributionPassBase<
+          DivOpDistributionPass>,
+        DistributionPass<DivOp>
   {
     void runOnOperation() override
     {

@@ -1,19 +1,15 @@
 set(SOURCES
     AccessFunctionTest.cpp
+    AccessFunctionRotoTranslationTest.cpp
+    Common.cpp
     CyclesTest.cpp
     DirectedGraphTest.cpp
     IndexSetListTest.cpp
     IndexSetRTreeTest.cpp
-    MatchingCommon.cpp
-    MatchingGraphTest.cpp
-    MatchingTest.cpp
-    MatchingTestCases.cpp
     MCIMTest.cpp
     MultidimensionalRangeTest.cpp
     PointTest.cpp
     RangeTest.cpp
-    SchedulingTest.cpp
-    SimplifyTest.cpp
     SolveLocalMatchingProblemTest.cpp
     UndirectedGraphTest.cpp)
 

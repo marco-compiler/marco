@@ -27,9 +27,15 @@ namespace marco::codegen
       std::string getVoidPointerType() const;
   };
 
-  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::ModuleOp moduleOp, mlir::Type indexType);
+  mlir::LLVM::LLVMFuncOp getOrDeclareHeapAllocFn(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection);
 
-  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::ModuleOp moduleOp);
+  mlir::LLVM::LLVMFuncOp getOrDeclareHeapFreeFn(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection);
 }
 
 #endif // MARCO_CODEGEN_RUNTIME_H

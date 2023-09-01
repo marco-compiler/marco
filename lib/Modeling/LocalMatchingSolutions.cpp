@@ -7,9 +7,12 @@ namespace marco::modeling::internal
 
   LocalMatchingSolutions::LocalMatchingSolutions(
       llvm::ArrayRef<AccessFunction> accessFunctions,
-      MultidimensionalRange equationRanges,
-      MultidimensionalRange variableRanges)
-      : impl(std::make_unique<VAFSolutions>(std::move(accessFunctions), std::move(equationRanges), std::move(variableRanges)))
+      IndexSet equationIndices,
+      IndexSet variableIndices)
+      : impl(std::make_unique<VAFSolutions>(
+          std::move(accessFunctions),
+          std::move(equationIndices),
+          std::move(variableIndices)))
   {
   }
 
@@ -41,11 +44,12 @@ namespace marco::modeling::internal
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(
-      const MultidimensionalRange& equationRanges,
-      const MultidimensionalRange& variableRanges,
+      const IndexSet& equationIndices,
+      const IndexSet& variableIndices,
       llvm::ArrayRef<AccessFunction> accessFunctions)
   {
-    return LocalMatchingSolutions(std::move(accessFunctions), equationRanges, variableRanges);
+    return LocalMatchingSolutions(
+        std::move(accessFunctions), equationIndices, variableIndices);
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& obj)

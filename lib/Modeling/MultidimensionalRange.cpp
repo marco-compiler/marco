@@ -15,6 +15,11 @@ namespace marco::modeling
     }
   }
 
+  llvm::hash_code hash_value(const MultidimensionalRange& value)
+  {
+    return llvm::hash_combine_range(value.ranges.begin(), value.ranges.end());
+  }
+
   bool MultidimensionalRange::operator==(const Point& other) const
   {
     if (rank() != other.rank())
@@ -75,7 +80,13 @@ namespace marco::modeling
 
   bool MultidimensionalRange::operator<(const MultidimensionalRange& other) const
   {
-    assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+    if (rank() < other.rank()) {
+      return true;
+    }
+
+    if (rank() > other.rank()) {
+      return false;
+    }
 
     for (size_t i = 0, e = rank(); i < e; ++i) {
       if (ranges[i] < other.ranges[i]) {
@@ -92,7 +103,13 @@ namespace marco::modeling
 
   bool MultidimensionalRange::operator>(const MultidimensionalRange& other) const
   {
-    assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+    if (rank() > other.rank()) {
+      return true;
+    }
+
+    if (rank() < other.rank()) {
+      return false;
+    }
 
     for (size_t i = 0, e = rank(); i < e; ++i) {
       if (ranges[i] > other.ranges[i]) {
@@ -287,6 +304,65 @@ namespace marco::modeling
     }
 
     return MultidimensionalRange(std::move(slicedRanges));
+  }
+
+  MultidimensionalRange
+  MultidimensionalRange::takeFirstDimensions(size_t n) const
+  {
+    assert(n > 0 && n <= ranges.size());
+    return MultidimensionalRange(llvm::makeArrayRef(ranges).take_front(n));
+  }
+
+  MultidimensionalRange
+  MultidimensionalRange::takeLastDimensions(size_t n) const
+  {
+    assert(n > 0 && n <= ranges.size());
+    return MultidimensionalRange(llvm::makeArrayRef(ranges).take_back(n));
+  }
+
+  MultidimensionalRange MultidimensionalRange::takeDimensions(
+      const llvm::SmallBitVector& dimensions) const
+  {
+    assert(dimensions.size() == ranges.size());
+    llvm::SmallVector<Range, 3> result;
+
+    for (size_t i = 0, e = dimensions.size(); i < e; ++i) {
+      if (dimensions[i]) {
+        result.push_back(ranges[i]);
+      }
+    }
+
+    return MultidimensionalRange(std::move(result));
+  }
+
+  MultidimensionalRange
+  MultidimensionalRange::dropFirstDimensions(size_t n) const
+  {
+    assert(n < ranges.size());
+    return MultidimensionalRange(llvm::makeArrayRef(ranges).drop_front(n));
+  }
+
+  MultidimensionalRange
+  MultidimensionalRange::dropLastDimensions(size_t n) const
+  {
+    assert(n < ranges.size());
+    return MultidimensionalRange(llvm::makeArrayRef(ranges).drop_back(n));
+  }
+
+  MultidimensionalRange
+  MultidimensionalRange::append(const MultidimensionalRange& other) const
+  {
+    llvm::SmallVector<Range, 3> result;
+
+    for (const Range& range : ranges) {
+      result.push_back(range);
+    }
+
+    for (const Range& range : other.ranges) {
+      result.push_back(range);
+    }
+
+    return MultidimensionalRange(result);
   }
 
   std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& obj)

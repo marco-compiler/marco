@@ -1,8 +1,7 @@
 #include "marco/Codegen/Transforms/VariablesPromotion.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/ModelSolving/Model.h"
-#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
-#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
+#include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Modeling/Dependency.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
@@ -13,10 +12,10 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco;
-using namespace ::marco::codegen;
-using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
+
+using WritesMap = std::multimap<
+    VariableOp, std::pair<IndexSet, MatchedEquationInstanceOp>>;
 
 namespace
 {
@@ -27,135 +26,383 @@ namespace
     public:
       using VariablesPromotionPassBase::VariablesPromotionPassBase;
 
-      void runOnOperation() override
-      {
-        mlir::OpBuilder builder(getOperation());
-        llvm::SmallVector<ModelOp, 1> modelOps;
+      void runOnOperation() override;
 
-        getOperation()->walk([&](ModelOp modelOp) {
-          if (modelOp.getSymName() == modelName) {
-            modelOps.push_back(modelOp);
-          }
-        });
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-        for (ModelOp modelOp : modelOps) {
-          if (mlir::failed(processModelOp(builder, modelOp))) {
-            return signalPassFailure();
+      DerivativesMap& getDerivativesMap();
+
+      llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getVariableAccessAnalysis(
+          MatchedEquationInstanceOp equation,
+          mlir::SymbolTableCollection& symbolTableCollection);
+
+      /// Get the writes map of a model, that is the knowledge of which
+      /// equation writes into a variable and in which indices.
+      mlir::LogicalResult getWritesMap(
+          WritesMap& result,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          llvm::ArrayRef<MatchedEquationInstanceOp> equations) const;
+  };
+}
+
+void VariablesPromotionPass::runOnOperation()
+{
+  if (mlir::failed(processModelOp(getOperation()))) {
+      return signalPassFailure();
+  }
+
+  markAnalysesPreserved<DerivativesMap>();
+}
+
+static IndexSet getVariableIndices(VariableOp variableOp)
+{
+  IndexSet indices = variableOp.getIndices();
+
+  if (indices.empty()) {
+    // Scalar variable.
+    indices += MultidimensionalRange(Range(0, 1));
+  }
+
+  return indices;
+}
+
+namespace
+{
+  struct VariableBridge
+  {
+    VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
+        : name(name),
+          indices(std::move(indices))
+    {
+    }
+
+    mlir::SymbolRefAttr name;
+    IndexSet indices;
+  };
+
+  struct EquationBridge
+  {
+    EquationBridge(
+        MatchedEquationInstanceOp op,
+        mlir::SymbolTableCollection& symbolTable,
+        VariableAccessAnalysis& accessAnalysis,
+        llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>& variablesMap)
+        : op(op),
+          symbolTable(&symbolTable),
+          accessAnalysis(&accessAnalysis),
+          variablesMap(&variablesMap)
+    {
+    }
+
+    MatchedEquationInstanceOp op;
+    mlir::SymbolTableCollection* symbolTable;
+    VariableAccessAnalysis* accessAnalysis;
+    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>* variablesMap;
+  };
+}
+
+namespace marco::modeling::dependency
+{
+  template<>
+  struct VariableTraits<::VariableBridge*>
+  {
+    using Variable = ::VariableBridge*;
+    using Id = ::VariableBridge*;
+
+    static Id getId(const Variable* variable)
+    {
+      return *variable;
+    }
+
+    static size_t getRank(const Variable* variable)
+    {
+      size_t rank = (*variable)->indices.rank();
+
+      if (rank == 0) {
+        return 1;
+      }
+
+      return rank;
+    }
+
+    static IndexSet getIndices(const Variable* variable)
+    {
+      const IndexSet& result = (*variable)->indices;
+
+      if (result.empty()) {
+        return {Point(0)};
+      }
+
+      return result;
+    }
+  };
+
+  template<>
+  struct EquationTraits<::EquationBridge*>
+  {
+    using Equation = ::EquationBridge*;
+    using Id = mlir::Operation*;
+
+    static Id getId(const Equation* equation)
+    {
+      return (*equation)->op.getOperation();
+    }
+
+    static size_t getNumOfIterationVars(const Equation* equation)
+    {
+      auto numOfExplicitInductions = static_cast<uint64_t>(
+          (*equation)->op.getInductionVariables().size());
+
+      uint64_t numOfImplicitInductions =
+          (*equation)->op.getNumOfImplicitInductionVariables();
+
+      size_t result = numOfExplicitInductions + numOfImplicitInductions;
+
+      if (result == 0) {
+        // Scalar equation.
+        return 1;
+      }
+
+      return static_cast<size_t>(result);
+    }
+
+    static IndexSet getIterationRanges(const Equation* equation)
+    {
+      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
+
+      if (iterationSpace.empty()) {
+        // Scalar equation.
+        iterationSpace += MultidimensionalRange(Range(0, 1));
+      }
+
+      return iterationSpace;
+    }
+
+    using VariableType = ::VariableBridge*;
+    using AccessProperty = EquationPath;
+
+    static std::vector<Access<VariableType, AccessProperty>>
+    getAccesses(const Equation* equation)
+    {
+      std::vector<Access<VariableType, AccessProperty>> accesses;
+
+      auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
+          (*equation)->op, *(*equation)->symbolTable);
+
+      for (auto& access : cachedAccesses) {
+        auto accessFunction = getAccessFunction(
+            (*equation)->op.getContext(), equation, access);
+
+        auto variableIt =
+            (*(*equation)->variablesMap).find(access.getVariable());
+
+        if (variableIt != (*(*equation)->variablesMap).end()) {
+          accesses.emplace_back(
+              variableIt->getSecond(),
+              std::move(accessFunction),
+              access.getPath());
+        }
+      }
+
+      return accesses;
+    }
+
+    static Access<VariableType, AccessProperty> getWrite(
+        const Equation* equation)
+    {
+      auto matchPath = (*equation)->op.getPath();
+
+      auto write = (*equation)->op.getAccessAtPath(
+          *(*equation)->symbolTable, matchPath.getValue());
+
+      assert(write.has_value() && "Can't get the write access");
+
+      auto accessFunction = getAccessFunction(
+          (*equation)->op.getContext(), equation, *write);
+
+      return Access(
+          (*(*equation)->variablesMap)[write->getVariable()],
+          std::move(accessFunction),
+          write->getPath());
+    }
+
+    static std::vector<Access<VariableType, AccessProperty>> getReads(
+        const Equation* equation)
+    {
+      IndexSet equationIndices = getIterationRanges(equation);
+
+      auto writeAccess = getWrite(equation);
+      auto writtenVariable = writeAccess.getVariable();
+      const auto& writeAccessFunction = writeAccess.getAccessFunction();
+
+      auto writtenIndices = writeAccessFunction.getNumOfResults() == 0
+          ? IndexSet(Point(0))
+          : writeAccessFunction.map(equationIndices);
+
+      std::vector<Access<VariableType, AccessProperty>> reads;
+
+      for (const auto& access : getAccesses(equation)) {
+        auto accessedVariable = access.getVariable();
+
+        if (accessedVariable != writtenVariable) {
+          reads.push_back(access);
+        } else {
+          const auto& accessFunction = access.getAccessFunction();
+
+          // The overall set of accessed indices may be the same of written
+          // ones, but the order in which they are accessed may be different
+          // from the one in which they are written.
+          // For this reason, it is not sufficient to compare the indices
+          // and all the access functions different from the writing one must
+          // be considered as potential reads.
+
+          if (accessFunction != writeAccessFunction) {
+            reads.push_back(access);
           }
         }
       }
 
-    private:
-      mlir::LogicalResult processModelOp(
-        mlir::OpBuilder& builder, ModelOp modelOp);
+      return reads;
+    }
 
-      mlir::LogicalResult getInitialConditionsModel(
-          Model<MatchedEquation>& model) const;
+    static std::unique_ptr<AccessFunction> getAccessFunction(
+        mlir::MLIRContext* context,
+        const Equation* equation,
+        const VariableAccess& access)
+    {
+      const AccessFunction& accessFunction = access.getAccessFunction();
 
-      mlir::LogicalResult getMainModel(
-          Model<MatchedEquation>& model) const;
+      if (accessFunction.getNumOfResults() == 0) {
+        // Access to scalar variable.
+        return AccessFunction::build(mlir::AffineMap::get(
+            accessFunction.getNumOfDims(), 0,
+            mlir::getAffineConstantExpr(0, context)));
+      }
 
-      mlir::LogicalResult getModel(
-          Model<MatchedEquation>& model,
-          std::function<bool(EquationInterface)> equationsFilter) const;
-
-      /// Get the writes map of a model, that is the knowledge of which
-      /// equation writes into a variable and in which indices.
-      /// The variables are mapped by their argument number.
-      std::multimap<VariableOp, std::pair<IndexSet, MatchedEquation*>>
-      getWritesMap(const Model<MatchedEquation>& model) const;
+      return accessFunction.clone();
+    }
   };
 }
 
-mlir::LogicalResult VariablesPromotionPass::processModelOp(
-    mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 {
+  mlir::IRRewriter rewriter(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
+
   // Retrieve the derivatives map.
-  DerivativesMap derivativesMap;
+  DerivativesMap& derivativesMap = getDerivativesMap();
 
-  if (mlir::failed(readDerivativesMap(modelOp, derivativesMap))) {
-    return mlir::failure();
-  }
+  // Collect the variables.
+  llvm::SmallVector<VariableOp> variables;
+  modelOp.collectVariables(variables);
 
-  // Obtain the 'initial conditions' matched model.
-  Model<MatchedEquation> initialConditionsModel(modelOp);
-  initialConditionsModel.setDerivativesMap(derivativesMap);
-
-  if (mlir::failed(getInitialConditionsModel(initialConditionsModel))) {
-    return mlir::failure();
-  }
+  // Collect the equations.
+  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
+  llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
+  modelOp.collectEquations(initialEquations, mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
   // scalar variables.
-  auto initialConditionsModelWritesMap = getWritesMap(initialConditionsModel);
+  WritesMap initialConditionsWritesMap;
 
-  // Obtain the 'main' matched model.
-  Model<MatchedEquation> mainModel(modelOp);
-  mainModel.setDerivativesMap(derivativesMap);
-
-  if (mlir::failed(getMainModel(mainModel))) {
+  if (mlir::failed(getWritesMap(
+          initialConditionsWritesMap, symbolTableCollection, modelOp,
+          initialEquations))) {
     return mlir::failure();
   }
 
-  auto mainModelWritesMap = getWritesMap(mainModel);
+  // Get the writes map of the 'main' model.
+  WritesMap mainWritesMap;
 
-  // The indices of the variables.
-  llvm::DenseMap<VariableOp, IndexSet> variablesIndices;
-
-  for (const auto& variable : mainModel.getVariables()) {
-    variablesIndices[variable->getDefiningOp()] += variable->getIndices();
+  if (mlir::failed(getWritesMap(
+          mainWritesMap, symbolTableCollection, modelOp, mainEquations))) {
+    return mlir::failure();
   }
 
   // The variables that are already marked as parameters.
   llvm::DenseSet<VariableOp> parameters;
 
-  for (const auto& variable : mainModel.getVariables()) {
-    VariableOp variableOp = variable->getDefiningOp();
-
+  for (VariableOp variableOp : variables) {
     if (variableOp.isReadOnly()) {
       parameters.insert(variableOp);
     }
   }
 
-  // The variables that can be promoted to parameters.
+  // The variables that can may be promoted to parameters.
+  llvm::DenseSet<VariableOp> candidateVariables;
+
+  // The promotable indices of the candidate variables.
+  // We need to keep both the information in order to correctly handle scalar
+  // variables, which would otherwise result as always promotable if looking
+  // only at this map.
   llvm::DenseMap<VariableOp, IndexSet> promotableVariablesIndices;
 
   // Determine the promotable equations by creating the dependency graph and
   // doing a post-order visit.
 
   using VectorDependencyGraph =
-      ArrayVariablesDependencyGraph<Variable*, MatchedEquation*>;
+      ::marco::modeling::ArrayVariablesDependencyGraph<
+          ::VariableBridge*, ::EquationBridge*>;
 
   using SCC = VectorDependencyGraph::SCC;
 
   VectorDependencyGraph vectorDependencyGraph(&getContext());
-  llvm::SmallVector<MatchedEquation*> equations;
 
-  for (auto& equation : mainModel.getEquations()) {
-    equations.push_back(equation.get());
+  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge*> equationPtrs;
+
+  for (VariableOp variableOp : variables) {
+    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
+
+    auto& bridge = variableBridges.emplace_back(
+        std::make_unique<VariableBridge>(
+            symbolRefAttr,
+            getVariableIndices(variableOp)));
+
+    variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  vectorDependencyGraph.addEquations(equations);
+  for (MatchedEquationInstanceOp equationOp : mainEquations) {
+    auto accessAnalysis = getVariableAccessAnalysis(
+        equationOp, symbolTableCollection);
 
-  SCCDependencyGraph<SCC> sccDependencyGraph;
+    if (!accessAnalysis) {
+      return mlir::failure();
+    }
+
+    auto& bridge = equationBridges.emplace_back(
+        std::make_unique<EquationBridge>(
+            equationOp, symbolTableCollection, *accessAnalysis, variablesMap));
+
+    equationPtrs.push_back(bridge.get());
+  }
+
+  vectorDependencyGraph.addEquations(equationPtrs);
+
+  ::marco::modeling::SCCDependencyGraph<SCC> sccDependencyGraph;
   sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
 
   auto scheduledSCCs = sccDependencyGraph.postOrder();
 
-  llvm::DenseSet<MatchedEquation*> promotableEquations;
+  llvm::DenseSet<MatchedEquationInstanceOp> promotableEquations;
 
   for (const auto& sccDescriptor : scheduledSCCs) {
     const SCC& scc = sccDependencyGraph[sccDescriptor];
 
     // Collect the equations of the SCC for a faster lookup.
-    llvm::DenseSet<MatchedEquation*> sccEquations;
+    llvm::DenseSet<MatchedEquationInstanceOp> sccEquations;
 
     for (const auto& equationDescriptor : scc) {
-      MatchedEquation* equation =
+      EquationBridge* equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
-      sccEquations.insert(equation);
+      sccEquations.insert(equation->op);
     }
 
     // Check if the current SCC depends only on parametric variables or
@@ -164,16 +411,17 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
     bool promotable = true;
 
     for (const auto& equationDescriptor : scc) {
-      MatchedEquation* equation =
+      EquationBridge* equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
-      auto accesses = equation->getAccesses();
+      auto accesses = equation->accessAnalysis->getAccesses(
+          equation->op, *equation->symbolTable);
 
       // Check if the equation uses the 'time' variable. If it does, then it
       // must not be promoted to an initial equation.
       bool timeUsage = false;
 
-      equation->getOperation().walk([&](TimeOp timeOp) {
+      equation->op.getTemplate().walk([&](TimeOp timeOp) {
         timeUsage = true;
       });
 
@@ -183,30 +431,35 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
       }
 
       // Do not promote the equation if it writes to a derivative variable.
-      auto writtenVariable =
-          equation->getWrite().getVariable()->getDefiningOp();
+      auto writeAccess = equation->op.getMatchedAccess(symbolTableCollection);
 
-      if (mainModel.getDerivativesMap().isDerivative(
-              writtenVariable.getSymName())) {
+      if (!writeAccess) {
+        return mlir::failure();
+      }
+
+      if (derivativesMap.getDerivedVariable(writeAccess->getVariable())) {
         promotable = false;
         break;
       }
 
       // Check the accesses to the variables.
-      promotable &= llvm::all_of(accesses, [&](const Access& access) {
-        VariableOp readVariable = access.getVariable()->getDefiningOp();
+      promotable &= llvm::all_of(accesses, [&](const VariableAccess& access) {
+        auto readVariableOp =
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, access.getVariable());
 
-        if (parameters.contains(readVariable)) {
+        if (parameters.contains(readVariableOp)) {
           // If the read variable is a parameter, then there is no need for
           // additional analyses.
           return true;
         }
 
-        auto readIndices = access.getAccessFunction().map(
-            equation->getIterationRanges());
+        const AccessFunction& accessFunction = access.getAccessFunction();
+        IndexSet iterationSpace = equation->op.getIterationSpace();
+        auto readIndices = accessFunction.map(iterationSpace);
 
         auto writingEquations =
-            llvm::make_range(mainModelWritesMap.equal_range(readVariable));
+            llvm::make_range(mainWritesMap.equal_range(readVariableOp));
 
         if (writingEquations.empty()) {
           // If there is no equation writing to the variable, then the variable
@@ -215,7 +468,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
         }
 
         return llvm::all_of(writingEquations, [&](const auto& entry) {
-          MatchedEquation* writingEquation = entry.second.second;
+          MatchedEquationInstanceOp writingEquation = entry.second.second;
           const IndexSet& writtenIndices = entry.second.first;
 
           if (promotableEquations.contains(writingEquation)) {
@@ -230,7 +483,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
             return true;
           }
 
-          if (!writtenIndices.overlaps(readIndices)) {
+          if (!writtenIndices.empty() && !writtenIndices.overlaps(readIndices)) {
             // Ignore the equation (consider it valid) if its written indices
             // don't overlap the read ones.
             return true;
@@ -243,36 +496,47 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
 
     if (promotable) {
       // Promote all the equations of the SCC.
-
       for (const auto& equationDescriptor : scc) {
-        MatchedEquation* equation =
+        EquationBridge* equation =
             scc.getGraph()[equationDescriptor].getProperty();
 
-        promotableEquations.insert(equation);
+        promotableEquations.insert(equation->op);
+        auto writeAccess = equation->op.getMatchedAccess(symbolTableCollection);
 
-        const auto& writeAccess = equation->getWrite();
-        VariableOp writtenVariable = writeAccess.getVariable()->getDefiningOp();
+        if (!writeAccess) {
+          return mlir::failure();
+        }
 
-        IndexSet writtenIndices = writeAccess.getAccessFunction().map(
-                equation->getIterationRanges());
+        auto writtenVariableOp =
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, writeAccess->getVariable());
 
-        promotableVariablesIndices[writtenVariable] +=
-            std::move(writtenIndices);
+        const AccessFunction& writeAccessFunction =
+            writeAccess->getAccessFunction();
+
+        llvm::Optional<IndexSet> equationIndices =
+            equation->op.getIterationSpace();
+
+        IndexSet writtenIndices = writeAccessFunction.map(
+            equationIndices ? *equationIndices : IndexSet());
+
+        candidateVariables.insert(writtenVariableOp);
+
+        promotableVariablesIndices[writtenVariableOp] += writtenIndices;
       }
     }
   }
 
   // Determine the promotable variables.
-  // A variable can be promoted only if all the equations writing it (and thus
-  // all the scalar variables) are promotable.
+  // A variable can be promoted only if all the equations writing to it (and
+  // thus all the scalar variables) are promotable.
 
   llvm::DenseSet<VariableOp> promotableVariables;
 
-  for (const auto& variable : mainModel.getVariables()) {
-    VariableOp variableOp = variable->getDefiningOp();
-
+  for (VariableOp variableOp : variables) {
     if (!promotableVariables.contains(variableOp) &&
-        variablesIndices[variableOp] == promotableVariablesIndices[variableOp]) {
+        candidateVariables.contains(variableOp) &&
+        variableOp.getIndices() == promotableVariablesIndices[variableOp]) {
       promotableVariables.insert(variableOp);
     }
   }
@@ -289,112 +553,97 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
 
     // Initially, consider all the variable indices.
     for (const auto& entry : llvm::make_range(
-             mainModelWritesMap.equal_range(variableOp))) {
+             mainWritesMap.equal_range(variableOp))) {
       variableIndices += entry.second.first;
     }
 
     // Then, remove the indices that are written by already existing initial
     // equations.
     for (const auto& entry : llvm::make_range(
-             initialConditionsModelWritesMap.equal_range(variableOp))) {
+             initialConditionsWritesMap.equal_range(variableOp))) {
       variableIndices -= entry.second.first;
-    }
-
-    variableIndices = variableIndices.getCanonicalRepresentation();
-
-    if (variableIndices.empty()) {
-      // Skip the variable if all of its indices are already handled by the
-      // initial equations.
-      continue;
     }
 
     // Convert the writing non-initial equations into initial equations.
     auto writingEquations =
-        llvm::make_range(mainModelWritesMap.equal_range(variableOp));
+        llvm::make_range(mainWritesMap.equal_range(variableOp));
 
     for (const auto& entry : writingEquations) {
-      MatchedEquation* equation = entry.second.second;
+      MatchedEquationInstanceOp equationOp = entry.second.second;
 
-      std::vector<mlir::Value> inductionVariables =
-          equation->getInductionVariables();
+      IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
-      EquationInterface equationInt = equation->getOperation();
-      IndexSet writingEquationIndices = equation->getIterationRanges();
-      const Access& writeAccess = equation->getWrite();
+      auto writeAccess = equationOp.getMatchedAccess(symbolTableCollection);
+
+      if (!writeAccess) {
+        return mlir::failure();
+      }
+
+      const AccessFunction& writeAccessFunction =
+          writeAccess->getAccessFunction();
 
       IndexSet writtenIndices =
-          writeAccess.getAccessFunction().map(writingEquationIndices);
+          writeAccessFunction.map(writingEquationIndices);
 
       // Restrict the indices to the ones not handled by the initial
       // equations.
       writtenIndices = writtenIndices.intersect(variableIndices);
 
-      if (!writtenIndices.empty()) {
-        // Get the indices of the equation that actually writes the scalar
-        // variables of interest.
-        writingEquationIndices =
-            writeAccess.getAccessFunction().inverseMap(
-                writtenIndices, writingEquationIndices);
+      // Determine if new initial equations should be created.
+      bool shouldCreateInitialEquations = true;
 
-        writingEquationIndices =
-            writingEquationIndices.getCanonicalRepresentation();
+      if (newVariableType.isScalar()) {
+        // In case of scalar variables, the initial equation should be created
+        // only if there is not already one writing its value.
+        shouldCreateInitialEquations =
+            initialConditionsWritesMap.find(variableOp) ==
+            initialConditionsWritesMap.end();
+      }
 
-        // Create the initial equations.
-        for (const auto& range :
-             llvm::make_range(writingEquationIndices.rangesBegin(),
-                              writingEquationIndices.rangesEnd())) {
-          mlir::BlockAndValueMapping mapping;
-          llvm::SmallVector<mlir::Value> newInductionVariables;
+      if (shouldCreateInitialEquations) {
+        if (!writingEquationIndices.empty()) {
+          // Get the indices of the equation that actually writes the scalar
+          // variables of interest.
+          writingEquationIndices = writeAccessFunction.inverseMap(
+              writtenIndices, writingEquationIndices);
 
-          builder.setInsertionPointToEnd(&modelOp.getBodyRegion().front());
+          writingEquationIndices =
+              writingEquationIndices.getCanonicalRepresentation();
 
-          if (!newVariableType.isScalar()) {
-            for (int64_t i = 0, e = newVariableType.getRank(); i < e; ++i) {
-              auto forEquationOp = builder.create<ForEquationOp>(
-                  equationInt.getLoc(),
-                  range[i].getBegin(),
-                  range[i].getEnd() - 1,
-                  1);
+          rewriter.setInsertionPoint(equationOp);
 
-              mapping.map(inductionVariables[i], forEquationOp.induction());
-              builder.setInsertionPointToStart(forEquationOp.bodyBlock());
+          uint64_t numOfImplicitInductions =
+              equationOp.getNumOfImplicitInductionVariables();
+
+          for (const MultidimensionalRange& range : llvm::make_range(
+                   writingEquationIndices.rangesBegin(),
+                   writingEquationIndices.rangesEnd())) {
+            auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
+                rewriter.clone(*equationOp.getOperation()));
+
+            clonedEquationOp.setInitial(true);
+
+            if (range.rank() > numOfImplicitInductions) {
+              clonedEquationOp.setIndicesAttr(MultidimensionalRangeAttr::get(
+                  rewriter.getContext(),
+                  range.dropLastDimensions(numOfImplicitInductions)));
+            }
+
+            if (numOfImplicitInductions != 0) {
+              clonedEquationOp.setImplicitIndicesAttr(
+                  MultidimensionalRangeAttr::get(
+                      rewriter.getContext(),
+                      range.takeLastDimensions(numOfImplicitInductions)));
             }
           }
 
-          auto initialEquationOp =
-              builder.create<InitialEquationOp>(equationInt.getLoc());
-
-          initialEquationOp->setAttrs(equationInt->getAttrs());
-          assert(initialEquationOp.getBodyRegion().empty());
-
-          mlir::Block* body =
-              builder.createBlock(&initialEquationOp.getBodyRegion());
-
-          builder.setInsertionPointToStart(body);
-
-          // Clone the equation body.
-          for (auto& op : equationInt.getBodyRegion().getOps()) {
-            builder.clone(op, mapping);
-          }
+          rewriter.eraseOp(equationOp);
+        } else {
+          // Scalar equation.
+          equationOp.setInitial(true);
         }
-      }
-    }
-  }
-
-  // Delete the equations that have been promoted to initial equations.
-  llvm::DenseSet<mlir::Operation*> erasedEquations;
-
-  for (VariableOp variable : promotableVariables) {
-    auto writingEquations = llvm::make_range(
-        mainModelWritesMap.equal_range(variable));
-
-    for (const auto& entry : writingEquations) {
-      MatchedEquation* equation = entry.second.second;
-      EquationInterface equationInt = equation->getOperation();
-
-      if (!erasedEquations.contains(equationInt.getOperation())) {
-        equation->eraseIR();
-        erasedEquations.insert(equationInt.getOperation());
+      } else {
+        rewriter.eraseOp(equationOp);
       }
     }
   }
@@ -402,52 +651,65 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
   return mlir::success();
 }
 
-mlir::LogicalResult VariablesPromotionPass::getInitialConditionsModel(
-    Model<MatchedEquation>& model) const
+DerivativesMap& VariablesPromotionPass::getDerivativesMap()
 {
-  auto equationsFilter = [](EquationInterface op) {
-    return mlir::isa<InitialEquationOp>(op);
-  };
-
-  return getModel(model, equationsFilter);
-}
-
-mlir::LogicalResult VariablesPromotionPass::getMainModel(
-    Model<MatchedEquation>& model) const
-{
-  auto equationsFilter = [](EquationInterface op) {
-    return mlir::isa<EquationOp>(op);
-  };
-
-  return getModel(model, equationsFilter);
-}
-
-mlir::LogicalResult VariablesPromotionPass::getModel(
-    Model<MatchedEquation>& model,
-    std::function<bool(EquationInterface)> equationsFilter) const
-{
-  model.setVariables(discoverVariables(model.getOperation()));
-  return readMatchingAttributes(model, equationsFilter);
-}
-
-std::multimap<VariableOp, std::pair<IndexSet, MatchedEquation*>>
-VariablesPromotionPass::getWritesMap(const Model<MatchedEquation>& model) const
-{
-  std::multimap<VariableOp, std::pair<IndexSet, MatchedEquation*>> writesMap;
-
-  for (const auto& equation : model.getEquations()) {
-    const Access& write = equation->getWrite();
-    VariableOp variable = write.getVariable()->getDefiningOp();
-
-    IndexSet writtenIndices = write.getAccessFunction().map(
-        equation->getIterationRanges());
-
-    writesMap.emplace(
-        variable,
-        std::make_pair(writtenIndices, equation.get()));
+  if (auto analysis = getCachedAnalysis<DerivativesMap>()) {
+    return *analysis;
   }
 
-  return writesMap;
+  auto& analysis = getAnalysis<DerivativesMap>();
+  analysis.initialize();
+  return analysis;
+}
+
+llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+VariablesPromotionPass::getVariableAccessAnalysis(
+    MatchedEquationInstanceOp equation,
+    mlir::SymbolTableCollection& symbolTableCollection)
+{
+  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
+          equation.getTemplate())) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
+      equation.getTemplate());
+
+  if (mlir::failed(analysis.initialize(symbolTableCollection))) {
+    return llvm::None;
+  }
+
+  return std::reference_wrapper(analysis);
+}
+
+mlir::LogicalResult VariablesPromotionPass::getWritesMap(
+    WritesMap& result,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations) const
+{
+  for (MatchedEquationInstanceOp equationOp : equations) {
+    auto writeAccess = equationOp.getMatchedAccess(symbolTableCollection);
+
+    if (!writeAccess) {
+      return mlir::failure();
+    }
+
+    auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, writeAccess->getVariable());
+
+    const AccessFunction& accessFunction =
+        writeAccess->getAccessFunction();
+
+    IndexSet equationIndices = equationOp.getIterationSpace();
+    IndexSet variableIndices = accessFunction.map(equationIndices);
+
+    result.emplace(
+        writtenVariableOp,
+        std::make_pair(std::move(variableIndices), equationOp));
+  }
+
+  return mlir::success();
 }
 
 namespace mlir::modelica
@@ -455,11 +717,5 @@ namespace mlir::modelica
   std::unique_ptr<mlir::Pass> createVariablesPromotionPass()
   {
     return std::make_unique<VariablesPromotionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createVariablesPromotionPass(
-      const VariablesPromotionPassOptions& options)
-  {
-    return std::make_unique<VariablesPromotionPass>(options);
   }
 }

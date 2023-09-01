@@ -19,6 +19,7 @@ int main(int argc, char* argv[])
 
   mlir::registerAllDialects(registry);
 
+  registry.insert<mlir::modeling::ModelingDialect>();
 	registry.insert<mlir::modelica::ModelicaDialect>();
   registry.insert<mlir::ida::IDADialect>();
   registry.insert<mlir::kinsol::KINSOLDialect>();

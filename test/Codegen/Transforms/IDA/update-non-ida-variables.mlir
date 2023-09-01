@@ -1,6 +1,8 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(ida{model=Test})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
 
-// CHECK:       simulation.function @updateNonIDAVariables(solvers: [%[[ida:.*]]: !ida.instance], time: [%[[time:.*]]: !modelica.real], variables: [], extra_args: []) -> () {
+// Empty model.
+
+// CHECK:       simulation.function @updateNonIDAVariables() {
 // CHECK-NEXT:      simulation.return
 // CHECK-NEXT:  }
 

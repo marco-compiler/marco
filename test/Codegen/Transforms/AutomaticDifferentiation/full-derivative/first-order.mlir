@@ -1,22 +1,16 @@
-// RUN: modelica-opt %s                                 \
-// RUN:     --auto-diff                                 \
-// RUN:     --convert-modelica-to-cf                    \
-// RUN:     --convert-modelica-to-arith                 \
-// RUN:     --convert-modelica-to-func                  \
-// RUN:     --convert-modelica-to-memref                \
-// RUN:     --convert-modelica-to-llvm                  \
-// RUN:     --convert-arith-to-llvm                     \
-// RUN:     --convert-memref-to-llvm                    \
-// RUN:     --convert-func-to-llvm                      \
-// RUN:     --convert-cf-to-llvm                        \
-// RUN:     --reconcile-unrealized-casts                \
-// RUN: | mlir-cpu-runner                               \
-// RUN:     -e main -entry-point-result=void -O0        \
-// RUN:     -shared-libs=%runtime_lib                   \
-// RUN: | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --auto-diff | FileCheck %s
 
-// d/dt (x) = d/dt (x)
-// CHECK: 2.000000e+00
+// CHECK-LABEL: @var_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, output>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       modelica.variable_set @y, %[[x]]
+// CHECK:       modelica.variable_set @der_y, %[[der_x]]
+// CHECK:   }
 
 modelica.function @var attributes {derivative = #modelica.derivative<"var_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -28,16 +22,21 @@ modelica.function @var attributes {derivative = #modelica.derivative<"var_der", 
     }
 }
 
-func.func @test_var() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<2.0> : !modelica.real
-    %result = modelica.call @var_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
+// -----
 
-// d/dt (-x) = - d/dt (x)
-// CHECK: -2.000000e+00
+// CHECK-LABEL: @neg_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, output>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       %[[neg_x:.*]] = modelica.neg %[[x]]
+// CHECK:       %[[neg_der_x:.*]] = modelica.neg %[[der_x]]
+// CHECK:       modelica.variable_set @y, %[[neg_x]]
+// CHECK:       modelica.variable_set @der_y, %[[neg_der_x]]
+// CHECK:   }
 
 modelica.function @neg attributes {derivative = #modelica.derivative<"neg_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -50,16 +49,24 @@ modelica.function @neg attributes {derivative = #modelica.derivative<"neg_der", 
     }
 }
 
-func.func @test_neg() -> () {
-    %x = modelica.constant #modelica.real<57.0>
-    %der_x = modelica.constant #modelica.real<2.0>
-    %result = modelica.call @neg_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
+// -----
 
-// d/dt (x + y) = d/dt (x) + d/dt (y)
-// CHECK: 5.000000e+00
+// CHECK-LABEL: @add_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = modelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
+// CHECK:       %[[add_x_y:.*]] = modelica.add %[[x]], %[[y]]
+// CHECK:       %[[add_der_x_der_y:.*]] = modelica.add %[[der_x]], %[[der_y]]
+// CHECK:       modelica.variable_set @z, %[[add_x_y]]
+// CHECK:       modelica.variable_set @der_z, %[[add_der_x_der_y]]
+// CHECK:   }
 
 modelica.function @add attributes {derivative = #modelica.derivative<"add_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -74,18 +81,25 @@ modelica.function @add attributes {derivative = #modelica.derivative<"add_der", 
     }
 }
 
-func.func @test_add() -> () {
-    %x = modelica.constant #modelica.real<23.0>
-    %y = modelica.constant #modelica.real<57.0>
-    %der_x = modelica.constant #modelica.real<3.0>
-    %der_y = modelica.constant #modelica.real<2.0>
-    %result = modelica.call @add_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
+// -----
 
-// d/dt (x - y) = d/dt (x) - d/dt (y)
-// CHECK: 1.000000e+00
+// CHECK-LABEL: @sub_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = modelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
+// CHECK:       %[[sub_x_y:.*]] = modelica.sub %[[x]], %[[y]]
+// CHECK:       %[[sub_der_x_der_y:.*]] = modelica.sub %[[der_x]], %[[der_y]]
+// CHECK:       modelica.variable_set @z, %[[sub_x_y]]
+// CHECK:       modelica.variable_set @der_z, %[[sub_der_x_der_y]]
+// CHECK:   }
 
 modelica.function @sub attributes {derivative = #modelica.derivative<"sub_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -100,18 +114,27 @@ modelica.function @sub attributes {derivative = #modelica.derivative<"sub_der", 
     }
 }
 
-func.func @test_sub() -> () {
-    %x = modelica.constant #modelica.real<23.0>
-    %y = modelica.constant #modelica.real<57.0>
-    %der_x = modelica.constant #modelica.real<3.0>
-    %der_y = modelica.constant #modelica.real<2.0>
-    %result = modelica.call @sub_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
+// -----
 
-// d/dt (x * y) = d/dt (x) * y + x * d/dt (y)
-// CHECK: 2.170000e+02
+// CHECK-LABEL: @mul_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = modelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
+// CHECK:       %[[mul_x_y:.*]] = modelica.mul %[[x]], %[[y]]
+// CHECK:       %[[mul_der_x_y:.*]] = modelica.mul %[[der_x]], %[[y]]
+// CHECK:       %[[mul_x_der_y:.*]] = modelica.mul %[[x]], %[[der_y]]
+// CHECK:       %[[add:.*]] = modelica.add %[[mul_der_x_y]], %[[mul_x_der_y]]
+// CHECK:       modelica.variable_set @z, %[[mul_x_y]]
+// CHECK:       modelica.variable_set @der_z, %[[add]]
+// CHECK:   }
 
 modelica.function @mul attributes {derivative = #modelica.derivative<"mul_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -126,18 +149,30 @@ modelica.function @mul attributes {derivative = #modelica.derivative<"mul_der", 
     }
 }
 
-func.func @test_mul() -> () {
-    %x = modelica.constant #modelica.real<23.0>
-    %y = modelica.constant #modelica.real<57.0>
-    %der_x = modelica.constant #modelica.real<3.0>
-    %der_y = modelica.constant #modelica.real<2.0>
-    %result = modelica.call @mul_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
+// -----
 
-// d/dt (x / y) = (d/dt (x) * y - x * d/dt (y)) / (y^2)
-// CHECK: 3.847338e-02
+// CHECK-LABEL: @div_der
+// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
+// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
+// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
+// CHECK:   modelica.algorithm {
+// CHECK:       %[[x:.*]] = modelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = modelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
+// CHECK:       %[[div_x_y:.*]] = modelica.div %[[x]], %[[y]]
+// CHECK:       %[[mul_der_x_y:.*]] = modelica.mul %[[der_x]], %[[y]]
+// CHECK:       %[[mul_x_der_y:.*]] = modelica.mul %[[x]], %[[der_y]]
+// CHECK:       %[[sub:.*]] = modelica.sub %[[mul_der_x_y]], %[[mul_x_der_y]]
+// CHECK:       %[[exponent:.*]] = modelica.constant #modelica.real<2.000000e+00>
+// CHECK:       %[[pow:.*]] = modelica.pow %2, %[[exponent]]
+// CHECK:       %[[der_div:.*]] = modelica.div %[[sub]], %[[pow]]
+// CHECK:       modelica.variable_set @z, %[[div_x_y]]
+// CHECK:       modelica.variable_set @der_z, %[[der_div]]
+// CHECK:   }
 
 modelica.function @div attributes {derivative = #modelica.derivative<"div_der", 1>} {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -150,24 +185,4 @@ modelica.function @div attributes {derivative = #modelica.derivative<"div_der", 
         %2 = modelica.div %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
         modelica.variable_set @z, %2 : !modelica.real
     }
-}
-
-func.func @test_div() -> () {
-    %x = modelica.constant #modelica.real<23.0>
-    %y = modelica.constant #modelica.real<57.0>
-    %der_x = modelica.constant #modelica.real<3.0>
-    %der_y = modelica.constant #modelica.real<2.0>
-    %result = modelica.call @div_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
-    modelica.print %result : !modelica.real
-    return
-}
-
-func.func @main() -> () {
-    call @test_var() : () -> ()
-    call @test_neg() : () -> ()
-    call @test_add() : () -> ()
-    call @test_sub() : () -> ()
-    call @test_mul() : () -> ()
-    call @test_div() : () -> ()
-    return
 }

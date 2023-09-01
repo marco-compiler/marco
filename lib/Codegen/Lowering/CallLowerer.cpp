@@ -320,6 +320,7 @@ namespace marco::codegen::lowering
         .Case("diagonal", true)
         .Case("div", true)
         .Case("exp", true)
+        .Case("fill", true)
         .Case("floor", true)
         .Case("identity", true)
         .Case("integer", true)
@@ -398,6 +399,10 @@ namespace marco::codegen::lowering
 
     if (callee == "exp") {
       return exp(call);
+    }
+
+    if (callee == "fill") {
+      return fill(call);
     }
 
     if (callee == "floor") {
@@ -859,6 +864,31 @@ namespace marco::codegen::lowering
 
     mlir::Value result = builder().create<ExpOp>(
         loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::fill(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "fill");
+
+    assert(call.getNumOfArguments() > 0);
+
+    mlir::Value value = lowerArg(*call.getArgument(0));
+    llvm::SmallVector<int64_t, 1> shape;
+
+    for (size_t i = 1, e = call.getNumOfArguments(); i < e; ++i) {
+      const ast::Expression* arg = call.getArgument(i);
+      assert(arg->isa<ast::Constant>());
+      shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
+    }
+
+    auto resultType = ArrayType::get(
+        shape, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<FillOp>(
+        loc(call.getLocation()), resultType, value);
 
     return Reference::ssa(builder(), result);
   }

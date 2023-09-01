@@ -1,6 +1,6 @@
+#include "marco/Modeling/MultidimensionalRange.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Modeling/MultidimensionalRange.h"
 
 using namespace ::marco::modeling;
 

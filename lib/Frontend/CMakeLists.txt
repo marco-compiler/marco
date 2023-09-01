@@ -5,7 +5,6 @@ set(SOURCES
     FrontendAction.cpp
     FrontendActions.cpp
     FrontendOptions.cpp
-    Options.cpp
     SimulationOptions.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
@@ -27,12 +26,13 @@ marco_add_library(frontend
     marco::parser
     marco::codegen
     marco::variableFilter
-    MARCOFrontendOptions
 
     LINK_LIBS
     marco::ast
     marco::parser
     marco::codegen
+    marco::IO
+    marco::options
     marco::variableFilter
     ${MLIR_LIBS}
 

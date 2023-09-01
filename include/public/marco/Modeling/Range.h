@@ -2,6 +2,7 @@
 #define MARCO_MODELING_RANGE_H
 
 #include "marco/Modeling/Point.h"
+#include "llvm/ADT/Hashing.h"
 
 namespace marco::modeling
 {
@@ -41,6 +42,8 @@ namespace marco::modeling
       using const_iterator = Iterator;
 
       Range(data_type begin, data_type end);
+
+      friend llvm::hash_code hash_value(const Range& value);
 
       bool operator==(data_type other) const;
 

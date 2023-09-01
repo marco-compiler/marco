@@ -1,12 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(test-model-conversion{model=Test})" | FileCheck %s
 
-// Scalar variable
+// Scalar variable.
 
-// CHECK: #[[x:.*]] = #simulation.variable
-// CHECK-NOT: printable_indices
-
-// CHECK: simulation.module
-// CHECK-SAME: variables = [#[[x]]]
+// CHECK: simulation.printable_indices [true]
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.real>
@@ -14,13 +10,10 @@ modelica.model @Test {
 
 // -----
 
-// Array variable
+// Array variable.
 
-// CHECK: #[[x:.*]] = #simulation.variable
-// CHECK-SAME: printable_indices = [<[0, 3], [0, 2]>]
-
-// CHECK: simulation.module
-// CHECK-SAME: variables = [#[[x]]]
+// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,2][0,1]}>
+// CHECK: simulation.printable_indices [#[[index_set]]]
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x2x!modelica.real>

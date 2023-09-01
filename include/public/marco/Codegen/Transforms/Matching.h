@@ -13,7 +13,8 @@ namespace mlir::modelica
   std::unique_ptr<mlir::Pass> createMatchingPass();
 
   /// Create a pass performing the matching process on a model.
-  std::unique_ptr<mlir::Pass> createMatchingPass(const MatchingPassOptions& options);
+  std::unique_ptr<mlir::Pass> createMatchingPass(
+      const MatchingPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MATCHING_H

@@ -2,7 +2,12 @@
 #define MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
 
 #include "marco/Dialect/Modelica/Types.h"
+#include "marco/Dialect/Modelica/EquationPath.h"
+#include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "marco/Dialect/Modeling/Attributes.h"
+#include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/Support/StorageUniquer.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -12,6 +17,12 @@
 
 namespace mlir::modelica
 {
+  using RangeAttr = ::mlir::modeling::RangeAttr;
+  using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
+  using IndexSetAttr = ::mlir::modeling::IndexSetAttr;
+
+  using EquationScheduleDirection = ::marco::modeling::scheduling::Direction;
+
   mlir::Attribute getAttr(mlir::Type type, int64_t value);
   mlir::Attribute getAttr(mlir::Type type, double value);
 
@@ -19,6 +30,7 @@ namespace mlir::modelica
   mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
 
   mlir::Attribute getZeroAttr(mlir::Type type);
+  mlir::Attribute getOneAttr(mlir::Type type);
 
   namespace detail
   {

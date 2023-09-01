@@ -20,9 +20,10 @@ configure_lit_site_cfg(
 set(MARCO_TEST_DEPENDS
     FileCheck count not
     mlir-cpu-runner count not
-    marco-driver
+    marco
     modelica-opt
-    marco-runtime)
+    #Runtime::marco-runtime
+        )
 
 list(APPEND MARCO_TEST_DEPENDS MARCOUnitTests)
 

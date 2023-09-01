@@ -283,4 +283,14 @@ def VariableType : Modelica_Type<"Variable",
     let genVerifyDecl = 1;
 }
 
+def EquationType : Modelica_Type<"Equation">
+{
+    let summary = "Equation type";
+    let mnemonic = "equation";
+
+    let description = [{
+        Type representing a Modelica equation.
+    }];
+}
+
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

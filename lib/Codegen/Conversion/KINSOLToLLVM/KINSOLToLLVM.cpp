@@ -134,6 +134,7 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(AddEquationOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
+      /*
       auto loc = op.getLoc();
       auto module = op->getParentOfType<mlir::ModuleOp>();
 
@@ -190,6 +191,7 @@ namespace
       // Deallocate the ranges array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(module);
       rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, equationRangesOpaquePtr);
+       */
 
       return mlir::success();
     }
@@ -201,6 +203,7 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(AddAlgebraicVariableOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
+      /*
       auto loc = op.getLoc();
       auto module = op->getParentOfType<mlir::ModuleOp>();
 
@@ -283,6 +286,7 @@ namespace
       // Deallocate the dimensions array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(module);
       rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, arrayDimensionsOpaquePtr);
+       */
 
       return mlir::success();
     }
@@ -454,6 +458,7 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(AddVariableAccessOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
+      /*
       auto loc = op.getLoc();
       auto module = op->getParentOfType<mlir::ModuleOp>();
 
@@ -532,6 +537,7 @@ namespace
       // Deallocate the accesses array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
       rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, accessesOpaquePtr);
+       */
 
       return mlir::success();
     }
@@ -976,6 +982,7 @@ namespace marco::codegen
     private:
       mlir::LogicalResult convertFunctionsLikeOps()
       {
+        /*
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
 
@@ -1001,12 +1008,14 @@ namespace marco::codegen
         if (auto status = applyPartialConversion(module, target, std::move(patterns)); mlir::failed(status)) {
           return status;
         }
+        */
 
         return mlir::success();
       }
 
       mlir::LogicalResult convertOperations()
       {
+        /*
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
 
@@ -1028,6 +1037,7 @@ namespace marco::codegen
         if (auto status = applyPartialConversion(module, target, std::move(patterns)); mlir::failed(status)) {
           return status;
         }
+         */
 
         return mlir::success();
       }

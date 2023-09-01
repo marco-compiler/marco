@@ -1,146 +1,18 @@
 #include "marco/Codegen/Transforms/SolverPassBase.h"
-#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 using namespace ::marco;
-using namespace ::marco::codegen;
-using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
-namespace
-{
-  struct FuncOpTypesPattern : public mlir::OpConversionPattern<mlir::func::FuncOp>
-  {
-    using mlir::OpConversionPattern<mlir::func::FuncOp>::OpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(mlir::func::FuncOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      llvm::SmallVector<mlir::Type, 3> resultTypes;
-      llvm::SmallVector<mlir::Type, 3> argTypes;
-
-      for (const auto& type : op.getFunctionType().getResults()) {
-        resultTypes.push_back(getTypeConverter()->convertType(type));
-      }
-
-      for (const auto& type : op.getFunctionType().getInputs()) {
-        argTypes.push_back(getTypeConverter()->convertType(type));
-      }
-
-      auto functionType = rewriter.getFunctionType(argTypes, resultTypes);
-      auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(op, op.getSymName(), functionType);
-
-      if (op->hasAttr("llvm.linkage")) {
-        newOp->setAttr("llvm.linkage", op->getAttr("llvm.linkage"));
-      }
-
-      mlir::Block* entryBlock = newOp.addEntryBlock();
-      rewriter.setInsertionPointToStart(entryBlock);
-
-      mlir::BlockAndValueMapping mapping;
-
-      // Clone the blocks structure.
-      for (auto& block : llvm::enumerate(op.getBody())) {
-        if (block.index() == 0) {
-          mapping.map(&block.value(), entryBlock);
-        } else {
-          std::vector<mlir::Location> argLocations;
-
-          for (const auto& arg : block.value().getArguments()) {
-            argLocations.push_back(arg.getLoc());
-          }
-
-          auto signatureConversion = typeConverter->convertBlockSignature(&block.value());
-
-          if (!signatureConversion) {
-            return mlir::failure();
-          }
-
-          mlir::Block* clonedBlock = rewriter.createBlock(
-              &newOp.getBody(),
-              newOp.getBody().end(),
-              signatureConversion->getConvertedTypes(),
-              argLocations);
-
-          mapping.map(&block.value(), clonedBlock);
-        }
-      }
-
-      for (auto& block : op.getBody().getBlocks()) {
-        mlir::Block* clonedBlock = mapping.lookup(&block);
-        rewriter.setInsertionPointToStart(clonedBlock);
-
-        // Cast the block arguments.
-        for (const auto& [original, cloned] : llvm::zip(block.getArguments(), clonedBlock->getArguments())) {
-          mlir::Value arg = typeConverter->materializeSourceConversion(
-              rewriter, cloned.getLoc(), original.getType(), cloned);
-
-          mapping.map(original, arg);
-        }
-
-        // Clone the operations
-        for (auto& bodyOp : block.getOperations()) {
-          if (auto returnOp = mlir::dyn_cast<mlir::func::ReturnOp>(bodyOp)) {
-            std::vector<mlir::Value> returnValues;
-
-            for (auto returnValue : returnOp.operands()) {
-              returnValues.push_back(getTypeConverter()->materializeTargetConversion(
-                  rewriter, returnOp.getLoc(),
-                  getTypeConverter()->convertType(returnValue.getType()),
-                  mapping.lookup(returnValue)));
-            }
-
-            rewriter.create<mlir::func::ReturnOp>(returnOp.getLoc(), returnValues);
-          } else {
-            rewriter.clone(bodyOp, mapping);
-          }
-        }
-      }
-
-      return mlir::success();
-    }
-  };
-
-  struct CallOpTypesPattern : public mlir::OpConversionPattern<mlir::func::CallOp>
-  {
-    using mlir::OpConversionPattern<mlir::func::CallOp>::OpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(mlir::func::CallOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      llvm::SmallVector<mlir::Value, 3> values;
-
-      for (const auto& operand : op.operands()) {
-        values.push_back(getTypeConverter()->materializeTargetConversion(
-            rewriter, operand.getLoc(), getTypeConverter()->convertType(operand.getType()), operand));
-      }
-
-      llvm::SmallVector<mlir::Type, 3> resultTypes;
-
-      for (const auto& type : op.getResults().getTypes()) {
-        resultTypes.push_back(getTypeConverter()->convertType(type));
-      }
-
-      auto newOp = rewriter.create<mlir::func::CallOp>(op.getLoc(), op.getCallee(), resultTypes, values);
-
-      llvm::SmallVector<mlir::Value, 3> results;
-
-      for (const auto& [oldResult, newResult] : llvm::zip(op.getResults(), newOp.getResults())) {
-        if (oldResult.getType() != newResult.getType()) {
-          results.push_back(getTypeConverter()->materializeSourceConversion(
-              rewriter, newResult.getLoc(), oldResult.getType(), newResult));
-        } else {
-          results.push_back(newResult);
-        }
-      }
-
-      rewriter.replaceOp(op, results);
-      return mlir::success();
-    }
-  };
-}
-
-static IndexSet getFilteredIndices(
-    mlir::Type variableType,
+static IndexSet getPrintableIndices(
+    VariableType variableType,
     llvm::ArrayRef<VariableFilter::Filter> filters)
 {
+  assert(!variableType.isScalar());
   IndexSet result;
 
   for (const auto& filter : filters) {
@@ -149,59 +21,56 @@ static IndexSet getFilteredIndices(
     }
 
     auto filterRanges = filter.getRanges();
-    std::vector<Range> ranges;
+    llvm::SmallVector<Range, 3> ranges;
 
-    if (auto arrayType = variableType.dyn_cast<ArrayType>()) {
-      assert(arrayType.hasStaticShape());
-      assert(filterRanges.size() == static_cast<size_t>(arrayType.getRank()));
+    assert(variableType.hasStaticShape());
 
-      for (const auto& range : llvm::enumerate(filterRanges)) {
-        // In Modelica, arrays are 1-based. If present, we need to lower by 1
-        // the value given by the variable filter.
+    assert(static_cast<int64_t>(filterRanges.size()) ==
+           variableType.getRank());
 
-        auto lowerBound = range.value().hasLowerBound()
-            ? range.value().getLowerBound() - 1 : 0;
+    for (const auto& range : llvm::enumerate(filterRanges)) {
+      // In Modelica, arrays are 1-based. If present, we need to lower by 1 the
+      // value given by the variable filter.
 
-        auto upperBound = range.value().hasUpperBound()
-            ? range.value().getUpperBound()
-            : arrayType.getShape()[range.index()];
+      auto lowerBound = range.value().hasLowerBound()
+          ? range.value().getLowerBound() - 1 : 0;
 
-        ranges.emplace_back(lowerBound, upperBound);
-      }
-    } else {
-      // Scalar value.
-      ranges.emplace_back(0, 1);
+      auto upperBound = range.value().hasUpperBound()
+          ? range.value().getUpperBound()
+          : variableType.getShape()[range.index()];
+
+      ranges.emplace_back(lowerBound, upperBound);
     }
 
     result += MultidimensionalRange(std::move(ranges));
   }
 
-  return result;
+  return std::move(result);
 }
 
-static llvm::SmallVector<mlir::simulation::MultidimensionalRangeAttr>
-getSimulationMultidimensionalRanges(
-    mlir::MLIRContext* context, const IndexSet& indices)
+namespace
 {
-  llvm::SmallVector<mlir::simulation::MultidimensionalRangeAttr> result;
-  IndexSet canonicalIndices = indices.getCanonicalRepresentation();
+  class TimeOpLowering : public mlir::OpRewritePattern<TimeOp>
+  {
+    public:
+      using mlir::OpRewritePattern<TimeOp>::OpRewritePattern;
 
-  for (const MultidimensionalRange& multidimensionalRange :
-       llvm::make_range(canonicalIndices.rangesBegin(),
-                        canonicalIndices.rangesEnd())) {
-    llvm::SmallVector<std::pair<int64_t, int64_t>> ranges;
+      mlir::LogicalResult matchAndRewrite(
+          TimeOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        auto timeType = RealType::get(rewriter.getContext());
 
-    for (unsigned int i = 0, e = multidimensionalRange.rank(); i < e; ++i) {
-      ranges.emplace_back(
-          multidimensionalRange[i].getBegin(),
-          multidimensionalRange[i].getEnd());
-    }
+        auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
+            op.getLoc(),
+            ArrayType::get(llvm::None, timeType),
+            "time");
 
-    result.push_back(mlir::simulation::MultidimensionalRangeAttr::get(
-        context, ranges));
-  }
+        rewriter.replaceOpWithNewOp<LoadOp>(
+            op, timeType, globalGetOp, llvm::None);
 
-  return result;
+        return mlir::success();
+      }
+  };
 }
 
 namespace mlir::modelica::impl
@@ -212,199 +81,409 @@ namespace mlir::modelica::impl
 
   mlir::LogicalResult ModelSolver::convert(
       ModelOp modelOp,
+      const DerivativesMap& derivativesMap,
       const VariableFilter& variablesFilter,
       bool processICModel,
       bool processMainModel)
   {
-    mlir::OpBuilder builder(modelOp);
+    mlir::Location loc = modelOp.getLoc();
+    mlir::SymbolTableCollection symbolTableCollection;
 
-    // Parse the derivatives map.
-    DerivativesMap derivativesMap;
+    mlir::IRRewriter rewriter(modelOp.getContext());
+    auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
-    if (mlir::failed(readDerivativesMap(modelOp, derivativesMap))) {
+    // Collect the variables once for faster processing.
+    llvm::SmallVector<VariableOp> variableOps;
+
+    for (VariableOp variableOp : modelOp.getVariables()) {
+      variableOps.push_back(variableOp);
+    }
+
+    // Collect the SCCs once for faster processing.
+    llvm::SmallVector<SCCOp> initialSCCs;
+    llvm::SmallVector<SCCOp> SCCs;
+    modelOp.collectSCCs(initialSCCs, SCCs);
+
+    // Create the common functions.
+    if (mlir::failed(createModelNameOp(
+            rewriter, moduleOp, loc, modelOp))) {
       return mlir::failure();
     }
 
-    mlir::simulation::ModuleOp simulationModuleOp = createSimulationModule(
-        builder, modelOp, derivativesMap, variablesFilter);
-
-    if (processICModel) {
-      // Obtain the scheduled model.
-      Model<ScheduledEquationsBlock> model(modelOp);
-      model.setVariables(discoverVariables(modelOp));
-      model.setDerivativesMap(derivativesMap);
-
-      auto equationsFilter = [](EquationInterface op) {
-        return mlir::isa<InitialEquationOp>(op);
-      };
-
-      if (mlir::failed(readSchedulingAttributes(model, equationsFilter))) {
-        return mlir::failure();
-      }
-
-      // Create the simulation functions.
-      if (mlir::failed(solveICModel(builder, simulationModuleOp, model))) {
-        return mlir::failure();
-      }
+    if (mlir::failed(createNumOfVariablesOp(
+            rewriter, moduleOp, loc, variableOps))) {
+      return mlir::failure();
     }
 
-    if (processMainModel) {
-      // Obtain the scheduled model.
-      Model<ScheduledEquationsBlock> model(modelOp);
-      model.setVariables(discoverVariables(modelOp));
-      model.setDerivativesMap(derivativesMap);
+    if (mlir::failed(createVariableNamesOp(
+            rewriter, moduleOp, loc, variableOps))) {
+      return mlir::failure();
+    }
 
-      auto equationsFilter = [](EquationInterface op) {
-        return mlir::isa<EquationOp>(op);
-      };
+    if (mlir::failed(createVariableRanksOp(
+            rewriter, moduleOp, loc, variableOps))) {
+      return mlir::failure();
+    }
 
-      if (mlir::failed(readSchedulingAttributes(model, equationsFilter))) {
-        return mlir::failure();
-      }
+    if (mlir::failed(createPrintableIndicesOp(
+            rewriter, moduleOp, loc,
+            variableOps, derivativesMap, variablesFilter))) {
+      return mlir::failure();
+    }
 
-      // Create the simulation functions.
-      if (mlir::failed(solveMainModel(builder, simulationModuleOp, model))) {
-        return mlir::failure();
-      }
+    if (mlir::failed(createDerivativesMapOp(
+            rewriter, moduleOp, loc, variableOps, derivativesMap))) {
+      return mlir::failure();
+    }
+
+    llvm::StringMap<GlobalVariableOp> localToGlobalVariablesMap;
+
+    if (mlir::failed(createGlobalVariables(
+            rewriter, moduleOp, symbolTableCollection,
+            modelOp, variableOps,
+            localToGlobalVariablesMap))) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(createVariableGetters(
+            rewriter, moduleOp, loc, variableOps, localToGlobalVariablesMap))) {
+      return mlir::failure();
     }
 
     if (mlir::failed(createInitFunction(
-            builder, modelOp, simulationModuleOp))) {
+            rewriter, moduleOp, modelOp, variableOps,
+            localToGlobalVariablesMap))) {
       return mlir::failure();
     }
 
-    if (mlir::failed(createDeinitFunction(
-            builder, modelOp, simulationModuleOp))) {
+    if (mlir::failed(createDeinitFunction(rewriter, moduleOp, loc))) {
       return mlir::failure();
     }
 
-    if (mlir::failed(createVariableGetterFunctions(
-            builder, modelOp, simulationModuleOp))) {
+    if (processICModel) {
+      if (mlir::failed(solveICModel(
+              rewriter, symbolTableCollection, modelOp,
+              variableOps, derivativesMap, localToGlobalVariablesMap,
+              initialSCCs))) {
+        return mlir::failure();
+      }
+    }
+
+    // Process the 'main' model.
+    if (processMainModel) {
+      if (mlir::failed(solveMainModel(
+              rewriter, symbolTableCollection, modelOp,
+              variableOps, derivativesMap, localToGlobalVariablesMap,
+              SCCs))) {
+        return mlir::failure();
+      }
+    }
+
+    // The model has been completely converted to the code composing the
+    // simulation, thus it can now be erased.
+    modelOp.erase();
+
+    // Declare the time variable.
+    GlobalVariableOp timeVariableOp =
+        declareTimeVariable(rewriter, moduleOp, loc, symbolTableCollection);
+
+    if (!timeVariableOp) {
+      return mlir::failure();
+    }
+
+    // Declare the time getter.
+    if (mlir::failed(createTimeGetterOp(
+            rewriter, moduleOp, symbolTableCollection, timeVariableOp))) {
+      return mlir::failure();
+    }
+
+    // Declare the time setter.
+    if (mlir::failed(createTimeSetterOp(
+            rewriter, moduleOp, symbolTableCollection, timeVariableOp))) {
+      return mlir::failure();
+    }
+
+    // Convert the time operation.
+    if (mlir::failed(convertTimeOp(moduleOp))) {
       return mlir::failure();
     }
 
     return mlir::success();
   }
 
-  mlir::simulation::ModuleOp ModelSolver::createSimulationModule(
+  mlir::LogicalResult ModelSolver::createModelNameOp(
       mlir::OpBuilder& builder,
-      ModelOp modelOp,
-      const DerivativesMap& derivativesMap,
-      const VariableFilter& variablesFilter)
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      ModelOp modelOp)
   {
-    auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+    builder.create<mlir::simulation::ModelNameOp>(loc, modelOp.getSymName());
+    return mlir::success();
+  }
 
+  mlir::LogicalResult ModelSolver::createNumOfVariablesOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps)
+  {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    llvm::SmallVector<mlir::Attribute> variables;
-    llvm::StringMap<size_t> variablesMap;
+    builder.create<mlir::simulation::NumberOfVariablesOp>(
+        loc, builder.getI64IntegerAttr(variableOps.size()));
 
-    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
-      // Determine the printable indices.
-      bool printable = true;
-
-      IndexSet printableIndices = getPrintableIndices(
-          modelOp, derivativesMap, variablesFilter, variableOp);
-
-      auto simulationPrintableIndices = getSimulationMultidimensionalRanges(
-          builder.getContext(), printableIndices);
-
-      if (variableOp.getVariableType().isScalar()) {
-        if (printableIndices.empty()) {
-          printable = false;
-        }
-
-        simulationPrintableIndices.clear();
-      }
-
-      // Create the variable.
-      variables.push_back(mlir::simulation::VariableAttr::get(
-          builder.getContext(),
-          variableOp.getVariableType().toArrayType(),
-          variableOp.getSymName(),
-          variableOp.getVariableType().getShape(),
-          printable,
-          simulationPrintableIndices));
-
-      variablesMap[variableOp.getSymName()] = variables.size() - 1;
-    }
-
-    llvm::SmallVector<mlir::Attribute> derivatives;
-
-    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
-      if (derivativesMap.hasDerivative(variableOp.getSymName())) {
-        auto variableAttr = variables[variablesMap[variableOp.getSymName()]]
-                                .cast<mlir::simulation::VariableAttr>();
-
-        auto derivativeAttr = variables[variablesMap[derivativesMap.getDerivative(variableOp.getSymName())]]
-                                  .cast<mlir::simulation::VariableAttr>();
-
-        derivatives.push_back(mlir::simulation::DerivativeAttr::get(
-            builder.getContext(), variableAttr, derivativeAttr));
-      }
-    }
-
-    return builder.create<mlir::simulation::ModuleOp>(
-        moduleOp.getLoc(), modelOp.getSymName(), variables, derivatives);
+    return mlir::success();
   }
 
-  IndexSet ModelSolver::getPrintableIndices(
-      ModelOp modelOp,
-      const DerivativesMap& derivativesMap,
-      const VariableFilter& variablesFilter,
-      VariableOp variableOp) const
+  mlir::LogicalResult ModelSolver::createVariableNamesOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps)
   {
-    VariableType variableType = variableOp.getVariableType();
-    int64_t rank = variableOp.getVariableType().getRank();
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    if (derivativesMap.isDerivative(variableOp.getSymName())) {
-      llvm::StringRef derivedVariableName =
-          derivativesMap.getDerivedVariable(variableOp.getSymName());
+    llvm::SmallVector<llvm::StringRef> names;
 
-      auto filters = variablesFilter.getVariableDerInfo(derivedVariableName, rank);
-
-      IndexSet filteredIndices = getFilteredIndices(variableType.unwrap(), filters);
-      IndexSet derivedIndices = derivativesMap.getDerivedIndices(derivedVariableName);
-      return filteredIndices.intersect(derivedIndices);
+    for (VariableOp variableOp : variableOps) {
+      names.push_back(variableOp.getSymName());
     }
 
-    auto filters = variablesFilter.getVariableInfo(variableOp.getSymName(), rank);
-    return getFilteredIndices(variableType.unwrap(), filters);
+    builder.create<mlir::simulation::VariableNamesOp>(
+        loc, builder.getStrArrayAttr(names));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createVariableRanksOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    llvm::SmallVector<int64_t> ranks;
+
+    for (VariableOp variableOp : variableOps) {
+      VariableType variableType = variableOp.getVariableType();
+      ranks.push_back(variableType.getRank());
+    }
+
+    builder.create<mlir::simulation::VariableRanksOp>(
+        loc, builder.getI64ArrayAttr(ranks));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createPrintableIndicesOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps,
+      const DerivativesMap& derivativesMap,
+      const VariableFilter& variablesFilter)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    llvm::SmallVector<mlir::Attribute> printInformation;
+
+    auto getFlatName = [](mlir::SymbolRefAttr symbolRef) -> std::string {
+      std::string result = symbolRef.getRootReference().str();
+
+      for (mlir::FlatSymbolRefAttr nested : symbolRef.getNestedReferences()) {
+        result += "." + nested.getValue().str();
+      }
+
+      return result;
+    };
+
+    for (VariableOp variableOp : variableOps) {
+      VariableType variableType = variableOp.getVariableType();
+      std::vector<VariableFilter::Filter> filters;
+
+      if (auto stateName = derivativesMap.getDerivedVariable(
+              mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+        // Derivative variable.
+        filters = variablesFilter.getVariableDerInfo(
+            getFlatName(*stateName), variableType.getRank());
+
+      } else {
+        // Non-derivative variable.
+        filters = variablesFilter.getVariableInfo(
+            variableOp.getSymName(), variableType.getRank());
+      }
+
+      if (variableType.isScalar()) {
+        // Scalar variable.
+        bool isVisible = llvm::any_of(
+            filters, [](const VariableFilter::Filter& filter) {
+              return filter.isVisible();
+            });
+
+        printInformation.push_back(builder.getBoolAttr(isVisible));
+      } else {
+        // Array variable.
+        IndexSet printableIndices = getPrintableIndices(variableType, filters);
+        printableIndices = printableIndices.getCanonicalRepresentation();
+
+        printInformation.push_back(IndexSetAttr::get(
+            builder.getContext(), printableIndices));
+      }
+    }
+
+    builder.create<mlir::simulation::PrintableIndicesOp>(
+        loc, builder.getArrayAttr(printInformation));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createDerivativesMapOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps,
+      const DerivativesMap& derivativesMap)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    // Map the position of the variables for faster lookups.
+    llvm::DenseMap<mlir::SymbolRefAttr, int64_t> positionsMap;
+
+    for (size_t i = 0, e = variableOps.size(); i < e; ++i) {
+      VariableOp variableOp = variableOps[i];
+      auto name = mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr());
+      positionsMap[name] = i;
+    }
+
+    // Compute the positions of the derivatives.
+    llvm::SmallVector<int64_t> derivatives;
+
+    for (VariableOp variableOp : variableOps) {
+      if (auto derivative = derivativesMap.getDerivative(
+              mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+        auto it = positionsMap.find(*derivative);
+
+        if (it == positionsMap.end()) {
+          return mlir::failure();
+        }
+
+        derivatives.push_back(it->getSecond());
+      } else {
+        derivatives.push_back(-1);
+      }
+    }
+
+    builder.create<mlir::simulation::DerivativesMapOp>(
+        loc, builder.getI64ArrayAttr(derivatives));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createGlobalVariables(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      ModelOp modelOp,
+      llvm::ArrayRef<VariableOp> variableOps,
+      llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
+
+    // Declare the global variables.
+    for (size_t i = 0, e = variableOps.size(); i < e; ++i) {
+      VariableOp variableOp = variableOps[i];
+
+      auto globalVariableOp = builder.create<GlobalVariableOp>(
+          variableOp.getLoc(), "var_" + std::to_string(i),
+          variableOp.getVariableType().toArrayType());
+
+      symbolTableCollection.getSymbolTable(moduleOp).insert(globalVariableOp);
+      localToGlobalVariablesMap[variableOp.getSymName()] = globalVariableOp;
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createVariableGetters(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      llvm::ArrayRef<VariableOp> variableOps,
+      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    // Create a getter for each variable.
+    size_t variableGetterCounter = 0;
+    llvm::SmallVector<mlir::Attribute> getterNames;
+
+    for (VariableOp variableOp : variableOps) {
+      builder.setInsertionPointToEnd(moduleOp.getBody());
+      VariableType variableType = variableOp.getVariableType();
+
+      auto getterOp = builder.create<mlir::simulation::VariableGetterOp>(
+          variableOp.getLoc(),
+          "var_getter_" + std::to_string(variableGetterCounter++),
+          variableType.getRank());
+
+      getterNames.push_back(
+          mlir::FlatSymbolRefAttr::get(getterOp.getSymNameAttr()));
+
+      mlir::Block* bodyBlock = getterOp.addEntryBlock();
+      builder.setInsertionPointToStart(bodyBlock);
+
+      mlir::Value variable = builder.create<GlobalVariableGetOp>(
+          variableOp.getLoc(),
+          localToGlobalVariablesMap.lookup(variableOp.getSymName()));
+
+      mlir::Value result = builder.create<LoadOp>(
+          variableOp.getLoc(), variable, getterOp.getIndices());
+
+      result = builder.create<CastOp>(
+          variableOp.getLoc(), getterOp.getResultTypes()[0], result);
+
+      builder.create<mlir::simulation::ReturnOp>(variableOp.getLoc(), result);
+    }
+
+    // Create the operation collecting all the getters.
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    builder.create<mlir::simulation::VariableGettersOp>(
+        loc, builder.getArrayAttr(getterNames));
+
+    return mlir::success();
   }
 
   mlir::LogicalResult ModelSolver::createInitFunction(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
       ModelOp modelOp,
-      mlir::simulation::ModuleOp simulationModuleOp) const
+      llvm::ArrayRef<VariableOp> variableOps,
+      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(simulationModuleOp.getBody());
+    builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    mlir::Location loc = modelOp.getLoc();
-    mlir::SymbolTable symbolTable(modelOp);
-
-    auto initFunctionOp = builder.create<mlir::simulation::InitFunctionOp>(
-        loc, simulationModuleOp.getVariablesTypes());
+    auto initFunctionOp =
+        builder.create<mlir::simulation::InitFunctionOp>(modelOp.getLoc());
 
     mlir::Block* entryBlock = initFunctionOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    // The descriptors of the arrays that compose that runtime data structure.
-    std::vector<mlir::Value> structVariables;
-    llvm::StringMap<mlir::Value> structVariablesMap;
+    // Map the variables by name for faster lookup.
+    llvm::StringMap<VariableOp> variablesMap;
 
-    mlir::BlockAndValueMapping membersOpsMapping;
-
-    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
-      auto arrayType = variableOp.getVariableType().toArrayType();
-      assert(arrayType.hasStaticShape());
-
-      mlir::Value array = builder.create<AllocOp>(
-          variableOp.getLoc(), arrayType, llvm::None);
-
-      structVariables.push_back(array);
-      structVariablesMap[variableOp.getSymName()] = array;
+    for (VariableOp variableOp : variableOps) {
+      variablesMap[variableOp.getSymName()] = variableOp;
     }
 
     // Keep track of the variables for which a start value has been provided.
@@ -414,41 +493,48 @@ namespace mlir::modelica::impl
       // Set the variable as initialized.
       initializedVars.insert(startOp.getVariable());
 
-      // Note that parameters must be set independently of the 'fixed'
+      // Note that read-only variables must be set independently of the 'fixed'
       // attribute being true or false.
 
-      auto variableOp = symbolTable.lookup<VariableOp>(startOp.getVariable());
+      VariableOp variableOp = variablesMap[startOp.getVariable()];
 
       if (startOp.getFixed() && !variableOp.getVariableType().isReadOnly()) {
         continue;
       }
 
-      builder.setInsertionPointAfterValue(
-          structVariablesMap[startOp.getVariable()]);
-
       mlir::BlockAndValueMapping startOpsMapping;
 
       for (auto& op : startOp.getBodyRegion().getOps()) {
         if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
-          mlir::Value valueToBeStored = startOpsMapping.lookup(yieldOp.getValues()[0]);
-          mlir::Value destination = structVariablesMap[startOp.getVariable()];
+          mlir::Value valueToBeStored =
+              startOpsMapping.lookup(yieldOp.getValues()[0]);
+
+          mlir::Value destination = builder.create<GlobalVariableGetOp>(
+              startOp.getLoc(),
+              localToGlobalVariablesMap.lookup(startOp.getVariable()));
 
           if (startOp.getEach()) {
-            builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
+            builder.create<ArrayFillOp>(
+                startOp.getLoc(), destination, valueToBeStored);
           } else {
-            auto destinationArrayType = destination.getType().cast<ArrayType>();
+            auto destinationArrayType =
+                destination.getType().cast<ArrayType>();
+
             auto valueType = valueToBeStored.getType();
 
             if (auto valueArrayType = valueType.dyn_cast<ArrayType>()) {
-              builder.create<ArrayCopyOp>(startOp.getLoc(), valueToBeStored, destination);
+              builder.create<ArrayCopyOp>(
+                  startOp.getLoc(), valueToBeStored, destination);
             } else {
               auto elementType = destinationArrayType.getElementType();
 
               if (elementType != valueToBeStored.getType()) {
-                valueToBeStored = builder.create<CastOp>(loc, elementType, valueToBeStored);
+                valueToBeStored = builder.create<CastOp>(
+                    startOp.getLoc(), elementType, valueToBeStored);
               }
 
-              builder.create<StoreOp>(startOp.getLoc(), valueToBeStored, destination, llvm::None);
+              builder.create<StoreOp>(
+                  startOp.getLoc(), valueToBeStored, destination, llvm::None);
             }
           }
         } else {
@@ -463,10 +549,11 @@ namespace mlir::modelica::impl
         continue;
       }
 
-      mlir::Value destination =  structVariablesMap[variableOp.getSymName()];
-      auto arrayType = destination.getType().cast<ArrayType>();
+      mlir::Value destination = builder.create<GlobalVariableGetOp>(
+          variableOp.getLoc(),
+          localToGlobalVariablesMap.lookup(variableOp.getSymName()));
 
-      builder.setInsertionPointAfterValue(destination);
+      auto arrayType = destination.getType().cast<ArrayType>();
 
       mlir::Value zero = builder.create<ConstantOp>(
           destination.getLoc(), getZeroAttr(arrayType.getElementType()));
@@ -478,114 +565,412 @@ namespace mlir::modelica::impl
       }
     }
 
-    // Create the runtime data structure.
     builder.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
-    builder.create<mlir::simulation::YieldOp>(loc, structVariables);
+    builder.create<mlir::simulation::YieldOp>(modelOp.getLoc(), llvm::None);
 
     return mlir::success();
   }
 
   mlir::LogicalResult ModelSolver::createDeinitFunction(
       mlir::OpBuilder& builder,
-      ModelOp modelOp,
-      mlir::simulation::ModuleOp simulationModuleOp) const
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(simulationModuleOp.getBody());
+    builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    mlir::Location loc = modelOp.getLoc();
-
-    auto deinitFunctionOp = builder.create<mlir::simulation::DeinitFunctionOp>(
-        loc, simulationModuleOp.getVariablesTypes());
+    auto deinitFunctionOp =
+        builder.create<mlir::simulation::DeinitFunctionOp>(loc);
 
     mlir::Block* entryBlock = deinitFunctionOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
-
-    for (mlir::Value var : deinitFunctionOp.getVariables()) {
-      builder.create<FreeOp>(loc, var);
-    }
 
     builder.create<mlir::simulation::YieldOp>(loc, llvm::None);
 
     return mlir::success();
   }
 
-  mlir::LogicalResult ModelSolver::createVariableGetterFunctions(
+  GlobalVariableOp ModelSolver::declareTimeVariable(
       mlir::OpBuilder& builder,
-      mlir::modelica::ModelOp modelOp,
-      mlir::simulation::ModuleOp simulationModuleOp) const
+      mlir::ModuleOp moduleOp,
+      mlir::Location loc,
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
-    mlir::Location loc = modelOp.getLoc();
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
 
-    // Map the variables by their types, so that we can create just a single
-    // getter for all the variables with the same type.
-    llvm::DenseMap<
-        mlir::Type,
-        llvm::SmallVector<mlir::Attribute>> variablesMap;
+    auto timeType = RealType::get(builder.getContext());
 
-    for (mlir::simulation::VariableAttr variable :
-         simulationModuleOp.getVariables()
-             .getAsRange<mlir::simulation::VariableAttr>()) {
-      variablesMap[variable.getType()].push_back(variable);
-    }
+    auto globalVariableOp = builder.create<GlobalVariableOp>(
+        loc, "time", ArrayType::get(llvm::None, timeType));
 
-    for (const auto& entry : variablesMap) {
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPointToEnd(simulationModuleOp.getBody());
+    symbolTableCollection.getSymbolTable(moduleOp).insert(globalVariableOp);
+    return globalVariableOp;
+  }
 
-      auto arrayType = entry.getFirst().cast<ArrayType>();
-      int64_t rank = arrayType.hasRank() ? arrayType.getRank() : 0;
+  mlir::LogicalResult ModelSolver::createTimeGetterOp(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      GlobalVariableOp timeVariableOp)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
 
-      auto getterOp = builder.create<mlir::simulation::VariableGetterOp>(
-          loc, entry.getSecond(), arrayType.getElementType(), arrayType, rank);
+    mlir::Location loc = timeVariableOp.getLoc();
 
-      mlir::Block* entryBlock = getterOp.addEntryBlock();
-      builder.setInsertionPointToStart(entryBlock);
+    auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+        loc, "getTime",
+        builder.getFunctionType(llvm::None, builder.getF64Type()));
 
-      mlir::Value result = builder.create<LoadOp>(
-          loc, getterOp.getVariable(), getterOp.getIndices());
+    symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
 
-      builder.create<mlir::simulation::YieldOp>(loc, result);
-    }
+    mlir::Block* entryBlock = functionOp.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    mlir::Value array =
+        builder.create<GlobalVariableGetOp>(loc, timeVariableOp);
+
+    mlir::Value result = builder.create<LoadOp>(
+        loc, RealType::get(builder.getContext()), array);
+
+    result = builder.create<CastOp>(loc, builder.getF64Type(), result);
+    builder.create<mlir::simulation::ReturnOp>(loc, result);
 
     return mlir::success();
   }
 
-  mlir::LogicalResult ModelSolver::legalizeFuncOps(
+  mlir::LogicalResult ModelSolver::createTimeSetterOp(
+      mlir::OpBuilder& builder,
       mlir::ModuleOp moduleOp,
-      mlir::TypeConverter& typeConverter) const
+      mlir::SymbolTableCollection& symbolTableCollection,
+      GlobalVariableOp timeVariableOp)
   {
-    mlir::ConversionTarget target(*moduleOp->getContext());
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType());
-    });
+    mlir::Location loc = timeVariableOp.getLoc();
 
-    target.addDynamicallyLegalOp<mlir::func::CallOp>([&](mlir::func::CallOp op) {
-      for (const auto& type : op.operands().getTypes()) {
-        if (!typeConverter.isLegal(type)) {
-          return false;
+    auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+        loc, "setTime",
+        builder.getFunctionType(builder.getF64Type(), llvm::None));
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
+
+    mlir::Block* entryBlock = functionOp.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    mlir::Value array =
+        builder.create<GlobalVariableGetOp>(loc, timeVariableOp);
+
+    mlir::Value newTime = builder.create<CastOp>(
+        loc, RealType::get(builder.getContext()), functionOp.getArgument(0));
+
+    builder.create<StoreOp>(loc, newTime, array, llvm::None);
+    builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::convertTimeOp(mlir::ModuleOp moduleOp)
+  {
+    mlir::RewritePatternSet patterns(moduleOp.getContext());
+
+    patterns.add<
+        TimeOpLowering>(moduleOp.getContext());
+
+    return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns));
+  }
+
+  void ModelSolver::getEquationTemplatesUsageCount(
+      llvm::ArrayRef<SCCOp> SCCs,
+      llvm::DenseMap<EquationTemplateOp, size_t>& usages) const
+  {
+    for (SCCOp scc : SCCs) {
+      for (ScheduledEquationInstanceOp equationOp :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        usages[equationOp.getTemplate()]++;
+      }
+    }
+  }
+
+  RawFunctionOp ModelSolver::createEquationTemplateFunction(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      EquationTemplateOp equationTemplateOp,
+      uint64_t elementViewIndex,
+      mlir::ArrayAttr iterationDirections,
+      llvm::StringRef functionName,
+      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    mlir::Location loc = equationTemplateOp.getLoc();
+
+    size_t numOfExplicitInductions =
+        equationTemplateOp.getInductionVariables().size();
+
+    size_t numOfImplicitInductions =
+        equationTemplateOp.getNumOfImplicitInductionVariables(
+            elementViewIndex);
+
+    llvm::SmallVector<mlir::Type, 9> argTypes(
+        numOfExplicitInductions * 3 + numOfImplicitInductions * 3,
+        builder.getIndexType());
+
+    auto rawFunctionOp = builder.create<RawFunctionOp>(
+        loc, functionName, builder.getFunctionType(argTypes, llvm::None));
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(rawFunctionOp);
+
+    mlir::Block* entryBlock = rawFunctionOp.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    mlir::BlockAndValueMapping mapping;
+
+    // Create the explicit iteration loops.
+    llvm::SmallVector<mlir::Value, 3> explicitInductions;
+
+    llvm::SmallVector<mlir::Value, 3> explicitIterationsBegin;
+    llvm::SmallVector<mlir::Value, 3> explicitIterationsEnd;
+    llvm::SmallVector<mlir::Value, 3> explicitIterationsStep;
+
+    for (size_t i = 0; i < numOfExplicitInductions; ++i) {
+      explicitIterationsBegin.push_back(rawFunctionOp.getArgument(i * 3));
+      explicitIterationsEnd.push_back(rawFunctionOp.getArgument(i * 3 + 1));
+      explicitIterationsStep.push_back(rawFunctionOp.getArgument(i * 3 + 2));
+    }
+
+    createIterationLoops(
+        builder, loc,
+        explicitIterationsBegin, explicitIterationsEnd, explicitIterationsStep,
+        iterationDirections, explicitInductions);
+
+    // Map the induction variables.
+    for (size_t i = 0; i < numOfExplicitInductions; ++i) {
+      mapping.map(
+          equationTemplateOp.getInductionVariables()[i],
+          explicitInductions[i]);
+    }
+
+    // Clone the equation body.
+    for (auto& op : equationTemplateOp.getOps()) {
+      if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
+        // Convert the equality to an assignment.
+        mlir::Value lhsValue =
+            equationSidesOp.getLhsValues()[elementViewIndex];
+
+        mlir::Value rhsValue =
+            equationSidesOp.getRhsValues()[elementViewIndex];
+
+        lhsValue = mapping.lookup(lhsValue);
+        rhsValue = mapping.lookup(rhsValue);
+
+        if (auto arrayType = lhsValue.getType().dyn_cast<ArrayType>()) {
+          assert(arrayType.getRank() ==
+                 static_cast<int64_t>(numOfImplicitInductions));
+
+          assert(rhsValue.getType().isa<ArrayType>());
+          assert(rhsValue.getType().cast<ArrayType>().getRank() ==
+                 static_cast<int64_t>(numOfImplicitInductions));
+
+          llvm::SmallVector<mlir::Value, 3> implicitInductions;
+
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsBegin;
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsEnd;
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsStep;
+
+          for (size_t i = 0; i < numOfImplicitInductions; ++i) {
+            implicitIterationsBegin.push_back(rawFunctionOp.getArgument(
+                numOfExplicitInductions * 3 + i * 3));
+
+            implicitIterationsEnd.push_back(rawFunctionOp.getArgument(
+                numOfExplicitInductions * 3 + i * 3 + 1));
+
+            implicitIterationsStep.push_back(rawFunctionOp.getArgument(
+                numOfExplicitInductions * 3 + i * 3 + 2));
+          }
+
+          createIterationLoops(
+              builder, loc,
+              implicitIterationsBegin,
+              implicitIterationsEnd,
+              implicitIterationsStep,
+              iterationDirections, implicitInductions);
+
+          rhsValue = builder.create<LoadOp>(loc, rhsValue, implicitInductions);
+
+          rhsValue = builder.create<CastOp>(
+              loc, arrayType.getElementType(), rhsValue);
+
+          builder.create<StoreOp>(loc, rhsValue, lhsValue, implicitInductions);
+        } else {
+          auto loadOp = mlir::cast<LoadOp>(lhsValue.getDefiningOp());
+          rhsValue = builder.create<CastOp>(loc, lhsValue.getType(), rhsValue);
+
+          builder.create<StoreOp>(
+              loc, rhsValue, loadOp.getArray(), loadOp.getIndices());
         }
+      } else if (mlir::isa<EquationSideOp>(op)) {
+        // Ignore equation sides.
+        continue;
+      } else if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
+        auto globalVariableIt =
+            localToGlobalVariablesMap.find(variableGetOp.getVariable());
+
+        if (globalVariableIt != localToGlobalVariablesMap.end()) {
+          mlir::Value replacement = builder.create<GlobalVariableGetOp>(
+              op.getLoc(), globalVariableIt->getValue());
+
+          if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
+              arrayType && arrayType.isScalar()) {
+            replacement = builder.create<LoadOp>(loc, replacement, llvm::None);
+          }
+
+          mapping.map(variableGetOp.getResult(), replacement);
+        } else {
+          builder.clone(op, mapping);
+        }
+      } else {
+        // Clone all the other operations.
+        builder.clone(op, mapping);
+      }
+    }
+
+    // Create the return operation.
+    builder.setInsertionPointToEnd(entryBlock);
+    builder.create<RawReturnOp>(loc);
+
+    return rawFunctionOp;
+  }
+
+  void ModelSolver::createIterationLoops(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      llvm::ArrayRef<mlir::Value> beginIndices,
+      llvm::ArrayRef<mlir::Value> endIndices,
+      llvm::ArrayRef<mlir::Value> steps,
+      mlir::ArrayAttr iterationDirections,
+      llvm::SmallVectorImpl<mlir::Value>& inductions)
+  {
+    assert(beginIndices.size() == endIndices.size());
+    assert(beginIndices.size() == steps.size());
+
+    assert(llvm::all_of(
+        iterationDirections.getAsRange<EquationScheduleDirectionAttr>(),
+        [](EquationScheduleDirectionAttr direction) {
+          return direction.getValue() == EquationScheduleDirection::Forward ||
+              direction.getValue() == EquationScheduleDirection::Backward;
+        }));
+
+    auto conditionFn =
+        [&](EquationScheduleDirectionAttr direction,
+            mlir::Value index, mlir::Value end) -> mlir::Value {
+      if (direction.getValue() == EquationScheduleDirection::Backward) {
+        return builder.create<mlir::arith::CmpIOp>(
+            loc, mlir::arith::CmpIPredicate::sgt, index, end);
       }
 
-      for (const auto& type : op.getResults().getTypes()) {
-        if (!typeConverter.isLegal(type)) {
-          return false;
-        }
+      return builder.create<mlir::arith::CmpIOp>(
+          loc, mlir::arith::CmpIPredicate::slt, index, end);
+    };
+
+    auto updateFn =
+        [&](EquationScheduleDirectionAttr direction,
+            mlir::Value index, mlir::Value step) -> mlir::Value {
+      if (direction.getValue() == EquationScheduleDirection::Backward) {
+        return builder.create<mlir::arith::SubIOp>(loc, index, step);
       }
 
-      return true;
-    });
+      return builder.create<mlir::arith::AddIOp>(loc, index, step);
+    };
 
-    target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-      return true;
-    });
+    for (size_t i = 0; i < steps.size(); ++i) {
+      auto whileOp = builder.create<mlir::scf::WhileOp>(
+          loc, builder.getIndexType(), beginIndices[i]);
 
-    mlir::RewritePatternSet patterns(moduleOp->getContext());
-    patterns.insert<FuncOpTypesPattern>(typeConverter, moduleOp->getContext());
-    patterns.insert<CallOpTypesPattern>(typeConverter, moduleOp->getContext());
+      // Check the condition.
+      // A naive check can consist in the equality comparison. However, in
+      // order to be future-proof with respect to steps greater than one, we
+      // need to check if the current value is beyond the end boundary. This in
+      // turn requires to know the iteration direction.
 
-    return applyPartialConversion(moduleOp, target, std::move(patterns));
+      mlir::Block* beforeBlock = builder.createBlock(
+          &whileOp.getBefore(), {}, builder.getIndexType(), loc);
+
+      builder.setInsertionPointToStart(beforeBlock);
+
+      mlir::Value condition = conditionFn(
+          iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
+          whileOp.getBefore().getArgument(0), endIndices[i]);
+
+      builder.create<mlir::scf::ConditionOp>(
+          loc, condition, whileOp.getBefore().getArgument(0));
+
+      // Execute the loop body.
+      mlir::Block* afterBlock = builder.createBlock(
+          &whileOp.getAfter(), {}, builder.getIndexType(), loc);
+
+      mlir::Value inductionVariable = afterBlock->getArgument(0);
+      inductions.push_back(inductionVariable);
+      builder.setInsertionPointToStart(afterBlock);
+
+      // Update the induction variable.
+      mlir::Value nextValue = updateFn(
+          iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
+              inductionVariable, steps[i]);
+
+      builder.create<mlir::scf::YieldOp>(loc, nextValue);
+      builder.setInsertionPoint(nextValue.getDefiningOp());
+    }
+  }
+
+  mlir::LogicalResult ModelSolver::callEquationFunction(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      ScheduledEquationInstanceOp equationOp,
+      RawFunctionOp rawFunctionOp) const
+  {
+    llvm::SmallVector<mlir::Value, 3> args;
+
+    // Explicit indices.
+    if (auto indices = equationOp.getIndices()) {
+      for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
+        // Begin index.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
+
+        // End index.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
+
+        // Step.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(1)));
+      }
+    }
+
+    // Implicit indices.
+    if (auto indices = equationOp.getImplicitIndices()) {
+      for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
+        // Begin index.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
+
+        // End index.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
+
+        // Step.
+        args.push_back(builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIndexAttr(1)));
+      }
+    }
+
+    builder.create<CallOp>(loc, rawFunctionOp, args);
+    return mlir::success();
   }
 }
 
@@ -604,20 +989,26 @@ namespace
   {
     public:
       mlir::LogicalResult solveICModel(
-          mlir::OpBuilder& builder,
-          mlir::simulation::ModuleOp simulationModuleOp,
-          const marco::codegen::Model<
-              marco::codegen::ScheduledEquationsBlock>& model) override
+          mlir::IRRewriter& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::modelica::ModelOp modelOp,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+          llvm::ArrayRef<SCCOp> SCCs) override
       {
         // Do nothing.
         return mlir::success();
       }
 
       mlir::LogicalResult solveMainModel(
-          mlir::OpBuilder& builder,
-          mlir::simulation::ModuleOp simulationModuleOp,
-          const marco::codegen::Model<
-              marco::codegen::ScheduledEquationsBlock>& model) override
+          mlir::IRRewriter& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::modelica::ModelOp modelOp,
+          llvm::ArrayRef<VariableOp> variableOps,
+          const DerivativesMap& derivativesMap,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+          llvm::ArrayRef<SCCOp> SCCs) override
       {
         // Do nothing.
         return mlir::success();
@@ -631,40 +1022,59 @@ namespace
     public:
       using ModelConversionTestPassBase::ModelConversionTestPassBase;
 
-      void runOnOperation() override
-      {
-        mlir::ModuleOp moduleOp = getOperation();
-        std::vector<ModelOp> modelOps;
+      void runOnOperation() override;
 
-        moduleOp.walk([&](ModelOp modelOp) {
-          modelOps.push_back(modelOp);
-        });
-
-        assert(llvm::count_if(modelOps, [&](ModelOp modelOp) {
-                 return modelOp.getSymName() == model;
-               }) <= 1 && "More than one model matches the requested model name, but only one can be converted into a simulation");
-
-        TestSolver solver;
-
-        auto expectedVariablesFilter = marco::VariableFilter::fromString(variablesFilter);
-        std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
-
-        if (!expectedVariablesFilter) {
-          getOperation().emitWarning("Invalid variable filter string. No filtering will take place");
-          variablesFilterInstance = std::make_unique<marco::VariableFilter>();
-        } else {
-          variablesFilterInstance = std::make_unique<marco::VariableFilter>(std::move(*expectedVariablesFilter));
-        }
-
-        for (ModelOp modelOp : modelOps) {
-          if (mlir::failed(solver.convert(
-                  modelOp, *variablesFilterInstance,
-                  processICModel, processMainModel))) {
-            return signalPassFailure();
-          }
-        }
-      }
+    private:
+      DerivativesMap& getDerivativesMap(ModelOp modelOp);
   };
+}
+
+void ModelConversionTestPass::runOnOperation()
+{
+  mlir::ModuleOp moduleOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+      modelOps.push_back(modelOp);
+  }
+
+  TestSolver solver;
+
+  auto expectedVariablesFilter =
+      marco::VariableFilter::fromString(variablesFilter);
+
+  std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
+
+  if (!expectedVariablesFilter) {
+      getOperation().emitWarning(
+          "Invalid variable filter string. No filtering will take place");
+
+      variablesFilterInstance = std::make_unique<marco::VariableFilter>();
+  } else {
+      variablesFilterInstance = std::make_unique<marco::VariableFilter>(
+          std::move(*expectedVariablesFilter));
+  }
+
+  for (ModelOp modelOp : modelOps) {
+      DerivativesMap& derivativesMap = getDerivativesMap(modelOp);
+
+      if (mlir::failed(solver.convert(
+              modelOp, derivativesMap, *variablesFilterInstance,
+              processICModel, processMainModel))) {
+        return signalPassFailure();
+      }
+  }
+}
+
+DerivativesMap& ModelConversionTestPass::getDerivativesMap(ModelOp modelOp)
+{
+  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
+  analysis.initialize();
+  return analysis;
 }
 
 namespace mlir::modelica

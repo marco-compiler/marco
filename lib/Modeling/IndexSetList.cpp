@@ -380,6 +380,7 @@ namespace marco::modeling::impl
 
       split();
       sort();
+      removeDuplicates();
       merge();
     }
   }
@@ -418,6 +419,11 @@ namespace marco::modeling::impl
   std::unique_ptr<IndexSet::Impl> ListIndexSet::clone() const
   {
     return std::make_unique<ListIndexSet>(*this);
+  }
+
+  llvm::hash_code hash_value(const ListIndexSet& value)
+  {
+    return llvm::hash_combine_range(value.ranges.begin(), value.ranges.end());
   }
 
   bool ListIndexSet::operator==(const Point& rhs) const
@@ -650,7 +656,6 @@ namespace marco::modeling::impl
 
   size_t ListIndexSet::rank() const
   {
-    assert(initialized);
     return allowedRank;
   }
 
@@ -860,17 +865,107 @@ namespace marco::modeling::impl
     return { result };
   }
 
-  std::unique_ptr<IndexSet::Impl> ListIndexSet::getCanonicalRepresentation() const
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::takeFirstDimensions(size_t n) const
   {
-    return clone();
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.takeFirstDimensions(n));
+    }
+
+    return std::make_unique<ListIndexSet>(std::move(result));
   }
 
-  void ListIndexSet::sort()
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::takeLastDimensions(size_t n) const
   {
-    ranges.sort([](const MultidimensionalRange& first,
-                   const MultidimensionalRange& second) {
-      return first < second;
-    });
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.takeLastDimensions(n));
+    }
+
+    return std::make_unique<ListIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::takeDimensions(const llvm::SmallBitVector& dimensions) const
+  {
+    assert(dimensions.size() == rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range : ranges) {
+      result.push_back(range.takeDimensions(dimensions));
+    }
+
+    return std::make_unique<ListIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::dropFirstDimensions(size_t n) const
+  {
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.dropFirstDimensions(n));
+    }
+
+    return std::make_unique<ListIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::dropLastDimensions(size_t n) const
+  {
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.dropLastDimensions(n));
+    }
+
+    return std::make_unique<ListIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::append(const IndexSet& other) const
+  {
+    auto result = std::make_unique<ListIndexSet>();
+
+    if (empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+        *result += range;
+      }
+    } else if (other.empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        *result += range;
+      }
+    } else {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        for (const MultidimensionalRange& otherRange :
+             llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+          *result += range.append(otherRange);
+        }
+      }
+    }
+
+    return std::move(result);
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  ListIndexSet::getCanonicalRepresentation() const
+  {
+    return clone();
   }
 
   void ListIndexSet::split()
@@ -952,6 +1047,40 @@ namespace marco::modeling::impl
     }
 
     return result;
+  }
+
+  void ListIndexSet::sort()
+  {
+    ranges.sort([](const MultidimensionalRange& first,
+                   const MultidimensionalRange& second) {
+      return first < second;
+    });
+  }
+
+  void ListIndexSet::removeDuplicates()
+  {
+    assert(llvm::is_sorted(
+        ranges, [](const MultidimensionalRange& first,
+                   const MultidimensionalRange& second) {
+          return first < second;
+        }));
+
+    auto it = ranges.begin();
+
+    if (it == ranges.end()) {
+      return;
+    }
+
+    while (it != ranges.end()) {
+      auto next = std::next(it);
+
+      while (next != ranges.end() && *next == *it) {
+        ranges.erase(next);
+        next = std::next(it);
+      }
+
+      ++it;
+    }
   }
 
   void ListIndexSet::merge()

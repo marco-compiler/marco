@@ -5,7 +5,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include <set>
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   class ForwardAD
   {

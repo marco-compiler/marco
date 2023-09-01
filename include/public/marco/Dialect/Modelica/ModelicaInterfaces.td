@@ -91,8 +91,10 @@ def InvertibleOpInterface : Modelica_Interface<"InvertibleOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Invert the operation with respect to one of its arguments.",
-            "::mlir::LogicalResult", "invert",
-            (ins "::mlir::OpBuilder&":$builder, "unsigned int":$argumentIndex, "::mlir::ValueRange":$currentResult)
+            "::mlir::Value", "inverse",
+            (ins "::mlir::OpBuilder&":$builder,
+                 "unsigned int":$argumentIndex,
+                 "::mlir::ValueRange":$currentResult)
         >
     ];
 }
@@ -105,8 +107,9 @@ def DistributableOpInterface : Modelica_Interface<"DistributableOpInterface"> {
     let methods = [
         InterfaceMethod<
             "Distribute the operation among its arguments, if possible. The returned value is the one that will replace the previous operation result",
-            "::mlir::Value", "distribute",
-            (ins "::mlir::OpBuilder&":$builder)
+            "::mlir::LogicalResult", "distribute",
+            (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
+                 "::mlir::OpBuilder&":$builder)
         >
     ];
 }
@@ -119,8 +122,10 @@ def NegateOpDistributionInterface : Modelica_Interface<"NegateOpDistributionInte
     let methods = [
         InterfaceMethod<
             "Distribute a negate operation among the arguments. The returned value is the result after propagation",
-            "::mlir::Value", "distributeNegateOp",
-            (ins "::mlir::OpBuilder&":$builder, "::mlir::Type":$resultType)
+            "::mlir::LogicalResult", "distributeNegateOp",
+            (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
+                 "::mlir::OpBuilder&":$builder,
+                 "::mlir::Type":$resultType)
         >
     ];
 }
@@ -133,8 +138,11 @@ def MulOpDistributionInterface : Modelica_Interface<"MulOpDistributionInterface"
     let methods = [
         InterfaceMethod<
             "Distribute a multiplication operation among the arguments. The returned value is the result after propagation",
-            "::mlir::Value", "distributeMulOp",
-            (ins "::mlir::OpBuilder&":$builder, "::mlir::Type":$resultType, "::mlir::Value":$factor)
+            "::mlir::LogicalResult", "distributeMulOp",
+            (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
+                 "::mlir::OpBuilder&":$builder,
+                 "::mlir::Type":$resultType,
+                 "::mlir::Value":$factor)
         >
     ];
 }
@@ -147,8 +155,11 @@ def DivOpDistributionInterface : Modelica_Interface<"DivOpDistributionInterface"
     let methods = [
         InterfaceMethod<
             "Distribute a division operation among the arguments. The returned value is the result after propagation",
-            "::mlir::Value", "distributeDivOp",
-            (ins "::mlir::OpBuilder&":$builder, "::mlir::Type":$resultType, "::mlir::Value":$divisor)
+            "::mlir::LogicalResult", "distributeDivOp",
+            (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
+                 "::mlir::OpBuilder&":$builder,
+                 "::mlir::Type":$resultType,
+                 "::mlir::Value":$divisor)
         >
     ];
 }

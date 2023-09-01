@@ -1,9 +1,12 @@
 add_mlir_dialect_library(MLIRModelica
     Attributes.cpp
+    EquationPath.cpp
+    ExpressionPath.cpp
     ModelicaDialect.cpp
     Interfaces.cpp
     Ops.cpp
     Types.cpp
+    VariableAccess.cpp
 
     DEPENDS
     MLIRModelicaIncGen
@@ -16,4 +19,7 @@ add_mlir_dialect_library(MLIRModelica
     MLIRSupport
     MLIRCallInterfaces
     MLIRControlFlowInterfaces
-    MLIRSideEffectInterfaces)
+    MLIRSideEffectInterfaces
+    MLIRModeling
+    MLIRTransformUtils
+    marco::modeling)

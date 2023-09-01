@@ -8,6 +8,11 @@ namespace marco::modeling
     assert(begin < end && "Range is not well-formed");
   }
 
+  llvm::hash_code hash_value(const Range& value)
+  {
+    return llvm::hash_combine(value.begin_, value.end_);
+  }
+
   bool Range::operator==(Range::data_type other) const
   {
     return getBegin() == other && getEnd() == other + 1;

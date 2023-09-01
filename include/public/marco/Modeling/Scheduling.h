@@ -1,34 +1,145 @@
 #ifndef MARCO_MODELING_SCHEDULING_H
 #define MARCO_MODELING_SCHEDULING_H
 
+#include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include "marco/Modeling/Dependency.h"
+#include <numeric>
 
 namespace marco::modeling
 {
-  namespace scheduling
+  namespace internal::scheduling
   {
-    /// The direction to be used by the equations loop to update its iteration variable.
-    enum class Direction
+    template<typename VariableProperty, typename EquationProperty>
+    class EquationView
     {
-      None,     // [i]
-      Forward,  // [i + n] with n > 0
-      Backward, // [i + n] with n < 0
-      Constant, // [n] with n constant value
-      Mixed,    // mix of the previous cases
-      Unknown
+      public:
+        using EquationTraits = typename ::marco::modeling::dependency
+          ::EquationTraits<EquationProperty>;
+
+        using Id = typename EquationTraits::Id;
+        using VariableType = typename EquationTraits::VariableType;
+        using AccessProperty = typename EquationTraits::AccessProperty;
+
+        using Access = ::marco::modeling::dependency::Access<
+            VariableType, AccessProperty>;
+
+        EquationView(EquationProperty property, IndexSet indices)
+            : realProperty(std::move(property)),
+              indices(std::move(indices))
+        {
+        }
+
+        EquationProperty& operator*()
+        {
+          return realProperty;
+        }
+
+        const EquationProperty& operator*() const
+        {
+          return realProperty;
+        }
+
+        Id getId() const
+        {
+          return EquationTraits::getId(&realProperty);
+        }
+
+        size_t getNumOfIterationVars() const
+        {
+          return EquationTraits::getNumOfIterationVars(&realProperty);
+        }
+
+        const IndexSet& getIterationRanges() const
+        {
+          return indices;
+        }
+
+        Access getWrite() const
+        {
+          return EquationTraits::getWrite(&realProperty);
+        }
+
+        std::vector<Access> getReads() const
+        {
+          return EquationTraits::getReads(&realProperty);
+        }
+
+      private:
+        EquationProperty realProperty;
+        IndexSet indices;
+    };
+
+    enum class DirectionPossibility
+    {
+      Any,
+      Forward,
+      Backward,
+      Scalar
     };
   }
 
-  namespace internal::scheduling
+  namespace dependency
   {
+    template<typename VP, typename EP>
+    struct EquationTraits<internal::scheduling::EquationView<VP, EP>>
+    {
+      using EquationType = internal::scheduling::EquationView<VP, EP>;
+      using Id = typename EquationTraits<EP>::Id;
+
+      static Id getId(const EquationType* equation)
+      {
+        return (*equation).getId();
+      }
+
+      static size_t getNumOfIterationVars(const EquationType* equation)
+      {
+        return (*equation).getNumOfIterationVars();
+      }
+
+      static IndexSet getIterationRanges(const EquationType* equation)
+      {
+        return (*equation).getIterationRanges();
+      }
+
+      using VariableType = typename EquationTraits<EP>::VariableType;
+      using AccessProperty = typename EquationTraits<EP>::AccessProperty;
+
+      static Access<VariableType, AccessProperty> getWrite(
+          const EquationType* equation)
+      {
+        return (*equation).getWrite();
+      }
+
+      static std::vector<Access<VariableType, AccessProperty>> getReads(
+          const EquationType* equation)
+      {
+        return (*equation).getReads();
+      }
+    };
+  }
+
+  namespace scheduling
+  {
+    /// The direction to be used by the equations loop to update its iteration
+    /// variable.
+    enum class Direction
+    {
+      Forward,
+      Backward,
+      Unknown
+    };
+
     template<typename EquationProperty>
     class ScheduledEquation
     {
       public:
-        using Direction = ::marco::modeling::scheduling::Direction;
-
-        ScheduledEquation(EquationProperty property, IndexSet indices, Direction direction)
-            : property(std::move(property)), indices(std::move(indices)), direction(direction)
+        ScheduledEquation(
+            EquationProperty property,
+            IndexSet indices,
+            llvm::ArrayRef<Direction> directions)
+            : property(std::move(property)),
+              indices(std::move(indices)),
+              directions(directions.begin(), directions.end())
         {
         }
 
@@ -42,15 +153,15 @@ namespace marco::modeling
           return indices;
         }
 
-        Direction getIterationDirection() const
+        llvm::ArrayRef<Direction> getIterationDirections() const
         {
-          return direction;
+          return directions;
         }
 
       private:
         EquationProperty property;
         IndexSet indices;
-        Direction direction;
+        llvm::SmallVector<Direction> directions;
     };
 
     template<typename ElementType>
@@ -62,8 +173,8 @@ namespace marco::modeling
       public:
         using const_iterator = typename Container::const_iterator;
 
-        ScheduledSCC(llvm::ArrayRef<ElementType> equations)
-          : equations(equations.begin(), equations.end())
+        ScheduledSCC(llvm::ArrayRef<ElementType> equations, bool cycle)
+          : equations(equations.begin(), equations.end()), cycle(cycle)
         {
           assert(!this->equations.empty());
         }
@@ -76,7 +187,7 @@ namespace marco::modeling
 
         bool hasCycle() const
         {
-          return equations.size() != 1;
+          return cycle;
         }
 
         const_iterator begin() const
@@ -91,6 +202,7 @@ namespace marco::modeling
 
       private:
         Container equations;
+        bool cycle;
     };
 
     template<typename ScheduledSCC>
@@ -107,7 +219,8 @@ namespace marco::modeling
         {
         }
 
-        /// Get whether any of the scheduled SCCs has a cycle among its equations.
+        /// Get whether any of the scheduled SCCs has a cycle among its
+        /// equations.
         bool hasCycles() const
         {
           return llvm::none_of(scheduledSCCs, [](const auto& scheduledSCC) {
@@ -158,13 +271,29 @@ namespace marco::modeling
   class Scheduler
   {
     private:
-      using VectorDependencyGraph = ArrayVariablesDependencyGraph<VariableProperty, EquationProperty>;
+      using EquationTraits =
+        typename dependency::EquationTraits<EquationProperty>;
+
+      using EquationView = internal::scheduling::EquationView<
+          VariableProperty, EquationProperty>;
+
+      using VectorDependencyGraph =
+          ArrayVariablesDependencyGraph<VariableProperty, EquationView>;
+
       using Equation = typename VectorDependencyGraph::Equation;
+
       using SCC = typename VectorDependencyGraph::SCC;
-      using ScalarDependencyGraph = ScalarVariablesDependencyGraph<VariableProperty, EquationProperty>;
-      using ScheduledEquation = internal::scheduling::ScheduledEquation<EquationProperty>;
-      using ScheduledSCC = internal::scheduling::ScheduledSCC<ScheduledEquation>;
-      using Schedule = internal::scheduling::Schedule<ScheduledSCC>;
+      using ScalarDependencyGraph =
+          ScalarVariablesDependencyGraph<VariableProperty, EquationView>;
+
+      using ScheduledEquation =
+          scheduling::ScheduledEquation<EquationProperty>;
+
+      using ScheduledSCC =
+          scheduling::ScheduledSCC<ScheduledEquation>;
+
+      using Schedule = scheduling::Schedule<ScheduledSCC>;
+      using DirectionPossibility = internal::scheduling::DirectionPossibility;
 
     public:
       Scheduler(mlir::MLIRContext* context)
@@ -174,6 +303,7 @@ namespace marco::modeling
 
       mlir::MLIRContext* getContext() const
       {
+        assert(context != nullptr);
         return context;
       }
 
@@ -181,8 +311,11 @@ namespace marco::modeling
       {
         std::vector<ScheduledSCC> result;
 
+        llvm::SmallVector<EquationView> equationViews;
+        splitEquationIndices(equations, equationViews);
+
         VectorDependencyGraph vectorDependencyGraph(getContext());
-        vectorDependencyGraph.addEquations(equations);
+        vectorDependencyGraph.addEquations(equationViews);
 
         SCCDependencyGraph<SCC> sccDependencyGraph;
         sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
@@ -193,52 +326,69 @@ namespace marco::modeling
           const SCC& scc = sccDependencyGraph[sccDescriptor];
 
           if (scc.size() == 1) {
-            auto accessesDirection = getAccessesDirection(scc);
+            llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
+            getSchedulingDirections(scc, directionPossibilities);
 
-            if (accessesDirection == scheduling::Direction::Forward) {
+            bool isSchedulableAsRange = llvm::all_of(
+                directionPossibilities,
+                [](DirectionPossibility direction) {
+                  return direction == DirectionPossibility::Any ||
+                      direction == DirectionPossibility::Forward ||
+                      direction == DirectionPossibility::Backward;
+                });
+
+            if (isSchedulableAsRange) {
               const auto& equation = scc[0];
 
+              llvm::SmallVector<scheduling::Direction> directions;
+
+              for (DirectionPossibility direction : directionPossibilities) {
+                if (direction == DirectionPossibility::Any ||
+                    direction == DirectionPossibility::Forward) {
+                  directions.push_back(scheduling::Direction::Forward);
+                } else if (direction == DirectionPossibility::Backward) {
+                  directions.push_back(scheduling::Direction::Backward);
+                } else {
+                  directions.push_back(scheduling::Direction::Unknown);
+                }
+              }
+
               ScheduledEquation scheduledEquation(
-                  equation.getProperty(),
+                  *equation.getProperty(),
                   equation.getIterationRanges(),
-                  scheduling::Direction::Backward);
+                  directions);
 
-              result.emplace_back(std::move(scheduledEquation));
+              result.emplace_back(std::move(scheduledEquation), false);
               continue;
-            }
+            } else {
+              // Mixed accesses detected. Scheduling is possible only on the
+              // scalar equations.
+              std::vector<EquationView> scalarEquationViews;
 
-            if (accessesDirection == scheduling::Direction::Backward) {
-              const auto& equation = scc[0];
+              for (const auto& equationDescriptor : scc) {
+                scalarEquationViews.push_back(
+                    scc.getGraph()[equationDescriptor].getProperty());
+              }
 
-              ScheduledEquation scheduledEquation(
-                  equation.getProperty(),
-                  equation.getIterationRanges(),
-                  scheduling::Direction::Forward);
+              ScalarDependencyGraph scalarDependencyGraph(getContext());
+              scalarDependencyGraph.addEquations(scalarEquationViews);
 
-              result.emplace_back(std::move(scheduledEquation));
-              continue;
-            }
+              for (const auto& equationDescriptor :
+                   scalarDependencyGraph.postOrder()) {
+                const auto& scalarEquation =
+                    scalarDependencyGraph[equationDescriptor];
 
-            // Mixed accesses detected. Scheduling is possible only on the
-            // scalar equations.
-            std::vector<EquationProperty> equationProperties;
+                llvm::SmallVector<scheduling::Direction> directions(
+                    scalarEquation.getProperty().getNumOfIterationVars(),
+                    scheduling::Direction::Forward);
 
-            for (const auto& equationDescriptor : scc) {
-              equationProperties.push_back(scc.getGraph()[equationDescriptor].getProperty());
-            }
+                ScheduledEquation scheduledEquation(
+                    *scalarEquation.getProperty(),
+                    IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
+                    directions);
 
-            ScalarDependencyGraph scalarDependencyGraph;
-            scalarDependencyGraph.addEquations(equationProperties);
-
-            for (const auto& equationDescriptor : scalarDependencyGraph.postOrder()) {
-              const auto& scalarEquation = scalarDependencyGraph[equationDescriptor];
-
-              ScheduledEquation scheduledEquation(
-                  scalarEquation.getProperty(),
-                  IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
-                  scheduling::Direction::Forward);
-
-              result.emplace_back(std::move(scheduledEquation));
+                result.emplace_back(std::move(scheduledEquation), false);
+              }
             }
           } else {
             // A strong connected component can be scheduled with respect to
@@ -250,12 +400,12 @@ namespace marco::modeling
               const auto& equation = scc[equationDescriptor];
 
               SCC.push_back(ScheduledEquation(
-                  equation.getProperty(),
+                  *equation.getProperty(),
                   equation.getIterationRanges(),
                   scheduling::Direction::Unknown));
             }
 
-            result.emplace_back(std::move(SCC));
+            result.emplace_back(std::move(SCC), true);
           }
         }
 
@@ -263,19 +413,109 @@ namespace marco::modeling
       }
 
     private:
+      /// Split the equation indices so that the accesses to the written
+      /// variable either are the same of the written indices, or do not
+      /// overlap at all.
+      void splitEquationIndices(
+        llvm::ArrayRef<EquationProperty> equations,
+        llvm::SmallVectorImpl<EquationView>& equationViews) const
+      {
+        for (const EquationProperty& equation : equations) {
+          IndexSet equationIndices =
+              EquationTraits::getIterationRanges(&equation);
+
+          auto writeAccess = EquationTraits::getWrite(&equation);
+
+          const AccessFunction& writeAccessFunction =
+              writeAccess.getAccessFunction();
+
+          auto writtenVariable = writeAccess.getVariable();
+          IndexSet writtenIndices = writeAccessFunction.map(equationIndices);
+
+          // The written indices for which there is no overlap with other
+          // accesses.
+          llvm::SmallVector<IndexSet, 10> partitions;
+          partitions.push_back(equationIndices);
+
+          for (const auto& readAccess : EquationTraits::getReads(&equation)) {
+            const AccessFunction& readAccessFunction =
+                readAccess.getAccessFunction();
+
+            auto readVariable = readAccess.getVariable();
+
+            if (readVariable != writtenVariable) {
+              continue;
+            }
+
+            IndexSet readIndices = readAccessFunction.map(equationIndices);
+
+            // Restrict the read indices to the written ones.
+            readIndices = readIndices.intersect(writtenIndices);
+
+            if (readIndices.empty()) {
+              // There is no overlap, so there's no need to split the
+              // indices of the equation.
+              continue;
+            }
+
+            // The indices of the equation that lead to a write to the
+            // variables accessed by the read operation.
+            IndexSet writingEquationIndices =
+                writeAccessFunction.inverseMap(readIndices, equationIndices);
+
+            // Determine the new partitions.
+            llvm::SmallVector<IndexSet> newPartitions;
+
+            for (IndexSet& partition : partitions) {
+              IndexSet intersection =
+                  partition.intersect(writingEquationIndices);
+
+              if (intersection.empty()) {
+                newPartitions.push_back(std::move(partition));
+              } else {
+                IndexSet diff = partition - intersection;
+
+                if (!diff.empty()) {
+                  newPartitions.push_back(std::move(diff));
+                }
+
+                newPartitions.push_back(std::move(intersection));
+              }
+            }
+
+            partitions = std::move(newPartitions);
+          }
+
+          // Check that the split indices do represent exactly the initial
+          // ones.
+          assert(std::accumulate(
+                     partitions.begin(), partitions.end(),
+                     IndexSet()) == equationIndices);
+
+          // Create the views.
+          for (IndexSet& partition : partitions) {
+            equationViews.push_back(
+                EquationView(equation, std::move(partition)));
+          }
+        }
+      }
+
       /// Given a SSC containing only one equation that may depend on itself,
       /// determine the access direction with respect to the variable that is
       /// written by the equation.
-      ///
-      /// @param scc  SCC to be examined (consisting of only one equation with a loop on itself)
-      /// @return access direction
-      scheduling::Direction getAccessesDirection(const SCC& scc) const
+      void getSchedulingDirections(
+          const SCC& scc,
+          llvm::SmallVectorImpl<DirectionPossibility>& directions) const
       {
         if (!scc.hasCycle()) {
-          // If there is no cycle, then the iteration variable of the equation is irrelevant.
-          // We prefer the forward direction for simplicity, so we need to return a backward
-          // dependency (which will be converted into a forward iteration).
-          return scheduling::Direction::Backward;
+          // If there is no cycle, then the iteration direction of the equation
+          // is irrelevant. We prefer the forward direction for simplicity.
+
+          directions.append(
+              scc[0].getNumOfIterationVars(),
+              DirectionPossibility::Forward);
+
+          return;
         }
 
         // If all the dependencies have the same direction, then we can set
@@ -288,11 +528,9 @@ namespace marco::modeling
         const AccessFunction& writeAccessFunction = write.getAccessFunction();
         IndexSet writtenIndices(writeAccessFunction.map(equationRange));
 
-        auto direction = scheduling::Direction::Unknown;
-
         for (const auto& read : equation.getReads()) {
-          // The access is considered only if it reads the same variable it is being defined by the
-          // equation and the ranges overlap.
+          // The access is considered only if it reads the same variable it is
+          // being defined by the equation and the ranges overlap.
           const auto& readVariable = read.getVariable();
 
           if (writtenVariable != readVariable) {
@@ -306,25 +544,34 @@ namespace marco::modeling
             continue;
           }
 
-          // Determine the access direction of the access
-          if (!writeAccessFunction.isInvertible()) {
-            return scheduling::Direction::Unknown;
+          llvm::SmallVector<DirectionPossibility, 3> accessDirections;
+          auto inverseWriteAccess = writeAccessFunction.inverse();
+
+          if (inverseWriteAccess) {
+            auto relativeAccess =
+                inverseWriteAccess->combine(readAccessFunction);
+
+            getAccessFunctionDirections(*relativeAccess, accessDirections);
+          } else {
+            accessDirections.append(
+                scc[0].getNumOfIterationVars(),
+                DirectionPossibility::Scalar);
           }
 
-          auto relativeAccess = writeAccessFunction.inverse().combine(readAccessFunction);
-          auto accessDirection = getAccessFunctionDirection(relativeAccess);
+          if (directions.empty()) {
+            directions = std::move(accessDirections);
+          } else {
+            mergeDirectionPossibilities(directions, accessDirections);
+          }
 
-          assert(accessDirection != scheduling::Direction::None &&
-                  "Algebraic loop detected. Maybe the equation has not been made explicit with respect to the matched variable?");
-
-          if (direction == scheduling::Direction::Unknown) {
-            direction = accessDirection;
-          } else if (direction != accessDirection) {
-            return scheduling::Direction::Mixed;
+          // If all the inductions have been scalarized, then the situation
+          // can't get better anymore.
+          if (llvm::all_of(directions, [](DirectionPossibility direction) {
+                return direction == DirectionPossibility::Scalar;
+              })) {
+            return;
           }
         }
-
-        return direction;
       }
 
       /// Get the access direction of an access function.
@@ -335,47 +582,78 @@ namespace marco::modeling
       /// The indices of the above induction variables refer to the order in
       /// which the induction variables have been defined, meaning that i0 is
       /// the outer-most induction, i1 the second outer-most one, etc.
-      ///
-      /// @param accessFunction access function to be analyzed
-      /// @return access direction
-      scheduling::Direction getAccessFunctionDirection(const AccessFunction& accessFunction) const
+      void getAccessFunctionDirections(
+          const AccessFunction& accessFunction,
+          llvm::SmallVectorImpl<DirectionPossibility>& directions) const
       {
-        auto direction = scheduling::Direction::Unknown;
-        assert(accessFunction.size() != 0);
-
-        for (const auto& dimensionAccess : llvm::enumerate(accessFunction)) {
-          auto dimensionDirection = scheduling::Direction::None;
-
-          if (dimensionAccess.value().isConstantAccess()) {
-            dimensionDirection = scheduling::Direction::Constant;
-          } else {
-            if (dimensionAccess.value().getInductionVariableIndex() != dimensionAccess.index()) {
-              // If the iteration indices are out of order, then some accesses will refer to future
-              // written variables and others to past written ones.
-              return scheduling::Direction::Mixed;
-            }
-
-            // Examine the offset of the single dimension access
-            auto offset = dimensionAccess.value().getOffset();
-
-            if (offset == 0) {
-              dimensionDirection = scheduling::Direction::None;
-            } else if (offset > 0) {
-              dimensionDirection = scheduling::Direction::Forward;
-            } else if (offset < 0) {
-              dimensionDirection = scheduling::Direction::Backward;
-            }
-          }
-
-          if (direction == scheduling::Direction::Unknown) {
-            direction = dimensionDirection;
-          } else if (direction != dimensionDirection) {
-            return scheduling::Direction::Mixed;
-          }
+        if (auto rotoTranslation =
+                accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
+          return getAccessFunctionDirections(*rotoTranslation, directions);
         }
 
-        assert(direction != scheduling::Direction::Unknown);
-        return direction;
+        directions.append(
+            accessFunction.getNumOfDims(), DirectionPossibility::Scalar);
+      }
+
+      void getAccessFunctionDirections(
+          const AccessFunctionRotoTranslation& accessFunction,
+          llvm::SmallVectorImpl<DirectionPossibility>& directions) const
+      {
+        if (accessFunction.isIdentityLike()) {
+          // Examine the offset of the individual dimension access.
+          for (size_t i = 0, e = accessFunction.getNumOfResults(); i < e; ++i) {
+            auto offset = accessFunction.getOffset(i);
+
+            if (offset == 0) {
+              directions.push_back(DirectionPossibility::Any);
+            } else if (offset > 0) {
+              directions.push_back(DirectionPossibility::Backward);
+            } else {
+              directions.push_back(DirectionPossibility::Forward);
+            }
+          }
+        } else {
+          // If the iteration indices are out of order, then some accesses will
+          // refer to future written variables and others to past written ones.
+
+          directions.append(
+              accessFunction.getNumOfDims(), DirectionPossibility::Scalar);
+        }
+      }
+
+      void mergeDirectionPossibilities(
+          llvm::SmallVectorImpl<DirectionPossibility>& result,
+          llvm::ArrayRef<DirectionPossibility> newDirections) const
+      {
+        assert(result.size() == newDirections.size());
+
+        for (size_t i = 0, e = result.size(); i < e; ++i) {
+          result[i] = mergeDirectionPossibilities(result[i], newDirections[i]);
+        }
+      }
+
+      DirectionPossibility mergeDirectionPossibilities(
+          DirectionPossibility lhs, DirectionPossibility rhs) const
+      {
+        if (lhs == DirectionPossibility::Scalar ||
+            rhs == DirectionPossibility::Scalar) {
+          return DirectionPossibility::Scalar;
+        }
+
+        if (lhs == DirectionPossibility::Any) {
+          return rhs;
+        }
+
+        if (rhs == DirectionPossibility::Any) {
+          return lhs;
+        }
+
+        if (lhs != rhs) {
+          return DirectionPossibility::Scalar;
+        }
+
+        assert(lhs == rhs);
+        return lhs;
       }
 
     private:

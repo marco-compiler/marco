@@ -1,8 +1,9 @@
 #include "marco/Codegen/Transforms/Scheduling.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/ModelSolving/Model.h"
-#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
-#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
+#include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
+#include "marco/Modeling/Scheduling.h"
+#include <stack>
 
 namespace mlir::modelica
 {
@@ -10,123 +11,475 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco;
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
+
+/// Convert the dimensions of a variable into an IndexSet.
+/// Scalar variables are masked as 1-D arrays with just one element.
+static IndexSet getVariableIndices(
+    ModelOp root,
+    mlir::SymbolRefAttr variable,
+    mlir::SymbolTableCollection& symbolTable)
+{
+  auto variableOp = symbolTable.lookupSymbolIn<VariableOp>(
+      root.getOperation(), variable.getRootReference());
+
+  IndexSet indices = variableOp.getIndices();
+
+  if (indices.empty()) {
+    // Scalar variable.
+    indices += MultidimensionalRange(Range(0, 1));
+  }
+
+  return indices;
+}
 
 namespace
 {
-  class SchedulingPass : public mlir::modelica::impl::SchedulingPassBase<SchedulingPass>
+  class SchedulingPass
+      : public mlir::modelica::impl::SchedulingPassBase<SchedulingPass>
   {
     public:
       using SchedulingPassBase::SchedulingPassBase;
 
       void runOnOperation() override
       {
-        mlir::OpBuilder builder(getOperation());
-        llvm::SmallVector<ModelOp, 1> modelOps;
+        if (mlir::failed(processModelOp(getOperation()))) {
+          return signalPassFailure();
+        }
 
-        getOperation()->walk([&](ModelOp modelOp) {
-          if (modelOp.getSymName() == modelName) {
-            modelOps.push_back(modelOp);
-          }
-        });
+        markAnalysesPreserved<DerivativesMap>();
+      }
 
-        for (const auto& modelOp : modelOps) {
-          if (mlir::failed(processModelOp(builder, modelOp))) {
-            return signalPassFailure();
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
+
+      llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getVariableAccessAnalysis(
+          MatchedEquationInstanceOp equation,
+          mlir::SymbolTableCollection& symbolTableCollection);
+
+      mlir::LogicalResult schedule(
+          mlir::OpBuilder& builder,
+          ModelOp modelOp,
+          llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+          bool initialEquations,
+          mlir::SymbolTableCollection& symbolTable);
+  };
+}
+
+mlir::LogicalResult SchedulingPass::processModelOp(ModelOp modelOp)
+{
+  mlir::OpBuilder builder(modelOp);
+
+  // Collect the equations.
+  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
+  llvm::SmallVector<MatchedEquationInstanceOp> equations;
+  modelOp.collectEquations(initialEquations, equations);
+
+  // The symbol table collection to be used for caching.
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  // Perform the scheduling on the 'initial conditions' model.
+  if (processICModel && !initialEquations.empty()) {
+      if (mlir::failed(schedule(
+              builder, modelOp, initialEquations, true,
+              symbolTableCollection))) {
+        modelOp.emitError()
+            << "Scheduling failed for the 'initial conditions' model";
+
+        return mlir::failure();
+      }
+  }
+
+  // Perform the scheduling on the 'main' model.
+  if (processMainModel && !equations.empty()) {
+      if (mlir::failed(schedule(
+              builder, modelOp, equations, false, symbolTableCollection))) {
+        modelOp.emitError() << "Scheduling failed for the 'main' model";
+        return mlir::failure();
+      }
+  }
+
+  return mlir::success();
+}
+
+llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+SchedulingPass::getVariableAccessAnalysis(
+    MatchedEquationInstanceOp equation,
+    mlir::SymbolTableCollection& symbolTableCollection)
+{
+  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
+          equation.getTemplate())) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
+      equation.getTemplate());
+
+  if (mlir::failed(analysis.initialize(symbolTableCollection))) {
+    return llvm::None;
+  }
+
+  return std::reference_wrapper(analysis);
+}
+
+namespace
+{
+  struct VariableBridge
+  {
+    VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
+        : name(name),
+          indices(std::move(indices))
+    {
+    }
+
+    mlir::SymbolRefAttr name;
+    IndexSet indices;
+  };
+
+  struct EquationBridge
+  {
+    EquationBridge(
+        MatchedEquationInstanceOp op,
+        mlir::SymbolTableCollection& symbolTable,
+        VariableAccessAnalysis& accessAnalysis,
+        llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>& variablesMap)
+        : op(op),
+          symbolTable(&symbolTable),
+          accessAnalysis(&accessAnalysis),
+          variablesMap(&variablesMap)
+    {
+    }
+
+    MatchedEquationInstanceOp op;
+    mlir::SymbolTableCollection* symbolTable;
+    VariableAccessAnalysis* accessAnalysis;
+    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>* variablesMap;
+  };
+}
+
+namespace marco::modeling::dependency
+{
+  template<>
+  struct VariableTraits<::VariableBridge*>
+  {
+    using Variable = ::VariableBridge*;
+    using Id = ::VariableBridge*;
+
+    static Id getId(const Variable* variable)
+    {
+      return *variable;
+    }
+
+    static size_t getRank(const Variable* variable)
+    {
+      size_t rank = (*variable)->indices.rank();
+
+      if (rank == 0) {
+          return 1;
+      }
+
+      return rank;
+    }
+
+    static IndexSet getIndices(const Variable* variable)
+    {
+      const IndexSet& result = (*variable)->indices;
+
+      if (result.empty()) {
+          return {Point(0)};
+      }
+
+      return result;
+    }
+  };
+
+  template<>
+  struct EquationTraits<::EquationBridge*>
+  {
+    using Equation = ::EquationBridge*;
+    using Id = mlir::Operation*;
+
+    static Id getId(const Equation* equation)
+    {
+      return (*equation)->op.getOperation();
+    }
+
+    static size_t getNumOfIterationVars(const Equation* equation)
+    {
+      uint64_t numOfExplicitInductions = static_cast<uint64_t>(
+          (*equation)->op.getInductionVariables().size());
+
+      uint64_t numOfImplicitInductions =
+          (*equation)->op.getNumOfImplicitInductionVariables();
+
+      uint64_t result = numOfExplicitInductions + numOfImplicitInductions;
+
+      if (result == 0) {
+        // Scalar equation.
+        return 1;
+      }
+
+      return static_cast<size_t>(result);
+    }
+
+    static IndexSet getIterationRanges(const Equation* equation)
+    {
+      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
+
+      if (iterationSpace.empty()) {
+        // Scalar equation.
+        iterationSpace += MultidimensionalRange(Range(0, 1));
+      }
+
+      return iterationSpace;
+    }
+
+    using VariableType = ::VariableBridge*;
+    using AccessProperty = EquationPath;
+
+    static std::vector<Access<VariableType, AccessProperty>>
+    getAccesses(const Equation* equation)
+    {
+      std::vector<Access<VariableType, AccessProperty>> accesses;
+
+      auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
+          (*equation)->op, *(*equation)->symbolTable);
+
+      for (auto& access : cachedAccesses) {
+        auto accessFunction = getAccessFunction(
+            (*equation)->op.getContext(), equation, access);
+
+        auto variableIt =
+            (*(*equation)->variablesMap).find(access.getVariable());
+
+        if (variableIt != (*(*equation)->variablesMap).end()) {
+          accesses.emplace_back(
+              variableIt->getSecond(),
+              std::move(accessFunction),
+              access.getPath());
+        }
+      }
+
+      return accesses;
+    }
+
+    static Access<VariableType, AccessProperty> getWrite(
+        const Equation* equation)
+    {
+      auto matchPath = (*equation)->op.getPath();
+
+      auto write = (*equation)->op.getAccessAtPath(
+          *(*equation)->symbolTable, matchPath.getValue());
+
+      assert(write.has_value() && "Can't get the write access");
+
+      auto accessFunction = getAccessFunction(
+          (*equation)->op.getContext(), equation, *write);
+
+      return Access(
+          (*(*equation)->variablesMap)[write->getVariable()],
+          std::move(accessFunction),
+          write->getPath());
+    }
+
+    static std::vector<Access<VariableType, AccessProperty>> getReads(
+        const Equation* equation)
+    {
+      IndexSet equationIndices = getIterationRanges(equation);
+
+      auto writeAccess = getWrite(equation);
+      auto writtenVariable = writeAccess.getVariable();
+      const auto& writeAccessFunction = writeAccess.getAccessFunction();
+
+      auto writtenIndices = writeAccessFunction.getNumOfResults() == 0
+          ? IndexSet(Point(0))
+          : writeAccessFunction.map(equationIndices);
+
+      std::vector<Access<VariableType, AccessProperty>> reads;
+
+      for (const auto& access : getAccesses(equation)) {
+        auto accessedVariable = access.getVariable();
+
+        if (accessedVariable != writtenVariable) {
+          reads.push_back(access);
+        } else {
+          const auto& accessFunction = access.getAccessFunction();
+
+          // The overall set of accessed indices may be the same of written
+          // ones, but the order in which they are accessed may be different
+          // from the one in which they are written.
+          // For this reason, it is not sufficient to compare the indices
+          // and all the access functions different from the writing one must
+          // be considered as potential reads.
+
+          if (accessFunction != writeAccessFunction) {
+            reads.push_back(access);
           }
         }
       }
 
-    private:
-      mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
+      return reads;
+    }
+
+    static std::unique_ptr<AccessFunction> getAccessFunction(
+        mlir::MLIRContext* context,
+        const Equation* equation,
+        const VariableAccess& access)
+    {
+      const AccessFunction& accessFunction = access.getAccessFunction();
+
+      if (accessFunction.getNumOfResults() == 0) {
+        // Access to scalar variable.
+        return AccessFunction::build(mlir::AffineMap::get(
+            accessFunction.getNumOfDims(), 0,
+            mlir::getAffineConstantExpr(0, context)));
+      }
+
+      return accessFunction.clone();
+    }
   };
 }
 
-mlir::LogicalResult SchedulingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult SchedulingPass::schedule(
+    mlir::OpBuilder& builder,
+    ModelOp modelOp,
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+    bool initialEquations,
+    mlir::SymbolTableCollection& symbolTable)
 {
-  // The options to be used when printing the IR.
-  ModelSolvingIROptions irOptions;
-  irOptions.mergeAndSortRanges = debugView;
-  irOptions.singleMatchAttr = debugView;
-  irOptions.singleScheduleAttr = debugView;
+  using Scheduler =
+      ::marco::modeling::Scheduler<::VariableBridge*, ::EquationBridge*>;
 
-  // Retrieve the derivatives map computed by the legalization pass.
-  DerivativesMap derivativesMap;
+  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge*> equationPtrs;
 
-  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
-    return res;
+  // Create the scheduler. We use the pointers to the real nodes in order to
+  // speed up the copies.
+  Scheduler scheduler(&getContext());
+
+  for (VariableOp variableOp : modelOp.getVariables()) {
+    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
+
+    auto& bridge = variableBridges.emplace_back(
+        std::make_unique<VariableBridge>(
+            symbolRefAttr, getVariableIndices(
+                               modelOp, symbolRefAttr, symbolTable)));
+
+    variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  if (processICModel) {
-    Model<Equation> model(modelOp);
-    model.setDerivativesMap(derivativesMap);
+  for (MatchedEquationInstanceOp equation : equations) {
+    auto accessAnalysis = getVariableAccessAnalysis(equation, symbolTable);
 
-    // Discover variables and equations belonging to the 'initial conditions' model.
-    model.setVariables(discoverVariables(model.getOperation()));
-    model.setEquations(discoverInitialEquations(model.getOperation(), model.getVariables()));
-
-    // Obtain the matched model.
-    Model<MatchedEquation> matchedModel(modelOp);
-    matchedModel.setVariables(model.getVariables());
-    matchedModel.setDerivativesMap(model.getDerivativesMap());
-
-    auto equationsFilter = [](EquationInterface op) {
-      return mlir::isa<InitialEquationOp>(op);
-    };
-
-    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
-      return res;
+    if (!accessAnalysis) {
+      return mlir::failure();
     }
 
-    // Compute the scheduled 'initial conditions' model.
-    Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
-    scheduledModel.setVariables(matchedModel.getVariables());
-    scheduledModel.setDerivativesMap(matchedModel.getDerivativesMap());
+    auto& bridge = equationBridges.emplace_back(
+        std::make_unique<EquationBridge>(
+            equation, symbolTable, *accessAnalysis, variablesMap));
 
-    if (auto res = schedule(scheduledModel, matchedModel); mlir::failed(res)) {
-      matchedModel.getOperation().emitError("Scheduling failed for the 'initial conditions' model");
-      return res;
-    }
-
-    // Write the schedule information in form of attributes.
-    writeSchedulingAttributes(builder, scheduledModel, irOptions);
+    equationPtrs.push_back(bridge.get());
   }
 
-  if (processMainModel) {
-    Model<Equation> model(modelOp);
-    model.setDerivativesMap(derivativesMap);
+  // Compute the schedule.
+  auto scheduledBlocks = scheduler.schedule(equationPtrs);
 
-    // Discover variables and equations belonging to the 'main' model.
-    model.setVariables(discoverVariables(model.getOperation()));
-    model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
+  // Keep track of the old instances to be erased.
+  llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
 
-    // Obtain the matched model.
-    Model<MatchedEquation> matchedModel(modelOp);
-    matchedModel.setVariables(model.getVariables());
-    matchedModel.setDerivativesMap(model.getDerivativesMap());
+  for (const auto& scheduledBlock : llvm::enumerate(scheduledBlocks)) {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    bool hasCycle = scheduledBlock.value().hasCycle();
 
-    auto equationsFilter = [](EquationInterface op) {
-      return mlir::isa<EquationOp>(op);
-    };
+    if (hasCycle) {
+      // If the SCC contains a cycle, then all the equations must be declared
+      // inside it.
+      builder.setInsertionPointToEnd(modelOp.getBody());
 
-    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
-      return res;
+      auto sccOp = builder.create<SCCOp>(
+          modelOp.getLoc(), initialEquations, true);
+
+      mlir::Block* sccBody = builder.createBlock(&sccOp.getBodyRegion());
+      builder.setInsertionPointToStart(sccBody);
     }
 
-    // Compute the scheduled 'main' model.
-    Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
-    scheduledModel.setVariables(matchedModel.getVariables());
-    scheduledModel.setDerivativesMap(matchedModel.getDerivativesMap());
+    for (const auto& scheduledEquation : scheduledBlock.value()) {
+      MatchedEquationInstanceOp matchedEquation =
+          scheduledEquation.getEquation()->op;
 
-    if (auto res = schedule(scheduledModel, matchedModel); mlir::failed(res)) {
-      matchedModel.getOperation().emitError("Scheduling failed for the 'main' model");
-      return res;
+      size_t numOfExplicitInductions =
+          matchedEquation.getInductionVariables().size();
+
+      size_t numOfImplicitInductions =
+          matchedEquation.getNumOfImplicitInductionVariables();
+
+      bool isScalarEquation = numOfExplicitInductions == 0;
+
+      // Determine the iteration directions.
+      llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
+
+      for (marco::modeling::scheduling::Direction direction :
+           scheduledEquation.getIterationDirections()) {
+        iterationDirections.push_back(
+            EquationScheduleDirectionAttr::get(&getContext(), direction));
+      }
+
+      // Create an equation for each range of scheduled indices.
+      const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
+
+      for (const MultidimensionalRange& scheduledRange :
+           llvm::make_range(scheduledIndices.rangesBegin(),
+                            scheduledIndices.rangesEnd())) {
+        if (!hasCycle) {
+          // If the SCC doesn't have a cycle, then each equation has to be
+          // declared in a dedicated SCC operation.
+          builder.setInsertionPointToEnd(modelOp.getBody());
+
+          auto sccOp = builder.create<SCCOp>(
+              modelOp.getLoc(), initialEquations, false);
+
+          mlir::Block* sccBody = builder.createBlock(&sccOp.getBodyRegion());
+          builder.setInsertionPointToStart(sccBody);
+        }
+
+        // Create the operation for the scheduled equation.
+        auto scheduledEquationOp = builder.create<ScheduledEquationInstanceOp>(
+            matchedEquation.getLoc(),
+            matchedEquation.getTemplate(),
+            matchedEquation.getPath(),
+            builder.getArrayAttr(
+                llvm::makeArrayRef(iterationDirections).take_front(
+                    numOfExplicitInductions + numOfImplicitInductions)));
+
+        if (!isScalarEquation) {
+          MultidimensionalRange explicitRange =
+              scheduledRange.takeFirstDimensions(numOfExplicitInductions);
+
+          scheduledEquationOp.setIndicesAttr(
+              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
+        }
+
+        if (numOfImplicitInductions > 0) {
+          MultidimensionalRange implicitRange =
+              scheduledRange.takeLastDimensions(numOfImplicitInductions);
+
+          scheduledEquationOp.setImplicitIndicesAttr(
+              MultidimensionalRangeAttr::get(&getContext(), implicitRange));
+        }
+      }
+
+      // Mark the old instance as obsolete.
+      toBeErased.insert(matchedEquation);
     }
+  }
 
-    // Write the schedule information in form of attributes.
-    writeSchedulingAttributes(builder, scheduledModel, irOptions);
+  // Erase the old equation instances.
+  for (MatchedEquationInstanceOp equation : toBeErased) {
+    equation.erase();
   }
 
   return mlir::success();
@@ -139,7 +492,8 @@ namespace mlir::modelica
     return std::make_unique<SchedulingPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createSchedulingPass(const SchedulingPassOptions& options)
+  std::unique_ptr<mlir::Pass> createSchedulingPass(
+      const SchedulingPassOptions& options)
   {
     return std::make_unique<SchedulingPass>(options);
   }

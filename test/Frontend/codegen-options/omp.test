@@ -1,14 +1,14 @@
-// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+// RUN: marco -mc1 --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
 // CHECK-DEFAULT: OpenMP: false
 
-// RUN: marco-driver --init-only --omp | FileCheck %s --check-prefix="CHECK-ENABLED"
+// RUN: marco -mc1 --init-only --omp | FileCheck %s --check-prefix="CHECK-ENABLED"
 
 // CHECK-ENABLED-LABEL: [Code generation]
 // CHECK-ENABLED: OpenMP: true
 
-// RUN: marco-driver --init-only --no-omp | FileCheck %s --check-prefix="CHECK-DISABLED"
+// RUN: marco -mc1 --init-only --no-omp | FileCheck %s --check-prefix="CHECK-DISABLED"
 
 // CHECK-DISABLED-LABEL: [Code generation]
 // CHECK-DISABLED: OpenMP: false

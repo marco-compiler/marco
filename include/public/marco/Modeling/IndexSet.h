@@ -2,6 +2,7 @@
 #define MARCO_MODELING_INDEXSET_H
 
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "mlir/IR/AffineMap.h"
 #include "llvm/ADT/ArrayRef.h"
 #include <memory>
 
@@ -109,6 +110,8 @@ namespace marco::modeling
 
       friend std::ostream& operator<<(std::ostream& os, const IndexSet& obj);
 
+      friend llvm::hash_code hash_value(const IndexSet& value);
+
       bool operator==(const Point& rhs) const;
 
       bool operator==(const MultidimensionalRange& rhs) const;
@@ -177,9 +180,17 @@ namespace marco::modeling
 
       IndexSet complement(const MultidimensionalRange& other) const;
 
-      MultidimensionalRange minContainingRange() const;
+      IndexSet takeFirstDimensions(size_t n) const;
 
-      bool isSingleMultidimensionalRange() const;
+      IndexSet takeLastDimensions(size_t n) const;
+
+      IndexSet takeDimensions(const llvm::SmallBitVector& dimensions) const;
+
+      IndexSet dropFirstDimensions(size_t n) const;
+
+      IndexSet dropLastDimensions(size_t n) const;
+
+      IndexSet append(const IndexSet& other) const;
 
       IndexSet getCanonicalRepresentation() const;
 

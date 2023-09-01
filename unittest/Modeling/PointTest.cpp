@@ -1,5 +1,5 @@
-#include "gtest/gtest.h"
 #include "marco/Modeling/Point.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco::modeling;
 
@@ -42,8 +42,9 @@ TEST(Point, iteration)
   expected.push_back(5);
   expected.push_back(3);
 
-  for (const auto& value: p)
+  for (const auto& value : p) {
     EXPECT_EQ(value, expected[counter++]);
+  }
 
   EXPECT_EQ(counter, 3);
 }

@@ -1,16 +1,12 @@
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/Threading.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir
@@ -268,8 +264,8 @@ namespace
 
       auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
 
-      auto funcOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
-          op, op.getSymName(), functionType);
+      auto funcOp = rewriter.create<mlir::func::FuncOp>(
+          op.getLoc(), op.getSymName(), functionType);
 
       rewriter.inlineRegionBefore(
           op.getBody(), funcOp.getFunctionBody(), funcOp.end());
@@ -279,6 +275,7 @@ namespace
         return mlir::failure();
       }
 
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };
@@ -705,15 +702,21 @@ namespace
   {
     using mlir::OpConversionPattern<CallOp>::OpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(CallOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        CallOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Type, 3> resultsTypes;
 
-      if (auto res = getTypeConverter()->convertTypes(op->getResultTypes(), resultsTypes); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(getTypeConverter()->convertTypes(
+              op->getResultTypes(), resultsTypes))) {
+        return mlir::failure();
       }
 
-      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, op.getCallee(), resultsTypes, adaptor.getOperands());
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+          op, op.getCallee(), resultsTypes, adaptor.getOperands());
+
       return mlir::success();
     }
   };
@@ -3348,13 +3351,6 @@ namespace
                           "Error in converting the Modelica raw functions");
           return signalPassFailure();
         }
-
-        if (mlir::failed(legalizeIDAOperations())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in legalizing the IDA functions");
-
-          return signalPassFailure();
-        }
       }
 
     private:
@@ -3503,29 +3499,6 @@ namespace
 
         patterns.insert<
             RawVariableDynamicArrayLowering>(typeConverter, &getContext());
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult legalizeIDAOperations()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
-
-        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout.reset(dataLayout);
-
-        mlir::modelica::LLVMTypeConverter typeConverter(
-            &getContext(), llvmLoweringOptions, bitWidth);
-
-        mlir::RewritePatternSet patterns(&getContext());
-
-        populateIDAToFuncStructuralTypeConversionsAndLegality(
-            typeConverter, patterns, target);
-
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
 
         return applyPartialConversion(module, target, std::move(patterns));
       }

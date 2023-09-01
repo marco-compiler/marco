@@ -276,25 +276,22 @@ namespace
       void runOnOperation() override
       {
         if (mlir::failed(convertCallOps())) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Error in converting the Modelica operations");
+          mlir::emitError(getOperation().getLoc())
+              << "Modelica to LLVM conversion failed";
 
           return signalPassFailure();
         }
 
         if (mlir::failed(convertOperations())) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Error in converting the Modelica operations");
+          mlir::emitError(getOperation().getLoc())
+              << "Modelica to LLVM conversion failed";
 
           return signalPassFailure();
         }
 
         if (mlir::failed(legalizeSimulation())) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Error in converting the Modelica dialect within the Simulation operations");
+          mlir::emitError(getOperation().getLoc())
+              << "Legalization of Simulation dialect failed";
 
           return signalPassFailure();
         }
@@ -354,9 +351,6 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
 
   populateModelicaToLLVMPatterns(patterns, typeConverter);
 
-  populateIDAToLLVMStructuralTypeConversionsAndLegality(
-      typeConverter, patterns, target);
-
   populateKINSOLStructuralTypeConversionsAndLegality(
       typeConverter, patterns, target);
 
@@ -381,9 +375,6 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeSimulation()
   mlir::RewritePatternSet patterns(&getContext());
 
   populateModelicaToLLVMPatterns(patterns, typeConverter);
-
-  populateIDAToLLVMStructuralTypeConversionsAndLegality(
-      typeConverter, patterns, target);
 
   populateKINSOLStructuralTypeConversionsAndLegality(
       typeConverter, patterns, target);

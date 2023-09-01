@@ -1,9 +1,11 @@
 #include "marco/Codegen/Transforms/CyclesSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/ModelSolving/Model.h"
-#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
-#include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
-#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
+#include "marco/Modeling/Cycles.h"
+#include "llvm/ADT/ScopeExit.h"
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "cycles-solving"
 
 namespace mlir::modelica
 {
@@ -11,131 +13,657 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco;
-using namespace ::marco::codegen;
-using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
+
+/// Convert the dimensions of a variable into an IndexSet.
+/// Scalar variables are masked as 1-D arrays with just one element.
+static IndexSet getVariableIndices(
+    ModelOp root,
+    mlir::SymbolRefAttr variable,
+    mlir::SymbolTableCollection& symbolTable)
+{
+  auto variableOp = symbolTable.lookupSymbolIn<VariableOp>(
+      root.getOperation(), variable.getRootReference());
+
+  IndexSet indices = variableOp.getIndices();
+
+  if (indices.empty()) {
+    // Scalar variable.
+    indices += MultidimensionalRange(Range(0, 1));
+  }
+
+  return indices;
+}
 
 namespace
 {
-  class CyclesSolvingPass : public mlir::modelica::impl::CyclesSolvingPassBase<CyclesSolvingPass>
+  struct CyclicEquation
+  {
+    MatchedEquationInstanceOp equation;
+    IndexSet equationIndices;
+    VariableAccess writeAccess;
+    IndexSet writtenVariableIndices;
+    VariableAccess readAccess;
+    IndexSet readVariableIndices;
+  };
+}
+
+using Cycle = llvm::SmallVector<CyclicEquation, 3>;
+
+namespace
+{
+  class CyclesSolvingPass
+      : public mlir::modelica::impl::CyclesSolvingPassBase<CyclesSolvingPass>
   {
     public:
       using CyclesSolvingPassBase::CyclesSolvingPassBase;
 
       void runOnOperation() override
       {
-        mlir::OpBuilder builder(getOperation());
-        llvm::SmallVector<ModelOp, 1> modelOps;
+        if (mlir::failed(processModelOp(getOperation()))) {
+          return signalPassFailure();
+        }
 
-        getOperation()->walk([&](ModelOp modelOp) {
-          if (modelOp.getSymName() == modelName) {
-            modelOps.push_back(modelOp);
-          }
-        });
+        markAnalysesPreserved<DerivativesMap>();
+      }
 
-        for (const auto& modelOp : modelOps) {
-          if (mlir::failed(processModelOp(builder, modelOp))) {
-            return signalPassFailure();
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
+
+      mlir::LogicalResult getCycles(
+          llvm::SmallVectorImpl<Cycle>& result,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+
+      mlir::LogicalResult solveCycles(
+          mlir::RewriterBase& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+  };
+}
+
+namespace
+{
+  struct VariableBridge
+  {
+    VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
+        : name(name),
+          indices(std::move(indices))
+    {
+    }
+
+    mlir::SymbolRefAttr name;
+    IndexSet indices;
+  };
+
+  struct EquationBridge
+  {
+    EquationBridge(
+        MatchedEquationInstanceOp op,
+        mlir::SymbolTableCollection& symbolTable,
+        llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>& variablesMap)
+        : op(op),
+          symbolTable(&symbolTable),
+          variablesMap(&variablesMap)
+    {
+    }
+
+    MatchedEquationInstanceOp op;
+    mlir::SymbolTableCollection* symbolTable;
+    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>* variablesMap;
+  };
+}
+
+namespace marco::modeling::dependency
+{
+  template<>
+  struct VariableTraits<::VariableBridge*>
+  {
+    using Variable = ::VariableBridge*;
+    using Id = ::VariableBridge*;
+
+    static Id getId(const Variable* variable)
+    {
+      return *variable;
+    }
+
+    static size_t getRank(const Variable* variable)
+    {
+      size_t rank = (*variable)->indices.rank();
+
+      if (rank == 0) {
+        return 1;
+      }
+
+      return rank;
+    }
+
+    static IndexSet getIndices(const Variable* variable)
+    {
+      const IndexSet& result = (*variable)->indices;
+
+      if (result.empty()) {
+        return {Point(0)};
+      }
+
+      return result;
+    }
+  };
+
+  template<>
+  struct EquationTraits<::EquationBridge*>
+  {
+    using Equation = ::EquationBridge*;
+    using Id = mlir::Operation*;
+
+    static Id getId(const Equation* equation)
+    {
+      return (*equation)->op.getOperation();
+    }
+
+    static size_t getNumOfIterationVars(const Equation* equation)
+    {
+      uint64_t numOfExplicitInductions = static_cast<uint64_t>(
+          (*equation)->op.getInductionVariables().size());
+
+      uint64_t numOfImplicitInductions =
+          (*equation)->op.getNumOfImplicitInductionVariables();
+
+      uint64_t result = numOfExplicitInductions + numOfImplicitInductions;
+
+      if (result == 0) {
+        // Scalar equation.
+        return 1;
+      }
+
+      return static_cast<size_t>(result);
+    }
+
+    static IndexSet getIterationRanges(const Equation* equation)
+    {
+      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
+
+      if (iterationSpace.empty()) {
+        // Scalar equation.
+        iterationSpace += MultidimensionalRange(Range(0, 1));
+      }
+
+      return iterationSpace;
+    }
+
+    using VariableType = ::VariableBridge*;
+    using AccessProperty = VariableAccess;
+
+    static std::vector<Access<VariableType, AccessProperty>>
+    getAccesses(const Equation* equation)
+    {
+      std::vector<Access<VariableType, AccessProperty>> result;
+
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed((*equation)->op.getAccesses(
+              accesses, *(*equation)->symbolTable))) {
+        return result;
+      }
+
+      for (auto& access : accesses) {
+        auto accessFunction = getAccessFunction(
+            (*equation)->op.getContext(), equation, access);
+
+        auto variableIt =
+            (*(*equation)->variablesMap).find(access.getVariable());
+
+        if (variableIt != (*(*equation)->variablesMap).end()) {
+          result.emplace_back(
+              variableIt->getSecond(),
+              std::move(accessFunction),
+              access);
+        }
+      }
+
+      return result;
+    }
+
+    static Access<VariableType, AccessProperty> getWrite(
+        const Equation* equation)
+    {
+      auto matchPath = (*equation)->op.getPath();
+
+      auto write = (*equation)->op.getAccessAtPath(
+          *(*equation)->symbolTable, matchPath.getValue());
+
+      assert(write.has_value() && "Can't get the write access");
+
+      auto accessFunction = getAccessFunction(
+          (*equation)->op.getContext(), equation, *write);
+
+      return Access(
+          (*(*equation)->variablesMap)[write->getVariable()],
+          std::move(accessFunction),
+          *write);
+    }
+
+    static std::vector<Access<VariableType, AccessProperty>> getReads(
+        const Equation* equation)
+    {
+      IndexSet equationIndices = getIterationRanges(equation);
+
+      auto writeAccess = getWrite(equation);
+      auto writtenVariable = writeAccess.getVariable();
+      const auto& writeAccessFunction = writeAccess.getAccessFunction();
+
+      auto writtenIndices = writeAccessFunction.getNumOfResults() == 0
+          ? IndexSet(Point(0))
+          : writeAccessFunction.map(equationIndices);
+
+      std::vector<Access<VariableType, AccessProperty>> reads;
+
+      for (const auto& access : getAccesses(equation)) {
+        auto accessedVariable = access.getVariable();
+
+        if (accessedVariable != writtenVariable) {
+          reads.push_back(access);
+        } else {
+          const auto& accessFunction = access.getAccessFunction();
+
+          // The overall set of accessed indices may be the same of written
+          // ones, but the order in which they are accessed may be different
+          // from the one in which they are written.
+          // For this reason, it is not sufficient to compare the indices
+          // and all the access functions different from the writing one must
+          // be considered as potential reads.
+
+          if (accessFunction != writeAccessFunction) {
+            reads.push_back(access);
           }
         }
       }
 
-    private:
-      mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
+      return reads;
+    }
 
-      mlir::LogicalResult solveCycles(mlir::OpBuilder& builder, Model<MatchedEquation>& model);
+    static std::unique_ptr<AccessFunction> getAccessFunction(
+        mlir::MLIRContext* context,
+        const Equation* equation,
+        const VariableAccess& access)
+    {
+      const AccessFunction& accessFunction = access.getAccessFunction();
+
+      if (accessFunction.getNumOfResults() == 0) {
+        // Access to scalar variable.
+        return AccessFunction::build(mlir::AffineMap::get(
+            accessFunction.getNumOfDims(), 0,
+            mlir::getAffineConstantExpr(0, context)));
+      }
+
+      return accessFunction.clone();
+    }
   };
 }
 
-template<typename EquationType>
-static void eraseOldEquations(const Model<MatchedEquation>& model)
+mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 {
-  llvm::DenseSet<mlir::Operation*> toBeKept;
+  mlir::IRRewriter rewriter(&getContext());
 
-  for (const auto& equation : model.getEquations()) {
-    toBeKept.insert(equation->getOperation().getOperation());
+  // Collect the equations.
+  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
+  llvm::SmallVector<MatchedEquationInstanceOp> equations;
+  modelOp.collectEquations(initialEquations, equations);
+
+  // The symbol table collection to be used for caching.
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  // Perform the solving process on the 'initial conditions' model.
+  if (!initialEquations.empty()) {
+    if (mlir::failed(solveCycles(
+            rewriter, symbolTableCollection, modelOp, initialEquations))) {
+      if (!allowUnsolvedCycles) {
+        modelOp.emitError()
+              << "Cycles solving failed for the 'initial conditions' model";
+
+        return mlir::failure();
+      }
+    }
   }
 
-  llvm::DenseSet<mlir::Operation*> toBeErased;
-
-  model.getOperation().template walk([&](EquationType equationOp) {
-    if (mlir::Operation* op = equationOp.getOperation(); !toBeKept.contains(op)) {
-      toBeErased.insert(op);
+  // Perform the solving process on the 'main' model.
+  if (!equations.empty()) {
+    if (mlir::failed(solveCycles(
+            rewriter, symbolTableCollection, modelOp, equations))) {
+      if (!allowUnsolvedCycles) {
+        modelOp.emitError() << "Cycles solving failed for the 'main' model";
+        return mlir::failure();
+      }
     }
-  });
-
-  for (mlir::Operation* op : toBeErased) {
-    auto equation = Equation::build(mlir::cast<EquationInterface>(op), model.getVariables());
-    equation->eraseIR();
-  }
-}
-
-mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
-{
-  // The options to be used when printing the IR.
-  ModelSolvingIROptions irOptions;
-  irOptions.mergeAndSortRanges = debugView;
-  irOptions.singleMatchAttr = debugView;
-  irOptions.singleScheduleAttr = debugView;
-
-  if (processICModel) {
-    // Obtain the matched model.
-    Model<MatchedEquation> matchedModel(modelOp);
-    matchedModel.setVariables(discoverVariables(modelOp));
-
-    auto equationsFilter = [](EquationInterface op) {
-      return mlir::isa<InitialEquationOp>(op);
-    };
-
-    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
-      return res;
-    }
-
-    // Solve the cycles in the 'initial conditions' model.
-    if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
-      return res;
-    }
-
-    eraseOldEquations<InitialEquationOp>(matchedModel);
-
-    // Write the match information in form of attributes.
-    writeMatchingAttributes(builder, matchedModel, irOptions);
-  }
-
-  if (processMainModel) {
-    // Obtain the matched model.
-    Model<MatchedEquation> matchedModel(modelOp);
-    matchedModel.setVariables(discoverVariables(modelOp));
-
-    auto equationsFilter = [](EquationInterface op) {
-      return mlir::isa<EquationOp>(op);
-    };
-
-    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
-      return res;
-    }
-
-    // Solve the cycles in the 'main' model
-    if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
-      return res;
-    }
-
-    eraseOldEquations<EquationOp>(matchedModel);
-
-    // Write the match information in form of attributes.
-    writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
   return mlir::success();
 }
 
-mlir::LogicalResult CyclesSolvingPass::solveCycles(
-    mlir::OpBuilder& builder, Model<MatchedEquation>& model)
+mlir::LogicalResult CyclesSolvingPass::getCycles(
+    llvm::SmallVectorImpl<Cycle>& result,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations)
 {
-  if (mlir::failed(::solveCycles(model, builder))) {
-    if (!allowUnsolvedCycles) {
-      // Check if the selected solver can deal with cycles. If not, fail.
+  LLVM_DEBUG({
+    llvm::dbgs() << "Searching cycles among the following equations:\n";
+
+    for (MatchedEquationInstanceOp equationOp : equations) {
+      llvm::dbgs() << equationOp.getTemplate() << "\n" << equationOp << "\n";
+    }
+  });
+
+  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge*> equationPtrs;
+
+  for (VariableOp variableOp : modelOp.getVariables()) {
+    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
+
+    auto& bridge = variableBridges.emplace_back(
+        std::make_unique<VariableBridge>(
+            symbolRefAttr,
+            getVariableIndices(
+                modelOp, symbolRefAttr, symbolTableCollection)));
+
+    variablesMap[symbolRefAttr] = bridge.get();
+  }
+
+  for (MatchedEquationInstanceOp equation : equations) {
+    auto& bridge = equationBridges.emplace_back(
+        std::make_unique<EquationBridge>(
+            equation, symbolTableCollection, variablesMap));
+
+    equationPtrs.push_back(bridge.get());
+  }
+
+  using CyclesFinder =
+      marco::modeling::CyclesFinder<VariableBridge*, EquationBridge*>;
+
+  CyclesFinder cyclesFinder(&getContext());
+  cyclesFinder.addEquations(equationPtrs);
+
+  auto cycles = cyclesFinder.getEquationsCycles();
+
+  for (auto& cycle : cycles) {
+    auto& resultCycle = result.emplace_back();
+
+    for (auto& cyclicEquation : cycle) {
+      resultCycle.emplace_back(CyclicEquation{
+          cyclicEquation.equation->op,
+          std::move(cyclicEquation.equationIndices),
+          std::move(cyclicEquation.writeAccess).getProperty(),
+          std::move(cyclicEquation.writtenVariableIndices),
+          std::move(cyclicEquation.readAccess).getProperty(),
+          std::move(cyclicEquation.readVariableIndices)
+      });
+    }
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << result.size() << " cycles found\n");
+  return mlir::success();
+}
+
+static mlir::LogicalResult solveCycle(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    const Cycle& cycle,
+    size_t index,
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+{
+  if (index + 1 == cycle.size()) {
+    MatchedEquationInstanceOp equationOp = cycle[index].equation;
+    rewriter.setInsertionPoint(equationOp);
+
+    newEquations.push_back(mlir::cast<MatchedEquationInstanceOp>(
+        rewriter.clone(*equationOp.getOperation())));
+
+    return mlir::success();
+  }
+
+  llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+
+  auto removeWritingEquations = llvm::make_scope_exit([&]() {
+    for (MatchedEquationInstanceOp writingEquation : writingEquations) {
+      rewriter.eraseOp(writingEquation);
+    }
+  });
+
+  if (mlir::failed(solveCycle(
+          rewriter, symbolTableCollection, cycle, index + 1,
+          writingEquations))) {
+    return mlir::failure();
+  }
+
+  const CyclicEquation& readingEquation = cycle[index];
+  MatchedEquationInstanceOp readingEquationOp = readingEquation.equation;
+
+  LLVM_DEBUG(llvm::dbgs() << "Cycle index: " << index << "\n");
+
+  LLVM_DEBUG(llvm::dbgs() << "Reading equation:\n"
+                          << readingEquationOp.getTemplate() << "\n"
+                          << readingEquationOp << "\n");
+
+  const AccessFunction& readAccessFunction =
+      readingEquation.readAccess.getAccessFunction();
+
+  for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
+    LLVM_DEBUG(llvm::dbgs() << "Writing equation:\n"
+                            << writingEquationOp.getTemplate() << "\n"
+                            << writingEquationOp << "\n");
+
+    MatchedEquationInstanceOp explicitWritingEquationOp =
+        writingEquationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
+
+    if (!explicitWritingEquationOp) {
+      return mlir::failure();
+    }
+
+    auto removeExplicitEquation = llvm::make_scope_exit([&]() {
+      rewriter.eraseOp(explicitWritingEquationOp);
+    });
+
+    auto explicitWriteAccess =
+        explicitWritingEquationOp.getMatchedAccess(symbolTableCollection);
+
+    if (!explicitWriteAccess) {
+      return mlir::failure();
+    }
+
+    const AccessFunction& writeAccessFunction =
+        explicitWriteAccess->getAccessFunction();
+
+    IndexSet writingEquationIndices =
+        explicitWritingEquationOp.getIterationSpace();
+
+    IndexSet writtenVariableIndices =
+        writeAccessFunction.map(writingEquationIndices);
+
+    IndexSet readingEquationIndices;
+
+    if (writtenVariableIndices.empty()) {
+      readingEquationIndices = readingEquation.equationIndices;
+    } else {
+      readingEquationIndices = readAccessFunction.inverseMap(
+          writtenVariableIndices, readingEquation.equationIndices);
+
+      readingEquationIndices = readingEquationIndices.intersect(
+          readingEquation.equationIndices);
+    }
+
+    llvm::Optional<std::reference_wrapper<const IndexSet>>
+    optionalReadingEquationIndices = llvm::None;
+
+    if (!readingEquationIndices.empty()) {
+      optionalReadingEquationIndices =
+          std::reference_wrapper(readingEquationIndices);
+    }
+
+    if (mlir::failed(readingEquationOp.cloneWithReplacedAccess(
+            rewriter,
+            optionalReadingEquationIndices,
+            readingEquation.readAccess,
+            explicitWritingEquationOp.getTemplate(),
+            *explicitWriteAccess,
+            newEquations))) {
+      return mlir::failure();
+    }
+  }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "New equations:\n";
+
+    for (MatchedEquationInstanceOp equation : newEquations) {
+      llvm::dbgs() << equation.getTemplate() << "\n" << equation << "\n";
+    }
+  });
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult solveCycle(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    const Cycle& cycle,
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+{
+  LLVM_DEBUG({
+    llvm::dbgs() << "Solving cycle composed by the following equations:\n";
+
+    for (const CyclicEquation& cyclicEquation : cycle) {
+      MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+      llvm::dbgs() << equationOp.getTemplate() << "\n" << equationOp << "\n";
+    }
+  });
+
+  return ::solveCycle(rewriter, symbolTableCollection, cycle, 0, newEquations);
+}
+
+mlir::LogicalResult CyclesSolvingPass::solveCycles(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations)
+{
+  llvm::SmallVector<MatchedEquationInstanceOp> currentEquations(
+      equations.begin(), equations.end());
+
+  llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
+  llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
+
+  auto eraseReplacedOnExit = llvm::make_scope_exit([&]() {
+    for (MatchedEquationInstanceOp equationOp : toBeErased) {
+      rewriter.eraseOp(equationOp);
+    }
+  });
+
+  llvm::SmallVector<Cycle, 3> cycles;
+
+  if (mlir::failed(getCycles(
+          cycles, symbolTableCollection, modelOp, currentEquations))) {
+    return mlir::failure();
+  }
+
+  bool atLeastOneChanged;
+
+  while (!cycles.empty()) {
+    // Collect all the equation indices leading to cycles.
+    llvm::DenseMap<MatchedEquationInstanceOp, IndexSet> cyclicIndices;
+
+    for (const Cycle& cycle : cycles) {
+      MatchedEquationInstanceOp equationOp = cycle[0].equation;
+      IndexSet indices = equationOp.getIterationSpace();
+      cyclicIndices[equationOp] += indices;
+    }
+
+    // Try to solve one cycle.
+    atLeastOneChanged = false;
+
+    for (const Cycle& cycle : cycles) {
+      currentEquations.clear();
+      llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
+
+      if (mlir::succeeded(::solveCycle(
+              rewriter, symbolTableCollection, cycle, newEquations))) {
+        MatchedEquationInstanceOp firstEquation = cycle[0].equation;
+        IndexSet originalIterationSpace = firstEquation.getIterationSpace();
+
+        if (!originalIterationSpace.empty()) {
+          IndexSet remainingIndices = originalIterationSpace;
+
+          for (MatchedEquationInstanceOp newEquation : newEquations) {
+            remainingIndices -= newEquation.getIterationSpace();
+          }
+
+          rewriter.setInsertionPoint(firstEquation);
+
+          for (const MultidimensionalRange& range : llvm::make_range(
+                   remainingIndices.rangesBegin(),
+                   remainingIndices.rangesEnd())) {
+            auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+                rewriter.clone(*firstEquation.getOperation()));
+
+            if (auto explicitIndices = firstEquation.getIndices()) {
+              MultidimensionalRange explicitRange =
+                  range.takeFirstDimensions(
+                      explicitIndices->getValue().rank());
+
+              clonedOp.setIndicesAttr(
+                  MultidimensionalRangeAttr::get(
+                      rewriter.getContext(), std::move(explicitRange)));
+            }
+
+            if (auto implicitIndices = firstEquation.getImplicitIndices()) {
+              MultidimensionalRange implicitRange =
+                  range.takeLastDimensions(
+                      implicitIndices->getValue().rank());
+
+              clonedOp.setImplicitIndicesAttr(
+                  MultidimensionalRangeAttr::get(
+                      rewriter.getContext(), std::move(implicitRange)));
+            }
+
+            currentEquations.push_back(clonedOp);
+          }
+        }
+
+        toBeErased.insert(firstEquation);
+
+        for (MatchedEquationInstanceOp newEquation : newEquations) {
+          allNewEquations.push_back(newEquation);
+        }
+
+        atLeastOneChanged = true;
+        break;
+      }
+    }
+
+    // The IR can't be modified more.
+    if (!atLeastOneChanged) {
+      return mlir::LogicalResult::success(allowUnsolvedCycles);
+    }
+
+    // Search for the remaining cycles.
+    cycles.clear();
+
+    for (MatchedEquationInstanceOp equationOp : equations) {
+      if (!toBeErased.contains(equationOp)) {
+        currentEquations.push_back(equationOp);
+      }
+    }
+
+    for (MatchedEquationInstanceOp equationOp : allNewEquations) {
+      if (!toBeErased.contains(equationOp)) {
+        currentEquations.push_back(equationOp);
+      }
+    }
+
+    if (mlir::failed(getCycles(
+            cycles, symbolTableCollection, modelOp, currentEquations))) {
       return mlir::failure();
     }
   }

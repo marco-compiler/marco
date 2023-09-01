@@ -7,7 +7,9 @@ using namespace ::marco::codegen;
 namespace marco::codegen
 {
   std::string RuntimeFunctionsMangling::getMangledFunction(
-      llvm::StringRef baseName, llvm::StringRef mangledReturnType, llvm::ArrayRef<std::string> argsMangledTypes) const
+      llvm::StringRef baseName,
+      llvm::StringRef mangledReturnType,
+      llvm::ArrayRef<std::string> argsMangledTypes) const
   {
     std::string result = "_M" + baseName.str() + "_" + mangledReturnType.str();
 
@@ -23,22 +25,26 @@ namespace marco::codegen
     return "void";
   }
 
-  std::string RuntimeFunctionsMangling::getIntegerType(unsigned int bitWidth) const
+  std::string RuntimeFunctionsMangling::getIntegerType(
+      unsigned int bitWidth) const
   {
     return "i" + std::to_string(bitWidth);
   }
 
-  std::string RuntimeFunctionsMangling::getFloatingPointType(unsigned int bitWidth) const
+  std::string RuntimeFunctionsMangling::getFloatingPointType(
+      unsigned int bitWidth) const
   {
     return "f" + std::to_string(bitWidth);
   }
 
-  std::string RuntimeFunctionsMangling::getArrayType(llvm::StringRef mangledElementType) const
+  std::string RuntimeFunctionsMangling::getArrayType(
+      llvm::StringRef mangledElementType) const
   {
     return "a" + mangledElementType.str();
   }
 
-  std::string RuntimeFunctionsMangling::getPointerType(llvm::StringRef mangledElementType) const
+  std::string RuntimeFunctionsMangling::getPointerType(
+      llvm::StringRef mangledElementType) const
   {
     return "p" + mangledElementType.str();
   }
@@ -48,37 +54,86 @@ namespace marco::codegen
     return getPointerType(getVoidType());
   }
 
-  // TODO: force i64 type for number of bytes
-  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::ModuleOp moduleOp, mlir::Type indexType)
+  mlir::LLVM::LLVMFuncOp getOrDeclareHeapAllocFn(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     RuntimeFunctionsMangling mangling;
 
-    auto mangledReturnType = mangling.getVoidPointerType();
+    auto mangledResultType = mangling.getVoidPointerType();
 
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
-    mangledArgsTypes.push_back(mangling.getIntegerType(indexType.getIntOrFloatBitWidth()));
+    mangledArgsTypes.push_back(mangling.getIntegerType(64));
 
-    auto functionName = mangling.getMangledFunction("heapAlloc", mangledReturnType, mangledArgsTypes);
+    auto functionName = mangling.getMangledFunction(
+        "heapAlloc", mangledResultType, mangledArgsTypes);
 
-    return mlir::LLVM::lookupOrCreateFn(
-        moduleOp, functionName, indexType,
-        mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(moduleOp->getContext(), 8)));
+    auto funcOp =
+        symbolTableCollection.lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
+            moduleOp, builder.getStringAttr(functionName));
+
+    if (funcOp) {
+      return funcOp;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
+
+    auto resultType =
+        mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8));
+
+    llvm::SmallVector<mlir::Type, 1> argTypes;
+    argTypes.push_back(builder.getI64Type());
+
+    auto functionType =
+        mlir::LLVM::LLVMFunctionType::get(resultType, argTypes, false);
+
+    auto newFuncOp = builder.create<mlir::LLVM::LLVMFuncOp>(
+        moduleOp.getLoc(), functionName, functionType);
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(newFuncOp);
+    return newFuncOp;
   }
 
-  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::ModuleOp moduleOp)
+  mlir::LLVM::LLVMFuncOp getOrDeclareHeapFreeFn(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     RuntimeFunctionsMangling mangling;
 
-    auto mangledReturnType = mangling.getVoidType();
+    auto mangledResultType = mangling.getVoidType();
 
     llvm::SmallVector<std::string, 1> mangledArgsTypes;
     mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
-    auto functionName = mangling.getMangledFunction("heapFree", mangledReturnType, mangledArgsTypes);
+    auto functionName = mangling.getMangledFunction(
+        "heapFree", mangledResultType, mangledArgsTypes);
 
-    return mlir::LLVM::lookupOrCreateFn(
-        moduleOp, functionName,
-        mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(moduleOp->getContext(), 8)),
-        mlir::LLVM::LLVMVoidType::get(moduleOp->getContext()));
+    auto funcOp =
+        symbolTableCollection.lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
+            moduleOp, builder.getStringAttr(functionName));
+
+    if (funcOp) {
+      return funcOp;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
+
+    auto resultType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
+
+    llvm::SmallVector<mlir::Type, 1> argTypes;
+    argTypes.push_back(builder.getI64Type());
+
+    auto functionType =
+        mlir::LLVM::LLVMFunctionType::get(resultType, argTypes, false);
+
+    auto newFuncOp = builder.create<mlir::LLVM::LLVMFuncOp>(
+        moduleOp.getLoc(), functionName, functionType);
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(newFuncOp);
+    return newFuncOp;
   }
 }

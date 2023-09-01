@@ -1,7 +1,10 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(ida{model=Test})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --ida | FileCheck %s
 
-// CHECK:       simulation.function @getIDATime(solvers: [%[[ida:.*]]: !ida.instance], time: [%[[time:.*]]: !modelica.real], variables: [], extra_args: []) -> !modelica.real {
-// CHECK-NEXT:      %[[result:.*]] = ida.get_current_time %[[ida]] : !ida.instance -> !modelica.real
+// Empty model.
+
+// CHECK: ida.instance @ida_main
+// CHECK:       simulation.function @getIDATime() -> f64 {
+// CHECK-NEXT:      %[[result:.*]] = ida.get_current_time @ida_main : f64
 // CHECK-NEXT:      simulation.return %[[result]]
 // CHECK-NEXT:  }
 

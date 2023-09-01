@@ -1,6 +1,6 @@
+#include "marco/Modeling/MCIM.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Modeling/MCIM.h"
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;

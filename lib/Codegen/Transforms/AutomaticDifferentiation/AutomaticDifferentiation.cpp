@@ -12,7 +12,6 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace
@@ -31,7 +30,7 @@ namespace
   }
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   std::string getFullDerVariableName(
       llvm::StringRef baseName, unsigned int order)

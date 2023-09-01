@@ -1,7 +1,7 @@
+#include "marco/Modeling/Graph.h"
+#include "llvm/ADT/StringRef.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "llvm/ADT/StringRef.h"
-#include "marco/Modeling/Graph.h"
 
 using namespace ::marco::modeling::internal;
 using namespace ::testing;
@@ -37,7 +37,8 @@ unwrapVertices(const Graph& graph, Range edges)
 template<typename VertexDescriptor, typename EdgeProperty>
 struct UnwrappedEdge
 {
-  UnwrappedEdge(VertexDescriptor from, VertexDescriptor to, EdgeProperty property)
+  UnwrappedEdge(
+      VertexDescriptor from, VertexDescriptor to, EdgeProperty property)
       : from(from), to(to), property(property)
   {
   }
@@ -53,10 +54,12 @@ struct UnwrappedEdge
 };
 
 template<typename Graph, typename Range>
-std::vector<UnwrappedEdge<typename Graph::VertexDescriptor, typename Graph::EdgeProperty>>
+std::vector<UnwrappedEdge<
+    typename Graph::VertexDescriptor, typename Graph::EdgeProperty>>
 unwrapEdges(const Graph& graph, Range edges)
 {
-  std::vector<UnwrappedEdge<typename Graph::VertexDescriptor, typename Graph::EdgeProperty>> result;
+  std::vector<UnwrappedEdge<
+      typename Graph::VertexDescriptor, typename Graph::EdgeProperty>> result;
 
   for (auto descriptor: edges) {
     result.emplace_back(descriptor.from, descriptor.to, graph[descriptor]);
@@ -68,7 +71,8 @@ unwrapEdges(const Graph& graph, Range edges)
 class Vertex
 {
   public:
-    Vertex(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
+    Vertex(llvm::StringRef name, int value = 0)
+        : name(name.str()), value(value)
     {
     }
 
@@ -95,7 +99,8 @@ class Vertex
 class Edge
 {
   public:
-    Edge(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
+    Edge(llvm::StringRef name, int value = 0)
+        : name(name.str()), value(value)
     {
     }
 

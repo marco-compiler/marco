@@ -1,6 +1,6 @@
+#include "marco/Modeling/IndexSetList.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Modeling/IndexSetList.h"
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::impl;

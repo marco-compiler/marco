@@ -40,8 +40,6 @@ macro(marco_add_runtime_library name)
   llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${ARGN})
   add_library(marco::${name} ALIAS ${name})
 
-  add_dependencies(marco-runtime marco::${name})
-
   install(TARGETS ${name}
           COMPONENT ${name}
           LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -65,8 +63,6 @@ function(marco_add_unittest test_name)
   set(test_suite MARCOUnitTests)
   add_llvm_executable(${test_name} ${ARGN})
 
-  #set(outdir ${CMAKE_CURRENT_BINARY_DIR})
-  #set_output_directory(${test_name} BINARY_DIR ${outdir} LIBRARY_DIR ${outdir})
   target_link_directories(${test_name} PRIVATE ${MARCO_LIBS_DIR})
   target_link_libraries(${test_name} PRIVATE gtest_main gmock)
 

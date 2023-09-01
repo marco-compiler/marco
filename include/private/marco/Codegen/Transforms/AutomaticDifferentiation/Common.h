@@ -3,7 +3,7 @@
 
 #include "mlir/IR/BlockAndValueMapping.h"
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   /// Compose the full derivative member name according to the derivative
   /// order. If the order is 1, then it is omitted.

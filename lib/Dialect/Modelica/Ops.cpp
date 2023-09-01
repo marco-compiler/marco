@@ -4,10 +4,38 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/FunctionImplementation.h"
+#include "mlir/IR/PatternMatch.h"
+#include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/ScopeExit.h"
 #include <cmath>
+#include <stack>
 
 using namespace ::mlir::modelica;
+
+namespace
+{
+  // TODO remove when updating the LLVM version.
+  // Everything will be available in mlir/IR/PatternMatch.h
+  template <typename OperandType, typename ValueT>
+  void replaceAllUsesWith(
+      mlir::RewriterBase& rewriter,
+      mlir::IRObjectWithUseList<OperandType> *from,
+      ValueT &&to)
+  {
+    for (OperandType& operand :
+         llvm::make_early_inc_range(from->getUses())) {
+      mlir::Operation *op = operand.getOwner();
+      rewriter.updateRootInPlace(op, [&]() { operand.set(to); });
+    }
+  }
+
+  void replaceAllUsesWith(
+      mlir::RewriterBase& rewriter, mlir::Value from, mlir::Value to)
+  {
+    return replaceAllUsesWith(rewriter, from.getImpl(), to);
+  }
+}
 
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
@@ -127,7 +155,7 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
 namespace
 {
   template<typename T>
-  static llvm::Optional<T> getAttributeValue(mlir::Attribute attribute)
+  llvm::Optional<T> getAttributeValue(mlir::Attribute attribute)
   {
     if (isScalarIntegerLike(attribute)) {
       return static_cast<T>(getScalarIntegerLikeValue(attribute));
@@ -139,7 +167,7 @@ namespace
   }
 
   template<typename T>
-  static bool getAttributesValues(
+  bool getAttributesValues(
       llvm::ArrayRef<mlir::Attribute> attributes,
       llvm::SmallVectorImpl<T>& result)
   {
@@ -153,6 +181,20 @@ namespace
 
     return true;
   }
+}
+
+static int64_t getIntegerFromAttribute(mlir::Attribute attribute)
+{
+  if (isScalarIntegerLike(attribute)) {
+    return getScalarIntegerLikeValue(attribute);
+  }
+
+  if (isScalarFloatLike(attribute)) {
+    return getScalarFloatLikeValue(attribute);
+  }
+
+  llvm_unreachable("Unknown attribute type");
+  return 0;
 }
 
 static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
@@ -336,7 +378,7 @@ namespace mlir::modelica
 
     if (numOfValues != static_cast<size_t>(arrayFlatSize)) {
       return emitOpError(
-          "incoherent number of values (expected " +
+          "incorrect number of values (expected " +
           std::to_string(arrayFlatSize) + ", got " +
           std::to_string(numOfValues) + ")");
     }
@@ -483,7 +525,95 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// DimOp
+
+namespace
+{
+  struct DimOpStaticDimensionPattern
+      : public mlir::OpRewritePattern<DimOp>
+  {
+    using mlir::OpRewritePattern<DimOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        DimOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto constantOp = op.getDimension().getDefiningOp<ConstantOp>();
+
+      if (!constantOp) {
+        return mlir::failure();
+      }
+
+      ArrayType arrayType = op.getArray().getType();
+
+      int64_t dimSize = arrayType.getDimSize(
+          constantOp.getValue().cast<mlir::IntegerAttr>().getInt());
+
+      if (dimSize == ArrayType::kDynamicSize) {
+        return mlir::failure();
+      }
+
+      rewriter.replaceOpWithNewOp<ConstantOp>(
+          op, rewriter.getIndexAttr(dimSize));
+
+      return mlir::success();
+    }
+  };
+}
+
+namespace mlir::modelica
+{
+  void DimOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<DimOpStaticDimensionPattern>(context);
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // LoadOp
+
+namespace
+{
+  struct MergeSubscriptionsIntoLoadPattern
+      : public mlir::OpRewritePattern<LoadOp>
+  {
+    using mlir::OpRewritePattern<LoadOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        LoadOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto subscriptionOp = op.getArray().getDefiningOp<SubscriptionOp>();
+
+      if (!subscriptionOp) {
+        return mlir::failure();
+      }
+
+      std::stack<SubscriptionOp> subscriptionOps;
+
+      while (subscriptionOp) {
+        subscriptionOps.push(subscriptionOp);
+
+        subscriptionOp =
+            subscriptionOp.getSource().getDefiningOp<SubscriptionOp>();
+      }
+
+      assert(!subscriptionOps.empty());
+      mlir::Value source = subscriptionOps.top().getSource();
+      llvm::SmallVector<mlir::Value, 3> indices;
+
+      while (!subscriptionOps.empty()) {
+        SubscriptionOp current = subscriptionOps.top();
+        indices.append(current.getIndices().begin(),
+                       current.getIndices().end());
+        subscriptionOps.pop();
+      }
+
+      indices.append(op.getIndices().begin(), op.getIndices().end());
+      rewriter.replaceOpWithNewOp<LoadOp>(op, source, indices);
+      return mlir::success();
+    }
+  };
+}
 
 namespace mlir::modelica
 {
@@ -545,13 +675,18 @@ namespace mlir::modelica
     auto rank = getArrayType().getRank();
 
     if (indicesAmount != static_cast<size_t>(rank)) {
-      return emitOpError(
-          "incorrect number of indices for load (expected " +
-          std::to_string(rank) + ", got " + std::to_string(indicesAmount) +
-          ")");
+      return emitOpError()
+          << "incorrect number of indices (expected " << rank
+          << ", got " + std::to_string(indicesAmount) << ")";
     }
 
     return mlir::success();
+  }
+
+  void LoadOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<MergeSubscriptionsIntoLoadPattern>(context);
   }
 
   void LoadOp::getEffects(
@@ -710,6 +845,49 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SubscriptionOp
 
+namespace
+{
+  struct MergeSubscriptionsPattern
+      : public mlir::OpRewritePattern<SubscriptionOp>
+  {
+    using mlir::OpRewritePattern<SubscriptionOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        SubscriptionOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto subscriptionOp = op.getSource().getDefiningOp<SubscriptionOp>();
+
+      if (!subscriptionOp) {
+        return mlir::failure();
+      }
+
+      std::stack<SubscriptionOp> subscriptionOps;
+
+      while (subscriptionOp) {
+        subscriptionOps.push(subscriptionOp);
+
+        subscriptionOp =
+            subscriptionOp.getSource().getDefiningOp<SubscriptionOp>();
+      }
+
+      assert(!subscriptionOps.empty());
+      mlir::Value source = subscriptionOps.top().getSource();
+      llvm::SmallVector<mlir::Value, 3> indices;
+
+      while (!subscriptionOps.empty()) {
+        SubscriptionOp current = subscriptionOps.top();
+        indices.append(current.getIndices().begin(),
+                       current.getIndices().end());
+        subscriptionOps.pop();
+      }
+
+      indices.append(op.getIndices().begin(), op.getIndices().end());
+      rewriter.replaceOpWithNewOp<SubscriptionOp>(op, source, indices);
+      return mlir::success();
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   mlir::ParseResult SubscriptionOp::parse(
@@ -766,6 +944,12 @@ namespace mlir::modelica
     }
 
     return mlir::success();
+  }
+
+  void SubscriptionOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<MergeSubscriptionsPattern>(context);
   }
 
   mlir::ValueRange SubscriptionOp::derive(
@@ -853,8 +1037,7 @@ namespace mlir::modelica
         builder.getStringAttr(kDimensionConstraintUnbounded));
 
     build(builder, state, name, variableType,
-          builder.getArrayAttr(constraints),
-          nullptr);
+          builder.getArrayAttr(constraints));
   }
 
   mlir::ParseResult VariableOp::parse(
@@ -1026,6 +1209,23 @@ namespace mlir::modelica
             return dimensionConstraint.getValue() ==
               kDimensionConstraintFixed;
         });
+  }
+
+  IndexSet VariableOp::getIndices()
+  {
+    VariableType variableType = getVariableType();
+
+    if (variableType.isScalar()) {
+      return {};
+    }
+
+    llvm::SmallVector<Range> ranges;
+
+    for (int64_t dimension : variableType.getShape()) {
+      ranges.push_back(Range(0, dimension));
+    }
+
+    return IndexSet(MultidimensionalRange(ranges));
   }
 }
 
@@ -1213,6 +1413,75 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// GlobalVariableOp
+
+namespace mlir::modelica
+{
+  void GlobalVariableOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      mlir::StringAttr name,
+      mlir::TypeAttr type)
+  {
+    build(builder, state, name, type, nullptr);
+  }
+
+  void GlobalVariableOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name,
+      mlir::Type type)
+  {
+    build(builder, state, name, type, nullptr);
+  }
+}
+
+
+//===---------------------------------------------------------------------===//
+// GlobalVariableGetOp
+
+namespace mlir::modelica
+{
+  void GlobalVariableGetOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      GlobalVariableOp globalVariableOp)
+  {
+    auto type = globalVariableOp.getType();
+    auto name = globalVariableOp.getSymName();
+    build(builder, state, type, name);
+  }
+
+  mlir::LogicalResult GlobalVariableGetOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation* symbol =
+        symbolTableCollection.lookupSymbolIn(moduleOp, getVariableAttr());
+
+    if (!symbol) {
+      return emitOpError()
+          << "global variable " << getVariable() << " has not been declared";
+    }
+
+    if (!mlir::isa<GlobalVariableOp>(symbol)) {
+      return emitOpError()
+          << "symbol " << getVariable() << " is not a global variable";
+    }
+
+    auto globalVariableOp = mlir::cast<GlobalVariableOp>(symbol);
+
+    if (globalVariableOp.getType() != getResult().getType()) {
+      return emitOpError()
+          << "result type does not match the global variable type";
+    }
+
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // Math operations
 //===---------------------------------------------------------------------===//
 
@@ -1333,7 +1602,7 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult NegateOp::invert(
+  mlir::Value NegateOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
@@ -1341,127 +1610,156 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (argumentIndex > 0) {
-      return emitOpError(
-          "Index out of bounds: " + std::to_string(argumentIndex));
+      emitOpError() << "Index out of bounds: " << argumentIndex << ".";
+      return nullptr;
     }
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
-
     mlir::Value nestedOperand = readValue(builder, toNest);
 
     auto right = builder.create<NegateOp>(
         getLoc(), getOperand().getType(), nestedOperand);
 
-    for (auto& use : toNest.getUses()) {
-      if (auto* owner = use.getOwner();
-          owner != right && !owner->isBeforeInBlock(right)) {
-        use.set(right.getResult());
-      }
-    }
-
-    replaceAllUsesWith(getOperand());
-    erase();
-
-    return mlir::success();
+    return right.getResult();
   }
 
-  mlir::Value NegateOp::distribute(mlir::OpBuilder& builder)
+  mlir::LogicalResult NegateOp::distribute(
+      llvm::SmallVectorImpl<mlir::Value>& results, mlir::OpBuilder& builder)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(*this);
+    mlir::Value operand = getOperand();
+    mlir::Operation* operandOp = operand.getDefiningOp();
 
-    auto operandDefiningOp = getOperand().getDefiningOp();
-
-    if (!operandDefiningOp) {
-      return getResult();
-    }
-
-    if (auto childOp =
-            mlir::dyn_cast<NegateOpDistributionInterface>(
-                getOperand().getDefiningOp())) {
-      return childOp.distributeNegateOp(builder, getResult().getType());
+    if (operandOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(operandOp)) {
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+            results, builder, getResult().getType()))) {
+          return mlir::success();
+        }
+      }
     }
 
     // The operation can't be propagated because the child doesn't know how to
     // distribute the negation to its children.
-    return getResult();
+    results.push_back(getResult());
+    return mlir::failure();
   }
 
-  mlir::Value NegateOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
+  mlir::LogicalResult NegateOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value operand = getOperand();
+    bool operandDistributed = false;
+    mlir::Operation* operandOp = operand.getDefiningOp();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    if (operandOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(operandOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          operand = childResults[0];
+          operandDistributed = true;
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (!operandDistributed) {
+      auto newOperandOp = builder.create<NegateOp>(
+          getLoc(), operand.getType(), operand);
 
-    mlir::Value operand = distributeFn(this->getOperand());
+      operand = newOperandOp.getResult();
+    }
 
-    return builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value NegateOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult NegateOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value operand = getOperand();
+    bool operandDistributed = false;
+    mlir::Operation* operandOp = operand.getDefiningOp();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    if (operandOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(operandOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          operand = childResults[0];
+          operandDistributed = true;
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (!operandDistributed) {
+      auto newOperandOp = builder.create<MulOp>(
+          getLoc(), operand.getType(), operand, value);
 
-    mlir::Value operand = distributeFn(this->getOperand());
+      operand = newOperandOp.getResult();
+    }
 
-    return builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value NegateOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult NegateOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value operand = getOperand();
+    bool operandDistributed = false;
+    mlir::Operation* operandOp = operand.getDefiningOp();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    if (operandOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(operandOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          operand = childResults[0];
+          operandDistributed = true;
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (!operandDistributed) {
+      auto newOperandOp = builder.create<DivOp>(
+          getLoc(), operand.getType(), operand, value);
 
-    mlir::Value operand = distributeFn(this->getOperand());
+      operand = newOperandOp.getResult();
+    }
 
-    return builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange NegateOp::derive(
@@ -1568,17 +1866,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult AddOp::invert(
+  mlir::Value AddOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1589,17 +1888,7 @@ namespace mlir::modelica
       auto right = builder.create<SubOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -1608,95 +1897,201 @@ namespace mlir::modelica
       auto right = builder.create<SubOp>(
           getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Can't invert the operand #" + std::to_string(argumentIndex) +
-        ". The operation has 2 operands");
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value AddOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
+  mlir::LogicalResult AddOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<NegateOp>(
+          lhs.getLoc(), lhs.getType(), lhs);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<NegateOp>(
+          rhs.getLoc(), rhs.getType(), rhs);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value AddOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult AddOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<MulOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<MulOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value AddOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult AddOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<DivOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<DivOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange AddOp::derive(
@@ -1804,17 +2199,16 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult AddEWOp::invert(
+  mlir::Value AddEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size)
-          + " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1825,16 +2219,7 @@ namespace mlir::modelica
       auto right = builder.create<SubEWOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -1843,96 +2228,201 @@ namespace mlir::modelica
       auto right = builder.create<SubEWOp>(
           getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Can't invert the operand #" + std::to_string(argumentIndex) +
-        ". The operation has 2 operands");
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value AddEWOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
+  mlir::LogicalResult AddEWOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto negDistributionOp =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionOp.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (rhsOp) {
+      if (auto negDistributionOp =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(negDistributionOp.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<NegateOp>(
+          lhs.getLoc(), lhs.getType(), lhs);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<NegateOp>(
+          rhs.getLoc(), rhs.getType(), rhs);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value AddEWOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult AddEWOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<MulOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<MulOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value AddEWOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult AddEWOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<DivOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<DivOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange AddEWOp::derive(
@@ -2043,17 +2533,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult SubOp::invert(
+  mlir::Value SubOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size)
-          + " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2064,17 +2555,7 @@ namespace mlir::modelica
       auto right = builder.create<AddOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -2083,96 +2564,201 @@ namespace mlir::modelica
       auto right = builder.create<SubOp>(
           getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Can't invert the operand #" + std::to_string(argumentIndex) +
-        ". The operation has 2 operands");
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value SubOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
+  mlir::LogicalResult SubOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<NegateOp>(
+          lhs.getLoc(), lhs.getType(), lhs);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<NegateOp>(
+          rhs.getLoc(), rhs.getType(), rhs);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value SubOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult SubOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<MulOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<MulOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value SubOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult SubOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<DivOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<DivOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange SubOp::derive(
@@ -2283,17 +2869,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult SubEWOp::invert(
+  mlir::Value SubEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2304,17 +2891,7 @@ namespace mlir::modelica
       auto right = builder.create<AddEWOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -2323,96 +2900,201 @@ namespace mlir::modelica
       auto right = builder.create<SubEWOp>(
           getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Can't invert the operand #" + std::to_string(argumentIndex) +
-        ". The operation has 2 operands");
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value SubEWOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
+  mlir::LogicalResult SubEWOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<NegateOp>(
+          lhs.getLoc(), lhs.getType(), lhs);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<NegateOp>(
+          rhs.getLoc(), rhs.getType(), rhs);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value SubEWOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult SubEWOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<MulOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<MulOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value SubEWOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult SubEWOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    bool lhsDistributed = false;
+    bool rhsDistributed = false;
+
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+          lhsDistributed = true;
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = distributeFn(this->getRhs());
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+          rhsDistributed = true;
+        }
+      }
+    }
 
-    return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    if (!lhsDistributed) {
+      auto newLhsOp = builder.create<DivOp>(
+          lhs.getLoc(), lhs.getType(), lhs, value);
+
+      lhs = newLhsOp.getResult();
+    }
+
+    if (!rhsDistributed) {
+      auto newRhsOp = builder.create<DivOp>(
+          rhs.getLoc(), rhs.getType(), rhs, value);
+
+      rhs = newRhsOp.getResult();
+    }
+
+    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange SubEWOp::derive(
@@ -2525,35 +3207,29 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult MulOp::invert(
+  mlir::Value MulOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right))
-          use.set(right.getResult());
-      }
+      auto right = builder.create<DivOp>(
+          getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -2562,132 +3238,230 @@ namespace mlir::modelica
       auto right = builder.create<DivOp>(
           getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right))
-          use.set(right.getResult());
-      }
-
-      getResult().replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Index out of bounds: " + std::to_string(argumentIndex));
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value MulOp::distribute(mlir::OpBuilder& builder)
+  mlir::LogicalResult MulOp::distribute(
+      llvm::SmallVectorImpl<mlir::Value>& results, mlir::OpBuilder& builder)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(*this);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto lhsDefiningOp = getLhs().getDefiningOp();
-    auto rhsDefiningOp = getRhs().getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-    if (!lhsDefiningOp && !rhsDefiningOp) {
-      return getResult();
-    }
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        mlir::Value toDistribute = rhs;
+        results.clear();
 
-    if (!mlir::isa<MulOpDistributionInterface>(lhsDefiningOp) &&
-        !mlir::isa<MulOpDistributionInterface>(rhsDefiningOp)) {
-      // The operation can't be propagated because none of the children
-      // know how to distribute the multiplication to their children.
-      return getResult();
-    }
-
-    MulOpDistributionInterface childOp;
-    mlir::Value toDistribute;
-
-    if (lhsDefiningOp != nullptr &&
-        mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
-      childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
-      toDistribute = getRhs();
-    } else {
-      assert(rhsDefiningOp != nullptr);
-      childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
-      toDistribute = getLhs();
-    }
-
-    assert(childOp != nullptr && toDistribute != nullptr);
-
-    return childOp.distributeMulOp(
-        builder, getResult().getType(), toDistribute);
-  }
-
-  mlir::Value MulOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
-
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+            results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        mlir::Value toDistribute = lhs;
+        results.clear();
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
-
-    return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
-  }
-
-  mlir::Value MulOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
-
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+            results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
-
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
-
-    return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    // The operation can't be propagated because none of the children
+    // know how to distribute the multiplication to their children.
+    results.push_back(getResult());
+    return mlir::failure();
   }
 
-  mlir::Value MulOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult MulOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult MulOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult MulOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+
+          auto resultOp = builder.create<MulOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange MulOp::derive(
@@ -2805,17 +3579,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult MulEWOp::invert(
+  mlir::Value MulEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2826,17 +3601,7 @@ namespace mlir::modelica
       auto right = builder.create<DivEWOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -2845,133 +3610,228 @@ namespace mlir::modelica
       auto right = builder.create<DivEWOp>(
           getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
+      return right.getResult();
+    }
+
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
+  }
+
+  mlir::LogicalResult MulEWOp::distribute(
+      llvm::SmallVectorImpl<mlir::Value>& results, mlir::OpBuilder& builder)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        mlir::Value toDistribute = rhs;
+        results.clear();
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
         }
       }
-
-      getResult().replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
     }
 
-    return emitOpError(
-        "Index out of bounds: " + std::to_string(argumentIndex));
-  }
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        mlir::Value toDistribute = lhs;
+        results.clear();
 
-  mlir::Value MulEWOp::distribute(mlir::OpBuilder& builder)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(*this);
-
-    auto lhsDefiningOp = getLhs().getDefiningOp();
-    auto rhsDefiningOp = getRhs().getDefiningOp();
-
-    if (!lhsDefiningOp && !rhsDefiningOp) {
-      return getResult();
-    }
-
-    if (!mlir::isa<MulOpDistributionInterface>(getLhs().getDefiningOp()) &&
-        !mlir::isa<MulOpDistributionInterface>(getRhs().getDefiningOp())) {
-      // The operation can't be propagated because none of the children
-      // know how to distribute the multiplication to their children.
-      return getResult();
-    }
-
-    MulOpDistributionInterface childOp;
-    mlir::Value toDistribute;
-
-    if (lhsDefiningOp != nullptr &&
-        mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
-      childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
-      toDistribute = getRhs();
-    } else {
-      assert(rhsDefiningOp != nullptr);
-      childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
-      toDistribute = getLhs();
-    }
-
-    assert(childOp != nullptr && toDistribute != nullptr);
-
-    return childOp.distributeMulOp(
-        builder, getResult().getType(), toDistribute);
-  }
-
-  mlir::Value MulEWOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
-
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
-
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
-
-    return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    // The operation can't be propagated because none of the children
+    // know how to distribute the multiplication to their children.
+    results.push_back(getResult());
+    return mlir::failure();
   }
 
-  mlir::Value MulEWOp::distributeMulOp(
+  mlir::LogicalResult MulEWOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
+
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult MulEWOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value MulEWOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult MulEWOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<MulEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange MulEWOp::derive(
@@ -3089,17 +3949,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult DivOp::invert(
+  mlir::Value DivOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -3110,17 +3971,7 @@ namespace mlir::modelica
       auto right = builder.create<MulOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      getResult().replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -3128,121 +3979,213 @@ namespace mlir::modelica
       auto right = builder.create<DivOp>(
           getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      getResult().replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Index out of bounds: " + std::to_string(argumentIndex));
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value DivOp::distribute(mlir::OpBuilder& builder)
+  mlir::LogicalResult DivOp::distribute(
+      llvm::SmallVectorImpl<mlir::Value>& results, mlir::OpBuilder& builder)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(*this);
+    mlir::Value lhs = getLhs();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
 
-    auto lhsDefiningOp = getLhs().getDefiningOp();
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        mlir::Value toDistribute = getRhs();
 
-    if (!lhsDefiningOp) {
-      return getResult();
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+            results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
+        }
+      }
     }
 
-    if (!mlir::isa<DivOpDistributionInterface>(lhsDefiningOp)) {
-      // The operation can't be propagated because the dividend does not know
-      // how to distribute the division to their children.
-      return getResult();
+    // The operation can't be propagated because the dividend does not know
+    // how to distribute the division to their children.
+    results.push_back(getResult());
+    return mlir::success();
+  }
+
+  mlir::LogicalResult DivOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
     }
 
-    DivOpDistributionInterface childOp =
-        mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value toDistribute = getRhs();
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return childOp.distributeDivOp(
-        builder, getResult().getType(), toDistribute);
-  }
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
 
-  mlir::Value DivOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
-
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    lhs = lhsNewOp.getResult();
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
 
-    return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    return mlir::success();
   }
 
-  mlir::Value DivOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult DivOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value DivOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult DivOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto divDistributionInt = mlir::dyn_cast<DivOpDistributionInterface>(
+              lhs.getDefiningOp())) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt = mlir::dyn_cast<MulOpDistributionInterface>(
+              rhs.getDefiningOp())) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<DivOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange DivOp::derive(
@@ -3369,17 +4312,18 @@ namespace mlir::modelica
     }
   }
 
-  mlir::LogicalResult DivEWOp::invert(
+  mlir::Value DivEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1)";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -3390,17 +4334,7 @@ namespace mlir::modelica
       auto right = builder.create<MulEWOp>(
           getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      getResult().replaceAllUsesWith(getLhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
     if (argumentIndex == 1) {
@@ -3409,121 +4343,213 @@ namespace mlir::modelica
       auto right = builder.create<DivEWOp>(
           getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
-      for (auto& use : toNest.getUses()) {
-        if (auto* owner = use.getOwner();
-            owner != right && !owner->isBeforeInBlock(right)) {
-          use.set(right.getResult());
-        }
-      }
-
-      getResult().replaceAllUsesWith(getRhs());
-      erase();
-
-      return mlir::success();
+      return right.getResult();
     }
 
-    return emitOpError(
-        "Index out of bounds: " + std::to_string(argumentIndex));
+    emitOpError() << "Can't invert the operand #" << argumentIndex
+                  << ". The operation has 2 operands.";
+
+    return nullptr;
   }
 
-  mlir::Value DivEWOp::distribute(mlir::OpBuilder& builder)
+  mlir::LogicalResult DivEWOp::distribute(
+      llvm::SmallVectorImpl<mlir::Value>& results, mlir::OpBuilder& builder)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPoint(*this);
+    mlir::Value lhs = getLhs();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
 
-    auto lhsDefiningOp = getLhs().getDefiningOp();
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        mlir::Value toDistribute = getRhs();
 
-    if (!lhsDefiningOp) {
-      return getResult();
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                results, builder, getResult().getType(), toDistribute))) {
+          return mlir::success();
+        }
+      }
     }
 
-    if (!mlir::isa<DivOpDistributionInterface>(lhsDefiningOp)) {
-      // The operation can't be propagated because the dividend does not know
-      // how to distribute the division to their children.
-      return getResult();
+    // The operation can't be propagated because the dividend does not know
+    // how to distribute the division to their children.
+    results.push_back(getResult());
+    return mlir::failure();
+  }
+
+  mlir::LogicalResult DivEWOp::distributeNegateOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType)
+  {
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
+
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
+
+    if (lhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
     }
 
-    DivOpDistributionInterface childOp =
-        mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
+    if (rhsOp) {
+      if (auto negDistributionInt =
+              mlir::dyn_cast<NegateOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value toDistribute = getRhs();
+        if (mlir::succeeded(negDistributionInt.distributeNegateOp(
+                childResults, builder, resultType))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return childOp.distributeDivOp(
-        builder, getResult().getType(), toDistribute);
-  }
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
 
-  mlir::Value DivEWOp::distributeNegateOp(
-      mlir::OpBuilder& builder, mlir::Type resultType)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
-
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
-          return casted.distributeNegateOp(builder, resultType);
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-    };
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    lhs = lhsNewOp.getResult();
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
 
-    return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    return mlir::success();
   }
 
-  mlir::Value DivEWOp::distributeMulOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult DivEWOp::distributeMulOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
-          return casted.distributeMulOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<MulOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
-  mlir::Value DivEWOp::distributeDivOp(
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+  mlir::LogicalResult DivEWOp::distributeDivOp(
+      llvm::SmallVectorImpl<mlir::Value>& results,
+      mlir::OpBuilder& builder,
+      mlir::Type resultType,
+      mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Value lhs = getLhs();
+    mlir::Value rhs = getRhs();
 
-    auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      auto definingOp = child.getDefiningOp();
+    mlir::Operation* lhsOp = lhs.getDefiningOp();
+    mlir::Operation* rhsOp = rhs.getDefiningOp();
 
-      if (definingOp != nullptr) {
-        if (auto casted =
-                mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
-          return casted.distributeDivOp(builder, resultType, value);
+    if (lhsOp) {
+      if (auto divDistributionInt =
+              mlir::dyn_cast<DivOpDistributionInterface>(lhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
+
+        if (mlir::succeeded(divDistributionInt.distributeDivOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          lhs = childResults[0];
+
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
         }
       }
+    }
 
-      return builder.create<DivOp>(
-          child.getLoc(), child.getType(), child, value);
-    };
+    if (rhsOp) {
+      if (auto mulDistributionInt =
+              mlir::dyn_cast<MulOpDistributionInterface>(rhsOp)) {
+        llvm::SmallVector<mlir::Value, 1> childResults;
 
-    mlir::Value lhs = distributeFn(this->getLhs());
-    mlir::Value rhs = this->getRhs();
+        if (mlir::succeeded(mulDistributionInt.distributeMulOp(
+                childResults, builder, resultType, value))
+            && childResults.size() == 1) {
+          rhs = childResults[0];
 
-    return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+          auto resultOp = builder.create<DivEWOp>(
+              getLoc(), resultType, lhs, rhs);
+
+          results.push_back(resultOp.getResult());
+          return mlir::success();
+        }
+      }
+    }
+
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    lhs = lhsNewOp.getResult();
+
+    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    results.push_back(resultOp.getResult());
+
+    return mlir::success();
   }
 
   mlir::ValueRange DivEWOp::derive(
@@ -5601,6 +6627,28 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// FillOp
+
+namespace mlir::modelica
+{
+  void FillOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Allocate::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // FloorOp
 
 namespace mlir::modelica
@@ -5801,7 +6849,7 @@ namespace mlir::modelica
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
     }
 
-    auto op = builder.create<FloorOp>(getLoc(), newResultType, newOperand);
+    auto op = builder.create<IntegerOp>(getLoc(), newResultType, newOperand);
     return op->getResults();
   }
 }
@@ -7543,52 +8591,7 @@ namespace mlir::modelica
       mlir::OperationState& state,
       llvm::StringRef name)
   {
-    state.addRegion()->emplaceBlock();
-
-    state.attributes.push_back(builder.getNamedAttr(
-        mlir::SymbolTable::getSymbolAttrName(),
-        builder.getStringAttr(name)));
-  }
-
-  mlir::ParseResult ModelOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    mlir::StringAttr nameAttr;
-
-    if (parser.parseSymbolName(
-            nameAttr,
-            mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes) ||
-        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    if (bodyRegion->empty()) {
-      bodyRegion->emplaceBlock();
-    }
-
-    return mlir::success();
-  }
-
-  void ModelOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer.printSymbolName(getSymName());
-    printer << " ";
-
-    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-
-    printer.printOptionalAttrDictWithKeyword(
-        getOperation()->getAttrs(), elidedAttrs);
-
-    printer.printRegion(getBodyRegion());
+    build(builder, state, name, builder.getArrayAttr(llvm::None));
   }
 
   mlir::RegionKind ModelOp::getRegionKind(unsigned index)
@@ -7596,75 +8599,51 @@ namespace mlir::modelica
     return mlir::RegionKind::Graph;
   }
 
-  mlir::Block* ModelOp::bodyBlock()
+
+  void ModelOp::collectVariables(llvm::SmallVectorImpl<VariableOp>& variables)
   {
-    assert(getBodyRegion().hasOneBlock());
-    return &getBodyRegion().front();
-  }
-}
-
-//===---------------------------------------------------------------------===//
-// RecordOp
-
-namespace mlir::modelica
-{
-  void RecordOp::build(
-      mlir::OpBuilder& builder,
-      mlir::OperationState& state,
-      llvm::StringRef name)
-  {
-    state.addRegion()->emplaceBlock();
-
-    state.attributes.push_back(builder.getNamedAttr(
-        mlir::SymbolTable::getSymbolAttrName(),
-        builder.getStringAttr(name)));
-  }
-
-  mlir::ParseResult RecordOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    mlir::StringAttr nameAttr;
-
-    if (parser.parseSymbolName(
-            nameAttr,
-            mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes) ||
-        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
+    for (VariableOp variableOp : getVariables()) {
+      variables.push_back(variableOp);
     }
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    if (bodyRegion->empty()) {
-      bodyRegion->emplaceBlock();
-    }
-
-    return mlir::success();
   }
 
-  void RecordOp::print(mlir::OpAsmPrinter& printer)
+  void ModelOp::collectEquations(
+      llvm::SmallVectorImpl<EquationInstanceOp>& initialEquations,
+      llvm::SmallVectorImpl<EquationInstanceOp>& equations)
   {
-    printer << " ";
-    printer.printSymbolName(getSymName());
-    printer << " ";
-
-    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-
-    printer.printOptionalAttrDictWithKeyword(
-        getOperation()->getAttrs(), elidedAttrs);
-
-    printer.printRegion(getBodyRegion());
+    for (EquationInstanceOp op : getOps<EquationInstanceOp>()) {
+      if (op.getInitial()) {
+        initialEquations.push_back(op);
+      } else {
+        equations.push_back(op);
+      }
+    }
   }
 
-  mlir::Block* RecordOp::bodyBlock()
+  void ModelOp::collectEquations(
+      llvm::SmallVectorImpl<MatchedEquationInstanceOp>& initialEquations,
+      llvm::SmallVectorImpl<MatchedEquationInstanceOp>& equations)
   {
-    assert(getBodyRegion().hasOneBlock());
-    return &getBodyRegion().front();
+    for (MatchedEquationInstanceOp op : getOps<MatchedEquationInstanceOp>()) {
+      if (op.getInitial()) {
+        initialEquations.push_back(op);
+      } else {
+        equations.push_back(op);
+      }
+    }
+  }
+
+  void ModelOp::collectSCCs(
+      llvm::SmallVectorImpl<SCCOp>& initialSCCs,
+      llvm::SmallVectorImpl<SCCOp>& SCCs)
+  {
+    for (SCCOp op : getOps<SCCOp>()) {
+      if (op.getInitial()) {
+        initialSCCs.push_back(op);
+      } else {
+        SCCs.push_back(op);
+      }
+    }
   }
 }
 
@@ -7773,6 +8752,26 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ForEquationOp
 
+namespace
+{
+  struct EmptyForEquationOpErasePattern
+      : public mlir::OpRewritePattern<ForEquationOp>
+  {
+    using mlir::OpRewritePattern<ForEquationOp>::OpRewritePattern;
+
+    mlir::LogicalResult match(ForEquationOp op) const override
+    {
+      return mlir::LogicalResult::success(op.getOps().empty());
+    }
+
+    void rewrite(
+        ForEquationOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      rewriter.eraseOp(op);
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   void ForEquationOp::build(
@@ -7796,6 +8795,12 @@ namespace mlir::modelica
 
     builder.createBlock(
         bodyRegion, {}, builder.getIndexType(), builder.getUnknownLoc());
+  }
+
+  void ForEquationOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<EmptyForEquationOpErasePattern>(context);
   }
 
   mlir::Block* ForEquationOp::bodyBlock()
@@ -7867,6 +8872,2889 @@ namespace mlir::modelica
 
     printer << " ";
     printer.printRegion(getBodyRegion(), false);
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// EquationTemplateOp
+
+namespace mlir::modelica
+{
+  mlir::ParseResult EquationTemplateOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    llvm::SmallVector<mlir::OpAsmParser::Argument, 3> inductions;
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseKeyword("inductions") ||
+        parser.parseEqual() ||
+        parser.parseArgumentList(
+            inductions, mlir::OpAsmParser::Delimiter::Square) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    for (auto& induction : inductions) {
+      induction.type = parser.getBuilder().getIndexType();
+    }
+
+    if (parser.parseRegion(*bodyRegion, inductions)) {
+      return mlir::failure();
+    }
+
+    if (bodyRegion->empty()) {
+      mlir::OpBuilder builder(bodyRegion);
+
+      llvm::SmallVector<mlir::Type, 3> argTypes(
+          inductions.size(), builder.getIndexType());
+
+      llvm::SmallVector<mlir::Location, 3> argLocs(
+          inductions.size(), builder.getUnknownLoc());
+
+      builder.createBlock(bodyRegion, {}, argTypes, argLocs);
+    }
+
+    result.addTypes(EquationType::get(parser.getContext()));
+    return mlir::success();
+  }
+
+  void EquationTemplateOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer << "inductions = [";
+    printer.printOperands(getInductionVariables());
+    printer << "]";
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+    printer << " ";
+    printer.printRegion(getBodyRegion(), false);
+  }
+
+  mlir::Block* EquationTemplateOp::createBody(unsigned int numOfInductions)
+  {
+    mlir::OpBuilder builder(getContext());
+
+    llvm::SmallVector<mlir::Type, 3> argTypes(
+        numOfInductions, builder.getIndexType());
+
+    llvm::SmallVector<mlir::Location, 3> argLocs(
+        numOfInductions, builder.getUnknownLoc());
+
+    return builder.createBlock(&getBodyRegion(), {}, argTypes, argLocs);
+  }
+
+  mlir::ValueRange EquationTemplateOp::getInductionVariables()
+  {
+    return getBodyRegion().getArguments();
+  }
+
+  uint64_t EquationTemplateOp::getNumOfImplicitInductionVariables(
+      uint64_t viewElementIndex)
+  {
+    // Checking lhs or rhs is the same.
+    mlir::Value lhs = getValueAtPath(
+        EquationPath(EquationPath::LEFT, viewElementIndex));
+
+    size_t implicitIterationVariables = 0;
+
+    if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
+      implicitIterationVariables = arrayType.getRank();
+    }
+
+    return implicitIterationVariables;
+  }
+
+  llvm::Optional<mlir::modeling::IndexSet>
+  EquationTemplateOp::computeImplicitIterationSpace(uint64_t viewElementIndex)
+  {
+    mlir::Value lhs = getValueAtPath(
+        EquationPath(EquationPath::LEFT, viewElementIndex));
+
+    mlir::Value rhs = getValueAtPath(
+        EquationPath(EquationPath::RIGHT, viewElementIndex));
+
+    auto lhsArrayType = lhs.getType().dyn_cast<ArrayType>();
+    auto rhsArrayType = rhs.getType().dyn_cast<ArrayType>();
+
+    llvm::SmallVector<int64_t> shape;
+
+    if (lhsArrayType && rhsArrayType) {
+      assert(lhsArrayType.getRank() == rhsArrayType.getRank());
+
+      for (int64_t i = 0, rank = lhsArrayType.getRank(); i < rank; ++i) {
+        int64_t lhsDim = lhsArrayType.getDimSize(i);
+
+        if (lhsDim == ArrayType::kDynamicSize) {
+          int64_t rhsDim = rhsArrayType.getDimSize(i);
+          assert(rhsDim != ArrayType::kDynamicSize);
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(lhsDim);
+        }
+      }
+    }
+
+    if (shape.empty()) {
+      return llvm::None;
+    }
+
+    if (!lhsArrayType) {
+      return llvm::None;
+    }
+
+    llvm::SmallVector<Range, 3> ranges;
+
+    for (int64_t dimension : shape) {
+      ranges.push_back(mlir::modeling::Range(0, dimension));
+    }
+
+    return IndexSet(MultidimensionalRange(ranges));
+  }
+
+  llvm::DenseMap<mlir::Value, unsigned int>
+  EquationTemplateOp::getInductionsPositionMap()
+  {
+    mlir::ValueRange inductionVariables = getInductionVariables();
+    llvm::DenseMap<mlir::Value, unsigned int> inductionsPositionMap;
+
+    for (auto inductionVariable : llvm::enumerate(inductionVariables)) {
+      inductionsPositionMap[inductionVariable.value()] =
+          inductionVariable.index();
+    }
+
+    return inductionsPositionMap;
+  }
+
+  mlir::LogicalResult EquationTemplateOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable,
+      uint64_t elementIndex)
+  {
+    auto equationSides =
+        mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+    // Get the induction variables and number them.
+    auto inductionsPositionMap = getInductionsPositionMap();
+
+    // Search the accesses starting from the left-hand side of the equation.
+    if (mlir::failed(searchAccesses(
+            result, symbolTable, inductionsPositionMap,
+            equationSides.getLhsValues()[elementIndex],
+            EquationPath(EquationPath::LEFT, elementIndex)))) {
+      return mlir::failure();
+    }
+
+    // Search the accesses starting from the right-hand side of the equation.
+    if (mlir::failed(searchAccesses(
+            result, symbolTable, inductionsPositionMap,
+            equationSides.getRhsValues()[elementIndex],
+            EquationPath(EquationPath::RIGHT, elementIndex)))) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::getWriteAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses,
+      const VariableAccess& matchedAccess)
+  {
+    const AccessFunction& matchedAccessFunction =
+        matchedAccess.getAccessFunction();
+
+    IndexSet matchedVariableIndices =
+        matchedAccessFunction.map(equationIndices);
+
+    for (const VariableAccess& access : accesses) {
+      if (access.getVariable() != matchedAccess.getVariable()) {
+        continue;
+      }
+
+      const AccessFunction& accessFunction = access.getAccessFunction();
+
+      IndexSet accessedVariableIndices =
+          accessFunction.map(equationIndices);
+
+      if (matchedVariableIndices.empty() && accessedVariableIndices.empty()) {
+        result.push_back(access);
+      } else if (matchedVariableIndices.overlaps(accessedVariableIndices)) {
+        result.push_back(access);
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses,
+      const VariableAccess& matchedAccess)
+  {
+    const AccessFunction& matchedAccessFunction =
+        matchedAccess.getAccessFunction();
+
+    IndexSet matchedVariableIndices =
+        matchedAccessFunction.map(equationIndices);
+
+    for (const VariableAccess& access : accesses) {
+      if (access.getVariable() != matchedAccess.getVariable()) {
+        result.push_back(access);
+      } else {
+        const AccessFunction& accessFunction =
+            access.getAccessFunction();
+
+        IndexSet accessedVariableIndices =
+            accessFunction.map(equationIndices);
+
+        if (!matchedVariableIndices.empty() &&
+            !accessedVariableIndices.empty()) {
+          if (!matchedVariableIndices.contains(accessedVariableIndices)) {
+            result.push_back(access);
+          }
+        }
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::Value EquationTemplateOp::getValueAtPath(const EquationPath& path)
+  {
+    mlir::Block* bodyBlock = getBody();
+    EquationPath::EquationSide side = path.getEquationSide();
+
+    auto equationSidesOp =
+        mlir::cast<EquationSidesOp>(bodyBlock->getTerminator());
+
+    mlir::Value value = side == EquationPath::LEFT
+        ? equationSidesOp.getLhsValues()[path[0]]
+        : equationSidesOp.getRhsValues()[path[0]];
+
+    for (size_t i = 1, e = path.size(); i < e; ++i) {
+      mlir::Operation* op = value.getDefiningOp();
+      assert(op != nullptr && "Invalid equation path");
+      value = op->getOperand(path[i]);
+    }
+
+    return value;
+  }
+
+  llvm::Optional<VariableAccess> EquationTemplateOp::getAccessAtPath(
+      mlir::SymbolTableCollection& symbolTable,
+      const EquationPath& path)
+  {
+    // Get the induction variables and number them.
+    mlir::ValueRange inductionVariables = getInductionVariables();
+    llvm::DenseMap<mlir::Value, unsigned int> inductionsPositionMap;
+
+    for (auto inductionVariable : llvm::enumerate(inductionVariables)) {
+      inductionsPositionMap[inductionVariable.value()] =
+          inductionVariable.index();
+    }
+
+    // Get the access.
+    llvm::SmallVector<VariableAccess, 1> accesses;
+    mlir::Value access = getValueAtPath(path);
+
+    if (mlir::failed(searchAccesses(
+            accesses, symbolTable, inductionsPositionMap, access, path))) {
+      return llvm::None;
+    }
+
+    assert(accesses.size() == 1);
+    return accesses[0];
+  }
+
+  llvm::Optional<mlir::AffineMap> EquationTemplateOp::getAccessFunction(
+      llvm::ArrayRef<mlir::Value> indices)
+  {
+    // Get the induction variables and number them.
+    mlir::ValueRange inductionVariables = getInductionVariables();
+    llvm::DenseMap<mlir::Value, unsigned int> inductionsPositionMap;
+
+    for (const auto& inductionVariable : llvm::enumerate(inductionVariables)) {
+      inductionsPositionMap[inductionVariable.value()] =
+          inductionVariable.index();
+    }
+
+    llvm::SmallVector<mlir::AffineExpr, 3> expressions;
+
+    for (mlir::Value index : indices) {
+      if (auto expression = getAffineExpr(inductionsPositionMap, index)) {
+        expressions.push_back(*expression);
+      } else {
+        return llvm::None;
+      }
+    }
+
+    return mlir::AffineMap::get(
+        inductionVariables.size(), 0, expressions, getContext());
+  }
+
+  mlir::LogicalResult EquationTemplateOp::searchAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      mlir::Value value,
+      EquationPath path)
+  {
+    llvm::SmallVector<mlir::AffineExpr, 10> dimensionAccesses;
+
+    return searchAccesses(accesses, symbolTable, inductionsPositionMap,
+                   value, dimensionAccesses, std::move(path));
+  }
+
+  mlir::LogicalResult EquationTemplateOp::searchAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      mlir::Value value,
+      llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
+      EquationPath path)
+  {
+    if (mlir::Operation* definingOp = value.getDefiningOp()) {
+      if (mlir::failed(searchAccesses(
+              accesses, symbolTable, inductionsPositionMap,
+              definingOp, dimensionAccesses, std::move(path)))) {
+        return mlir::failure();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::searchAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      mlir::Operation* op,
+      llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
+      EquationPath path)
+  {
+    if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
+      llvm::SmallVector<mlir::AffineExpr, 3> reverted(
+          dimensionAccesses.rbegin(), dimensionAccesses.rend());
+
+      uint64_t numOfExplicitInductions =
+          static_cast<uint64_t>(inductionsPositionMap.size());
+
+      uint64_t numOfImplicitInductions =
+          getNumOfImplicitInductionVariables(path[0]);
+
+      uint64_t numOfInductions =
+          numOfExplicitInductions + numOfImplicitInductions;
+
+      if (path.size() == 1) {
+        for (uint64_t i = numOfExplicitInductions; i < numOfInductions; ++i) {
+          reverted.push_back(mlir::getAffineDimExpr(i, getContext()));
+        }
+      }
+
+      auto affineMap = mlir::AffineMap::get(
+          numOfInductions, 0, reverted, getContext());
+
+      accesses.push_back(VariableAccess(
+          std::move(path),
+          mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
+          AccessFunction::build(affineMap)));
+
+      return mlir::success();
+    }
+
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
+      for (size_t i = 0, e = loadOp.getIndices().size(); i < e; ++i) {
+        mlir::Value index = loadOp.getIndices()[e - 1 - i];
+        auto expression = getAffineExpr(inductionsPositionMap, index);
+
+        if (!expression) {
+          loadOp.emitOpError() << "Can't compute access";
+          return mlir::failure();
+        }
+
+        dimensionAccesses.push_back(*expression);
+      }
+
+      return searchAccesses(
+          accesses, symbolTable, inductionsPositionMap,
+          loadOp.getArray(), dimensionAccesses, std::move(path));
+    }
+
+    if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
+      for (size_t i = 0, e = subscriptionOp.getIndices().size(); i < e; ++i) {
+        mlir::Value index = subscriptionOp.getIndices()[e - 1 - i];
+        auto expression = getAffineExpr(inductionsPositionMap, index);
+
+        if (!expression) {
+          subscriptionOp.emitOpError() << "Can't compute access";
+          return mlir::failure();
+        }
+
+        dimensionAccesses.push_back(*expression);
+      }
+
+      return searchAccesses(
+          accesses, symbolTable, inductionsPositionMap,
+          subscriptionOp.getSource(), dimensionAccesses, std::move(path));
+    }
+
+    for (size_t i = 0, e = op->getNumOperands(); i < e; ++i) {
+      EquationPath::Guard guard(path);
+      path += i;
+
+      if (mlir::failed(searchAccesses(
+              accesses, symbolTable, inductionsPositionMap,
+              op->getOperand(i), path))) {
+        return mlir::failure();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  llvm::Optional<mlir::AffineExpr> EquationTemplateOp::getAffineExpr(
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      mlir::Value index)
+  {
+    if (auto definingOp = index.getDefiningOp()) {
+      if (auto op = mlir::dyn_cast<ConstantOp>(definingOp)) {
+        return mlir::getAffineConstantExpr(
+            getIntegerFromAttribute(op.getValue()), index.getContext());
+      }
+
+      if (auto op = mlir::dyn_cast<AddOp>(definingOp)) {
+        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
+        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
+
+        if (!lhs || !rhs) {
+          return llvm::None;
+        }
+
+        return *lhs + *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<SubOp>(definingOp)) {
+        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
+        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
+
+        if (!lhs || !rhs) {
+          return llvm::None;
+        }
+
+        return *lhs - *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<MulOp>(definingOp)) {
+        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
+        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
+
+        if (!lhs || !rhs) {
+          return llvm::None;
+        }
+
+        return *lhs * *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<DivOp>(definingOp)) {
+        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
+        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
+
+        if (!lhs || !rhs) {
+          return llvm::None;
+        }
+
+        return lhs->floorDiv(*rhs);
+      }
+    }
+
+    if (auto it = inductionsPositionMap.find(index);
+        it != inductionsPositionMap.end()) {
+      return mlir::getAffineDimExpr(it->second, getContext());
+    }
+
+    return llvm::None;
+  }
+
+  mlir::LogicalResult EquationTemplateOp::cloneWithReplacedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      llvm::SmallVectorImpl<std::pair<IndexSet, EquationTemplateOp>>& results)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+    // Erase the operations in case of unrecoverable failure.
+    auto cleanOnFailure = llvm::make_scope_exit([&]() {
+      for (const auto& result : results) {
+        rewriter.eraseOp(result.second);
+      }
+    });
+
+    // The set of indices that are yet to be processed.
+    IndexSet remainingEquationIndices;
+
+    if (equationIndices) {
+      remainingEquationIndices = equationIndices->get();
+    }
+
+    // Determine the access functions.
+    mlir::Value destinationValue = getValueAtPath(access.getPath());
+    int64_t destinationRank = 0;
+
+    if (auto destinationArrayType =
+            destinationValue.getType().dyn_cast<ArrayType>()) {
+      destinationRank = destinationArrayType.getRank();
+    }
+
+    mlir::Value sourceValue =
+        replacementEquation.getValueAtPath(replacementAccess.getPath());
+
+    int64_t sourceRank = 0;
+
+    if (auto sourceArrayType = sourceValue.getType().dyn_cast<ArrayType>()) {
+      sourceRank = sourceArrayType.getRank();
+    }
+
+    if (destinationRank > sourceRank) {
+      // The access to be replaced requires indices of the variables that are
+      // potentially not handled by the source equation.
+      return mlir::failure();
+    }
+
+    mlir::AffineMap destinationMap = access.getAccessFunction().getAffineMap();
+
+    // The extra subscription indices to be applied to the replacement value.
+    llvm::SmallVector<mlir::Value> additionalSubscriptionIndices;
+
+    if (destinationRank < sourceRank) {
+      // The access to be replaced specifies more indices than the ones given
+      // by the source equation. This means that the source equation writes to
+      // more indices than the requested ones. Inlining the source equation
+      // results in possibly wasted additional computations, but does lead to
+      // a correct result.
+
+      destinationMap = mlir::AffineMap::get(
+          destinationMap.getNumDims(),
+          destinationMap.getNumSymbols(),
+          destinationMap.getResults().drop_back(
+              sourceRank - destinationRank),
+          destinationMap.getContext());
+
+      // If the destination access has more indices than the source one,
+      // then collect the additional ones and apply them to the
+      // replacement value.
+      int64_t rankDifference = sourceRank - destinationRank;
+      mlir::Operation* replacedValueOp = destinationValue.getDefiningOp();
+
+      auto allAdditionalIndicesCollected = [&]() -> bool {
+        return rankDifference ==
+            static_cast<int64_t>(additionalSubscriptionIndices.size());
+      };
+
+      while (mlir::isa<LoadOp, SubscriptionOp>(replacedValueOp) &&
+             !allAdditionalIndicesCollected()) {
+        if (auto loadOp =
+                mlir::dyn_cast<LoadOp>(replacedValueOp)) {
+          size_t numOfIndices = loadOp.getIndices().size();
+
+          for (size_t i = 0; i < numOfIndices &&
+               !allAdditionalIndicesCollected(); ++i) {
+            additionalSubscriptionIndices.push_back(
+                loadOp.getIndices()[numOfIndices - i - 1]);
+          }
+
+          replacedValueOp = loadOp.getArray().getDefiningOp();
+          continue;
+        }
+
+        if (auto subscriptionOp =
+                mlir::dyn_cast<SubscriptionOp>(replacedValueOp)) {
+          size_t numOfIndices = subscriptionOp.getIndices().size();
+
+          for (size_t i = 0; i < numOfIndices &&
+               !allAdditionalIndicesCollected(); ++i) {
+            additionalSubscriptionIndices.push_back(
+                subscriptionOp.getIndices()[numOfIndices - i - 1]);
+          }
+
+          replacedValueOp =
+              subscriptionOp.getSource().getDefiningOp();
+
+          continue;
+        }
+
+        return mlir::failure();
+      }
+
+      assert(allAdditionalIndicesCollected());
+
+      // Indices have been collected in reverse order, due to the bottom-up
+      // visit of the operations tree.
+      std::reverse(additionalSubscriptionIndices.begin(),
+                   additionalSubscriptionIndices.end());
+    }
+
+    VariableAccess destinationAccess(
+        access.getPath(), access.getVariable(),
+        AccessFunction::build(destinationMap));
+
+    // Try to perform a vectorized replacement first.
+    if (mlir::failed(cloneWithReplacedVectorizedAccess(
+            rewriter, equationIndices, access, replacementEquation,
+            replacementAccess, additionalSubscriptionIndices, results,
+            remainingEquationIndices))) {
+      return mlir::failure();
+    }
+
+    // Perform scalar replacements on the remaining equation indices.
+    // TODO
+    /*
+    for (Point scalarEquationIndices : remainingEquationIndices) {
+    }
+     */
+
+    if (remainingEquationIndices.empty()) {
+      cleanOnFailure.release();
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      llvm::ArrayRef<mlir::Value> additionalSubscriptions,
+      llvm::SmallVectorImpl<
+          std::pair<IndexSet, EquationTemplateOp>>& results,
+      IndexSet& remainingEquationIndices)
+  {
+    const AccessFunction& destinationAccessFunction =
+        access.getAccessFunction();
+
+    const AccessFunction& sourceAccessFunction =
+        replacementAccess.getAccessFunction();
+
+    auto transformation = getReplacementTransformationAccess(
+        destinationAccessFunction, sourceAccessFunction);
+
+    if (transformation) {
+      if (mlir::failed(cloneWithReplacedVectorizedAccess(
+              rewriter, equationIndices, access, replacementEquation,
+              replacementAccess, *transformation, additionalSubscriptions,
+              results, remainingEquationIndices))) {
+        return mlir::failure();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      const AccessFunction& transformation,
+      llvm::ArrayRef<mlir::Value> additionalSubscriptions,
+      llvm::SmallVectorImpl<std::pair<IndexSet, EquationTemplateOp>>& results,
+      IndexSet& remainingEquationIndices)
+  {
+    if (equationIndices && !equationIndices->get().empty()) {
+      for (const MultidimensionalRange& range : llvm::make_range(
+               equationIndices->get().rangesBegin(),
+               equationIndices->get().rangesEnd())) {
+        if (mlir::failed(cloneWithReplacedVectorizedAccess(
+                rewriter, std::reference_wrapper(range), access,
+                replacementEquation, replacementAccess, transformation,
+                additionalSubscriptions, results, remainingEquationIndices))) {
+          return mlir::failure();
+        }
+      }
+
+      return mlir::success();
+    }
+
+    return cloneWithReplacedVectorizedAccess(
+        rewriter,
+        llvm::Optional<
+            std::reference_wrapper<const MultidimensionalRange>>(llvm::None),
+        access, replacementEquation, replacementAccess, transformation,
+        additionalSubscriptions, results, remainingEquationIndices);
+  }
+
+  mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<
+          std::reference_wrapper<const MultidimensionalRange>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      const AccessFunction& transformation,
+      llvm::ArrayRef<mlir::Value> additionalSubscriptions,
+      llvm::SmallVectorImpl<std::pair<IndexSet, EquationTemplateOp>>& results,
+      IndexSet& remainingEquationIndices)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(getOperation());
+
+    // Create the equation template.
+    auto equationTemplateOp = rewriter.create<EquationTemplateOp>(getLoc());
+    equationTemplateOp->setAttrs(getOperation()->getAttrDictionary());
+
+    if (equationIndices) {
+      remainingEquationIndices -= equationIndices->get();
+      results.emplace_back(IndexSet(equationIndices->get()), equationTemplateOp);
+    } else {
+      results.emplace_back(IndexSet(), equationTemplateOp);
+    }
+
+    mlir::Block* equationBodyBlock =
+        equationTemplateOp.createBody(getInductionVariables().size());
+
+    rewriter.setInsertionPointToStart(equationBodyBlock);
+
+    // Clone the operations composing the replacement equation.
+    mlir::BlockAndValueMapping replacementMapping;
+
+    if (mlir::failed(mapInductionVariables(
+            rewriter, replacementEquation.getLoc(),
+            replacementMapping, replacementEquation, equationTemplateOp,
+            transformation))) {
+      return mlir::failure();
+    }
+
+    for (auto& op : replacementEquation.getOps()) {
+      if (!mlir::isa<EquationSideOp, EquationSidesOp>(op)) {
+        rewriter.clone(op, replacementMapping);
+      }
+    }
+
+    // Compute the replacement value.
+    mlir::Value mappedReplacement =
+        replacementMapping.lookup(replacementEquation.getValueAtPath(
+            EquationPath(EquationPath::RIGHT, access.getPath()[0])));
+
+    // The optional additional subscription indices.
+    llvm::SmallVector<mlir::Value, 3> additionalMappedSubscriptions;
+
+    // Clone the operations composing the destination equation.
+    mlir::BlockAndValueMapping destinationMapping;
+
+    for (auto [oldInduction, newInduction] : llvm::zip(
+             getInductionVariables(),
+             equationTemplateOp.getInductionVariables())) {
+      destinationMapping.map(oldInduction, newInduction);
+    }
+
+    mlir::Value originalReplacedValue = getValueAtPath(access.getPath());
+
+    for (auto& op : getOps()) {
+      mlir::Operation* clonedOp = rewriter.clone(op, destinationMapping);
+      for (auto [oldResult, newResult] :
+           llvm::zip(op.getResults(), clonedOp->getResults())) {
+        if (oldResult == originalReplacedValue) {
+          // The value to be replaced has been found.
+          mlir::Value replacement = mappedReplacement;
+
+          if (!additionalSubscriptions.empty()) {
+            additionalMappedSubscriptions.clear();
+
+            for (mlir::Value index : additionalSubscriptions) {
+              additionalMappedSubscriptions.push_back(
+                  destinationMapping.lookup(index));
+            }
+
+            replacement = rewriter.create<SubscriptionOp>(
+                replacement.getLoc(), replacement,
+                additionalMappedSubscriptions);
+
+            if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
+                arrayType && arrayType.isScalar()) {
+              replacement = rewriter.create<LoadOp>(
+                  replacement.getLoc(), replacement);
+            }
+          }
+
+          destinationMapping.map(oldResult, replacement);
+        } else {
+          destinationMapping.map(oldResult, newResult);
+        }
+      }
+    }
+
+    return mlir::success();
+  }
+
+  std::unique_ptr<AccessFunction>
+  EquationTemplateOp::getReplacementTransformationAccess(
+      const AccessFunction& destinationAccess,
+      const AccessFunction& sourceAccess)
+  {
+    if (auto sourceInverseAccess = sourceAccess.inverse()) {
+      return destinationAccess.combine(*sourceInverseAccess);
+    }
+
+    // Check if the source access is invertible by removing the constant
+    // accesses.
+
+    // Determine the constant results to be removed.
+    mlir::AffineMap sourceAffineMap = sourceAccess.getAffineMap();
+    llvm::SmallVector<int64_t, 3> constantExprPositions;
+
+    for (size_t i = 0, e = sourceAffineMap.getNumResults(); i < e; ++i) {
+      if (sourceAffineMap.getResult(i).isa<mlir::AffineConstantExpr>()) {
+        constantExprPositions.push_back(i);
+      }
+    }
+
+    // Compute the reduced access functions.
+    auto reducedSourceAccessFunction =
+        AccessFunction::build(mlir::compressUnusedDims(
+            sourceAccess.getAffineMap().dropResults(constantExprPositions)));
+
+    auto reducedSourceInverseAccessFunction =
+        reducedSourceAccessFunction->inverse();
+
+    if (!reducedSourceInverseAccessFunction) {
+      return nullptr;
+    }
+
+    auto reducedDestinationAccessFunction = AccessFunction::build(
+        destinationAccess.getAffineMap().dropResults(constantExprPositions));
+
+    auto combinedReducedAccess = reducedDestinationAccessFunction->combine(
+        *reducedSourceInverseAccessFunction);
+
+    mlir::AffineMap combinedAffineMap = combinedReducedAccess->getAffineMap();
+
+    return AccessFunction::build(mlir::AffineMap::get(
+        destinationAccess.getNumOfDims(), 0,
+        combinedAffineMap.getResults(), combinedAffineMap.getContext()));
+  }
+
+  mlir::LogicalResult EquationTemplateOp::mapInductionVariables(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      mlir::BlockAndValueMapping& mapping,
+      EquationTemplateOp source,
+      EquationTemplateOp destination,
+      const AccessFunction& transformation)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(destination.getBody());
+
+    mlir::AffineMap affineMap = transformation.getAffineMap();
+
+    if (affineMap.getNumResults() < source.getInductionVariables().size()) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::Value> affineMapResults;
+
+    if (mlir::failed(materializeAffineMap(
+            builder, loc, affineMap, destination.getInductionVariables(),
+            affineMapResults))) {
+      return mlir::failure();
+    }
+
+    auto sourceInductionVariables = source.getInductionVariables();
+
+    for (size_t i = 0, e = sourceInductionVariables.size(); i < e; ++i) {
+      mapping.map(sourceInductionVariables[i], affineMapResults[i]);
+    }
+
+    return mlir::success();
+  }
+
+  IndexSet EquationTemplateOp::applyAccessFunction(
+      const AccessFunction& accessFunction,
+      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
+      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      const EquationPath& path)
+  {
+    IndexSet result;
+
+    if (explicitEquationIndices) {
+      result = accessFunction.map(IndexSet(*explicitEquationIndices));
+    }
+
+    if (path.size() == 1) {
+      // Leaf of the equation. Add the implicit inductions.
+      if (implicitEquationIndices) {
+        result.append(IndexSet(*implicitEquationIndices));
+      }
+    }
+
+    return result;
+  }
+
+  mlir::LogicalResult EquationTemplateOp::explicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
+      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      const EquationPath& path)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+    // Get all the paths that lead to accesses with the same accessed variable
+    // and function.
+    auto requestedAccess = getAccessAtPath(symbolTableCollection, path);
+
+    if (!requestedAccess) {
+      return mlir::failure();
+    }
+
+    const AccessFunction& requestedAccessFunction =
+        requestedAccess->getAccessFunction();
+
+    IndexSet requestedIndices = applyAccessFunction(
+        requestedAccessFunction,
+        explicitEquationIndices,
+        implicitEquationIndices,
+        path);
+
+    llvm::SmallVector<VariableAccess, 10> accesses;
+
+    if (mlir::failed(getAccesses(accesses, symbolTableCollection, path[0]))) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<VariableAccess, 5> filteredAccesses;
+
+    for (const VariableAccess& access : accesses) {
+      if (requestedAccess->getVariable() != access.getVariable()) {
+        continue;
+      }
+
+      const AccessFunction& currentAccessFunction = access.getAccessFunction();
+
+      IndexSet currentIndices = applyAccessFunction(
+          currentAccessFunction,
+          explicitEquationIndices,
+          implicitEquationIndices,
+          access.getPath());
+
+      if (requestedIndices != currentIndices &&
+          requestedIndices.overlaps(currentIndices)) {
+        return mlir::failure();
+      }
+
+      assert(requestedIndices == currentIndices ||
+             !requestedIndices.overlaps(currentIndices));
+
+      if (requestedIndices == currentIndices) {
+        filteredAccesses.push_back(access);
+      }
+    }
+
+    assert(!filteredAccesses.empty());
+
+    // If there is only one access, then it is sufficient to follow the path
+    // and invert the operations.
+
+    auto terminator =
+        mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+    auto lhsOp = terminator.getLhs().getDefiningOp();
+    auto rhsOp = terminator.getRhs().getDefiningOp();
+
+    rewriter.setInsertionPoint(lhsOp);
+
+    if (rhsOp->isBeforeInBlock(lhsOp)) {
+      rewriter.setInsertionPoint(rhsOp);
+    }
+
+    if (filteredAccesses.size() == 1) {
+      for (size_t i = 1, e = path.size(); i < e; ++i) {
+        if (mlir::failed(explicitateLeaf(
+                rewriter, path[0], path[i], path.getEquationSide()))) {
+          return mlir::failure();
+        }
+      }
+
+      if (path.getEquationSide() == EquationPath::RIGHT) {
+        llvm::SmallVector<mlir::Value, 1> lhsValues;
+        llvm::SmallVector<mlir::Value, 1> rhsValues;
+
+        rewriter.setInsertionPointAfter(terminator);
+
+        rewriter.create<EquationSidesOp>(
+            terminator->getLoc(), terminator.getRhs(), terminator.getLhs());
+
+        rewriter.eraseOp(terminator);
+      }
+    } else {
+      // If there are multiple accesses, then we must group all of them and
+      // extract the common multiplying factor.
+
+      if (mlir::failed(groupLeftHandSide(
+              rewriter, symbolTableCollection,
+              explicitEquationIndices, implicitEquationIndices,
+              *requestedAccess))) {
+        return mlir::failure();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
+      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      const EquationPath& path)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto clonedOp =
+        mlir::cast<EquationTemplateOp>(rewriter.clone(*getOperation()));
+
+    auto cleanOnFailure = llvm::make_scope_exit([&]() {
+      rewriter.eraseOp(clonedOp);
+    });
+
+    if (mlir::failed(clonedOp.explicitate(
+            rewriter,
+            symbolTableCollection,
+            explicitEquationIndices,
+            implicitEquationIndices,
+            path))) {
+      return nullptr;
+    }
+
+    cleanOnFailure.release();
+    return clonedOp;
+  }
+
+  mlir::LogicalResult EquationTemplateOp::explicitateLeaf(
+      mlir::RewriterBase& rewriter,
+      uint64_t viewElementIndex,
+      size_t argumentIndex,
+      EquationPath::EquationSide side)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+    auto equationSidesOp =
+        mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+    mlir::ValueRange oldLhsValues = equationSidesOp.getLhsValues();
+    mlir::ValueRange oldRhsValues = equationSidesOp.getRhsValues();
+
+    assert(viewElementIndex < oldLhsValues.size());
+    assert(viewElementIndex < oldRhsValues.size());
+
+    mlir::Value toExplicitate = side == EquationPath::LEFT
+        ? oldLhsValues[viewElementIndex] : oldRhsValues[viewElementIndex];
+
+    mlir::Value otherExp = side == EquationPath::RIGHT
+        ? oldLhsValues[viewElementIndex] : oldRhsValues[viewElementIndex];
+
+    mlir::Operation* op = toExplicitate.getDefiningOp();
+    auto invertibleOp = mlir::dyn_cast<InvertibleOpInterface>(op);
+
+    if (!invertibleOp) {
+      return mlir::failure();
+    }
+
+    rewriter.setInsertionPoint(invertibleOp);
+
+    if (auto otherExpOp = otherExp.getDefiningOp();
+        otherExpOp && invertibleOp->isBeforeInBlock(otherExpOp)) {
+      rewriter.setInsertionPointAfter(otherExpOp);
+    }
+
+    mlir::Value invertedOpResult =
+        invertibleOp.inverse(rewriter, argumentIndex, otherExp);
+
+    if (!invertedOpResult) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::Value, 1> newLhsValues;
+    llvm::SmallVector<mlir::Value, 1> newRhsValues;
+
+    for (size_t i = 0, e = oldLhsValues.size(); i < e; ++i) {
+      if (i == viewElementIndex) {
+        if (side == EquationPath::LEFT) {
+          newLhsValues.push_back(op->getOperand(argumentIndex));
+        } else {
+          newLhsValues.push_back(invertedOpResult);
+        }
+      } else {
+        newLhsValues.push_back(oldLhsValues[i]);
+      }
+    }
+
+    for (size_t i = 0, e = oldRhsValues.size(); i < e; ++i) {
+      if (i == viewElementIndex) {
+        if (side == EquationPath::LEFT) {
+          newRhsValues.push_back(invertedOpResult);
+        } else {
+          newRhsValues.push_back(op->getOperand(argumentIndex));
+        }
+      } else {
+        newRhsValues.push_back(oldRhsValues[i]);
+      }
+    }
+
+    // Create the new terminator.
+    rewriter.setInsertionPoint(equationSidesOp);
+
+    auto oldLhs = mlir::cast<EquationSideOp>(
+        equationSidesOp.getLhs().getDefiningOp());
+
+    auto oldRhs = mlir::cast<EquationSideOp>(
+        equationSidesOp.getRhs().getDefiningOp());
+
+    rewriter.replaceOpWithNewOp<EquationSideOp>(oldLhs, newLhsValues);
+    rewriter.replaceOpWithNewOp<EquationSideOp>(oldRhs, newRhsValues);
+
+    return mlir::success();
+  }
+
+  static mlir::LogicalResult removeSubtractions(
+      mlir::RewriterBase& rewriter, mlir::Operation* root)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    mlir::Operation* op = root;
+
+    if (!op) {
+      return mlir::success();
+    }
+
+    if (!mlir::isa<SubscriptionOp>(op) && !mlir::isa<LoadOp>(op)) {
+      for (mlir::Value operand : op->getOperands()) {
+        if (mlir::failed(removeSubtractions(
+                rewriter, operand.getDefiningOp()))) {
+          return mlir::failure();
+        }
+      }
+    }
+
+    if (auto subOp = mlir::dyn_cast<SubOp>(op)) {
+      rewriter.setInsertionPoint(subOp);
+      mlir::Value rhs = subOp.getRhs();
+
+      mlir::Value negatedRhs = rewriter.create<NegateOp>(
+          rhs.getLoc(), rhs.getType(), rhs);
+
+      rewriter.replaceOpWithNewOp<AddOp>(
+          subOp, subOp.getResult().getType(), subOp.getLhs(), negatedRhs);
+    }
+
+    return mlir::success();
+  }
+
+  static mlir::LogicalResult distributeMulAndDivOps(
+      mlir::RewriterBase& rewriter, mlir::Operation* root)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    mlir::Operation* op = root;
+
+    if (!op) {
+      return mlir::success();
+    }
+
+    for (auto operand : op->getOperands()) {
+      if (mlir::failed(distributeMulAndDivOps(
+              rewriter, operand.getDefiningOp()))) {
+        return mlir::failure();
+      }
+    }
+
+    if (auto distributableOp = mlir::dyn_cast<DistributableOpInterface>(op)) {
+      if (!mlir::isa<NegateOp>(op)) {
+        rewriter.setInsertionPoint(distributableOp);
+        llvm::SmallVector<mlir::Value, 1> results;
+
+       if (mlir::succeeded(distributableOp.distribute(results, rewriter))) {
+          for (size_t i = 0, e = distributableOp->getNumResults();
+               i < e; ++i) {
+            mlir::Value oldValue = distributableOp->getResult(i);
+            mlir::Value newValue = results[i];
+            replaceAllUsesWith(rewriter, oldValue, newValue);
+          }
+       }
+      }
+    }
+
+    return mlir::success();
+  }
+
+  static mlir::LogicalResult pushNegateOps(
+      mlir::RewriterBase& rewriter, mlir::Operation* root)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    mlir::Operation* op = root;
+
+    if (!op) {
+      return mlir::success();
+    }
+
+    for (mlir::Value operand : op->getOperands()) {
+      if (mlir::failed(pushNegateOps(rewriter, operand.getDefiningOp()))) {
+        return mlir::failure();
+      }
+    }
+
+    if (auto distributableOp = mlir::dyn_cast<NegateOp>(op)) {
+      rewriter.setInsertionPoint(distributableOp);
+      llvm::SmallVector<mlir::Value, 1> results;
+
+      if (mlir::succeeded(distributableOp.distribute(results, rewriter))) {
+        rewriter.replaceOp(distributableOp, results);
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult EquationTemplateOp::collectSummedValues(
+      llvm::SmallVectorImpl<std::pair<mlir::Value, EquationPath>>& result,
+      mlir::Value root,
+      EquationPath path)
+  {
+    if (auto definingOp = root.getDefiningOp()) {
+      if (auto addOp = mlir::dyn_cast<AddOp>(definingOp)) {
+        if (mlir::failed(collectSummedValues(
+                result, addOp.getLhs(), path + 0))) {
+          return mlir::failure();
+        }
+
+        if (mlir::failed(collectSummedValues(
+                result, addOp.getRhs(), path + 1))) {
+          return mlir::failure();
+        }
+
+        return mlir::success();
+      }
+    }
+
+    result.push_back(std::make_pair(root, path));
+    return mlir::success();
+  }
+
+  static void foldValue(
+      mlir::RewriterBase& rewriter,
+      mlir::Value value,
+      mlir::Block* block)
+  {
+    mlir::OperationFolder helper(value.getContext());
+    std::stack<mlir::Operation*> visitStack;
+    llvm::SmallVector<mlir::Operation*, 3> ops;
+    llvm::DenseSet<mlir::Operation*> processed;
+
+    if (auto definingOp = value.getDefiningOp()) {
+      visitStack.push(definingOp);
+    }
+
+    while (!visitStack.empty()) {
+      auto op = visitStack.top();
+      visitStack.pop();
+
+      ops.push_back(op);
+
+      for (const auto& operand : op->getOperands()) {
+        if (auto definingOp = operand.getDefiningOp()) {
+          visitStack.push(definingOp);
+        }
+      }
+    }
+
+    llvm::SmallVector<mlir::Operation*, 3> constants;
+
+    for (mlir::Operation* op : llvm::reverse(ops)) {
+      if (processed.contains(op)) {
+        continue;
+      }
+
+      processed.insert(op);
+
+      if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
+            constants.push_back(constant);
+          }))) {
+        break;
+      }
+    }
+
+    for (auto* op : llvm::reverse(constants)) {
+      op->moveBefore(block, block->begin());
+    }
+  }
+
+  static llvm::Optional<bool> isZeroAttr(mlir::Attribute attribute)
+  {
+    if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+      return !booleanAttr.getValue();
+    }
+
+    if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+      return integerAttr.getValue() == 0;
+    }
+
+    if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+      return realAttr.getValue().isZero();
+    }
+
+    if (auto integerAttr = attribute.cast<mlir::IntegerAttr>()) {
+      return integerAttr.getValue() == 0;
+    }
+
+    if (auto floatAttr = attribute.cast<mlir::FloatAttr>()) {
+      return floatAttr.getValueAsDouble() == 0;
+    }
+
+    return llvm::None;
+  }
+
+  llvm::Optional<std::pair<unsigned int, mlir::Value>>
+  EquationTemplateOp::getMultiplyingFactor(
+      mlir::OpBuilder& builder,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      const IndexSet& equationIndices,
+      mlir::Value value,
+      llvm::StringRef variable,
+      const IndexSet& variableIndices,
+      EquationPath path)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto isAccessToVarFn = [&](mlir::Value value, llvm::StringRef variable) {
+      mlir::Operation* definingOp = value.getDefiningOp();
+
+      if (!definingOp) {
+        return false;
+      }
+
+      while (definingOp) {
+        if (auto op = mlir::dyn_cast<VariableGetOp>(definingOp)) {
+          return op.getVariable() == variable;
+        }
+
+        if (auto op = mlir::dyn_cast<GlobalVariableGetOp>(definingOp)) {
+          return op.getVariable() == variable;
+        }
+
+        if (auto op = mlir::dyn_cast<LoadOp>(definingOp)) {
+          definingOp = op.getArray().getDefiningOp();
+          continue;
+        }
+
+        if (auto op = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
+          definingOp = op.getSource().getDefiningOp();
+          continue;
+        }
+
+        return false;
+      }
+
+      return false;
+    };
+
+    if (isAccessToVarFn(value, variable)) {
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(searchAccesses(
+              accesses, symbolTableCollection, inductionsPositionMap,
+              value, path)) || accesses.size() != 1) {
+        return llvm::None;
+      }
+
+      if (accesses[0].getVariable().getRootReference() == variable) {
+        const AccessFunction& accessFunction = accesses[0].getAccessFunction();
+        auto accessedIndices = accessFunction.map(equationIndices);
+
+        if (variableIndices == accessedIndices) {
+          mlir::Value one = builder.create<ConstantOp>(
+              value.getLoc(), getOneAttr(value.getType()));
+
+          return std::make_pair(static_cast<unsigned int>(1), one);
+        }
+      }
+    }
+
+    mlir::Operation* op = value.getDefiningOp();
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
+      return std::make_pair(
+          static_cast<unsigned int>(0),
+          constantOp.getResult());
+    }
+
+    if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
+      auto operand = getMultiplyingFactor(
+          builder, symbolTableCollection, inductionsPositionMap,
+          equationIndices, negateOp.getOperand(), variable, variableIndices,
+          path + 0);
+
+      if (!operand) {
+        return llvm::None;
+      }
+
+      if (!operand->second) {
+        return llvm::None;
+      }
+
+      mlir::Value result = builder.create<NegateOp>(
+          negateOp.getLoc(), negateOp.getResult().getType(), operand->second);
+
+      return std::make_pair(operand->first, result);
+    }
+
+    if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
+      auto lhs = getMultiplyingFactor(
+          builder, symbolTableCollection, inductionsPositionMap,
+          equationIndices, mulOp.getLhs(), variable, variableIndices,
+          path + 0);
+
+      auto rhs = getMultiplyingFactor(
+          builder, symbolTableCollection, inductionsPositionMap,
+          equationIndices, mulOp.getRhs(), variable, variableIndices,
+          path + 1);
+
+      if (!lhs || !rhs) {
+        return llvm::None;
+      }
+
+      if (!lhs->second || !rhs->second) {
+        return std::make_pair(static_cast<unsigned int>(0), mlir::Value());
+      }
+
+      mlir::Value result = builder.create<MulOp>(
+          mulOp.getLoc(), mulOp.getResult().getType(),
+          lhs->second, rhs->second);
+
+      return std::make_pair(lhs->first + rhs->first, result);
+    }
+
+    auto hasAccessToVar = [&](mlir::Value value,
+                              EquationPath path) -> llvm::Optional<bool> {
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(searchAccesses(
+              accesses, symbolTableCollection, inductionsPositionMap,
+              value, path))) {
+        return llvm::None;
+      }
+
+      bool hasAccess = llvm::any_of(accesses, [&](const VariableAccess& access) {
+        if (access.getVariable().getRootReference().getValue() != variable) {
+          return false;
+        }
+
+        const AccessFunction& accessFunction = access.getAccessFunction();
+        IndexSet accessedIndices = accessFunction.map(equationIndices);
+
+        if (accessedIndices.empty() && variableIndices.empty()) {
+          return true;
+        }
+
+        return accessedIndices.overlaps(variableIndices);
+      });
+
+      if (hasAccess) {
+        return true;
+      }
+
+      return false;
+    };
+
+    if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
+      auto dividend = getMultiplyingFactor(
+          builder, symbolTableCollection, inductionsPositionMap,
+          equationIndices, divOp.getLhs(), variable, variableIndices,
+          path + 0);
+
+      if (!dividend) {
+        return llvm::None;
+      }
+
+      if (!dividend->second) {
+        return dividend;
+      }
+
+      // Check that the right-hand side value has no access to the variable
+      // of interest.
+      auto rhsHasAccess = hasAccessToVar(divOp.getRhs(), path + 1);
+
+      if (!rhsHasAccess || *rhsHasAccess) {
+        return llvm::None;
+      }
+
+      mlir::Value result = builder.create<DivOp>(
+          divOp.getLoc(), divOp.getResult().getType(), dividend->second,
+          divOp.getRhs());
+
+      return std::make_pair(dividend->first, result);
+    }
+
+    // Check that the value is not the result of an operation using the
+    // variable of interest. If it has such access, then we are not able to
+    // extract the multiplying factor.
+    if (hasAccessToVar(value, path)) {
+      return std::make_pair(static_cast<unsigned int>(1), mlir::Value());
+    }
+
+    return std::make_pair(static_cast<unsigned int>(0), value);
+  }
+
+  bool EquationTemplateOp::checkAccessEquivalence(
+      const IndexSet& equationIndices,
+      const VariableAccess& firstAccess,
+      const VariableAccess& secondAccess)
+  {
+    const AccessFunction& firstAccessFunction =
+        firstAccess.getAccessFunction();
+
+    const AccessFunction& secondAccessFunction =
+        secondAccess.getAccessFunction();
+
+    IndexSet firstIndices = firstAccessFunction.map(equationIndices);
+    IndexSet secondIndices = secondAccessFunction.map(equationIndices);
+
+    if (firstIndices.empty() && secondIndices.empty()) {
+      return true;
+    }
+
+    if (firstAccessFunction.getAffineMap() ==
+        secondAccessFunction.getAffineMap()) {
+      return true;
+    }
+
+    if (firstIndices.flatSize() == 1 && firstIndices == secondIndices) {
+      return true;
+    }
+
+    return false;
+  }
+
+  mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
+      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      const VariableAccess& requestedAccess)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    auto inductionsPositionMap = getInductionsPositionMap();
+    uint64_t viewElementIndex = requestedAccess.getPath()[0];
+
+    IndexSet equationIndices;
+
+    if (explicitEquationIndices) {
+      MultidimensionalRange extendedIndices = *explicitEquationIndices;
+
+      if (implicitEquationIndices) {
+        extendedIndices = extendedIndices.append(*implicitEquationIndices);
+      }
+
+      equationIndices += extendedIndices;
+    } else if (implicitEquationIndices) {
+      equationIndices += *implicitEquationIndices;
+    }
+
+    auto requestedValue = getValueAtPath(requestedAccess.getPath());
+
+    // Determine whether the access to be grouped is inside both the equation's
+    // sides or just one of them. When the requested access is found, also
+    // check that the path goes through linear operations. If not,
+    // explicitation is not possible.
+    bool lhsHasAccess = false;
+    bool rhsHasAccess = false;
+
+    llvm::SmallVector<VariableAccess> accesses;
+
+    if (mlir::failed(getAccesses(
+            accesses, symbolTableCollection, viewElementIndex))) {
+      return mlir::failure();
+    }
+
+    const AccessFunction& requestedAccessFunction =
+        requestedAccess.getAccessFunction();
+
+    auto requestedIndices = requestedAccessFunction.map(equationIndices);
+
+    for (const VariableAccess& access : accesses) {
+      if (access.getVariable() != access.getVariable()) {
+        continue;
+      }
+
+      const AccessFunction& currentAccessFunction = access.getAccessFunction();
+      auto currentAccessIndices = currentAccessFunction.map(equationIndices);
+
+      if ((requestedIndices.empty() && currentAccessIndices.empty()) ||
+          requestedIndices.overlaps(currentAccessIndices)) {
+        if (!checkAccessEquivalence(
+                equationIndices, requestedAccess, access)) {
+          return mlir::failure();
+        }
+
+        EquationPath::EquationSide side = access.getPath().getEquationSide();
+        lhsHasAccess |= side == EquationPath::LEFT;
+        rhsHasAccess |= side == EquationPath::RIGHT;
+      }
+    }
+
+    // Convert the expression to a sum of values.
+    auto convertToSumsFn =
+        [&](std::function<std::pair<mlir::Value, EquationPath>()> rootFn)
+        -> mlir::LogicalResult {
+      if (auto root = rootFn(); mlir::failed(
+              removeSubtractions(rewriter, root.first.getDefiningOp()))) {
+        return mlir::failure();
+      }
+
+      if (auto root = rootFn(); mlir::failed(
+              distributeMulAndDivOps(rewriter, root.first.getDefiningOp()))) {
+        return mlir::failure();
+      }
+
+      if (auto root = rootFn(); mlir::failed(
+              pushNegateOps(rewriter, root.first.getDefiningOp()))) {
+        return mlir::failure();
+      }
+
+      return mlir::success();
+    };
+
+    llvm::SmallVector<std::pair<mlir::Value, EquationPath>> lhsSummedValues;
+    llvm::SmallVector<std::pair<mlir::Value, EquationPath>> rhsSummedValues;
+
+    if (lhsHasAccess) {
+      auto rootFn = [&]() -> std::pair<mlir::Value, EquationPath> {
+        auto equationSidesOp =
+            mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+        return std::make_pair(
+            equationSidesOp.getLhsValues()[viewElementIndex],
+            EquationPath(EquationPath::LEFT, viewElementIndex));
+      };
+
+      if (mlir::failed(convertToSumsFn(rootFn))) {
+        return mlir::failure();
+      }
+
+      if (auto root = rootFn(); mlir::failed(collectSummedValues(
+              lhsSummedValues, root.first, root.second))) {
+        return mlir::failure();
+      }
+    }
+
+    if (rhsHasAccess) {
+      auto rootFn = [&]() -> std::pair<mlir::Value, EquationPath> {
+        auto equationSidesOp =
+            mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+        return std::make_pair(
+            equationSidesOp.getRhsValues()[viewElementIndex],
+            EquationPath(EquationPath::RIGHT, viewElementIndex));
+      };
+
+      if (mlir::failed(convertToSumsFn(rootFn))) {
+        return mlir::failure();
+      }
+
+      if (auto root = rootFn(); mlir::failed(collectSummedValues(
+              rhsSummedValues, root.first, root.second))) {
+        return mlir::failure();
+      }
+    }
+
+    auto containsAccessFn =
+        [&](bool& result,
+            mlir::Value value,
+            EquationPath path,
+            const VariableAccess& access) -> mlir::LogicalResult {
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(searchAccesses(
+              accesses, symbolTableCollection, inductionsPositionMap,
+              value, path))) {
+        return mlir::failure();
+      }
+
+      const AccessFunction& accessFunction = access.getAccessFunction();
+
+      result = llvm::any_of(accesses, [&](const VariableAccess& acc) {
+        if (acc.getVariable() != access.getVariable()) {
+          return false;
+        }
+
+        IndexSet requestedIndices = accessFunction.map(equationIndices);
+
+        const AccessFunction& currentAccessFunction = acc.getAccessFunction();
+        auto currentIndices = currentAccessFunction.map(equationIndices);
+
+        assert(requestedIndices == currentIndices ||
+               !requestedIndices.overlaps(currentIndices));
+        return requestedIndices == currentIndices;
+      });
+
+      return mlir::success();
+    };
+
+    auto groupFactorsFn = [&](auto beginIt, auto endIt) -> mlir::Value {
+      mlir::Value result = rewriter.create<ConstantOp>(
+          getOperation()->getLoc(), RealAttr::get(rewriter.getContext(), 0));
+
+      for (auto it = beginIt; it != endIt; ++it) {
+        auto factor = getMultiplyingFactor(
+            rewriter, symbolTableCollection, inductionsPositionMap,
+            equationIndices, it->first,
+            requestedAccess.getVariable().getRootReference().getValue(),
+            requestedIndices, it->second);
+
+        if (!factor) {
+          return nullptr;
+        }
+
+        if (!factor->second || factor->first > 1) {
+          return nullptr;
+        }
+
+        result = rewriter.create<AddOp>(
+            it->first.getLoc(),
+            getMostGenericType(result.getType(), it->first.getType()),
+            result, factor->second);
+      }
+
+      return result;
+    };
+
+    auto groupRemainingFn = [&](auto beginIt, auto endIt) -> mlir::Value {
+      auto zeroConstantOp = rewriter.create<ConstantOp>(
+          getOperation()->getLoc(), RealAttr::get(rewriter.getContext(), 0));
+
+      mlir::Value result = zeroConstantOp.getResult();
+
+      for (auto it = beginIt; it != endIt; ++it) {
+        mlir::Value value = it->first;
+
+        result = rewriter.create<AddOp>(
+            value.getLoc(),
+            getMostGenericType(result.getType(), value.getType()),
+            result, value);
+      }
+
+      return result;
+    };
+
+    if (lhsHasAccess && rhsHasAccess) {
+      bool error = false;
+
+      auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
+        bool result = false;
+
+        if (mlir::failed(containsAccessFn(
+                result, value.first, value.second, requestedAccess))) {
+          error = true;
+          return false;
+        }
+
+        return result;
+      });
+
+      auto rightPos = llvm::partition(rhsSummedValues, [&](const auto& value) {
+        bool result = false;
+
+        if (mlir::failed(containsAccessFn(
+                result, value.first, value.second, requestedAccess))) {
+          error = true;
+          return false;
+        }
+
+        return result;
+      });
+
+      if (error) {
+        return mlir::failure();
+      }
+
+      mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
+      mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+
+      if (!lhsFactor || !rhsFactor) {
+        return mlir::failure();
+      }
+
+      mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
+      mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
+
+      auto rhs = rewriter.create<DivOp>(
+          getLoc(), requestedValue.getType(),
+          rewriter.create<SubOp>(
+              getLoc(),
+              getMostGenericType(
+                  rhsRemaining.getType(), lhsRemaining.getType()),
+              rhsRemaining, lhsRemaining),
+          rewriter.create<SubOp>(
+              getLoc(),
+              getMostGenericType(
+                  lhsFactor.getType(), rhsFactor.getType()),
+              lhsFactor, rhsFactor));
+
+      // Check if we are dividing by zero.
+      foldValue(rewriter, rhs.getRhs(), getBody());
+
+      if (auto divisorOp =
+              mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+
+        if (!isZero || *isZero) {
+          return mlir::failure();
+        }
+      }
+
+      auto equationSidesOp =
+          mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+      auto lhsOp = equationSidesOp.getLhs().getDefiningOp<EquationSideOp>();
+      auto rhsOp = equationSidesOp.getRhs().getDefiningOp<EquationSideOp>();
+
+      auto oldLhsValues = lhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newLhsValues(
+          oldLhsValues.begin(), oldLhsValues.end());
+
+      auto oldRhsValues = rhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newRhsValues(
+          oldRhsValues.begin(), oldRhsValues.end());
+
+      newLhsValues[viewElementIndex] = requestedValue;
+      newRhsValues[viewElementIndex] = rhs.getResult();
+
+      rewriter.setInsertionPoint(lhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(lhsOp, newLhsValues);
+
+      rewriter.setInsertionPoint(rhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(rhsOp, newRhsValues);
+
+      return mlir::success();
+    }
+
+    if (lhsHasAccess) {
+      bool error = false;
+
+      auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
+        bool result = false;
+
+        if (mlir::failed(containsAccessFn(
+                result, value.first, value.second, requestedAccess))) {
+          error = true;
+          return false;
+        }
+
+        return result;
+      });
+
+      if (error) {
+        return mlir::failure();
+      }
+
+      mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
+
+      if (!lhsFactor) {
+        return mlir::failure();
+      }
+
+      mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
+
+      auto equationSidesOp =
+          mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+      auto rhs = rewriter.create<DivOp>(
+          getLoc(), requestedValue.getType(),
+          rewriter.create<SubOp>(
+              getLoc(),
+              getMostGenericType(
+                  equationSidesOp.getRhsValues()[viewElementIndex].getType(),
+                  lhsRemaining.getType()),
+              equationSidesOp.getRhsValues()[viewElementIndex],
+              lhsRemaining),
+          lhsFactor);
+
+      // Check if we are dividing by zero.
+      foldValue(rewriter, rhs.getRhs(), getBody());
+
+      if (auto divisorOp =
+              mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+
+        if (!isZero || *isZero) {
+          return mlir::failure();
+        }
+      }
+
+      auto lhsOp = equationSidesOp.getLhs().getDefiningOp<EquationSideOp>();
+      auto rhsOp = equationSidesOp.getRhs().getDefiningOp<EquationSideOp>();
+
+      auto oldLhsValues = lhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newLhsValues(
+          oldLhsValues.begin(), oldLhsValues.end());
+
+      auto oldRhsValues = rhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newRhsValues(
+          oldRhsValues.begin(), oldRhsValues.end());
+
+      newLhsValues[viewElementIndex] = requestedValue;
+      newRhsValues[viewElementIndex] = rhs.getResult();
+
+      rewriter.setInsertionPoint(lhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(lhsOp, newLhsValues);
+
+      rewriter.setInsertionPoint(rhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(rhsOp, newRhsValues);
+
+      return mlir::success();
+    }
+
+    if (rhsHasAccess) {
+      bool error = false;
+
+      auto rightPos = llvm::partition(rhsSummedValues, [&](const auto& value) {
+        bool result = false;
+
+        if (mlir::failed(containsAccessFn(
+                result, value.first, value.second, requestedAccess))) {
+          error = true;
+          return false;
+        }
+
+        return result;
+      });
+
+      if (error) {
+        return mlir::failure();
+      }
+
+      mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+
+      if (!rhsFactor) {
+        return mlir::failure();
+      }
+
+      mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
+
+      auto equationSidesOp =
+          mlir::cast<EquationSidesOp>(getBody()->getTerminator());
+
+      auto rhs = rewriter.create<DivOp>(
+          getLoc(), requestedValue.getType(),
+          rewriter.create<SubOp>(
+              getLoc(),
+              getMostGenericType(
+                  equationSidesOp.getLhsValues()[viewElementIndex].getType(),
+                  rhsRemaining.getType()),
+              equationSidesOp.getLhsValues()[viewElementIndex],
+              rhsRemaining),
+          rhsFactor);
+
+      // Check if we are dividing by zero.
+      foldValue(rewriter, rhs.getRhs(), getBody());
+
+      if (auto divisorOp =
+              mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+
+        if (!isZero || *isZero) {
+          return mlir::failure();
+        }
+      }
+
+      auto lhsOp = equationSidesOp.getLhs().getDefiningOp<EquationSideOp>();
+      auto rhsOp = equationSidesOp.getRhs().getDefiningOp<EquationSideOp>();
+
+      auto oldLhsValues = lhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newLhsValues(
+          oldLhsValues.begin(), oldLhsValues.end());
+
+      auto oldRhsValues = rhsOp.getValues();
+      llvm::SmallVector<mlir::Value> newRhsValues(
+          oldRhsValues.begin(), oldRhsValues.end());
+
+      newLhsValues[viewElementIndex] = requestedValue;
+      newRhsValues[viewElementIndex] = rhs.getResult();
+
+      rewriter.setInsertionPoint(lhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(lhsOp, newLhsValues);
+
+      rewriter.setInsertionPoint(rhsOp);
+      rewriter.replaceOpWithNewOp<EquationSideOp>(rhsOp, newRhsValues);
+
+      return mlir::success();
+    }
+
+    llvm_unreachable("Access not found");
+    return mlir::failure();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// EquationInstanceOp
+
+namespace mlir::modelica
+{
+  void EquationInstanceOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      EquationTemplateOp equationTemplate,
+      bool initial)
+  {
+    build(builder, state, equationTemplate.getResult(), initial,
+          nullptr, nullptr, nullptr);
+  }
+
+  mlir::LogicalResult EquationInstanceOp::verify()
+  {
+    auto indicesRank =
+        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+      if (!ranges) {
+        return 0;
+      }
+
+      return ranges->getValue().rank();
+    };
+
+    // Check the indices for the explicit inductions.
+    size_t numOfExplicitInductions = getInductionVariables().size();
+
+    if (size_t explicitIndicesRank = indicesRank(getIndices());
+        numOfExplicitInductions != explicitIndicesRank) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
+    }
+
+    return mlir::success();
+  }
+
+  EquationTemplateOp EquationInstanceOp::getTemplate()
+  {
+    auto result = getBase().getDefiningOp<EquationTemplateOp>();
+    assert(result != nullptr);
+    return result;
+  }
+
+  mlir::ValueRange EquationInstanceOp::getInductionVariables()
+  {
+    return getTemplate().getInductionVariables();
+  }
+
+  IndexSet EquationInstanceOp::getExplicitIterationSpace()
+  {
+    if (auto indices = getIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  uint64_t EquationInstanceOp::getNumOfImplicitInductionVariables()
+  {
+    if (auto implicitIndices = getImplicitIndices()) {
+      return static_cast<uint64_t>(implicitIndices->getValue().rank());
+    }
+
+    return 0;
+  }
+
+  IndexSet EquationInstanceOp::getImplicitIterationSpace()
+  {
+    if (auto indices = getImplicitIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  IndexSet EquationInstanceOp::getIterationSpace()
+  {
+    IndexSet explicitIterationSpace = getExplicitIterationSpace();
+    IndexSet implicitIterationSpace = getImplicitIterationSpace();
+
+    if (explicitIterationSpace.empty()) {
+      return implicitIterationSpace;
+    }
+
+    return explicitIterationSpace.append(implicitIterationSpace);
+  }
+
+  mlir::LogicalResult EquationInstanceOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable)
+  {
+    return getTemplate().getAccesses(
+        result, symbolTable, getViewElementIndex().value_or(0));
+  }
+
+  llvm::Optional<VariableAccess> EquationInstanceOp::getAccessAtPath(
+      mlir::SymbolTableCollection& symbolTable,
+      const EquationPath& path)
+  {
+    return getTemplate().getAccessAtPath(symbolTable, path);
+  }
+
+  mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      llvm::SmallVectorImpl<EquationInstanceOp>& results)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    llvm::SmallVector<std::pair<IndexSet, EquationTemplateOp>> templateResults;
+
+    if (mlir::failed(getTemplate().cloneWithReplacedAccess(
+            rewriter, equationIndices, access, replacementEquation,
+            replacementAccess, templateResults))) {
+      return mlir::failure();
+    }
+
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto temporaryClonedOp = mlir::cast<EquationInstanceOp>(
+        rewriter.clone(*getOperation()));
+
+    for (auto& [assignedIndices, equationTemplateOp] : templateResults) {
+      if (assignedIndices.empty()) {
+        auto clonedOp = mlir::cast<EquationInstanceOp>(
+            rewriter.clone(*temporaryClonedOp.getOperation()));
+
+        clonedOp.setOperand(equationTemplateOp.getResult());
+        clonedOp.removeIndicesAttr();
+        clonedOp.removeImplicit_indicesAttr();
+        results.push_back(clonedOp);
+      } else {
+        for (const MultidimensionalRange& assignedIndicesRange :
+             llvm::make_range(assignedIndices.rangesBegin(),
+                              assignedIndices.rangesEnd())) {
+          auto clonedOp = mlir::cast<EquationInstanceOp>(
+              rewriter.clone(*temporaryClonedOp.getOperation()));
+
+          clonedOp.setOperand(equationTemplateOp.getResult());
+
+          if (auto explicitIndices = getIndices()) {
+            MultidimensionalRange explicitRange =
+                assignedIndicesRange.takeFirstDimensions(
+                    explicitIndices->getValue().rank());
+
+            clonedOp.setIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(explicitRange)));
+          }
+
+          if (auto implicitIndices = getImplicitIndices()) {
+            MultidimensionalRange implicitRange =
+                assignedIndicesRange.takeLastDimensions(
+                    implicitIndices->getValue().rank());
+
+            clonedOp.setImplicitIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(implicitRange)));
+          }
+
+          results.push_back(clonedOp);
+        }
+      }
+    }
+
+    rewriter.eraseOp(temporaryClonedOp);
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// MatchedEquationInstanceOp
+
+namespace mlir::modelica
+{
+  void MatchedEquationInstanceOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      EquationTemplateOp equationTemplate,
+      bool initial,
+      EquationPathAttr path)
+  {
+    build(builder, state, equationTemplate.getResult(), initial, nullptr,
+          nullptr, path);
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::verify()
+  {
+    auto indicesRank =
+        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+      if (!ranges) {
+        return 0;
+      }
+
+      return ranges->getValue().rank();
+    };
+
+    // Check the indices for the explicit inductions.
+    size_t numOfExplicitInductions = getInductionVariables().size();
+
+    if (size_t explicitIndicesRank = indicesRank(getIndices());
+        numOfExplicitInductions != explicitIndicesRank) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
+    }
+
+    // Check the indices for the implicit inductions.
+    uint64_t numOfImplicitInductions = getNumOfImplicitInductionVariables();
+
+    if (size_t implicitIndicesRank = indicesRank(getImplicitIndices());
+        numOfImplicitInductions !=
+        static_cast<uint64_t>(implicitIndicesRank)) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfImplicitInductions << ", got " << implicitIndicesRank << ")";
+    }
+
+    return mlir::success();
+  }
+
+  EquationTemplateOp MatchedEquationInstanceOp::getTemplate()
+  {
+    auto result = getBase().getDefiningOp<EquationTemplateOp>();
+    assert(result != nullptr);
+    return result;
+  }
+
+  uint64_t MatchedEquationInstanceOp::getViewElementIndex()
+  {
+    return getPath().getValue()[0];
+  }
+
+  mlir::ValueRange MatchedEquationInstanceOp::getInductionVariables()
+  {
+    return getTemplate().getInductionVariables();
+  }
+
+  IndexSet MatchedEquationInstanceOp::getExplicitIterationSpace()
+  {
+    if (auto indices = getIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  uint64_t MatchedEquationInstanceOp::getNumOfImplicitInductionVariables()
+  {
+    if (auto implicitIndices = getImplicitIndices()) {
+      return static_cast<uint64_t>(implicitIndices->getValue().rank());
+    }
+
+    return 0;
+  }
+
+  IndexSet MatchedEquationInstanceOp::getImplicitIterationSpace()
+  {
+    if (auto indices = getImplicitIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  IndexSet MatchedEquationInstanceOp::getIterationSpace()
+  {
+    IndexSet explicitIterationSpace = getExplicitIterationSpace();
+    IndexSet implicitIterationSpace = getImplicitIterationSpace();
+
+    if (explicitIterationSpace.empty()) {
+      return implicitIterationSpace;
+    }
+
+    return explicitIterationSpace.append(implicitIterationSpace);
+  }
+
+  llvm::Optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    return getAccessAtPath(symbolTableCollection, getPath().getValue());
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable)
+  {
+    return getTemplate().getAccesses(
+        result, symbolTable, getViewElementIndex());
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::getWriteAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    return getWriteAccesses(
+        result, symbolTableCollection, getIterationSpace(), accesses);
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::getWriteAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    llvm::Optional<VariableAccess> matchedAccess =
+        getMatchedAccess(symbolTableCollection);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    return getTemplate().getWriteAccesses(
+        result, equationIndices, accesses, *matchedAccess);
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    return getReadAccesses(
+        result, symbolTableCollection, getIterationSpace(), accesses);
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    llvm::Optional<VariableAccess> matchedAccess =
+        getMatchedAccess(symbolTableCollection);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    return getTemplate().getReadAccesses(
+        result, equationIndices, accesses, *matchedAccess);
+  }
+
+  llvm::Optional<VariableAccess> MatchedEquationInstanceOp::getAccessAtPath(
+      mlir::SymbolTableCollection& symbolTable,
+      const EquationPath& path)
+  {
+    return getTemplate().getAccessAtPath(symbolTable, path);
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::explicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::Optional<MultidimensionalRange> indices = llvm::None;
+    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+
+    if (auto indicesAttr = getIndices()) {
+      indices = indicesAttr->getValue();
+    }
+
+    if (auto implicitIndicesAttr = getImplicitIndices()) {
+      implicitIndices = implicitIndicesAttr->getValue();
+    }
+
+    if (mlir::failed(getTemplate().explicitate(
+            rewriter, symbolTableCollection,
+            indices, implicitIndices, getPath().getValue()))) {
+      return mlir::failure();
+    }
+
+    setPathAttr(EquationPathAttr::get(
+        getContext(),
+        EquationPath(EquationPath::LEFT, getViewElementIndex())));
+
+    return mlir::success();
+  }
+
+  MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::Optional<MultidimensionalRange> indices = llvm::None;
+    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+
+    if (auto indicesAttr = getIndices()) {
+      indices = indicesAttr->getValue();
+    }
+
+    if (auto implicitIndicesAttr = getImplicitIndices()) {
+      implicitIndices = implicitIndicesAttr->getValue();
+    }
+
+    EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
+        rewriter, symbolTableCollection,
+        indices, implicitIndices,
+        getPath().getValue());
+
+    if (!clonedTemplate) {
+      return nullptr;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto result = rewriter.create<MatchedEquationInstanceOp>(
+        getLoc(), clonedTemplate, getInitial(),
+        EquationPathAttr::get(
+            getContext(),
+            EquationPath(EquationPath::LEFT, getViewElementIndex())));
+
+    if (indices) {
+      result.setIndicesAttr(MultidimensionalRangeAttr::get(
+          getContext(), *indices));
+    }
+
+    if (implicitIndices) {
+      result.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
+          getContext(), *implicitIndices));
+    }
+
+    return result;
+  }
+
+  mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      llvm::SmallVectorImpl<MatchedEquationInstanceOp>& results)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    llvm::SmallVector<std::pair<IndexSet, EquationTemplateOp>> templateResults;
+
+    if (mlir::failed(getTemplate().cloneWithReplacedAccess(
+            rewriter, equationIndices, access, replacementEquation,
+            replacementAccess, templateResults))) {
+      return mlir::failure();
+    }
+
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto temporaryClonedOp = mlir::cast<MatchedEquationInstanceOp>(
+        rewriter.clone(*getOperation()));
+
+    for (auto& [assignedIndices, equationTemplateOp] : templateResults) {
+      if (assignedIndices.empty()) {
+        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+            rewriter.clone(*temporaryClonedOp.getOperation()));
+
+        clonedOp.setOperand(equationTemplateOp.getResult());
+        clonedOp.removeIndicesAttr();
+        clonedOp.removeImplicit_indicesAttr();
+        results.push_back(clonedOp);
+      } else {
+        for (const MultidimensionalRange& assignedIndicesRange :
+             llvm::make_range(assignedIndices.rangesBegin(),
+                              assignedIndices.rangesEnd())) {
+          auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+              rewriter.clone(*temporaryClonedOp.getOperation()));
+
+          clonedOp.setOperand(equationTemplateOp.getResult());
+
+          if (auto explicitIndices = getIndices()) {
+            MultidimensionalRange explicitRange =
+                assignedIndicesRange.takeFirstDimensions(
+                    explicitIndices->getValue().rank());
+
+            clonedOp.setIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(explicitRange)));
+          }
+
+          if (auto implicitIndices = getImplicitIndices()) {
+            MultidimensionalRange implicitRange =
+                assignedIndicesRange.takeLastDimensions(
+                    implicitIndices->getValue().rank());
+
+            clonedOp.setImplicitIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(implicitRange)));
+          }
+
+          results.push_back(clonedOp);
+        }
+      }
+    }
+
+    rewriter.eraseOp(temporaryClonedOp);
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SCCOp
+
+namespace mlir::modelica
+{
+  mlir::RegionKind SCCOp::getRegionKind(unsigned index)
+  {
+    return mlir::RegionKind::Graph;
+  }
+
+  void SCCOp::collectEquations(
+      llvm::SmallVectorImpl<ScheduledEquationInstanceOp>& equations)
+  {
+    for (ScheduledEquationInstanceOp equationOp
+         : getOps<ScheduledEquationInstanceOp>()) {
+      equations.push_back(equationOp);
+    }
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// ScheduledEquationInstanceOp
+
+namespace mlir::modelica
+{
+  void ScheduledEquationInstanceOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      EquationTemplateOp equationTemplate,
+      EquationPathAttr path,
+      mlir::ArrayAttr iterationDirections)
+  {
+    build(builder, state, equationTemplate.getResult(), nullptr,
+          nullptr, path, iterationDirections);
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::verify()
+  {
+    auto indicesRank =
+        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+      if (!ranges) {
+        return 0;
+      }
+
+      return ranges->getValue().rank();
+    };
+
+    // Check the indices for the explicit inductions.
+    size_t numOfExplicitInductions = getInductionVariables().size();
+
+    if (size_t explicitIndicesRank = indicesRank(getIndices());
+        numOfExplicitInductions != explicitIndicesRank) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
+    }
+
+    // Check the indices for the implicit inductions.
+    uint64_t numOfImplicitInductions = getNumOfImplicitInductionVariables();
+
+    if (size_t implicitIndicesRank = indicesRank(getImplicitIndices());
+        numOfImplicitInductions !=
+        static_cast<uint64_t>(implicitIndicesRank)) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfImplicitInductions << ", got " << implicitIndicesRank << ")";
+    }
+
+    // Check the iteration directions.
+    uint64_t totalNumberOfInductions =
+        static_cast<uint64_t>(numOfExplicitInductions) +
+        numOfImplicitInductions;
+
+    if (size_t numOfIterationDirections = getIterationDirections().size();
+        totalNumberOfInductions !=
+        static_cast<uint64_t>(numOfIterationDirections)) {
+      return emitOpError()
+          << "Unexpected number of iteration directions (expected "
+          << totalNumberOfInductions << ", got " << numOfIterationDirections
+          << ")";
+    }
+
+    return mlir::success();
+  }
+
+  EquationTemplateOp ScheduledEquationInstanceOp::getTemplate()
+  {
+    auto result = getBase().getDefiningOp<EquationTemplateOp>();
+    assert(result != nullptr);
+    return result;
+  }
+
+  uint64_t ScheduledEquationInstanceOp::getViewElementIndex()
+  {
+    return getPath().getValue()[0];
+  }
+
+  mlir::ValueRange ScheduledEquationInstanceOp::getInductionVariables()
+  {
+    return getTemplate().getInductionVariables();
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable)
+  {
+    return getTemplate().getAccesses(
+        result, symbolTable, getViewElementIndex());
+  }
+
+  llvm::Optional<VariableAccess> ScheduledEquationInstanceOp::getAccessAtPath(
+      mlir::SymbolTableCollection& symbolTable,
+      const EquationPath& path)
+  {
+    return getTemplate().getAccessAtPath(symbolTable, path);
+  }
+
+  IndexSet ScheduledEquationInstanceOp::getExplicitIterationSpace()
+  {
+    if (auto indices = getIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  uint64_t ScheduledEquationInstanceOp::getNumOfImplicitInductionVariables()
+  {
+    if (auto implicitIndices = getImplicitIndices()) {
+      return static_cast<uint64_t>(implicitIndices->getValue().rank());
+    }
+
+    return 0;
+  }
+
+  IndexSet ScheduledEquationInstanceOp::getImplicitIterationSpace()
+  {
+    if (auto indices = getImplicitIndices()) {
+      return IndexSet(indices->getValue());
+    }
+
+    return {};
+  }
+
+  IndexSet ScheduledEquationInstanceOp::getIterationSpace()
+  {
+    IndexSet explicitIterationSpace = getExplicitIterationSpace();
+    IndexSet implicitIterationSpace = getImplicitIterationSpace();
+
+    if (explicitIterationSpace.empty()) {
+      return implicitIterationSpace;
+    }
+
+    return explicitIterationSpace.append(implicitIterationSpace);
+  }
+
+  llvm::Optional<VariableAccess> ScheduledEquationInstanceOp::getMatchedAccess(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    return getAccessAtPath(symbolTableCollection, getPath().getValue());
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::getWriteAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    return getWriteAccesses(
+        result, symbolTableCollection, getIterationSpace(), accesses);
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::getWriteAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    llvm::Optional<VariableAccess> matchedAccess =
+        getMatchedAccess(symbolTableCollection);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    return getTemplate().getWriteAccesses(
+        result, equationIndices, accesses, *matchedAccess);
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    return getReadAccesses(
+        result, symbolTableCollection, getIterationSpace(), accesses);
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    llvm::Optional<VariableAccess> matchedAccess =
+        getMatchedAccess(symbolTableCollection);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    return getTemplate().getReadAccesses(
+        result, equationIndices, accesses, *matchedAccess);
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::Optional<MultidimensionalRange> indices = llvm::None;
+    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+
+    if (auto indicesAttr = getIndices()) {
+      indices = indicesAttr->getValue();
+    }
+
+    if (auto implicitIndicesAttr = getImplicitIndices()) {
+      implicitIndices = implicitIndicesAttr->getValue();
+    }
+
+    if (mlir::failed(getTemplate().explicitate(
+            rewriter, symbolTableCollection,
+            indices, implicitIndices, getPath().getValue()))) {
+      return mlir::failure();
+    }
+
+    setPathAttr(EquationPathAttr::get(
+        getContext(),
+        EquationPath(EquationPath::LEFT, getViewElementIndex())));
+
+    return mlir::success();
+  }
+
+  ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
+      mlir::RewriterBase& rewriter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::Optional<MultidimensionalRange> indices = llvm::None;
+    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+
+    if (auto indicesAttr = getIndices()) {
+      indices = indicesAttr->getValue();
+    }
+
+    if (auto implicitIndicesAttr = getImplicitIndices()) {
+      implicitIndices = implicitIndicesAttr->getValue();
+    }
+
+    EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
+        rewriter, symbolTableCollection,
+        indices, implicitIndices,
+        getPath().getValue());
+
+    if (!clonedTemplate) {
+      return nullptr;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto result = rewriter.create<ScheduledEquationInstanceOp>(
+        getLoc(), clonedTemplate,
+        EquationPathAttr::get(
+            getContext(),
+            EquationPath(EquationPath::LEFT, getViewElementIndex())),
+        getIterationDirections());
+
+    if (indices) {
+      result.setIndicesAttr(MultidimensionalRangeAttr::get(
+          getContext(), *indices));
+    }
+
+    if (implicitIndices) {
+      result.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
+          getContext(), *implicitIndices));
+    }
+
+    return result;
+  }
+
+  mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
+      mlir::RewriterBase& rewriter,
+      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      const VariableAccess& access,
+      EquationTemplateOp replacementEquation,
+      const VariableAccess& replacementAccess,
+      llvm::SmallVectorImpl<ScheduledEquationInstanceOp>& results)
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    llvm::SmallVector<std::pair<IndexSet, EquationTemplateOp>> templateResults;
+
+    if (mlir::failed(getTemplate().cloneWithReplacedAccess(
+            rewriter, equationIndices, access, replacementEquation,
+            replacementAccess, templateResults))) {
+      return mlir::failure();
+    }
+
+    rewriter.setInsertionPointAfter(getOperation());
+
+    auto temporaryClonedOp = mlir::cast<ScheduledEquationInstanceOp>(
+        rewriter.clone(*getOperation()));
+
+    for (auto& [assignedIndices, equationTemplateOp] : templateResults) {
+      if (assignedIndices.empty()) {
+        auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
+            rewriter.clone(*temporaryClonedOp.getOperation()));
+
+        clonedOp.setOperand(equationTemplateOp.getResult());
+        clonedOp.removeIndicesAttr();
+        clonedOp.removeImplicit_indicesAttr();
+        results.push_back(clonedOp);
+      } else {
+        for (const MultidimensionalRange& assignedIndicesRange :
+             llvm::make_range(assignedIndices.rangesBegin(),
+                              assignedIndices.rangesEnd())) {
+          auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
+              rewriter.clone(*temporaryClonedOp.getOperation()));
+
+          clonedOp.setOperand(equationTemplateOp.getResult());
+
+          if (auto explicitIndices = getIndices()) {
+            MultidimensionalRange explicitRange =
+                assignedIndicesRange.takeFirstDimensions(
+                    explicitIndices->getValue().rank());
+
+            clonedOp.setIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(explicitRange)));
+          }
+
+          if (auto implicitIndices = getImplicitIndices()) {
+            MultidimensionalRange implicitRange =
+                assignedIndicesRange.takeLastDimensions(
+                    implicitIndices->getValue().rank());
+
+            clonedOp.setImplicitIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    rewriter.getContext(), std::move(implicitRange)));
+          }
+
+          results.push_back(clonedOp);
+        }
+      }
+    }
+
+    rewriter.eraseOp(temporaryClonedOp);
+    return mlir::success();
   }
 }
 
@@ -8309,7 +12197,8 @@ namespace mlir::modelica
         builder, state, argAttrs, llvm::None);
   }
 
-  mlir::ParseResult RawFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  mlir::ParseResult RawFunctionOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
     auto buildFuncType =
         [](mlir::Builder& builder,
@@ -8324,9 +12213,9 @@ namespace mlir::modelica
         parser, result, false, buildFuncType);
   }
 
-  void RawFunctionOp::print(OpAsmPrinter &p)
+  void RawFunctionOp::print(OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(printer, *this, false);
   }
 
   bool RawFunctionOp::shouldBeInlined()
@@ -8401,7 +12290,7 @@ namespace mlir::modelica
         newFunc.setType(mlir::FunctionType::get(
             oldType.getContext(), newInputs, oldType.getResults()));
 
-        if (ArrayAttr argAttrs = getAllArgAttrs()) {
+        if (mlir::ArrayAttr argAttrs = getAllArgAttrs()) {
           SmallVector<Attribute> newArgAttrs;
           newArgAttrs.reserve(newInputs.size());
 
@@ -9016,7 +12905,7 @@ namespace mlir::modelica
     return op->getResults();
   }
 
-  mlir::LogicalResult CallOp::invert(
+  mlir::Value CallOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
       mlir::ValueRange currentResult)
@@ -9024,18 +12913,20 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (getNumResults() != 1) {
-      return emitOpError("The callee must have one and only one result");
+      emitOpError() << "The callee must have one and only one result.";
+      return nullptr;
     }
 
     if (argumentIndex >= getArgs().size()) {
-      return emitOpError(
-          "Index out of bounds: " + std::to_string(argumentIndex));
+      emitOpError() << "Index out of bounds: " << argumentIndex << ".";
+      return nullptr;
     }
 
-    if (auto size = currentResult.size(); size != 1) {
-      return emitOpError(
-          "Invalid amount of values to be nested: " + std::to_string(size) +
-          " (expected 1)");
+    if (size_t size = currentResult.size(); size != 1) {
+      emitOpError() << "Invalid amount of values to be nested: " << size
+                    << " (expected 1).";
+
+      return nullptr;
     }
 
     mlir::Value toNest = currentResult[0];
@@ -9044,18 +12935,21 @@ namespace mlir::modelica
     auto callee = module.lookupSymbol<FunctionOp>(this->getCallee());
 
     if (!callee->hasAttr("inverse")) {
-      return emitOpError(
-          "Function " + callee->getName().getStringRef() +
-          " is not invertible");
+      emitOpError() << "Function " << callee->getName().getStringRef()
+                    << " is not invertible.";
+
+      return nullptr;
     }
 
     auto inverseAnnotation =
         callee->getAttrOfType<InverseFunctionsAttr>("inverse");
 
     if (!inverseAnnotation.isInvertible(argumentIndex)) {
-      return emitOpError(
-          "Function " + callee->getName().getStringRef() +
-          " is not invertible for argument " + std::to_string(argumentIndex));
+      emitOpError() << "Function " << callee->getName().getStringRef()
+                    << " is not invertible for argument " << argumentIndex
+                    << ".";
+
+      return nullptr;
     }
 
     size_t argsSize = getArgs().size();
@@ -9077,16 +12971,7 @@ namespace mlir::modelica
         this->getArgs()[argumentIndex].getType(),
         args);
 
-    getResult(0).replaceAllUsesWith(this->getArgs()[argumentIndex]);
-    erase();
-
-    for (auto& use : toNest.getUses()) {
-      if (use.getOwner() != invertedCall) {
-        use.set(invertedCall.getResult(0));
-      }
-    }
-
-    return mlir::success();
+    return invertedCall.getResult(0);
   }
 
   mlir::Operation* CallOp::getFunction(

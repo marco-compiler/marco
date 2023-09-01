@@ -2,6 +2,7 @@
 #define MARCO_MODELING_MCIMIMPL_H
 
 #include "marco/Modeling/MCIM.h"
+#include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include <map>
 #include <memory>
 
@@ -101,6 +102,14 @@ namespace marco::modeling::internal
       std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const;
 
     private:
+      bool apply(
+          const IndexSet& equations,
+          const AccessFunctionRotoTranslation& accessFunction);
+
+      bool apply(
+          const MultidimensionalRange& equations,
+          const AccessFunctionRotoTranslation& accessFunction);
+
       Delta getDelta(const Point& equation, const Point& variable) const;
 
       Delta getDelta(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const;

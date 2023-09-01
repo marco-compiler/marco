@@ -1,8 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(test-model-conversion{model=Test})" | FileCheck %s
 
-// CHECK:   simulation.deinit_function(%[[x:.*]]: !modelica.array<!modelica.real>, %[[y:.*]]: !modelica.array<3x!modelica.real>) {
-// CHECK:       modelica.free %[[x]]
-// CHECK:       modelica.free %[[y]]
+// CHECK:   simulation.deinit_function {
 // CHECK:       simulation.yield
 // CHECK:   }
 

@@ -17,329 +17,239 @@
 
 namespace marco::modeling
 {
-  namespace internal::scc
+  namespace dependency
   {
-    template<typename Graph, typename EquationDescriptor, typename Access>
-    class DFSStep : public Dumpable
+    namespace impl {
+      template<typename EquationDescriptor, typename Access>
+      class PathDependency
+      {
+        public:
+          PathDependency(
+            EquationDescriptor equation,
+            IndexSet equationIndices,
+            Access writeAccess,
+            IndexSet writtenVariableIndices,
+            Access readAccess,
+            IndexSet readVariableIndices)
+              : equation(equation),
+                equationIndices(std::move(equationIndices)),
+                writeAccess(std::move(writeAccess)),
+                writtenVariableIndices(std::move(writtenVariableIndices)),
+                readAccess(std::move(readAccess)),
+                readVariableIndices(std::move(readVariableIndices))
+          {
+          }
+
+          EquationDescriptor equation;
+          IndexSet equationIndices;
+          Access writeAccess;
+          IndexSet writtenVariableIndices;
+          Access readAccess;
+          IndexSet readVariableIndices;
+      };
+
+      template<typename EquationDescriptor, typename Access>
+      class Path
+      {
+        private:
+          using Dependency = PathDependency<EquationDescriptor, Access>;
+          using Container = std::list<Dependency>;
+
+        public:
+          using iterator = typename Container::iterator;
+          using const_iterator = typename Container::const_iterator;
+
+          using reverse_iterator = typename Container::reverse_iterator;
+
+          using const_reverse_iterator =
+              typename Container::const_reverse_iterator;
+
+          size_t size() const
+          {
+            return equations.size();
+          }
+
+          iterator begin()
+          {
+            return equations.begin();
+          }
+
+          const_iterator begin() const
+          {
+            return equations.begin();
+          }
+
+          iterator end()
+          {
+            return equations.end();
+          }
+
+          const_iterator end() const
+          {
+            return equations.end();
+          }
+
+          reverse_iterator rbegin()
+          {
+            return equations.rbegin();
+          }
+
+          const_reverse_iterator rbegin() const
+          {
+            return equations.rbegin();
+          }
+
+          reverse_iterator rend()
+          {
+            return equations.rend();
+          }
+
+          const_reverse_iterator rend() const
+          {
+            return equations.rend();
+          }
+
+          Dependency& back()
+          {
+            return equations.back();
+          }
+
+          const Dependency& back() const
+          {
+            return equations.back();
+          }
+
+          Path operator+(Dependency equation)
+          {
+            Path result(*this);
+            result += std::move(equation);
+            return result;
+          }
+
+          Path& operator+=(Dependency equation)
+          {
+            equations.push_back(std::move(equation));
+            return *this;
+          }
+
+          Path withoutLast(size_t n) const
+          {
+            assert(n <= equations.size());
+
+            Path result;
+            auto it = equations.begin();
+
+            for (size_t i = 0, e = equations.size() - n; i < e; ++i) {
+              result.equations.push_back(*it);
+              ++it;
+            }
+
+            return result;
+          }
+
+        private:
+          Container equations;
+      };
+    }
+
+    template<typename EquationProperty, typename Access>
+    class CyclicEquation
     {
       public:
-        DFSStep(const Graph& graph, EquationDescriptor equation, IndexSet equationIndexes, Access read)
-          : graph(&graph),
-            equation(std::move(equation)),
-            equationIndexes(std::move(equationIndexes)),
-            read(std::move(read))
+        CyclicEquation(
+            EquationProperty equation,
+            IndexSet equationIndices,
+            Access writeAccess,
+            IndexSet writtenVariableIndices,
+            Access readAccess,
+            IndexSet readVariableIndices)
+            : equation(equation),
+              equationIndices(std::move(equationIndices)),
+              writeAccess(std::move(writeAccess)),
+              writtenVariableIndices(std::move(writtenVariableIndices)),
+              readAccess(std::move(readAccess)),
+              readVariableIndices(std::move(readVariableIndices))
         {
         }
 
-        using Dumpable::dump;
-
-        void dump(std::ostream& stream) const override
-        {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
-          os << "DFS step\n";
-          os << tree_property << "Written variable: " << (*graph)[equation].getWrite().getVariable() << "\n";
-          os << tree_property << "Writing equation: " << (*graph)[equation].getId() << "\n";
-          os << tree_property << "Filtered equation indexes: " << equationIndexes << "\n";
-          os << tree_property << "Read access: " << read.getAccessFunction() << "\n";
-        }
-
-        EquationDescriptor getEquation() const
-        {
-          return equation;
-        }
-
-        const IndexSet& getEquationIndexes() const
-        {
-          return equationIndexes;
-        }
-
-        void setEquationIndexes(IndexSet indexes)
-        {
-          equationIndexes = std::move(indexes);
-        }
-
-        const Access& getRead() const
-        {
-          return read;
-        }
-
-      private:
-        const Graph* graph;
-        EquationDescriptor equation;
-        IndexSet equationIndexes;
-        Access read;
+        EquationProperty equation;
+        IndexSet equationIndices;
+        Access writeAccess;
+        IndexSet writtenVariableIndices;
+        Access readAccess;
+        IndexSet readVariableIndices;
     };
 
-    template<
-        typename Graph,
-        typename EquationDescriptor,
-        typename Equation,
-        typename Access>
-    class FilteredEquation : public Dumpable
+    template<typename EquationProperty, typename Access>
+    class Cycle
     {
       private:
-        class Dependency : public Dumpable
-        {
-          public:
-            Dependency(Access access, std::unique_ptr<FilteredEquation> equation)
-              : access(std::move(access)), equation(std::move(equation))
-            {
-            }
-
-            Dependency(const Dependency& other)
-                : access(other.access), equation(std::make_unique<FilteredEquation>(*other.equation))
-            {
-            }
-
-            Dependency(Dependency&& other) = default;
-
-            ~Dependency() = default;
-
-            friend void swap(Dependency& first, Dependency& second)
-            {
-              using std::swap;
-              swap(first.access, second.access);
-              swap(first.equation, second.equation);
-            }
-
-            Dependency& operator=(const Dependency& other)
-            {
-              Dependency result(other);
-              swap(*this, result);
-              return *this;
-            }
-
-            using Dumpable::dump;
-
-            void dump(std::ostream& stream) const override
-            {
-              using namespace marco::utils;
-
-              TreeOStream os(stream);
-              os << "Access function: " << access.getAccessFunction() << "\n";
-              os << tree_property;
-              equation->dump(os);
-            }
-
-            const Access& getAccess() const
-            {
-              return access;
-            }
-
-            FilteredEquation& getNode()
-            {
-              assert(equation != nullptr);
-              return *equation;
-            }
-
-            const FilteredEquation& getNode() const
-            {
-              assert(equation != nullptr);
-              return *equation;
-            }
-
-          private:
-            Access access;
-            std::unique_ptr<FilteredEquation> equation;
-        };
-
-        class Interval : public Dumpable
-        {
-          public:
-            using Container = std::vector<Dependency>;
-
-          public:
-            Interval(MultidimensionalRange range, llvm::ArrayRef<Dependency> destinations = llvm::None)
-                : range(std::move(range)), destinations(destinations.begin(), destinations.end())
-            {
-            }
-
-            Interval(MultidimensionalRange range, Access access, std::unique_ptr<FilteredEquation> destination)
-                : range(std::move(range))
-            {
-              destinations.emplace_back(std::move(access), std::move(destination));
-            }
-
-            using Dumpable::dump;
-
-            void dump(std::ostream& stream) const override
-            {
-              using namespace marco::utils;
-
-              TreeOStream os(stream);
-              os << tree_property << "Indexes: " << range << "\n";
-
-              for (const auto& destination : destinations) {
-                os << tree_property;
-                destination.dump(os);
-                os << "\n";
-              }
-            }
-
-            const MultidimensionalRange& getRange() const
-            {
-              return range;
-            }
-
-            llvm::ArrayRef<Dependency> getDestinations() const
-            {
-              return destinations;
-            }
-
-            void addDestination(Access access, std::unique_ptr<FilteredEquation> destination)
-            {
-              destinations.emplace_back(std::move(access), std::move(destination));
-            }
-
-          private:
-            MultidimensionalRange range;
-            Container destinations;
-        };
-
-        using Container = std::vector<Interval>;
+        using Equation = CyclicEquation<EquationProperty, Access>;
+        using Container = llvm::SmallVector<Equation, 3>;
 
       public:
+        using iterator = typename Container::iterator;
         using const_iterator = typename Container::const_iterator;
 
-        FilteredEquation(const Graph& graph, EquationDescriptor equation)
-            : graph(&graph), equation(std::move(equation))
+        using reverse_iterator = typename Container::reverse_iterator;
+
+        using const_reverse_iterator =
+            typename Container::const_reverse_iterator;
+
+        Cycle(llvm::ArrayRef<Equation> equations)
         {
-        }
-
-        using Dumpable::dump;
-
-        void dump(std::ostream& stream) const override
-        {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
-          os << "Equation (" <<  (*graph)[equation].getId() << ")\n";
-
-          for (const auto& interval : intervals) {
-            os << tree_property;
-            interval.dump(os);
+          for (const Equation& equation : equations) {
+            this->equations.push_back(equation);
           }
         }
 
-        /// Get the equation property that is provided by the user.
-        /// The method has been created to serve as an API.
-        ///
-        /// @return equation property
-        const typename Equation::Property& getEquation() const
+        size_t size() const
         {
-          return (*graph)[equation].getProperty();
+          return equations.size();
+        }
+
+        iterator begin()
+        {
+          return equations.begin();
         }
 
         const_iterator begin() const
         {
-          return intervals.begin();
+          return equations.begin();
+        }
+
+        iterator end()
+        {
+          return equations.end();
         }
 
         const_iterator end() const
         {
-          return intervals.end();
+          return equations.end();
         }
 
-        void addCyclicDependency(const std::list<DFSStep<Graph, EquationDescriptor, Access>>& steps)
+        reverse_iterator rbegin()
         {
-          addListIt(steps.begin(), steps.end());
+          return equations.rbegin();
+        }
+
+        const_reverse_iterator rbegin() const
+        {
+          return equations.rbegin();
+        }
+
+        reverse_iterator rend()
+        {
+          return equations.rend();
+        }
+
+        const_reverse_iterator rend() const
+        {
+          return equations.rend();
         }
 
       private:
-        template<typename It>
-        void addListIt(It step, It end)
-        {
-          if (step == end) {
-            // The whole cycle has been traversed
-            return;
-          }
-
-          auto next = std::next(step);
-
-          if (next == end) {
-            IndexSet newIntervals(step->getEquationIndexes());
-
-            for (const auto& interval : intervals) {
-              newIntervals -= interval.getRange();
-            }
-
-            for (const auto& range : llvm::make_range(newIntervals.rangesBegin(), newIntervals.rangesEnd())) {
-              intervals.push_back(Interval(range, llvm::None));
-            }
-          } else {
-            Container newIntervals;
-            IndexSet range = step->getEquationIndexes();
-
-            for (const auto& interval: intervals) {
-              if (!range.overlaps(interval.getRange())) {
-                newIntervals.push_back(interval);
-                continue;
-              }
-
-              IndexSet restrictedRanges(interval.getRange());
-              restrictedRanges -= range;
-
-              for (const auto& restrictedRange: llvm::make_range(restrictedRanges.rangesBegin(), restrictedRanges.rangesEnd())) {
-                newIntervals.emplace_back(restrictedRange, interval.getDestinations());
-              }
-
-              auto intersectingRanges = range.intersect(interval.getRange());
-
-              for (const MultidimensionalRange& intersectingRange : llvm::make_range(intersectingRanges.rangesBegin(), intersectingRanges.rangesEnd())) {
-                range -= intersectingRange;
-
-                llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
-                std::vector<Dependency> newDependencies(dependencies.begin(), dependencies.end());
-
-                auto& newDependency = newDependencies.emplace_back(
-                    step->getRead(),
-                    std::make_unique<FilteredEquation>(*graph, next->getEquation()));
-
-                //for (const auto& nextEquationRange : next->getEquationIndexes()) {
-                //  newDependency.getNode().intervals.push_back(Interval(nextEquationRange, llvm::None));
-                //}
-
-                newDependency.getNode().addListIt(next, end);
-
-                /*
-                auto dependency = llvm::find_if(newDependencies, [&](const Dependency& dependency) {
-                  return dependency.getNode().equation == step->getEquation();
-                });
-
-                if (dependency == newDependencies.end()) {
-                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
-                  newDependency.getNode().addListIt(next, end);
-                } else {
-                  dependency->getNode().addListIt(next, end);
-                }
-                 */
-
-                Interval newInterval(intersectingRange, newDependencies);
-                newIntervals.push_back(std::move(newInterval));
-              }
-            }
-
-            for (const auto& subRange: llvm::make_range(range.rangesBegin(), range.rangesEnd())) {
-              std::vector<Dependency> dependencies;
-
-              auto& dependency = dependencies.emplace_back(
-                  step->getRead(),
-                  std::make_unique<FilteredEquation>(*graph, next->getEquation()));
-
-              dependency.getNode().addListIt(next, end);
-              newIntervals.emplace_back(subRange, dependencies);
-            }
-
-            intervals = std::move(newIntervals);
-          }
-        }
-
-      private:
-        const Graph* graph;
-        EquationDescriptor equation;
-        Container intervals;
+        Container equations;
     };
   }
 }
@@ -361,21 +271,25 @@ namespace marco::modeling
 
       using WritesMap = typename DependencyGraph::WritesMap;
 
-      using DFSStep = internal::scc::DFSStep<DependencyGraph, EquationDescriptor, Access>;
-      using FilteredEquation = internal::scc::FilteredEquation<DependencyGraph, EquationDescriptor, Equation, Access>;
-      using Cycle = FilteredEquation;
+      using PathDependency =
+          dependency::impl::PathDependency<EquationDescriptor, Access>;
 
-      CyclesFinder(
-          mlir::MLIRContext* context,
-          bool includeSecondaryCycles = true)
+      using Path = dependency::impl::Path<EquationDescriptor, Access>;
+
+      using CyclicEquation =
+          dependency::CyclicEquation<EquationProperty, Access>;
+
+      using Cycle = dependency::Cycle<EquationProperty, Access>;
+
+      CyclesFinder(mlir::MLIRContext* context)
           : context(context),
-            includeSecondaryCycles(includeSecondaryCycles),
             vectorDependencyGraph(context)
       {
       }
 
       mlir::MLIRContext* getContext() const
       {
+        assert(context != nullptr);
         return context;
       }
 
@@ -392,23 +306,31 @@ namespace marco::modeling
         auto SCCs = vectorDependencyGraph.getSCCs();
 
         auto processFn = [&](const typename DependencyGraph::SCC& scc) {
-          auto writes = vectorDependencyGraph.getWritesMap(
-              scc.begin(), scc.end());
+          auto writesMap =
+              vectorDependencyGraph.getWritesMap(scc.begin(), scc.end());
 
           if (scc.hasCycle()) {
             for (const EquationDescriptor& equationDescriptor : scc) {
-              auto cycles = getEquationCyclicDependencies(
-                  writes, equationDescriptor);
-
-              FilteredEquation dependencies(
-                  vectorDependencyGraph, equationDescriptor);
-
-              for (const auto& cycle : cycles) {
-                dependencies.addCyclicDependency(cycle);
-              }
+              llvm::SmallVector<Path> paths;
+              getEquationsCycles(paths, writesMap, equationDescriptor);
 
               std::lock_guard<std::mutex> lockGuard(resultMutex);
-              result.push_back(std::move(dependencies));
+
+              for (Path& path : paths) {
+                llvm::SmallVector<CyclicEquation, 3> cyclicEquations;
+
+                for (PathDependency& dependency : path) {
+                  cyclicEquations.push_back(CyclicEquation(
+                      vectorDependencyGraph[dependency.equation].getProperty(),
+                      std::move(dependency.equationIndices),
+                      std::move(dependency.writeAccess),
+                      std::move(dependency.writtenVariableIndices),
+                      std::move(dependency.readAccess),
+                      std::move(dependency.readVariableIndices)));
+                }
+
+                result.emplace_back(Cycle(cyclicEquations));
+              }
             }
           }
         };
@@ -418,148 +340,137 @@ namespace marco::modeling
       }
 
     private:
-      std::vector<std::list<DFSStep>> getEquationCyclicDependencies(
-          const WritesMap& writes,
+      void getEquationsCycles(
+          llvm::SmallVectorImpl<Path>& cycles,
+          const WritesMap& writesMap,
           EquationDescriptor equation) const
       {
-        std::vector<std::list<DFSStep>> cyclicPaths;
-        std::stack<std::list<DFSStep>> stack;
+        // The first equation starts with the full range, as it has no
+        // predecessors.
+        IndexSet equationIndices(
+            vectorDependencyGraph[equation].getIterationRanges());
 
-        // The first equation starts with the full range, as it has no predecessors
-        IndexSet indexes(vectorDependencyGraph[equation].getIterationRanges());
+        getEquationsCycles(cycles, writesMap, equation, equationIndices, {});
+      }
 
-        std::list<DFSStep> emptyPath;
+      void getEquationsCycles(
+          llvm::SmallVectorImpl<Path>& cycles,
+          const WritesMap& writesMap,
+          EquationDescriptor equation,
+          const IndexSet& equationIndices,
+          Path path) const
+      {
+        const Access& currentEquationWriteAccess =
+            vectorDependencyGraph[equation].getWrite();
 
-        for (auto& extendedPath : appendReads(emptyPath, equation, indexes)) {
-          stack.push(std::move(extendedPath));
-        }
+        IndexSet currentEquationWrittenIndices =
+            currentEquationWriteAccess.getAccessFunction()
+                .map(equationIndices);
 
-        while (!stack.empty()) {
-          auto& path = stack.top();
+        for (const Access& readAccess :
+             vectorDependencyGraph[equation].getReads()) {
+          const auto& accessFunction = readAccess.getAccessFunction();
+          auto readVariableIndices = accessFunction.map(equationIndices);
 
-          std::vector<std::list<DFSStep>> extendedPaths;
+          auto writingEquations = writesMap.equal_range(readAccess.getVariable());
 
-          const auto& equationIndexes = path.back().getEquationIndexes();
-          const auto& read = path.back().getRead();
-          const auto& accessFunction = read.getAccessFunction();
-          auto readIndexes = accessFunction.map(equationIndexes);
+          for (const auto& [variableId, writeInfo] : llvm::make_range(
+                   writingEquations.first, writingEquations.second)) {
+            const IndexSet& writtenVariableIndices =
+                writeInfo.getWrittenVariableIndexes();
 
-          // Get the equations writing into the read variable
-          auto writeInfos = writes.equal_range(read.getVariable());
-
-          for (const auto& [variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
-            const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
-
-            // If the ranges do not overlap, then there is no loop involving the writing equation
-            if (!readIndexes.overlaps(writtenIndexes)) {
+            // If the ranges do not overlap, then there is no loop involving
+            // the writing equation.
+            if (!readVariableIndices.overlaps(writtenVariableIndices)) {
               continue;
             }
 
-            auto intersection = readIndexes.intersect(writtenIndexes);
+            // Determine the indices of the writing equation that lead to the
+            // requested access.
+            auto variableIndicesIntersection =
+                readVariableIndices.intersect(writtenVariableIndices);
+
             EquationDescriptor writingEquation = writeInfo.getEquation();
-            IndexSet writingEquationIndexes(vectorDependencyGraph[writingEquation].getIterationRanges());
 
-            const AccessFunction& writingEquationAccessFunction = vectorDependencyGraph[writingEquation].getWrite().getAccessFunction();
-            auto usedWritingEquationIndexes = writingEquationAccessFunction.inverseMap(intersection, writingEquationIndexes);
+            IndexSet allWritingEquationIndices(
+                vectorDependencyGraph[writingEquation].getIterationRanges());
 
-            if (detectLoop(cyclicPaths, path, writingEquation, usedWritingEquationIndexes)) {
-              // Loop detected. It may either be a loop regarding the first variable or not. In any case, we should
-              // stop visiting the tree, which would be infinite.
-              continue;
+            Access writingEquationWriteAccess =
+                vectorDependencyGraph[writingEquation].getWrite();
+
+            const AccessFunction& writingEquationAccessFunction =
+                writingEquationWriteAccess.getAccessFunction();
+
+            IndexSet usedWritingEquationIndices =
+                writingEquationAccessFunction.inverseMap(
+                    variableIndicesIntersection, allWritingEquationIndices);
+
+            Path extendedPath = path +
+                PathDependency(equation, equationIndices,
+                               currentEquationWriteAccess,
+                               currentEquationWrittenIndices,
+                               readAccess, readVariableIndices);
+
+            restrictPathIndices(extendedPath);
+
+            if (auto pathLength = extendedPath.size(); pathLength > 1) {
+              // Search along the restricted path if the current equation has
+              // already been visited with some of the current indices.
+              auto dependencyIt = llvm::find_if(
+                  extendedPath, [&](const PathDependency& dependency) {
+                    if (dependency.equation != writingEquation) {
+                      return false;
+                    }
+
+                    return dependency.equationIndices.overlaps(
+                        usedWritingEquationIndices);
+                  });
+
+              if (dependencyIt == extendedPath.begin()) {
+                cycles.push_back(extendedPath);
+                continue;
+              }
+
+              if (dependencyIt != extendedPath.end()) {
+                // Sub-cycle detected.
+                continue;
+              }
             }
 
-            for (auto& extendedPath : appendReads(path, writingEquation, usedWritingEquationIndexes))
-              extendedPaths.push_back(std::move(extendedPath));
-          }
-
-          stack.pop();
-
-          for (auto& extendedPath : extendedPaths) {
-            stack.push(std::move(extendedPath));
+            getEquationsCycles(cycles, writesMap,
+                               writingEquation, usedWritingEquationIndices,
+                               extendedPath);
           }
         }
-
-        return cyclicPaths;
       }
 
-      std::vector<std::list<DFSStep>> appendReads(
-          const std::list<DFSStep>& path,
-          EquationDescriptor equation,
-          const IndexSet& equationRange) const
+      void restrictPathIndices(Path& path) const
       {
-        std::vector<std::list<DFSStep>> result;
+        auto it = path.rbegin();
+        auto endIt = path.rend();
 
-        for (const Access& read : vectorDependencyGraph[equation].getReads()) {
-          std::list<DFSStep> extendedPath = path;
-          extendedPath.emplace_back(vectorDependencyGraph, equation, equationRange, read);
-          result.push_back(std::move(extendedPath));
+        if (it == endIt) {
+          return;
         }
 
-        return result;
-      }
+        auto prevIt = it;
 
-      /// Detect whether adding a new equation with a given range would lead to a loop.
-      /// The path to be check is intentionally passed by copy, as its flow is restricted depending on the
-      /// equation to be added and such modification must not interfere with other paths.
-      ///
-      /// @param cyclicPaths      cyclic paths results list
-      /// @param path             candidate path
-      /// @param graph            graph to which the equations belong to
-      /// @param equation         equation that should be added to the path
-      /// @param equationIndexes  indexes of the equation to be added
-      /// @return true if the candidate equation would create a loop when added to the path; false otherwise
-      bool detectLoop(
-          std::vector<std::list<DFSStep>>& cyclicPaths,
-          std::list<DFSStep> path,
-          EquationDescriptor equation,
-          const IndexSet& equationIndexes) const
-      {
-        if (!path.empty()) {
-          // Restrict the flow (starting from the end)
+        while (++it != endIt) {
+          it->readVariableIndices = prevIt->writtenVariableIndices;
+          const Access& readAccess = it->readAccess;
 
-          auto previousWriteAccessFunction = vectorDependencyGraph[equation].getWrite().getAccessFunction();
-          auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationIndexes);
+          it->equationIndices = readAccess.getAccessFunction().inverseMap(
+              it->readVariableIndices, it->equationIndices);
 
-          for (auto it = path.rbegin(); it != path.rend(); ++it) {
-            const auto& readAccessFunction = it->getRead().getAccessFunction();
-            it->setEquationIndexes(readAccessFunction.inverseMap(previouslyWrittenIndexes, it->getEquationIndexes()));
+          it->writtenVariableIndices =
+              it->writeAccess.getAccessFunction().map(it->equationIndices);
 
-            previousWriteAccessFunction = vectorDependencyGraph[it->getEquation()].getWrite().getAccessFunction();
-            previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
-          }
-
-          // Search along the restricted path if the candidate equation has already been visited with the same indexes
-          auto step = llvm::find_if(path, [&](const DFSStep& step) {
-            return step.getEquation() == equation && step.getEquationIndexes().contains(equationIndexes);
-          });
-
-          if (step == path.begin()) {
-            // We have found a loop involving the variable defined by the first equation. This is the kind of loops
-            // we are interested to find, so add it to the results.
-
-            cyclicPaths.push_back(std::move(path));
-            return true;
-          }
-
-          // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
-          // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
-          // the (infinite) tree.
-
-          if (step != path.end()) {
-            if (includeSecondaryCycles) {
-              cyclicPaths.push_back(std::move(path));
-            }
-
-            return true;
-          }
+          prevIt = it;
         }
-
-        return false;
       }
 
     private:
       mlir::MLIRContext* context;
-      bool includeSecondaryCycles;
       DependencyGraph vectorDependencyGraph;
   };
 }

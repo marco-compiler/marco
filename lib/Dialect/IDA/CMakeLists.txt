@@ -13,6 +13,7 @@ add_mlir_dialect_library(MLIRIDA
 
     LINK_LIBS PUBLIC
     MLIRIR
+    MLIRModeling
     MLIRSupport
     MLIRControlFlowInterfaces
     MLIRSideEffectInterfaces)

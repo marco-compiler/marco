@@ -1,7 +1,7 @@
+#include "marco/Modeling/Graph.h"
+#include "llvm/ADT/StringRef.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "llvm/ADT/StringRef.h"
-#include "marco/Modeling/Graph.h"
 
 using namespace ::marco::modeling::internal;
 using namespace ::testing;

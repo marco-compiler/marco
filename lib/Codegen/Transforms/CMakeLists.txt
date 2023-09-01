@@ -1,32 +1,24 @@
 set(SOURCES
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
-    ModelSolving/Access.cpp
-    ModelSolving/ArrayVariable.cpp
-    ModelSolving/Cycles.cpp
-    ModelSolving/CyclesLinearSolver.cpp
-    ModelSolving/DerivativesMap.cpp
-    ModelSolving/Equation.cpp
-    ModelSolving/FilteredVariable.cpp
-    ModelSolving/LoopEquation.cpp
-    ModelSolving/Matching.cpp
-    ModelSolving/Model.cpp
-    ModelSolving/Path.cpp
-    ModelSolving/ScalarEquation.cpp
-    ModelSolving/ScalarVariable.cpp
-    ModelSolving/Scheduling.cpp
-    ModelSolving/TypeConverter.cpp
-    ModelSolving/Utils.cpp
-    ModelSolving/Variable.cpp
+    AccessReplacementTest.cpp
     ArrayDeallocation.cpp
+    BindingEquationConversion.cpp
     CyclesSolving.cpp
+    DerivativesAllocation.cpp
+    EquationAccessSplit.cpp
+    EquationExplicitationTest.cpp
+    EquationTemplatesCreation.cpp
+    EquationViewsComputation.cpp
     EulerForward.cpp
     ExplicitCastInsertion.cpp
+    ExplicitInitialEquationsInsertion.cpp
+    ExplicitStartValueInsertion.cpp
     FunctionInlining.cpp
     FunctionScalarization.cpp
     IDA.cpp
     Matching.cpp
-    ModelLegalization.cpp
+    ModelAlgorithmConversion.cpp
     OpDistribution.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp
@@ -49,6 +41,7 @@ add_mlir_dialect_library(MLIRModelicaTransforms
     LINK_LIBS PUBLIC
     marco::codegen
     marco::modeling
+    MLIRModelicaAnalysis
     MLIRModelicaCommonConversion
     MLIRIDACommonConversion
     ${MLIR_LIBS})

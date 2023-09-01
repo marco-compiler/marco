@@ -69,6 +69,8 @@ namespace marco::modeling
 
       /// }
 
+      friend llvm::hash_code hash_value(const IndexSet::Impl& value);
+
       virtual bool operator==(const Point& rhs) const = 0;
 
       virtual bool operator==(const MultidimensionalRange& rhs) const = 0;
@@ -124,6 +126,20 @@ namespace marco::modeling
       virtual IndexSet intersect(const IndexSet::Impl& other) const = 0;
 
       virtual IndexSet complement(const MultidimensionalRange& other) const = 0;
+
+      virtual std::unique_ptr<Impl> takeFirstDimensions(size_t n) const = 0;
+
+      virtual std::unique_ptr<Impl> takeLastDimensions(size_t n) const = 0;
+
+      virtual std::unique_ptr<Impl> takeDimensions(
+          const llvm::SmallBitVector& dimensions) const = 0;
+
+      virtual std::unique_ptr<Impl> dropFirstDimensions(size_t n) const = 0;
+
+      virtual std::unique_ptr<Impl> dropLastDimensions(size_t n) const = 0;
+
+      virtual std::unique_ptr<IndexSet::Impl> append(
+          const IndexSet& other) const = 0;
 
       virtual std::unique_ptr<Impl> getCanonicalRepresentation() const = 0;
 

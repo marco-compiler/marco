@@ -50,7 +50,7 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static MultidimensionalRange getIterationRanges(const EquationType*)
+      // static IndexSet getIterationRanges(const EquationType*)
       //    return the iteration ranges.
       //
       // typedef VariableType : the type of the accessed variable
@@ -117,11 +117,36 @@ namespace marco::modeling
       public:
         using Property = AccessProperty;
 
-        Access(const VariableProperty& variable, AccessFunction accessFunction, AccessProperty property = AccessProperty())
+        Access(
+            const VariableProperty& variable,
+            std::unique_ptr<AccessFunction> accessFunction,
+            AccessProperty property = AccessProperty())
             : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
         {
+        }
+
+        Access(const Access& other)
+            : variable(other.variable),
+              accessFunction(other.accessFunction->clone()),
+              property(other.property)
+        {
+        }
+
+        friend void swap(Access& first, Access& second)
+        {
+          using std::swap;
+          swap(first.variable, second.variable);
+          swap(first.accessFunction, second.accessFunction);
+          swap(first.property, second.property);
+        }
+
+        Access& operator=(const Access& other)
+        {
+          Access result(other);
+          swap(*this, result);
+          return *this;
         }
 
         /// Get the ID of the accesses variable.
@@ -133,7 +158,7 @@ namespace marco::modeling
         /// Get the access function.
         const AccessFunction& getAccessFunction() const
         {
-          return accessFunction;
+          return *accessFunction;
         }
 
         /// Get the user-defined access property.
@@ -144,7 +169,7 @@ namespace marco::modeling
 
       private:
         typename VariableTraits<VariableProperty>::Id variable;
-        AccessFunction accessFunction;
+        std::unique_ptr<AccessFunction> accessFunction;
         AccessProperty property;
     };
   }
@@ -352,7 +377,8 @@ namespace marco::modeling
         {
         }
 
-        explicit PtrProperty(Property property) : property(std::make_unique<Property>(std::move(property)))
+        explicit PtrProperty(Property property)
+            : property(std::make_unique<Property>(std::move(property)))
         {
         }
 
@@ -730,6 +756,7 @@ namespace marco::modeling
 
       mlir::MLIRContext* getContext() const
       {
+        assert(context != nullptr);
         return context;
       }
 
@@ -1023,8 +1050,14 @@ namespace marco::modeling
       using WriteInfo = internal::dependency::WriteInfo<Graph, typename Variable::Id, ScalarEquationDescriptor>;
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
+      ScalarVariablesDependencyGraph(mlir::MLIRContext* context)
+          : context(context)
+      {
+      }
+
       mlir::MLIRContext* getContext() const
       {
+        assert(context != nullptr);
         return context;
       }
 

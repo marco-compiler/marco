@@ -43,51 +43,21 @@ include(FetchContent)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
-#-------------------------------------------------------------------------------
-# Sundials
-#-------------------------------------------------------------------------------
-
-option(MARCO_USE_BUILTIN_SUNDIALS "Use built-in Sundials (to be built separately, see Readme)" ON)
-
-if (MARCO_USE_BUILTIN_SUNDIALS)
-	set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
-endif()
-
-find_package(SUNDIALS REQUIRED)
-
-if (NOT MARCO_USE_BUILTIN_SUNDIALS)
-  # Compute SUNDIALS's installation prefix
-  get_filename_component(SUNDIALS_PATH "${SUNDIALS_DIR}" PATH)
-  get_filename_component(SUNDIALS_PATH "${SUNDIALS_PATH}" PATH)
-  get_filename_component(SUNDIALS_PATH "${SUNDIALS_PATH}" PATH)
-  if(SUNDIALS_PATH STREQUAL "/")
-    set(SUNDIALS_PATH "")
-  endif()
-endif()
-
-set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_PATH}/include)
-set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_PATH}/lib)
-
-if (MARCO_USE_BUILTIN_SUNDIALS)
-	link_directories("${SUNDIALS_LIBRARY_DIR}")
-	install(DIRECTORY ${SUNDIALS_LIBRARY_DIR} DESTINATION dependencies)
-endif()
-
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # LLVM / MLIR configuration
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 if (DEFINED LLVM_PATH)
-	# Emit a warning if both LLVM_ROOT and LLVM_DIR have been set
+	# Emit a warning if both LLVM_PATH and LLVM_DIR have been set
 	if (DEFINED LLVM_DIR)
-		message(WARNING "Both LLVM_PATH and LLVM_DIR have been set. LLVM_PATH has been ignored")
+		message(WARNING "Both LLVM_PATH and LLVM_DIR have been set. LLVM_PATH has been ignored.")
 	else()
 		set(LLVM_DIR "${LLVM_PATH}/lib/cmake/llvm")
 	endif()
 
-	# Emit a warning if both LLVM_ROOT and MLIR_DIR have been set
+	# Emit a warning if both LLVM_PATH and MLIR_DIR have been set
 	if (DEFINED MLIR_DIR)
-		message(WARNING "Both LLVM_PATH and MLIR_DIR have been set. LLVM_PATH has been ignored")
+		message(WARNING "Both LLVM_PATH and MLIR_DIR have been set. LLVM_PATH has been ignored.")
 	else()
 		set(MLIR_DIR "${LLVM_PATH}/lib/cmake/mlir")
 	endif()
@@ -99,7 +69,7 @@ find_package(MLIR REQUIRED CONFIG)
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 
-# These are a bit of a hack, because we're hijacking alot of LLVM machinery
+# These are a bit of a hack, because we're hijacking a lot of LLVM machinery.
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
 set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
 set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
@@ -117,6 +87,13 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # Search the tablegen executable
 find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
+
+#------------------------------------------------------------------------------
+# Runtime
+#------------------------------------------------------------------------------
+
+find_package(MARCORuntime REQUIRED CONFIG)
+include_directories(${CMAKE_SOURCE_DIR}/runtime/include)
 
 #-------------------------------------------------------------------------------
 # MARCO configuration
@@ -200,12 +177,6 @@ include_directories(${MARCO_INCLUDE_DIRS})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #-------------------------------------------------------------------------------
-# Simulation runtime profiling
-#-------------------------------------------------------------------------------
-
-option(MARCO_PROFILING "Generate code for runtime profiling." OFF)
-
-#-------------------------------------------------------------------------------
 # Directory setup
 #-------------------------------------------------------------------------------
 
@@ -266,7 +237,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Define the default arguments to use with 'lit', and an option for the user to override
-set(LIT_ARGS_DEFAULT "-sv")
+set(LIT_ARGS_DEFAULT "-sv -j 1")
 
 if (MSVC_IDE OR XCODE)
 	set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")

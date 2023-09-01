@@ -861,6 +861,11 @@ namespace marco::codegen::lowering
       return true;
     }
 
+    if (trueValueType == falseValueType) {
+      inferredTypes.push_back(trueValueType);
+      return true;
+    }
+
     return false;
   }
 

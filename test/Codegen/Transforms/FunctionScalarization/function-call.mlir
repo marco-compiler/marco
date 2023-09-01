@@ -1,22 +1,16 @@
-// RUN: modelica-opt %s                                 \
-// RUN:     --scalarize                                 \
-// RUN:     --convert-modelica-to-cf                    \
-// RUN:     --convert-modelica-to-arith                 \
-// RUN:     --convert-modelica-to-func                  \
-// RUN:     --convert-modelica-to-memref                \
-// RUN:     --convert-modelica-to-llvm                  \
-// RUN:     --convert-arith-to-llvm                     \
-// RUN:     --convert-memref-to-llvm                    \
-// RUN:     --convert-scf-to-cf                         \
-// RUN:     --convert-func-to-llvm                      \
-// RUN:     --convert-cf-to-llvm                        \
-// RUN:     --reconcile-unrealized-casts                \
-// RUN: | mlir-cpu-runner                               \
-// RUN:     -e main -entry-point-result=void -O0        \
-// RUN:     -shared-libs=%runtime_lib                   \
-// RUN: | FileCheck %s
+// RUN: modelica-opt %s --scalarize --canonicalize | FileCheck %s
 
-// CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
+// CHECK-LABEL: @caller
+// CHECK-DAG:   %[[lb:.*]] = arith.constant 0 : index
+// CHECK-DAG:   %[[ub:.*]] = modelica.constant 3 : index
+// CHECK-DAG:   %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.parallel (%[[i0:.*]]) = (%[[lb]]) to (%[[ub]]) step (%[[step]]) {
+// CHECK:           %[[load:.*]] = modelica.load %{{.*}}[%[[i0]]]
+// CHECK:           %[[value:.*]] = modelica.call @callee(%[[load]]) : (!modelica.real) -> !modelica.real
+// CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
+// CHECK:           modelica.assignment %[[subscription]], %[[value]]
+// CHECK:           scf.yield
+// CHECK-NEXT:  }
 
 modelica.function @callee {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
@@ -45,10 +39,5 @@ func.func @caller() -> () {
 
     %result = modelica.call @callee(%array) : (!modelica.array<3x!modelica.real>) -> (!modelica.array<3x!modelica.real>)
     modelica.print %result : !modelica.array<3x!modelica.real>
-    return
-}
-
-func.func @main() -> () {
-    call @caller() : () -> ()
     return
 }

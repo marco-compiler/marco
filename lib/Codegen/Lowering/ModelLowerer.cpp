@@ -19,7 +19,8 @@ namespace marco::codegen::lowering
     auto modelOp = builder().create<ModelOp>(location, model.getName());
 
     mlir::OpBuilder::InsertionGuard guard(builder());
-    builder().setInsertionPointToStart(modelOp.bodyBlock());
+    mlir::Block* bodyBlock = builder().createBlock(&modelOp.getBodyRegion());
+    builder().setInsertionPointToStart(bodyBlock);
 
     // Declare the inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
@@ -35,7 +36,7 @@ namespace marco::codegen::lowering
     // Get the operation.
     auto modelOp = mlir::cast<ModelOp>(getClass(model));
     pushLookupScope(modelOp);
-    builder().setInsertionPointToEnd(modelOp.bodyBlock());
+    builder().setInsertionPointToEnd(modelOp.getBody());
 
     // Declare the variables.
     for (const auto& variable : model.getVariables()) {
@@ -58,7 +59,7 @@ namespace marco::codegen::lowering
     // Get the operation.
     auto modelOp = mlir::cast<ModelOp>(getClass(model));
     pushLookupScope(modelOp);
-    builder().setInsertionPointToEnd(modelOp.bodyBlock());
+    builder().setInsertionPointToEnd(modelOp.getBody());
 
     // Map the variables.
     insertVariable(

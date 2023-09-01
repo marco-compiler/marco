@@ -6,6 +6,7 @@
 #include "marco/Codegen/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/KINSOL/KINSOLDialect.h"
+#include "marco/Dialect/Modeling/ModelingDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Parser/Parser.h"
@@ -35,6 +36,7 @@
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
+using namespace ::marco::io;
 
 //===---------------------------------------------------------------------===//
 // Messages
@@ -458,6 +460,7 @@ namespace marco::frontend
     mlir::registerAllDialects(mlirDialectRegistry);
 
     // Register the custom dialects.
+    mlirDialectRegistry.insert<mlir::modeling::ModelingDialect>();
     mlirDialectRegistry.insert<mlir::modelica::ModelicaDialect>();
     mlirDialectRegistry.insert<mlir::ida::IDADialect>();
     mlirDialectRegistry.insert<mlir::kinsol::KINSOLDialect>();
@@ -630,12 +633,52 @@ namespace marco::frontend
       pm.addPass(mlir::createCanonicalizerPass());
     }
 
-    pm.addPass(createMLIRAutomaticDifferentiationPass());
-    pm.addPass(createMLIRModelLegalizationPass());
-    pm.addPass(createMLIRMatchingPass());
-    pm.addPass(createMLIRVariablesPromotionPass());
-    pm.addPass(createMLIRCyclesSolvingPass());
-    pm.addPass(createMLIRSchedulingPass());
+    pm.addPass(mlir::modelica::createAutomaticDifferentiationPass());
+
+    // Inline the functions marked as "inlinable", in order to enable
+    // simplifications for the model solving process.
+    pm.addPass(mlir::modelica::createFunctionInliningPass());
+
+    // Unpack the records.
+    pm.addPass(mlir::modelica::createRecordInliningPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+
+    // Lift the equations.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createEquationTemplatesCreationPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createEquationViewsComputationPass());
+
+    // Handle the derivatives.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createDerivativesAllocationPass());
+
+    // Legalize the model.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createBindingEquationConversionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createExplicitStartValueInsertionPass());
+
+    pm.addPass(mlir::modelica::createModelAlgorithmConversionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createExplicitInitialEquationsInsertionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createMatchingPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createVariablesPromotionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createEquationAccessSplitPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(createMLIRCyclesSolvingPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createSchedulingPass());
 
     // Apply the selected solver.
     pm.addPass(
@@ -646,7 +689,7 @@ namespace marco::frontend
             .Default(createMLIREulerForwardPass()));
 
     pm.addPass(createMLIRFunctionScalarizationPass());
-    pm.addPass(createMLIRExplicitCastInsertionPass());
+    pm.addPass(mlir::modelica::createExplicitCastInsertionPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     if (ci.getCodeGenOptions().cse) {
@@ -724,57 +767,6 @@ namespace marco::frontend
     }
   }
 
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRAutomaticDifferentiationPass()
-  {
-    return mlir::modelica::createAutomaticDifferentiationPass();
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRArithToLLVMConversionPass()
-  {
-    mlir::ArithToLLVMConversionPassOptions options;
-    return mlir::createArithToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRCyclesSolvingPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::CyclesSolvingPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
-    options.allowUnsolvedCycles = ci.getSimulationOptions().solver == "ida";
-
-    return mlir::modelica::createCyclesSolvingPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::EulerForwardPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-    options.model = ci.getSimulationOptions().modelName;
-    options.emitSimulationMainFunction = ci.getCodeGenOptions().generateMain;
-    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
-
-    return mlir::modelica::createEulerForwardPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRExplicitCastInsertionPass()
-  {
-    return mlir::modelica::createExplicitCastInsertionPass();
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRFuncToLLVMConversionPass(
-      bool useBarePtrCallConv)
-  {
-    mlir::LowerToLLVMOptions options(mlirContext.get());
-    options.dataLayout = getDataLayout();
-    options.useBarePtrCallConv = useBarePtrCallConv;
-
-    return mlir::createConvertFuncToLLVMPass(options);
-  }
-
   std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRFunctionScalarizationPass()
   {
@@ -787,70 +779,47 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRIDAPass()
+  CodeGenAction::createMLIRReadOnlyVariablesPropagationPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::ReadOnlyVariablesPropagationPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRCyclesSolvingPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::CyclesSolvingPassOptions options;
+    options.allowUnsolvedCycles = ci.getSimulationOptions().solver == "ida";
+
+    return mlir::modelica::createCyclesSolvingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::EulerForwardPassOptions options;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+
+    return mlir::modelica::createEulerForwardPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRIDAPass()
   {
     CompilerInstance& ci = getInstance();
 
     mlir::modelica::IDAPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-    options.model = ci.getSimulationOptions().modelName;
-    options.emitSimulationMainFunction = ci.getCodeGenOptions().generateMain;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
     options.reducedSystem = ci.getSimulationOptions().IDAReducedSystem;
     options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
     options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
 
     return mlir::modelica::createIDAPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRIDAToFuncConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::IDAToFuncConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-
-    return mlir::createIDAToFuncConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRIDAToLLVMConversionPass()
-  {
-    mlir::IDAToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createIDAToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
-  {
-    mlir::KINSOLToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createKINSOLToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRMatchingPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::MatchingPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
-
-    return mlir::modelica::createMatchingPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRMemRefToLLVMConversionPass()
-  {
-    mlir::MemRefToLLVMConversionPassOptions options;
-    options.useGenericFunctions = true;
-
-    return mlir::createMemRefToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
@@ -932,58 +901,64 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelLegalizationPass()
+  CodeGenAction::createMLIRIDAToFuncConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::modelica::ModelLegalizationPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
+    mlir::IDAToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
 
-    return mlir::modelica::createModelLegalizationPass(options);
+    return mlir::createIDAToFuncConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRReadOnlyVariablesPropagationPass()
+  CodeGenAction::createMLIRIDAToLLVMConversionPass()
   {
-    CompilerInstance& ci = getInstance();
+    mlir::IDAToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
 
-    mlir::modelica::ReadOnlyVariablesPropagationPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
-
-    return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
+    return mlir::createIDAToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRVariablesPromotionPass()
+  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
   {
-    CompilerInstance& ci = getInstance();
+    mlir::KINSOLToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
 
-    mlir::modelica::VariablesPromotionPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
-
-    return mlir::modelica::createVariablesPromotionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRSchedulingPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::SchedulingPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
-
-    return mlir::modelica::createSchedulingPass(options);
+    return mlir::createKINSOLToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRSimulationToFuncConversionPass()
   {
-    CompilerInstance& ci = getInstance();
+    return mlir::createSimulationToFuncConversionPass();
+  }
 
-    mlir::SimulationToFuncConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRArithToLLVMConversionPass()
+  {
+    mlir::ArithToLLVMConversionPassOptions options;
+    return mlir::createArithToLLVMConversionPass(options);
+  }
 
-    return mlir::createSimulationToFuncConversionPass(options);
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv)
+  {
+    mlir::LowerToLLVMOptions options(mlirContext.get());
+    options.dataLayout = getDataLayout();
+    options.useBarePtrCallConv = useBarePtrCallConv;
+
+    return mlir::createConvertFuncToLLVMPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRMemRefToLLVMConversionPass()
+  {
+    mlir::MemRefToLLVMConversionPassOptions options;
+    options.useGenericFunctions = true;
+
+    return mlir::createMemRefToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>

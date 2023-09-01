@@ -1,13 +1,6 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(test-model-conversion{model=Test})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --test-model-conversion | FileCheck %s
 
-// CHECK: #[[x:.*]] = #simulation.variable
-// CHECK-SAME: name = "x"
-
-// CHECK: #[[y:.*]] = #simulation.variable
-// CHECK-SAME: name = "y"
-
-// CHECK: simulation.module
-// CHECK-SAME: variables = [#[[x]], #[[y]]]
+// CHECK: simulation.variable_names ["x", "y"]
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.real>

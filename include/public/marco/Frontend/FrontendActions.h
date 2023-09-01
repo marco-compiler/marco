@@ -137,33 +137,46 @@ namespace marco::frontend
       /// dialect to the LLVM dialect
       void createModelicaToLLVMPassPipeline(mlir::PassManager& pm);
 
-      std::unique_ptr<mlir::Pass> createMLIRAutomaticDifferentiationPass();
-      std::unique_ptr<mlir::Pass> createMLIRArithToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRCyclesSolvingPass();
-      std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
-      std::unique_ptr<mlir::Pass> createMLIRExplicitCastInsertionPass();
-
-      std::unique_ptr<mlir::Pass>
-      createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv);
+      /// }
+      /// @name Modelica passes.
+      /// {
 
       std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
+      std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
+
+      std::unique_ptr<mlir::Pass> createMLIRCyclesSolvingPass();
+
+      std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAPass();
-      std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRMatchingPass();
-      std::unique_ptr<mlir::Pass> createMLIRMemRefToLLVMConversionPass();
+
+      /// }
+      /// @name Conversion passes.
+      /// {
+
       std::unique_ptr<mlir::Pass> createMLIRModelicaToArithConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToCFConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToMemRefConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToVectorConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelLegalizationPass();
-      std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
-      std::unique_ptr<mlir::Pass> createMLIRVariablesPromotionPass();
-      std::unique_ptr<mlir::Pass> createMLIRSchedulingPass();
+
+      std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();
+
+      std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
+
       std::unique_ptr<mlir::Pass> createMLIRSimulationToFuncConversionPass();
+
+      /// }
+      /// @name MLIR built-in passes.
+      /// {
+
+      std::unique_ptr<mlir::Pass> createMLIRArithToLLVMConversionPass();
+
+      std::unique_ptr<mlir::Pass>
+      createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv);
+
+      std::unique_ptr<mlir::Pass> createMLIRMemRefToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRVectorToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRVectorToSCFConversionPass();
 

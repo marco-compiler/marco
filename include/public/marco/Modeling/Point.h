@@ -2,6 +2,7 @@
 #define MARCO_MODELING_POINT_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
 #include <iostream>
@@ -12,7 +13,7 @@ namespace marco::modeling
   class Point
   {
     public:
-      using data_type = long;
+      using data_type = int64_t;
 
     private:
       using Container = llvm::SmallVector<data_type, 3>;
@@ -26,6 +27,8 @@ namespace marco::modeling
 
       Point(llvm::ArrayRef<data_type> values);
 
+      friend llvm::hash_code hash_value(const Point& value);
+
       bool operator==(const Point& other) const;
 
       bool operator!=(const Point& other) const;
@@ -38,6 +41,8 @@ namespace marco::modeling
       const_iterator begin() const;
 
       const_iterator end() const;
+
+      operator llvm::ArrayRef<data_type>() const;
 
     private:
       Container values;

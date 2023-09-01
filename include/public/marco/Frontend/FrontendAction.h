@@ -33,13 +33,13 @@ namespace marco::frontend
       /// @name Current file information
       /// {
 
-      const FrontendInputFile& getCurrentInput() const;
+      const io::InputFile& getCurrentInput() const;
 
       llvm::StringRef getCurrentFile() const;
 
       llvm::StringRef getCurrentFileOrBufferName() const;
 
-      void setCurrentInput(const FrontendInputFile& currentIntput);
+      void setCurrentInput(const io::InputFile& currentIntput);
 
       /// }
       /// @name Public action interface
@@ -52,8 +52,7 @@ namespace marco::frontend
       ///
       /// This is run after the options and frontend have been initialized,
       /// but prior to executing any per-file processing.
-      bool beginSourceFile(
-          CompilerInstance &ci, const FrontendInputFile &input);
+      bool beginSourceFile(CompilerInstance &ci, const io::InputFile &input);
 
       /// Run the action.
       llvm::Error execute();
@@ -102,7 +101,7 @@ namespace marco::frontend
 
     private:
       CompilerInstance* instance;
-      FrontendInputFile currentInput;
+      io::InputFile currentInput;
   };
 }
 

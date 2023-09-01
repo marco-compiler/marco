@@ -103,6 +103,8 @@ namespace marco::modeling::impl
 
       std::unique_ptr<Impl> clone() const override;
 
+      friend llvm::hash_code hash_value(const RTreeIndexSet& value);
+
       bool operator==(const Point& rhs) const override;
 
       bool operator==(const MultidimensionalRange& rhs) const override;
@@ -172,6 +174,19 @@ namespace marco::modeling::impl
       IndexSet intersect(const RTreeIndexSet& other) const;
 
       IndexSet complement(const MultidimensionalRange& other) const override;
+
+      std::unique_ptr<IndexSet::Impl> takeFirstDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> takeLastDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> takeDimensions(
+          const llvm::SmallBitVector& dimensions) const override;
+
+      std::unique_ptr<IndexSet::Impl> dropFirstDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> dropLastDimensions(size_t n) const override;
+
+      std::unique_ptr<IndexSet::Impl> append(const IndexSet& other) const override;
 
       std::unique_ptr<IndexSet::Impl> getCanonicalRepresentation() const override;
 

@@ -46,6 +46,20 @@ namespace marco::modeling
 
     return os;
   }
+
+  llvm::hash_code hash_value(const IndexSet::Impl& value)
+  {
+    if (auto* objCasted = value.dyn_cast<impl::ListIndexSet>()) {
+      return hash_value(*objCasted);
+    }
+
+    if (auto* objCasted = value.dyn_cast<impl::RTreeIndexSet>()) {
+      return hash_value(*objCasted);
+    }
+
+    llvm_unreachable("Unknown IndexSet type");
+    return {0};
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -103,6 +117,12 @@ namespace marco::modeling
   {
     assert(obj.impl != nullptr);
     return os << *obj.impl;
+  }
+
+  llvm::hash_code hash_value(const IndexSet& value)
+  {
+    assert(value.impl != nullptr);
+    return hash_value(*value.impl);
   }
 
   bool IndexSet::operator==(const Point& rhs) const
@@ -328,48 +348,46 @@ namespace marco::modeling
     return impl->complement(other);
   }
 
-  MultidimensionalRange IndexSet::minContainingRange() const
+  IndexSet IndexSet::takeFirstDimensions(size_t n) const
   {
-    auto ranges = llvm::make_range(rangesBegin(), rangesEnd());
-    assert(!ranges.empty());
-
-    auto it = ranges.begin();
-    if(std::next(it) == ranges.end()) //if size==1
-      return *it;
-
-    llvm::SmallVector<Range,2> containingRanges;
-
-    auto getMinContaining = [](const Range& a, const Range& b){
-      return Range(std::min(a.getBegin(),b.getBegin()),std::max(a.getEnd(),b.getEnd()));
-    };
-
-    for(size_t i=0UL; i<rank(); i++)
-    {
-      containingRanges.push_back((*it)[i]);
-    }
-
-    for (++it;it!=ranges.end();++it)
-    {
-      for(size_t i=0UL; i<rank(); i++)
-      {
-        containingRanges[i] = getMinContaining(containingRanges[i],(*it)[i]);
-      }
-    }
-
-    return MultidimensionalRange(containingRanges);
+    assert(impl != nullptr);
+    return {impl->takeFirstDimensions(n)};
   }
 
-  bool IndexSet::isSingleMultidimensionalRange() const
+  IndexSet IndexSet::takeLastDimensions(size_t n) const
   {
-    auto ranges = llvm::make_range(rangesBegin(), rangesEnd());
-    return ranges.begin() != ranges.end() &&
-        std::next(ranges.begin()) == ranges.end();
+    assert(impl != nullptr);
+    return {impl->takeLastDimensions(n)};
+  }
+
+  IndexSet IndexSet::takeDimensions(const llvm::SmallBitVector& dimensions) const
+  {
+    assert(impl != nullptr);
+    return {impl->takeDimensions(dimensions)};
+  }
+
+  IndexSet IndexSet::dropFirstDimensions(size_t n) const
+  {
+    assert(impl != nullptr);
+    return {impl->dropFirstDimensions(n)};
+  }
+
+  IndexSet IndexSet::dropLastDimensions(size_t n) const
+  {
+    assert(impl != nullptr);
+    return {impl->dropLastDimensions(n)};
+  }
+
+  IndexSet IndexSet::append(const IndexSet& other) const
+  {
+    assert(impl != nullptr);
+    return {impl->append(other)};
   }
 
   IndexSet IndexSet::getCanonicalRepresentation() const
   {
     assert(impl != nullptr);
-    return IndexSet(impl->getCanonicalRepresentation());
+    return {impl->getCanonicalRepresentation()};
   }
 }
 

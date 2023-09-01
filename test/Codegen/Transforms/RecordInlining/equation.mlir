@@ -65,6 +65,21 @@ modelica.model @Test {
 
 // Equality between two records.
 
+// CHECK-LABEL: @Test
+// CHECK: modelica.variable @r1.x : !modelica.variable<!modelica.real>
+// CHECK: modelica.variable @r1.y : !modelica.variable<!modelica.real>
+// CHECK: modelica.variable @r2.x : !modelica.variable<!modelica.real>
+// CHECK: modelica.variable @r2.y : !modelica.variable<!modelica.real>
+// CHECK:       modelica.equation {
+// CHECK-DAG:       %[[x_1:.*]] = modelica.variable_get @r1.x : !modelica.real
+// CHECK-DAG:       %[[y_1:.*]] = modelica.variable_get @r1.y : !modelica.real
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x_1]], %[[y_1]]
+// CHECK-DAG:       %[[x_2:.*]] = modelica.variable_get @r2.x : !modelica.real
+// CHECK-DAG:       %[[y_2:.*]] = modelica.variable_get @r2.y : !modelica.real
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[x_2]], %[[y_2]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK-NEXT:  }
+
 modelica.record @R {
     modelica.variable @x : !modelica.variable<!modelica.real>
     modelica.variable @y : !modelica.variable<!modelica.real>

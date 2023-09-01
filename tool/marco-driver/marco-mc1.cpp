@@ -4,7 +4,7 @@
 
 using namespace marco::frontend;
 
-extern int mc1_main(llvm::ArrayRef<const char*> argv)
+extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
 {
   // Create the compiler instance.
   auto instance = std::make_unique<CompilerInstance>();

@@ -1,14 +1,14 @@
-// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+// RUN: marco -mc1 --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Simulation]
 // CHECK-DEFAULT: Solver: forwardEuler
 
-// RUN: marco-driver --init-only --solver=euler-forward | FileCheck %s --check-prefix="CHECK-EULER-FORWARD"
+// RUN: marco -mc1 --init-only --solver=euler-forward | FileCheck %s --check-prefix="CHECK-EULER-FORWARD"
 
 // CHECK-EULER-FORWARD-LABEL: [Simulation]
 // CHECK-EULER-FORWARD: Solver: euler-forward
 
-// RUN: marco-driver --init-only --solver=ida | FileCheck %s --check-prefix="CHECK-IDA"
+// RUN: marco -mc1 --init-only --solver=ida | FileCheck %s --check-prefix="CHECK-IDA"
 
 // CHECK-IDA-LABEL: [Simulation]
 // CHECK-IDA: Solver: ida

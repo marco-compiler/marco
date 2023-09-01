@@ -183,8 +183,8 @@ def Modelica_RealArrayAttr
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_InverseFunctionsAttr
-    : Modelica_Attr<"InverseFunctions"> {
+def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions">
+{
     let summary = "TODO";
 
     let description = [{
@@ -216,6 +216,94 @@ def Modelica_DerivativeAttr
     let parameters = (ins StringRefParameter<"Derived function name">:$name, "unsigned int":$order);
 
     let hasCustomAssemblyFormat = 1;
+}
+
+def Modelica_VarDerivativeAttr : Modelica_Attr<"VarDerivative">
+{
+    let summary = "Variable's derivative information.";
+
+    let description = [{
+        Attribute representing the information about a derivative of a variable.
+    }];
+
+    let mnemonic = "var_derivative";
+
+    let parameters = (ins
+        "mlir::SymbolRefAttr":$variable,
+        "mlir::SymbolRefAttr":$derivative,
+        OptionalParameter<"IndexSetAttr">:$derived_indices);
+
+    let assemblyFormat = [{
+        $variable `,` $derivative (`,` $derived_indices^)?
+    }];
+}
+
+def Modelica_EquationViewAttr : Modelica_Attr<"EquationView">
+{
+    let summary = "Equation view.";
+
+    let description = [{
+        Attribute representing a view over an equation.
+    }];
+
+    let mnemonic = "equation_view";
+
+    let parameters = (ins
+        "int64_t":$sideElementIndex,
+        "mlir::SymbolRefAttr":$component);
+
+    let assemblyFormat = [{
+        $sideElementIndex `,` $component
+    }];
+}
+
+def Modelica_EquationPathAttr : Modelica_Attr<"EquationPath">
+{
+    let summary = "Equation path.";
+
+    let description = [{
+        Attribute representing a path within the IR of an equation.
+    }];
+
+    let mnemonic = "equation_path";
+    let parameters = (ins "EquationPath":$value);
+    let assemblyFormat = "$value";
+}
+
+def Modelica_EquationScheduleDirectionAttr
+    : Modelica_Attr<"EquationScheduleDirection">
+{
+    let summary = "Equation's schedule iteration direction.";
+
+    let description = [{
+        Attribute representing the runtime iteration direction for the indices
+        of a scheduled equation.
+    }];
+
+    let mnemonic = "equation_schedule_direction";
+    let parameters = (ins "EquationScheduleDirection":$value);
+    let assemblyFormat = "$value";
+}
+
+def Modelica_EquationMatchAttr : Modelica_Attr<"EquationMatch">
+{
+    let summary = "Equation match information.";
+
+    let description = [{
+        Attribute representing the match information for an equation.
+    }];
+
+    let mnemonic = "equation_match";
+
+    let parameters = (ins
+        "mlir::modeling::IndexSetAttr":$equation_indices,
+        "EquationPathAttr":$path,
+        OptionalParameter<"mlir::modeling::IndexSetAttr">:$variable_extra_indices,
+        OptionalParameter<"mlir::SymbolRefAttr">:$component);
+
+    let assemblyFormat = [{
+        $equation_indices `,` $path (`,` $variable_extra_indices^)? (`,` $component^)?
+    }];
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

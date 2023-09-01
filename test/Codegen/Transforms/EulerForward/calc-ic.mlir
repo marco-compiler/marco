@@ -1,6 +1,8 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(euler-forward{model=Test})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --euler-forward | FileCheck %s
 
-// CHECK:       simulation.function @calcIC(solvers: [], time: [%[[time:.*]]: !modelica.real], variables: [], extra_args: []) -> () {
+// Empty model.
+
+// CHECK:       simulation.function @calcIC() {
 // CHECK-NEXT:      simulation.return
 // CHECK-NEXT:  }
 

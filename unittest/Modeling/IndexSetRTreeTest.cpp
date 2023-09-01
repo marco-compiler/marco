@@ -1,6 +1,6 @@
+#include "marco/Modeling/IndexSetRTree.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Modeling/IndexSetRTree.h"
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::impl;

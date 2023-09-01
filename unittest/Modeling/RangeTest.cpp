@@ -1,6 +1,6 @@
+#include "marco/Modeling/Range.h"
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Modeling/Range.h"
 
 using namespace ::marco::modeling;
 
@@ -8,14 +8,14 @@ TEST(Range, borders)
 {
   Range range(1, 5);
 
-  ASSERT_EQ(range.getBegin(), 1);
-  ASSERT_EQ(range.getEnd(), 5);
+  EXPECT_EQ(range.getBegin(), 1);
+  EXPECT_EQ(range.getEnd(), 5);
 }
 
 TEST(Range, size)
 {
   Range range(1, 5);
-  ASSERT_EQ(range.size(), 4);
+  EXPECT_EQ(range.size(), 4);
 }
 
 TEST(Range, iteration)
@@ -27,8 +27,9 @@ TEST(Range, iteration)
 
   auto value = range.getBegin();
 
-  for (auto it = begin; it != end; ++it)
+  for (auto it = begin; it != end; ++it) {
     EXPECT_EQ(*it, value++);
+  }
 }
 
 TEST(Range, containsValue)
@@ -79,7 +80,7 @@ TEST(Range, merge)
 {
   Range x(1, 5);
 
-  // Overlapping
+  // Overlapping.
   Range y(3, 11);
 
   EXPECT_TRUE(x.canBeMerged(y));
@@ -91,7 +92,7 @@ TEST(Range, merge)
   EXPECT_EQ(y.merge(x).getBegin(), 1);
   EXPECT_EQ(y.merge(x).getEnd(), 11);
 
-  // Touching borders
+  // Touching borders.
   Range z(5, 7);
 
   EXPECT_TRUE(x.canBeMerged(z));
@@ -108,13 +109,13 @@ TEST(Range, subtraction)
 {
   Range a(3, 7);
 
-  // Overlapping
+  // Overlapping.
   Range b(5, 11);
 
   EXPECT_THAT(a.subtract(b), testing::UnorderedElementsAre(Range(3, 5)));
   EXPECT_THAT(b.subtract(a), testing::UnorderedElementsAre(Range(7, 11)));
 
-  // Fully contained
+  // Fully contained.
   Range c(2, 11);
   Range d(2, 5);
   Range e(7, 11);

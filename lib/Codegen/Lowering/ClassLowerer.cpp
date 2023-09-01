@@ -90,8 +90,7 @@ namespace marco::codegen::lowering
 
     auto variableOp = builder().create<VariableOp>(
         location, variable.getName(), variableType,
-        builder().getStrArrayAttr(dimensionsConstraints),
-        nullptr);
+        builder().getStrArrayAttr(dimensionsConstraints));
 
     mlir::SymbolTable& symbolTable = getSymbolTable().getSymbolTable(
         variableOp->getParentOfType<ClassInterface>());

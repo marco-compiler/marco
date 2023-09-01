@@ -1,373 +1,161 @@
 #include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionConstant.h"
+#include "marco/Modeling/AccessFunctionEmpty.h"
+#include "marco/Modeling/AccessFunctionRotoTranslation.h"
+#include "marco/Modeling/AccessFunctionZeroDims.h"
+#include "marco/Modeling/AccessFunctionZeroResults.h"
 
 namespace marco::modeling
 {
-  DimensionAccess::DimensionAccess(
-      bool constantAccess,
-      Point::data_type position,
-      unsigned int inductionVariableIndex)
-      : constantAccess(constantAccess),
-        position(position),
-        inductionVariableIndex(inductionVariableIndex)
+  std::unique_ptr<AccessFunction>
+  AccessFunction::build(mlir::AffineMap affineMap)
   {
-  }
+    affineMap = mlir::simplifyAffineMap(affineMap);
 
-  DimensionAccess DimensionAccess::constant(Point::data_type position)
-  {
-    assert(position >= 0);
-    return DimensionAccess(true, position);
-  }
-
-  DimensionAccess DimensionAccess::relative(unsigned int inductionVariableIndex, Point::data_type relativePosition)
-  {
-    return DimensionAccess(false, relativePosition, inductionVariableIndex);
-  }
-
-  bool DimensionAccess::operator==(const DimensionAccess& other) const
-  {
-    if (isConstantAccess() && other.isConstantAccess()) {
-      return getPosition() == other.getPosition();
+    if (AccessFunctionEmpty::canBeBuilt(affineMap)) {
+      return std::make_unique<AccessFunctionEmpty>(affineMap);
     }
 
-    if (!isConstantAccess() && !other.isConstantAccess()) {
-      return getOffset() == other.getOffset();
+    if (AccessFunctionZeroDims::canBeBuilt(affineMap)) {
+      return std::make_unique<AccessFunctionZeroDims>(affineMap);
     }
 
-    return false;
-  }
-
-  bool DimensionAccess::operator!=(const DimensionAccess& other) const
-  {
-    if (isConstantAccess() && other.isConstantAccess()) {
-      return getPosition() != other.getPosition();
+    if (AccessFunctionZeroResults::canBeBuilt(affineMap)) {
+      return std::make_unique<AccessFunctionZeroResults>(affineMap);
     }
 
-    if (!isConstantAccess() && !other.isConstantAccess()) {
-      return getOffset() != other.getOffset();
+    if (AccessFunctionConstant::canBeBuilt(affineMap)) {
+      return std::make_unique<AccessFunctionConstant>(affineMap);
     }
 
-    return true;
-  }
-
-  Point::data_type DimensionAccess::operator()(const Point& equationIndexes) const
-  {
-    return map(equationIndexes);
-  }
-
-  Range DimensionAccess::operator()(const MultidimensionalRange& range) const
-  {
-    return map(range);
-  }
-
-  bool DimensionAccess::isConstantAccess() const
-  {
-    return constantAccess;
-  }
-
-  Point::data_type DimensionAccess::getPosition() const
-  {
-    assert(isConstantAccess());
-    return position;
-  }
-
-  Point::data_type DimensionAccess::getOffset() const
-  {
-    assert(!isConstantAccess());
-    return position;
-  }
-
-  unsigned int DimensionAccess::getInductionVariableIndex() const
-  {
-    assert(!isConstantAccess());
-    return inductionVariableIndex;
-  }
-
-  Point::data_type DimensionAccess::map(const Point& equationIndexes) const
-  {
-    if (isConstantAccess()) {
-      return getPosition();
+    if (AccessFunctionRotoTranslation::canBeBuilt(affineMap)) {
+      return std::make_unique<AccessFunctionRotoTranslation>(affineMap);
     }
 
-    return equationIndexes[getInductionVariableIndex()] + getOffset();
+    // Fallback implementation.
+    return std::make_unique<AccessFunction>(affineMap);
   }
 
-  Range DimensionAccess::map(const MultidimensionalRange& range) const
-  {
-    if (isConstantAccess()) {
-      return Range(getPosition(), getPosition() + 1);
-    }
-
-    auto accessedDimensionIndex = getInductionVariableIndex();
-    assert(accessedDimensionIndex < range.rank());
-    const auto& sourceRange = range[accessedDimensionIndex];
-    return Range(sourceRange.getBegin() + getOffset(), sourceRange.getEnd() + getOffset());
-  }
-
-  std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj)
-  {
-    stream << "[";
-
-    if (obj.isConstantAccess()) {
-      stream << obj.getPosition();
-    } else {
-      stream << "i" << obj.getInductionVariableIndex();
-
-      if (auto offset = obj.getOffset(); offset > 0) {
-        stream << " + " << offset;
-      } else if (offset < 0) {
-        stream << " - " << (-1 * offset);
-      }
-    }
-
-    stream << "]";
-    return stream;
-  }
-
-  AccessFunction::AccessFunction(llvm::ArrayRef<DimensionAccess> functions)
-      : functions(functions.begin(), functions.end())
+  AccessFunction::AccessFunction(mlir::AffineMap affineMap)
+      : AccessFunction(Kind::Generic, affineMap)
   {
   }
 
-  AccessFunction AccessFunction::identity(size_t dimensionality)
+  AccessFunction::AccessFunction(
+      AccessFunction::Kind kind, mlir::AffineMap affineMap)
+      : kind(kind),
+        affineMap(affineMap)
   {
-    llvm::SmallVector<DimensionAccess, 3> accesses;
+  }
 
-    for (size_t i = 0; i < dimensionality; ++i) {
-      accesses.push_back(DimensionAccess::relative(i, 0));
-    }
+  AccessFunction::~AccessFunction() = default;
 
-    return AccessFunction(std::move(accesses));
+  std::unique_ptr<AccessFunction> AccessFunction::clone() const
+  {
+    return std::make_unique<AccessFunction>(*this);
   }
 
   bool AccessFunction::operator==(const AccessFunction& other) const
   {
-    if (functions.size() != other.functions.size()) {
-      return false;
-    }
-
-    for (const auto& [first, second] : llvm::zip(functions, other.functions)) {
-      if (first != second) {
-        return false;
-      }
-    }
-
-    return true;
+    return affineMap == other.affineMap;
   }
 
   bool AccessFunction::operator!=(const AccessFunction& other) const
   {
-    if (functions.size() != other.functions.size()) {
-      return true;
-    }
-
-    for (const auto& [first, second] : llvm::zip(functions, other.functions)) {
-      if (first != second) {
-        return true;
-      }
-    }
-
-    return false;
+    return affineMap != other.affineMap;
   }
 
-  const DimensionAccess& AccessFunction::operator[](size_t index) const
+  mlir::AffineMap AccessFunction::getAffineMap() const
   {
-    assert(index < size());
-    return functions[index];
+    return affineMap;
   }
 
-  AccessFunction AccessFunction::combine(const AccessFunction& other) const
+  size_t AccessFunction::getNumOfDims() const
   {
-    llvm::SmallVector<DimensionAccess, 3> accesses;
-
-    for (const DimensionAccess& function : other.functions) {
-      accesses.push_back(combine(function));
-    }
-
-    return AccessFunction(std::move(accesses));
+    return affineMap.getNumDims();
   }
 
-  DimensionAccess AccessFunction::combine(const DimensionAccess& other) const
+  size_t AccessFunction::getNumOfResults() const
   {
-    if (other.isConstantAccess()) {
-      return other;
-    }
-
-    unsigned int inductionVariableIndex = other.getInductionVariableIndex();
-    assert(inductionVariableIndex < functions.size());
-
-    const DimensionAccess& mapped = functions[inductionVariableIndex];
-
-    if (mapped.isConstantAccess()) {
-      return DimensionAccess::constant(mapped.getPosition() + other.getOffset());
-    }
-
-    return DimensionAccess::relative(mapped.getInductionVariableIndex(), mapped.getOffset() + other.getOffset());
-  }
-
-  size_t AccessFunction::size() const
-  {
-    return functions.size();
-  }
-
-  AccessFunction::const_iterator AccessFunction::begin() const
-  {
-    return functions.begin();
-  }
-
-  AccessFunction::const_iterator AccessFunction::end() const
-  {
-    return functions.end();
+    return affineMap.getNumResults();
   }
 
   bool AccessFunction::isIdentity() const
   {
-    for (size_t i = 0, e = functions.size(); i < e; ++i) {
-      const DimensionAccess& function = functions[i];
+    return affineMap.isIdentity();
+  }
 
-      if (function.isConstantAccess()) {
-        return false;
-      }
+  std::unique_ptr<AccessFunction>
+  AccessFunction::combine(const AccessFunction& other) const
+  {
+    mlir::AffineMap otherMap =
+        other.getAffineMapWithAtLeastNDimensions(affineMap.getNumResults());
 
-      if (function.getInductionVariableIndex() != i) {
-        return false;
-      }
-
-      if (function.getOffset() != 0) {
-        return false;
-      }
-    }
-
-    return true;
+    return AccessFunction::build(otherMap.compose(affineMap));
   }
 
   bool AccessFunction::isInvertible() const
   {
-    size_t rank = functions.size();
-    llvm::SmallVector<bool, 3> usedDimensions(rank, false);
-
-    for (const DimensionAccess& function : functions) {
-      if (!function.isConstantAccess()) {
-        unsigned int inductionVar = function.getInductionVariableIndex();
-
-        if (inductionVar >= rank) {
-          return false;
-        }
-
-        usedDimensions[inductionVar] = true;
-      }
-    }
-
-    return llvm::all_of(usedDimensions, [](bool used) {
-      return used;
-    });
+    return false;
   }
 
-  AccessFunction AccessFunction::inverse() const
+  std::unique_ptr<AccessFunction> AccessFunction::inverse() const
   {
-    assert(isInvertible());
-    size_t rank = functions.size();
-
-    std::vector<DimensionAccess> remapped;
-    remapped.reserve(rank);
-
-    std::vector<size_t> positionsMap;
-    positionsMap.resize(rank);
-
-    for (size_t i = 0; i < rank; ++i) {
-      auto inductionVar = functions[i].getInductionVariableIndex();
-      remapped.push_back(DimensionAccess::relative(i, -1 * functions[i].getOffset()));
-      positionsMap[inductionVar] = i;
-    }
-
-    std::vector<DimensionAccess> reordered;
-
-    for (const auto& position : positionsMap) {
-      reordered.push_back(std::move(remapped[position]));
-    }
-
-    return AccessFunction(std::move(reordered));
+    return nullptr;
   }
 
-  Point AccessFunction::map(const Point& equationIndexes) const
+  Point AccessFunction::map(const Point& indices) const
   {
-    std::vector<Point::data_type> results;
-
-    for (const DimensionAccess& function: functions) {
-      results.push_back(function(equationIndexes));
-    }
-
-    return Point(std::move(results));
+    mlir::AffineMap map = getAffineMapWithAtLeastNDimensions(indices.rank());
+    return {map.compose(indices)};
   }
 
-  MultidimensionalRange AccessFunction::map(const MultidimensionalRange& range) const
-  {
-    std::vector<Range> ranges;
-
-    for (const DimensionAccess& function : functions) {
-      ranges.push_back(function(range));
-    }
-
-    return MultidimensionalRange(std::move(ranges));
-  }
-
-  IndexSet AccessFunction::map(const IndexSet& indexes) const
+  IndexSet AccessFunction::map(const IndexSet& indices) const
   {
     IndexSet result;
 
-    for (const MultidimensionalRange& range : llvm::make_range(indexes.rangesBegin(), indexes.rangesEnd())) {
-      result += map(range);
+    for (Point point : indices) {
+      result += map(point);
     }
 
     return result;
   }
 
-  MultidimensionalRange AccessFunction::inverseMap(const MultidimensionalRange& range) const
+  IndexSet AccessFunction::inverseMap(
+      const IndexSet& accessedIndices,
+      const IndexSet& parentIndices) const
   {
-    return inverse().map(range);
-  }
-
-  IndexSet AccessFunction::inverseMap(const IndexSet& indexes) const
-  {
-    return inverse().map(indexes);
-  }
-
-  IndexSet AccessFunction::inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const
-  {
-    if (isInvertible() && !indices.empty() && !parentIndexes.empty() && indices.rank() == parentIndexes.rank()) {
-      IndexSet mapped = inverseMap(indices);
-      assert(map(mapped).contains(indices));
-      return mapped;
-    }
-
-    // If the access function is not invertible, then not all the iteration
-    // variables are used. This loss of information doesn't allow to
-    // reconstruct the equation ranges that leads to the dependency loop. Thus,
-    // we need to iterate on all the original equation points and determine
-    // which of them lead to a loop. This is highly expensive but also
-    // inevitable, and confined only to very few cases within real scenarios.
-
     IndexSet result;
 
-    for (const auto& range: llvm::make_range(parentIndexes.rangesBegin(), parentIndexes.rangesEnd())) {
-      for (const Point& point: range) {
-        if (indices.contains(map(point))) {
-          result += point;
-        }
+    for (const Point& point : parentIndices) {
+      if (accessedIndices.contains(map(point))) {
+        result += point;
       }
     }
 
     return result;
   }
 
-  std::ostream& operator<<(std::ostream& stream, const AccessFunction& obj)
+  std::unique_ptr<AccessFunction>
+  AccessFunction::getWithAtLeastNDimensions(unsigned int dimensions) const
   {
-    stream << "[";
+    return AccessFunction::build(
+        getAffineMapWithAtLeastNDimensions(dimensions));
+  }
 
-    for (const auto& access : obj) {
-      stream << access;
+  mlir::AffineMap
+  AccessFunction::getAffineMapWithAtLeastNDimensions(unsigned int dimensions) const
+  {
+    mlir::AffineMap map = getAffineMap();
+
+    if (map.getNumDims() >= dimensions) {
+      return map;
     }
 
-    stream << "]";
-    return stream;
+    return mlir::AffineMap::get(
+        std::max(map.getNumDims(), dimensions),
+        map.getNumSymbols(),
+        map.getResults(),
+        map.getContext());
   }
 }

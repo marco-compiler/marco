@@ -57,7 +57,7 @@ static unsigned int getVectorizationRank(
 			// if initially unknown.
 
 			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i) {
-				auto& dimension = argType.cast<ArrayType>().getShape()[arg.index()];
+				auto dimension = argType.cast<ArrayType>().getShape()[arg.index()];
 				dimensions.push_back(dimension);
 			}
 		} else {
@@ -69,7 +69,7 @@ static unsigned int getVectorizationRank(
       }
 
 			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i) {
-				auto& dimension = argType.cast<ArrayType>().getShape()[i];
+				auto dimension = argType.cast<ArrayType>().getShape()[i];
 
 				// If the dimension is dynamic, then no further checks or
 				// specializations are possible.

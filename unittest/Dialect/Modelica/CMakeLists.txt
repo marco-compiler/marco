@@ -1,6 +1,5 @@
 set(SOURCES
-    ArrayTypeTest.cpp
-    IterationSpaceTest.cpp)
+    ArrayTypeTest.cpp)
 
 marco_add_unittest(ModelicaDialectTest ${SOURCES})
 

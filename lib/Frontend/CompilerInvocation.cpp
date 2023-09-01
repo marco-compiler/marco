@@ -1,6 +1,6 @@
 #include "marco/Diagnostic/Printer.h"
 #include "marco/Frontend/CompilerInvocation.h"
-#include "marco/Frontend/Options.h"
+#include "marco/Options/Options.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Option/Arg.h"
@@ -14,6 +14,7 @@
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
+using namespace ::marco::io;
 
 //===---------------------------------------------------------------------===//
 // Messages
@@ -169,9 +170,8 @@ static void parseFrontendArgs(
   }
 
   for (size_t i = 0, e = inputs.size(); i != e; ++i) {
-    // TODO: expand to handle multiple input types
     options.inputs.emplace_back(
-        std::move(inputs[i]), InputKind(Language::Modelica));
+        inputs[i], InputKind::getFromFullFileName(inputs[i]));
   }
 
   setUpFrontendBasedOnAction(options);
@@ -246,16 +246,16 @@ static void parseCodegenArgs(
   // default options given by the optimization level.
 
   if (!options.debug) {
-    options.debug = args.hasArg(marco::frontend::options::OPT_debug);
+    options.debug = args.hasArg(options::OPT_debug);
   }
 
   options.assertions = args.hasFlag(
-      marco::frontend::options::OPT_assertions,
+      options::OPT_assertions,
       options::OPT_no_assertions,
       options.assertions);
 
   options.inlining = args.hasFlag(
-      marco::frontend::options::OPT_function_inlining,
+      options::OPT_function_inlining,
       options::OPT_no_function_inlining,
       options.inlining);
 
@@ -275,12 +275,12 @@ static void parseCodegenArgs(
       options.variablesToParametersPromotion);
 
   options.cse = args.hasFlag(
-      marco::frontend::options::OPT_cse,
+      options::OPT_cse,
       options::OPT_no_cse,
       options.cse);
 
   options.omp = args.hasFlag(
-      marco::frontend::options::OPT_omp,
+      options::OPT_omp,
       options::OPT_no_omp,
       options.omp);
 
@@ -293,7 +293,7 @@ static void parseCodegenArgs(
   // Cross-compilation options
 
   options.generateMain = args.hasFlag(
-      marco::frontend::options::OPT_generate_main,
+      options::OPT_generate_main,
       options::OPT_no_generate_main,
       options.generateMain);
 
@@ -342,19 +342,19 @@ static void parseSimulationArgs(
 
   // IDA: reduced system computation.
   options.IDAReducedSystem = args.hasFlag(
-      marco::frontend::options::OPT_ida_reduced_system,
+      options::OPT_ida_reduced_system,
       options::OPT_no_ida_reduced_system,
       options.IDAReducedSystem);
 
   // IDA: reduced derivatives.
   options.IDAReducedDerivatives = args.hasFlag(
-      marco::frontend::options::OPT_ida_reduced_derivatives,
+      options::OPT_ida_reduced_derivatives,
       options::OPT_no_ida_reduced_derivatives,
       options.IDAReducedDerivatives);
 
   // IDA: AD seeds optimization.
   options.IDAJacobianOneSweep = args.hasFlag(
-      marco::frontend::options::OPT_ida_jacobian_one_sweep,
+      options::OPT_ida_jacobian_one_sweep,
       options::OPT_no_ida_jacobian_one_sweep,
       options.IDAJacobianOneSweep);
 }
@@ -369,13 +369,11 @@ namespace marco::frontend
     auto numOfErrors = diagnostics.numOfErrors();
 
     // Parse the arguments
-    const llvm::opt::OptTable& opts = marco::frontend::getDriverOptTable();
-
-    const unsigned includedFlagsBitmask = marco::frontend::options::MC1Option;
+    const llvm::opt::OptTable& opts = options::getDriverOptTable();
     unsigned missingArgIndex, missingArgCount;
 
     llvm::opt::InputArgList args = opts.ParseArgs(
-        commandLineArgs, missingArgIndex, missingArgCount, includedFlagsBitmask);
+        commandLineArgs, missingArgIndex, missingArgCount, options::MC1Option);
 
     // Check for missing argument error
     if (missingArgCount != 0) {

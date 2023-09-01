@@ -19,7 +19,7 @@ set(SOURCES
     Lowering/PackageLowerer.cpp
     Lowering/PartialDerFunctionLowerer.cpp
     Lowering/Reference.cpp
-        Lowering/ComponentReferenceLowerer.cpp
+    Lowering/ComponentReferenceLowerer.cpp
     Lowering/Results.cpp
     Lowering/RecordLowerer.cpp
     Lowering/ReturnStatementLowerer.cpp
@@ -31,8 +31,7 @@ set(SOURCES
     Lowering/WhileStatementLowerer.cpp
     Bridge.cpp
     Runtime.cpp
-    Options.cpp
-    Utils.cpp)
+    Options.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
@@ -48,5 +47,6 @@ marco_add_library(codegen
     marco::variableFilter
     ${MLIR_LIBS})
 
+add_subdirectory(Analysis)
 add_subdirectory(Conversion)
 add_subdirectory(Transforms)

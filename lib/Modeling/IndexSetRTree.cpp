@@ -643,6 +643,11 @@ namespace marco::modeling::impl
     return std::make_unique<RTreeIndexSet>(*this);
   }
 
+  llvm::hash_code hash_value(const RTreeIndexSet& value)
+  {
+    return llvm::hash_combine_range(value.rangesBegin(), value.rangesEnd());
+  }
+
   bool RTreeIndexSet::operator==(const Point& rhs) const
   {
     return *this == RTreeIndexSet(rhs);
@@ -988,7 +993,6 @@ namespace marco::modeling::impl
 
   size_t RTreeIndexSet::rank() const
   {
-    assert(initialized);
     return allowedRank;
   }
 
@@ -1419,6 +1423,104 @@ namespace marco::modeling::impl
     }
 
     return { result };
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::takeFirstDimensions(size_t n) const
+  {
+    assert(n <= rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.takeFirstDimensions(n));
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::takeLastDimensions(size_t n) const
+  {
+    assert(n <= rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.takeLastDimensions(n));
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::takeDimensions(const llvm::SmallBitVector& dimensions) const
+  {
+    assert(dimensions.size() == rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.takeDimensions(dimensions));
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::dropFirstDimensions(size_t n) const
+  {
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.dropFirstDimensions(n));
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::dropLastDimensions(size_t n) const
+  {
+    assert(n < rank());
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    for (const MultidimensionalRange& range :
+         llvm::make_range(rangesBegin(), rangesEnd())) {
+      result.push_back(range.dropLastDimensions(n));
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::append(const IndexSet& other) const
+  {
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    if (empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+        result.push_back(range);
+      }
+    } else if (other.empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        result.push_back(range);
+      }
+    } else {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        for (const MultidimensionalRange& otherRange :
+             llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+          result.push_back(range.append(otherRange));
+        }
+      }
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
   }
 
   std::unique_ptr<IndexSet::Impl> RTreeIndexSet::getCanonicalRepresentation() const

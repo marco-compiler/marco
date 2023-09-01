@@ -14,7 +14,7 @@ namespace marco::codegen::lowering
       {
       }
 
-      ~Impl() = default;
+      virtual ~Impl() = default;
 
       virtual std::unique_ptr<Reference::Impl> clone() = 0;
 

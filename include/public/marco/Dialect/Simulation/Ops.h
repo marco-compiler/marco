@@ -8,6 +8,8 @@
 #include "mlir/IR/RegionKindInterface.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/Interfaces/CallInterfaces.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
+#include "mlir/IR/FunctionInterfaces.h"
 
 #include "marco/Dialect/Simulation/Attributes.h"
 #include "marco/Dialect/Simulation/Types.h"

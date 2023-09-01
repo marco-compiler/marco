@@ -691,7 +691,7 @@ class FunctionInliner : public mlir::OpRewritePattern<CallOp>
           op.getFunction(moduleOp, *symbolTable));
 
       if (!inlinableFunctions->contains(callee)) {
-        return mlir::success();
+        return mlir::failure();
       }
 
       mlir::BlockAndValueMapping mapping;

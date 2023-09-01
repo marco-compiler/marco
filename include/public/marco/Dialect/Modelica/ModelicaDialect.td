@@ -21,6 +21,10 @@ def Modelica_Dialect : Dialect {
     let useDefaultTypePrinterParser = 0;
     let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 
+    let dependentDialects = [
+        "modeling::ModelingDialect"
+    ];
+
     let extraClassDeclaration = [{
         void registerTypes();
         void registerAttributes();
