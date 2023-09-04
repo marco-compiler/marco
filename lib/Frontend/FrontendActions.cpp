@@ -670,10 +670,10 @@ namespace marco::frontend
         mlir::modelica::createMatchingPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createVariablesPromotionPass());
+        mlir::modelica::createEquationAccessSplitPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationAccessSplitPass());
+        mlir::modelica::createVariablesPromotionPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(createMLIRCyclesSolvingPass());
 
