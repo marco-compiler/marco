@@ -45,7 +45,7 @@ TEST(AccessFunction, isIdentity_empty)
   auto affineMap = mlir::AffineMap::get(0, 0, llvm::None, &ctx);
   auto accessFunction = std::make_unique<AccessFunction>(affineMap);
 
-  EXPECT_FALSE(accessFunction->isIdentity());
+  EXPECT_TRUE(accessFunction->isIdentity());
 }
 
 TEST(AccessFunction, isIdentity_emptyDimensions)

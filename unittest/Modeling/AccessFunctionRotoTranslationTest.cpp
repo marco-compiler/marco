@@ -11,19 +11,25 @@ TEST(AccessFunctionRotoTranslation, creation_empty)
 {
   mlir::MLIRContext ctx;
   auto affineMap = mlir::AffineMap::get(0, 0, llvm::None, &ctx);
-  EXPECT_TRUE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
+  EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_constants)
+TEST(AccessFunctionRotoTranslation, creation_emptyDimensions)
 {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
   expressions.push_back(mlir::getAffineConstantExpr(0, &ctx));
-  expressions.push_back(mlir::getAffineConstantExpr(1, &ctx));
 
   auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
-  EXPECT_TRUE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
+  EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
+}
+
+TEST(AccessFunctionRotoTranslation, creation_emptyResults)
+{
+  mlir::MLIRContext ctx;
+  auto affineMap = mlir::AffineMap::get(1, 0, llvm::None, &ctx);
+  EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
 TEST(AccessFunctionRotoTranslation, creation_dimensions)
@@ -67,24 +73,6 @@ TEST(AccessFunctionRotoTranslation, creation_mixedDimensionAccesses)
   EXPECT_TRUE(accessFunction);
 }
 
-TEST(AccessFunctionRotoTranslation, mapPoint_constantAccess)
-{
-  mlir::MLIRContext ctx;
-
-  llvm::SmallVector<mlir::AffineExpr> expressions;
-  expressions.push_back(mlir::getAffineConstantExpr(5, &ctx));
-
-  auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  Point p({2, -5, 7});
-  Point mapped = accessFunction->map(p);
-
-  EXPECT_EQ(mapped, std::make_unique<AccessFunction>(affineMap)->map(p));
-}
-
 TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess)
 {
   mlir::MLIRContext ctx;
@@ -104,31 +92,6 @@ TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess)
   EXPECT_EQ(mapped, std::make_unique<AccessFunction>(affineMap)->map(p));
 }
 
-TEST(AccessFunctionRotoTranslation, mapRange_constantAccess)
-{
-  mlir::MLIRContext ctx;
-
-  llvm::SmallVector<mlir::AffineExpr> expressions;
-  expressions.push_back(mlir::getAffineConstantExpr(5, &ctx));
-
-  auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  MultidimensionalRange range({
-      Range(2, 5),
-      Range(1, 4),
-      Range(7, 9),
-  });
-
-  MultidimensionalRange mapped = accessFunction->map(range);
-
-  ASSERT_EQ(mapped.rank(), 1);
-  EXPECT_EQ(mapped[0].getBegin(), 5);
-  EXPECT_EQ(mapped[0].getEnd(), 6);
-}
-
 TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)
 {
   mlir::MLIRContext ctx;
@@ -137,7 +100,7 @@ TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)
   expressions.push_back(getDimWithOffset(2, -4, &ctx));
   expressions.push_back(getDimWithOffset(1, 3, &ctx));
 
-  auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
+  auto affineMap = mlir::AffineMap::get(3, 0, expressions, &ctx);
 
   auto accessFunction =
       std::make_unique<AccessFunctionRotoTranslation>(affineMap);
@@ -157,43 +120,6 @@ TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)
 
   EXPECT_EQ(mapped[1].getBegin(), 4);
   EXPECT_EQ(mapped[1].getEnd(), 7);
-}
-
-TEST(AccessFunctionRotoTranslation, isIdentity_empty)
-{
-  mlir::MLIRContext ctx;
-  auto affineMap = mlir::AffineMap::get(0, 0, llvm::None, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  EXPECT_FALSE(accessFunction->isIdentity());
-}
-
-TEST(AccessFunctionRotoTranslation, isIdentity_emptyDimensions)
-{
-  mlir::MLIRContext ctx;
-
-  llvm::SmallVector<mlir::AffineExpr> expressions;
-  expressions.push_back(mlir::getAffineConstantExpr(0, &ctx));
-
-  auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  EXPECT_FALSE(accessFunction->isIdentity());
-}
-
-TEST(AccessFunctionRotoTranslation, isIdentity_emptyResults)
-{
-  mlir::MLIRContext ctx;
-  auto affineMap = mlir::AffineMap::get(1, 0, llvm::None, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  EXPECT_FALSE(accessFunction->isIdentity());
 }
 
 TEST(AccessFunctionRotoTranslation, isIdentity_1d)
@@ -242,32 +168,6 @@ TEST(AccessFunctionRotoTranslation, isIdentity_3d)
       std::make_unique<AccessFunctionRotoTranslation>(affineMap);
 
   EXPECT_TRUE(accessFunction->isIdentity());
-}
-
-TEST(AccessFunctionRotoTranslation, isIdentityLike_emptyDimensions)
-{
-  mlir::MLIRContext ctx;
-
-  llvm::SmallVector<mlir::AffineExpr> expressions;
-  expressions.push_back(mlir::getAffineConstantExpr(0, &ctx));
-
-  auto affineMap = mlir::AffineMap::get(0, 0, expressions, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  EXPECT_FALSE(accessFunction->isIdentityLike());
-}
-
-TEST(AccessFunctionRotoTranslation, isIdentityLike_emptyResults)
-{
-  mlir::MLIRContext ctx;
-  auto affineMap = mlir::AffineMap::get(1, 0, llvm::None, &ctx);
-
-  auto accessFunction =
-      std::make_unique<AccessFunctionRotoTranslation>(affineMap);
-
-  EXPECT_FALSE(accessFunction->isIdentityLike());
 }
 
 TEST(AccessFunctionRotoTranslation, isIdentityLike_1d)

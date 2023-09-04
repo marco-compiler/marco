@@ -19,6 +19,10 @@ namespace marco::modeling
   bool AccessFunctionRotoTranslation::canBeBuilt(
       mlir::AffineMap affineMap)
   {
+    if (affineMap.getNumDims() == 0) {
+      return false;
+    }
+
     if (affineMap.getNumResults() == 0) {
       return false;
     }

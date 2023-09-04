@@ -259,11 +259,14 @@ namespace
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToStart(moduleOp.getBody());
 
+        mlir::SymbolTable& symbolTable =
+            symbolTableCollection->getSymbolTable(moduleOp);
+
         auto globalOp = builder.create<mlir::memref::GlobalOp>(
             loc, "cst", builder.getStringAttr("private"), memRefType,
             mlir::cast<mlir::ElementsAttr>(denseAttr), true, nullptr);
 
-        symbolTableCollection->getSymbolTable(moduleOp).insert(globalOp);
+        symbolTable.insert(globalOp);
         return globalOp;
       }
 
@@ -274,34 +277,51 @@ namespace
   class GlobalVariableOpLowering
       : public ModelicaOpConversionPattern<GlobalVariableOp>
   {
-    using ModelicaOpConversionPattern<GlobalVariableOp>
-        ::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        GlobalVariableOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto memRefType = getTypeConverter()->convertType(op.getType())
-                            .cast<mlir::MemRefType>();
-
-      mlir::Attribute denseAttr = rewriter.getUnitAttr();
-
-      if (auto initialValue = op.getInitialValue()) {
-        denseAttr = getDenseAttr(memRefType.getShape(), *initialValue);
+    public:
+      GlobalVariableOpLowering(
+          mlir::TypeConverter& typeConverter,
+          mlir::MLIRContext* context,
+          mlir::SymbolTableCollection& symbolTableCollection)
+          : ModelicaOpConversionPattern<GlobalVariableOp>(
+                typeConverter, context),
+            symbolTableCollection(&symbolTableCollection)
+      {
       }
 
-      if (!denseAttr) {
-          return rewriter.notifyMatchFailure(
-              op, "Unknown attribute data type");
+      mlir::LogicalResult matchAndRewrite(
+          GlobalVariableOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+        mlir::SymbolTable& symbolTable =
+            symbolTableCollection->getSymbolTable(moduleOp);
+
+        auto memRefType = getTypeConverter()->convertType(op.getType())
+                              .cast<mlir::MemRefType>();
+
+        mlir::Attribute denseAttr = rewriter.getUnitAttr();
+
+        if (auto initialValue = op.getInitialValue()) {
+          denseAttr = getDenseAttr(memRefType.getShape(), *initialValue);
+        }
+
+        if (!denseAttr) {
+            return rewriter.notifyMatchFailure(
+                op, "Unknown attribute data type");
+        }
+
+        rewriter.replaceOpWithNewOp<mlir::memref::GlobalOp>(
+            op, op.getSymName(), rewriter.getStringAttr("private"), memRefType,
+            denseAttr, false, nullptr);
+
+        symbolTable.remove(op);
+        return mlir::success();
       }
 
-      rewriter.replaceOpWithNewOp<mlir::memref::GlobalOp>(
-          op, op.getSymName(), rewriter.getStringAttr("private"), memRefType,
-          denseAttr, false, nullptr);
-
-      return mlir::success();
-    }
+    private:
+      mlir::SymbolTableCollection* symbolTableCollection;
   };
 
   class GlobalVariableGetOpLowering
@@ -794,10 +814,10 @@ static void populateModelicaToMemRefPatterns(
       AssignmentOpScalarLowering>(typeConverter, context);
 
   patterns.insert<
-      ConstantOpArrayLowering>(typeConverter, context, symbolTableCollection);
+      ConstantOpArrayLowering,
+      GlobalVariableOpLowering>(typeConverter, context, symbolTableCollection);
 
   patterns.insert<
-      GlobalVariableOpLowering,
       GlobalVariableGetOpLowering>(typeConverter, context);
 
   patterns.insert<

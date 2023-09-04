@@ -66,17 +66,20 @@ namespace
 
         for (const auto& dimension :
              dimensions.getAsRange<mlir::IntegerAttr>()) {
-          values.push_back(dimension.getUInt());
+          values.push_back(dimension.getInt());
         }
 
         auto tensorType = mlir::RankedTensorType::get(
             arrayType.getNumElements(), builder.getI64Type());
 
+        mlir::SymbolTable& symbolTable =
+            symbolTableCollection->getSymbolTable(moduleOp);
+
         auto globalOp = builder.create<mlir::LLVM::GlobalOp>(
             loc, arrayType, true, mlir::LLVM::Linkage::Private, symbolName,
             mlir::DenseIntElementsAttr::get(tensorType, values));
 
-        symbolTableCollection->getSymbolTable(moduleOp).insert(globalOp);
+        symbolTable.insert(globalOp);
         return globalOp;
       }
 
@@ -337,11 +340,17 @@ namespace
         OpAdaptor adaptor,
         mlir::ConversionPatternRewriter& rewriter) const override
     {
+      auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+      mlir::SymbolTable& symbolTable =
+          symbolTableCollection->getSymbolTable(moduleOp);
+
       // Create the global variable.
       rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
           op, getVoidPtrType(), false, mlir::LLVM::Linkage::Private,
           op.getSymName(), nullptr);
 
+      symbolTable.remove(op);
       return mlir::success();
     }
   };
@@ -371,8 +380,7 @@ namespace
       auto funcOp = getOrDeclareFunction(
           rewriter, moduleOp, loc, functionName, resultType, args);
 
-      auto callOp =
-          rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, funcOp, args);
+      auto callOp = rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
 
       auto instancePtrType = mlir::LLVM::LLVMPointerType::get(
           getTypeConverter()->convertType(
