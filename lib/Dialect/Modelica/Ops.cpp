@@ -9250,15 +9250,57 @@ namespace mlir::modelica
         for (uint64_t i = numOfExplicitInductions; i < numOfInductions; ++i) {
           reverted.push_back(mlir::getAffineDimExpr(i, getContext()));
         }
+
+        auto affineMap = mlir::AffineMap::get(
+            numOfInductions, 0, reverted, getContext());
+
+        accesses.push_back(VariableAccess(
+            std::move(path),
+            mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
+            AccessFunction::build(affineMap)));
+      } else {
+        if (auto arrayType = variableGetOp.getType().dyn_cast<ArrayType>();
+            arrayType &&
+            arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
+          // Access to each scalar variable.
+          llvm::SmallVector<Range, 3> ranges;
+
+          for (int64_t i = static_cast<int64_t>(reverted.size()),
+                       rank = arrayType.getRank(); i < rank; ++i) {
+            int64_t dimension = arrayType.getDimSize(i);
+            assert(dimension != ArrayType::kDynamicSize);
+            ranges.push_back(Range(0, dimension));
+          }
+
+          MultidimensionalRange indices(ranges);
+
+          for (Point point : indices) {
+            llvm::SmallVector<mlir::AffineExpr, 3> extendedExpressions(
+                reverted.begin(), reverted.end());
+
+            for (int64_t index : point) {
+              extendedExpressions.push_back(
+                  mlir::getAffineConstantExpr(index, getContext()));
+            }
+
+            auto affineMap = mlir::AffineMap::get(
+                numOfInductions, 0, extendedExpressions, getContext());
+
+            accesses.push_back(VariableAccess(
+                std::move(path),
+                mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
+                AccessFunction::build(affineMap)));
+          }
+        } else {
+          auto affineMap = mlir::AffineMap::get(
+              numOfInductions, 0, reverted, getContext());
+
+          accesses.push_back(VariableAccess(
+              std::move(path),
+              mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
+              AccessFunction::build(affineMap)));
+        }
       }
-
-      auto affineMap = mlir::AffineMap::get(
-          numOfInductions, 0, reverted, getContext());
-
-      accesses.push_back(VariableAccess(
-          std::move(path),
-          mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
-          AccessFunction::build(affineMap)));
 
       return mlir::success();
     }
