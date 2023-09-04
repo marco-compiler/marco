@@ -194,7 +194,7 @@ namespace marco::modeling::dependency
 
       for (auto& access : cachedAccesses) {
         auto accessFunction = getAccessFunction(
-            (*equation)->op.getContext(), equation, access);
+            (*equation)->op.getContext(), access);
 
         auto variableIt =
             (*(*equation)->variablesMap).find(access.getVariable());
@@ -221,7 +221,7 @@ namespace marco::modeling::dependency
       assert(write.has_value() && "Can't get the write access");
 
       auto accessFunction = getAccessFunction(
-          (*equation)->op.getContext(), equation, *write);
+          (*equation)->op.getContext(), *write);
 
       return Access(
           (*(*equation)->variablesMap)[write->getVariable()],
@@ -234,35 +234,30 @@ namespace marco::modeling::dependency
     {
       IndexSet equationIndices = getIterationRanges(equation);
 
-      auto writeAccess = getWrite(equation);
-      auto writtenVariable = writeAccess.getVariable();
-      const auto& writeAccessFunction = writeAccess.getAccessFunction();
+      auto accesses = (*equation)->accessAnalysis->getAccesses(
+          (*equation)->op, *(*equation)->symbolTable);
 
-      auto writtenIndices = writeAccessFunction.getNumOfResults() == 0
-          ? IndexSet(Point(0))
-          : writeAccessFunction.map(equationIndices);
+      llvm::SmallVector<VariableAccess> readAccesses;
+
+      if (mlir::failed((*equation)->op.getReadAccesses(
+              readAccesses,
+              *(*equation)->symbolTable,
+              equationIndices,
+              accesses))) {
+        llvm_unreachable("Can't compute read accesses");
+        return {};
+      }
 
       std::vector<Access<VariableType, AccessProperty>> reads;
 
-      for (const auto& access : getAccesses(equation)) {
-        auto accessedVariable = access.getVariable();
+      for (const VariableAccess& readAccess : readAccesses) {
+        auto variableIt =
+            (*(*equation)->variablesMap).find(readAccess.getVariable());
 
-        if (accessedVariable != writtenVariable) {
-          reads.push_back(access);
-        } else {
-          const auto& accessFunction = access.getAccessFunction();
-
-          // The overall set of accessed indices may be the same of written
-          // ones, but the order in which they are accessed may be different
-          // from the one in which they are written.
-          // For this reason, it is not sufficient to compare the indices
-          // and all the access functions different from the writing one must
-          // be considered as potential reads.
-
-          if (accessFunction != writeAccessFunction) {
-            reads.push_back(access);
-          }
-        }
+        reads.emplace_back(
+            variableIt->getSecond(),
+            getAccessFunction((*equation)->op.getContext(), readAccess),
+            readAccess.getPath());
       }
 
       return reads;
@@ -270,7 +265,6 @@ namespace marco::modeling::dependency
 
     static std::unique_ptr<AccessFunction> getAccessFunction(
         mlir::MLIRContext* context,
-        const Equation* equation,
         const VariableAccess& access)
     {
       const AccessFunction& accessFunction = access.getAccessFunction();
@@ -568,9 +562,11 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
     auto writingEquations =
         llvm::make_range(mainWritesMap.equal_range(variableOp));
 
+    auto writingInitialEquations =
+        llvm::make_range(initialConditionsWritesMap.equal_range(variableOp));
+
     for (const auto& entry : writingEquations) {
       MatchedEquationInstanceOp equationOp = entry.second.second;
-
       IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
       auto writeAccess = equationOp.getMatchedAccess(symbolTableCollection);
@@ -590,14 +586,16 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       writtenIndices = writtenIndices.intersect(variableIndices);
 
       // Determine if new initial equations should be created.
-      bool shouldCreateInitialEquations = true;
+      bool shouldCreateInitialEquations;
 
       if (newVariableType.isScalar()) {
         // In case of scalar variables, the initial equation should be created
-        // only if there is not already one writing its value.
+        // only if there is not one already writing its value.
         shouldCreateInitialEquations =
             initialConditionsWritesMap.find(variableOp) ==
             initialConditionsWritesMap.end();
+      } else {
+        shouldCreateInitialEquations = !writingEquationIndices.empty();
       }
 
       if (shouldCreateInitialEquations) {
@@ -689,24 +687,42 @@ mlir::LogicalResult VariablesPromotionPass::getWritesMap(
     llvm::ArrayRef<MatchedEquationInstanceOp> equations) const
 {
   for (MatchedEquationInstanceOp equationOp : equations) {
-    auto writeAccess = equationOp.getMatchedAccess(symbolTableCollection);
+    IndexSet equationIndices = equationOp.getIterationSpace();
+    llvm::SmallVector<VariableAccess> accesses;
 
-    if (!writeAccess) {
+    if (mlir::failed(equationOp.getAccesses(
+            accesses, symbolTableCollection))) {
       return mlir::failure();
     }
 
-    auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        modelOp, writeAccess->getVariable());
+    llvm::SmallVector<VariableAccess> writeAccesses;
 
-    const AccessFunction& accessFunction =
-        writeAccess->getAccessFunction();
+    if (mlir::failed(equationOp.getWriteAccesses(
+            writeAccesses, symbolTableCollection, accesses))) {
+      return mlir::failure();
+    }
 
-    IndexSet equationIndices = equationOp.getIterationSpace();
-    IndexSet variableIndices = accessFunction.map(equationIndices);
+    llvm::Optional<VariableAccess> matchedAccess =
+        equationOp.getMatchedAccess(symbolTableCollection);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    auto writtenVariableOp =
+        symbolTableCollection.lookupSymbolIn<VariableOp>(
+            modelOp, matchedAccess->getVariable());
+
+    IndexSet writtenVariableIndices;
+
+    for (const VariableAccess& writeAccess : writeAccesses) {
+      const AccessFunction& accessFunction = writeAccess.getAccessFunction();
+      writtenVariableIndices += accessFunction.map(equationIndices);
+    }
 
     result.emplace(
         writtenVariableOp,
-        std::make_pair(std::move(variableIndices), equationOp));
+        std::make_pair(std::move(writtenVariableIndices), equationOp));
   }
 
   return mlir::success();

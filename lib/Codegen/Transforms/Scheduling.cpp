@@ -248,7 +248,7 @@ namespace marco::modeling::dependency
 
       for (auto& access : cachedAccesses) {
         auto accessFunction = getAccessFunction(
-            (*equation)->op.getContext(), equation, access);
+            (*equation)->op.getContext(), access);
 
         auto variableIt =
             (*(*equation)->variablesMap).find(access.getVariable());
@@ -275,7 +275,7 @@ namespace marco::modeling::dependency
       assert(write.has_value() && "Can't get the write access");
 
       auto accessFunction = getAccessFunction(
-          (*equation)->op.getContext(), equation, *write);
+          (*equation)->op.getContext(), *write);
 
       return Access(
           (*(*equation)->variablesMap)[write->getVariable()],
@@ -288,35 +288,30 @@ namespace marco::modeling::dependency
     {
       IndexSet equationIndices = getIterationRanges(equation);
 
-      auto writeAccess = getWrite(equation);
-      auto writtenVariable = writeAccess.getVariable();
-      const auto& writeAccessFunction = writeAccess.getAccessFunction();
+      auto accesses = (*equation)->accessAnalysis->getAccesses(
+          (*equation)->op, *(*equation)->symbolTable);
 
-      auto writtenIndices = writeAccessFunction.getNumOfResults() == 0
-          ? IndexSet(Point(0))
-          : writeAccessFunction.map(equationIndices);
+      llvm::SmallVector<VariableAccess> readAccesses;
+
+      if (mlir::failed((*equation)->op.getReadAccesses(
+              readAccesses,
+              *(*equation)->symbolTable,
+              equationIndices,
+              accesses))) {
+        llvm_unreachable("Can't compute read accesses");
+        return {};
+      }
 
       std::vector<Access<VariableType, AccessProperty>> reads;
 
-      for (const auto& access : getAccesses(equation)) {
-        auto accessedVariable = access.getVariable();
+      for (const VariableAccess& readAccess : readAccesses) {
+        auto variableIt =
+            (*(*equation)->variablesMap).find(readAccess.getVariable());
 
-        if (accessedVariable != writtenVariable) {
-          reads.push_back(access);
-        } else {
-          const auto& accessFunction = access.getAccessFunction();
-
-          // The overall set of accessed indices may be the same of written
-          // ones, but the order in which they are accessed may be different
-          // from the one in which they are written.
-          // For this reason, it is not sufficient to compare the indices
-          // and all the access functions different from the writing one must
-          // be considered as potential reads.
-
-          if (accessFunction != writeAccessFunction) {
-            reads.push_back(access);
-          }
-        }
+        reads.emplace_back(
+            variableIt->getSecond(),
+            getAccessFunction((*equation)->op.getContext(), readAccess),
+            readAccess.getPath());
       }
 
       return reads;
@@ -324,7 +319,6 @@ namespace marco::modeling::dependency
 
     static std::unique_ptr<AccessFunction> getAccessFunction(
         mlir::MLIRContext* context,
-        const Equation* equation,
         const VariableAccess& access)
     {
       const AccessFunction& accessFunction = access.getAccessFunction();
