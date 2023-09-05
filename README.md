@@ -3,15 +3,6 @@ MARCO is a prototype compiler for the Modelica language.
 It is written in C++ and leverages both the LLVM and MLIR infrastructures.
 It also defines an MLIR dialect that is specific to Modelica.
 
-## Requirements
-
-- LLVM (see the docs for the specific commit to be used)
-- OpenModelica compiler
-- Sundials libraries
-- LLVM's LIT
-
-See the documentation (inside the `docs` folder) for further details and short instructions about how to obtain the required dependencies.
-
 ## Building MARCO
 MARCO runs natively on Linux and macOS. At the moment, Windows is not supported.
 Directions to obtain the required dependencies and compile the project can be found [here](docs/BuildOnLinuxMacOS.md).
