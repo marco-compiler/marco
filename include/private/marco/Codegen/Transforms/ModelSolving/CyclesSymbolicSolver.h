@@ -155,7 +155,7 @@ namespace marco::codegen {
   class ModelicaToSymbolicEquationVisitor
   {
       private:
-      MatchedEquation* matchedEquation;
+      mlir::modelica::MatchedEquationInstanceOp* equationInstance;
       std::map<std::string, SymbolInfo>& symbolNameToInfoMap;
       llvm::DenseMap<mlir::Value, GiNaC::ex> valueToExpressionMap;
       GiNaC::ex& solution;
@@ -164,7 +164,7 @@ namespace marco::codegen {
 
       public:
       ModelicaToSymbolicEquationVisitor(
-          MatchedEquation* matchedEquation,
+          mlir::modelica::MatchedEquationInstanceOp* equationInstance,
           std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
           GiNaC::ex& solution, modeling::IndexSet subscriptionIndices);
 

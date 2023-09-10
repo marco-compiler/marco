@@ -28,14 +28,15 @@ static double getDoubleFromAttribute(mlir::Attribute attribute)
   llvm_unreachable("Unknown attribute type");
 }
 
-GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap, marco::modeling::IndexSet subscriptionIndices) {
-  auto terminator = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(matchedEquation->getOperation().bodyBlock()->getTerminator());
+GiNaC::ex getExpressionFromEquation(
+    mlir::modelica::MatchedEquationInstanceOp* equationInstance, std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
+    marco::modeling::IndexSet subscriptionIndices) {
 
   GiNaC::ex solution;
-  ModelicaToSymbolicEquationVisitor visitor(matchedEquation, symbolNameToInfoMap, solution, subscriptionIndices);
+  ModelicaToSymbolicEquationVisitor visitor(equationInstance, symbolNameToInfoMap, solution, subscriptionIndices);
 
-  auto operation = matchedEquation->getOperation().bodyBlock()->begin();
-  while (operation != matchedEquation->getOperation().bodyBlock()->end()) {
+  auto operation = equationInstance->getTemplate().getBody()->begin();
+  while (operation != equationInstance->getTemplate().getBody()->end()) {
     if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(operation)) {
       visitor.visit(variableGetOp);
     } else if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(operation)) {
@@ -149,7 +150,6 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
   GiNaC::lst newEquations;
 
   for (const auto& solutionEquation : solutionEquations) {
-    bool solutionIsNew = true;
     GiNaC::ex expandedSolutionEquation = solutionEquation.expand();
     newEquations.append(expandedSolutionEquation);
   }
@@ -442,15 +442,18 @@ Equations<MatchedEquation> CyclesSymbolicSolver::getUnsolvedEquations() const
 }
 
 ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
-    MatchedEquation* matchedEquation,
+    mlir::modelica::MatchedEquationInstanceOp* equationInstance,
     std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
     GiNaC::ex& solution, modeling::IndexSet subscriptionIndices
-    ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution), subscriptionIndices(std::move(subscriptionIndices))
+    ) : equationInstance(equationInstance),
+        symbolNameToInfoMap(symbolNameToInfoMap),
+        solution(solution),
+        subscriptionIndices(std::move(subscriptionIndices))
 {
   // Initialize the block arguments of the valueToExpressionMap
 
   std::stack<mlir::modelica::ForEquationOp> forEquations;
-  auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
+  auto forEquationOp = equationInstance->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
 
   while (forEquationOp) {
     forEquations.push(forEquationOp);

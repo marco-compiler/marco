@@ -79,6 +79,12 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+
+      mlir::LogicalResult solveCyclesSymbolic(
+          mlir::RewriterBase& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          llvm::ArrayRef<MatchedEquationInstanceOp> equations);
   };
 }
 
@@ -344,7 +350,7 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'initial conditions' model.
   if (!initialEquations.empty()) {
-    if (mlir::failed(solveCycles(
+    if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, initialEquations))) {
       if (!allowUnsolvedCycles) {
         modelOp.emitError()
@@ -357,7 +363,7 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'main' model.
   if (!equations.empty()) {
-    if (mlir::failed(solveCycles(
+    if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, equations))) {
       if (!allowUnsolvedCycles) {
         modelOp.emitError() << "Cycles solving failed for the 'main' model";
@@ -615,6 +621,269 @@ mlir::LogicalResult CyclesSolvingPass::solveCycles(
       llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
       if (mlir::succeeded(::solveCycle(
+              rewriter, symbolTableCollection, cycle, newEquations))) {
+        MatchedEquationInstanceOp firstEquation = cycle[0].equation;
+        IndexSet originalIterationSpace = firstEquation.getIterationSpace();
+
+        if (!originalIterationSpace.empty()) {
+          IndexSet remainingIndices = originalIterationSpace;
+
+          for (MatchedEquationInstanceOp newEquation : newEquations) {
+            remainingIndices -= newEquation.getIterationSpace();
+          }
+
+          rewriter.setInsertionPoint(firstEquation);
+
+          for (const MultidimensionalRange& range : llvm::make_range(
+                   remainingIndices.rangesBegin(),
+                   remainingIndices.rangesEnd())) {
+            auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+                rewriter.clone(*firstEquation.getOperation()));
+
+            if (auto explicitIndices = firstEquation.getIndices()) {
+              MultidimensionalRange explicitRange =
+                  range.takeFirstDimensions(
+                      explicitIndices->getValue().rank());
+
+              clonedOp.setIndicesAttr(
+                  MultidimensionalRangeAttr::get(
+                      rewriter.getContext(), std::move(explicitRange)));
+            }
+
+            if (auto implicitIndices = firstEquation.getImplicitIndices()) {
+              MultidimensionalRange implicitRange =
+                  range.takeLastDimensions(
+                      implicitIndices->getValue().rank());
+
+              clonedOp.setImplicitIndicesAttr(
+                  MultidimensionalRangeAttr::get(
+                      rewriter.getContext(), std::move(implicitRange)));
+            }
+
+            currentEquations.push_back(clonedOp);
+          }
+        }
+
+        toBeErased.insert(firstEquation);
+
+        for (MatchedEquationInstanceOp newEquation : newEquations) {
+          allNewEquations.push_back(newEquation);
+        }
+
+        atLeastOneChanged = true;
+        break;
+      }
+    }
+
+    // The IR can't be modified more.
+    if (!atLeastOneChanged) {
+      return mlir::LogicalResult::success(allowUnsolvedCycles);
+    }
+
+    // Search for the remaining cycles.
+    cycles.clear();
+
+    for (MatchedEquationInstanceOp equationOp : equations) {
+      if (!toBeErased.contains(equationOp)) {
+        currentEquations.push_back(equationOp);
+      }
+    }
+
+    for (MatchedEquationInstanceOp equationOp : allNewEquations) {
+      if (!toBeErased.contains(equationOp)) {
+        currentEquations.push_back(equationOp);
+      }
+    }
+
+    if (mlir::failed(getCycles(
+            cycles, symbolTableCollection, modelOp, currentEquations))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult solveCycleSymbolic(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    const Cycle& cycle,
+    size_t index,
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+{
+  if (index + 1 == cycle.size()) {
+    MatchedEquationInstanceOp equationOp = cycle[index].equation;
+    rewriter.setInsertionPoint(equationOp);
+
+    newEquations.push_back(mlir::cast<MatchedEquationInstanceOp>(
+        rewriter.clone(*equationOp.getOperation())));
+
+    return mlir::success();
+  }
+
+  llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+
+  auto removeWritingEquations = llvm::make_scope_exit([&]() {
+    for (MatchedEquationInstanceOp writingEquation : writingEquations) {
+      rewriter.eraseOp(writingEquation);
+    }
+  });
+
+  if (mlir::failed(solveCycleSymbolic(
+          rewriter, symbolTableCollection, cycle, index + 1,
+          writingEquations))) {
+    return mlir::failure();
+  }
+
+  const CyclicEquation& readingEquation = cycle[index];
+  MatchedEquationInstanceOp readingEquationOp = readingEquation.equation;
+
+  LLVM_DEBUG(llvm::dbgs() << "Cycle index: " << index << "\n");
+
+  LLVM_DEBUG(llvm::dbgs() << "Reading equation:\n"
+                          << readingEquationOp.getTemplate() << "\n"
+                          << readingEquationOp << "\n");
+
+  const AccessFunction& readAccessFunction =
+      readingEquation.readAccess.getAccessFunction();
+
+  for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
+    LLVM_DEBUG(llvm::dbgs() << "Writing equation:\n"
+                            << writingEquationOp.getTemplate() << "\n"
+                            << writingEquationOp << "\n");
+
+    MatchedEquationInstanceOp explicitWritingEquationOp =
+        writingEquationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
+
+    if (!explicitWritingEquationOp) {
+      return mlir::failure();
+    }
+
+    auto removeExplicitEquation = llvm::make_scope_exit([&]() {
+      rewriter.eraseOp(explicitWritingEquationOp);
+    });
+
+    auto explicitWriteAccess =
+        explicitWritingEquationOp.getMatchedAccess(symbolTableCollection);
+
+    if (!explicitWriteAccess) {
+      return mlir::failure();
+    }
+
+    const AccessFunction& writeAccessFunction =
+        explicitWriteAccess->getAccessFunction();
+
+    IndexSet writingEquationIndices =
+        explicitWritingEquationOp.getIterationSpace();
+
+    IndexSet writtenVariableIndices =
+        writeAccessFunction.map(writingEquationIndices);
+
+    IndexSet readingEquationIndices;
+
+    if (writtenVariableIndices.empty()) {
+      readingEquationIndices = readingEquation.equationIndices;
+    } else {
+      readingEquationIndices = readAccessFunction.inverseMap(
+          writtenVariableIndices, readingEquation.equationIndices);
+
+      readingEquationIndices = readingEquationIndices.intersect(
+          readingEquation.equationIndices);
+    }
+
+    llvm::Optional<std::reference_wrapper<const IndexSet>>
+        optionalReadingEquationIndices = llvm::None;
+
+    if (!readingEquationIndices.empty()) {
+      optionalReadingEquationIndices =
+          std::reference_wrapper(readingEquationIndices);
+    }
+
+    if (mlir::failed(readingEquationOp.cloneWithReplacedAccess(
+            rewriter,
+            optionalReadingEquationIndices,
+            readingEquation.readAccess,
+            explicitWritingEquationOp.getTemplate(),
+            *explicitWriteAccess,
+            newEquations))) {
+      return mlir::failure();
+    }
+  }
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "New equations:\n";
+
+    for (MatchedEquationInstanceOp equation : newEquations) {
+      llvm::dbgs() << equation.getTemplate() << "\n" << equation << "\n";
+    }
+  });
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult solveCycleSymbolic(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    const Cycle& cycle,
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+{
+  LLVM_DEBUG({
+    llvm::dbgs() << "Solving cycle composed by the following equations:\n";
+
+    for (const CyclicEquation& cyclicEquation : cycle) {
+      MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+      llvm::dbgs() << equationOp.getTemplate() << "\n" << equationOp << "\n";
+    }
+  });
+
+  return ::solveCycleSymbolic(rewriter, symbolTableCollection, cycle, 0, newEquations);
+}
+
+mlir::LogicalResult CyclesSolvingPass::solveCyclesSymbolic(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations)
+{
+  llvm::SmallVector<MatchedEquationInstanceOp> currentEquations(
+      equations.begin(), equations.end());
+
+  llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
+  llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
+
+  auto eraseReplacedOnExit = llvm::make_scope_exit([&]() {
+    for (MatchedEquationInstanceOp equationOp : toBeErased) {
+      rewriter.eraseOp(equationOp);
+    }
+  });
+
+  llvm::SmallVector<Cycle, 3> cycles;
+
+  if (mlir::failed(getCycles(
+          cycles, symbolTableCollection, modelOp, currentEquations))) {
+    return mlir::failure();
+  }
+
+  bool atLeastOneChanged;
+
+  while (!cycles.empty()) {
+    // Collect all the equation indices leading to cycles.
+    llvm::DenseMap<MatchedEquationInstanceOp, IndexSet> cyclicIndices;
+
+    for (const Cycle& cycle : cycles) {
+      MatchedEquationInstanceOp equationOp = cycle[0].equation;
+      IndexSet indices = equationOp.getIterationSpace();
+      cyclicIndices[equationOp] += indices;
+    }
+
+    // Try to solve one cycle.
+    atLeastOneChanged = false;
+
+    for (const Cycle& cycle : cycles) {
+      currentEquations.clear();
+      llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
+
+      if (mlir::succeeded(::solveCycleSymbolic(
               rewriter, symbolTableCollection, cycle, newEquations))) {
         MatchedEquationInstanceOp firstEquation = cycle[0].equation;
         IndexSet originalIterationSpace = firstEquation.getIterationSpace();
