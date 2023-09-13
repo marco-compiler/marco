@@ -13,30 +13,6 @@
 
 using namespace ::mlir::modelica;
 
-namespace
-{
-  // TODO remove when updating the LLVM version.
-  // Everything will be available in mlir/IR/PatternMatch.h
-  template <typename OperandType, typename ValueT>
-  void replaceAllUsesWith(
-      mlir::RewriterBase& rewriter,
-      mlir::IRObjectWithUseList<OperandType> *from,
-      ValueT &&to)
-  {
-    for (OperandType& operand :
-         llvm::make_early_inc_range(from->getUses())) {
-      mlir::Operation *op = operand.getOwner();
-      rewriter.updateRootInPlace(op, [&]() { operand.set(to); });
-    }
-  }
-
-  void replaceAllUsesWith(
-      mlir::RewriterBase& rewriter, mlir::Value from, mlir::Value to)
-  {
-    return replaceAllUsesWith(rewriter, from.getImpl(), to);
-  }
-}
-
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
   if (auto arrayType = operand.getType().dyn_cast<ArrayType>();
@@ -10123,7 +10099,7 @@ namespace mlir::modelica
                i < e; ++i) {
             mlir::Value oldValue = distributableOp->getResult(i);
             mlir::Value newValue = results[i];
-            replaceAllUsesWith(rewriter, oldValue, newValue);
+            rewriter.replaceAllUsesWith(oldValue, newValue);
           }
        }
       }
