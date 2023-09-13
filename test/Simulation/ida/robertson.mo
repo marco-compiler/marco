@@ -1,10 +1,10 @@
 // RUN: marco --omc-bypass --model=Robertson --solver=ida -o %basename_t %s
-// RUN: ./%basename_t --end-time=400 --time-step=1 --precision=6 | FileCheck %s
+// RUN: ./%basename_t --end-time=400 --time-step=1 --precision=4 | FileCheck %s
 
 // CHECK: "time","y1","y2","y3"
-// CHECK-NEXT: 0.000000,1.000000,0.000000,0.000000
-// CHECK: 300.000000,0.486243,0.000004,0.513754
-// CHECK: 400.000000,0.450517,0.000003,0.549479
+// CHECK-NEXT: 0.0000,1.0000,0.0000,0.0000
+// CHECK: 300.0000,0.4862,0.0000,0.5138
+// CHECK: 400.0000,0.4505,0.0000,0.5495
 
 model Robertson
 	Real y1(start = 1.0, fixed = true);

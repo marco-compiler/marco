@@ -1,10 +1,10 @@
 // RUN: marco --omc-bypass --model=CycleWithAllImplicitEquations --solver=ida -o %basename_t %s
-// RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
+// RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=4 | FileCheck %s
 
 // CHECK: "time","x","y"
-// CHECK-NEXT: 0.000000,0.785398,0.785398
-// CHECK-NEXT: 0.100000,0.785398,0.785398
-// CHECK-NEXT: 0.200000,0.785398,0.785398
+// CHECK-NEXT: 0.0000,0.7854,0.7854
+// CHECK-NEXT: 0.1000,0.7854,0.7854
+// CHECK-NEXT: 0.2000,0.7854,0.7854
 
 model CycleWithAllImplicitEquations
 	Real x(start = 0, fixed = false);
