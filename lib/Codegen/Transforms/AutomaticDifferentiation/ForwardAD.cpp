@@ -3,7 +3,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 #include "llvm/ADT/STLExtras.h"
 #include <queue>
 
@@ -106,7 +106,7 @@ namespace mlir::modelica
 
     // Start the body of the function.
     builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
-    mlir::BlockAndValueMapping mapping;
+    mlir::IRMapping mapping;
 
     // Clone the original variables, with the output ones being converted to
     // protected ones. At the same time, determine the names and the types of
@@ -228,7 +228,7 @@ namespace mlir::modelica
     }
 
     // Compute the derivatives of the operations inside the algorithms.
-    mlir::BlockAndValueMapping ssaDerivatives;
+    mlir::IRMapping ssaDerivatives;
 
     for (AlgorithmOp algorithmOp : algorithmOps) {
       auto deriveFn =
@@ -237,7 +237,7 @@ namespace mlir::modelica
                  mlir::SymbolTableCollection& symbolTable,
                  const llvm::DenseMap<
                      mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-                 mlir::BlockAndValueMapping& ssaDerivatives)
+                 mlir::IRMapping& ssaDerivatives)
           -> mlir::ValueRange {
             return createOpFullDerivative(
                 builder, op, symbolDerivatives, ssaDerivatives);
@@ -400,7 +400,7 @@ namespace mlir::modelica
           // TODO dynamic sizes
           assert(arrayType.hasStaticShape());
 
-          mlir::Value array = builder.create<AllocOp>(loc, arrayType, llvm::None);
+          mlir::Value array = builder.create<AllocOp>(loc, arrayType, std::nullopt);
           args.push_back(array);
           mlir::Value seedValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), seed));
           builder.create<ArrayFillOp>(loc, array, seedValue);
@@ -494,7 +494,7 @@ namespace mlir::modelica
 
     // Start the body of the function.
     builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
-    mlir::BlockAndValueMapping mapping;
+    mlir::IRMapping mapping;
 
     // Clone the variables.
     size_t variablesCounter = 0;
@@ -531,7 +531,7 @@ namespace mlir::modelica
     }
 
     // Clone the rest of the function body.
-    mlir::BlockAndValueMapping ssaDerMap;
+    mlir::IRMapping ssaDerMap;
 
     for (auto& op : functionOp.getOps()) {
       if (mlir::isa<VariableOp>(op)) {
@@ -548,7 +548,7 @@ namespace mlir::modelica
                 mlir::SymbolTableCollection& symbolTable,
                 const llvm::DenseMap<
                     mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-                mlir::BlockAndValueMapping& ssaDerivatives) {
+                mlir::IRMapping& ssaDerivatives) {
               return createOpPartialDerivative(
                   nestedBuilder, op, symbolTable,
                   symbolDerivatives, ssaDerivatives);
@@ -587,13 +587,13 @@ namespace mlir::modelica
       mlir::Region& region,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& ssaDerivatives,
+      mlir::IRMapping& ssaDerivatives,
       std::function<mlir::ValueRange(
           mlir::OpBuilder&,
           mlir::Operation*,
           mlir::SymbolTableCollection&,
           const llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&,
-          mlir::BlockAndValueMapping&)> deriveFn)
+          mlir::IRMapping&)> deriveFn)
   {
     // Determine the list of the derivable operations. We can't just derive as
     // we find them, as we would invalidate the operation walk's iterator.
@@ -654,7 +654,7 @@ namespace mlir::modelica
       mlir::Operation* op,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
       return createCallOpFullDerivative(builder, callOp, ssaDerivatives);
@@ -669,7 +669,7 @@ namespace mlir::modelica
     }
 
     llvm_unreachable("Can't derive a non-derivable operation");
-    return llvm::None;
+    return std::nullopt;
   }
 
   mlir::ValueRange ForwardAD::createOpPartialDerivative(
@@ -678,7 +678,7 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTable,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
       return createCallOpPartialDerivative(
@@ -694,23 +694,23 @@ namespace mlir::modelica
     }
 
     llvm_unreachable("Can't derive a non-derivable operation");
-    return llvm::None;
+    return std::nullopt;
   }
 
   mlir::ValueRange ForwardAD::createCallOpFullDerivative(
       mlir::OpBuilder& builder,
       CallOp callOp,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     llvm_unreachable("CallOp full derivative is not implemented");
-    return llvm::None;
+    return std::nullopt;
   }
 
   mlir::ValueRange ForwardAD::createCallOpPartialDerivative(
       mlir::OpBuilder& builder,
       CallOp callOp,
       mlir::SymbolTableCollection& symbolTable,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     mlir::Location loc = callOp.getLoc();
     auto moduleOp = callOp->getParentOfType<mlir::ModuleOp>();
@@ -743,7 +743,7 @@ namespace mlir::modelica
   mlir::ValueRange ForwardAD::createTimeOpFullDerivative(
       mlir::OpBuilder& builder,
       mlir::modelica::TimeOp timeOp,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 1));
@@ -754,7 +754,7 @@ namespace mlir::modelica
   mlir::ValueRange ForwardAD::createTimeOpPartialDerivative(
       mlir::OpBuilder& builder,
       mlir::modelica::TimeOp timeOp,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 0));
@@ -767,7 +767,7 @@ namespace mlir::modelica
       DerivableOpInterface op,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& ssaDerivatives)
+      mlir::IRMapping& ssaDerivatives)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(op.getOperation());
@@ -780,11 +780,11 @@ namespace mlir::modelica
         mlir::Operation* definingOp = operand.getDefiningOp();
 
         if (definingOp == nullptr) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         if (!mlir::isa<DerivableOpInterface>(definingOp)) {
-          return llvm::None;
+          return std::nullopt;
         }
       }
     }
@@ -802,7 +802,7 @@ namespace mlir::modelica
             builder, derivableOp, symbolDerivatives, ssaDerivatives);
 
         if (derivedValues.size() != derivableOp->getNumResults()) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         for (const auto& [base, derived] : llvm::zip(

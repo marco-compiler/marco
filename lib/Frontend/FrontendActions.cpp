@@ -5,17 +5,19 @@
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "marco/Dialect/Modeling/ModelingDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Parser/Parser.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
+#include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Import.h"
@@ -30,8 +32,8 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/StandardInstrumentations.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
+#include "llvm/TargetParser/Host.h"
 
 using namespace ::marco;
 using namespace ::marco::diagnostic;
@@ -429,13 +431,13 @@ namespace marco::frontend
     std::string features = "";
 
     auto relocationModel =
-        llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
+        std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
 
     targetMachine.reset(target->createTargetMachine(
         triple, ci.getCodeGenOptions().cpu,
         features, llvm::TargetOptions(),
         relocationModel,
-        llvm::None, optLevel));
+        std::nullopt, optLevel));
 
     if (!targetMachine) {
       ci.getDiagnostics().emitFatalError<GenericStringMessage>(
@@ -463,16 +465,7 @@ namespace marco::frontend
     mlirDialectRegistry.insert<mlir::modeling::ModelingDialect>();
     mlirDialectRegistry.insert<mlir::modelica::ModelicaDialect>();
     mlirDialectRegistry.insert<mlir::ida::IDADialect>();
-    mlirDialectRegistry.insert<mlir::kinsol::KINSOLDialect>();
     mlirDialectRegistry.insert<mlir::simulation::SimulationDialect>();
-  }
-
-  void CodeGenAction::loadMLIRDialects()
-  {
-    assert(mlirContext && "MLIR context has not been created yet");
-
-    mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
-    mlirContext->loadDialect<mlir::DLTIDialect>();
   }
 
   bool CodeGenAction::generateMLIR()
@@ -480,8 +473,12 @@ namespace marco::frontend
     CompilerInstance& ci = getInstance();
 
     // Create the MLIR context.
+    mlir::func::registerInlinerExtension(mlirDialectRegistry);
+
     mlirContext = std::make_unique<mlir::MLIRContext>(mlirDialectRegistry);
-    loadMLIRDialects();
+    mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
+    mlirContext->loadDialect<mlir::DLTIDialect>();
+    mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();
 
     if (getCurrentInput().getKind().getLanguage() == Language::MLIR) {
       // If the input is an MLIR file, parse it.
@@ -724,7 +721,9 @@ namespace marco::frontend
         createMLIRVectorToSCFConversionPass());
 
     pm.addPass(createMLIRVectorToLLVMConversionPass());
-
+    pm.addPass(createMLIRArithToLLVMConversionPass());
+    pm.addPass(mlir::memref::createExpandStridedMetadataPass());
+    pm.addPass(mlir::createLowerAffinePass());
     pm.addPass(createMLIRArithToLLVMConversionPass());
     pm.addPass(createMLIRMemRefToLLVMConversionPass());
     pm.addPass(mlir::createConvertSCFToCFPass());
@@ -732,12 +731,11 @@ namespace marco::frontend
     pm.addPass(createMLIRFuncToLLVMConversionPass(true));
     pm.addPass(createMLIRFuncToLLVMConversionPass(false));
 
-    pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+    pm.addPass(mlir::createConvertControlFlowToLLVMPass());
 
     // Convert the MARCO dialects to LLVM dialect.
     pm.addPass(createMLIRModelicaToLLVMConversionPass());
     pm.addPass(createMLIRIDAToLLVMConversionPass());
-    pm.addPass(createMLIRKINSOLToLLVMConversionPass());
 
     // Now that the Simulation dialect doesn't have dependencies from Modelica
     // or the solvers, we can proceed converting it.
@@ -749,7 +747,7 @@ namespace marco::frontend
         createMLIRArithToLLVMConversionPass());
 
     pm.addPass(createMLIRFuncToLLVMConversionPass(false));
-    pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+    pm.addPass(mlir::createConvertControlFlowToLLVMPass());
 
     // Finalization passes.
     pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
@@ -921,15 +919,6 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
-  {
-    mlir::KINSOLToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createKINSOLToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRSimulationToFuncConversionPass()
   {
     return mlir::createSimulationToFuncConversionPass();
@@ -945,8 +934,7 @@ namespace marco::frontend
   std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv)
   {
-    mlir::LowerToLLVMOptions options(mlirContext.get());
-    options.dataLayout = getDataLayout();
+    mlir::ConvertFuncToLLVMPassOptions options;
     options.useBarePtrCallConv = useBarePtrCallConv;
 
     return mlir::createConvertFuncToLLVMPass(options);
@@ -955,16 +943,16 @@ namespace marco::frontend
   std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRMemRefToLLVMConversionPass()
   {
-    mlir::MemRefToLLVMConversionPassOptions options;
+    mlir::FinalizeMemRefToLLVMConversionPassOptions options;
     options.useGenericFunctions = true;
 
-    return mlir::createMemRefToLLVMConversionPass(options);
+    return mlir::createFinalizeMemRefToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRVectorToLLVMConversionPass()
   {
-    mlir::LowerVectorToLLVMOptions options;
+    mlir::ConvertVectorToLLVMPassOptions options;
     return mlir::createConvertVectorToLLVMPass(options);
   }
 
@@ -978,6 +966,7 @@ namespace marco::frontend
   void CodeGenAction::registerMLIRToLLVMIRTranslations()
   {
     assert(mlirContext && "MLIR context has not been created yet");
+    mlir::registerBuiltinDialectTranslation(*mlirContext);
     mlir::registerLLVMDialectTranslation(*mlirContext);
     mlir::registerOpenMPDialectTranslation(*mlirContext);
   }
@@ -1021,7 +1010,6 @@ namespace marco::frontend
 
       // Create the pass pipeline.
       createModelicaToLLVMPassPipeline(pm);
-      mlir::applyPassManagerCLOptions(pm);
 
       // Run the pass manager.
       if (!mlir::succeeded(pm.run(*mlirModule))) {
@@ -1032,7 +1020,7 @@ namespace marco::frontend
       }
 
       // Translate to LLVM-IR.
-      llvm::Optional<llvm::StringRef> moduleName = mlirModule->getName();
+      std::optional<llvm::StringRef> moduleName = mlirModule->getName();
 
       if (!moduleName) {
         // Fallback to the name of the compiled model.
@@ -1118,10 +1106,10 @@ namespace marco::frontend
     // Create the pass manager builder.
     llvm::PassInstrumentationCallbacks pic;
     llvm::PipelineTuningOptions pto;
-    llvm::Optional<llvm::PGOOptions> pgoOpt;
+    std::optional<llvm::PGOOptions> pgoOpt;
 
-    llvm::StandardInstrumentations si(false);
-    si.registerCallbacks(pic, &fam);
+    llvm::StandardInstrumentations si(*llvmContext, false);
+    si.registerCallbacks(pic, &mam);
 
     llvm::PassBuilder pb(targetMachine.get(), pto, pgoOpt, &pic);
 

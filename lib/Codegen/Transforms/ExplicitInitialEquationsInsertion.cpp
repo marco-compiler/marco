@@ -127,7 +127,7 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOp(
   }
 
   // Clone the operations.
-  mlir::BlockAndValueMapping mapping;
+  mlir::IRMapping mapping;
 
   for (auto& op : startOp.getOps()) {
     if (!mlir::isa<YieldOp>(op)) {

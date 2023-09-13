@@ -788,8 +788,8 @@ namespace
           auto rhsShape = rhsArrayType.getShape();
 
           for (unsigned int i = 0; i < lhsArrayType.getRank(); ++i) {
-            if (lhsShape[i] == ArrayType::kDynamicSize ||
-                rhsShape[i] == ArrayType::kDynamicSize) {
+            if (lhsShape[i] == ArrayType::kDynamic ||
+                rhsShape[i] == ArrayType::kDynamic) {
               mlir::Value dimensionIndex =
                   rewriter.create<mlir::arith::ConstantOp>(
                       loc, rewriter.getIndexAttr(i));
@@ -1362,7 +1362,7 @@ namespace
           OpAdaptor adaptor,
           mlir::ConversionPatternRewriter& rewriter) const override
       {
-        mlir::Attribute attribute = convertAttribute(
+        mlir::TypedAttr attribute = convertAttribute(
             rewriter, op.getResult().getType(), op.getValue());
 
         if (!attribute) {
@@ -1375,14 +1375,14 @@ namespace
       }
 
     private:
-      mlir::Attribute convertAttribute(
+      mlir::TypedAttr convertAttribute(
         mlir::OpBuilder& builder,
         mlir::Type resultType,
         mlir::Attribute attribute) const
       {
         if (attribute.cast<mlir::TypedAttr>().getType().isa<
             mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
-          return attribute;
+          return attribute.cast<mlir::TypedAttr>();
         }
 
         resultType = getTypeConverter()->convertType(resultType);
@@ -1576,8 +1576,8 @@ namespace
 
         for (const auto& [lhsDimension, rhsDimension] : llvm::zip(
                  lhsArrayType.getShape(), rhsArrayType.getShape())) {
-          if (lhsDimension != ArrayType::kDynamicSize && rhsDimension !=
-                  ArrayType::kDynamicSize && lhsDimension != rhsDimension) {
+          if (lhsDimension != ArrayType::kDynamic && rhsDimension !=
+                  ArrayType::kDynamic && lhsDimension != rhsDimension) {
             // Incompatible array dimensions.
             return mlir::failure();
           }
@@ -1601,8 +1601,8 @@ namespace
           assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
           for (unsigned int i = 0; i < lhsArrayType.getRank(); ++i) {
-            if (lhsShape[i] == ArrayType::kDynamicSize ||
-                rhsShape[i] == ArrayType::kDynamicSize) {
+            if (lhsShape[i] == ArrayType::kDynamic ||
+                rhsShape[i] == ArrayType::kDynamic) {
               mlir::Value dimensionIndex =
                   rewriter.create<mlir::arith::ConstantOp>(
                       loc, rewriter.getIndexAttr(i));
@@ -1839,8 +1839,8 @@ namespace
 
         for (const auto& [lhsDimension, rhsDimension] : llvm::zip(
                  lhsArrayType.getShape(), rhsArrayType.getShape())) {
-          if (lhsDimension != ArrayType::kDynamicSize && rhsDimension !=
-                  ArrayType::kDynamicSize && lhsDimension != rhsDimension) {
+          if (lhsDimension != ArrayType::kDynamic && rhsDimension !=
+                  ArrayType::kDynamic && lhsDimension != rhsDimension) {
             // Incompatible array dimensions.
             return mlir::failure();
           }
@@ -1864,8 +1864,8 @@ namespace
           assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
           for (unsigned int i = 0; i < lhsArrayType.getRank(); ++i) {
-            if (lhsShape[i] == ArrayType::kDynamicSize ||
-                rhsShape[i] == ArrayType::kDynamicSize) {
+            if (lhsShape[i] == ArrayType::kDynamic ||
+                rhsShape[i] == ArrayType::kDynamic) {
               mlir::Value dimensionIndex =
                   rewriter.create<mlir::arith::ConstantOp>(
                       loc, rewriter.getIndexAttr(i));
@@ -2194,8 +2194,8 @@ namespace
               op, "Right-hand side arrays is not 1-D");
         }
 
-        if (lhsArrayType.getShape()[0] != ArrayType::kDynamicSize &&
-            rhsArrayType.getShape()[0] != ArrayType::kDynamicSize) {
+        if (lhsArrayType.getShape()[0] != ArrayType::kDynamic &&
+            rhsArrayType.getShape()[0] != ArrayType::kDynamic) {
           if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0]) {
             return rewriter.notifyMatchFailure(
                 op, "The two arrays have different shape");
@@ -2213,8 +2213,8 @@ namespace
           auto lhsShape = lhsArrayType.getShape();
           auto rhsShape = rhsArrayType.getShape();
 
-          if (lhsShape[0] == ArrayType::kDynamicSize ||
-              rhsShape[0] == ArrayType::kDynamicSize) {
+          if (lhsShape[0] == ArrayType::kDynamic ||
+              rhsShape[0] == ArrayType::kDynamic) {
             mlir::Value dimensionIndex =
                 rewriter.create<mlir::arith::ConstantOp>(
                     loc, rewriter.getIndexAttr(0));
@@ -2342,8 +2342,8 @@ namespace
               op, "Right-hand side matrix is not 2-D");
         }
 
-        if (lhsArrayType.getShape()[0] != ArrayType::kDynamicSize &&
-            rhsArrayType.getShape()[0] != ArrayType::kDynamicSize) {
+        if (lhsArrayType.getShape()[0] != ArrayType::kDynamic &&
+            rhsArrayType.getShape()[0] != ArrayType::kDynamic) {
           if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0]) {
             return rewriter.notifyMatchFailure(op, "Incompatible shapes");
           }
@@ -2360,7 +2360,7 @@ namespace
           auto lhsShape = lhsArrayType.getShape();
           auto rhsShape = rhsArrayType.getShape();
 
-          if (lhsShape[0] == ArrayType::kDynamicSize || rhsShape[0] == ArrayType::kDynamicSize) {
+          if (lhsShape[0] == ArrayType::kDynamic || rhsShape[0] == ArrayType::kDynamic) {
             mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
                 loc, rewriter.getIndexAttr(0));
 
@@ -2387,7 +2387,7 @@ namespace
 
         llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
-        if (shape[0] == ArrayType::kDynamicSize) {
+        if (shape[0] == ArrayType::kDynamic) {
           dynamicDimensions.push_back(rewriter.create<DimOp>(
               loc, rhs, rewriter.create<mlir::arith::ConstantOp>(
                             loc, rewriter.getIndexAttr(1))));
@@ -2529,8 +2529,8 @@ namespace
               op, "Right-hand side matrix is not 1-D");
         }
 
-        if (lhsArrayType.getShape()[1] != ArrayType::kDynamicSize &&
-            rhsArrayType.getShape()[0] != ArrayType::kDynamicSize) {
+        if (lhsArrayType.getShape()[1] != ArrayType::kDynamic &&
+            rhsArrayType.getShape()[0] != ArrayType::kDynamic) {
           if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0]) {
             return rewriter.notifyMatchFailure(op, "Incompatible shapes");
           }
@@ -2547,8 +2547,8 @@ namespace
           auto lhsShape = lhsArrayType.getShape();
           auto rhsShape = rhsArrayType.getShape();
 
-          if (lhsShape[1] == ArrayType::kDynamicSize ||
-              rhsShape[0] == ArrayType::kDynamicSize) {
+          if (lhsShape[1] == ArrayType::kDynamic ||
+              rhsShape[0] == ArrayType::kDynamic) {
             mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
                 loc, rewriter.getIndexAttr(0));
 
@@ -2577,7 +2577,7 @@ namespace
 
         llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
-        if (shape[0] == ArrayType::kDynamicSize) {
+        if (shape[0] == ArrayType::kDynamic) {
           dynamicDimensions.push_back(rewriter.create<DimOp>(
               loc, lhs, rewriter.create<mlir::arith::ConstantOp>(
                             loc, rewriter.getIndexAttr(0))));
@@ -2720,8 +2720,8 @@ namespace
               op, "Right-hand side matrix is not 2-D");
         }
 
-        if (lhsArrayType.getShape()[1] != ArrayType::kDynamicSize &&
-            rhsArrayType.getShape()[0] != ArrayType::kDynamicSize) {
+        if (lhsArrayType.getShape()[1] != ArrayType::kDynamic &&
+            rhsArrayType.getShape()[0] != ArrayType::kDynamic) {
           if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0]) {
             return rewriter.notifyMatchFailure(op, "Incompatible shapes");
           }
@@ -2738,8 +2738,8 @@ namespace
           auto lhsShape = lhsArrayType.getShape();
           auto rhsShape = rhsArrayType.getShape();
 
-          if (lhsShape[1] == ArrayType::kDynamicSize ||
-              rhsShape[0] == ArrayType::kDynamicSize) {
+          if (lhsShape[1] == ArrayType::kDynamic ||
+              rhsShape[0] == ArrayType::kDynamic) {
             mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
                 loc, rewriter.getIndexAttr(0));
 
@@ -2768,13 +2768,13 @@ namespace
 
         llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
 
-        if (shape[0] == ArrayType::kDynamicSize) {
+        if (shape[0] == ArrayType::kDynamic) {
           dynamicDimensions.push_back(rewriter.create<DimOp>(
               loc, lhs, rewriter.create<mlir::arith::ConstantOp>(
                             loc, rewriter.getIndexAttr(0))));
         }
 
-        if (shape[1] == ArrayType::kDynamicSize) {
+        if (shape[1] == ArrayType::kDynamic) {
           dynamicDimensions.push_back(rewriter.create<DimOp>(
               loc, rhs, rewriter.create<mlir::arith::ConstantOp>(
                             loc, rewriter.getIndexAttr(1))));
@@ -2938,8 +2938,8 @@ namespace
 
         for (const auto& [lhsDimension, rhsDimension] : llvm::zip(
                  lhsArrayType.getShape(), rhsArrayType.getShape())) {
-          if (lhsDimension != ArrayType::kDynamicSize &&
-              rhsDimension != ArrayType::kDynamicSize &&
+          if (lhsDimension != ArrayType::kDynamic &&
+              rhsDimension != ArrayType::kDynamic &&
               lhsDimension != rhsDimension) {
             // Incompatible array dimensions.
             return mlir::failure();
@@ -2964,8 +2964,8 @@ namespace
           assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
           for (unsigned int i = 0; i < lhsArrayType.getRank(); ++i) {
-            if (lhsShape[i] == ArrayType::kDynamicSize ||
-                rhsShape[i] == ArrayType::kDynamicSize) {
+            if (lhsShape[i] == ArrayType::kDynamic ||
+                rhsShape[i] == ArrayType::kDynamic) {
               mlir::Value dimensionIndex =
                   rewriter.create<mlir::arith::ConstantOp>(
                       loc, rewriter.getIndexAttr(i));
@@ -3202,8 +3202,8 @@ namespace
 
         for (const auto& [lhsDimension, rhsDimension] : llvm::zip(
                  lhsArrayType.getShape(), rhsArrayType.getShape())) {
-          if (lhsDimension != ArrayType::kDynamicSize &&
-              rhsDimension != ArrayType::kDynamicSize &&
+          if (lhsDimension != ArrayType::kDynamic &&
+              rhsDimension != ArrayType::kDynamic &&
               lhsDimension != rhsDimension) {
             // Incompatible array dimensions.
             return mlir::failure();
@@ -3228,8 +3228,8 @@ namespace
           assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
           for (unsigned int i = 0; i < lhsArrayType.getRank(); ++i) {
-            if (lhsShape[i] == ArrayType::kDynamicSize ||
-                rhsShape[i] == ArrayType::kDynamicSize) {
+            if (lhsShape[i] == ArrayType::kDynamic ||
+                rhsShape[i] == ArrayType::kDynamic) {
               mlir::Value dimensionIndex =
                   rewriter.create<mlir::arith::ConstantOp>(
                       loc, rewriter.getIndexAttr(i));
@@ -3371,8 +3371,8 @@ namespace
           return rewriter.notifyMatchFailure(op, "Base array is not 2-D");
         }
 
-        if (baseArrayType.getShape()[0] != ArrayType::kDynamicSize &&
-            baseArrayType.getShape()[1] != ArrayType::kDynamicSize) {
+        if (baseArrayType.getShape()[0] != ArrayType::kDynamic &&
+            baseArrayType.getShape()[1] != ArrayType::kDynamic) {
           if (baseArrayType.getShape()[0] != baseArrayType.getShape()[1]) {
             return rewriter.notifyMatchFailure(
                 op, "Base is not a square matrix");
@@ -3385,8 +3385,8 @@ namespace
           // Check if the matrix is a square one.
           auto shape = baseArrayType.getShape();
 
-          if (shape[0] == ArrayType::kDynamicSize ||
-              shape[1] == ArrayType::kDynamicSize) {
+          if (shape[0] == ArrayType::kDynamic ||
+              shape[1] == ArrayType::kDynamic) {
             mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
                 loc, rewriter.getIndexAttr(0));
 

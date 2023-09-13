@@ -55,7 +55,7 @@ namespace
 
       DerivativesMap& getDerivativesMap();
 
-      llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
           EquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
@@ -148,7 +148,7 @@ DerivativesMap& MatchingPass::getDerivativesMap()
   return analysis;
 }
 
-llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 MatchingPass::getVariableAccessAnalysis(
     EquationInstanceOp equation,
     mlir::SymbolTableCollection& symbolTableCollection)
@@ -162,7 +162,7 @@ MatchingPass::getVariableAccessAnalysis(
       equation.getTemplate());
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
-    return llvm::None;
+    return std::nullopt;
   }
 
   return std::reference_wrapper(analysis);

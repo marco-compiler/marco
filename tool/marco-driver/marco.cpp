@@ -13,7 +13,7 @@ static int executeMC1Tool(llvm::SmallVectorImpl<const char*>& argv)
   llvm::StringRef tool = argv[1];
 
   if (tool == "-mc1") {
-    return mc1_main(llvm::makeArrayRef(argv).slice(2), argv[0]);
+    return mc1_main(llvm::ArrayRef(argv).slice(2), argv[0]);
   }
 
   // Reject unknown tools.
@@ -50,5 +50,5 @@ int main(int argc, const char** argv)
   }
 
   driver::Driver driver(driverPath);
-  return driver.run(llvm::makeArrayRef(args).slice(1));
+  return driver.run(llvm::ArrayRef(args).slice(1));
 }

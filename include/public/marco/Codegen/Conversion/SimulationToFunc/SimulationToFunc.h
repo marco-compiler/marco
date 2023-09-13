@@ -10,11 +10,6 @@ namespace mlir
 #define GEN_PASS_DECL_SIMULATIONTOFUNCCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
-  void populateSimulationToFuncStructuralTypeConversionsAndLegality(
-      mlir::LLVMTypeConverter& typeConverter,
-      mlir::RewritePatternSet& patterns,
-      mlir::ConversionTarget& target);
-
   std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass();
 }
 

@@ -81,8 +81,9 @@ modelica.model @Test {
 
 // Check variable declaration and derivatives map.
 
+// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,1]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, {[0,1]}>]
+// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, #[[index_set]]>]
 // CHECK-DAG: modelica.variable @x : !modelica.variable<2x!modelica.real>
 // CHECK-DAG: modelica.variable @der_x : !modelica.variable<2x!modelica.real>
 
@@ -120,8 +121,9 @@ modelica.model @Test {
 
 // Check variable usage.
 
+// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,1]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, {[0,1]}>]
+// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, #[[index_set]]>]
 // CHECK:       modelica.equation_template inductions = [] attributes {id = "eq0"} {
 // CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
 // CHECK-DAG:       %[[index:.*]] = modelica.constant 0 : index
@@ -215,8 +217,9 @@ modelica.model @Test {
 
 // Check variable declaration and derivatives map.
 
+// CHECK: #[[index_set:.*]] = #modeling<index_set {[3,4]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, {[3,4]}>]
+// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, #[[index_set]]>]
 // CHECK-DAG: modelica.variable @x : !modelica.variable<10x!modelica.real>
 // CHECK-DAG: modelica.variable @der_x : !modelica.variable<10x!modelica.real>
 

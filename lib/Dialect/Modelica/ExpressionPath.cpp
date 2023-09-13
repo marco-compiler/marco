@@ -1,4 +1,5 @@
 #include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "llvm/ADT/ArrayRef.h"
 
 using namespace ::mlir::modelica;
 
@@ -25,7 +26,7 @@ namespace mlir::modelica
 
   llvm::hash_code hash_value(const ExpressionPath& value)
   {
-    return llvm::hash_value(llvm::makeArrayRef(value.path));
+    return llvm::hash_value(llvm::ArrayRef(value.path));
   }
 
   bool ExpressionPath::operator==(const ExpressionPath& other) const

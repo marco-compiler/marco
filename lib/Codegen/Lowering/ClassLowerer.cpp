@@ -133,7 +133,7 @@ namespace marco::codegen::lowering
       const ast::ArrayDimension* dimension = variableType[i];
 
       if (dimension->isDynamic()) {
-        shape.push_back(VariableType::kDynamicSize);
+        shape.push_back(VariableType::kDynamic);
       } else {
         shape.push_back(dimension->getNumericSize());
       }

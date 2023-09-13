@@ -34,7 +34,7 @@ static unsigned int getVectorizationRank(
     return 0;
   }
 
-	for (auto& arg : llvm::enumerate(args)) {
+	for (const auto& arg : llvm::enumerate(args)) {
 		mlir::Type argType = arg.value().getType();
 
 		unsigned int argExpectedRank = op.getArgExpectedRank(

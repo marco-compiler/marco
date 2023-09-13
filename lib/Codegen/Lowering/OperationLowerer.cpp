@@ -169,8 +169,8 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize &&
-            rhsDim != ArrayType::kDynamicSize &&
+        if (lhsDim != ArrayType::kDynamic &&
+            rhsDim != ArrayType::kDynamic &&
             lhsDim != rhsDim) {
           return false;
         }
@@ -278,12 +278,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -344,8 +344,8 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize &&
-            rhsDim != ArrayType::kDynamicSize &&
+        if (lhsDim != ArrayType::kDynamic &&
+            rhsDim != ArrayType::kDynamic &&
             lhsDim != rhsDim) {
           return false;
         }
@@ -432,12 +432,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -631,12 +631,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -773,12 +773,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -844,12 +844,12 @@ namespace marco::codegen::lowering
       for (const auto& [lhsDim, rhsDim] : llvm::zip(
                trueValueArrayType.getShape(),
                falseValueArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -1141,12 +1141,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -1254,12 +1254,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 
@@ -1431,12 +1431,12 @@ namespace marco::codegen::lowering
 
       for (const auto& [lhsDim, rhsDim] :
            llvm::zip(baseArrayType.getShape(), exponentArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamicSize) {
+        if (lhsDim != ArrayType::kDynamic) {
           shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamicSize) {
+        } else if (rhsDim != ArrayType::kDynamic) {
           shape.push_back(rhsDim);
         } else {
-          shape.push_back(ArrayType::kDynamicSize);
+          shape.push_back(ArrayType::kDynamic);
         }
       }
 

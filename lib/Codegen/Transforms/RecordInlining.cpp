@@ -120,7 +120,7 @@ namespace
           if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
               arrayType && arrayType.isScalar()) {
             replacement = rewriter.create<LoadOp>(
-                componentGetOp.getLoc(), replacement, llvm::None);
+                componentGetOp.getLoc(), replacement, std::nullopt);
           }
 
           rewriter.replaceOp(componentGetOp, replacement);
@@ -146,7 +146,7 @@ namespace
 
             if (auto recordType = value.getType().dyn_cast<RecordType>()) {
               destination = rewriter.create<LoadOp>(
-                  componentSetOp.getLoc(), destination, llvm::None);
+                  componentSetOp.getLoc(), destination, std::nullopt);
 
               auto recordOp = getRecordOp(recordType);
 
@@ -191,7 +191,7 @@ namespace
 
         for (auto currentArg : llvm::enumerate(callOp.getArgs())) {
           if (currentArg.value() == arg) {
-            auto recordType = currentArg.value().getType().cast<RecordType>();
+            auto recordType = mlir::cast<RecordType>(currentArg.value().getType());
             RecordOp recordOp = getRecordOp(recordType);
 
             for (VariableOp component : recordOp.getVariables()) {
@@ -206,7 +206,7 @@ namespace
                       componentValue.getType().dyn_cast<ArrayType>();
                   arrayType && arrayType.isScalar()) {
                 componentValue = builder.create<LoadOp>(
-                    callOp.getLoc(), componentValue, llvm::None);
+                    callOp.getLoc(), componentValue, std::nullopt);
               }
 
               newArgs.push_back(componentValue);
@@ -231,7 +231,7 @@ namespace
           }
         }
 
-        llvm::Optional<mlir::ArrayAttr> argNamesAttr = llvm::None;
+        std::optional<mlir::ArrayAttr> argNamesAttr = std::nullopt;
 
         if (!newArgNames.empty()) {
           argNamesAttr = builder.getArrayAttr(newArgNames);
@@ -908,7 +908,7 @@ namespace
 
           for (mlir::Value element : op.getValues()) {
             llvm::SmallVector<int64_t, 3> shape;
-            llvm::ArrayRef<int64_t> elementShape = llvm::None;
+            llvm::ArrayRef<int64_t> elementShape = std::nullopt;
 
             if (auto elementArrayType = element.getType().dyn_cast<ArrayType>()) {
               elementShape = elementArrayType.getShape();
@@ -1034,7 +1034,7 @@ mlir::LogicalResult RecordInliningPass::explicitateAccesses()
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoIterationLimit;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
   return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
 }
@@ -1052,7 +1052,7 @@ mlir::LogicalResult RecordInliningPass::unpackRecordVariables()
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoIterationLimit;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
   return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
 }
@@ -1071,7 +1071,7 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps()
   patterns.add<RecordCreateOpFoldPattern>(&getContext());
 
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoIterationLimit;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
   return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
 }

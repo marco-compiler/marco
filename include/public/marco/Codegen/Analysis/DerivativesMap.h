@@ -17,14 +17,14 @@ namespace mlir::modelica
       llvm::DenseSet<mlir::SymbolRefAttr> getDerivedVariables() const;
 
       /// Get the derivative variable of a given state variable.
-      llvm::Optional<mlir::SymbolRefAttr> getDerivative(
+      std::optional<mlir::SymbolRefAttr> getDerivative(
           mlir::SymbolRefAttr variable) const;
 
       /// Set the derivative variable for a state one.
       void setDerivative(
           mlir::SymbolRefAttr variable, mlir::SymbolRefAttr derivative);
 
-      llvm::Optional<std::reference_wrapper<const mlir::modeling::IndexSet>>
+      std::optional<std::reference_wrapper<const mlir::modeling::IndexSet>>
       getDerivedIndices(mlir::SymbolRefAttr variable) const;
 
       void setDerivedIndices(
@@ -34,7 +34,7 @@ namespace mlir::modelica
           mlir::SymbolRefAttr variable, mlir::modeling::IndexSet indices);
 
       /// Get the state variable of a given derivative variable.
-      llvm::Optional<mlir::SymbolRefAttr>
+      std::optional<mlir::SymbolRefAttr>
       getDerivedVariable(mlir::SymbolRefAttr derivative) const;
 
     private:

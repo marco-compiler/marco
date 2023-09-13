@@ -4,7 +4,6 @@
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
-include "mlir/IR/SubElementInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 // Modelica type definitions
@@ -51,8 +50,7 @@ def RealType : Modelica_Type<"Real">
 }
 
 def ArrayType : Modelica_Type<"Array",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-    ShapedTypeInterface],
+    [ShapedTypeInterface],
     "BaseArrayType">
 {
     let summary = "Array type";
@@ -77,7 +75,7 @@ def ArrayType : Modelica_Type<"Array",
     ];
 
     let extraClassDeclaration = [{
-        static constexpr int64_t kDynamicSize = mlir::ShapedType::kDynamicSize;
+        static constexpr int64_t kDynamic = mlir::ShapedType::kDynamic;
 
         using ShapedType::Trait<ArrayType>::clone;
         using ShapedType::Trait<ArrayType>::getElementTypeBitWidth;
@@ -106,8 +104,7 @@ def ArrayType : Modelica_Type<"Array",
 }
 
 def UnrankedArrayType : Modelica_Type<"UnrankedArray",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-    ShapedTypeInterface],
+    [ShapedTypeInterface],
     "BaseArrayType">
 {
     let summary = "Unranked array type";
@@ -142,7 +139,7 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
         using ShapedType::Trait<UnrankedArrayType>::getDimSize;
         using ShapedType::Trait<UnrankedArrayType>::getDynamicDimIndex;
 
-        llvm::ArrayRef<int64_t> getShape() const { return llvm::None; }
+        llvm::ArrayRef<int64_t> getShape() const { return std::nullopt; }
     }];
 
     let genVerifyDecl = 1;
@@ -171,8 +168,7 @@ def Modelica_RecordType : Modelica_Type<"Record", []>
 }
 
 def VariableType : Modelica_Type<"Variable",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-    DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
+    [DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
 {
     let summary = "Variable type";
 
@@ -200,7 +196,7 @@ def VariableType : Modelica_Type<"Variable",
     ];
 
     let extraClassDeclaration = [{
-        static constexpr int64_t kDynamicSize = mlir::ShapedType::kDynamicSize;
+        static constexpr int64_t kDynamic = mlir::ShapedType::kDynamic;
 
         static bool isValidElementType(mlir::Type type);
 

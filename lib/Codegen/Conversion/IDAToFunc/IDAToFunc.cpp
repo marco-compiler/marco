@@ -5,7 +5,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 
@@ -106,11 +106,11 @@ namespace
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(
-          loc, &op.getBodyRegion().front(), branchArgs);
+          loc, &op.getBody().front(), branchArgs);
 
       // Convert the return operation.
       auto returnOp =
-          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
+          mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
 
       llvm::SmallVector<mlir::Value, 1> returnValues;
       rewriter.setInsertionPoint(returnOp);
@@ -125,7 +125,7 @@ namespace
 
       // Inline the old region.
       rewriter.inlineRegionBefore(
-          op.getBodyRegion(),
+          op.getBody(),
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 
@@ -151,7 +151,7 @@ namespace
       argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(
           rewriter.getI64Type()));
 
-      auto functionType = rewriter.getFunctionType(argsTypes, llvm::None);
+      auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
 
       auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
           op, op.getSymName(), functionType);
@@ -193,11 +193,11 @@ namespace
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(
-          loc, &op.getBodyRegion().front(), branchArgs);
+          loc, &op.getBody().front(), branchArgs);
 
       // Convert the return operation.
       auto returnOp =
-          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
+          mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
 
       llvm::SmallVector<mlir::Value, 1> returnValues;
       rewriter.setInsertionPoint(returnOp);
@@ -212,7 +212,7 @@ namespace
 
       // Inline the old region.
       rewriter.inlineRegionBefore(
-          op.getBodyRegion(),
+          op.getBody(),
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 
@@ -239,7 +239,7 @@ namespace
       argsTypes.push_back(
           mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()));
 
-      auto functionType = rewriter.getFunctionType(argsTypes, llvm::None);
+      auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
 
       auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
           op, op.getSymName(), functionType);
@@ -277,7 +277,7 @@ namespace
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(
-          loc, &op.getBodyRegion().front(), branchArgs);
+          loc, &op.getBody().front(), branchArgs);
 
       // Create the exit block.
       unsigned int numOfResults = op.getFunctionType().getNumResults();
@@ -317,11 +317,11 @@ namespace
             variableIndexPtr.getLoc(), variableIndex, variableIndexPtr);
       }
 
-      rewriter.create<mlir::func::ReturnOp>(loc, llvm::None);
+      rewriter.create<mlir::func::ReturnOp>(loc, std::nullopt);
 
       // Convert the return operation.
       auto returnOp =
-          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
+          mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
 
       rewriter.setInsertionPoint(returnOp);
 
@@ -329,7 +329,7 @@ namespace
           returnOp, exitBlock, returnOp.getOperands());
 
       // Inline the old region.
-      rewriter.inlineRegionBefore(op.getBodyRegion(), exitBlock);
+      rewriter.inlineRegionBefore(op.getBody(), exitBlock);
 
       return mlir::success();
     }
@@ -397,11 +397,11 @@ namespace
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(
-          loc, &op.getBodyRegion().front(), branchArgs);
+          loc, &op.getBody().front(), branchArgs);
 
       // Convert the return operation.
       auto returnOp =
-          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
+          mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
 
       llvm::SmallVector<mlir::Value, 1> returnValues;
       rewriter.setInsertionPoint(returnOp);
@@ -416,7 +416,7 @@ namespace
 
       // Inline the old region.
       rewriter.inlineRegionBefore(
-          op.getBodyRegion(),
+          op.getBody(),
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 
@@ -520,11 +520,11 @@ namespace
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(
-          loc, &op.getBodyRegion().front(), branchArgs);
+          loc, &op.getBody().front(), branchArgs);
 
       // Convert the return operation.
       auto returnOp =
-          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
+          mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
 
       llvm::SmallVector<mlir::Value, 1> returnValues;
       rewriter.setInsertionPoint(returnOp);
@@ -539,7 +539,7 @@ namespace
 
       // Inline the old region.
       rewriter.inlineRegionBefore(
-          op.getBodyRegion(),
+          op.getBody(),
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 

@@ -8,7 +8,7 @@ include "marco/Dialect/Simulation/SimulationDialect.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
-include "mlir/IR/FunctionInterfaces.td"
+include "mlir/Interfaces/FunctionInterfaces.td"
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
@@ -204,8 +204,6 @@ def Simulation_PrintableIndicesOp : Simulation_Op<"printable_indices",
 
 def Simulation_InitFunctionOp : Simulation_Op<"init_function",
     [AutomaticAllocationScope,
-    CallableOpInterface,
-    FunctionOpInterface,
     IsolatedFromAbove,
     HasParent<"mlir::ModuleOp">]>
 {
@@ -234,49 +232,16 @@ def Simulation_InitFunctionOp : Simulation_Op<"init_function",
 
     let builders = [
         OpBuilder<(ins), [{
-            auto functionType =
-                $_builder.getFunctionType(llvm::None, llvm::None);
+            auto functionType = $_builder.getFunctionType(
+                std::nullopt, std::nullopt);
 
             build($_builder, $_state, functionType);
         }]>
     ];
-
-    let extraClassDeclaration = [{
-        /// @name CallableOpInterface methods
-        /// {
-
-        ::mlir::Region* getCallableRegion()
-        {
-            return isExternal() ? nullptr : &getBodyRegion();
-        }
-
-        llvm::ArrayRef<mlir::Type> getCallableResults()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name FunctionOpInterface methods
-        /// {
-
-        llvm::ArrayRef<mlir::Type> getArgumentTypes()
-        {
-            return getFunctionType().getInputs();
-        }
-
-        llvm::ArrayRef<mlir::Type> getResultTypes()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-    }];
 }
 
 def Simulation_DeinitFunctionOp : Simulation_Op<"deinit_function",
     [AutomaticAllocationScope,
-    CallableOpInterface,
-    FunctionOpInterface,
     IsolatedFromAbove,
     HasParent<"mlir::ModuleOp">]>
 {
@@ -305,51 +270,20 @@ def Simulation_DeinitFunctionOp : Simulation_Op<"deinit_function",
 
     let builders = [
         OpBuilder<(ins), [{
-            auto functionType =
-                $_builder.getFunctionType(llvm::None, llvm::None);
+            auto functionType = $_builder.getFunctionType(
+                std::nullopt, std::nullopt);
 
             build($_builder, $_state, functionType);
         }]>
     ];
-
-    let extraClassDeclaration = [{
-        /// @name CallableOpInterface methods
-        /// {
-
-        ::mlir::Region* getCallableRegion()
-        {
-            return isExternal() ? nullptr : &getBodyRegion();
-        }
-
-        llvm::ArrayRef<mlir::Type> getCallableResults()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name FunctionOpInterface methods
-        /// {
-
-        llvm::ArrayRef<mlir::Type> getArgumentTypes()
-        {
-            return getFunctionType().getInputs();
-        }
-
-        llvm::ArrayRef<mlir::Type> getResultTypes()
-        {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-    }];
 }
 
 def Simulation_VariableGetterOp : Simulation_Op<"variable_getter",
     [AutomaticAllocationScope,
+    IsolatedFromAbove,
     Symbol,
     CallableOpInterface,
     FunctionOpInterface,
-    IsolatedFromAbove,
     HasParent<"mlir::ModuleOp">]>
 {
     let summary = "Getter interface for a simulation variable.";
@@ -372,7 +306,9 @@ def Simulation_VariableGetterOp : Simulation_Op<"variable_getter",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let regions = (region AnyRegion:$bodyRegion);
 
@@ -480,10 +416,10 @@ def Simulation_YieldOp : Simulation_Op<"yield",
 
 def Simulation_FunctionOp : Simulation_Op<"function",
     [AutomaticAllocationScope,
+    IsolatedFromAbove,
     Symbol,
     CallableOpInterface,
     FunctionOpInterface,
-    IsolatedFromAbove,
     HasParent<"mlir::ModuleOp">]>
 {
     let summary = "Generic simulation function.";
@@ -506,7 +442,9 @@ def Simulation_FunctionOp : Simulation_Op<"function",
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         OptionalAttr<StrAttr>:$sym_visibility,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let regions = (region AnyRegion:$bodyRegion);
 
@@ -524,13 +462,15 @@ def Simulation_FunctionOp : Simulation_Op<"function",
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external
         /// function.
-        mlir::Region* getCallableRegion() {
+        mlir::Region* getCallableRegion()
+        {
             return isExternal() ? nullptr : &getBodyRegion();
         }
 
         /// Returns the results types that the callable region produces when
         /// executed.
-        llvm::ArrayRef<mlir::Type> getCallableResults() {
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
             return getFunctionType().getResults();
         }
 
@@ -539,12 +479,14 @@ def Simulation_FunctionOp : Simulation_Op<"function",
         /// {
 
         /// Returns the argument types of this function.
-        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
             return getFunctionType().getInputs();
         }
 
         /// Returns the result types of this function.
-        llvm::ArrayRef<mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
             return getFunctionType().getResults();
         }
 
@@ -552,7 +494,8 @@ def Simulation_FunctionOp : Simulation_Op<"function",
         /// @name SymbolOpInterface methods
         /// {
 
-        bool isDeclaration() {
+        bool isDeclaration()
+        {
             return isExternal();
         }
 

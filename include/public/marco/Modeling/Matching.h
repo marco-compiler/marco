@@ -12,7 +12,6 @@
 #include "mlir/IR/Threading.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include <atomic>
 #include <iostream>
@@ -493,8 +492,8 @@ namespace marco::modeling
               previous(nullptr),
               node(std::move(node)),
               candidates(std::move(candidates)),
-              edge(llvm::None),
-              mappedFlow(llvm::None)
+              edge(std::nullopt),
+              mappedFlow(std::nullopt)
         {
         }
 
@@ -611,8 +610,8 @@ namespace marco::modeling
         std::unique_ptr<BFSStep> previous;
         VertexDescriptor node;
         IndexSet candidates;
-        llvm::Optional<EdgeDescriptor> edge;
-        llvm::Optional<MCIM> mappedFlow;
+        std::optional<EdgeDescriptor> edge;
+        std::optional<MCIM> mappedFlow;
     };
 
     template<typename Graph, typename Variable, typename Equation>

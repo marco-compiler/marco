@@ -19,7 +19,6 @@ def Modelica_Dialect : Dialect {
     let hasConstantMaterializer = 1;
     let useDefaultAttributePrinterParser = 1;
     let useDefaultTypePrinterParser = 0;
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 
     let dependentDialects = [
         "modeling::ModelingDialect"

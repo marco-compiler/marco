@@ -3,7 +3,6 @@
 
 #include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
-#include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToArith/ModelicaToArith.h"
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"

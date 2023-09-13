@@ -12,8 +12,8 @@ namespace marco::options
 
   enum ID {
     OPT_INVALID = 0, // This is not an option ID.
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
-               HELPTEXT, METAVAR, VALUES)                                      \
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, \
+               VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES)           \
     OPT_##ID,
 #include "marco/Options/Options.inc"
     LastOption

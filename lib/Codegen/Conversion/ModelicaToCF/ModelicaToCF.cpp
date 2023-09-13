@@ -490,7 +490,7 @@ namespace
             variables[inputVariables[arg.index()].getSymNameAttr()] = argValue;
           }
 
-          auto missingVariables = llvm::makeArrayRef(inputVariables)
+          auto missingVariables = llvm::ArrayRef(inputVariables)
                                       .drop_front(op.getArgs().size());
 
           llvm::DenseSet<mlir::StringAttr> missingVariableNames;
@@ -532,7 +532,7 @@ namespace
         DefaultOp defaultOp,
         const llvm::DenseMap<mlir::StringAttr, mlir::Value>& variables) const
       {
-        mlir::BlockAndValueMapping mapping;
+        mlir::IRMapping mapping;
 
         for (auto& op : defaultOp.getOps()) {
           if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
@@ -971,7 +971,7 @@ namespace
             conditionOp->getLoc(),
             conditionValue,
             bodyFirst, conditionOp.getValues(),
-            continuation, llvm::None);
+            continuation, std::nullopt);
 
         rewriter.eraseOp(conditionOp);
 
@@ -1048,8 +1048,8 @@ namespace
           rewriter.create<mlir::cf::CondBranchOp>(
               op->getLoc(),
               conditionValue,
-              thenFirst, llvm::None,
-              continuation, llvm::None);
+              thenFirst, std::nullopt,
+              continuation, std::nullopt);
 
           rewriter.setInsertionPointToEnd(thenLast);
           rewriter.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
@@ -1075,8 +1075,8 @@ namespace
           rewriter.create<mlir::cf::CondBranchOp>(
               op->getLoc(),
               conditionValue,
-              thenFirst, llvm::None,
-              elseFirst, llvm::None);
+              thenFirst, std::nullopt,
+              elseFirst, std::nullopt);
 
           // Branch to the continuation block.
           rewriter.setInsertionPointToEnd(thenLast);
@@ -1142,8 +1142,8 @@ namespace
         rewriter.create<mlir::cf::CondBranchOp>(
             op->getLoc(),
             conditionValue,
-            bodyFirst, llvm::None,
-            continuation, llvm::None);
+            bodyFirst, std::nullopt,
+            continuation, std::nullopt);
 
         rewriter.eraseOp(conditionOp);
 
@@ -1398,7 +1398,7 @@ namespace
                 arrayType && canBePromoted(arrayType)) {
               // Allocate the array inside the caller body.
               mlir::Value array = builder.create<AllocOp>(
-                  callOp.getLoc(), arrayType, llvm::None);
+                  callOp.getLoc(), arrayType, std::nullopt);
 
               // Add the array to the arguments.
               args.push_back(array);

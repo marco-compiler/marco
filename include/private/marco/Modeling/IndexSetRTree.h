@@ -20,7 +20,7 @@ namespace marco::modeling::impl
       class Node
       {
         public:
-          Node(Node* parent, MultidimensionalRange boundary);
+          Node(Node* parent, const MultidimensionalRange& boundary);
 
           Node(const Node& other);
 

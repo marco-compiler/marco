@@ -1,9 +1,9 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/Modelica/Ops.h"
+#include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/FunctionImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/MapVector.h"
@@ -155,14 +155,14 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
 namespace
 {
   template<typename T>
-  llvm::Optional<T> getAttributeValue(mlir::Attribute attribute)
+  std::optional<T> getAttributeValue(mlir::Attribute attribute)
   {
     if (isScalarIntegerLike(attribute)) {
       return static_cast<T>(getScalarIntegerLikeValue(attribute));
     } else if (isScalarFloatLike(attribute)) {
       return static_cast<T>(getScalarFloatLikeValue(attribute));
     } else {
-      return llvm::None;
+      return std::nullopt;
     }
   }
 
@@ -223,7 +223,7 @@ static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
   return mlir::SymbolRefAttr::get(
       symbol->getContext(),
       flatSymbolAttrs[0].getValue(),
-      llvm::makeArrayRef(flatSymbolAttrs).drop_front());
+      llvm::ArrayRef(flatSymbolAttrs).drop_front());
 }
 
 static mlir::Operation* resolveSymbol(
@@ -289,7 +289,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     return builder.clone(*getOperation())->getResults();
   }
@@ -344,7 +344,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     return builder.clone(*getOperation())->getResults();
   }
@@ -386,10 +386,9 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  mlir::OpFoldResult ArrayFromElementsOp::fold(
-      llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor)
   {
-    if (llvm::all_of(operands, [](mlir::Attribute attr) {
+    if (llvm::all_of(adaptor.getOperands(), [](mlir::Attribute attr) {
           return attr != nullptr;
         })) {
       ArrayType arrayType = getArrayType();
@@ -403,7 +402,7 @@ namespace mlir::modelica
       if (elementType.isa<BooleanType>()) {
         llvm::SmallVector<bool> casted;
 
-        if (!getAttributesValues(operands, casted)) {
+        if (!getAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -413,7 +412,7 @@ namespace mlir::modelica
       if (elementType.isa<IntegerType>()) {
         llvm::SmallVector<int64_t> casted;
 
-        if (!getAttributesValues(operands, casted)) {
+        if (!getAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -423,7 +422,7 @@ namespace mlir::modelica
       if (elementType.isa<RealType>()) {
         llvm::SmallVector<double> casted;
 
-        if (!getAttributesValues(operands, casted)) {
+        if (!getAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -454,7 +453,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     llvm::SmallVector<mlir::Value> derivedValues;
 
@@ -548,7 +547,7 @@ namespace
       int64_t dimSize = arrayType.getDimSize(
           constantOp.getValue().cast<mlir::IntegerAttr>().getInt());
 
-      if (dimSize == ArrayType::kDynamicSize) {
+      if (dimSize == ArrayType::kDynamic) {
         return mlir::failure();
       }
 
@@ -704,7 +703,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivedOp = builder.create<LoadOp>(
         getLoc(), derivatives.lookup(getArray()), getIndices());
@@ -817,7 +816,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivedOp = builder.create<StoreOp>(
         getLoc(),
@@ -956,7 +955,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivedOp = builder.create<SubscriptionOp>(
         getLoc(), derivatives.lookup(getSource()), getIndices());
@@ -1280,12 +1279,12 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivativeSymbolIt = symbolDerivatives.find(getVariableAttr());
 
     if (derivativeSymbolIt == symbolDerivatives.end()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     auto derivedOp = builder.create<VariableGetOp>(
@@ -1357,12 +1356,12 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivativeSymbolIt = symbolDerivatives.find(getVariableAttr());
 
     if (derivativeSymbolIt == symbolDerivatives.end()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     auto derivedOp = builder.create<VariableSetOp>(
@@ -1516,8 +1515,7 @@ namespace mlir::modelica
     }
   }
 
-  mlir::OpFoldResult ConstantOp::fold(
-      llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult ConstantOp::fold(FoldAdaptor adaptor)
   {
     return getValue();
   }
@@ -1526,7 +1524,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[const] = 0
 
@@ -1554,9 +1552,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult NegateOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult NegateOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -1766,7 +1764,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Value derivedOperand = derivatives.lookup(getOperand());
 
@@ -1794,10 +1792,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AddOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AddOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -2098,7 +2096,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto loc = getLoc();
 
@@ -2130,10 +2128,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AddEWOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AddEWOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -2429,7 +2427,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto loc = getLoc();
 
@@ -2461,10 +2459,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SubOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SubOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -2765,7 +2763,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -2797,10 +2795,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SubEWOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SubEWOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -3101,7 +3099,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -3135,10 +3133,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult MulOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult MulOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -3468,7 +3466,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -3507,10 +3505,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult MulEWOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult MulEWOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -3838,7 +3836,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -3877,10 +3875,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult DivOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult DivOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -4192,7 +4190,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -4240,10 +4238,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult DivEWOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult DivEWOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -4556,7 +4554,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -4605,10 +4603,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult PowOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult PowOp::fold(FoldAdaptor adaptor)
   {
-    auto base = operands[0];
-    auto exponent = operands[1];
+    auto base = adaptor.getBase();
+    auto exponent = adaptor.getExponent();
 
     if (!base || !exponent) {
       return {};
@@ -4681,7 +4679,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[x ^ y] = (x ^ (y - 1)) * (y * x' + x * ln(x) * y')
 
@@ -4748,10 +4746,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult PowEWOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult PowEWOp::fold(FoldAdaptor adaptor)
   {
-    auto base = operands[0];
-    auto exponent = operands[1];
+    auto base = adaptor.getBase();
+    auto exponent = adaptor.getExponent();
 
     if (!base || !exponent) {
       return {};
@@ -4824,7 +4822,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
 
@@ -4880,10 +4878,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult EqOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult EqOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -4926,10 +4924,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult NotEqOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult NotEqOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -4972,10 +4970,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult GtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult GtOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5018,10 +5016,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult GteOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult GteOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5064,10 +5062,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult LtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult LtOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5110,10 +5108,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult LteOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult LteOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5160,9 +5158,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult NotOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult NotOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -5218,10 +5216,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AndOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AndOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5296,10 +5294,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult OrOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult OrOp::fold(FoldAdaptor adaptor)
   {
-    auto lhs = operands[0];
-    auto rhs = operands[1];
+    auto lhs = adaptor.getLhs();
+    auto rhs = adaptor.getRhs();
 
     if (!lhs || !rhs) {
       return {};
@@ -5472,9 +5470,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AbsOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AbsOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -5564,9 +5562,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AcosOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AcosOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -5654,7 +5652,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[acos(x)] = -x' / sqrt(1 - x^2)
 
@@ -5700,9 +5698,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AsinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AsinOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -5790,7 +5788,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[arcsin(x)] = x' / sqrt(1 - x^2)
 
@@ -5834,9 +5832,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult AtanOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult AtanOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -5924,7 +5922,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[atan(x)] = x' / (1 + x^2)
 
@@ -6046,7 +6044,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[atan2(y, x)] = (y' * x - y * x') / (y^2 + x^2)
 
@@ -6098,9 +6096,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult CeilOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult CeilOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6190,9 +6188,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult CosOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult CosOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6280,7 +6278,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[cos(x)] = -x' * sin(x)
 
@@ -6315,9 +6313,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult CoshOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult CoshOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6405,7 +6403,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[cosh(x)] = x' * sinh(x)
 
@@ -6464,10 +6462,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult DivTruncOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult DivTruncOp::fold(FoldAdaptor adaptor)
   {
-    auto x = operands[0];
-    auto y = operands[1];
+    auto x = adaptor.getX();
+    auto y = adaptor.getY();
 
     if (!x || !y) {
       return {};
@@ -6510,9 +6508,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult ExpOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult ExpOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getExponent();
 
     if (!operand) {
       return {};
@@ -6599,7 +6597,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[e^x] = x' * e^x
 
@@ -6653,9 +6651,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult FloorOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult FloorOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6767,9 +6765,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult IntegerOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult IntegerOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6881,9 +6879,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult LogOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult LogOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -6971,7 +6969,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[ln(x)] = x' / x
 
@@ -7003,9 +7001,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult Log10Op::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult Log10Op::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -7093,7 +7091,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[log10(x)] = x' / (x * ln(10))
 
@@ -7214,11 +7212,11 @@ namespace mlir::modelica
     printer << " -> " << getResult().getType();
   }
 
-  mlir::OpFoldResult MaxOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult MaxOp::fold(FoldAdaptor adaptor)
   {
-    if (operands.size() == 2) {
-      auto first = operands[0];
-      auto second = operands[1];
+    if (adaptor.getOperands().size() == 2) {
+      auto first = adaptor.getFirst();
+      auto second = adaptor.getSecond();
 
       if (!first || !second) {
         return {};
@@ -7366,11 +7364,11 @@ namespace mlir::modelica
     printer << " -> " << getResult().getType();
   }
 
-  mlir::OpFoldResult MinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult MinOp::fold(FoldAdaptor adaptor)
   {
-    if (operands.size() == 2) {
-      auto first = operands[0];
-      auto second = operands[1];
+    if (adaptor.getOperands().size() == 2) {
+      auto first = adaptor.getFirst();
+      auto second = adaptor.getSecond();
 
       if (!first || !second) {
         return {};
@@ -7437,10 +7435,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult ModOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult ModOp::fold(FoldAdaptor adaptor)
   {
-    auto x = operands[0];
-    auto y = operands[1];
+    auto x = adaptor.getX();
+    auto y = adaptor.getY();
 
     if (!x || !y) {
       return {};
@@ -7534,10 +7532,10 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult RemOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult RemOp::fold(FoldAdaptor adaptor)
   {
-    auto x = operands[0];
-    auto y = operands[1];
+    auto x = adaptor.getX();
+    auto y = adaptor.getY();
 
     if (!x || !y) {
       return {};
@@ -7580,9 +7578,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SignOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SignOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -7682,9 +7680,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SinOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -7770,7 +7768,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[sin(x)] = x' * cos(x)
 
@@ -7802,9 +7800,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SinhOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SinhOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -7892,7 +7890,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[sinh(x)] = x' * cosh(x)
 
@@ -8034,9 +8032,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult SqrtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult SqrtOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -8124,7 +8122,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[sqrt(x)] = x' / sqrt(x) / 2
 
@@ -8208,9 +8206,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult TanOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult TanOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -8298,7 +8296,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[tan(x)] = x' / (cos(x))^2
 
@@ -8337,9 +8335,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::OpFoldResult TanhOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  mlir::OpFoldResult TanhOp::fold(FoldAdaptor adaptor)
   {
-    auto operand = operands[0];
+    auto operand = adaptor.getOperand();
 
     if (!operand) {
       return {};
@@ -8427,7 +8425,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     // D[tanh(x)] = x' / (cosh(x))^2
 
@@ -8591,7 +8589,7 @@ namespace mlir::modelica
       mlir::OperationState& state,
       llvm::StringRef name)
   {
-    build(builder, state, name, builder.getArrayAttr(llvm::None));
+    build(builder, state, name, builder.getArrayAttr({}));
   }
 
   mlir::RegionKind ModelOp::getRegionKind(unsigned index)
@@ -8963,7 +8961,7 @@ namespace mlir::modelica
     return implicitIterationVariables;
   }
 
-  llvm::Optional<mlir::modeling::IndexSet>
+  std::optional<mlir::modeling::IndexSet>
   EquationTemplateOp::computeImplicitIterationSpace(uint64_t viewElementIndex)
   {
     mlir::Value lhs = getValueAtPath(
@@ -8983,9 +8981,9 @@ namespace mlir::modelica
       for (int64_t i = 0, rank = lhsArrayType.getRank(); i < rank; ++i) {
         int64_t lhsDim = lhsArrayType.getDimSize(i);
 
-        if (lhsDim == ArrayType::kDynamicSize) {
+        if (lhsDim == ArrayType::kDynamic) {
           int64_t rhsDim = rhsArrayType.getDimSize(i);
-          assert(rhsDim != ArrayType::kDynamicSize);
+          assert(rhsDim != ArrayType::kDynamic);
           shape.push_back(rhsDim);
         } else {
           shape.push_back(lhsDim);
@@ -8994,11 +8992,11 @@ namespace mlir::modelica
     }
 
     if (shape.empty()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     if (!lhsArrayType) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     llvm::SmallVector<Range, 3> ranges;
@@ -9141,7 +9139,7 @@ namespace mlir::modelica
     return value;
   }
 
-  llvm::Optional<VariableAccess> EquationTemplateOp::getAccessAtPath(
+  std::optional<VariableAccess> EquationTemplateOp::getAccessAtPath(
       mlir::SymbolTableCollection& symbolTable,
       const EquationPath& path)
   {
@@ -9160,14 +9158,14 @@ namespace mlir::modelica
 
     if (mlir::failed(searchAccesses(
             accesses, symbolTable, inductionsPositionMap, access, path))) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     assert(accesses.size() == 1);
     return accesses[0];
   }
 
-  llvm::Optional<mlir::AffineMap> EquationTemplateOp::getAccessFunction(
+  std::optional<mlir::AffineMap> EquationTemplateOp::getAccessFunction(
       llvm::ArrayRef<mlir::Value> indices)
   {
     // Get the induction variables and number them.
@@ -9185,7 +9183,7 @@ namespace mlir::modelica
       if (auto expression = getAffineExpr(inductionsPositionMap, index)) {
         expressions.push_back(*expression);
       } else {
-        return llvm::None;
+        return std::nullopt;
       }
     }
 
@@ -9268,7 +9266,7 @@ namespace mlir::modelica
           for (int64_t i = static_cast<int64_t>(reverted.size()),
                        rank = arrayType.getRank(); i < rank; ++i) {
             int64_t dimension = arrayType.getDimSize(i);
-            assert(dimension != ArrayType::kDynamicSize);
+            assert(dimension != ArrayType::kDynamic);
             ranges.push_back(Range(0, dimension));
           }
 
@@ -9355,7 +9353,7 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  llvm::Optional<mlir::AffineExpr> EquationTemplateOp::getAffineExpr(
+  std::optional<mlir::AffineExpr> EquationTemplateOp::getAffineExpr(
       llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
       mlir::Value index)
   {
@@ -9370,7 +9368,7 @@ namespace mlir::modelica
         auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
 
         if (!lhs || !rhs) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         return *lhs + *rhs;
@@ -9381,7 +9379,7 @@ namespace mlir::modelica
         auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
 
         if (!lhs || !rhs) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         return *lhs - *rhs;
@@ -9392,7 +9390,7 @@ namespace mlir::modelica
         auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
 
         if (!lhs || !rhs) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         return *lhs * *rhs;
@@ -9403,7 +9401,7 @@ namespace mlir::modelica
         auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
 
         if (!lhs || !rhs) {
-          return llvm::None;
+          return std::nullopt;
         }
 
         return lhs->floorDiv(*rhs);
@@ -9415,12 +9413,12 @@ namespace mlir::modelica
       return mlir::getAffineDimExpr(it->second, getContext());
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
   mlir::LogicalResult EquationTemplateOp::cloneWithReplacedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -9568,7 +9566,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -9600,7 +9598,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -9626,15 +9624,15 @@ namespace mlir::modelica
 
     return cloneWithReplacedVectorizedAccess(
         rewriter,
-        llvm::Optional<
-            std::reference_wrapper<const MultidimensionalRange>>(llvm::None),
+        std::optional<
+            std::reference_wrapper<const MultidimensionalRange>>(std::nullopt),
         access, replacementEquation, replacementAccess, transformation,
         additionalSubscriptions, results, remainingEquationIndices);
   }
 
   mlir::LogicalResult EquationTemplateOp::cloneWithReplacedVectorizedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<
+      std::optional<
           std::reference_wrapper<const MultidimensionalRange>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
@@ -9664,7 +9662,7 @@ namespace mlir::modelica
     rewriter.setInsertionPointToStart(equationBodyBlock);
 
     // Clone the operations composing the replacement equation.
-    mlir::BlockAndValueMapping replacementMapping;
+    mlir::IRMapping replacementMapping;
 
     if (mlir::failed(mapInductionVariables(
             rewriter, replacementEquation.getLoc(),
@@ -9688,7 +9686,7 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Value, 3> additionalMappedSubscriptions;
 
     // Clone the operations composing the destination equation.
-    mlir::BlockAndValueMapping destinationMapping;
+    mlir::IRMapping destinationMapping;
 
     for (auto [oldInduction, newInduction] : llvm::zip(
              getInductionVariables(),
@@ -9785,7 +9783,7 @@ namespace mlir::modelica
   mlir::LogicalResult EquationTemplateOp::mapInductionVariables(
       mlir::OpBuilder& builder,
       mlir::Location loc,
-      mlir::BlockAndValueMapping& mapping,
+      mlir::IRMapping& mapping,
       EquationTemplateOp source,
       EquationTemplateOp destination,
       const AccessFunction& transformation)
@@ -9818,8 +9816,8 @@ namespace mlir::modelica
 
   IndexSet EquationTemplateOp::applyAccessFunction(
       const AccessFunction& accessFunction,
-      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> explicitEquationIndices,
+      std::optional<MultidimensionalRange> implicitEquationIndices,
       const EquationPath& path)
   {
     IndexSet result;
@@ -9841,8 +9839,8 @@ namespace mlir::modelica
   mlir::LogicalResult EquationTemplateOp::explicitate(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> explicitEquationIndices,
+      std::optional<MultidimensionalRange> implicitEquationIndices,
       const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -9952,8 +9950,8 @@ namespace mlir::modelica
   EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> explicitEquationIndices,
+      std::optional<MultidimensionalRange> implicitEquationIndices,
       const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -10223,9 +10221,7 @@ namespace mlir::modelica
 
       processed.insert(op);
 
-      if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
-            constants.push_back(constant);
-          }))) {
+      if (mlir::failed(helper.tryToFold(op))) {
         break;
       }
     }
@@ -10235,7 +10231,7 @@ namespace mlir::modelica
     }
   }
 
-  static llvm::Optional<bool> isZeroAttr(mlir::Attribute attribute)
+  static std::optional<bool> isZeroAttr(mlir::Attribute attribute)
   {
     if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
       return !booleanAttr.getValue();
@@ -10257,10 +10253,10 @@ namespace mlir::modelica
       return floatAttr.getValueAsDouble() == 0;
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
-  llvm::Optional<std::pair<unsigned int, mlir::Value>>
+  std::optional<std::pair<unsigned int, mlir::Value>>
   EquationTemplateOp::getMultiplyingFactor(
       mlir::OpBuilder& builder,
       mlir::SymbolTableCollection& symbolTableCollection,
@@ -10311,7 +10307,7 @@ namespace mlir::modelica
       if (mlir::failed(searchAccesses(
               accesses, symbolTableCollection, inductionsPositionMap,
               value, path)) || accesses.size() != 1) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       if (accesses[0].getVariable().getRootReference() == variable) {
@@ -10342,11 +10338,11 @@ namespace mlir::modelica
           path + 0);
 
       if (!operand) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       if (!operand->second) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       mlir::Value result = builder.create<NegateOp>(
@@ -10367,7 +10363,7 @@ namespace mlir::modelica
           path + 1);
 
       if (!lhs || !rhs) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       if (!lhs->second || !rhs->second) {
@@ -10382,13 +10378,13 @@ namespace mlir::modelica
     }
 
     auto hasAccessToVar = [&](mlir::Value value,
-                              EquationPath path) -> llvm::Optional<bool> {
+                              EquationPath path) -> std::optional<bool> {
       llvm::SmallVector<VariableAccess> accesses;
 
       if (mlir::failed(searchAccesses(
               accesses, symbolTableCollection, inductionsPositionMap,
               value, path))) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       bool hasAccess = llvm::any_of(accesses, [&](const VariableAccess& access) {
@@ -10420,7 +10416,7 @@ namespace mlir::modelica
           path + 0);
 
       if (!dividend) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       if (!dividend->second) {
@@ -10432,7 +10428,7 @@ namespace mlir::modelica
       auto rhsHasAccess = hasAccessToVar(divOp.getRhs(), path + 1);
 
       if (!rhsHasAccess || *rhsHasAccess) {
-        return llvm::None;
+        return std::nullopt;
       }
 
       mlir::Value result = builder.create<DivOp>(
@@ -10485,8 +10481,8 @@ namespace mlir::modelica
   mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-      llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> explicitEquationIndices,
+      std::optional<MultidimensionalRange> implicitEquationIndices,
       const VariableAccess& requestedAccess)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -10752,7 +10748,7 @@ namespace mlir::modelica
 
       if (auto divisorOp =
               mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
-        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+        std::optional<bool> isZero = isZeroAttr(divisorOp.getValue());
 
         if (!isZero || *isZero) {
           return mlir::failure();
@@ -10831,7 +10827,7 @@ namespace mlir::modelica
 
       if (auto divisorOp =
               mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
-        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+        std::optional<bool> isZero = isZeroAttr(divisorOp.getValue());
 
         if (!isZero || *isZero) {
           return mlir::failure();
@@ -10907,7 +10903,7 @@ namespace mlir::modelica
 
       if (auto divisorOp =
               mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
-        llvm::Optional<bool> isZero = isZeroAttr(divisorOp.getValue());
+        std::optional<bool> isZero = isZeroAttr(divisorOp.getValue());
 
         if (!isZero || *isZero) {
           return mlir::failure();
@@ -10960,7 +10956,7 @@ namespace mlir::modelica
   mlir::LogicalResult EquationInstanceOp::verify()
   {
     auto indicesRank =
-        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+        [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
       if (!ranges) {
         return 0;
       }
@@ -11040,7 +11036,7 @@ namespace mlir::modelica
         result, symbolTable, getViewElementIndex().value_or(0));
   }
 
-  llvm::Optional<VariableAccess> EquationInstanceOp::getAccessAtPath(
+  std::optional<VariableAccess> EquationInstanceOp::getAccessAtPath(
       mlir::SymbolTableCollection& symbolTable,
       const EquationPath& path)
   {
@@ -11049,7 +11045,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -11076,7 +11072,7 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicit_indicesAttr();
+        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -11136,7 +11132,7 @@ namespace mlir::modelica
   mlir::LogicalResult MatchedEquationInstanceOp::verify()
   {
     auto indicesRank =
-        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+        [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
       if (!ranges) {
         return 0;
       }
@@ -11224,7 +11220,7 @@ namespace mlir::modelica
     return explicitIterationSpace.append(implicitIterationSpace);
   }
 
-  llvm::Optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
+  std::optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     return getAccessAtPath(symbolTableCollection, getPath().getValue());
@@ -11253,7 +11249,7 @@ namespace mlir::modelica
       const IndexSet& equationIndices,
       llvm::ArrayRef<VariableAccess> accesses)
   {
-    llvm::Optional<VariableAccess> matchedAccess =
+    std::optional<VariableAccess> matchedAccess =
         getMatchedAccess(symbolTableCollection);
 
     if (!matchedAccess) {
@@ -11279,7 +11275,7 @@ namespace mlir::modelica
       const IndexSet& equationIndices,
       llvm::ArrayRef<VariableAccess> accesses)
   {
-    llvm::Optional<VariableAccess> matchedAccess =
+    std::optional<VariableAccess> matchedAccess =
         getMatchedAccess(symbolTableCollection);
 
     if (!matchedAccess) {
@@ -11290,7 +11286,7 @@ namespace mlir::modelica
         result, equationIndices, accesses, *matchedAccess);
   }
 
-  llvm::Optional<VariableAccess> MatchedEquationInstanceOp::getAccessAtPath(
+  std::optional<VariableAccess> MatchedEquationInstanceOp::getAccessAtPath(
       mlir::SymbolTableCollection& symbolTable,
       const EquationPath& path)
   {
@@ -11301,8 +11297,8 @@ namespace mlir::modelica
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    llvm::Optional<MultidimensionalRange> indices = llvm::None;
-    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+    std::optional<MultidimensionalRange> indices = std::nullopt;
+    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
@@ -11329,8 +11325,8 @@ namespace mlir::modelica
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    llvm::Optional<MultidimensionalRange> indices = llvm::None;
-    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+    std::optional<MultidimensionalRange> indices = std::nullopt;
+    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
@@ -11373,7 +11369,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -11400,7 +11396,7 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicit_indicesAttr();
+        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -11480,7 +11476,7 @@ namespace mlir::modelica
   mlir::LogicalResult ScheduledEquationInstanceOp::verify()
   {
     auto indicesRank =
-        [&](llvm::Optional<MultidimensionalRangeAttr> ranges) -> size_t {
+        [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
       if (!ranges) {
         return 0;
       }
@@ -11551,7 +11547,7 @@ namespace mlir::modelica
         result, symbolTable, getViewElementIndex());
   }
 
-  llvm::Optional<VariableAccess> ScheduledEquationInstanceOp::getAccessAtPath(
+  std::optional<VariableAccess> ScheduledEquationInstanceOp::getAccessAtPath(
       mlir::SymbolTableCollection& symbolTable,
       const EquationPath& path)
   {
@@ -11597,7 +11593,7 @@ namespace mlir::modelica
     return explicitIterationSpace.append(implicitIterationSpace);
   }
 
-  llvm::Optional<VariableAccess> ScheduledEquationInstanceOp::getMatchedAccess(
+  std::optional<VariableAccess> ScheduledEquationInstanceOp::getMatchedAccess(
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     return getAccessAtPath(symbolTableCollection, getPath().getValue());
@@ -11618,7 +11614,7 @@ namespace mlir::modelica
       const IndexSet& equationIndices,
       llvm::ArrayRef<VariableAccess> accesses)
   {
-    llvm::Optional<VariableAccess> matchedAccess =
+    std::optional<VariableAccess> matchedAccess =
         getMatchedAccess(symbolTableCollection);
 
     if (!matchedAccess) {
@@ -11644,7 +11640,7 @@ namespace mlir::modelica
       const IndexSet& equationIndices,
       llvm::ArrayRef<VariableAccess> accesses)
   {
-    llvm::Optional<VariableAccess> matchedAccess =
+    std::optional<VariableAccess> matchedAccess =
         getMatchedAccess(symbolTableCollection);
 
     if (!matchedAccess) {
@@ -11659,8 +11655,8 @@ namespace mlir::modelica
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    llvm::Optional<MultidimensionalRange> indices = llvm::None;
-    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+    std::optional<MultidimensionalRange> indices = std::nullopt;
+    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
@@ -11687,8 +11683,8 @@ namespace mlir::modelica
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    llvm::Optional<MultidimensionalRange> indices = llvm::None;
-    llvm::Optional<MultidimensionalRange> implicitIndices = llvm::None;
+    std::optional<MultidimensionalRange> indices = std::nullopt;
+    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
@@ -11732,7 +11728,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
       mlir::RewriterBase& rewriter,
-      llvm::Optional<std::reference_wrapper<const IndexSet>> equationIndices,
+      std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
       const VariableAccess& access,
       EquationTemplateOp replacementEquation,
       const VariableAccess& replacementAccess,
@@ -11759,7 +11755,7 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicit_indicesAttr();
+        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -11985,7 +11981,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     mlir::Location loc = getLoc();
 
@@ -11993,7 +11989,7 @@ namespace mlir::modelica
     mlir::Value derivedDestination = derivatives.lookup(getDestination());
 
     builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
-    return llvm::None;
+    return std::nullopt;
   }
 
   void AssignmentOp::getOperandsToBeDerived(
@@ -12044,8 +12040,8 @@ namespace mlir::modelica
     }
 
     mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion, llvm::None)) {
+    
+    if (parser.parseRegion(*bodyRegion)) {
       return mlir::failure();
     }
 
@@ -12195,7 +12191,7 @@ namespace mlir::modelica
       mlir::Operation::dialect_attr_range attrs)
   {
     llvm::SmallVector<mlir::NamedAttribute, 8> attrRef(attrs);
-    return create(location, name, type, llvm::makeArrayRef(attrRef));
+    return create(location, name, type, llvm::ArrayRef(attrRef));
   }
 
   RawFunctionOp RawFunctionOp::create(
@@ -12223,7 +12219,7 @@ namespace mlir::modelica
         builder.getStringAttr(name));
 
     state.addAttribute(
-        mlir::FunctionOpInterface::getTypeAttrName(),
+        getFunctionTypeAttrName(state.name),
         mlir::TypeAttr::get(type));
 
     state.attributes.append(attrs.begin(), attrs.end());
@@ -12235,8 +12231,9 @@ namespace mlir::modelica
 
     assert(type.getNumInputs() == argAttrs.size());
 
-    mlir::function_interface_impl::addArgAndResultAttrs(
-        builder, state, argAttrs, llvm::None);
+    function_interface_impl::addArgAndResultAttrs(
+        builder, state, argAttrs, std::nullopt,
+        getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
   }
 
   mlir::ParseResult RawFunctionOp::parse(
@@ -12252,12 +12249,16 @@ namespace mlir::modelica
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
   void RawFunctionOp::print(OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(printer, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
   bool RawFunctionOp::shouldBeInlined()
@@ -12275,7 +12276,7 @@ namespace mlir::modelica
   /// Clone the internal blocks from this function into dest and all attributes
   /// from this function to dest.
   void RawFunctionOp::cloneInto(
-      RawFunctionOp dest, mlir::BlockAndValueMapping& mapper)
+      RawFunctionOp dest, mlir::IRMapping& mapper)
   {
     // Add the attributes of this function to dest.
     llvm::MapVector<mlir::StringAttr, mlir::Attribute> newAttrMap;
@@ -12304,7 +12305,7 @@ namespace mlir::modelica
   /// provided (leaving them alone if no entry is present). Replaces references
   /// to cloned sub-values with the corresponding value that is copied, and adds
   /// those mappings to the mapper.
-  RawFunctionOp RawFunctionOp::clone(mlir::BlockAndValueMapping& mapper)
+  RawFunctionOp RawFunctionOp::clone(mlir::IRMapping& mapper)
   {
     // Create the new function.
     RawFunctionOp newFunc = cast<RawFunctionOp>(
@@ -12354,7 +12355,7 @@ namespace mlir::modelica
 
   RawFunctionOp RawFunctionOp::clone()
   {
-    mlir::BlockAndValueMapping mapper;
+    mlir::IRMapping mapper;
     return clone(mapper);
   }
 }
@@ -12551,92 +12552,6 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
-// RuntimeFunctionOp
-
-namespace mlir::modelica
-{
-  void RuntimeFunctionOp::build(
-      mlir::OpBuilder& builder,
-      mlir::OperationState& state,
-      llvm::StringRef name,
-      mlir::FunctionType type,
-      llvm::ArrayRef<mlir::NamedAttribute> attrs,
-      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
-  {
-    state.addAttribute(
-        mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
-
-    state.addAttribute(
-        mlir::FunctionOpInterface::getTypeAttrName(),
-        mlir::TypeAttr::get(type));
-
-    state.addAttribute(
-        mlir::SymbolTable::getVisibilityAttrName(),
-        builder.getStringAttr("private"));
-
-    state.attributes.append(attrs.begin(), attrs.end());
-
-    if (argAttrs.empty()) {
-      return;
-    }
-
-    assert(type.getNumInputs() == argAttrs.size());
-
-    mlir::function_interface_impl::addArgAndResultAttrs(
-        builder, state, argAttrs, llvm::None);
-  }
-
-  mlir::ParseResult RuntimeFunctionOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    auto& builder = parser.getBuilder();
-    mlir::StringAttr nameAttr;
-
-    if (parser.parseSymbolName(
-            nameAttr,
-            mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes)) {
-      return mlir::failure();
-    }
-
-    mlir::Type functionType;
-
-    if (parser.parseColon() ||
-        parser.parseType(functionType)) {
-      return mlir::failure();
-    }
-
-    result.attributes.append(
-        mlir::function_interface_impl::getTypeAttrName(),
-        mlir::TypeAttr::get(functionType));
-
-    result.attributes.append(
-        mlir::SymbolTable::getVisibilityAttrName(),
-        builder.getStringAttr("private"));
-
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  }
-
-  void RuntimeFunctionOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer.printSymbolName(getSymName());
-
-    llvm::SmallVector<llvm::StringRef, 3> elidedAttrs;
-    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-    elidedAttrs.push_back(mlir::SymbolTable::getVisibilityAttrName());
-    elidedAttrs.push_back(mlir::function_interface_impl::getTypeAttrName());
-
-    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
-    printer << " : " << getFunctionType();
-  }
-}
-
-//===---------------------------------------------------------------------===//
 // CallOp
 
 namespace mlir::modelica
@@ -12646,7 +12561,7 @@ namespace mlir::modelica
       mlir::OperationState& state,
       FunctionOp callee,
       mlir::ValueRange args,
-      llvm::Optional<mlir::ArrayAttr> argNames)
+      std::optional<mlir::ArrayAttr> argNames)
   {
     mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
     build(builder, state, symbol, callee.getResultTypes(), args, argNames);
@@ -12665,20 +12580,10 @@ namespace mlir::modelica
   void CallOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      RuntimeFunctionOp callee,
-      mlir::ValueRange args)
-  {
-    mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
-    build(builder, state, symbol, callee.getResultTypes(), args);
-  }
-
-  void CallOp::build(
-      mlir::OpBuilder& builder,
-      mlir::OperationState& state,
       mlir::SymbolRefAttr callee,
       mlir::TypeRange resultTypes,
       mlir::ValueRange args,
-      llvm::Optional<mlir::ArrayAttr> argNames)
+      std::optional<mlir::ArrayAttr> argNames)
   {
     state.addOperands(args);
     state.addAttribute(getCalleeAttrName(state.name), callee);
@@ -12773,7 +12678,7 @@ namespace mlir::modelica
         }
 
         for (mlir::StringAttr variableName :
-             llvm::makeArrayRef(inputVariables).drop_front(args.size())) {
+             llvm::ArrayRef(inputVariables).drop_front(args.size())) {
           if (!variablesWithDefaultValue.contains(variableName)) {
             return emitOpError() << "missing value for argument '"
                                  << variableName.getValue() << "'";
@@ -12797,32 +12702,6 @@ namespace mlir::modelica
 
     if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(callee)) {
       mlir::FunctionType functionType = rawFunctionOp.getFunctionType();
-
-      unsigned int expectedInputs = functionType.getNumInputs();
-      unsigned int actualInputs = getNumOperands();
-
-      if (expectedInputs != actualInputs) {
-        return emitOpError()
-            << "incorrect number of operands for callee (expected "
-            << expectedInputs << ", got "
-            << actualInputs << ")";
-      }
-
-      unsigned int expectedResults = functionType.getNumResults();
-      unsigned int actualResults = getNumResults();
-
-      if (expectedResults != actualResults) {
-        return emitOpError()
-            << "incorrect number of results for callee (expected "
-            << expectedResults << ", got "
-            << actualResults << ")";
-      }
-
-      return mlir::success();
-    }
-
-    if (auto runtimeFunctionOp = mlir::dyn_cast<RuntimeFunctionOp>(callee)) {
-      mlir::FunctionType functionType = runtimeFunctionOp.getFunctionType();
 
       unsigned int expectedInputs = functionType.getNumInputs();
       unsigned int actualInputs = getNumOperands();
@@ -13150,9 +13029,9 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
-    return llvm::None;
+    return std::nullopt;
   }
 
   void ForOp::getOperandsToBeDerived(
@@ -13257,9 +13136,9 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
-    return llvm::None;
+    return std::nullopt;
   }
 
   void IfOp::getOperandsToBeDerived(
@@ -13321,9 +13200,9 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
-    return llvm::None;
+    return std::nullopt;
   }
 
   void WhileOp::getOperandsToBeDerived(
@@ -13352,7 +13231,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-      mlir::BlockAndValueMapping& derivatives)
+      mlir::IRMapping& derivatives)
   {
     auto derivedOp = builder.create<CastOp>(
         getLoc(), getResult().getType(), derivatives.lookup(getValue()));

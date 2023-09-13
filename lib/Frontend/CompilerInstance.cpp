@@ -50,7 +50,7 @@ namespace
 namespace marco::frontend
 {
   CompilerInstance::OutputFile::OutputFile(
-      llvm::StringRef fileName,  llvm::Optional<llvm::sys::fs::TempFile> file)
+      llvm::StringRef fileName,  std::optional<llvm::sys::fs::TempFile> file)
       : fileName(fileName.str()), file(std::move(file))
   {
   }
@@ -223,7 +223,7 @@ namespace marco::frontend
       if (inFile == "-" || extension.empty()) {
         outputPath = "-";
       } else {
-        llvm::Optional<llvm::SmallString<128>> pathStorage;
+        std::optional<llvm::SmallString<128>> pathStorage;
         pathStorage.emplace(inFile);
         llvm::sys::path::replace_extension(*pathStorage, extension);
         outputPath = *pathStorage;
@@ -266,7 +266,7 @@ namespace marco::frontend
     assert(!createMissingDirectories || useTemporary);
 
     std::unique_ptr<llvm::raw_fd_ostream> os;
-    llvm::Optional<llvm::StringRef> osFile;
+    std::optional<llvm::StringRef> osFile;
 
     if (useTemporary) {
       if (outputPath == "-") {
@@ -291,7 +291,7 @@ namespace marco::frontend
       }
     }
 
-    llvm::Optional<llvm::sys::fs::TempFile> temp;
+    std::optional<llvm::sys::fs::TempFile> temp;
 
     if (useTemporary) {
       llvm::StringRef outputExtension = llvm::sys::path::extension(outputPath);

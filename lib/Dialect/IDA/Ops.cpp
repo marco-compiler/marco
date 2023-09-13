@@ -1,10 +1,8 @@
-#include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/IDA/Ops.h"
+#include "mlir/Interfaces//FunctionImplementation.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/FunctionImplementation.h"
 
 using namespace ::mlir;
 using namespace ::mlir::ida;
@@ -31,17 +29,21 @@ namespace mlir::ida
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void VariableGetterOp::print(OpAsmPrinter &p)
+  void VariableGetterOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
-  llvm::ArrayRef<BlockArgument> VariableGetterOp::getVariableIndices()
+  llvm::ArrayRef<mlir::BlockArgument> VariableGetterOp::getVariableIndices()
   {
-    return getBodyRegion().getArguments();
+    return getBody().getArguments();
   }
 
   //===-------------------------------------------------------------------===//
@@ -61,22 +63,26 @@ namespace mlir::ida
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void VariableSetterOp::print(OpAsmPrinter &p)
+  void VariableSetterOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
-  BlockArgument VariableSetterOp::getValue()
+  mlir::BlockArgument VariableSetterOp::getValue()
   {
-    return getBodyRegion().getArgument(0);
+    return getBody().getArgument(0);
   }
 
-  llvm::ArrayRef<BlockArgument> VariableSetterOp::getVariableIndices()
+  llvm::ArrayRef<mlir::BlockArgument> VariableSetterOp::getVariableIndices()
   {
-    return getBodyRegion().getArguments().slice(1);
+    return getBody().getArguments().slice(1);
   }
 
   //===-------------------------------------------------------------------===//
@@ -96,17 +102,21 @@ namespace mlir::ida
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void AccessFunctionOp::print(OpAsmPrinter &p)
+  void AccessFunctionOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
-  llvm::ArrayRef<BlockArgument> AccessFunctionOp::getEquationIndices()
+  llvm::ArrayRef<mlir::BlockArgument> AccessFunctionOp::getEquationIndices()
   {
-    return getBodyRegion().getArguments();
+    return getBody().getArguments();
   }
 
   //===-------------------------------------------------------------------===//
@@ -126,22 +136,26 @@ namespace mlir::ida
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void ResidualFunctionOp::print(OpAsmPrinter &p)
+  void ResidualFunctionOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
   mlir::BlockArgument ResidualFunctionOp::getTime()
   {
-    return getBodyRegion().getArgument(0);
+    return getBody().getArgument(0);
   }
 
-  llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getEquationIndices()
+  llvm::ArrayRef<mlir::BlockArgument> ResidualFunctionOp::getEquationIndices()
   {
-    return getBodyRegion().getArguments().drop_front(1);
+    return getBody().getArguments().drop_front(1);
   }
 
   //===-------------------------------------------------------------------===//
@@ -161,36 +175,40 @@ namespace mlir::ida
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void JacobianFunctionOp::print(OpAsmPrinter &p)
+  void JacobianFunctionOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
   mlir::BlockArgument JacobianFunctionOp::getTime()
   {
-    return getBodyRegion().getArgument(0);
+    return getBody().getArgument(0);
   }
 
-  llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getEquationIndices()
+  llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getEquationIndices()
   {
-    return getBodyRegion().getArguments().slice(
+    return getBody().getArguments().slice(
         1, getEquationRank().getSExtValue());
   }
 
-  llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariableIndices()
+  llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getVariableIndices()
   {
-    size_t offset = getBodyRegion().getNumArguments() -
+    size_t offset = getBody().getNumArguments() -
         getVariableRank().getSExtValue() - 1;
 
-    return getBodyRegion().getArguments().slice(
+    return getBody().getArguments().slice(
         offset, getVariableRank().getSExtValue());
   }
 
-  BlockArgument JacobianFunctionOp::getAlpha()
+  mlir::BlockArgument JacobianFunctionOp::getAlpha()
   {
-    return getBodyRegion().getArguments().back();
+    return getBody().getArguments().back();
   }
 }

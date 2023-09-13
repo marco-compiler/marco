@@ -86,7 +86,10 @@ link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
 # Search the tablegen executable
-find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
+find_program(LLVM_TABLEGEN_EXE "llvm-tblgen"
+	PATHS ${LLVM_TOOLS_BINARY_DIR}
+	NO_DEFAULT_PATH
+	NO_CMAKE_FIND_ROOT_PATH)
 
 #------------------------------------------------------------------------------
 # Runtime
@@ -237,7 +240,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Define the default arguments to use with 'lit', and an option for the user to override
-set(LIT_ARGS_DEFAULT "-sv -j 1")
+set(LIT_ARGS_DEFAULT "-sv")
 
 if (MSVC_IDE OR XCODE)
 	set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")

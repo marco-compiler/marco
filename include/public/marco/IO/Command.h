@@ -1,8 +1,8 @@
 #ifndef MARCO_FRONTEND_COMMAND_H
 #define MARCO_FRONTEND_COMMAND_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/STLExtras.h"
 
 namespace marco::io
 {
@@ -25,9 +25,9 @@ namespace marco::io
     private:
       std::string programPath;
       llvm::SmallVector<std::string> args;
-      llvm::Optional<std::string> stdinRedirect = llvm::None;
-      llvm::Optional<std::string> stdoutRedirect = llvm::None;
-      llvm::Optional<std::string> stderrRedirect = llvm::None;
+      std::optional<std::string> stdinRedirect = std::nullopt;
+      std::optional<std::string> stdoutRedirect = std::nullopt;
+      std::optional<std::string> stderrRedirect = std::nullopt;
   };
 }
 

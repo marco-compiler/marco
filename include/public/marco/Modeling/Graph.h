@@ -270,8 +270,8 @@ namespace marco::modeling::internal
                      bool directed,
                      BaseVertexIterator currentVertexIt,
                      BaseVertexIterator endVertexIt,
-                     llvm::Optional<BaseEdgeIterator> currentEdgeIt,
-                     llvm::Optional<BaseEdgeIterator> endEdgeIt)
+                     std::optional<BaseEdgeIterator> currentEdgeIt,
+                     std::optional<BaseEdgeIterator> endEdgeIt)
             : graph(&graph),
               directed(directed),
               currentVertexIt(std::move(currentVertexIt)),
@@ -324,7 +324,7 @@ namespace marco::modeling::internal
           if (currentVertexIt == endVertexIt) {
             // There are no vertices. The current vertex iterator is already past-the-end and thus
             // we must avoid dereferencing it.
-            return EdgeIterator(graph, directed, currentVertexIt, endVertexIt, llvm::None, llvm::None);
+            return EdgeIterator(graph, directed, currentVertexIt, endVertexIt, std::nullopt, std::nullopt);
           }
 
           auto currentEdgeIt = (*currentVertexIt)->begin();
@@ -335,7 +335,7 @@ namespace marco::modeling::internal
 
         static EdgeIterator end(const Graph& graph, bool directed, const BaseGraph& baseGraph)
         {
-          return EdgeIterator(graph, directed, baseGraph.end(), baseGraph.end(), llvm::None, llvm::None);
+          return EdgeIterator(graph, directed, baseGraph.end(), baseGraph.end(), std::nullopt, std::nullopt);
         }
 
         /// }
@@ -370,8 +370,8 @@ namespace marco::modeling::internal
               ++currentVertexIt;
 
               if (currentVertexIt == endVertexIt) {
-                currentEdgeIt = llvm::None;
-                endEdgeIt = llvm::None;
+                currentEdgeIt = std::nullopt;
+                endEdgeIt = std::nullopt;
               } else {
                 currentEdgeIt = (*currentVertexIt)->begin();
                 endEdgeIt = (*currentVertexIt)->end();
@@ -393,8 +393,8 @@ namespace marco::modeling::internal
         bool directed;
         BaseVertexIterator currentVertexIt;
         BaseVertexIterator endVertexIt;
-        llvm::Optional<BaseEdgeIterator> currentEdgeIt;
-        llvm::Optional<BaseEdgeIterator> endEdgeIt;
+        std::optional<BaseEdgeIterator> currentEdgeIt;
+        std::optional<BaseEdgeIterator> endEdgeIt;
     };
 
     template<typename GraphTraits>

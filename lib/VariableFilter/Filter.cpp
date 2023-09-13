@@ -12,7 +12,7 @@ namespace marco::vf
 
   Filter Filter::visibleScalar()
   {
-    return Filter(true, llvm::None);
+    return Filter(true, std::nullopt);
   }
 
   Filter Filter::visibleArray(llvm::ArrayRef<long> shape)

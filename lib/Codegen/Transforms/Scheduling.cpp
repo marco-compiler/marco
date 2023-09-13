@@ -53,7 +53,7 @@ namespace
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
@@ -103,7 +103,7 @@ mlir::LogicalResult SchedulingPass::processModelOp(ModelOp modelOp)
   return mlir::success();
 }
 
-llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SchedulingPass::getVariableAccessAnalysis(
     MatchedEquationInstanceOp equation,
     mlir::SymbolTableCollection& symbolTableCollection)
@@ -117,7 +117,7 @@ SchedulingPass::getVariableAccessAnalysis(
       equation.getTemplate());
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
-    return llvm::None;
+    return std::nullopt;
   }
 
   return std::reference_wrapper(analysis);
@@ -446,7 +446,7 @@ mlir::LogicalResult SchedulingPass::schedule(
             matchedEquation.getTemplate(),
             matchedEquation.getPath(),
             builder.getArrayAttr(
-                llvm::makeArrayRef(iterationDirections).take_front(
+                llvm::ArrayRef(iterationDirections).take_front(
                     numOfExplicitInductions + numOfImplicitInductions)));
 
         if (!isScalarEquation) {

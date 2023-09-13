@@ -2,6 +2,7 @@
 #define MARCO_AST_NODE_ARRAYDIMENSION_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include <variant>
 
 namespace marco::ast
 {

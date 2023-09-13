@@ -20,19 +20,19 @@ namespace mlir::ida
       mlir::Type convertVariableType(VariableType type);
       mlir::Type convertEquationType(EquationType type);
 
-      llvm::Optional<mlir::Value> opaquePointerTypeTargetMaterialization(
+      std::optional<mlir::Value> opaquePointerTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
-      llvm::Optional<mlir::Value> integerTypeTargetMaterialization(
+      std::optional<mlir::Value> integerTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
-      llvm::Optional<mlir::Value> instanceTypeSourceMaterialization(
+      std::optional<mlir::Value> instanceTypeSourceMaterialization(
           mlir::OpBuilder& builder, InstanceType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
-      llvm::Optional<mlir::Value> variableTypeSourceMaterialization(
+      std::optional<mlir::Value> variableTypeSourceMaterialization(
           mlir::OpBuilder& builder, VariableType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
-      llvm::Optional<mlir::Value> equationTypeSourceMaterialization(
+      std::optional<mlir::Value> equationTypeSourceMaterialization(
           mlir::OpBuilder& builder, EquationType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
   };
 }

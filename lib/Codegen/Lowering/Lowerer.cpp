@@ -104,7 +104,7 @@ namespace marco::codegen::lowering
 
     return mlir::SymbolRefAttr::get(
         builder().getContext(), flatSymbolAttrs[0].getValue(),
-        llvm::makeArrayRef(flatSymbolAttrs).drop_front());
+        llvm::ArrayRef(flatSymbolAttrs).drop_front());
   }
 
   mlir::Operation* Lowerer::resolveClassName(

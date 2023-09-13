@@ -120,9 +120,6 @@ namespace marco::frontend
       /// Register the MLIR dialects that can be encountered while parsing.
       void registerMLIRDialects();
 
-      /// Load the MLIR dialects used during the compilation.
-      void loadMLIRDialects();
-
       /// Parse MLIR from the source file if in MLIR format, or generate it
       /// according to the source file type.
       bool generateMLIR();
@@ -162,8 +159,6 @@ namespace marco::frontend
 
       std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
 
       std::unique_ptr<mlir::Pass> createMLIRSimulationToFuncConversionPass();
 

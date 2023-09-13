@@ -58,8 +58,8 @@ namespace marco::modeling::impl
       PointIterator(
           IndexSet::RangeIterator currentRangeIt,
           IndexSet::RangeIterator endRangeIt,
-          llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt,
-          llvm::Optional<MultidimensionalRange::const_iterator> endPointIt);
+          std::optional<MultidimensionalRange::const_iterator> currentPointIt,
+          std::optional<MultidimensionalRange::const_iterator> endPointIt);
 
       bool shouldProceed() const;
 
@@ -70,15 +70,15 @@ namespace marco::modeling::impl
     private:
       IndexSet::RangeIterator currentRangeIt;
       IndexSet::RangeIterator endRangeIt;
-      llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt;
-      llvm::Optional<MultidimensionalRange::const_iterator> endPointIt;
+      std::optional<MultidimensionalRange::const_iterator> currentPointIt;
+      std::optional<MultidimensionalRange::const_iterator> endPointIt;
   };
 
   ListIndexSet::PointIterator::PointIterator(
       IndexSet::RangeIterator currentRangeIt,
       IndexSet::RangeIterator endRangeIt,
-      llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt,
-      llvm::Optional<MultidimensionalRange::const_iterator> endPointIt)
+      std::optional<MultidimensionalRange::const_iterator> currentPointIt,
+      std::optional<MultidimensionalRange::const_iterator> endPointIt)
       : IndexSet::PointIterator::Impl(List),
         currentRangeIt(std::move(currentRangeIt)),
         endRangeIt(std::move(endRangeIt)),
@@ -105,7 +105,7 @@ namespace marco::modeling::impl
       // past-the-end, and thus we must avoid dereferencing it.
 
       ListIndexSet::PointIterator it(
-          currentRangeIt, endRangeIt, llvm::None, llvm::None);
+          currentRangeIt, endRangeIt, std::nullopt, std::nullopt);
 
       return { std::make_unique<ListIndexSet::PointIterator>(std::move(it)) };
     }
@@ -123,7 +123,7 @@ namespace marco::modeling::impl
       const ListIndexSet& indexSet)
   {
     ListIndexSet::PointIterator it(
-        indexSet.rangesEnd(), indexSet.rangesEnd(), llvm::None, llvm::None);
+        indexSet.rangesEnd(), indexSet.rangesEnd(), std::nullopt, std::nullopt);
 
     return { std::make_unique<ListIndexSet::PointIterator>(std::move(it)) };
   }
@@ -187,8 +187,8 @@ namespace marco::modeling::impl
         ++currentRangeIt;
 
         if (currentRangeIt == endRangeIt) {
-          currentPointIt = llvm::None;
-          endPointIt = llvm::None;
+          currentPointIt = std::nullopt;
+          endPointIt = std::nullopt;
         } else {
           currentPointIt = (*currentRangeIt).begin();
           endPointIt = (*currentRangeIt).end();

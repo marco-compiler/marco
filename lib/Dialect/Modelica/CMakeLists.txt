@@ -19,6 +19,7 @@ add_mlir_dialect_library(MLIRModelica
     MLIRSupport
     MLIRCallInterfaces
     MLIRControlFlowInterfaces
+    MLIRFunctionInterfaces
     MLIRSideEffectInterfaces
     MLIRModeling
     MLIRTransformUtils

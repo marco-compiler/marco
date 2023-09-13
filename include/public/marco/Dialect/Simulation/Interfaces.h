@@ -2,11 +2,12 @@
 #define MARCO_DIALECTS_SIMULATION_INTERFACES_H
 
 #include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
 
 namespace mlir::simulation::function_interface_impl
 {
+  // TODO remove
   /// Return the name of the attribute used for function types.
   inline llvm::StringRef getTypeAttrName()
   {

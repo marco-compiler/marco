@@ -256,10 +256,10 @@ namespace marco::ast
     llvm_unreachable("Start property not found");
   }
 
-  llvm::Optional<bool> ClassModification::isArrayUniformConstBool(const ArrayConstant *array)
+  std::optional<bool> ClassModification::isArrayUniformConstBool(const ArrayConstant *array)
   {
     size_t elements = array->size();
-    llvm::Optional<bool> lastValue = llvm::None;
+    std::optional<bool> lastValue = std::nullopt;
 
     for (size_t i = 0; i < elements; i++) {
       const Expression *exp = (*array)[i];
@@ -267,19 +267,19 @@ namespace marco::ast
       if (exp->isa<ArrayConstant>()) {
         auto tmp = isArrayUniformConstBool(exp->cast<ArrayConstant>());
         if (!tmp) {
-          return llvm::None;
+          return std::nullopt;
         } else {
           value = tmp.value();
         }
       } else if (exp->isa<Constant>()) {
         value = exp->cast<Constant>()->as<bool>();
       } else {
-        return llvm::None;
+        return std::nullopt;
       }
       if (!lastValue)
         lastValue = value;
       else if (lastValue.value() != value)
-        return llvm::None;
+        return std::nullopt;
     }
 
     return lastValue;

@@ -4,7 +4,6 @@
 #include "mlir/IR/Types.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
-#include "mlir/IR/SubElementInterfaces.h"
 
 namespace mlir::modelica
 {
@@ -48,10 +47,11 @@ namespace mlir::modelica
       /// resides.
       mlir::Attribute getMemorySpace() const;
 
+      // TODO compare with MLIR repo
       /// Clone this type with the given shape and element type. If the
       /// provided shape is `None`, the current shape of the type is used.
       BaseArrayType cloneWith(
-          llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+          std::optional<llvm::ArrayRef<int64_t>> shape,
           mlir::Type elementType) const;
 
       /// Return true if the specified element type is ok in a array.

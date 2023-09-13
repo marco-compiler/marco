@@ -67,7 +67,7 @@ namespace marco::modeling
 
     llvm::BitVector usedDimensions(getAffineMap().getNumDims(), false);
 
-    auto processDim = [&](llvm::Optional<unsigned int> dimension) -> bool {
+    auto processDim = [&](std::optional<unsigned int> dimension) -> bool {
       if (!dimension) {
         return false;
       }
@@ -104,7 +104,7 @@ namespace marco::modeling
     for (size_t i = 0, e = getNumOfResults(); i < e; ++i) {
       mlir::AffineExpr result = getAffineMap().getResult(i);
 
-      llvm::Optional<unsigned int> inductionVar =
+      std::optional<unsigned int> inductionVar =
           getInductionVariableIndex(result);
 
       if (!inductionVar) {
@@ -235,7 +235,7 @@ namespace marco::modeling
     }
   }
 
-  llvm::Optional<unsigned int>
+  std::optional<unsigned int>
   AccessFunctionRotoTranslation::getInductionVariableIndex(
       unsigned int expressionIndex) const
   {
@@ -243,7 +243,7 @@ namespace marco::modeling
         getAffineMap().getResult(expressionIndex));
   }
 
-  llvm::Optional<unsigned int>
+  std::optional<unsigned int>
   AccessFunctionRotoTranslation::getInductionVariableIndex(
       mlir::AffineExpr expression) const
   {
@@ -261,7 +261,7 @@ namespace marco::modeling
       }
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
   int64_t AccessFunctionRotoTranslation::getOffset(

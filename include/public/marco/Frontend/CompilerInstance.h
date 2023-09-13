@@ -24,11 +24,11 @@ namespace marco::frontend
       struct OutputFile
       {
         std::string fileName;
-        llvm::Optional<llvm::sys::fs::TempFile> file;
+        std::optional<llvm::sys::fs::TempFile> file;
 
         OutputFile(
             llvm::StringRef fileName,
-            llvm::Optional<llvm::sys::fs::TempFile> file);
+            std::optional<llvm::sys::fs::TempFile> file);
       };
 
       CompilerInstance();

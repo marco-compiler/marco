@@ -177,7 +177,7 @@ def DerivableOpInterface : Modelica_Interface<"DerivableOpInterface"> {
             (ins
                 "::mlir::OpBuilder&":$builder,
                 "const ::llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&":$symbolDerivatives,
-                "::mlir::BlockAndValueMapping&":$ssaDerivatives)
+                "::mlir::IRMapping&":$ssaDerivatives)
         >,
         InterfaceMethod<
             "Get the operands to be derived.",

@@ -31,15 +31,15 @@ namespace mlir
                    << (range.getEnd() - 1) << "]";
   }
 
-  mlir::FailureOr<llvm::Optional<mlir::modeling::Range>>
-  FieldParser<llvm::Optional<mlir::modeling::Range>>::parse(
+  mlir::FailureOr<std::optional<mlir::modeling::Range>>
+  FieldParser<std::optional<mlir::modeling::Range>>::parse(
       mlir::AsmParser& parser)
   {
     int64_t beginValue;
     int64_t endValue;
 
     if (parser.parseOptionalLSquare()) {
-      return llvm::Optional<mlir::modeling::Range>(llvm::None);
+      return std::optional<mlir::modeling::Range>(std::nullopt);
     }
 
     if (parser.parseInteger(beginValue) ||
@@ -49,11 +49,11 @@ namespace mlir
       return mlir::failure();
     }
 
-    return llvm::Optional(mlir::modeling::Range(beginValue, endValue + 1));
+    return std::optional(mlir::modeling::Range(beginValue, endValue + 1));
   }
 
   mlir::AsmPrinter& operator<<(
-      mlir::AsmPrinter& printer, const llvm::Optional<Range>& range)
+      mlir::AsmPrinter& printer, const std::optional<Range>& range)
   {
     if (range) {
       printer << *range;
@@ -77,8 +77,8 @@ namespace mlir
     ranges.push_back(*range);
 
     while (true) {
-      mlir::FailureOr<llvm::Optional<mlir::modeling::Range>> optionalRange =
-          FieldParser<llvm::Optional<mlir::modeling::Range>>::parse(parser);
+      mlir::FailureOr<std::optional<mlir::modeling::Range>> optionalRange =
+          FieldParser<std::optional<mlir::modeling::Range>>::parse(parser);
 
       if (mlir::failed(optionalRange)) {
         return mlir::failure();
@@ -105,28 +105,28 @@ namespace mlir
     return printer;
   }
 
-  FailureOr<llvm::Optional<mlir::modeling::MultidimensionalRange>>
-  FieldParser<llvm::Optional<mlir::modeling::MultidimensionalRange>>::parse(
+  FailureOr<std::optional<mlir::modeling::MultidimensionalRange>>
+  FieldParser<std::optional<mlir::modeling::MultidimensionalRange>>::parse(
       mlir::AsmParser& parser)
   {
     llvm::SmallVector<Range, 3> ranges;
 
-    mlir::FailureOr<llvm::Optional<mlir::modeling::Range>> range =
-        FieldParser<llvm::Optional<mlir::modeling::Range>>::parse(parser);
+    mlir::FailureOr<std::optional<mlir::modeling::Range>> range =
+        FieldParser<std::optional<mlir::modeling::Range>>::parse(parser);
 
     if (mlir::failed(range)) {
       return mlir::failure();
     }
 
     if (!(*range)) {
-      return llvm::Optional<mlir::modeling::MultidimensionalRange>(llvm::None);
+      return std::optional<mlir::modeling::MultidimensionalRange>(std::nullopt);
     }
 
     ranges.push_back(**range);
 
     while (true) {
-      mlir::FailureOr<llvm::Optional<mlir::modeling::Range>> optionalRange =
-          FieldParser<llvm::Optional<mlir::modeling::Range>>::parse(parser);
+      mlir::FailureOr<std::optional<mlir::modeling::Range>> optionalRange =
+          FieldParser<std::optional<mlir::modeling::Range>>::parse(parser);
 
       if (mlir::failed(optionalRange)) {
         return mlir::failure();
@@ -139,12 +139,12 @@ namespace mlir
       }
     }
 
-    return llvm::Optional(mlir::modeling::MultidimensionalRange(ranges));
+    return std::optional(mlir::modeling::MultidimensionalRange(ranges));
   }
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const llvm::Optional<mlir::modeling::MultidimensionalRange>& range)
+      const std::optional<mlir::modeling::MultidimensionalRange>& range)
   {
     if (range) {
       printer << *range;
@@ -201,17 +201,17 @@ namespace mlir
     return printer;
   }
 
-  FailureOr<llvm::Optional<IndexSet>>
-  FieldParser<llvm::Optional<IndexSet>>::parse(mlir::AsmParser& parser)
+  FailureOr<std::optional<IndexSet>>
+  FieldParser<std::optional<IndexSet>>::parse(mlir::AsmParser& parser)
   {
     IndexSet result;
 
     if (mlir::failed(parser.parseOptionalLBrace())) {
-      return llvm::Optional<IndexSet>(llvm::None);
+      return std::optional<IndexSet>(std::nullopt);
     }
 
     if (mlir::succeeded(parser.parseOptionalRBrace())) {
-      return llvm::Optional(result);
+      return std::optional(result);
     }
 
     do {
@@ -229,11 +229,11 @@ namespace mlir
       return mlir::failure();
     }
 
-    return llvm::Optional(result);
+    return std::optional(result);
   }
 
   mlir::AsmPrinter& operator<<(
-      mlir::AsmPrinter& printer, const llvm::Optional<IndexSet>& indexSet)
+      mlir::AsmPrinter& printer, const std::optional<IndexSet>& indexSet)
   {
     if (indexSet) {
       printer << *indexSet;

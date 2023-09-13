@@ -3,7 +3,6 @@
 
 #include "mlir/IR/Types.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
-#include "mlir/IR/SubElementInterfaces.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/Simulation/SimulationTypes.h.inc"

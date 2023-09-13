@@ -1,12 +1,8 @@
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
-#include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
-#include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -186,7 +182,12 @@ namespace
 
         builder.create<mlir::LLVM::StoreOp>(loc, value, allocated);
 
-        return allocated;
+        mlir::Value opaquePtr = builder.create<mlir::LLVM::BitcastOp>(
+            loc,
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()),
+            allocated);
+
+        return opaquePtr;
       }
   };
 
@@ -223,32 +224,6 @@ namespace
       return mlir::success();
     }
   };
-
-  class RuntimeFunctionOpLowering
-      : public RuntimeOpConversionPattern<RuntimeFunctionOp>
-  {
-    using RuntimeOpConversionPattern<RuntimeFunctionOp>
-        ::RuntimeOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        RuntimeFunctionOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      mlir::Type functionType;
-      bool resultPromoted;
-
-      std::tie(functionType, resultPromoted) =
-          getTypeConverter()->convertFunctionTypeCWrapper(
-              op.getFunctionType());
-
-      rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
-          op, op.getSymName(),
-          functionType.cast<mlir::LLVM::LLVMFunctionType>());
-
-      return mlir::success();
-    }
-  };
 }
 
 static void populateModelicaToLLVMPatterns(
@@ -259,11 +234,6 @@ static void populateModelicaToLLVMPatterns(
   patterns.insert<
       CastOpIntegerLowering,
       CastOpFloatLowering>(typeConverter);
-
-  // Runtime functions operations.
-  patterns.insert<
-      CallOpLowering,
-      RuntimeFunctionOpLowering>(typeConverter);
 }
 
 namespace
@@ -312,11 +282,6 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
   mlir::SymbolTableCollection symbolTable;
   mlir::ConversionTarget target(getContext());
 
-  target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-    mlir::Operation* callee = op.getFunction(moduleOp, symbolTable);
-    return !mlir::isa<RuntimeFunctionOp>(callee);
-  });
-
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
   });
@@ -338,8 +303,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
 
   target.addIllegalOp<
       DerOp,
-      CastOp,
-      RuntimeFunctionOp>();
+      CastOp>();
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   llvmLoweringOptions.dataLayout.reset(dataLayout);
@@ -350,9 +314,6 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   mlir::RewritePatternSet patterns(&getContext());
 
   populateModelicaToLLVMPatterns(patterns, typeConverter);
-
-  populateKINSOLStructuralTypeConversionsAndLegality(
-      typeConverter, patterns, target);
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
@@ -375,12 +336,6 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeSimulation()
   mlir::RewritePatternSet patterns(&getContext());
 
   populateModelicaToLLVMPatterns(patterns, typeConverter);
-
-  populateKINSOLStructuralTypeConversionsAndLegality(
-      typeConverter, patterns, target);
-
-  populateSimulationToFuncStructuralTypeConversionsAndLegality(
-      typeConverter, patterns, target);
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;

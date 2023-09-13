@@ -73,7 +73,7 @@ namespace
         mlir::Operation* op,
         mlir::Region* dest,
         bool wouldBeCloned,
-        mlir::BlockAndValueMapping& valueMapping) const final
+        mlir::IRMapping& valueMapping) const final
     {
       return true;
     }
@@ -82,7 +82,7 @@ namespace
         mlir::Region* dest,
         mlir::Region* src,
         bool wouldBeCloned,
-        mlir::BlockAndValueMapping& valueMapping) const final
+        mlir::IRMapping& valueMapping) const final
     {
       return true;
     }

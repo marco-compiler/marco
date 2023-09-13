@@ -17,7 +17,7 @@ The installation path is optional, but it strongly recommended setting it to a c
 ```bash
 git clone https://github.com/llvm/llvm-project.git
 cd llvm-project
-git checkout 46fab767882d48d2dd46a497baa3197bf9a98ab2
+git checkout b027ce0ab93060bc6cb79d5402d21520e8b93fb7
 mkdir build && cd build
 
 # Set the installation path.

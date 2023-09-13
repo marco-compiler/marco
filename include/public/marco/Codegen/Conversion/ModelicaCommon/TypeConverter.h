@@ -2,7 +2,6 @@
 #define MARCO_CODEGEN_CONVERSION_MODELICACOMMON_TYPECONVERTER_H
 
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/MLIRContext.h"

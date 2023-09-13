@@ -5,8 +5,8 @@ include "marco/Dialect/IDA/IDAAttributes.td"
 include "marco/Dialect/IDA/IDADialect.td"
 include "marco/Dialect/IDA/IDATypes.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //===---------------------------------------------------------------------===//
@@ -337,7 +337,11 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable", []>
 }
 
 def IDA_VariableGetterOp : IDA_Op<"variable_getter",
-    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface]>
 {
     let summary = "Getter interface for an external variable.";
 
@@ -357,12 +361,14 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion
+        AnyRegion:$body
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -376,12 +382,39 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr);
+            build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr);
         }]>
     ];
 
     let extraClassDeclaration = [{
         ArrayRef<BlockArgument> getVariableIndices();
+
+        //===-------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        bool isDeclaration() {
+            return isExternal();
+        }
+
+        //===-------------------------------------------------------------===//
+        // CallableOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This
+        /// may return null in the case of an external callable object, e.g. an
+        /// external function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
 
         //===-------------------------------------------------------------===//
         // FunctionOpInterface Methods
@@ -396,19 +429,15 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
         ArrayRef<Type> getResultTypes() {
             return getFunctionType().getResults();
         }
-
-        //===-------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===-------------------------------------------------------------===//
-
-        bool isDeclaration() {
-            return isExternal();
-        }
     }];
 }
 
 def IDA_VariableSetterOp : IDA_Op<"variable_setter",
-    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface]>
 {
     let summary = "Setter interface for an external variable.";
 
@@ -426,12 +455,14 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion
+        AnyRegion:$body
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -444,15 +475,42 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
             args.push_back($_builder.getF64Type());
             args.append(variableRank, $_builder.getIndexType());
 
-            auto functionType = $_builder.getFunctionType(args, llvm::None);
+            auto functionType = $_builder.getFunctionType(args, std::nullopt);
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr);
+            build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr);
         }]>
     ];
 
     let extraClassDeclaration = [{
         BlockArgument getValue();
         ArrayRef<BlockArgument> getVariableIndices();
+
+        //===-------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        bool isDeclaration() {
+            return isExternal();
+        }
+
+        //===-------------------------------------------------------------===//
+        // CallableOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This
+        /// may return null in the case of an external callable object, e.g. an
+        /// external function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
 
         //===-------------------------------------------------------------===//
         // FunctionOpInterface Methods
@@ -466,14 +524,6 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
         /// Returns the result types of this function.
         ArrayRef<Type> getResultTypes() {
             return getFunctionType().getResults();
-        }
-
-        //===-------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===-------------------------------------------------------------===//
-
-        bool isDeclaration() {
-            return isExternal();
         }
     }];
 }
@@ -507,7 +557,11 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access", []>
 }
 
 def IDA_AccessFunctionOp : IDA_Op<"access_function",
-    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface]>
 {
     let summary = "Access function.";
 
@@ -529,12 +583,14 @@ def IDA_AccessFunctionOp : IDA_Op<"access_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion
+        AnyRegion:$body
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -558,12 +614,40 @@ def IDA_AccessFunctionOp : IDA_Op<"access_function",
 
             auto functionType = $_builder.getFunctionType(args, results);
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr);
+            build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr);
         }]>
     ];
 
     let extraClassDeclaration = [{
         ArrayRef<BlockArgument> getEquationIndices();
+
+        //===-------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        //===-------------------------------------------------------------===//
+        // CallableOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This
+        /// may return null in the case of an external callable object, e.g. an
+        /// external function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
 
         //===-------------------------------------------------------------===//
         // FunctionOpInterface Methods
@@ -580,20 +664,15 @@ def IDA_AccessFunctionOp : IDA_Op<"access_function",
         {
             return getFunctionType().getResults();
         }
-
-        //===-------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===-------------------------------------------------------------===//
-
-        bool isDeclaration()
-        {
-            return isExternal();
-        }
     }];
 }
 
 def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
-    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface]>
 {
     let summary = "Residual function of a loop equation.";
 
@@ -621,12 +700,14 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion
+        AnyRegion:$body
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -644,13 +725,41 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr);
+            build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr);
         }]>
     ];
 
     let extraClassDeclaration = [{
         BlockArgument getTime();
         ArrayRef<BlockArgument> getEquationIndices();
+
+        //===-------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        //===-------------------------------------------------------------===//
+        // CallableOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This
+        /// may return null in the case of an external callable object, e.g. an
+        /// external function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
 
         //===-------------------------------------------------------------===//
         // FunctionOpInterface Methods
@@ -667,20 +776,15 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
         {
             return getFunctionType().getResults();
         }
-
-        //===-------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===-------------------------------------------------------------===//
-
-        bool isDeclaration()
-        {
-            return isExternal();
-        }
     }];
 }
 
 def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
-    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    FunctionOpInterface]>
 {
     let summary = "Jacobian function of a vectorized equation.";
 
@@ -714,13 +818,15 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs,
         IndexAttr:$equationRank,
         IndexAttr:$variableRank);
 
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion
+        AnyRegion:$body
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -744,7 +850,9 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr, $_builder.getIndexAttr(equationRank), $_builder.getIndexAttr(variableRank));
+            build($_builder, $_state, nameAttr, typeAttr, nullptr, nullptr,
+                  $_builder.getIndexAttr(equationRank),
+                  $_builder.getIndexAttr(variableRank));
         }]>
     ];
 
@@ -753,6 +861,34 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
         ArrayRef<BlockArgument> getEquationIndices();
         ArrayRef<BlockArgument> getVariableIndices();
         BlockArgument getAlpha();
+
+        //===-------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        //===-------------------------------------------------------------===//
+        // CallableOpInterface Methods
+        //===-------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This
+        /// may return null in the case of an external callable object, e.g. an
+        /// external function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
 
         //===-------------------------------------------------------------===//
         // FunctionOpInterface Methods
@@ -768,15 +904,6 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
         ArrayRef<Type> getResultTypes()
         {
             return getFunctionType().getResults();
-        }
-
-        //===-------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===-------------------------------------------------------------===//
-
-        bool isDeclaration()
-        {
-            return isExternal();
         }
     }];
 }
@@ -800,7 +927,7 @@ def IDA_ReturnOp : IDA_Op<"return",
 
     let builders = [
         OpBuilder<(ins), [{
-            build($_builder, $_state, llvm::None);
+            build($_builder, $_state, std::nullopt);
         }]>];
 
     let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";

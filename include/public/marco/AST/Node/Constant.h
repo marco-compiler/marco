@@ -3,6 +3,7 @@
 
 #include "marco/AST/Node/Expression.h"
 #include <string>
+#include <variant>
 
 namespace marco::ast
 {

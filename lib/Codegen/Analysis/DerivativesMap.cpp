@@ -38,14 +38,14 @@ namespace mlir::modelica
     return result;
   }
 
-  llvm::Optional<mlir::SymbolRefAttr>
+  std::optional<mlir::SymbolRefAttr>
   DerivativesMap::getDerivative(mlir::SymbolRefAttr variable) const
   {
     assert(initialized && "Derivatives map not initialized");
     auto it = derivatives.find(variable);
 
     if (it == derivatives.end()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     return it->getSecond();
@@ -59,7 +59,7 @@ namespace mlir::modelica
     inverseDerivatives[derivative] = variable;
   }
 
-  llvm::Optional<std::reference_wrapper<const mlir::modeling::IndexSet>>
+  std::optional<std::reference_wrapper<const mlir::modeling::IndexSet>>
   DerivativesMap::getDerivedIndices(mlir::SymbolRefAttr variable) const
   {
     assert(initialized && "Derivatives map not initialized");
@@ -67,7 +67,7 @@ namespace mlir::modelica
     assert(!getDerivative(variable) || it != derivedIndices.end());
 
     if (it == derivedIndices.end()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     return std::reference_wrapper(it->getSecond());
@@ -85,14 +85,14 @@ namespace mlir::modelica
     derivedIndices[variable] += indices;
   }
 
-  llvm::Optional<mlir::SymbolRefAttr>
+  std::optional<mlir::SymbolRefAttr>
   DerivativesMap::getDerivedVariable(mlir::SymbolRefAttr derivative) const
   {
     assert(initialized && "Derivatives map not initialized");
     auto it = inverseDerivatives.find(derivative);
 
     if (it == inverseDerivatives.end()) {
-      return llvm::None;
+      return std::nullopt;
     }
 
     return it->getSecond();

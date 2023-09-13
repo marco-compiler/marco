@@ -1,8 +1,8 @@
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Dialect/Simulation/Ops.h"
+#include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/FunctionImplementation.h"
 
 using namespace ::mlir::simulation;
 
@@ -28,7 +28,7 @@ namespace mlir::simulation
     result.addAttribute(
         getFunctionTypeAttrName(result.name),
         mlir::TypeAttr::get(builder.getFunctionType(
-            llvm::None, llvm::None)));
+            std::nullopt, std::nullopt)));
 
     if (bodyRegion->empty()) {
       bodyRegion->emplaceBlock();
@@ -69,7 +69,7 @@ namespace mlir::simulation
     result.addAttribute(
         getFunctionTypeAttrName(result.name),
         mlir::TypeAttr::get(builder.getFunctionType(
-            llvm::None, llvm::None)));
+            std::nullopt, std::nullopt)));
 
     if (bodyRegion->empty()) {
       bodyRegion->emplaceBlock();
@@ -110,7 +110,7 @@ namespace mlir::simulation
         variableRank, builder.getIndexType());
 
     state.addAttribute(
-        mlir::FunctionOpInterface::getTypeAttrName(),
+        getFunctionTypeAttrName(state.name),
         mlir::TypeAttr::get(builder.getFunctionType(
             argTypes, builder.getF64Type())));
 
@@ -130,12 +130,16 @@ namespace mlir::simulation
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void VariableGetterOp::print(OpAsmPrinter &p)
+  void VariableGetterOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 
   mlir::BlockArgument VariableGetterOp::getVariable()
@@ -175,7 +179,7 @@ namespace mlir::simulation
         builder.getStringAttr(name));
 
     state.addAttribute(
-        mlir::FunctionOpInterface::getTypeAttrName(),
+        getFunctionTypeAttrName(state.name),
         mlir::TypeAttr::get(functionType));
 
     state.addRegion();
@@ -194,11 +198,15 @@ namespace mlir::simulation
         };
 
     return mlir::function_interface_impl::parseFunctionOp(
-        parser, result, false, buildFuncType);
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  void FunctionOp::print(OpAsmPrinter &p)
+  void FunctionOp::print(mlir::OpAsmPrinter& printer)
   {
-    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
   }
 }

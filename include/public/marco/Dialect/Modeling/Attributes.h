@@ -36,15 +36,15 @@ namespace mlir
       mlir::AsmPrinter& printer, const mlir::modeling::Range& range);
 
   template<>
-  struct FieldParser<llvm::Optional<mlir::modeling::Range>>
+  struct FieldParser<std::optional<mlir::modeling::Range>>
   {
-    static FailureOr<llvm::Optional<mlir::modeling::Range>>
+    static FailureOr<std::optional<mlir::modeling::Range>>
     parse(mlir::AsmParser& parser);
   };
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const llvm::Optional<mlir::modeling::Range>& range);
+      const std::optional<mlir::modeling::Range>& range);
 
   template<>
   struct FieldParser<mlir::modeling::MultidimensionalRange>
@@ -58,15 +58,15 @@ namespace mlir
       const mlir::modeling::MultidimensionalRange& range);
 
   template<>
-  struct FieldParser<llvm::Optional<mlir::modeling::MultidimensionalRange>>
+  struct FieldParser<std::optional<mlir::modeling::MultidimensionalRange>>
   {
-    static FailureOr<llvm::Optional<mlir::modeling::MultidimensionalRange>>
+    static FailureOr<std::optional<mlir::modeling::MultidimensionalRange>>
     parse(mlir::AsmParser& parser);
   };
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const llvm::Optional<mlir::modeling::MultidimensionalRange>& range);
+      const std::optional<mlir::modeling::MultidimensionalRange>& range);
 
   template<>
   struct FieldParser<mlir::modeling::IndexSet>
@@ -80,15 +80,15 @@ namespace mlir
       const mlir::modeling::IndexSet& indexSet);
 
   template<>
-  struct FieldParser<llvm::Optional<mlir::modeling::IndexSet>>
+  struct FieldParser<std::optional<mlir::modeling::IndexSet>>
   {
-    static FailureOr<llvm::Optional<mlir::modeling::IndexSet>>
+    static FailureOr<std::optional<mlir::modeling::IndexSet>>
     parse(mlir::AsmParser& parser);
   };
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const llvm::Optional<mlir::modeling::IndexSet>& indexSet);
+      const std::optional<mlir::modeling::IndexSet>& indexSet);
 }
 
 #endif // MARCO_DIALECTS_MODELING_ATTRIBUTES_H

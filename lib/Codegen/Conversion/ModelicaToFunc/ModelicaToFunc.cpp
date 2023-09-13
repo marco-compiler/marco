@@ -19,39 +19,46 @@ using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 /// Get or declare an LLVM function inside the module.
-static RuntimeFunctionOp getOrDeclareRuntimeFunction(
+static mlir::func::FuncOp getOrDeclareRuntimeFunction(
     mlir::OpBuilder& builder,
-    mlir::ModuleOp module,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
     llvm::StringRef name,
     mlir::TypeRange results,
-    mlir::TypeRange args,
-    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+    mlir::TypeRange args)
 {
-  if (auto it = runtimeFunctionsMap.find(name);
-      it != runtimeFunctionsMap.end()) {
-    return it->getValue();
+  mlir::SymbolTable& symbolTable =
+      symbolTableCollection.getSymbolTable(moduleOp);
+
+  if (auto funcOp = symbolTable.lookup<mlir::func::FuncOp>(name)) {
+    return funcOp;
   }
 
   mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToStart(module.getBody());
+  builder.setInsertionPointToStart(moduleOp.getBody());
 
   auto functionType = builder.getFunctionType(args, results);
 
-  auto runtimeFunctionOp = builder.create<RuntimeFunctionOp>(
-      module.getLoc(), name, functionType);
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      moduleOp.getLoc(), name, functionType);
 
-  runtimeFunctionsMap[name] = runtimeFunctionOp;
-  return runtimeFunctionOp;
+  symbolTable.insert(funcOp);
+
+  mlir::SymbolTable::setSymbolVisibility(
+      funcOp,
+      mlir::SymbolTable::Visibility::Private);
+
+  return funcOp;
 }
 
 /// Get or declare an LLVM function inside the module.
-static RuntimeFunctionOp getOrDeclareRuntimeFunction(
+static mlir::func::FuncOp getOrDeclareRuntimeFunction(
     mlir::OpBuilder& builder,
-    mlir::ModuleOp module,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
     llvm::StringRef name,
     mlir::TypeRange results,
-    mlir::ValueRange args,
-    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+    mlir::ValueRange args)
 {
   llvm::SmallVector<mlir::Type, 3> argsTypes;
 
@@ -60,7 +67,7 @@ static RuntimeFunctionOp getOrDeclareRuntimeFunction(
   }
 
   return getOrDeclareRuntimeFunction(
-      builder, module, name, results, argsTypes, runtimeFunctionsMap);
+      builder, symbolTableCollection, moduleOp, name, results, argsTypes);
 }
 
 namespace
@@ -153,9 +160,9 @@ namespace
       RuntimeOpConversionPattern(
           mlir::TypeConverter& typeConverter,
           mlir::MLIRContext* context,
-          llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+          mlir::SymbolTableCollection& symbolTableCollection)
           : ModelicaOpConversionPattern<Op>(typeConverter, context),
-            runtimeFunctionsMap(&runtimeFunctionsMap)
+            symbolTableCollection(&symbolTableCollection)
       {
       }
 
@@ -217,20 +224,20 @@ namespace
         return getMangledFunctionName(name, resultTypes, args.getTypes());
       }
 
-      RuntimeFunctionOp getOrDeclareRuntimeFunction(
+      mlir::func::FuncOp getOrDeclareRuntimeFunction(
           mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
+          mlir::ModuleOp moduleOp,
           llvm::StringRef name,
           mlir::TypeRange results,
           mlir::ValueRange args) const
       {
         return ::getOrDeclareRuntimeFunction(
-            builder, module, name, results, args, *runtimeFunctionsMap);
+            builder, *symbolTableCollection, moduleOp, name, results, args);
       }
 
     private:
       RuntimeFunctionsMangling mangler;
-      llvm::StringMap<RuntimeFunctionOp>* runtimeFunctionsMap;
+      mlir::SymbolTableCollection* symbolTableCollection;
   };
 }
 
@@ -315,7 +322,7 @@ namespace
       assert(op.getDynamicSizes().empty());
 
       mlir::Value reference = rewriter.create<AllocaOp>(
-          loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
+          loc, ArrayType::get(std::nullopt, unwrappedType), std::nullopt);
 
       for (auto* user : op->getUsers()) {
         assert(mlir::isa<RawVariableGetOp>(user) ||
@@ -343,7 +350,7 @@ namespace
     {
       mlir::OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPoint(op);
-      rewriter.replaceOpWithNewOp<LoadOp>(op, reference, llvm::None);
+      rewriter.replaceOpWithNewOp<LoadOp>(op, reference, std::nullopt);
       return mlir::success();
     }
 
@@ -364,7 +371,7 @@ namespace
         value = rewriter.create<CastOp>(op.getLoc(), unwrappedType, value);
       }
 
-      rewriter.replaceOpWithNewOp<StoreOp>(op, value, reference, llvm::None);
+      rewriter.replaceOpWithNewOp<StoreOp>(op, value, reference, std::nullopt);
       return mlir::success();
     }
   };
@@ -500,7 +507,7 @@ namespace
 
       // Create the pointer to the array.
       auto memrefOfArrayType = mlir::MemRefType::get(
-          llvm::None,
+          std::nullopt,
           getTypeConverter()->convertType(variableType.toArrayType()));
 
       mlir::Value memrefOfArray =
@@ -520,7 +527,7 @@ namespace
       mlir::Value fakeArray = rewriter.create<AllocOp>(
           loc,
           getArrayTypeWithDynamicDimensionsSetToZero(arrayType),
-          llvm::None);
+          std::nullopt);
 
       fakeArray = getTypeConverter()->materializeTargetConversion(
           rewriter, loc,
@@ -559,7 +566,7 @@ namespace
       llvm::SmallVector<int64_t, 3> shape;
 
       for (int64_t dimension : type.getShape()) {
-        if (dimension == mlir::ShapedType::kDynamicSize) {
+        if (dimension == mlir::ShapedType::kDynamic) {
           shape.push_back(0);
         } else {
           shape.push_back(dimension);
@@ -615,7 +622,7 @@ namespace
 
         for (const auto& dimension :
              llvm::enumerate(arrayType.getShape())) {
-          if (dimension.value() == ArrayType::kDynamicSize) {
+          if (dimension.value() == ArrayType::kDynamic) {
             mlir::Value dimensionIndex =
                 rewriter.create<mlir::arith::ConstantOp>(
                     op.getLoc(),
@@ -759,7 +766,7 @@ namespace
           getMangledFunctionName("pow", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
       return mlir::success();
     }
   };
@@ -825,7 +832,7 @@ namespace
           getMangledFunctionName("abs", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -888,7 +895,7 @@ namespace
           getMangledFunctionName("acos", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -951,7 +958,7 @@ namespace
           getMangledFunctionName("asin", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1014,7 +1021,7 @@ namespace
           getMangledFunctionName("atan", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1088,7 +1095,7 @@ namespace
           getMangledFunctionName("atan2", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1147,7 +1154,7 @@ namespace
           getMangledFunctionName("ceil", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1211,7 +1218,7 @@ namespace
           getMangledFunctionName("cos", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1274,7 +1281,7 @@ namespace
           getMangledFunctionName("cosh", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1297,7 +1304,7 @@ namespace
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       for (const auto& size : resultType.getShape()) {
-        if (size == ArrayType::kDynamicSize) {
+        if (size == ArrayType::kDynamic) {
           if (dynamicDimensions.empty()) {
             assert(op.getValues().getType().cast<ArrayType>().getRank() == 1);
             mlir::Value zeroValue = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
@@ -1328,10 +1335,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("diagonal", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("diagonal", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
       return mlir::success();
     }
   };
@@ -1354,7 +1361,7 @@ namespace
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
+      castToMostGenericType(rewriter, llvm::ArrayRef({ op.getX(), op.getY() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<DivTruncOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
 
@@ -1405,7 +1412,7 @@ namespace
           getMangledFunctionName("div", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1468,7 +1475,7 @@ namespace
           getMangledFunctionName("exp", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1527,7 +1534,7 @@ namespace
           getMangledFunctionName("floor", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1574,7 +1581,7 @@ namespace
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       for (const auto& size : resultType.getShape()) {
-        if (size == ArrayType::kDynamicSize) {
+        if (size == ArrayType::kDynamic) {
           if (dynamicDimensions.empty()) {
             dynamicDimensions.push_back(adaptor.getSize());
           } else {
@@ -1595,10 +1602,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("identity", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("identity", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
     }
   };
 
@@ -1657,7 +1664,7 @@ namespace
           getMangledFunctionName("integer", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1734,7 +1741,7 @@ namespace
       llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
       for (const auto& size : resultType.getShape()) {
-        if (size == ArrayType::kDynamicSize) {
+        if (size == ArrayType::kDynamic) {
           dynamicDimensions.push_back(adaptor.getAmount());
         }
       }
@@ -1755,10 +1762,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("linspace", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("linspace", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
     }
   };
 
@@ -1821,7 +1828,7 @@ namespace
           getMangledFunctionName("log", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1884,7 +1891,7 @@ namespace
           getMangledFunctionName("log10", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -1944,7 +1951,7 @@ namespace
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       for (const auto& size : resultType.getShape()) {
-        if (size == ArrayType::kDynamicSize) {
+        if (size == ArrayType::kDynamic) {
           auto index = dynamicDimensions.size();
           dynamicDimensions.push_back(adaptor.getSizes()[index]);
         }
@@ -1960,10 +1967,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("ones", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("ones", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
     }
   };
 
@@ -2036,7 +2043,7 @@ namespace
           getMangledFunctionName("maxArray", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2062,7 +2069,7 @@ namespace
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getFirst(), op.getSecond() }), castedValues);
+      castToMostGenericType(rewriter, llvm::ArrayRef({ op.getFirst(), op.getSecond() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<MaxOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
       rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
@@ -2112,7 +2119,7 @@ namespace
           getMangledFunctionName("maxScalars", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2184,7 +2191,7 @@ namespace
           getMangledFunctionName("minArray", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2210,7 +2217,7 @@ namespace
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getFirst(), op.getSecond() }), castedValues);
+      castToMostGenericType(rewriter, llvm::ArrayRef({ op.getFirst(), op.getSecond() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<MinOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
       rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
@@ -2260,7 +2267,7 @@ namespace
           getMangledFunctionName("minScalars", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2282,7 +2289,7 @@ namespace
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
+      castToMostGenericType(rewriter, llvm::ArrayRef({ op.getX(), op.getY() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<ModOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
 
@@ -2333,7 +2340,7 @@ namespace
           getMangledFunctionName("mod", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2396,7 +2403,7 @@ namespace
           getMangledFunctionName("product", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2418,7 +2425,7 @@ namespace
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
+      castToMostGenericType(rewriter, llvm::ArrayRef({ op.getX(), op.getY() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<RemOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
 
@@ -2469,7 +2476,7 @@ namespace
           getMangledFunctionName("rem", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2529,7 +2536,7 @@ namespace
           getMangledFunctionName("sign", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2592,7 +2599,7 @@ namespace
           getMangledFunctionName("sin", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2655,7 +2662,7 @@ namespace
           getMangledFunctionName("sinh", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2716,7 +2723,7 @@ namespace
           getMangledFunctionName("sqrt", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2779,7 +2786,7 @@ namespace
           getMangledFunctionName("sum", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -2787,11 +2794,12 @@ namespace
   {
     public:
       SymmetricOpLowering(
-        mlir::TypeConverter& typeConverter,
-        mlir::MLIRContext* context,
-        bool assertions,
-        llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
-          : RuntimeOpConversionPattern(typeConverter, context, runtimeFunctionsMap),
+          mlir::TypeConverter& typeConverter,
+          mlir::MLIRContext* context,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          bool assertions)
+          : RuntimeOpConversionPattern(
+                typeConverter, context, symbolTableCollection),
             assertions(assertions)
       {
       }
@@ -2854,7 +2862,7 @@ namespace
         if (!resultType.hasStaticShape()) {
           for (const auto& dimension :
                llvm::enumerate(resultType.getShape())) {
-            if (dimension.value() == ArrayType::kDynamicSize) {
+            if (dimension.value() == ArrayType::kDynamic) {
               mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
                   loc, rewriter.getIndexAttr(dimension.index()));
 
@@ -2882,10 +2890,10 @@ namespace
         auto callee = getOrDeclareRuntimeFunction(
             rewriter,
             op->getParentOfType<mlir::ModuleOp>(),
-            getMangledFunctionName("symmetric", llvm::None, newOperands),
-            llvm::None, newOperands);
+            getMangledFunctionName("symmetric", std::nullopt, newOperands),
+            std::nullopt, newOperands);
 
-        rewriter.create<CallOp>(loc, callee, newOperands);
+        rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
         return mlir::success();
       }
 
@@ -2952,7 +2960,7 @@ namespace
           getMangledFunctionName("tan", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -3015,7 +3023,7 @@ namespace
           getMangledFunctionName("tanh", resultType, newOperands),
           resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, callee, newOperands);
     }
   };
 
@@ -3043,7 +3051,7 @@ namespace
                 rewriter, op.getMatrix().getLoc(),
                 op.getMatrix().getType(), adaptor.getMatrix());
 
-        if (resultType.getShape()[0] == ArrayType::kDynamicSize) {
+        if (resultType.getShape()[0] == ArrayType::kDynamic) {
           mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
               loc, rewriter.getIndexAttr(1));
 
@@ -3051,7 +3059,7 @@ namespace
               rewriter.create<DimOp>(loc, sourceMatrix, one));
         }
 
-        if (resultType.getShape()[1] == ArrayType::kDynamicSize) {
+        if (resultType.getShape()[1] == ArrayType::kDynamic) {
           mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
               loc, rewriter.getIndexAttr(0));
 
@@ -3080,10 +3088,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("transpose", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("transpose", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
       return mlir::success();
     }
   };
@@ -3144,7 +3152,7 @@ namespace
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       for (const auto& size : resultType.getShape()) {
-        if (size == ArrayType::kDynamicSize) {
+        if (size == ArrayType::kDynamic) {
           auto index = dynamicDimensions.size();
           dynamicDimensions.push_back(adaptor.getSizes()[index]);
         }
@@ -3162,10 +3170,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("zeros", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("zeros", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
     }
   };
 }
@@ -3202,10 +3210,10 @@ namespace
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("print", llvm::None, newOperands),
-          llvm::None, newOperands);
+          getMangledFunctionName("print", std::nullopt, newOperands),
+          std::nullopt, newOperands);
 
-      rewriter.create<CallOp>(loc, callee, newOperands);
+      rewriter.create<mlir::func::CallOp>(loc, callee, newOperands);
       rewriter.eraseOp(op);
       return mlir::success();
     }
@@ -3216,12 +3224,12 @@ static void populateModelicaBuiltInFunctionsPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
     mlir::TypeConverter& typeConverter,
-    bool assertions,
-    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+    mlir::SymbolTableCollection& symbolTableCollection,
+    bool assertions)
 {
   // Math operations.
   patterns.insert<
-      PowOpLowering>(typeConverter, context, runtimeFunctionsMap);
+      PowOpLowering>(typeConverter, context, symbolTableCollection);
 
   // Built-in functions.
   patterns.insert<
@@ -3289,27 +3297,26 @@ static void populateModelicaBuiltInFunctionsPatterns(
       SinOpLowering,
       SinhOpLowering,
       SqrtOpLowering,
-      SumOpLowering>(typeConverter, context, runtimeFunctionsMap);
+      SumOpLowering>(typeConverter, context, symbolTableCollection);
 
-  patterns.insert<
-      SymmetricOpLowering>(typeConverter, context, assertions, runtimeFunctionsMap);
+  patterns.insert<SymmetricOpLowering>(
+      typeConverter, context, symbolTableCollection, assertions);
 
   patterns.insert<
       TanOpLowering,
       TanhOpLowering,
       TransposeOpLowering,
-      ZerosOpLowering>(typeConverter, context, runtimeFunctionsMap);
+      ZerosOpLowering>(typeConverter, context, symbolTableCollection);
 
   // Utility operations.
   patterns.insert<
-      PrintOpLowering>(typeConverter, context, runtimeFunctionsMap);
+      PrintOpLowering>(typeConverter, context, symbolTableCollection);
 }
 
 static void populateModelicaToFuncPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
-    mlir::TypeConverter& typeConverter,
-    bool assertions)
+    mlir::TypeConverter& typeConverter)
 {
   patterns.insert<
       RawFunctionOpLowering,
@@ -3432,12 +3439,12 @@ namespace
             PrintOp>();
 
         mlir::modelica::TypeConverter typeConverter(bitWidth);
-
+        mlir::SymbolTableCollection symbolTableCollection;
         mlir::RewritePatternSet patterns(&getContext());
-        llvm::StringMap<RuntimeFunctionOp> runtimeFunctionsMap;
 
         populateModelicaBuiltInFunctionsPatterns(
-            patterns, &getContext(), typeConverter, assertions, runtimeFunctionsMap);
+            patterns, &getContext(),
+            typeConverter, symbolTableCollection, assertions);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
@@ -3458,18 +3465,13 @@ namespace
         target.addLegalDialect<mlir::memref::MemRefDialect>();
 
         target.addLegalDialect<ModelicaDialect>();
-        target.addIllegalOp<RawFunctionOp, RawReturnOp>();
-
-        target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          auto calleeOp = op.getFunction(moduleOp, symbolTable);
-          return calleeOp && mlir::isa<RuntimeFunctionOp>(calleeOp);
-        });
+        target.addIllegalOp<RawFunctionOp, RawReturnOp, CallOp>();
 
         mlir::modelica::TypeConverter typeConverter(bitWidth);
         mlir::RewritePatternSet patterns(&getContext());
 
         populateModelicaToFuncPatterns(
-            patterns, &getContext(), typeConverter, assertions);
+            patterns, &getContext(), typeConverter);
 
         return applyPartialConversion(moduleOp, target, std::move(patterns));
       }

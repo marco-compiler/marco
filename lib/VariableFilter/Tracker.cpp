@@ -10,7 +10,7 @@ namespace marco::vf
   }
 
   Tracker::Tracker(llvm::StringRef name)
-    : Tracker(name, llvm::None)
+    : Tracker(name, std::nullopt)
   {
   }
 

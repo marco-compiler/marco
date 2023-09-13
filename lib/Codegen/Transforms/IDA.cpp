@@ -217,8 +217,8 @@ namespace
       bool reducedDerivatives;
       bool jacobianOneSweep;
 
-      llvm::Optional<double> startTime;
-      llvm::Optional<double> endTime;
+      std::optional<double> startTime;
+      std::optional<double> endTime;
 
       /// The algebraic variables of the model that are managed by IDA.
       /// An algebraic variable is a variable that is not a parameter, state or
@@ -268,8 +268,8 @@ IDAInstance::IDAInstance(
       reducedSystem(reducedSystem),
       reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep),
-      startTime(llvm::None),
-      endTime(llvm::None)
+      startTime(std::nullopt),
+      endTime(std::nullopt)
 {
 }
 
@@ -513,7 +513,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
     assert(stateGlobalVariableOp && "Global variable not found");
     auto arrayType = variableOp.getVariableType().toArrayType();
 
-    llvm::Optional<mlir::SymbolRefAttr> derivativeName =
+    std::optional<mlir::SymbolRefAttr> derivativeName =
         derivativesMap->getDerivative(
             mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()));
 
@@ -703,7 +703,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       }
 
       const AccessFunction& accessFunction = access.getAccessFunction();
-      llvm::Optional<IndexSet> readVariableIndices = llvm::None;
+      std::optional<IndexSet> readVariableIndices = std::nullopt;
 
       if (!equationIndices.empty()) {
         readVariableIndices = accessFunction.map(equationIndices);
@@ -764,7 +764,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           return mlir::failure();
         }
 
-        llvm::Optional<IndexSet> newEquationsIndices = llvm::None;
+        std::optional<IndexSet> newEquationsIndices = std::nullopt;
 
         if (!equationIndices.empty()) {
           newEquationsIndices = equationIndices;
@@ -774,8 +774,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
                   writtenVariableIndices, equationIndices));
         }
 
-        llvm::Optional<std::reference_wrapper<const IndexSet>>
-            optionalNewEquationIndices = llvm::None;
+        std::optional<std::reference_wrapper<const IndexSet>>
+            optionalNewEquationIndices = std::nullopt;
 
         if (newEquationsIndices) {
           optionalNewEquationIndices =
@@ -1227,7 +1227,7 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
   builder.setInsertionPointToStart(bodyBlock);
 
   // Map for the SSA values.
-  mlir::BlockAndValueMapping mapping;
+  mlir::IRMapping mapping;
 
   // Map the iteration variables.
   auto originalInductions = equationOp.getInductionVariables();
@@ -1293,7 +1293,7 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
 
       if (globalVariable.getType().cast<ArrayType>().isScalar()) {
         globalVariable = builder.create<LoadOp>(
-            globalVariable.getLoc(), globalVariable, llvm::None);
+            globalVariable.getLoc(), globalVariable, std::nullopt);
       }
 
       mapping.map(variableGetOp.getResult(), globalVariable);
@@ -1367,7 +1367,7 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
   auto timeVariable = rewriter.create<VariableOp>(
       loc, "time",
       VariableType::get(
-          llvm::None,
+          std::nullopt,
           RealType::get(rewriter.getContext()),
           VariabilityProperty::none,
           IOProperty::input));
@@ -1483,7 +1483,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   rewriter.setInsertionPointToStart(
       rewriter.createBlock(&algorithmOp.getBodyRegion()));
 
-  mlir::BlockAndValueMapping mapping;
+  mlir::IRMapping mapping;
 
   // Get the values of the induction variables.
   auto originalInductions = equationOp.getInductionVariables();
@@ -1542,7 +1542,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
       auto getOp = rewriter.create<VariableGetOp>(
           globalGetOp.getLoc(), variableOp);
 
-      mapping.map(globalGetOp, getOp);
+      mapping.map(globalGetOp.getResult(), getOp.getResult());
     } else if (mlir::isa<EquationSideOp>(op)) {
       continue;
     } else if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
@@ -1612,7 +1612,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
     if (globalVariable.getType().cast<ArrayType>().isScalar()) {
       globalVariable = rewriter.create<LoadOp>(
-          globalVariable.getLoc(), globalVariable, llvm::None);
+          globalVariable.getLoc(), globalVariable, std::nullopt);
     }
 
     rewriter.replaceOp(getOp, globalVariable);
@@ -1748,7 +1748,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
       mlir::Value seed = builder.create<GlobalVariableGetOp>(loc, globalSeed);
 
       if (seed.getType().cast<ArrayType>().isScalar()) {
-        seed = builder.create<LoadOp>(loc, seed, llvm::None);
+        seed = builder.create<LoadOp>(loc, seed, std::nullopt);
       }
 
       args.push_back(seed);
@@ -1772,7 +1772,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
             jacobianFunction.getVariableIndices(), one);
 
     // Set the seed of the derivative to alpha.
-    llvm::Optional<size_t> alphaSeedPosition = llvm::None;
+    std::optional<size_t> alphaSeedPosition = std::nullopt;
 
     if (auto derivative = derivativesMap->getDerivative(
             mlir::SymbolRefAttr::get(independentVariable.getSymNameAttr()))) {
@@ -1927,7 +1927,7 @@ mlir::LogicalResult IDAInstance::getWritesMap(
   for (SCCOp scc : SCCs) {
     for (ScheduledEquationInstanceOp equationOp :
          scc.getOps<ScheduledEquationInstanceOp>()) {
-      llvm::Optional<VariableAccess> writeAccess =
+      std::optional<VariableAccess> writeAccess =
           equationOp.getMatchedAccess(*symbolTableCollection);
 
       if (!writeAccess) {
@@ -2251,7 +2251,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   for (SCCOp scc : SCCs) {
     for (ScheduledEquationInstanceOp equationOp :
          scc.getOps<ScheduledEquationInstanceOp>()) {
-      llvm::Optional<VariableAccess> writeAccess =
+      std::optional<VariableAccess> writeAccess =
           equationOp.getMatchedAccess(symbolTableCollection);
 
       if (!writeAccess) {
@@ -2311,7 +2311,7 @@ mlir::LogicalResult IDASolver::addICModelEquation(
 
   idaInstance.addEquation(equationOp);
 
-  llvm::Optional<VariableAccess> writeAccess =
+  std::optional<VariableAccess> writeAccess =
       equationOp.getMatchedAccess(symbolTableCollection);
 
   if (!writeAccess) {
@@ -2380,7 +2380,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
     for (SCCOp scc : SCCs) {
       for (ScheduledEquationInstanceOp equationOp :
            scc.getOps<ScheduledEquationInstanceOp>()) {
-        llvm::Optional<VariableAccess> writeAccess =
+        std::optional<VariableAccess> writeAccess =
             equationOp.getMatchedAccess(symbolTableCollection);
 
         if (!writeAccess) {
@@ -2532,7 +2532,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
   for (SCCOp scc : SCCs) {
     for (ScheduledEquationInstanceOp equationOp :
          scc.getOps<ScheduledEquationInstanceOp>()) {
-      llvm::Optional<VariableAccess> writeAccess =
+      std::optional<VariableAccess> writeAccess =
           equationOp.getMatchedAccess(symbolTableCollection);
 
       if (!writeAccess) {
@@ -2608,7 +2608,7 @@ mlir::LogicalResult IDASolver::addMainModelEquation(
 
   idaInstance.addEquation(equationOp);
 
-  llvm::Optional<VariableAccess> writeAccess =
+  std::optional<VariableAccess> writeAccess =
       equationOp.getMatchedAccess(symbolTableCollection);
 
   if (!writeAccess) {
@@ -2654,7 +2654,7 @@ mlir::LogicalResult IDASolver::createInitICSolversFunction(
 
   auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
       loc, "initICSolvers",
-      rewriter.getFunctionType(llvm::None, llvm::None));
+      rewriter.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -2669,7 +2669,7 @@ mlir::LogicalResult IDASolver::createInitICSolversFunction(
     return mlir::failure();
   }
 
-  rewriter.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  rewriter.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2684,7 +2684,7 @@ mlir::LogicalResult IDASolver::createDeinitICSolversFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "deinitICSolvers",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2694,7 +2694,7 @@ mlir::LogicalResult IDASolver::createDeinitICSolversFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2714,7 +2714,7 @@ mlir::LogicalResult IDASolver::createInitMainSolversFunction(
 
   auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
       loc, "initMainSolvers",
-      rewriter.getFunctionType(llvm::None, llvm::None));
+      rewriter.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
@@ -2729,7 +2729,7 @@ mlir::LogicalResult IDASolver::createInitMainSolversFunction(
     return mlir::failure();
   }
 
-  rewriter.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  rewriter.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2744,7 +2744,7 @@ mlir::LogicalResult IDASolver::createDeinitMainSolversFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "deinitMainSolvers",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2753,7 +2753,7 @@ mlir::LogicalResult IDASolver::createDeinitMainSolversFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2772,7 +2772,7 @@ mlir::LogicalResult IDASolver::createSolveICModelFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "solveICModel",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2803,7 +2803,7 @@ mlir::LogicalResult IDASolver::createSolveICModelFunction(
   }
 
   builder.setInsertionPointToEnd(entryBlock);
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2818,7 +2818,7 @@ mlir::LogicalResult IDASolver::createCalcICFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "calcIC",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2827,7 +2827,7 @@ mlir::LogicalResult IDASolver::createCalcICFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2842,7 +2842,7 @@ mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "updateIDAVariables",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2851,7 +2851,7 @@ mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2870,7 +2870,7 @@ mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "updateNonIDAVariables",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -2895,7 +2895,7 @@ mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
     }
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2910,7 +2910,7 @@ mlir::LogicalResult IDASolver::createGetIDATimeFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "getIDATime",
-      builder.getFunctionType(llvm::None, builder.getF64Type()));
+      builder.getFunctionType(std::nullopt, builder.getF64Type()));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);

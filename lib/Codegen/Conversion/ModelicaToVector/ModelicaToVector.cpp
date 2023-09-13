@@ -119,7 +119,7 @@ namespace
         mlir::Value resultVector = createVectorOp(rewriter, loc, lhs, rhs);
 
         mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
-            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+            op, op.getResult().getType().cast<ArrayType>(), std::nullopt);
 
         mlir::Value resultMemRef =
             materializeTargetConversion(rewriter, resultArray);
@@ -336,7 +336,7 @@ namespace
         mlir::Value resultVector = createVectorOp(rewriter, loc, lhs, rhs);
 
         mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
-            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+            op, op.getResult().getType().cast<ArrayType>(), std::nullopt);
 
         mlir::Value resultMemRef =
             materializeTargetConversion(rewriter, resultArray);
@@ -540,7 +540,7 @@ namespace
             loc, matrix, permutation);
 
         mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
-            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+            op, op.getResult().getType().cast<ArrayType>(), std::nullopt);
 
         mlir::Value resultMemRef = materializeTargetConversion(
             rewriter, resultArray);

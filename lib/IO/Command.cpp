@@ -63,7 +63,7 @@ namespace marco::io
     assert(args.front() == programPath);
 
     llvm::SmallVector<llvm::StringRef> argsRef;
-    llvm::SmallVector<llvm::Optional<llvm::StringRef>> redirects;
+    llvm::SmallVector<std::optional<llvm::StringRef>> redirects;
 
     for (const auto& arg : args) {
       argsRef.emplace_back(arg);
@@ -72,19 +72,19 @@ namespace marco::io
     if (stdinRedirect) {
       redirects.push_back(llvm::StringRef(*stdinRedirect));
     } else {
-      redirects.push_back(llvm::None);
+      redirects.push_back(std::nullopt);
     }
 
     if (stdoutRedirect) {
       redirects.push_back(llvm::StringRef(*stdoutRedirect));
     } else {
-      redirects.push_back(llvm::None);
+      redirects.push_back(std::nullopt);
     }
 
     if (stderrRedirect) {
       redirects.push_back(llvm::StringRef(*stderrRedirect));
     } else {
-      redirects.push_back(llvm::None);
+      redirects.push_back(std::nullopt);
     }
 
     /*
@@ -98,6 +98,6 @@ namespace marco::io
     */
 
     return llvm::sys::ExecuteAndWait(
-        programPath, argsRef, llvm::None, redirects);
+        programPath, argsRef, std::nullopt, redirects);
   }
 }

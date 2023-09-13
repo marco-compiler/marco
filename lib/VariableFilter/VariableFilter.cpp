@@ -167,7 +167,7 @@ namespace marco
     });
   }
 
-  llvm::Optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics)
+  std::optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics)
   {
     VariableFilter vf;
     auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
@@ -185,7 +185,7 @@ namespace marco
         delete actualDiagnostics;
       }
 
-      return llvm::None;
+      return std::nullopt;
     }
 
     return vf;

@@ -3,7 +3,6 @@
 
 #include "marco/AST/Node/ASTNode.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include <variant>
@@ -115,7 +114,7 @@ namespace marco::ast
     private:
       llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
 
-      static llvm::Optional<bool> isArrayUniformConstBool(const ArrayConstant *array);
+      static std::optional<bool> isArrayUniformConstBool(const ArrayConstant *array);
   };
 
   class Argument : public ASTNode

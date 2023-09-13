@@ -42,7 +42,7 @@ TEST(AccessFunction, isIdentity_empty)
 {
   mlir::MLIRContext ctx;
 
-  auto affineMap = mlir::AffineMap::get(0, 0, llvm::None, &ctx);
+  auto affineMap = mlir::AffineMap::get(0, 0, std::nullopt, &ctx);
   auto accessFunction = std::make_unique<AccessFunction>(affineMap);
 
   EXPECT_TRUE(accessFunction->isIdentity());
@@ -65,7 +65,7 @@ TEST(AccessFunction, isIdentity_emptyResults)
 {
   mlir::MLIRContext ctx;
 
-  auto affineMap = mlir::AffineMap::get(1, 0, llvm::None, &ctx);
+  auto affineMap = mlir::AffineMap::get(1, 0, std::nullopt, &ctx);
   auto accessFunction = std::make_unique<AccessFunction>(affineMap);
 
   EXPECT_FALSE(accessFunction->isIdentity());

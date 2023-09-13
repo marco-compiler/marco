@@ -13,5 +13,6 @@ add_mlir_dialect_library(MLIRSimulation
 
     LINK_LIBS PUBLIC
     MLIRIR
+    MLIRFunctionInterfaces
     MLIRSupport
     MLIRModeling)

@@ -17,7 +17,7 @@ namespace marco::codegen::lowering
     const ast::ComponentReference* callee =
         call.getCallee()->cast<ast::ComponentReference>();
 
-    llvm::Optional<mlir::Operation*> calleeOp = resolveCallee(*callee);
+    std::optional<mlir::Operation*> calleeOp = resolveCallee(*callee);
 
     if (!calleeOp) {
       llvm_unreachable("Invalid callee");
@@ -84,7 +84,7 @@ namespace marco::codegen::lowering
     return {};
   }
 
-  llvm::Optional<mlir::Operation*> CallLowerer::resolveCallee(
+  std::optional<mlir::Operation*> CallLowerer::resolveCallee(
       const ast::ComponentReference& callee)
   {
     size_t pathLength = callee.getPathLength();
@@ -92,7 +92,7 @@ namespace marco::codegen::lowering
 
     for (size_t i = 0; i < pathLength; ++i) {
       if (callee.getElement(i)->getNumOfSubscripts() != 0) {
-        return llvm::None;
+        return std::nullopt;
       }
     }
 
@@ -251,7 +251,7 @@ namespace marco::codegen::lowering
 
           // If the dimension is dynamic, then no further checks or
           // specializations are possible.
-          if (dimension == ArrayType::kDynamicSize) {
+          if (dimension == ArrayType::kDynamic) {
             continue;
           }
 
@@ -259,14 +259,14 @@ namespace marco::codegen::lowering
           // also the dimension of the other arguments must match (when that's
           // fixed too).
 
-          if (dimensions[i] != ArrayType::kDynamicSize &&
+          if (dimensions[i] != ArrayType::kDynamic &&
               dimensions[i] != dimension) {
             return false;
           }
 
           // If the dimension determined by the first argument is dynamic, then
           // set it to a required size.
-          if (dimensions[i] == ArrayType::kDynamicSize) {
+          if (dimensions[i] == ArrayType::kDynamic) {
             dimensions[i] = dimension;
           }
         }
@@ -805,7 +805,8 @@ namespace marco::codegen::lowering
     lowerArgs(call, args);
 
     auto resultType = ArrayType::get(
-        {-1, -1}, IntegerType::get(builder().getContext()));
+        {ArrayType::kDynamic, ArrayType::kDynamic},
+        IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<DiagonalOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -936,7 +937,8 @@ namespace marco::codegen::lowering
     lowerArgs(call, args);
 
     auto resultType = ArrayType::get(
-        {-1, -1}, IntegerType::get(builder().getContext()));
+        {ArrayType::kDynamic, ArrayType::kDynamic},
+        IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<IdentityOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -987,7 +989,7 @@ namespace marco::codegen::lowering
     lowerArgs(call, args);
 
     auto resultType = ArrayType::get(
-        ArrayType::kDynamicSize, RealType::get(builder().getContext()));
+        ArrayType::kDynamic, RealType::get(builder().getContext()));
 
     mlir::Value result = builder().create<LinspaceOp>(
         loc(call.getLocation()), resultType, args[0], args[1], args[2]);
@@ -1160,7 +1162,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerArgs(call, args);
 
-    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamicSize);
+    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
 
     auto resultType = ArrayType::get(
         shape, IntegerType::get(builder().getContext()));
@@ -1493,7 +1495,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerArgs(call, args);
 
-    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamicSize);
+    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
 
     auto resultType = ArrayType::get(
         shape, IntegerType::get(builder().getContext()));

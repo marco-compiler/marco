@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_COMMON_H
 #define MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_COMMON_H
 
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 
 namespace mlir::modelica
 {

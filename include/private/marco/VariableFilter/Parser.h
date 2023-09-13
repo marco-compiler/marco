@@ -8,7 +8,6 @@
 #include "marco/Diagnostic/Location.h"
 #include "marco/Parser/Lexer.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Optional.h"
 
 namespace marco::vf
 {
@@ -21,15 +20,15 @@ namespace marco::vf
 
       bool token();
 
-      llvm::Optional<DerivativeExpression> der();
+      std::optional<DerivativeExpression> der();
 
-      llvm::Optional<RegexExpression> regex();
+      std::optional<RegexExpression> regex();
 
-      llvm::Optional<VariableExpression> identifier();
+      std::optional<VariableExpression> identifier();
 
-      llvm::Optional<ArrayExpression> array(VariableExpression variable);
+      std::optional<ArrayExpression> array(VariableExpression variable);
 
-      llvm::Optional<Range> arrayRange();
+      std::optional<Range> arrayRange();
 
     private:
       /// Read the next token.

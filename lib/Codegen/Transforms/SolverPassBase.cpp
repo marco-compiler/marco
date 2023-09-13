@@ -62,11 +62,11 @@ namespace
 
         auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
             op.getLoc(),
-            ArrayType::get(llvm::None, timeType),
+            ArrayType::get(std::nullopt, timeType),
             "time");
 
         rewriter.replaceOpWithNewOp<LoadOp>(
-            op, timeType, globalGetOp, llvm::None);
+            op, timeType, globalGetOp, std::nullopt);
 
         return mlir::success();
       }
@@ -181,7 +181,7 @@ namespace mlir::modelica::impl
 
     // The model has been completely converted to the code composing the
     // simulation, thus it can now be erased.
-    modelOp.erase();
+    rewriter.eraseOp(modelOp);
 
     // Declare the time variable.
     GlobalVariableOp timeVariableOp =
@@ -476,7 +476,9 @@ namespace mlir::modelica::impl
     auto initFunctionOp =
         builder.create<mlir::simulation::InitFunctionOp>(modelOp.getLoc());
 
-    mlir::Block* entryBlock = initFunctionOp.addEntryBlock();
+    mlir::Block* entryBlock =
+        builder.createBlock(&initFunctionOp.getBodyRegion());
+
     builder.setInsertionPointToStart(entryBlock);
 
     // Map the variables by name for faster lookup.
@@ -502,7 +504,7 @@ namespace mlir::modelica::impl
         continue;
       }
 
-      mlir::BlockAndValueMapping startOpsMapping;
+      mlir::IRMapping startOpsMapping;
 
       for (auto& op : startOp.getBodyRegion().getOps()) {
         if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
@@ -534,7 +536,8 @@ namespace mlir::modelica::impl
               }
 
               builder.create<StoreOp>(
-                  startOp.getLoc(), valueToBeStored, destination, llvm::None);
+                  startOp.getLoc(), valueToBeStored, destination,
+                  std::nullopt);
             }
           }
         } else {
@@ -559,14 +562,15 @@ namespace mlir::modelica::impl
           destination.getLoc(), getZeroAttr(arrayType.getElementType()));
 
       if (arrayType.isScalar()) {
-        builder.create<StoreOp>(destination.getLoc(), zero, destination, llvm::None);
+        builder.create<StoreOp>(
+            destination.getLoc(), zero, destination, std::nullopt);
       } else {
         builder.create<ArrayFillOp>(destination.getLoc(), destination, zero);
       }
     }
 
     builder.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
-    builder.create<mlir::simulation::YieldOp>(modelOp.getLoc(), llvm::None);
+    builder.create<mlir::simulation::YieldOp>(modelOp.getLoc(), std::nullopt);
 
     return mlir::success();
   }
@@ -582,10 +586,12 @@ namespace mlir::modelica::impl
     auto deinitFunctionOp =
         builder.create<mlir::simulation::DeinitFunctionOp>(loc);
 
-    mlir::Block* entryBlock = deinitFunctionOp.addEntryBlock();
+    mlir::Block* entryBlock =
+        builder.createBlock(&deinitFunctionOp.getBodyRegion());
+
     builder.setInsertionPointToStart(entryBlock);
 
-    builder.create<mlir::simulation::YieldOp>(loc, llvm::None);
+    builder.create<mlir::simulation::YieldOp>(loc, std::nullopt);
 
     return mlir::success();
   }
@@ -602,7 +608,7 @@ namespace mlir::modelica::impl
     auto timeType = RealType::get(builder.getContext());
 
     auto globalVariableOp = builder.create<GlobalVariableOp>(
-        loc, "time", ArrayType::get(llvm::None, timeType));
+        loc, "time", ArrayType::get(std::nullopt, timeType));
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(globalVariableOp);
     return globalVariableOp;
@@ -621,7 +627,7 @@ namespace mlir::modelica::impl
 
     auto functionOp = builder.create<mlir::simulation::FunctionOp>(
         loc, "getTime",
-        builder.getFunctionType(llvm::None, builder.getF64Type()));
+        builder.getFunctionType(std::nullopt, builder.getF64Type()));
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
 
@@ -653,7 +659,7 @@ namespace mlir::modelica::impl
 
     auto functionOp = builder.create<mlir::simulation::FunctionOp>(
         loc, "setTime",
-        builder.getFunctionType(builder.getF64Type(), llvm::None));
+        builder.getFunctionType(builder.getF64Type(), std::nullopt));
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
 
@@ -666,8 +672,8 @@ namespace mlir::modelica::impl
     mlir::Value newTime = builder.create<CastOp>(
         loc, RealType::get(builder.getContext()), functionOp.getArgument(0));
 
-    builder.create<StoreOp>(loc, newTime, array, llvm::None);
-    builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+    builder.create<StoreOp>(loc, newTime, array, std::nullopt);
+    builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
 
     return mlir::success();
   }
@@ -721,14 +727,14 @@ namespace mlir::modelica::impl
         builder.getIndexType());
 
     auto rawFunctionOp = builder.create<RawFunctionOp>(
-        loc, functionName, builder.getFunctionType(argTypes, llvm::None));
+        loc, functionName, builder.getFunctionType(argTypes, std::nullopt));
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(rawFunctionOp);
 
     mlir::Block* entryBlock = rawFunctionOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    mlir::BlockAndValueMapping mapping;
+    mlir::IRMapping mapping;
 
     // Create the explicit iteration loops.
     llvm::SmallVector<mlir::Value, 3> explicitInductions;
@@ -826,7 +832,8 @@ namespace mlir::modelica::impl
 
           if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
               arrayType && arrayType.isScalar()) {
-            replacement = builder.create<LoadOp>(loc, replacement, llvm::None);
+            replacement = builder.create<LoadOp>(
+                loc, replacement, std::nullopt);
           }
 
           mapping.map(variableGetOp.getResult(), replacement);

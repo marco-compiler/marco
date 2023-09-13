@@ -22,7 +22,7 @@ namespace marco::codegen::lowering
       using Lowerer::lower;
 
     private:
-      llvm::Optional<mlir::Operation*> resolveCallee(
+      std::optional<mlir::Operation*> resolveCallee(
         const ast::ComponentReference& callee);
 
       mlir::Value lowerArg(const ast::Expression& expression);

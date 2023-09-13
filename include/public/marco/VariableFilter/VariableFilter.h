@@ -19,7 +19,7 @@ namespace marco
       using Tracker = vf::Tracker;
       using Filter = vf::Filter;
 
-      static llvm::Optional<VariableFilter> fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics = nullptr);
+      static std::optional<VariableFilter> fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics = nullptr);
 
       void dump() const;
 

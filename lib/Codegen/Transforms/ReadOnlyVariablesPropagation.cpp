@@ -116,7 +116,7 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
 
           // Clone the operations used to obtain the replacement value.
           builder.setInsertionPoint(getOp);
-          mlir::BlockAndValueMapping mapping;
+          mlir::IRMapping mapping;
 
           for (auto& op : bindingEquationOp.getBodyRegion().getOps()) {
             if (!mlir::isa<YieldOp>(op)) {

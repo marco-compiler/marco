@@ -2,6 +2,7 @@
 #include "marco/IO/Command.h"
 #include "marco/IO/InputFile.h"
 #include "marco/Options/Options.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/FileUtilities.h"

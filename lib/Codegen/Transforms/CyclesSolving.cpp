@@ -494,8 +494,8 @@ static mlir::LogicalResult solveCycle(
           readingEquation.equationIndices);
     }
 
-    llvm::Optional<std::reference_wrapper<const IndexSet>>
-    optionalReadingEquationIndices = llvm::None;
+    std::optional<std::reference_wrapper<const IndexSet>>
+    optionalReadingEquationIndices = std::nullopt;
 
     if (!readingEquationIndices.empty()) {
       optionalReadingEquationIndices =

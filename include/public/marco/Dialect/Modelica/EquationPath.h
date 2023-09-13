@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_MODELICA_EQUATIONPATH_H
 
 #include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace mlir::modelica
 {
@@ -24,7 +25,7 @@ namespace mlir::modelica
 
       EquationPath(
           EquationSide equationSide,
-          llvm::ArrayRef<uint64_t> path = llvm::None);
+          llvm::ArrayRef<uint64_t> path = {});
 
       EquationPath(EquationSide equationSide, ExpressionPath path);
 

@@ -46,17 +46,17 @@ namespace mlir::modelica
 
     if (!valid) {
       if (mlir::failed(loadAccesses(symbolTable))) {
-        return llvm::None;
+        return std::nullopt;
       }
     }
 
     uint64_t elementIndex = instanceOp.getViewElementIndex().value_or(0);
 
     if (auto it = accesses.find(elementIndex); it != accesses.end()) {
-      return llvm::makeArrayRef(it->getSecond());
+      return {it->getSecond()};
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
   llvm::ArrayRef<VariableAccess> VariableAccessAnalysis::getAccesses(
@@ -67,17 +67,17 @@ namespace mlir::modelica
 
     if (!valid) {
       if (mlir::failed(loadAccesses(symbolTable))) {
-        return llvm::None;
+        return std::nullopt;
       }
     }
 
     uint64_t elementIndex = instanceOp.getViewElementIndex();
 
     if (auto it = accesses.find(elementIndex); it != accesses.end()) {
-      return llvm::makeArrayRef(it->getSecond());
+      return {it->getSecond()};
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
   mlir::LogicalResult VariableAccessAnalysis::loadAccesses(

@@ -5,7 +5,6 @@
 #include "marco/Diagnostic/Location.h"
 #include "marco/Parser/ModelicaStateMachine.h"
 #include "marco/AST/AST.h"
-#include "llvm/ADT/Optional.h"
 #include <memory>
 
 namespace marco::parser
@@ -53,162 +52,162 @@ namespace marco::parser
       Parser(diagnostic::DiagnosticEngine& diagnostics, const char* source);
        */
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseRoot();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseRoot();
 
       /// Parse a boolean value.
-      llvm::Optional<ValueWrapper<bool>> parseBoolValue();
+      std::optional<ValueWrapper<bool>> parseBoolValue();
 
       /// Parse an integer value.
-      llvm::Optional<ValueWrapper<int64_t>> parseIntValue();
+      std::optional<ValueWrapper<int64_t>> parseIntValue();
 
       /// Parse a floating point value.
-      llvm::Optional<ValueWrapper<double>> parseFloatValue();
+      std::optional<ValueWrapper<double>> parseFloatValue();
 
       /// Parse a string.
-      llvm::Optional<ValueWrapper<std::string>> parseString();
+      std::optional<ValueWrapper<std::string>> parseString();
 
       /// Parse the name of an identifier.
-      llvm::Optional<ValueWrapper<std::string>> parseIdentifier();
+      std::optional<ValueWrapper<std::string>> parseIdentifier();
 
       /// Parse the 'class-definition' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
 
       /// Parse the 'modification' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseModification();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseModification();
 
       /// Parse the 'class-modification' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseClassModification();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseClassModification();
 
       /// Parse the 'argument-list' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArgumentList();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArgumentList();
 
       /// Parse the 'argument' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseArgument();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseArgument();
 
       /// Parse the 'element-modification' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseElementModification(bool each, bool final);
+      std::optional<std::unique_ptr<ast::ASTNode>> parseElementModification(bool each, bool final);
 
       /// Parse the 'element-redeclaration' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseElementRedeclaration();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseElementRedeclaration();
 
       /// Parse the 'element-replaceable' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseElementReplaceable(bool each, bool final);
+      std::optional<std::unique_ptr<ast::ASTNode>> parseElementReplaceable(bool each, bool final);
 
       /// Parse the 'algorithm-section' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
 
       /// Parse the 'equation' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseEquation();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseEquation();
 
       /// Parse the 'statement' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseStatement();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseStatement();
 
       /// Parse the 'if-statement' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseIfStatement();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseIfStatement();
 
       /// Parse the 'for-statement'.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseForStatement();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseForStatement();
 
       /// Parse the 'while-statement'.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
 
       /// Parse the 'when-statement'.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
 
       /// Parse the 'expression' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseExpression();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseExpression();
 
       /// Parse the 'simple-expression' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseSimpleExpression();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseSimpleExpression();
 
       /// Parse the 'logical-expression' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseLogicalExpression();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalExpression();
 
       /// Parse the 'logical-term' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseLogicalTerm();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalTerm();
 
       /// Parse the 'logical-factor' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseLogicalFactor();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalFactor();
 
       /// Parse the 'relation' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseRelation();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseRelation();
 
       /// Parse the 'relational-operator' symbol.
-      llvm::Optional<ast::OperationKind> parseRelationalOperator();
+      std::optional<ast::OperationKind> parseRelationalOperator();
 
       /// Parse the 'arithmetic-expression' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseArithmeticExpression();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseArithmeticExpression();
 
       /// Parse the 'add-operator' symbol.
-      llvm::Optional<ast::OperationKind> parseAddOperator();
+      std::optional<ast::OperationKind> parseAddOperator();
 
       /// Parse the 'term' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTerm();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseTerm();
 
       /// Parse the mul-operator' symbol.
-      llvm::Optional<ast::OperationKind> parseMulOperator();
+      std::optional<ast::OperationKind> parseMulOperator();
 
       /// Parse the 'factor' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseFactor();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseFactor();
 
       /// Parse the 'primary' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parsePrimary();
+      std::optional<std::unique_ptr<ast::ASTNode>> parsePrimary();
 
       /// Parse the 'component-reference' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseComponentReference();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseComponentReference();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>>
+      std::optional<std::unique_ptr<ast::ASTNode>>
       parseComponentReferenceEntry();
 
       /// Parse the 'function-call-args' symbol.
-      llvm::Optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseFunctionCallArgs();
+      std::optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseFunctionCallArgs();
 
       /// Parse the 'function-arguments' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArguments();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArguments();
 
       /// Parse the 'function-arguments-non-first' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArgumentsNonFirst();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArgumentsNonFirst();
 
       /// Parse the 'array-arguments' symbol.
-      llvm::Optional<std::pair<std::vector<std::unique_ptr<ast::ASTNode>>, std::vector<std::unique_ptr<ast::ASTNode>>>> parseArrayArguments();
+      std::optional<std::pair<std::vector<std::unique_ptr<ast::ASTNode>>, std::vector<std::unique_ptr<ast::ASTNode>>>> parseArrayArguments();
 
       /// Parse the 'array-arguments-non-first' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArgumentsNonFirst();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArgumentsNonFirst();
 
       /// Parse the 'function-argument' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
 
       /// Parse the 'output-expression-list' symbol.
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseOutputExpressionList();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseOutputExpressionList();
 
       /// Parse the 'array-subscripts' symbol.
-      llvm::Optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseArraySubscripts();
+      std::optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseArraySubscripts();
 
       /// Parse the 'subscript' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseSubscript();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseSubscript();
 
       /// Parse the 'annotation' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseAnnotation();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseAnnotation();
 
     private:
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseEquationsBlock();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseEquationsBlock();
 
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseForEquations();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseForEquations();
 
       /// Parse the 'for-index' symbol.
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
 
-      llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseElementList(bool publicSection);
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseElementList(bool publicSection);
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseElement(bool publicSection);
+      std::optional<std::unique_ptr<ast::ASTNode>> parseElement(bool publicSection);
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTypePrefix();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseTypePrefix();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseVariableType();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseVariableType();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseArrayDimension();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseArrayDimension();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTermModification();
+      std::optional<std::unique_ptr<ast::ASTNode>> parseTermModification();
 
     private:
       /// Read the next token.

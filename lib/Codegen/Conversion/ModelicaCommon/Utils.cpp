@@ -85,7 +85,7 @@ namespace marco::codegen
     auto arrayType = array.getType().cast<ArrayType>();
 
     for (const auto& dimension : llvm::enumerate(arrayType.getShape())) {
-      if (dimension.value() == ArrayType::kDynamicSize) {
+      if (dimension.value() == ArrayType::kDynamic) {
         mlir::Value dim = builder.create<ConstantOp>(loc, builder.getIndexAttr(dimension.index()));
         result.push_back(builder.create<DimOp>(loc, array, dim));
       }

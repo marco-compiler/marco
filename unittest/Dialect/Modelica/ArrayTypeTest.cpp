@@ -28,7 +28,7 @@ TEST(ArrayType, dynamicShape)
   context.loadDialect<ModelicaDialect>();
 
   mlir::Type elementType = IntegerType::get(&context);
-  auto arrayType = ArrayType::get({ 3, ArrayType::kDynamicSize }, elementType);
+  auto arrayType = ArrayType::get({ 3, ArrayType::kDynamic }, elementType);
 
   EXPECT_EQ(arrayType.getRank(), 2);
   EXPECT_FALSE(arrayType.isDynamicDim(0));
@@ -36,6 +36,6 @@ TEST(ArrayType, dynamicShape)
   EXPECT_FALSE(arrayType.hasStaticShape());
   EXPECT_EQ(arrayType.getNumDynamicDims(), 1);
   EXPECT_EQ(arrayType.getDimSize(0), 3);
-  EXPECT_EQ(arrayType.getDimSize(1), ArrayType::kDynamicSize);
+  EXPECT_EQ(arrayType.getDimSize(1), ArrayType::kDynamic);
   EXPECT_EQ(arrayType.getDynamicDimIndex(1), 0);
 }

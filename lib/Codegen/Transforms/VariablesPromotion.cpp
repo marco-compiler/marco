@@ -33,7 +33,7 @@ namespace
 
       DerivativesMap& getDerivativesMap();
 
-      llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
@@ -508,7 +508,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
         const AccessFunction& writeAccessFunction =
             writeAccess->getAccessFunction();
 
-        llvm::Optional<IndexSet> equationIndices =
+        std::optional<IndexSet> equationIndices =
             equation->op.getIterationSpace();
 
         IndexSet writtenIndices = writeAccessFunction.map(
@@ -561,9 +561,6 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
     // Convert the writing non-initial equations into initial equations.
     auto writingEquations =
         llvm::make_range(mainWritesMap.equal_range(variableOp));
-
-    auto writingInitialEquations =
-        llvm::make_range(initialConditionsWritesMap.equal_range(variableOp));
 
     for (const auto& entry : writingEquations) {
       MatchedEquationInstanceOp equationOp = entry.second.second;
@@ -660,7 +657,7 @@ DerivativesMap& VariablesPromotionPass::getDerivativesMap()
   return analysis;
 }
 
-llvm::Optional<std::reference_wrapper<VariableAccessAnalysis>>
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 VariablesPromotionPass::getVariableAccessAnalysis(
     MatchedEquationInstanceOp equation,
     mlir::SymbolTableCollection& symbolTableCollection)
@@ -674,7 +671,7 @@ VariablesPromotionPass::getVariableAccessAnalysis(
       equation.getTemplate());
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
-    return llvm::None;
+    return std::nullopt;
   }
 
   return std::reference_wrapper(analysis);
@@ -702,7 +699,7 @@ mlir::LogicalResult VariablesPromotionPass::getWritesMap(
       return mlir::failure();
     }
 
-    llvm::Optional<VariableAccess> matchedAccess =
+    std::optional<VariableAccess> matchedAccess =
         equationOp.getMatchedAccess(symbolTableCollection);
 
     if (!matchedAccess) {

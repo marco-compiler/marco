@@ -20,7 +20,7 @@ namespace marco::codegen::lowering
 
     mlir::Value inductionVar = builder().create<AllocaOp>(
         location,
-        ArrayType::get(llvm::None, builder().getIndexType()), llvm::None);
+        ArrayType::get(std::nullopt, builder().getIndexType()), std::nullopt);
 
     mlir::Location lowerBoundLoc = loc(induction->getBegin()->getLocation());
 
@@ -30,9 +30,10 @@ namespace marco::codegen::lowering
     lowerBound = builder().create<CastOp>(
         lowerBound.getLoc(), builder().getIndexType(), lowerBound);
 
-    builder().create<StoreOp>(location, lowerBound, inductionVar, llvm::None);
+    builder().create<StoreOp>(
+        location, lowerBound, inductionVar, std::nullopt);
 
-    auto forOp = builder().create<ForOp>(location, llvm::None);
+    auto forOp = builder().create<ForOp>(location, std::nullopt);
     mlir::OpBuilder::InsertionGuard guard(builder());
 
     assert(forOp.getConditionRegion().getBlocks().empty());
@@ -65,7 +66,7 @@ namespace marco::codegen::lowering
           location, BooleanType::get(
                         builder().getContext()), inductionValue, upperBound);
 
-      builder().create<ConditionOp>(location, condition, llvm::None);
+      builder().create<ConditionOp>(location, condition, std::nullopt);
     }
 
     {
@@ -87,7 +88,7 @@ namespace marco::codegen::lowering
       if (bodyBlock->empty() ||
           !bodyBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
         builder().setInsertionPointToEnd(bodyBlock);
-        builder().create<YieldOp>(location, llvm::None);
+        builder().create<YieldOp>(location, std::nullopt);
       }
     }
 
@@ -105,9 +106,9 @@ namespace marco::codegen::lowering
           location, builder().getIndexType(), inductionValue, step);
 
       builder().create<StoreOp>(
-          location, incremented, inductionVar, llvm::None);
+          location, incremented, inductionVar, std::nullopt);
 
-      builder().create<YieldOp>(location, llvm::None);
+      builder().create<YieldOp>(location, std::nullopt);
     }
   }
 }

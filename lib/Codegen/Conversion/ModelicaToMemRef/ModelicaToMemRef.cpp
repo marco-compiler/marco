@@ -382,7 +382,7 @@ namespace
       assert(arrayType.hasStaticShape());
 
       auto allocOp = rewriter.replaceOpWithNewOp<AllocOp>(
-          op, arrayType, llvm::None);
+          op, arrayType, std::nullopt);
 
       mlir::ValueRange values = op.getValues();
       size_t currentValue = 0;
@@ -496,7 +496,7 @@ namespace
 
           auto sourceDimension = adaptor.getSource().getType().cast<mlir::MemRefType>().getShape()[i];
 
-          if (sourceDimension == mlir::ShapedType::kDynamicSize) {
+          if (sourceDimension == mlir::ShapedType::kDynamic) {
             mlir::Value size = rewriter.create<mlir::memref::DimOp>(loc, adaptor.getSource(), i);
             sizes.push_back(size);
           } else {
@@ -632,10 +632,10 @@ namespace
         int64_t sourceSize = op.getSource().getType().getDimSize(i);
         int64_t destinationSize = op.getDestination().getType().getDimSize(i);
 
-        if (sourceSize != mlir::ShapedType::kDynamicSize) {
+        if (sourceSize != mlir::ShapedType::kDynamic) {
           upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
               loc, rewriter.getIndexAttr(sourceSize)));
-        } else if (destinationSize != mlir::ShapedType::kDynamicSize) {
+        } else if (destinationSize != mlir::ShapedType::kDynamic) {
           upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
               loc, rewriter.getIndexAttr(destinationSize)));
         } else {
@@ -702,7 +702,7 @@ namespace
         FillOp op, mlir::PatternRewriter& rewriter) const override
     {
       rewriter.replaceOpWithNewOp<ArrayBroadcastOp>(
-          op, op.getResult().getType(), op.getValue(), llvm::None);
+          op, op.getResult().getType(), op.getValue(), std::nullopt);
 
       return mlir::success();
     }
@@ -770,7 +770,7 @@ namespace
 
       assert(op.getResult().getType().isa<ArrayType>());
       auto resultArrayType = op.getResult().getType().cast<ArrayType>();
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultArrayType, llvm::None);
+      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultArrayType, std::nullopt);
 
       // Iterate on each dimension
       mlir::Value zeroValue = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));

@@ -53,7 +53,7 @@ namespace
           return mlir::failure();
         }
 
-        llvm::Optional<VariableAccess> destinationAccess = op.getAccessAtPath(
+        std::optional<VariableAccess> destinationAccess = op.getAccessAtPath(
             *symbolTableCollection, destinationPath.getValue());
 
         if (!destinationAccess) {
@@ -67,7 +67,7 @@ namespace
           return mlir::failure();
         }
 
-        llvm::Optional<VariableAccess> sourceAccess =
+        std::optional<VariableAccess> sourceAccess =
             replacementEquation.getAccessAtPath(
                 *symbolTableCollection, sourcePath.getValue());
 

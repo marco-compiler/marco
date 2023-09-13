@@ -96,7 +96,7 @@ namespace marco::ast
     auto result = clone();
 
     result->cast<VariableType>()->setDimensions(
-        makeArrayRef(dimensions).drop_front(times));
+        llvm::ArrayRef(dimensions).drop_front(times));
 
     return std::move(result);
   }

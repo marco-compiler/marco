@@ -18,7 +18,6 @@ def Modeling_Dialect : Dialect
 
     let cppNamespace = "::mlir::modeling";
     let useDefaultAttributePrinterParser = 1;
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 
     let extraClassDeclaration = [{
         void registerAttributes();

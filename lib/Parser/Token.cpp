@@ -1,4 +1,5 @@
 #include "marco/Parser/Token.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco;

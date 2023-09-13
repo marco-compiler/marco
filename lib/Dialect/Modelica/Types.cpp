@@ -143,7 +143,7 @@ namespace mlir::modelica
       printer << "array<";
 
       for (int64_t dimension : arrayType.getShape()) {
-        if (dimension == ArrayType::kDynamicSize) {
+        if (dimension == ArrayType::kDynamic) {
           printer << "?";
         } else {
           printer << dimension;
@@ -165,7 +165,7 @@ namespace mlir::modelica
       printer << "variable<";
 
       for (int64_t dimension : variableType.getShape()) {
-        if (dimension == VariableType::kDynamicSize) {
+        if (dimension == VariableType::kDynamic) {
           printer << "?";
         } else {
           printer << dimension;
@@ -246,7 +246,7 @@ namespace mlir::modelica
   }
 
   BaseArrayType BaseArrayType::cloneWith(
-      llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+      std::optional<llvm::ArrayRef<int64_t>> shape,
       mlir::Type elementType) const
   {
     if (isa<UnrankedArrayType>()) {
@@ -315,9 +315,9 @@ namespace mlir::modelica
       return emitError() << "invalid array element type";
     }
 
-    // Negative sizes are not allowed except for `-1` that means dynamic size.
+    // Negative sizes are not allowed.
     for (int64_t size : shape) {
-      if (size < 0 && size != ArrayType::kDynamicSize) {
+      if (size < 0 && size != ArrayType::kDynamic) {
         return emitError() << "invalid array size";
       }
     }
@@ -461,9 +461,9 @@ namespace mlir::modelica
       return emitError() << "invalid variable element type";
     }
 
-    // Negative sizes are not allowed except for `-1` that means dynamic size.
+    // Negative sizes are not allowed.
     for (int64_t size : shape) {
-      if (size < 0 && size != VariableType::kDynamicSize) {
+      if (size < 0 && size != VariableType::kDynamic) {
         return emitError() << "invalid variable size";
       }
     }
@@ -481,7 +481,7 @@ namespace mlir::modelica
   }
 
   mlir::ShapedType VariableType::cloneWith(
-      llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+      std::optional<llvm::ArrayRef<int64_t>> shape,
       mlir::Type elementType) const
   {
     VariableType::Builder builder(*shape, elementType);
@@ -511,7 +511,8 @@ namespace mlir::modelica
           arrayType.getMemorySpace());
     }
 
-    return VariableType::get(llvm::None, type, variabilityProperty, ioProperty);
+    return VariableType::get(
+        std::nullopt, type, variabilityProperty, ioProperty);
   }
 
   ArrayType VariableType::toArrayType() const

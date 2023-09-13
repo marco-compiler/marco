@@ -199,7 +199,7 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "calcIC",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -219,7 +219,7 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
 
   // Terminate the function.
   builder.setInsertionPointToEnd(entryBlock);
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
 
   return mlir::success();
 }
@@ -237,7 +237,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "updateNonStateVariables",
-      builder.getFunctionType(llvm::None, llvm::None));
+      builder.getFunctionType(std::nullopt, std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -290,7 +290,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
 
   // Terminate the function.
   builder.setInsertionPointToEnd(entryBlock);
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
 
   return mlir::success();
 }
@@ -309,7 +309,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
 
   auto functionOp = builder.create<mlir::simulation::FunctionOp>(
       loc, "updateStateVariables",
-      builder.getFunctionType(builder.getF64Type(), llvm::None));
+      builder.getFunctionType(builder.getF64Type(), std::nullopt));
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -351,13 +351,13 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
 
       if (variableType.isScalar()) {
         mlir::Value stateLoad =
-            builder.create<LoadOp>(state.getLoc(), state, llvm::None);
+            builder.create<LoadOp>(state.getLoc(), state, std::nullopt);
 
         mlir::Value derivativeLoad = builder.create<LoadOp>(
-            derivative.getLoc(), derivative, llvm::None);
+            derivative.getLoc(), derivative, std::nullopt);
 
         mlir::Value updatedValue = apply(builder, stateLoad, derivativeLoad);
-        builder.create<StoreOp>(loc, updatedValue, state, llvm::None);
+        builder.create<StoreOp>(loc, updatedValue, state, std::nullopt);
       } else {
         // Create the loops to iterate on each scalar variable.
         llvm::SmallVector<mlir::Value, 3> lowerBounds;
@@ -400,7 +400,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
 
   // Terminate the function.
   builder.setInsertionPointToEnd(entryBlock);
-  builder.create<mlir::simulation::ReturnOp>(loc, llvm::None);
+  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
 
   return mlir::success();
 }

@@ -88,7 +88,7 @@ namespace
 
         // Declare the variables.
         rewriter.setInsertionPointToStart(functionOp.bodyBlock());
-        mlir::BlockAndValueMapping mapping;
+        mlir::IRMapping mapping;
 
         for (VariableOp variableOp : inputVariables) {
           auto clonedVariableOp = mlir::cast<VariableOp>(

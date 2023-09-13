@@ -8,14 +8,14 @@ using namespace ::marco::parser;
 #define EXPECT(Token)                                                                           \
 	if (!accept<Token>()) {                                                                       \
 	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
-    return llvm::None;                                                                          \
+    return std::nullopt;                                                                        \
   }                                                                                             \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
 	auto outVar = expression;           \
 	if (!outVar.has_value()) {          \
-    return llvm::None;                \
+    return std::nullopt;              \
   }                                   \
   static_assert(true)
 
@@ -34,7 +34,7 @@ namespace marco::parser
     current = lexer.scan();
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
   {
     auto loc = lexer.getTokenPosition();
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 1> classes;
@@ -49,7 +49,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(root));
   }
 
-  llvm::Optional<Parser::ValueWrapper<bool>> Parser::parseBoolValue()
+  std::optional<Parser::ValueWrapper<bool>> Parser::parseBoolValue()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -61,7 +61,7 @@ namespace marco::parser
     return ValueWrapper(loc, false);
   }
 
-  llvm::Optional<Parser::ValueWrapper<int64_t>> Parser::parseIntValue()
+  std::optional<Parser::ValueWrapper<int64_t>> Parser::parseIntValue()
   {
     auto loc = lexer.getTokenPosition();
     auto value = lexer.getInt();
@@ -69,7 +69,7 @@ namespace marco::parser
     return ValueWrapper(loc, value);
   }
 
-  llvm::Optional<Parser::ValueWrapper<double>> Parser::parseFloatValue()
+  std::optional<Parser::ValueWrapper<double>> Parser::parseFloatValue()
   {
     auto loc = lexer.getTokenPosition();
     auto value = lexer.getFloat();
@@ -77,7 +77,7 @@ namespace marco::parser
     return ValueWrapper(loc, value);
   }
 
-  llvm::Optional<Parser::ValueWrapper<std::string>> Parser::parseString()
+  std::optional<Parser::ValueWrapper<std::string>> Parser::parseString()
   {
     auto loc = lexer.getTokenPosition();
     auto value = lexer.getString();
@@ -85,7 +85,7 @@ namespace marco::parser
     return ValueWrapper(loc, value);
   }
 
-  llvm::Optional<Parser::ValueWrapper<std::string>> Parser::parseIdentifier()
+  std::optional<Parser::ValueWrapper<std::string>> Parser::parseIdentifier()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -95,7 +95,7 @@ namespace marco::parser
     return ValueWrapper(loc, std::move(identifier));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseClassDefinition()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseClassDefinition()
   {
     auto loc = lexer.getTokenPosition();
     std::unique_ptr<ASTNode> result;
@@ -259,7 +259,7 @@ namespace marco::parser
       diagnostics->emitError<UnexpectedIdentifierMessage>(
           endName->getLocation(), endName->getValue(), name->getValue());
 
-      return llvm::None;
+      return std::nullopt;
     }
 
     EXPECT(Token::Semicolon);
@@ -274,7 +274,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseModification()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseModification()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -305,7 +305,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseClassModification()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseClassModification()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::LPar);
@@ -318,7 +318,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArgumentList()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArgumentList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
@@ -330,7 +330,7 @@ namespace marco::parser
     return arguments;
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseArgument()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseArgument()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -351,7 +351,7 @@ namespace marco::parser
     return std::move(*elementModification);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseElementModification(bool each, bool final)
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementModification(bool each, bool final)
   {
     auto loc = lexer.getTokenPosition();
 
@@ -374,17 +374,17 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseElementRedeclaration()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementRedeclaration()
   {
     llvm_unreachable("Not implemented");
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseElementReplaceable(bool each, bool final)
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementReplaceable(bool each, bool final)
   {
     llvm_unreachable("Not implemented");
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::Algorithm);
@@ -407,7 +407,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseEquation()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseEquation()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -424,7 +424,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseStatement()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseStatement()
   {
     if (current == Token::If) {
       TRY(statement, parseIfStatement());
@@ -500,7 +500,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseIfStatement()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseIfStatement()
   {
     auto loc = lexer.getTokenPosition();
     auto result = std::make_unique<IfStatement>(loc);
@@ -582,7 +582,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseForStatement()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseForStatement()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -609,7 +609,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseWhileStatement()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseWhileStatement()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -636,7 +636,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseWhenStatement()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseWhenStatement()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -663,7 +663,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseExpression()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseExpression()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -690,7 +690,7 @@ namespace marco::parser
     return parseSimpleExpression();
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression()
   {
     auto loc = lexer.getTokenPosition();
     TRY(l1, parseLogicalExpression());
@@ -719,7 +719,7 @@ namespace marco::parser
     return std::move(*l1);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -745,7 +745,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -771,7 +771,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor()
   {
     auto loc = lexer.getTokenPosition();
     bool negated = accept<Token::Not>();
@@ -789,7 +789,7 @@ namespace marco::parser
     return std::move(*relation);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseRelation()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseRelation()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -811,7 +811,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<OperationKind> Parser::parseRelationalOperator()
+  std::optional<OperationKind> Parser::parseRelationalOperator()
   {
     if (accept<Token::GreaterEqual>()) {
       return OperationKind::greaterEqual;
@@ -837,10 +837,10 @@ namespace marco::parser
       return OperationKind::different;
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression()
   {
     auto loc = lexer.getTokenPosition();
     bool negative = false;
@@ -884,7 +884,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<OperationKind> Parser::parseAddOperator()
+  std::optional<OperationKind> Parser::parseAddOperator()
   {
     if (accept<Token::Plus>()) {
       return OperationKind::add;
@@ -902,10 +902,10 @@ namespace marco::parser
       return OperationKind::subtractEW;
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseTerm()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseTerm()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -935,7 +935,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<OperationKind> Parser::parseMulOperator()
+  std::optional<OperationKind> Parser::parseMulOperator()
   {
     if (accept<Token::Product>()) {
       return OperationKind::multiply;
@@ -953,10 +953,10 @@ namespace marco::parser
       return OperationKind::divideEW;
     }
 
-    return llvm::None;
+    return std::nullopt;
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseFactor()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseFactor()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -995,7 +995,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parsePrimary()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parsePrimary()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -1121,7 +1121,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseComponentReference()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseComponentReference()
   {
     auto loc = lexer.getTokenPosition();
     bool globalLookup = accept<Token::Dot>();
@@ -1146,7 +1146,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>>
+  std::optional<std::unique_ptr<ast::ASTNode>>
   Parser::parseComponentReferenceEntry()
   {
     auto loc = lexer.getTokenPosition();
@@ -1168,7 +1168,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseFunctionCallArgs()
+  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseFunctionCallArgs()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::LPar);
@@ -1189,7 +1189,7 @@ namespace marco::parser
     return ValueWrapper(std::move(loc), std::move(args));
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArguments()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArguments()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
@@ -1207,7 +1207,7 @@ namespace marco::parser
     return arguments;
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArgumentsNonFirst()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArgumentsNonFirst()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
@@ -1219,7 +1219,7 @@ namespace marco::parser
     return arguments;
   }
 
-  llvm::Optional<std::pair<std::vector<std::unique_ptr<ASTNode>>, std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArrayArguments()
+  std::optional<std::pair<std::vector<std::unique_ptr<ASTNode>>, std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArrayArguments()
   {
     auto loc = lexer.getTokenPosition();
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
@@ -1247,7 +1247,7 @@ namespace marco::parser
     return std::make_pair(std::move(arguments), std::move(inductions));
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArrayArgumentsNonFirst()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArrayArgumentsNonFirst()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
@@ -1259,12 +1259,12 @@ namespace marco::parser
     return arguments;
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseFunctionArgument()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseFunctionArgument()
   {
     return parseExpression();
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseOutputExpressionList()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseOutputExpressionList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> expressions;
 
@@ -1286,7 +1286,7 @@ namespace marco::parser
     return expressions;
   }
 
-  llvm::Optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArraySubscripts()
+  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArraySubscripts()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::LSquare);
@@ -1304,7 +1304,7 @@ namespace marco::parser
     return ValueWrapper(std::move(loc), std::move(subscripts));
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseSubscript()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseSubscript()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -1318,7 +1318,7 @@ namespace marco::parser
     return std::move(*expression);
   }
 
-  llvm::Optional<std::unique_ptr<ASTNode>> Parser::parseAnnotation()
+  std::optional<std::unique_ptr<ASTNode>> Parser::parseAnnotation()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::Annotation);
@@ -1330,7 +1330,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseEquationsBlock()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseEquationsBlock()
   {
     auto loc = lexer.getTokenPosition();
     EXPECT(Token::Equation);
@@ -1367,7 +1367,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ast::ASTNode>>> Parser::parseForEquations()
+  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> Parser::parseForEquations()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> result;
 
@@ -1423,7 +1423,7 @@ namespace marco::parser
     return result;
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -1461,7 +1461,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseElementList(bool publicSection)
+  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseElementList(bool publicSection)
   {
     std::vector<std::unique_ptr<ast::ASTNode>> members;
 
@@ -1485,7 +1485,7 @@ namespace marco::parser
     return members;
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseElement(bool publicSection)
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseElement(bool publicSection)
   {
     accept<Token::Final>();
     TRY(typePrefix, parseTypePrefix());
@@ -1521,7 +1521,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix()
   {
     auto loc = lexer.getTokenPosition();
 
@@ -1549,7 +1549,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
   {
     auto loc = lexer.getTokenPosition();
     std::unique_ptr<ast::ASTNode> result;
@@ -1604,7 +1604,7 @@ namespace marco::parser
     return std::move(result);
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
   {
     auto loc = lexer.getTokenPosition();
     auto result = std::make_unique<ArrayDimension>(loc);
@@ -1621,7 +1621,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification()
   {
     EXPECT(Token::LPar);
 

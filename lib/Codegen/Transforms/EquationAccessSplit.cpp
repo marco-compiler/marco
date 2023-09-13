@@ -52,7 +52,7 @@ namespace
         uint64_t numOfImplicitInductions =
             op.getNumOfImplicitInductionVariables();
 
-        llvm::Optional<VariableAccess> matchedAccess =
+        std::optional<VariableAccess> matchedAccess =
             op.getMatchedAccess(*symbolTableCollection);
 
         if (!matchedAccess) {
@@ -174,7 +174,7 @@ void EquationAccessSplitPass::runOnOperation()
   patterns.insert<EquationOpPattern>(&getContext(), symbolTableCollection);
 
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoIterationLimit;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
   if (mlir::failed(applyPatternsAndFoldGreedily(
           modelOp, std::move(patterns), config))) {

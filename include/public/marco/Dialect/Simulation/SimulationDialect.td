@@ -17,7 +17,6 @@ def Simulation_Dialect : Dialect {
 
     let cppNamespace = "::mlir::simulation";
     let useDefaultAttributePrinterParser = 1;
-    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
     
     let dependentDialects = [
         "modeling::ModelingDialect"

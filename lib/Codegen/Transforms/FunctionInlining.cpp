@@ -694,7 +694,7 @@ class FunctionInliner : public mlir::OpRewritePattern<CallOp>
         return mlir::failure();
       }
 
-      mlir::BlockAndValueMapping mapping;
+      mlir::IRMapping mapping;
       llvm::StringMap<mlir::Value> varMapping;
 
       // Map the operations providing the default values for the variables.
@@ -782,7 +782,7 @@ class FunctionInliner : public mlir::OpRewritePattern<CallOp>
   private:
     void cloneBodyOp(
       mlir::OpBuilder& builder,
-      mlir::BlockAndValueMapping& mapping,
+      mlir::IRMapping& mapping,
       llvm::StringMap<mlir::Value>& varMapping,
       mlir::Operation* op) const
     {

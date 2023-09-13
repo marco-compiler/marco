@@ -310,14 +310,14 @@ namespace marco::modeling
   MultidimensionalRange::takeFirstDimensions(size_t n) const
   {
     assert(n > 0 && n <= ranges.size());
-    return MultidimensionalRange(llvm::makeArrayRef(ranges).take_front(n));
+    return MultidimensionalRange(llvm::ArrayRef(ranges).take_front(n));
   }
 
   MultidimensionalRange
   MultidimensionalRange::takeLastDimensions(size_t n) const
   {
     assert(n > 0 && n <= ranges.size());
-    return MultidimensionalRange(llvm::makeArrayRef(ranges).take_back(n));
+    return MultidimensionalRange(llvm::ArrayRef(ranges).take_back(n));
   }
 
   MultidimensionalRange MultidimensionalRange::takeDimensions(
@@ -339,14 +339,14 @@ namespace marco::modeling
   MultidimensionalRange::dropFirstDimensions(size_t n) const
   {
     assert(n < ranges.size());
-    return MultidimensionalRange(llvm::makeArrayRef(ranges).drop_front(n));
+    return MultidimensionalRange(llvm::ArrayRef(ranges).drop_front(n));
   }
 
   MultidimensionalRange
   MultidimensionalRange::dropLastDimensions(size_t n) const
   {
     assert(n < ranges.size());
-    return MultidimensionalRange(llvm::makeArrayRef(ranges).drop_back(n));
+    return MultidimensionalRange(llvm::ArrayRef(ranges).drop_back(n));
   }
 
   MultidimensionalRange

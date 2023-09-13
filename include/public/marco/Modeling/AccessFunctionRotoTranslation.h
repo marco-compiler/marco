@@ -46,13 +46,13 @@ namespace marco::modeling
 
       void countVariablesUsages(llvm::SmallVectorImpl<size_t>& usages) const;
 
-      llvm::Optional<unsigned int>
+      std::optional<unsigned int>
       getInductionVariableIndex(unsigned int expressionIndex) const;
 
       int64_t getOffset(unsigned int expressionIndex) const;
 
     private:
-      llvm::Optional<unsigned int> getInductionVariableIndex(
+      std::optional<unsigned int> getInductionVariableIndex(
           mlir::AffineExpr expression) const;
 
       int64_t getOffset(mlir::AffineExpr expression) const;

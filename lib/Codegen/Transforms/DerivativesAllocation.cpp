@@ -624,7 +624,7 @@ namespace
 
         if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
             arrayType && arrayType.isScalar()) {
-          replacement = rewriter.create<LoadOp>(loc, replacement, llvm::None);
+          replacement = rewriter.create<LoadOp>(loc, replacement, std::nullopt);
         }
 
         rewriter.replaceOp(op, replacement);

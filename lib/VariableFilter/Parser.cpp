@@ -8,14 +8,14 @@ using namespace ::marco::vf;
 #define EXPECT(Token)                                                                           \
 	if (!accept<Token>()) {                                                                       \
 	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
-    return llvm::None;                                                                          \
+    return std::nullopt;                                                                        \
   }                                                                                             \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
 	auto outVar = expression;           \
 	if (!outVar.has_value()) {          \
-    return llvm::None;                \
+    return std::nullopt;              \
   }                                   \
   static_assert(true)
 
@@ -110,7 +110,7 @@ namespace marco::vf
     return true;
   }
 
-  llvm::Optional<DerivativeExpression> Parser::der()
+  std::optional<DerivativeExpression> Parser::der()
   {
     EXPECT(Token::DerKeyword);
     EXPECT(Token::LPar);
@@ -120,7 +120,7 @@ namespace marco::vf
     return DerivativeExpression(variable);
   }
 
-  llvm::Optional<RegexExpression> Parser::regex()
+  std::optional<RegexExpression> Parser::regex()
   {
     auto loc = lexer.getTokenPosition();
     RegexExpression node(lexer.getLastRegex());
@@ -128,27 +128,27 @@ namespace marco::vf
 
     if (node.getRegex().empty()) {
       diagnostics->emitError<EmptyRegexMessage>(loc);
-      return llvm::None;
+      return std::nullopt;
     }
 
     llvm::Regex regexObj(node.getRegex());
 
     if (!regexObj.isValid()) {
       diagnostics->emitError<InvalidRegexMessage>(loc);
-      return llvm::None;
+      return std::nullopt;
     }
 
     return node;
   }
 
-  llvm::Optional<VariableExpression> Parser::identifier()
+  std::optional<VariableExpression> Parser::identifier()
   {
     VariableExpression node(lexer.getLastIdentifier());
     EXPECT(Token::Ident);
     return node;
   }
 
-  llvm::Optional<ArrayExpression> Parser::array(VariableExpression variable)
+  std::optional<ArrayExpression> Parser::array(VariableExpression variable)
   {
     EXPECT(Token::LSquare);
 
@@ -165,9 +165,9 @@ namespace marco::vf
     return ArrayExpression(variable, ranges);
   }
 
-  llvm::Optional<Range> Parser::arrayRange()
+  std::optional<Range> Parser::arrayRange()
   {
-    auto getIndex = [&]() -> llvm::Optional<int> {
+    auto getIndex = [&]() -> std::optional<int> {
       if (accept<Token::Dollar>()) {
         return Range::kUnbounded;
       }

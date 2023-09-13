@@ -88,7 +88,7 @@ namespace
         auto templateOp = rewriter.create<EquationTemplateOp>(loc);
         mlir::Block* templateBody = templateOp.createBody(loops.size());
 
-        mlir::BlockAndValueMapping mapping;
+        mlir::IRMapping mapping;
 
         for (const auto& [oldInduction, newInduction] :
              llvm::zip(oldInductions, templateOp.getInductionVariables())) {
@@ -182,7 +182,7 @@ namespace
 
         // Create an instance for each equality.
         for (size_t i = 0; i < cardinality; ++i) {
-          llvm::Optional<IndexSet> implicitIndices =
+          std::optional<IndexSet> implicitIndices =
               templateOp.computeImplicitIterationSpace(i);
 
           if (!explicitIndices.empty()) {

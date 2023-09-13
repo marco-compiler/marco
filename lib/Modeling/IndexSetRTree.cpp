@@ -1,5 +1,6 @@
 #include "marco/Modeling/IndexSetRTree.h"
 #include "marco/Modeling/IndexSetList.h"
+#include "llvm/ADT/ArrayRef.h"
 #include <queue>
 #include <set>
 #include <stack>
@@ -77,7 +78,7 @@ namespace
           std::max(first[i].getEnd(), second[i].getEnd()));
     }
 
-    return MultidimensionalRange(std::move(ranges));
+    return {ranges};
   }
 
   template<typename T>
@@ -100,7 +101,9 @@ namespace
 
 namespace marco::modeling::impl
 {
-  RTreeIndexSet::Node::Node(Node* parent, MultidimensionalRange boundary)
+  RTreeIndexSet::Node::Node(
+      Node* parent,
+      const MultidimensionalRange& boundary)
       : parent(parent),
         boundary(boundary),
         flatSize(boundary.flatSize())
@@ -147,9 +150,9 @@ namespace marco::modeling::impl
   void RTreeIndexSet::Node::recalcBoundary()
   {
     if (isLeaf()) {
-      boundary = getMBR(llvm::makeArrayRef(values));
+      boundary = getMBR(llvm::ArrayRef(values));
     } else {
-      boundary = getMBR(llvm::makeArrayRef(children));
+      boundary = getMBR(llvm::ArrayRef(children));
     }
 
     // Check the validity of the MBR
@@ -246,8 +249,8 @@ namespace marco::modeling::impl
       PointIterator(
           IndexSet::RangeIterator currentRangeIt,
           IndexSet::RangeIterator endRangeIt,
-          llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt,
-          llvm::Optional<MultidimensionalRange::const_iterator> endPointIt);
+          std::optional<MultidimensionalRange::const_iterator> currentPointIt,
+          std::optional<MultidimensionalRange::const_iterator> endPointIt);
 
       bool shouldProceed() const;
 
@@ -258,15 +261,15 @@ namespace marco::modeling::impl
     private:
       IndexSet::RangeIterator currentRangeIt;
       IndexSet::RangeIterator endRangeIt;
-      llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt;
-      llvm::Optional<MultidimensionalRange::const_iterator> endPointIt;
+      std::optional<MultidimensionalRange::const_iterator> currentPointIt;
+      std::optional<MultidimensionalRange::const_iterator> endPointIt;
   };
 
   RTreeIndexSet::PointIterator::PointIterator(
       IndexSet::RangeIterator currentRangeIt,
       IndexSet::RangeIterator endRangeIt,
-      llvm::Optional<MultidimensionalRange::const_iterator> currentPointIt,
-      llvm::Optional<MultidimensionalRange::const_iterator> endPointIt)
+      std::optional<MultidimensionalRange::const_iterator> currentPointIt,
+      std::optional<MultidimensionalRange::const_iterator> endPointIt)
       : IndexSet::PointIterator::Impl(RTree),
         currentRangeIt(std::move(currentRangeIt)),
         endRangeIt(std::move(endRangeIt)),
@@ -293,7 +296,7 @@ namespace marco::modeling::impl
       // past-the-end, and thus we must avoid dereferencing it.
 
       RTreeIndexSet::PointIterator it(
-          currentRangeIt, endRangeIt, llvm::None, llvm::None);
+          currentRangeIt, endRangeIt, std::nullopt, std::nullopt);
 
       return { std::make_unique<RTreeIndexSet::PointIterator>(std::move(it)) };
     }
@@ -311,7 +314,7 @@ namespace marco::modeling::impl
       const RTreeIndexSet& indexSet)
   {
     RTreeIndexSet::PointIterator it(
-        indexSet.rangesEnd(), indexSet.rangesEnd(), llvm::None, llvm::None);
+        indexSet.rangesEnd(), indexSet.rangesEnd(), std::nullopt, std::nullopt);
 
     return { std::make_unique<RTreeIndexSet::PointIterator>(std::move(it)) };
   }
@@ -375,8 +378,8 @@ namespace marco::modeling::impl
         ++currentRangeIt;
 
         if (currentRangeIt == endRangeIt) {
-          currentPointIt = llvm::None;
-          endPointIt = llvm::None;
+          currentPointIt = std::nullopt;
+          endPointIt = std::nullopt;
         } else {
           currentPointIt = (*currentRangeIt).begin();
           endPointIt = (*currentRangeIt).end();
@@ -1658,7 +1661,7 @@ namespace
       const size_t minElements,
       std::function<llvm::SmallVectorImpl<T>&(RTreeIndexSet::Node&)> containerFn)
   {
-    auto seeds = pickSeeds(llvm::makeArrayRef(containerFn(node)));
+    auto seeds = pickSeeds(llvm::ArrayRef(containerFn(node)));
 
     llvm::DenseSet<size_t> movedValues;
 
@@ -1689,16 +1692,20 @@ namespace
       // them and stop.
 
       if (containerFn(*firstNew).size() + remaining == minElements) {
-        for (auto& value : llvm::enumerate(containerFn(node))) {
-          moveValueFn(*firstNew, value.index());
+        auto& container = containerFn(node);
+
+        for (size_t i = 0, e = container.size(); i < e; ++i) {
+          moveValueFn(*firstNew, i);
         }
 
         assert(movedValues.size() == containerFn(node).size());
         break;
 
       } else if (containerFn(*secondNew).size() + remaining == minElements) {
-        for (auto& value : llvm::enumerate(containerFn(node))) {
-          moveValueFn(*secondNew, value.index());
+        auto& container = containerFn(node);
+
+        for (size_t i = 0, e = container.size(); i < e; ++i) {
+          moveValueFn(*secondNew, i);
         }
 
         assert(movedValues.size() == containerFn(node).size());
@@ -1707,7 +1714,7 @@ namespace
 
       // Choose the next entry to assign.
       auto next = pickNext(
-          llvm::makeArrayRef(containerFn(node)),
+          llvm::ArrayRef(containerFn(node)),
           movedValues, *firstNew, *secondNew);
 
       assert(movedValues.find(next) == movedValues.end());
@@ -1836,11 +1843,11 @@ static bool checkMBRsInvariant(const impl::RTreeIndexSet& indexSet)
     nodes.pop();
 
     if (node->isLeaf()) {
-      if (node->getBoundary() != getMBR(llvm::makeArrayRef(node->values))) {
+      if (node->getBoundary() != getMBR(llvm::ArrayRef(node->values))) {
         return false;
       }
     } else {
-      if (node->getBoundary() != getMBR(llvm::makeArrayRef(node->children))) {
+      if (node->getBoundary() != getMBR(llvm::ArrayRef(node->children))) {
         return false;
       }
     }

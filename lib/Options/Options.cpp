@@ -1,31 +1,41 @@
 #include "marco/Options/Options.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cassert>
 
-#define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
+#define OPTTABLE_VALUES_CODE
+#include "marco/Options/Options.inc"
+#undef OPTTABLE_VALUES_CODE
+
+#define PREFIX(NAME, VALUE)                                                    \
+  static constexpr llvm::StringLiteral NAME##_init[] = VALUE;                  \
+  static constexpr llvm::ArrayRef<llvm::StringLiteral> NAME(                   \
+      NAME##_init, std::size(NAME##_init) - 1);
 #include "marco/Options/Options.inc"
 #undef PREFIX
 
 using namespace marco::options;
 using namespace llvm::opt;
 
-static const llvm::opt::OptTable::Info infoTable[] = {
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,     \
-                  HELPTEXT, METAVAR, VALUES)                                      \
-     {PREFIX, NAME,  HELPTEXT,    METAVAR,     OPT_##ID,  Option::KIND##Class,    \
-      PARAM,  FLAGS, OPT_##GROUP, OPT_##ALIAS, ALIASARGS, VALUES},
+static constexpr const llvm::StringLiteral PrefixTable_init[] =
+#define PREFIX_UNION(VALUES) VALUES
+#include "marco/Options/Options.inc"
+#undef PREFIX_UNION
+    ;
+static constexpr const llvm::ArrayRef<llvm::StringLiteral>
+    prefixTable(PrefixTable_init, std::size(PrefixTable_init) - 1);
+
+static constexpr OptTable::Info infoTable[] = {
+#define OPTION(...) LLVM_CONSTRUCT_OPT_INFO(__VA_ARGS__),
 #include "marco/Options/Options.inc"
 #undef OPTION
 };
 
-class DriverOptTable : public llvm::opt::OptTable
+class DriverOptTable : public llvm::opt::PrecomputedOptTable
 {
   public:
     DriverOptTable()
-        : llvm::opt::OptTable(infoTable)
+        : llvm::opt::PrecomputedOptTable(infoTable, prefixTable)
     {
     }
 };

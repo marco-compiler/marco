@@ -4,7 +4,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include <map>
@@ -30,8 +30,7 @@ namespace
     protected:
       mlir::Type getVoidPtrType() const
       {
-        mlir::Type i8Type = mlir::IntegerType::get(this->getContext(), 8);
-        return mlir::LLVM::LLVMPointerType::get(i8Type);
+        return mlir::LLVM::LLVMPointerType::get(this->getContext());
       }
 
       mlir::Value createGlobalString(
@@ -67,10 +66,15 @@ namespace
             mlir::IntegerType::get(builder.getContext(), 64),
             builder.getIntegerAttr(builder.getIndexType(), 0));
 
-        return builder.create<mlir::LLVM::GEPOp>(
+        mlir::Value ptr = builder.create<mlir::LLVM::GEPOp>(
             loc,
-            getVoidPtrType(),
-            globalPtr, llvm::makeArrayRef({cst0, cst0}));
+            mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8)),
+            globalPtr, llvm::ArrayRef({cst0, cst0}));
+
+        ptr = builder.create<mlir::LLVM::BitcastOp>(
+            loc, getVoidPtrType(), ptr);
+
+        return ptr;
       }
   };
 }
@@ -90,12 +94,12 @@ namespace
         auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
         // char* type.
-        mlir::Type charPtrType = mlir::LLVM::LLVMPointerType::get(
-            mlir::IntegerType::get(rewriter.getContext(), 8));
+        mlir::Type opaquePtrType =
+            mlir::LLVM::LLVMPointerType::get(getContext());
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             loc, "getModelName",
-            rewriter.getFunctionType(llvm::None, charPtrType));
+            rewriter.getFunctionType(std::nullopt, opaquePtrType));
 
         mlir::Block* entryBlock = funcOp.addEntryBlock();
         rewriter.setInsertionPointToStart(entryBlock);
@@ -127,7 +131,7 @@ namespace
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             loc, "getNumOfVariables",
-            rewriter.getFunctionType(llvm::None, rewriter.getI64Type()));
+            rewriter.getFunctionType(std::nullopt, rewriter.getI64Type()));
 
         mlir::Block* entryBlock = funcOp.addEntryBlock();
         rewriter.setInsertionPointToStart(entryBlock);
@@ -157,12 +161,12 @@ namespace
         auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
         // char* type.
-        mlir::Type charPtrType = mlir::LLVM::LLVMPointerType::get(
-            mlir::IntegerType::get(rewriter.getContext(), 8));
+        mlir::Type opaquePtrType =
+            mlir::LLVM::LLVMPointerType::get(getContext());
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             loc, "getVariableName",
-            rewriter.getFunctionType(rewriter.getI64Type(), charPtrType));
+            rewriter.getFunctionType(rewriter.getI64Type(), opaquePtrType));
 
         // Create the entry block.
         mlir::Block* entryBlock = funcOp.addEntryBlock();
@@ -171,7 +175,7 @@ namespace
         mlir::Block* returnBlock = rewriter.createBlock(
             &funcOp.getFunctionBody(),
             funcOp.getFunctionBody().end(),
-            charPtrType,
+            opaquePtrType,
             loc);
 
         rewriter.setInsertionPointToEnd(returnBlock);
@@ -190,7 +194,7 @@ namespace
         for (size_t i = 0; i < numCases; ++i) {
           caseValues[i] = i;
           caseBlocks[i] = rewriter.createBlock(returnBlock);
-          caseOperandsRefs[i] = llvm::None;
+          caseOperandsRefs[i] = std::nullopt;
         }
 
         rewriter.setInsertionPointToStart(entryBlock);
@@ -272,7 +276,7 @@ namespace
         for (size_t i = 0; i < numCases; ++i) {
           caseValues[i] = i;
           caseBlocks[i] = rewriter.createBlock(returnBlock);
-          caseOperandsRefs[i] = llvm::None;
+          caseOperandsRefs[i] = std::nullopt;
         }
 
         rewriter.setInsertionPointToStart(entryBlock);
@@ -418,7 +422,7 @@ namespace
           for (int64_t variablePos : printableVariables) {
             caseValues.push_back(variablePos);
             caseBlocks.push_back(printableVariableBlock);
-            caseOperandsRefs.push_back(llvm::None);
+            caseOperandsRefs.push_back(std::nullopt);
           }
         }
 
@@ -490,7 +494,7 @@ namespace
           for (int64_t variable : entry.getSecond()) {
             caseValues.push_back(variable);
             caseBlocks.push_back(caseBlock);
-            caseOperandsRefs.push_back(llvm::None);
+            caseOperandsRefs.push_back(std::nullopt);
           }
         }
 
@@ -629,7 +633,7 @@ namespace
             const Range& range = multidimensionalRange[i];
             caseValues.push_back(i);
             caseBlocks.push_back(rangeBlocks[range]);
-            caseOperandsRefs.push_back(llvm::None);
+            caseOperandsRefs.push_back(std::nullopt);
           }
 
           assert(firstRangeBlock != nullptr);
@@ -777,7 +781,7 @@ namespace
         for (size_t i = 0; i < numCases; ++i) {
           caseValues[i] = i;
           caseBlocks[i] = rewriter.createBlock(returnBlock);
-          caseOperandsRefs[i] = llvm::None;
+          caseOperandsRefs[i] = std::nullopt;
         }
 
         rewriter.setInsertionPointToStart(entryBlock);
@@ -830,7 +834,7 @@ namespace
             loc, op.getSymName(),
             rewriter.getFunctionType(int64PtrType, op.getResultTypes()));
 
-        mlir::BlockAndValueMapping mapping;
+        mlir::IRMapping mapping;
 
         // Create the entry block.
         mlir::Block* entryBlock = funcOp.addEntryBlock();
@@ -922,7 +926,7 @@ namespace
         for (size_t i = 0; i < numCases; ++i) {
           caseValues[i] = i;
           caseBlocks[i] = rewriter.createBlock(returnBlock);
-          caseOperandsRefs[i] = llvm::None;
+          caseOperandsRefs[i] = std::nullopt;
         }
 
         rewriter.setInsertionPointToStart(entryBlock);
@@ -973,7 +977,7 @@ namespace
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             op.getLoc(), "init",
-            rewriter.getFunctionType(llvm::None, llvm::None));
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
 
         rewriter.inlineRegionBefore(
             op.getBodyRegion(),
@@ -1007,7 +1011,7 @@ namespace
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             op.getLoc(), "deinit",
-            rewriter.getFunctionType(llvm::None, llvm::None));
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
 
         rewriter.inlineRegionBefore(
             op.getBodyRegion(),
@@ -1123,14 +1127,6 @@ namespace
 
 namespace mlir
 {
-  void populateSimulationToFuncStructuralTypeConversionsAndLegality(
-      mlir::LLVMTypeConverter& typeConverter,
-      mlir::RewritePatternSet& patterns,
-      mlir::ConversionTarget& target)
-  {
-
-  }
-
   std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass()
   {
     return std::make_unique<SimulationToFuncConversionPass>();

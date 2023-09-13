@@ -2,7 +2,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -263,7 +263,7 @@ namespace
               continue;
             }
 
-            mlir::BlockAndValueMapping ssaDerivatives;
+            mlir::IRMapping ssaDerivatives;
 
             if (auto it = symbolDerivatives.find(classOp.getOperation());
                 it == symbolDerivatives.end()) {

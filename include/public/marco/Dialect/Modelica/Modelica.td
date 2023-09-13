@@ -5,11 +5,11 @@ include "marco/Dialect/Modelica/ModelicaAttributes.td"
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "marco/Dialect/Modelica/ModelicaInterfaces.td"
 include "marco/Dialect/Modelica/ModelicaTypes.td"
-include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
@@ -2741,7 +2741,7 @@ def Modelica_ModelOp : Modelica_Op<"model",
         SymbolNameAttr:$sym_name,
         DefaultValuedAttr<
             TypedArrayAttrBase<VarDerivativeAttr, "Derivatives map">,
-            "llvm::None">:$derivatives_map);
+            "std::nullopt">:$derivatives_map);
 
     let results = (outs);
 
@@ -3075,7 +3075,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             /// of each equation side.
             /// No iteration space is returned if the equality involves scalar
             /// variables.
-            llvm::Optional<IndexSet> computeImplicitIterationSpace(
+            std::optional<IndexSet> computeImplicitIterationSpace(
                 uint64_t viewElementIndex);
 
             /// Get the accesses to variables performed by the equation.
@@ -3102,24 +3102,24 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             mlir::Value getValueAtPath(const EquationPath& path);
 
             /// Get the access at a given path.
-            llvm::Optional<VariableAccess> getAccessAtPath(
+            std::optional<VariableAccess> getAccessAtPath(
                 mlir::SymbolTableCollection& symbolTable,
                 const EquationPath& path);
 
             /// Get the access function given the values (expressions) of the
             /// indices.
-            llvm::Optional<mlir::AffineMap> getAccessFunction(
+            std::optional<mlir::AffineMap> getAccessFunction(
                 llvm::ArrayRef<mlir::Value> indices);
 
             IndexSet applyAccessFunction(
                 const AccessFunction& accessFunction,
-                llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-                llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> explicitEquationIndices,
+                std::optional<MultidimensionalRange> implicitEquationIndices,
                 const EquationPath& path);
 
             mlir::LogicalResult cloneWithReplacedAccess(
                 mlir::RewriterBase& rewriter,
-                llvm::Optional<
+                std::optional<
                     std::reference_wrapper<const IndexSet>> equationIndices,
                 const VariableAccess& access,
                 EquationTemplateOp replacementEquation,
@@ -3134,15 +3134,15 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             mlir::LogicalResult explicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-                llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> explicitEquationIndices,
+                std::optional<MultidimensionalRange> implicitEquationIndices,
                 const EquationPath& path);
 
             EquationTemplateOp cloneAndExplicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-                llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> explicitEquationIndices,
+                std::optional<MultidimensionalRange> implicitEquationIndices,
                 const EquationPath& path);
 
         private:
@@ -3171,13 +3171,13 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
                 llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
                 EquationPath path);
 
-            llvm::Optional<mlir::AffineExpr> getAffineExpr(
+            std::optional<mlir::AffineExpr> getAffineExpr(
                 llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
                 mlir::Value index);
 
             mlir::LogicalResult cloneWithReplacedVectorizedAccess(
                 mlir::RewriterBase& rewriter,
-                llvm::Optional<
+                std::optional<
                     std::reference_wrapper<const IndexSet>> equationIndices,
                 const VariableAccess& access,
                 EquationTemplateOp replacementEquation,
@@ -3189,7 +3189,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
 
             mlir::LogicalResult cloneWithReplacedVectorizedAccess(
                 mlir::RewriterBase& rewriter,
-                llvm::Optional<
+                std::optional<
                     std::reference_wrapper<const IndexSet>> equationIndices,
                 const VariableAccess& access,
                 EquationTemplateOp replacementEquation,
@@ -3202,7 +3202,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
 
             mlir::LogicalResult cloneWithReplacedVectorizedAccess(
                 mlir::RewriterBase& rewriter,
-                llvm::Optional<std::reference_wrapper<
+                std::optional<std::reference_wrapper<
                     const MultidimensionalRange>> indices,
                 const VariableAccess& access,
                 EquationTemplateOp replacementEquation,
@@ -3216,7 +3216,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             mlir::LogicalResult mapInductionVariables(
                 mlir::OpBuilder& builder,
                 mlir::Location loc,
-                mlir::BlockAndValueMapping& mapping,
+                mlir::IRMapping& mapping,
                 EquationTemplateOp source,
                 EquationTemplateOp destination,
                 const AccessFunction& transformation);
@@ -3230,8 +3230,8 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             mlir::LogicalResult groupLeftHandSide(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                llvm::Optional<MultidimensionalRange> explicitEquationIndices,
-                llvm::Optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> explicitEquationIndices,
+                std::optional<MultidimensionalRange> implicitEquationIndices,
                 const VariableAccess& requestedAccess);
 
             bool checkAccessEquivalence(
@@ -3244,7 +3244,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
                 mlir::Value root,
                 EquationPath path);
 
-            llvm::Optional<std::pair<unsigned int, mlir::Value>>
+            std::optional<std::pair<unsigned int, mlir::Value>>
             getMultiplyingFactor(
                 mlir::OpBuilder& builder,
                 mlir::SymbolTableCollection& symbolTableCollection,
@@ -3296,7 +3296,7 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
             llvm::SmallVectorImpl<VariableAccess>& result,
             mlir::SymbolTableCollection& symbolTable);
 
-        llvm::Optional<VariableAccess> getAccessAtPath(
+        std::optional<VariableAccess> getAccessAtPath(
             mlir::SymbolTableCollection& symbolTable,
             const EquationPath& path);
 
@@ -3320,7 +3320,7 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
 
         mlir::LogicalResult cloneWithReplacedAccess(
             mlir::RewriterBase& rewriter,
-            llvm::Optional<
+            std::optional<
                 std::reference_wrapper<const IndexSet>> equationIndices,
             const VariableAccess& access,
             EquationTemplateOp replacementEquation,
@@ -3368,7 +3368,7 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
             llvm::SmallVectorImpl<VariableAccess>& result,
             mlir::SymbolTableCollection& symbolTable);
 
-        llvm::Optional<VariableAccess> getAccessAtPath(
+        std::optional<VariableAccess> getAccessAtPath(
             mlir::SymbolTableCollection& symbolTable,
             const EquationPath& path);
 
@@ -3390,7 +3390,7 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
 
         IndexSet getIterationSpace();
 
-        llvm::Optional<VariableAccess> getMatchedAccess(
+        std::optional<VariableAccess> getMatchedAccess(
             mlir::SymbolTableCollection& symbolTableCollection);
 
        mlir::LogicalResult getWriteAccesses(
@@ -3425,7 +3425,7 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
 
         mlir::LogicalResult cloneWithReplacedAccess(
             mlir::RewriterBase& rewriter,
-            llvm::Optional<
+            std::optional<
                 std::reference_wrapper<const IndexSet>> equationIndices,
             const VariableAccess& access,
             EquationTemplateOp replacementEquation,
@@ -3500,7 +3500,7 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
             llvm::SmallVectorImpl<VariableAccess>& result,
             mlir::SymbolTableCollection& symbolTable);
 
-        llvm::Optional<VariableAccess> getAccessAtPath(
+        std::optional<VariableAccess> getAccessAtPath(
             mlir::SymbolTableCollection& symbolTable,
             const EquationPath& path);
 
@@ -3522,7 +3522,7 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
 
         IndexSet getIterationSpace();
 
-        llvm::Optional<VariableAccess> getMatchedAccess(
+        std::optional<VariableAccess> getMatchedAccess(
             mlir::SymbolTableCollection& symbolTableCollection);
 
        mlir::LogicalResult getWriteAccesses(
@@ -3557,7 +3557,7 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
 
         mlir::LogicalResult cloneWithReplacedAccess(
             mlir::RewriterBase& rewriter,
-            llvm::Optional<
+            std::optional<
                 std::reference_wrapper<const IndexSet>> equationIndices,
             const VariableAccess& access,
             EquationTemplateOp replacementEquation,
@@ -3856,7 +3856,9 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         TypeAttrOf<FunctionType>:$function_type,
-        OptionalAttr<StrAttr>:$sym_visibility);
+        OptionalAttr<StrAttr>:$sym_visibility,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let regions = (region AnyRegion:$body);
 
@@ -3895,14 +3897,14 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
         /// included in the new function. Replaces references to cloned sub-values
         /// with the corresponding value that is copied, and adds those mappings to
         /// the mapper.
-        RawFunctionOp clone(mlir::BlockAndValueMapping &mapper);
+        RawFunctionOp clone(mlir::IRMapping &mapper);
         RawFunctionOp clone();
 
         /// Clone the internal blocks and attributes from this function into dest.
         /// Any cloned blocks are appended to the back of dest. This function
         /// asserts that the attributes of the current function and dest are
         /// compatible.
-        void cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping &mapper);
+        void cloneInto(RawFunctionOp dest, mlir::IRMapping &mapper);
 
         /// @name CallableOpInterface methods
         /// {
@@ -3910,13 +3912,15 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external
         /// function.
-        mlir::Region* getCallableRegion() {
+        mlir::Region* getCallableRegion()
+        {
             return isExternal() ? nullptr : &getBody();
         }
 
         /// Returns the results types that the callable region produces when
         /// executed.
-        llvm::ArrayRef<mlir::Type> getCallableResults() {
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
             return getFunctionType().getResults();
         }
 
@@ -3925,12 +3929,14 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
         /// {
 
         /// Returns the argument types of this function.
-        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
             return getFunctionType().getInputs();
         }
 
         /// Returns the result types of this function.
-        llvm::ArrayRef<mlir::Type> getResultTypes() {
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
             return getFunctionType().getResults();
         }
 
@@ -3972,7 +3978,7 @@ def RawReturnOp : Modelica_Op<"raw_return",
   let arguments = (ins Variadic<AnyType>:$operands);
 
   let builders = [OpBuilder<(ins), [{
-    build($_builder, $_state, llvm::None);
+    build($_builder, $_state, std::nullopt);
   }]>];
 
   let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
@@ -3989,7 +3995,7 @@ def Modelica_RawVariableOp : Modelica_Op<"raw_variable", []>
 
     let arguments = (ins
         StrAttr:$name,
-        DefaultValuedAttr<StrArrayAttr, "::llvm::None">:$dimensionsConstraints,
+        DefaultValuedAttr<StrArrayAttr, "{}">:$dimensionsConstraints,
         Variadic<Index>:$dynamicSizes);
 
     let results = (outs AnyVariable:$variable);
@@ -4083,72 +4089,6 @@ def Modelica_RawVariableSetOp : Modelica_Op<"raw_variable_set", []>
     }];
 }
 
-def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
-    [Symbol, CallableOpInterface]>
-{
-    let summary = "Runtime function.";
-
-    let description = [{
-        A Modelica function that is implemented into the runtime library.
-    }];
-
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type,
-        OptionalAttr<StrAttr>:$sym_visibility);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins
-            "llvm::StringRef":$name, "mlir::FunctionType":$type,
-            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
-            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
-    ];
-
-    let extraClassDeclaration = [{
-        /// @name CallableOpInterface
-        /// {
-
-        /// Returns the region on the current operation that is callable. This may
-        /// return null in the case of an external callable object, e.g. an external
-        /// function.
-        mlir::Region* getCallableRegion() {
-            return nullptr;
-        }
-
-        /// Returns the results types that the callable region produces when
-        /// executed.
-        llvm::ArrayRef<mlir::Type> getCallableResults() {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name FunctionOpInterface Methods
-        /// {
-
-        /// Returns the argument types of this function.
-        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
-
-        /// Returns the result types of this function.
-        llvm::ArrayRef<mlir::Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name SymbolOpInterface Methods
-        /// {
-
-        bool isDeclaration() {
-            return true;
-        }
-
-        /// }
-    }];
-}
-
 def Modelica_CallOp : Modelica_Op<"call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
@@ -4188,18 +4128,15 @@ def Modelica_CallOp : Modelica_Op<"call",
         OpBuilder<(ins
             "FunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args,
-            CArg<"llvm::Optional<mlir::ArrayAttr>", "llvm::None">:$argNames)>,
+            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins
             "RawFunctionOp":$callee,
-            CArg<"mlir::ValueRange", "{}">:$args)>,
-        OpBuilder<(ins
-            "RuntimeFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,
         OpBuilder<(ins
             "mlir::SymbolRefAttr":$callee,
             "mlir::TypeRange":$results,
             CArg<"mlir::ValueRange", "{}">:$args,
-            CArg<"llvm::Optional<mlir::ArrayAttr>", "llvm::None">:$argNames)>
+            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>
     ];
 
     let extraClassDeclaration = [{
@@ -4209,21 +4146,36 @@ def Modelica_CallOp : Modelica_Op<"call",
         mlir::FunctionType getCalleeType();
 
         /// Get the argument operands to the called function.
-        operand_range getArgOperands() {
+        operand_range getArgOperands()
+        {
             return { arg_operand_begin(), arg_operand_end() };
         }
 
-        operand_iterator arg_operand_begin() {
+        MutableOperandRange getArgOperandsMutable()
+        {
+            return getArgsMutable();
+        }
+
+        operand_iterator arg_operand_begin()
+        {
             return operand_begin();
         }
 
-        operand_iterator arg_operand_end() {
+        operand_iterator arg_operand_end()
+        {
             return operand_end();
         }
 
         /// Return the callee of this operation.
-        mlir::CallInterfaceCallable getCallableForCallee() {
+        mlir::CallInterfaceCallable getCallableForCallee()
+        {
             return (*this)->getAttrOfType<SymbolRefAttr>("callee");
+        }
+
+        /// Set the callee for this operation.
+        void setCalleeFromCallable(CallInterfaceCallable callee)
+        {
+            (*this)->setAttr("callee", callee.get<SymbolRefAttr>());
         }
 
         /// }
@@ -4471,7 +4423,7 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
 
     let builders = [
         OpBuilder<(ins "::mlir::Value":$condition), [{
-            build($_builder, $_state, condition, llvm::None);
+            build($_builder, $_state, condition, std::nullopt);
         }]>
     ];
 }
