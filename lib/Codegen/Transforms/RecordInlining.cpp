@@ -40,7 +40,7 @@ namespace
       }
 
     protected:
-      mlir::SymbolTableCollection& getSymbolTable() const
+      mlir::SymbolTableCollection& getSymbolTableCollection() const
       {
         return *symbolTable;
       }
@@ -48,7 +48,7 @@ namespace
       RecordOp getRecordOp(RecordType recordType) const
       {
         return mlir::cast<RecordOp>(
-            recordType.getRecordOp(getSymbolTable(), moduleOp));
+            recordType.getRecordOp(getSymbolTableCollection(), moduleOp));
       }
 
       bool isRecordBased(mlir::Value value) const
@@ -75,13 +75,13 @@ namespace
         result.append(child.begin(), child.end());
       }
 
-      void replaceRecordUsage(
+      mlir::LogicalResult replaceRecordUsage(
           mlir::PatternRewriter& rewriter,
           std::function<mlir::Value(
               mlir::OpBuilder& builder,
               mlir::Location loc,
               llvm::StringRef)> componentGetter,
-          std::function<void(
+          std::function<mlir::LogicalResult(
               mlir::OpBuilder&,
               mlir::Location loc,
               llvm::StringRef,
@@ -97,9 +97,13 @@ namespace
           subscriptions.push_back(user);
 
           for (mlir::Value userResult : user->getResults()) {
-            for (mlir::Operation* nestedUser : userResult.getUsers()) {
-              replaceRecordUsage(rewriter, componentGetter, componentSetter,
-                                 subscriptions, userResult, nestedUser);
+            for (mlir::Operation* nestedUser :
+                 llvm::make_early_inc_range(userResult.getUsers())) {
+              if (mlir::failed(replaceRecordUsage(
+                      rewriter, componentGetter, componentSetter,
+                      subscriptions, userResult, nestedUser))) {
+                return mlir::failure();
+              }
             }
           }
 
@@ -108,11 +112,17 @@ namespace
           }
 
           subscriptions.pop_back();
-        } else if (auto componentGetOp =
-                       mlir::dyn_cast<ComponentGetOp>(user)) {
+          return mlir::success();
+        }
+
+        if (auto componentGetOp = mlir::dyn_cast<ComponentGetOp>(user)) {
           mlir::Value replacement = componentGetter(
               rewriter, componentGetOp.getLoc(),
               componentGetOp.getComponentName());
+
+          if (!replacement) {
+            return mlir::failure();
+          }
 
           replacement = applySubscriptions(
               rewriter, replacement, subscriptions);
@@ -124,14 +134,18 @@ namespace
           }
 
           rewriter.replaceOp(componentGetOp, replacement);
-        } else if (auto componentSetOp =
-                       mlir::dyn_cast<ComponentSetOp>(user)) {
+          return mlir::success();
+        }
+
+        if (auto componentSetOp = mlir::dyn_cast<ComponentSetOp>(user)) {
           if (subscriptions.empty()) {
-            componentSetter(
-                rewriter,
-                componentSetOp.getLoc(),
-                componentSetOp.getComponentName(),
-                componentSetOp.getValue());
+            if (mlir::failed(componentSetter(
+                    rewriter,
+                    componentSetOp.getLoc(),
+                    componentSetOp.getComponentName(),
+                    componentSetOp.getValue()))) {
+              return mlir::failure();
+            }
 
             rewriter.eraseOp(componentSetOp);
           } else {
@@ -168,12 +182,19 @@ namespace
 
             rewriter.eraseOp(componentSetOp);
           }
-        } else if (auto callOp = mlir::dyn_cast<CallOp>(user)) {
+
+          return mlir::success();
+        }
+
+        if (auto callOp = mlir::dyn_cast<CallOp>(user)) {
           auto newCallOp = unpackCallArg(
               rewriter, callOp, usedValue, componentGetter, subscriptions);
 
           rewriter.replaceOp(callOp, newCallOp->getResults());
+          return mlir::success();
         }
+
+        return mlir::failure();
       }
 
       CallOp unpackCallArg(
@@ -271,6 +292,8 @@ namespace
       mlir::SymbolTableCollection* symbolTable;
   };
 
+  /// Unpack the assignment of a record value into multiple assignments
+  /// involving the components of the record variable.
   class VariableSetOpUnpackPattern
       : public RecordInliningPattern<VariableSetOp>
   {
@@ -296,8 +319,9 @@ namespace
         auto recordOp = getRecordOp(recordType);
         auto cls = op->getParentOfType<ClassInterface>();
 
-        auto variableOp = getSymbolTable().lookupSymbolIn<VariableOp>(
-            cls, op.getVariableAttr());
+        auto variableOp =
+            getSymbolTableCollection().lookupSymbolIn<VariableOp>(
+                cls, op.getVariableAttr());
 
         mlir::Value recordValue =
             rewriter.create<VariableGetOp>(op.getLoc(), variableOp);
@@ -321,6 +345,10 @@ namespace
       }
   };
 
+  /// Unpack the assignment of a record component into multiple assignments
+  /// involving the components of the record variable.
+  /// Together with the above pattern, this enables the handling of assignments
+  /// of nested records.
   class ComponentSetOpUnpackPattern
       : public RecordInliningPattern<ComponentSetOp>
   {
@@ -405,6 +433,7 @@ namespace
       }
   };
 
+  /// Unpack record variables into their components.
   class VariableOpUnpackPattern : public RecordInliningPattern<VariableOp>
   {
     public:
@@ -413,12 +442,15 @@ namespace
       mlir::LogicalResult matchAndRewrite(
           VariableOp op, mlir::PatternRewriter& rewriter) const override
       {
-        mlir::Type elementType = op.getVariableType().getElementType();
+        VariableType variableType = op.getVariableType();
+        mlir::Type elementType = variableType.getElementType();
 
         if (!elementType.isa<RecordType>()) {
+          // Not a record or an array of records.
           return mlir::failure();
         }
 
+        // Create a variable for each component and map it for faster lookups.
         auto recordType = elementType.cast<RecordType>();
         auto recordOp = getRecordOp(recordType);
 
@@ -427,19 +459,24 @@ namespace
         for (VariableOp component : recordOp.getVariables()) {
           llvm::SmallVector<int64_t, 3> dimensions;
 
+          // Use the shape of the original record variable.
           for (int64_t dimension : op.getVariableType().getShape()) {
             dimensions.push_back(dimension);
           }
 
+          // Append the dimensions of the component.
           for (int64_t dimension : component.getVariableType().getShape()) {
             dimensions.push_back(dimension);
           }
 
+          // Start from the original variable type in order to keep the
+          // modifiers.
           auto componentVariableType =
-              op.getVariableType()
+              variableType
                   .withShape(dimensions)
                   .withType(component.getVariableType().getElementType());
 
+          // Create the variable for the component.
           auto unpackedComponent = rewriter.create<VariableOp>(
               op.getLoc(),
               getComposedComponentName(op, component),
@@ -448,6 +485,7 @@ namespace
           componentsMap[component.getSymName()] = unpackedComponent;
         }
 
+        // Replace the uses of the original record.
         auto cls = op->getParentOfType<ClassInterface>();
 
         llvm::SmallVector<StartOp> startOps;
@@ -457,7 +495,8 @@ namespace
         for (auto& bodyOp : cls->getRegion(0).getOps()) {
           if (auto startOp = mlir::dyn_cast<StartOp>(bodyOp)) {
             if (startOp.getVariable() == op.getSymName() &&
-                startOp.getVariableOp(getSymbolTable()).getVariableType()
+                startOp.getVariableOp(
+                           getSymbolTableCollection()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               startOps.push_back(startOp);
             }
@@ -465,7 +504,8 @@ namespace
 
           if (auto defaultOp = mlir::dyn_cast<DefaultOp>(bodyOp)) {
             if (defaultOp.getVariable() == op.getSymName() &&
-                defaultOp.getVariableOp(getSymbolTable()).getVariableType()
+                defaultOp.getVariableOp(
+                             getSymbolTableCollection()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               defaultOps.push_back(defaultOp);
             }
@@ -474,7 +514,8 @@ namespace
           if (auto bindingEquationOp =
                          mlir::dyn_cast<BindingEquationOp>(bodyOp)) {
             if (bindingEquationOp.getVariable() == op.getSymName() &&
-                bindingEquationOp.getVariableOp(getSymbolTable()).getVariableType()
+                bindingEquationOp.getVariableOp(
+                                     getSymbolTableCollection()).getVariableType()
                     .getElementType().isa<RecordType>()) {
               bindingEquationOps.push_back(bindingEquationOp);
             }
@@ -503,10 +544,12 @@ namespace
         });
 
         for (mlir::Operation* variableGetOp : variableGetOps) {
-          replaceVariableGetOp(
-              rewriter,
-              mlir::cast<VariableGetOp>(variableGetOp),
-              componentsMap);
+          if (mlir::failed(replaceVariableGetOp(
+                  rewriter,
+                  mlir::cast<VariableGetOp>(variableGetOp),
+                  componentsMap))) {
+            return mlir::failure();
+          }
         }
 
         rewriter.eraseOp(op);
@@ -521,7 +564,7 @@ namespace
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPointAfter(op);
 
-        VariableOp variableOp = op.getVariableOp(getSymbolTable());
+        VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
         auto recordType = variableOp.getVariableType()
                               .getElementType().cast<RecordType>();
@@ -567,7 +610,7 @@ namespace
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPointAfter(op);
 
-        VariableOp variableOp = op.getVariableOp(getSymbolTable());
+        VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
         auto recordType = variableOp.getVariableType()
                               .getElementType().cast<RecordType>();
@@ -613,7 +656,7 @@ namespace
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPointAfter(op);
 
-        VariableOp variableOp = op.getVariableOp(getSymbolTable());
+        VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
         auto recordType = variableOp.getVariableType()
                               .getElementType().cast<RecordType>();
@@ -652,10 +695,10 @@ namespace
         rewriter.eraseOp(op);
       }
 
-      void replaceVariableGetOp(
+      mlir::LogicalResult replaceVariableGetOp(
           mlir::PatternRewriter& rewriter,
           VariableGetOp variableGetOp,
-          llvm::StringMap<VariableOp>& componentsMap) const
+          const llvm::StringMap<VariableOp>& componentsMap) const
       {
         llvm::SmallVector<mlir::Operation*> subscriptions;
 
@@ -663,25 +706,43 @@ namespace
             [&](mlir::OpBuilder& builder,
                 mlir::Location loc,
                 llvm::StringRef componentName) -> mlir::Value {
-          return builder.create<VariableGetOp>(
-              loc, componentsMap[componentName]);
+          auto componentIt = componentsMap.find(componentName);
+
+          if (componentIt == componentsMap.end()) {
+            return nullptr;
+          }
+
+          return builder.create<VariableGetOp>(loc, componentIt->getValue());
         };
 
         auto componentSetter =
             [&](mlir::OpBuilder& builder,
                 mlir::Location loc,
                 llvm::StringRef componentName,
-                mlir::Value value) {
+                mlir::Value value) -> mlir::LogicalResult {
+              auto componentIt = componentsMap.find(componentName);
+
+              if (componentIt == componentsMap.end()) {
+                return mlir::failure();
+              }
+
               builder.create<VariableSetOp>(
-                  loc, componentsMap[componentName], value);
+                  loc, componentIt->getValue(), value);
+
+              return mlir::success();
             };
 
-        for (mlir::Operation* user : variableGetOp->getUsers()) {
-          replaceRecordUsage(rewriter, componentGetter, componentSetter,
-                             subscriptions, variableGetOp.getResult(), user);
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(variableGetOp->getUsers())) {
+          if (mlir::failed(replaceRecordUsage(
+                  rewriter, componentGetter, componentSetter,
+                  subscriptions, variableGetOp.getResult(), user))) {
+            return mlir::failure();
+          }
         }
 
         rewriter.eraseOp(variableGetOp);
+        return mlir::success();
       }
   };
 
@@ -740,17 +801,23 @@ namespace
                 [&](mlir::OpBuilder& builder,
                     mlir::Location loc,
                     llvm::StringRef componentName,
-                    mlir::Value value) {
+                    mlir::Value value) -> mlir::LogicalResult {
                   builder.create<AssignmentOp>(
                       loc,
                       newCallOp.getResult(
                           components[oldResult.index()][componentName]),
                       value);
+
+                  return mlir::success();
                 };
 
-            for (mlir::Operation* user : oldResult.value().getUsers()) {
-              replaceRecordUsage(rewriter, componentGetter, componentSetter,
-                                 subscriptions, oldResult.value(), user);
+            for (mlir::Operation* user :
+                 llvm::make_early_inc_range(oldResult.value().getUsers())) {
+              if (mlir::failed(replaceRecordUsage(
+                      rewriter, componentGetter, componentSetter,
+                      subscriptions, oldResult.value(), user))) {
+                return mlir::failure();
+              }
             }
           } else {
             oldResult.value().replaceAllUsesWith(
@@ -830,7 +897,8 @@ namespace
         llvm::SmallVector<ComponentGetOp> componentGetOps;
         llvm::SmallVector<ComponentSetOp> componentSetOps;
 
-        for (mlir::Operation* user : op->getUsers()) {
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(op->getUsers())) {
           if (auto getOp = mlir::dyn_cast<ComponentGetOp>(user)) {
             componentGetOps.push_back(getOp);
           } else if (auto setOp = mlir::dyn_cast<ComponentSetOp>(user)) {
@@ -889,7 +957,8 @@ namespace
         llvm::SmallVector<ComponentGetOp> componentGetOps;
         llvm::SmallVector<ComponentSetOp> componentSetOps;
 
-        for (mlir::Operation* user : op->getUsers()) {
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(op->getUsers())) {
           if (auto getOp = mlir::dyn_cast<ComponentGetOp>(user)) {
             componentGetOps.push_back(getOp);
           } else if (auto setOp = mlir::dyn_cast<ComponentSetOp>(user)) {
@@ -955,14 +1024,20 @@ namespace
             [&](mlir::OpBuilder& builder,
                 mlir::Location loc,
                 llvm::StringRef componentName,
-                mlir::Value value) {
+                mlir::Value value) -> mlir::LogicalResult {
               builder.create<AssignmentOp>(
                   loc, componentsMap[componentName], value);
+
+              return mlir::success();
             };
 
-        for (mlir::Operation* user : op.getResult().getUsers()) {
-          replaceRecordUsage(rewriter, componentGetter, componentSetter,
-                             subscriptions, op.getResult(), user);
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(op.getResult().getUsers())) {
+          if (mlir::failed(replaceRecordUsage(
+                  rewriter, componentGetter, componentSetter,
+                  subscriptions, op.getResult(), user))) {
+            return mlir::failure();
+          }
         }
 
         return mlir::success();
