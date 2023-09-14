@@ -5,9 +5,7 @@ using namespace ::mlir::modelica;
 namespace mlir::modelica
 {
   VariableAccessAnalysis::VariableAccessAnalysis(EquationTemplateOp op)
-      : equationTemplate(op),
-        initialized(false),
-        valid(true)
+      : equationTemplate(op)
   {
   }
 
@@ -32,10 +30,15 @@ namespace mlir::modelica
     valid = false;
   }
 
+  void VariableAccessAnalysis::preserve()
+  {
+    preserved = true;
+  }
+
   bool VariableAccessAnalysis::isInvalidated(
       const mlir::detail::PreservedAnalyses& pa) const
   {
-    return !initialized || !valid;
+    return !initialized || !valid || !preserved;
   }
 
   std::optional<llvm::ArrayRef<VariableAccess>>
@@ -128,5 +131,42 @@ namespace mlir::modelica
 
     valid = true;
     return mlir::success();
+  }
+
+  VariableAccessAnalysis::IRListener::IRListener(AnalysisProvider& provider)
+      : provider(&provider)
+  {
+  }
+
+  void VariableAccessAnalysis::IRListener::notifyOperationRemoved(Operation* op)
+  {
+    Listener::notifyOperationRemoved(op);
+
+    if (auto equationOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
+      auto analysis = provider->getCachedVariableAccessAnalysis(
+          equationOp.getTemplate());
+
+      if (analysis) {
+        analysis->get().invalidate();
+      }
+    }
+
+    if (auto equationOp = mlir::dyn_cast<MatchedEquationInstanceOp>(op)) {
+      auto analysis = provider->getCachedVariableAccessAnalysis(
+          equationOp.getTemplate());
+
+      if (analysis) {
+        analysis->get().invalidate();
+      }
+    }
+
+    if (auto equationOp = mlir::dyn_cast<ScheduledEquationInstanceOp>(op)) {
+      auto analysis = provider->getCachedVariableAccessAnalysis(
+          equationOp.getTemplate());
+
+      if (analysis) {
+        analysis->get().invalidate();
+      }
+    }
   }
 }

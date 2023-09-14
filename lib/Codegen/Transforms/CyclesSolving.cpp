@@ -1,6 +1,7 @@
 #include "marco/Codegen/Transforms/CyclesSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
+#include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Modeling/Cycles.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
@@ -53,19 +54,16 @@ using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 namespace
 {
   class CyclesSolvingPass
-      : public mlir::modelica::impl::CyclesSolvingPassBase<CyclesSolvingPass>
+      : public mlir::modelica::impl::CyclesSolvingPassBase<CyclesSolvingPass>,
+        public VariableAccessAnalysis::AnalysisProvider
   {
     public:
       using CyclesSolvingPassBase::CyclesSolvingPassBase;
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(processModelOp(getOperation()))) {
-          return signalPassFailure();
-        }
+      void runOnOperation() override;
 
-        markAnalysesPreserved<DerivativesMap>();
-      }
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
@@ -82,6 +80,36 @@ namespace
           ModelOp modelOp,
           llvm::ArrayRef<MatchedEquationInstanceOp> equations);
   };
+}
+
+void CyclesSolvingPass::runOnOperation()
+{
+  ModelOp modelOp = getOperation();
+
+  if (mlir::failed(processModelOp(modelOp))) {
+      return signalPassFailure();
+  }
+
+  // Determine the analyses to be preserved.
+  markAnalysesPreserved<DerivativesMap>();
+
+  llvm::DenseSet<EquationTemplateOp> templateOps;
+
+  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
+    templateOps.insert(equationOp.getTemplate());
+  }
+
+  for (EquationTemplateOp templateOp : templateOps) {
+    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+      analysis->get().preserve();
+    }
+  }
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+CyclesSolvingPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
+{
+  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 namespace

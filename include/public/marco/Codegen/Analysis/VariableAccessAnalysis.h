@@ -9,11 +9,33 @@ namespace mlir::modelica
   class VariableAccessAnalysis
   {
     public:
+      class AnalysisProvider
+      {
+        public:
+          virtual std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+          getCachedVariableAccessAnalysis(EquationTemplateOp op) = 0;
+      };
+
+      class IRListener : public mlir::RewriterBase::Listener
+      {
+        public:
+          IRListener(AnalysisProvider& provider);
+
+          void notifyOperationRemoved(mlir::Operation* op) override;
+
+        private:
+          AnalysisProvider* provider;
+      };
+
       VariableAccessAnalysis(EquationTemplateOp op);
 
       mlir::LogicalResult initialize(
           mlir::SymbolTableCollection& symbolTableCollection);
 
+      /// Mark the analysis as to be preserved at the end of the pass.
+      void preserve();
+
+      /// Invalidate the analysis.
       void invalidate();
 
       bool isInvalidated(const mlir::detail::PreservedAnalyses& pa) const;
@@ -42,8 +64,9 @@ namespace mlir::modelica
 
     private:
       EquationTemplateOp equationTemplate;
-      bool initialized;
-      bool valid;
+      bool initialized{false};
+      bool valid{false};
+      bool preserved{false};
 
       /// The list of all the accesses performed by the equation.
       llvm::DenseMap<

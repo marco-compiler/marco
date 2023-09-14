@@ -663,6 +663,7 @@ namespace marco::frontend
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createExplicitInitialEquationsInsertionPass());
 
+    // Solve the model.
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createMatchingPass());
 

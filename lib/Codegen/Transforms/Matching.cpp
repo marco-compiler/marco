@@ -3,7 +3,6 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Modeling/Matching.h"
-#include <stack>
 
 namespace mlir::modelica
 {
@@ -36,19 +35,16 @@ static IndexSet getVariableIndices(
 namespace
 {
   class MatchingPass
-      : public mlir::modelica::impl::MatchingPassBase<MatchingPass>
+      : public mlir::modelica::impl::MatchingPassBase<MatchingPass>,
+        public VariableAccessAnalysis::AnalysisProvider
   {
     public:
       using MatchingPassBase::MatchingPassBase;
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(processModelOp(getOperation()))) {
-          return signalPassFailure();
-        }
+      void runOnOperation() override;
 
-        markAnalysesPreserved<DerivativesMap>();
-      }
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
@@ -61,7 +57,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::LogicalResult match(
-          mlir::OpBuilder& builder,
+          mlir::IRRewriter& rewriter,
           ModelOp modelOp,
           llvm::ArrayRef<EquationInstanceOp> equations,
           mlir::SymbolTableCollection& symbolTable,
@@ -69,9 +65,40 @@ namespace
   };
 }
 
+void MatchingPass::runOnOperation()
+{
+  ModelOp modelOp = getOperation();
+
+  if (mlir::failed(processModelOp(modelOp))) {
+    return signalPassFailure();
+  }
+
+  // Determine the analyses to be preserved.
+  markAnalysesPreserved<DerivativesMap>();
+
+  llvm::DenseSet<EquationTemplateOp> templateOps;
+
+  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
+    templateOps.insert(equationOp.getTemplate());
+  }
+
+  for (EquationTemplateOp templateOp : templateOps) {
+    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+      analysis->get().preserve();
+    }
+  }
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+MatchingPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
+{
+  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
+}
+
 mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
 {
-  mlir::OpBuilder builder(modelOp);
+  VariableAccessAnalysis::IRListener variableAccessListener(*this);
+  mlir::IRRewriter rewriter(&getContext(), &variableAccessListener);
 
   // Collect the equations.
   llvm::SmallVector<EquationInstanceOp> initialEquations;
@@ -90,7 +117,7 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
       return getVariableIndices(modelOp, variable, symbolTableCollection);
     };
 
-    if (mlir::failed(match(builder, modelOp, initialEquations,
+    if (mlir::failed(match(rewriter, modelOp, initialEquations,
                            symbolTableCollection, matchableIndicesFn))) {
       modelOp.emitError() << "Matching failed for the 'initial conditions' model";
       return mlir::failure();
@@ -124,7 +151,7 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
       return variableIndices;
     };
 
-    if (mlir::failed(match(builder, modelOp, equations, symbolTableCollection,
+    if (mlir::failed(match(rewriter, modelOp, equations, symbolTableCollection,
                            matchableIndicesFn))) {
       modelOp.emitError() << "Matching failed for the 'main' model";
       return mlir::failure();
@@ -327,7 +354,7 @@ namespace marco::modeling::matching
 }
 
 mlir::LogicalResult MatchingPass::match(
-    mlir::OpBuilder& builder,
+    mlir::IRRewriter& rewriter,
     ModelOp modelOp,
     llvm::ArrayRef<EquationInstanceOp> equations,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -441,13 +468,13 @@ mlir::LogicalResult MatchingPass::match(
 
     bool isScalarEquation = numOfExplicitInductions == 0;
 
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointAfter(equation->op);
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(equation->op);
 
     for (const MultidimensionalRange& matchedEquationRange :
          llvm::make_range(matchedEquationIndices.rangesBegin(),
                           matchedEquationIndices.rangesEnd())) {
-      auto matchedEquationOp = builder.create<MatchedEquationInstanceOp>(
+      auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
           equation->op.getLoc(),
           equation->op.getTemplate(), equation->op.getInitial(),
           EquationPathAttr::get(&getContext(), matchedPath));
@@ -475,7 +502,7 @@ mlir::LogicalResult MatchingPass::match(
 
   // Erase the old equation instances.
   for (EquationInstanceOp equation : toBeErased) {
-    equation.erase();
+    rewriter.eraseOp(equation);
   }
 
   return mlir::success();

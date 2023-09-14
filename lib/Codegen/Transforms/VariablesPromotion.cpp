@@ -21,12 +21,16 @@ namespace
 {
   class VariablesPromotionPass
       : public mlir::modelica::impl::VariablesPromotionPassBase<
-          VariablesPromotionPass>
+          VariablesPromotionPass>,
+        public VariableAccessAnalysis::AnalysisProvider
   {
     public:
       using VariablesPromotionPassBase::VariablesPromotionPassBase;
 
       void runOnOperation() override;
+
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
@@ -50,11 +54,32 @@ namespace
 
 void VariablesPromotionPass::runOnOperation()
 {
-  if (mlir::failed(processModelOp(getOperation()))) {
-      return signalPassFailure();
+  ModelOp modelOp = getOperation();
+
+  if (mlir::failed(processModelOp(modelOp))) {
+    return signalPassFailure();
   }
 
+  // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
+
+  llvm::DenseSet<EquationTemplateOp> templateOps;
+
+  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
+    templateOps.insert(equationOp.getTemplate());
+  }
+
+  for (EquationTemplateOp templateOp : templateOps) {
+    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+      analysis->get().preserve();
+    }
+  }
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+VariablesPromotionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
+{
+  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 static IndexSet getVariableIndices(VariableOp variableOp)
@@ -290,7 +315,8 @@ namespace marco::modeling::dependency
 
 mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 {
-  mlir::IRRewriter rewriter(&getContext());
+  VariableAccessAnalysis::IRListener variableAccessListener(*this);
+  mlir::IRRewriter rewriter(&getContext(), &variableAccessListener);
   mlir::SymbolTableCollection symbolTableCollection;
 
   // Retrieve the derivatives map.

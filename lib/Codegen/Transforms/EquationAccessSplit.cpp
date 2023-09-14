@@ -1,5 +1,7 @@
 #include "marco/Codegen/Transforms/EquationAccessSplit.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
+#include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::modelica
@@ -13,12 +15,16 @@ using namespace ::mlir::modelica;
 namespace
 {
   class EquationAccessSplitPass
-      : public impl::EquationAccessSplitPassBase<EquationAccessSplitPass>
+      : public impl::EquationAccessSplitPassBase<EquationAccessSplitPass>,
+        public VariableAccessAnalysis::AnalysisProvider
   {
     public:
       using EquationAccessSplitPassBase::EquationAccessSplitPassBase;
 
       void runOnOperation() override;
+
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
   };
 }
 
@@ -178,8 +184,29 @@ void EquationAccessSplitPass::runOnOperation()
 
   if (mlir::failed(applyPatternsAndFoldGreedily(
           modelOp, std::move(patterns), config))) {
-      return signalPassFailure();
+    return signalPassFailure();
   }
+
+  // Determine the analyses to be preserved.
+  markAnalysesPreserved<DerivativesMap>();
+
+  llvm::DenseSet<EquationTemplateOp> templateOps;
+
+  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
+    templateOps.insert(equationOp.getTemplate());
+  }
+
+  for (EquationTemplateOp templateOp : templateOps) {
+    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+      analysis->get().preserve();
+    }
+  }
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+EquationAccessSplitPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
+{
+  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 namespace mlir::modelica
