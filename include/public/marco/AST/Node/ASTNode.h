@@ -48,6 +48,7 @@ namespace marco::ast
         Expression_ComponentReference,
         Expression_Constant,
         Expression_Operation,
+        Expression_Reduction,
         Expression_Tuple,
         Expression_LastExpression,
         ForEquation,

@@ -27,6 +27,7 @@ set(AST_NODES
 	Node/Operation.cpp
 	Node/Package.cpp
 	Node/Record.cpp
+	Node/Reduction.cpp
 	Node/ReturnStatement.cpp
 	Node/Root.cpp
 	Node/Statement.cpp
