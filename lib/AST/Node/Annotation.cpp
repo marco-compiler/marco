@@ -1,5 +1,6 @@
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/CallArgument.h"
 #include "marco/AST/Node/ComponentReference.h"
 #include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
@@ -175,7 +176,7 @@ namespace marco::ast
             llvm::SmallVector<std::string, 3> args;
 
             for (const auto& arg : call->getArguments()) {
-              args.push_back(arg->cast<ComponentReference>()->getName());
+              args.push_back(arg->cast<CallArgument>()->getValue()->cast<ComponentReference>()->getName());
             }
 
             result.addInverse(

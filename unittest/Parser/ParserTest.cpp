@@ -1557,16 +1557,20 @@ TEST(Parser, expression_functionCall_withArgs)
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
-  ASSERT_TRUE(args[0]->isa<ast::ComponentReference>());
-  EXPECT_EQ(args[0]->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(args[0]->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]->isa<ast::CallArgument>());
+  EXPECT_FALSE(args[0]->cast<ast::CallArgument>()->isNamed());
+  ASSERT_TRUE(args[0]->cast<ast::CallArgument>()->getValue()->isa<ast::ComponentReference>());
+  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(args[1]->isa<Constant>());
-  EXPECT_EQ(args[1]->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]->isa<ast::CallArgument>());
+  ASSERT_TRUE(args[1]->cast<ast::CallArgument>()->getValue()->isa<Constant>());
+  EXPECT_EQ(args[1]->cast<ast::CallArgument>()->getValue()->cast<Constant>()->as<int64_t>(), 1);
 
-  ASSERT_TRUE(args[2]->isa<Constant>());
-  EXPECT_EQ(args[2]->cast<Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]->isa<ast::CallArgument>());
+  ASSERT_TRUE(args[2]->cast<ast::CallArgument>()->getValue()->isa<Constant>());
+  EXPECT_EQ(args[2]->cast<ast::CallArgument>()->getValue()->cast<Constant>()->as<int64_t>(), 2);
 }
 
 TEST(Parser, annotation_inlineTrue)

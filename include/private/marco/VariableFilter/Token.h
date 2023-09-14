@@ -16,7 +16,6 @@ namespace marco::vf
     Begin,
     EndOfFile,
     Error,
-    None,
 
     // Placeholders
     Integer,

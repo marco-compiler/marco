@@ -62,7 +62,6 @@ namespace marco
     template<typename Token>
     struct TokenTraits
     {
-      // static Token getNoneToken();
       // static Token getEOFToken();
 
       using Id = typename Token::UnknownTokenTypeError;
@@ -94,10 +93,9 @@ namespace marco
       /// thus delegating him the responsibility of returning a token.
       Token scan()
       {
-        Token noneToken = TokenTraits::getNoneToken();
-        Token token = noneToken;
+        std::optional<Token> token = std::nullopt;
 
-        while (token == noneToken) {
+        while (!token) {
           if (lastChar != '\0') {
             lastChar = getNext();
           }
@@ -105,7 +103,7 @@ namespace marco
           token = StateMachine::step(lastChar);
         }
 
-        return token;
+        return *token;
       }
 
       /// Returns a iterator operating on this lexer that has as value

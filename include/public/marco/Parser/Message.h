@@ -15,13 +15,14 @@ namespace marco::parser
   class UnexpectedTokenMessage : public diagnostic::SourceMessage
   {
     public:
-      UnexpectedTokenMessage(SourceRange location, Token actual, Token expected);
+      UnexpectedTokenMessage(
+        SourceRange location, TokenKind actual, TokenKind expected);
 
       void print(diagnostic::PrinterInstance* printer) const override;
 
     private:
-      Token actual;
-      Token expected;
+      TokenKind actual;
+      TokenKind expected;
   };
 
   class UnexpectedIdentifierMessage : public diagnostic::SourceMessage

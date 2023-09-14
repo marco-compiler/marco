@@ -29,6 +29,11 @@ namespace marco::codegen::lowering
 
       void lowerArgs(
           const ast::Call& call,
+          llvm::SmallVectorImpl<std::string>& argNames,
+          llvm::SmallVectorImpl<mlir::Value>& argValues);
+
+      void lowerBuiltInFunctionArgs(
+          const ast::Call& call,
           llvm::SmallVectorImpl<mlir::Value>& args);
 
       /// Get the argument expected ranks of a user-defined function.

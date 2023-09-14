@@ -16,8 +16,6 @@ namespace marco::vf
         return "EOF";
       case Token::Error:
         return "Error";
-      case Token::None:
-        return "None";
       case Token::Integer:
         return "Integer";
       case Token::Ident:

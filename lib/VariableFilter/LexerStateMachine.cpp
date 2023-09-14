@@ -63,7 +63,7 @@ namespace marco::vf
 
   SourceRange LexerStateMachine::getTokenPosition() const
   {
-    return SourceRange(beginPosition, endPosition);
+    return {beginPosition, endPosition};
   }
 
   void LexerStateMachine::advance(char c)
@@ -107,8 +107,9 @@ namespace marco::vf
   }
 
   template<LexerStateMachine::State s>
-  Token LexerStateMachine::scan() {
-    return Token::None;
+  std::optional<Token> LexerStateMachine::scan()
+  {
+    return std::nullopt;
   }
 
   Token LexerStateMachine::tryScanSymbol()
@@ -125,7 +126,8 @@ namespace marco::vf
   }
 
   template<>
-  Token LexerStateMachine::scan<LexerStateMachine::State::ParsingId>()
+  std::optional<Token> LexerStateMachine::scan<
+      LexerStateMachine::State::ParsingId>()
   {
     lastIdentifier.push_back(current);
 
@@ -135,11 +137,12 @@ namespace marco::vf
       return stringToToken(lastIdentifier);
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token LexerStateMachine::scan<LexerStateMachine::State::ParsingNum>()
+  std::optional<Token> LexerStateMachine::scan<
+      LexerStateMachine::State::ParsingNum>()
   {
     if (isDigit(current)) {
       lastNum += (current - '0');
@@ -151,11 +154,12 @@ namespace marco::vf
       return Token::Integer;
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token LexerStateMachine::scan<LexerStateMachine::State::ParsingRegex>()
+  std::optional<Token> LexerStateMachine::scan<
+      LexerStateMachine::State::ParsingRegex>()
   {
     if (current == '/') {
       state = State::Normal;
@@ -170,14 +174,15 @@ namespace marco::vf
     }
 
     lastRegex.push_back(current);
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token LexerStateMachine::scan<LexerStateMachine::State::Normal>()
+  std::optional<Token> LexerStateMachine::scan<
+      LexerStateMachine::State::Normal>()
   {
     if (std::isspace(current) != 0) {
-      return Token::None;
+      return std::nullopt;
     }
 
     setTokenBeginPosition();
@@ -199,7 +204,7 @@ namespace marco::vf
     if (current == '/') {
       state = State::ParsingRegex;
       lastRegex = "";
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '\0') {
@@ -210,7 +215,7 @@ namespace marco::vf
     return tryScanSymbol();
   }
 
-  Token LexerStateMachine::step(char c)
+  std::optional<Token> LexerStateMachine::step(char c)
   {
     advance(c);
 
@@ -232,7 +237,7 @@ namespace marco::vf
 
       case (State::IgnoreNextChar):
         state = State::Normal;
-        return Token::None;
+        return std::nullopt;
     }
 
     error = "Unhandled Lexer State";

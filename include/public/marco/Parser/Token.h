@@ -1,8 +1,11 @@
 #ifndef MARCO_PARSER_TOKEN_H
 #define MARCO_PARSER_TOKEN_H
 
+#include "marco/Diagnostic/Location.h"
+#include "llvm/ADT/StringRef.h"
 #include <iostream>
 #include <string>
+#include <variant>
 
 namespace llvm
 {
@@ -11,7 +14,7 @@ namespace llvm
 
 namespace marco::parser
 {
-  enum class Token
+  enum class TokenKind
   {
     // Control tokens.
     None,
@@ -118,7 +121,46 @@ namespace marco::parser
     AssignmentOperator
   };
 
-  std::string toString(Token obj);
+  std::string toString(TokenKind obj);
+
+  std::ostream& operator<<(std::ostream& os, const TokenKind& obj);
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TokenKind& obj);
+
+  class Token
+  {
+    public:
+      explicit Token(
+        TokenKind kind,
+        SourceRange location = SourceRange::unknown());
+
+      Token(TokenKind kind, SourceRange location, llvm::StringRef value);
+      Token(TokenKind kind, SourceRange location, int64_t value);
+      Token(TokenKind kind, SourceRange location, double value);
+
+      [[nodiscard]] TokenKind getKind() const;
+
+      template<TokenKind Kind>
+      [[nodiscard]] bool isa() const
+      {
+        return kind == Kind;
+      }
+
+      [[nodiscard]] const SourceRange& getLocation() const;
+
+      [[nodiscard]] std::string getString() const;
+
+      [[nodiscard]] int64_t getInt() const;
+
+      [[nodiscard]] double getFloat() const;
+
+    private:
+      TokenKind kind;
+      SourceRange location;
+      std::variant<std::string, int64_t, double> value;
+  };
+
+  std::string toString(const Token& obj);
 
   std::ostream& operator<<(std::ostream& os, const Token& obj);
 

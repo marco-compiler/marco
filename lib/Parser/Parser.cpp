@@ -5,11 +5,12 @@ using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-#define EXPECT(Token)                                                                           \
-	if (!accept<Token>()) {                                                                       \
-	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
-    return std::nullopt;                                                                        \
-  }                                                                                             \
+#define EXPECT(Token)                                           \
+	if (!accept<Token>()) {                                       \
+	  diagnostics->emitError<UnexpectedTokenMessage>(             \
+        tokens[0].getLocation(), tokens[0].getKind(), Token);   \
+    return std::nullopt;                                        \
+  }                                                             \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -21,25 +22,32 @@ using namespace ::marco::parser;
 
 namespace marco::parser
 {
-  Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> file)
+  Parser::Parser(
+      diagnostic::DiagnosticEngine& diagnostics,
+      std::shared_ptr<SourceFile> file)
       : diagnostics(&diagnostics),
-        lexer(file),
-        current(Token::Begin)
+        lexer(std::move(file))
   {
-    next();
+    for (size_t i = 0, e = tokens.size(); i < e; ++i) {
+      advance();
+    }
   }
 
-  void Parser::next()
+  void Parser::advance()
   {
-    current = lexer.scan();
+    for (size_t i = 0, e = tokens.size(); i + 1 < e; ++i) {
+      tokens[i] = tokens[i + 1];
+    }
+    
+    tokens.back() = lexer.scan();
   }
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 1> classes;
 
-    while (current != Token::EndOfFile) {
+    while (!tokens[0].isa<TokenKind::EndOfFile>()) {
       TRY(classDefinition, parseClassDefinition());
       classes.push_back(std::move(*classDefinition));
     }
@@ -51,85 +59,85 @@ namespace marco::parser
 
   std::optional<Parser::ValueWrapper<bool>> Parser::parseBoolValue()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (accept<Token::True>()) {
+    if (accept<TokenKind::True>()) {
       return ValueWrapper(loc, true);
     }
 
-    EXPECT(Token::False);
+    EXPECT(TokenKind::False);
     return ValueWrapper(loc, false);
   }
 
   std::optional<Parser::ValueWrapper<int64_t>> Parser::parseIntValue()
   {
-    auto loc = lexer.getTokenPosition();
-    auto value = lexer.getInt();
-    accept<Token::Integer>();
+    auto loc = tokens[0].getLocation();
+    auto value = tokens[0].getInt();
+    accept<TokenKind::Integer>();
     return ValueWrapper(loc, value);
   }
 
   std::optional<Parser::ValueWrapper<double>> Parser::parseFloatValue()
   {
-    auto loc = lexer.getTokenPosition();
-    auto value = lexer.getFloat();
-    accept<Token::FloatingPoint>();
+    auto loc = tokens[0].getLocation();
+    auto value = tokens[0].getFloat();
+    accept<TokenKind::FloatingPoint>();
     return ValueWrapper(loc, value);
   }
 
   std::optional<Parser::ValueWrapper<std::string>> Parser::parseString()
   {
-    auto loc = lexer.getTokenPosition();
-    auto value = lexer.getString();
-    accept<Token::String>();
+    auto loc = tokens[0].getLocation();
+    auto value = tokens[0].getString();
+    accept<TokenKind::String>();
     return ValueWrapper(loc, value);
   }
 
   std::optional<Parser::ValueWrapper<std::string>> Parser::parseIdentifier()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    std::string identifier = lexer.getIdentifier();
-    EXPECT(Token::Identifier);
+    std::string identifier = tokens[0].getString();
+    EXPECT(TokenKind::Identifier);
 
     return ValueWrapper(loc, std::move(identifier));
   }
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseClassDefinition()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     std::unique_ptr<ASTNode> result;
 
-    bool isOperator = accept<Token::Operator>();
+    bool isOperator = accept<TokenKind::Operator>();
     bool isPure = true;
 
     if (isOperator) {
-      if (accept<Token::Record>()) {
+      if (accept<TokenKind::Record>()) {
         result = std::make_unique<Record>(loc);
       } else {
-        EXPECT(Token::Function);
+        EXPECT(TokenKind::Function);
         result = std::make_unique<StandardFunction>(loc);
       }
-    } else if (accept<Token::Model>()) {
+    } else if (accept<TokenKind::Model>()) {
       result = std::make_unique<Model>(loc);
-    } else if (accept<Token::Record>()) {
+    } else if (accept<TokenKind::Record>()) {
       result = std::make_unique<Record>(loc);
-    } else if (accept<Token::Package>()) {
+    } else if (accept<TokenKind::Package>()) {
       result = std::make_unique<Package>(loc);
-    } else if (accept<Token::Function>()) {
+    } else if (accept<TokenKind::Function>()) {
       result = std::make_unique<StandardFunction>(loc);
-    } else if (accept<Token::Pure>()) {
+    } else if (accept<TokenKind::Pure>()) {
       isPure = true;
-      isOperator = accept<Token::Operator>();
-      EXPECT(Token::Function);
+      isOperator = accept<TokenKind::Operator>();
+      EXPECT(TokenKind::Function);
       result = std::make_unique<StandardFunction>(loc);
-    } else if (accept<Token::Impure>()) {
+    } else if (accept<TokenKind::Impure>()) {
       isPure = false;
-      isOperator = accept<Token::Operator>();
-      EXPECT(Token::Function);
+      isOperator = accept<TokenKind::Operator>();
+      EXPECT(TokenKind::Function);
       result = std::make_unique<StandardFunction>(loc);
     } else {
-      EXPECT(Token::Class);
+      EXPECT(TokenKind::Class);
       result = std::make_unique<Model>(loc);
     }
 
@@ -141,23 +149,23 @@ namespace marco::parser
     loc.end = name->getLocation().end;
     result->setLocation(loc);
 
-    if (accept<Token::EqualityOperator>()) {
+    if (accept<TokenKind::EqualityOperator>()) {
       // Function derivative
       assert(result->isa<StandardFunction>());
-      EXPECT(Token::Der);
-      EXPECT(Token::LPar);
+      EXPECT(TokenKind::Der);
+      EXPECT(TokenKind::LPar);
 
       TRY(derivedFunction, parseExpression());
       llvm::SmallVector<std::unique_ptr<ASTNode>, 3> independentVariables;
 
-      while (accept<Token::Comma>()) {
+      while (accept<TokenKind::Comma>()) {
         TRY(var, parseExpression());
         independentVariables.push_back(std::move(*var));
       }
 
-      EXPECT(Token::RPar);
-      accept<Token::String>();
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::RPar);
+      accept<TokenKind::String>();
+      EXPECT(TokenKind::Semicolon);
 
       auto partialDerFunction = std::make_unique<PartialDerFunction>(loc);
       partialDerFunction->setName(name->getValue());
@@ -168,7 +176,7 @@ namespace marco::parser
       return std::move(result);
     }
 
-    accept<Token::String>();
+    accept<TokenKind::String>();
 
     llvm::SmallVector<std::unique_ptr<ASTNode>, 3> members;
     llvm::SmallVector<std::unique_ptr<ASTNode>, 3> equationsBlocks;
@@ -184,36 +192,37 @@ namespace marco::parser
 
     bool firstElementListParsable = true;
 
-    while (current != Token::End && current != Token::Annotation) {
-      if (current == Token::Equation) {
+    while (!tokens[0].isa<TokenKind::End>() &&
+        !tokens[0].isa<TokenKind::Annotation>()) {
+      if (tokens[0].isa<TokenKind::Equation>()) {
         TRY(equationsBlock, parseEquationsBlock());
         equationsBlocks.push_back(std::move(*equationsBlock));
         continue;
       }
 
-      if (accept<Token::Initial>()) {
+      if (accept<TokenKind::Initial>()) {
         TRY(equationsBlock, parseEquationsBlock());
         initialEquationsBlocks.push_back(std::move(*equationsBlock));
         continue;
       }
 
-      if (current == Token::Algorithm) {
+      if (tokens[0].isa<TokenKind::Algorithm>()) {
         TRY(algorithm, parseAlgorithmSection());
         algorithms.emplace_back(std::move(*algorithm));
         continue;
       }
 
-      if (current == Token::Class ||
-          current == Token::Function ||
-          current == Token::Model ||
-          current == Token::Package ||
-          current == Token::Record) {
+      if (tokens[0].isa<TokenKind::Class>() ||
+          tokens[0].isa<TokenKind::Function>() ||
+          tokens[0].isa<TokenKind::Model>() ||
+          tokens[0].isa<TokenKind::Package>() ||
+          tokens[0].isa<TokenKind::Record>()) {
         TRY(innerClass, parseClassDefinition());
         innerClasses.emplace_back(std::move(*innerClass));
         continue;
       }
 
-      if (accept<Token::Public>()) {
+      if (accept<TokenKind::Public>()) {
         TRY(elementList, parseElementList(true));
 
         for (auto& element : *elementList) {
@@ -224,7 +233,7 @@ namespace marco::parser
         continue;
       }
 
-      if (accept<Token::Protected>()) {
+      if (accept<TokenKind::Protected>()) {
         TRY(elementList, parseElementList(false));
 
         for (auto& element : *elementList) {
@@ -245,14 +254,14 @@ namespace marco::parser
     }
 
     // Parse an optional annotation.
-    if (current == Token::Annotation) {
+    if (tokens[0].isa<TokenKind::Annotation>()) {
       TRY(annotation, parseAnnotation());
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       result->dyn_cast<Class>()->setAnnotation(std::move(*annotation));
     }
 
     // The class name must be present also after the 'end' keyword
-    EXPECT(Token::End);
+    EXPECT(TokenKind::End);
     TRY(endName, parseIdentifier());
 
     if (name->getValue() != endName->getValue()) {
@@ -262,7 +271,7 @@ namespace marco::parser
       return std::nullopt;
     }
 
-    EXPECT(Token::Semicolon);
+    EXPECT(TokenKind::Semicolon);
 
     result->dyn_cast<Class>()->setName(name->getValue());
     result->dyn_cast<Class>()->setVariables(members);
@@ -276,9 +285,9 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseModification()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (accept<Token::EqualityOperator>() || accept<Token::AssignmentOperator>()) {
+    if (accept<TokenKind::EqualityOperator>() || accept<TokenKind::AssignmentOperator>()) {
       TRY(expression, parseExpression());
       loc.end = (*expression)->getLocation().end;
 
@@ -290,7 +299,7 @@ namespace marco::parser
     TRY(classModification, parseClassModification());
     loc.end = (*classModification)->getLocation().end;
 
-    if (accept<Token::EqualityOperator>()) {
+    if (accept<TokenKind::EqualityOperator>()) {
       TRY(expression, parseExpression());
       loc.end = (*expression)->getLocation().end;
 
@@ -307,42 +316,43 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseClassModification()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::LPar);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::LPar);
     TRY(argumentList, parseArgumentList());
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::RPar);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::RPar);
 
     auto result = std::make_unique<ClassModification>(loc);
     result->setArguments(*argumentList);
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArgumentList()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseArgumentList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
     do {
       TRY(arg, parseArgument());
       arguments.push_back(std::move(*arg));
-    } while (accept<Token::Comma>());
+    } while (accept<TokenKind::Comma>());
 
     return arguments;
   }
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseArgument()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (current == Token::Redeclare) {
+    if (tokens[0].isa<TokenKind::Redeclare>()) {
       TRY(elementRedeclaration, parseElementRedeclaration());
       return std::move(*elementRedeclaration);
     }
 
-    bool each = accept<Token::Each>();
-    bool final = accept<Token::Final>();
+    bool each = accept<TokenKind::Each>();
+    bool final = accept<TokenKind::Final>();
 
-    if (current == Token::Replaceable) {
+    if (tokens[0].isa<TokenKind::Replaceable>()) {
       TRY(elementReplaceable, parseElementReplaceable(each, final));
       return std::move(*elementReplaceable);
     }
@@ -351,21 +361,22 @@ namespace marco::parser
     return std::move(*elementModification);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementModification(bool each, bool final)
+  std::optional<std::unique_ptr<ASTNode>>
+  Parser::parseElementModification(bool each, bool final)
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    auto name = lexer.getIdentifier();
-    EXPECT(Token::Identifier);
+    auto name = tokens[0].getString();
+    EXPECT(TokenKind::Identifier);
 
     auto result = std::make_unique<ElementModification>(loc);
     result->setName(name);
     result->setEachProperty(each);
     result->setFinalProperty(final);
 
-    if (current != Token::LPar &&
-        current != Token::EqualityOperator &&
-        current != Token::AssignmentOperator) {
+    if (!tokens[0].isa<TokenKind::LPar>() &&
+        !tokens[0].isa<TokenKind::EqualityOperator>() &&
+        !tokens[0].isa<TokenKind::AssignmentOperator>()) {
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
@@ -377,28 +388,34 @@ namespace marco::parser
   std::optional<std::unique_ptr<ASTNode>> Parser::parseElementRedeclaration()
   {
     llvm_unreachable("Not implemented");
+    return std::nullopt;
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementReplaceable(bool each, bool final)
+  std::optional<std::unique_ptr<ASTNode>>
+  Parser::parseElementReplaceable(bool each, bool final)
   {
     llvm_unreachable("Not implemented");
+    return std::nullopt;
   }
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::Algorithm);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::Algorithm);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 10> statements;
 
-    while (
-        current != Token::End && current != Token::Public &&
-        current != Token::Protected && current != Token::Equation &&
-        current != Token::Algorithm && current != Token::External &&
-        current != Token::Annotation && current != Token::EndOfFile) {
+    while (!tokens[0].isa<TokenKind::End>() &&
+           !tokens[0].isa<TokenKind::Public>() &&
+           !tokens[0].isa<TokenKind::Protected>() &&
+           !tokens[0].isa<TokenKind::Equation>() &&
+           !tokens[0].isa<TokenKind::Algorithm>() &&
+           !tokens[0].isa<TokenKind::External>() &&
+           !tokens[0].isa<TokenKind::Annotation>() &&
+           !tokens[0].isa<TokenKind::EndOfFile>()) {
       TRY(statement, parseStatement());
-      loc.end = lexer.getTokenPosition().end;
-      EXPECT(Token::Semicolon);
+      loc.end = tokens[0].getLocation().end;
+      EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
@@ -409,14 +426,14 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseEquation()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     TRY(lhs, parseExpression());
-    EXPECT(Token::EqualityOperator);
+    EXPECT(TokenKind::EqualityOperator);
     TRY(rhs, parseExpression());
 
     loc.end = (*rhs)->getLocation().end;
-    accept<Token::String>();
+    accept<TokenKind::String>();
 
     auto result = std::make_unique<Equation>(loc);
     result->setLhsExpression(std::move(*lhs));
@@ -426,54 +443,54 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseStatement()
   {
-    if (current == Token::If) {
+    if (tokens[0].isa<TokenKind::If>()) {
       TRY(statement, parseIfStatement());
       return std::move(*statement);
     }
 
-    if (current == Token::For) {
+    if (tokens[0].isa<TokenKind::For>()) {
       TRY(statement, parseForStatement());
       return std::move(*statement);
     }
 
-    if (current == Token::While) {
+    if (tokens[0].isa<TokenKind::While>()) {
       TRY(statement, parseWhileStatement());
       return std::move(*statement);
     }
 
-    if (current == Token::When) {
+    if (tokens[0].isa<TokenKind::When>()) {
       TRY(statement, parseWhenStatement());
       return std::move(*statement);
     }
 
-    if (current == Token::Break) {
-      auto loc = lexer.getTokenPosition();
-      EXPECT(Token::Break);
+    if (tokens[0].isa<TokenKind::Break>()) {
+      auto loc = tokens[0].getLocation();
+      EXPECT(TokenKind::Break);
 
       auto result = std::make_unique<BreakStatement>(loc);
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
-    if (current == Token::Return) {
-      auto loc = lexer.getTokenPosition();
-      EXPECT(Token::Return);
+    if (tokens[0].isa<TokenKind::Return>()) {
+      auto loc = tokens[0].getLocation();
+      EXPECT(TokenKind::Return);
 
       auto result = std::make_unique<ReturnStatement>(loc);
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
     // Assignment statement
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (accept<Token::LPar>()) {
+    if (accept<TokenKind::LPar>()) {
       TRY(destinations, parseOutputExpressionList());
-      loc.end = lexer.getTokenPosition().end;
+      loc.end = tokens[0].getLocation().end;
 
       auto destinationsTuple = std::make_unique<Tuple>(loc);
       destinationsTuple->setExpressions(destinations.value());
 
-      EXPECT(Token::RPar);
-      EXPECT(Token::AssignmentOperator);
+      EXPECT(TokenKind::RPar);
+      EXPECT(TokenKind::AssignmentOperator);
       TRY(function, parseComponentReference());
       TRY(functionCallArgs, parseFunctionCallArgs());
 
@@ -490,7 +507,7 @@ namespace marco::parser
     }
 
     TRY(destination, parseComponentReference());
-    EXPECT(Token::AssignmentOperator);
+    EXPECT(TokenKind::AssignmentOperator);
     TRY(expression, parseExpression());
     loc.end = (*expression)->getLocation().end;
 
@@ -502,21 +519,21 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseIfStatement()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     auto result = std::make_unique<IfStatement>(loc);
 
-    EXPECT(Token::If);
+    EXPECT(TokenKind::If);
     TRY(ifCondition, parseExpression());
-    EXPECT(Token::Then);
+    EXPECT(TokenKind::Then);
 
-    auto statementsBlockLoc = lexer.getTokenPosition();
+    auto statementsBlockLoc = tokens[0].getLocation();
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> ifStatements;
 
-    while (current != Token::ElseIf &&
-           current != Token::Else &&
-           current != Token::End) {
+    while (!tokens[0].isa<TokenKind::ElseIf>() &&
+           !tokens[0].isa<TokenKind::Else>() &&
+           !tokens[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       auto& stmnt = ifStatements.emplace_back(std::move(*statement));
       statementsBlockLoc.end = stmnt->getLocation().end;
     }
@@ -531,19 +548,20 @@ namespace marco::parser
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfConditions;
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfBlocks;
 
-    while (current != Token::Else && current != Token::End) {
-      EXPECT(Token::ElseIf);
+    while (!tokens[0].isa<TokenKind::Else>() &&
+        !tokens[0].isa<TokenKind::End>()) {
+      EXPECT(TokenKind::ElseIf);
       TRY(elseIfCondition, parseExpression());
       elseIfConditions.push_back(std::move(*elseIfCondition));
-      EXPECT(Token::Then);
+      EXPECT(TokenKind::Then);
       llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfStatements;
-      auto elseIfStatementsBlockLoc = lexer.getTokenPosition();
+      auto elseIfStatementsBlockLoc = tokens[0].getLocation();
 
-      while (current != Token::ElseIf &&
-             current != Token::Else &&
-             current != Token::End) {
+      while (!tokens[0].isa<TokenKind::ElseIf>() &&
+             !tokens[0].isa<TokenKind::Else>() &&
+             !tokens[0].isa<TokenKind::End>()) {
         TRY(statement, parseStatement());
-        EXPECT(Token::Semicolon);
+        EXPECT(TokenKind::Semicolon);
         auto& stmnt = elseIfStatements.emplace_back(std::move(*statement));
         elseIfStatementsBlockLoc.end = stmnt->getLocation().end;
       }
@@ -557,13 +575,13 @@ namespace marco::parser
     result->setElseIfConditions(elseIfConditions);
     result->setElseIfBlocks(elseIfBlocks);
 
-    if (accept<Token::Else>()) {
-      auto elseBlockLoc = lexer.getTokenPosition();
+    if (accept<TokenKind::Else>()) {
+      auto elseBlockLoc = tokens[0].getLocation();
       llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseStatements;
 
-      while (current != Token::End) {
+      while (!tokens[0].isa<TokenKind::End>()) {
         TRY(statement, parseStatement());
-        EXPECT(Token::Semicolon);
+        EXPECT(TokenKind::Semicolon);
         auto& stmnt = elseStatements.emplace_back(std::move(*statement));
         elseBlockLoc.end = stmnt->getLocation().end;
       }
@@ -574,9 +592,9 @@ namespace marco::parser
       result->setElseBlock(std::move(elseBlock));
     }
 
-    EXPECT(Token::End);
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::If);
+    EXPECT(TokenKind::End);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::If);
 
     result->setLocation(loc);
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
@@ -584,24 +602,24 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseForStatement()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    EXPECT(Token::For);
+    EXPECT(TokenKind::For);
     TRY(induction, parseForIndex());
-    EXPECT(Token::Loop);
+    EXPECT(TokenKind::Loop);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> statements;
 
-    while (current != Token::End) {
+    while (!tokens[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
-    EXPECT(Token::End);
+    EXPECT(TokenKind::End);
 
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::For);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::For);
 
     auto result = std::make_unique<ForStatement>(loc);
     result->setInduction(std::move(*induction));
@@ -611,24 +629,24 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseWhileStatement()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    EXPECT(Token::While);
+    EXPECT(TokenKind::While);
     TRY(condition, parseExpression());
-    EXPECT(Token::Loop);
+    EXPECT(TokenKind::Loop);
 
     std::vector<std::unique_ptr<ast::ASTNode>> statements;
 
-    while (current != Token::End) {
+    while (!tokens[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
-    EXPECT(Token::End);
+    EXPECT(TokenKind::End);
 
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::While);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::While);
 
     auto result = std::make_unique<WhileStatement>(loc);
     result->setCondition(std::move(*condition));
@@ -638,24 +656,24 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseWhenStatement()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    EXPECT(Token::When);
+    EXPECT(TokenKind::When);
     TRY(condition, parseExpression());
-    EXPECT(Token::Loop);
+    EXPECT(TokenKind::Loop);
 
     std::vector<std::unique_ptr<ast::ASTNode>> statements;
 
-    while (current != Token::End) {
+    while (!tokens[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
-    EXPECT(Token::End);
+    EXPECT(TokenKind::End);
 
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::When);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::When);
 
     auto result = std::make_unique<WhenStatement>(loc);
     result->setCondition(std::move(*condition));
@@ -665,13 +683,13 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseExpression()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (accept<Token::If>()) {
+    if (accept<TokenKind::If>()) {
       TRY(condition, parseExpression());
-      EXPECT(Token::Then);
+      EXPECT(TokenKind::Then);
       TRY(trueExpression, parseExpression());
-      EXPECT(Token::Else);
+      EXPECT(TokenKind::Else);
       TRY(falseExpression, parseExpression());
 
       loc.end = (*falseExpression)->getLocation().end;
@@ -692,11 +710,11 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     TRY(l1, parseLogicalExpression());
     loc.end = (*l1)->getLocation().end;
 
-    if (accept<Token::Colon>()) {
+    if (accept<TokenKind::Colon>()) {
       std::vector<std::unique_ptr<ast::ASTNode>> arguments;
       TRY(l2, parseLogicalExpression());
       loc.end = (*l2)->getLocation().end;
@@ -704,7 +722,7 @@ namespace marco::parser
       arguments.push_back(std::move(*l1));
       arguments.push_back(std::move(*l2));
 
-      if (accept<Token::Colon>()) {
+      if (accept<TokenKind::Colon>()) {
         TRY(l3, parseLogicalExpression());
         loc.end = (*l3)->getLocation().end;
         arguments.push_back(std::move(*l3));
@@ -721,19 +739,19 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     std::vector<std::unique_ptr<ast::ASTNode>> logicalTerms;
     TRY(logicalTerm, parseLogicalTerm());
     loc.end = (*logicalTerm)->getLocation().end;
 
-    if (current != Token::Or) {
+    if (!tokens[0].isa<TokenKind::Or>()) {
       return std::move(*logicalTerm);
     }
 
     logicalTerms.push_back(std::move(*logicalTerm));
 
-    while (accept<Token::Or>()) {
+    while (accept<TokenKind::Or>()) {
       TRY(additionalLogicalTerm, parseLogicalTerm());
       loc.end = (*additionalLogicalTerm)->getLocation().end;
       logicalTerms.emplace_back(std::move(*additionalLogicalTerm));
@@ -747,19 +765,19 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     std::vector<std::unique_ptr<ast::ASTNode>> logicalFactors;
     TRY(logicalFactor, parseLogicalFactor());
     loc.end = (*logicalFactor)->getLocation().end;
 
-    if (current != Token::And) {
+    if (!tokens[0].isa<TokenKind::And>()) {
       return std::move(*logicalFactor);
     }
 
     logicalFactors.push_back(std::move(*logicalFactor));
 
-    while (accept<Token::And>()) {
+    while (accept<TokenKind::And>()) {
       TRY(additionalLogicalFactor, parseLogicalFactor());
       loc.end = (*additionalLogicalFactor)->getLocation().end;
       logicalFactors.emplace_back(std::move(*additionalLogicalFactor));
@@ -773,8 +791,8 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor()
   {
-    auto loc = lexer.getTokenPosition();
-    bool negated = accept<Token::Not>();
+    auto loc = tokens[0].getLocation();
+    bool negated = accept<TokenKind::Not>();
 
     TRY(relation, parseRelation());
     loc.end = (*relation)->getLocation().end;
@@ -791,7 +809,7 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseRelation()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     TRY(lhs, parseArithmeticExpression());
     loc.end = (*lhs)->getLocation().end;
@@ -813,27 +831,27 @@ namespace marco::parser
 
   std::optional<OperationKind> Parser::parseRelationalOperator()
   {
-    if (accept<Token::GreaterEqual>()) {
+    if (accept<TokenKind::GreaterEqual>()) {
       return OperationKind::greaterEqual;
     }
 
-    if (accept<Token::Greater>()) {
+    if (accept<TokenKind::Greater>()) {
       return OperationKind::greater;
     }
 
-    if (accept<Token::LessEqual>()) {
+    if (accept<TokenKind::LessEqual>()) {
       return OperationKind::lessEqual;
     }
 
-    if (accept<Token::Less>()) {
+    if (accept<TokenKind::Less>()) {
       return OperationKind::less;
     }
 
-    if (accept<Token::Equal>()) {
+    if (accept<TokenKind::Equal>()) {
       return OperationKind::equal;
     }
 
-    if (accept<Token::NotEqual>()) {
+    if (accept<TokenKind::NotEqual>()) {
       return OperationKind::different;
     }
 
@@ -842,13 +860,13 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     bool negative = false;
 
-    if (accept<Token::Minus>()) {
+    if (accept<TokenKind::Minus>()) {
       negative = true;
     } else {
-      accept<Token::Plus>();
+      accept<TokenKind::Plus>();
     }
 
     TRY(term, parseTerm());
@@ -863,10 +881,10 @@ namespace marco::parser
       result = std::move(newResult);
     }
 
-    while (current == Token::Plus ||
-           current == Token::PlusEW ||
-           current == Token::Minus ||
-           current == Token::MinusEW) {
+    while (tokens[0].isa<TokenKind::Plus>() ||
+           tokens[0].isa<TokenKind::PlusEW>() ||
+           tokens[0].isa<TokenKind::Minus>() ||
+           tokens[0].isa<TokenKind::MinusEW>()) {
       TRY(addOperator, parseAddOperator());
       TRY(rhs, parseTerm());
       loc.end = (*rhs)->getLocation().end;
@@ -886,19 +904,19 @@ namespace marco::parser
 
   std::optional<OperationKind> Parser::parseAddOperator()
   {
-    if (accept<Token::Plus>()) {
+    if (accept<TokenKind::Plus>()) {
       return OperationKind::add;
     }
 
-    if (accept<Token::PlusEW>()) {
+    if (accept<TokenKind::PlusEW>()) {
       return OperationKind::addEW;
     }
 
-    if (accept<Token::Minus>()) {
+    if (accept<TokenKind::Minus>()) {
       return OperationKind::subtract;
     }
 
-    if (accept<Token::MinusEW>()) {
+    if (accept<TokenKind::MinusEW>()) {
       return OperationKind::subtractEW;
     }
 
@@ -907,17 +925,17 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseTerm()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     TRY(factor, parseFactor());
     loc.end = (*factor)->getLocation().end;
 
     auto result = std::move(*factor);
 
-    while (current == Token::Product ||
-           current == Token::ProductEW ||
-           current == Token::Division ||
-           current == Token::DivisionEW) {
+    while (tokens[0].isa<TokenKind::Product>() ||
+           tokens[0].isa<TokenKind::ProductEW>() ||
+           tokens[0].isa<TokenKind::Division>() ||
+           tokens[0].isa<TokenKind::DivisionEW>()) {
       TRY(mulOperator, parseMulOperator());
       TRY(rhs, parseFactor());
       loc.end = (*rhs)->getLocation().end;
@@ -937,19 +955,19 @@ namespace marco::parser
 
   std::optional<OperationKind> Parser::parseMulOperator()
   {
-    if (accept<Token::Product>()) {
+    if (accept<TokenKind::Product>()) {
       return OperationKind::multiply;
     }
 
-    if (accept<Token::ProductEW>()) {
+    if (accept<TokenKind::ProductEW>()) {
       return OperationKind::multiplyEW;
     }
 
-    if (accept<Token::Division>()) {
+    if (accept<TokenKind::Division>()) {
       return OperationKind::divide;
     }
 
-    if (accept<Token::DivisionEW>()) {
+    if (accept<TokenKind::DivisionEW>()) {
       return OperationKind::divideEW;
     }
 
@@ -958,18 +976,19 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseFactor()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     TRY(primary, parsePrimary());
     loc.end = (*primary)->getLocation().end;
 
     auto result = std::move(*primary);
 
-    while (current == Token::Pow || current == Token::PowEW) {
+    while (tokens[0].isa<TokenKind::Pow>() ||
+        tokens[0].isa<TokenKind::PowEW>()) {
       std::vector<std::unique_ptr<ast::ASTNode>> args;
       args.push_back(std::move(result));
 
-      if (accept<Token::Pow>()) {
+      if (accept<TokenKind::Pow>()) {
         TRY(rhs, parsePrimary());
         loc.end = (*rhs)->getLocation().end;
         args.push_back(std::move(*rhs));
@@ -981,7 +1000,7 @@ namespace marco::parser
         continue;
       }
 
-      EXPECT(Token::PowEW);
+      EXPECT(TokenKind::PowEW);
       TRY(rhs, parsePrimary());
       loc.end = (*rhs)->getLocation().end;
       args.push_back(std::move(*rhs));
@@ -997,30 +1016,31 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parsePrimary()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (current == Token::Integer) {
+    if (tokens[0].isa<TokenKind::Integer>()) {
       TRY(value, parseIntValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (current == Token::FloatingPoint) {
+    if (tokens[0].isa<TokenKind::FloatingPoint>()) {
       TRY(value, parseFloatValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (current == Token::String) {
+    if (tokens[0].isa<TokenKind::String>()) {
       TRY(value, parseString());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (current == Token::True || current == Token::False) {
+    if (tokens[0].isa<TokenKind::True>() ||
+        tokens[0].isa<TokenKind::False>()) {
       TRY(value, parseBoolValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
@@ -1029,10 +1049,10 @@ namespace marco::parser
 
     std::unique_ptr<ast::ASTNode> result;
 
-    if (accept<Token::LPar>()) {
+    if (accept<TokenKind::LPar>()) {
       TRY(outputExpressionList, parseOutputExpressionList());
-      loc.end = lexer.getTokenPosition().end;
-      EXPECT(Token::RPar);
+      loc.end = tokens[0].getLocation().end;
+      EXPECT(TokenKind::RPar);
 
       if (outputExpressionList->size() == 1) {
         (*outputExpressionList)[0]->setLocation(loc);
@@ -1043,14 +1063,14 @@ namespace marco::parser
       newResult->setExpressions(*outputExpressionList);
       result = std::move(newResult);
 
-    } else if (accept<Token::LCurly>()) {
+    } else if (accept<TokenKind::LCurly>()) {
       TRY(arrayArguments, parseArrayArguments());
-      loc.end = lexer.getTokenPosition().end;
-      EXPECT(Token::RCurly);
+      loc.end = tokens[0].getLocation().end;
+      EXPECT(TokenKind::RCurly);
 
       auto &expressions = arrayArguments->first;
       auto &forIndices = arrayArguments->second;
-      if (forIndices.size() == 0) {
+      if (forIndices.empty()) {
         auto newResult = std::make_unique<ArrayConstant>(loc);
         newResult->setValues(expressions);
         result = std::move(newResult);
@@ -1062,7 +1082,7 @@ namespace marco::parser
         result = std::move(newResult);
       }
 
-    } else if (accept<Token::Der>()) {
+    } else if (accept<TokenKind::Der>()) {
       auto callee = std::make_unique<ast::ComponentReference>(loc);
 
       llvm::SmallVector<std::unique_ptr<ASTNode>, 1> path;
@@ -1082,11 +1102,12 @@ namespace marco::parser
       newResult->setArguments(functionCallArgs->getValue());
       result = std::move(newResult);
 
-    } else if (current == Token::Identifier) {
+    } else if (tokens[0].isa<TokenKind::Identifier>()) {
       TRY(identifier, parseComponentReference());
       loc.end = (*identifier)->getLocation().end;
 
-      if (current != Token::LPar) {
+      if (!tokens[0].isa<TokenKind::LPar>()) {
+        // Identifier.
         return std::move(*identifier);
       }
 
@@ -1101,7 +1122,7 @@ namespace marco::parser
 
     assert(result != nullptr);
 
-    if (current == Token::LSquare) {
+    if (tokens[0].isa<TokenKind::LSquare>()) {
       TRY(arraySubscripts, parseArraySubscripts());
       loc.end = arraySubscripts.value().getLocation().end;
 
@@ -1123,8 +1144,8 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseComponentReference()
   {
-    auto loc = lexer.getTokenPosition();
-    bool globalLookup = accept<Token::Dot>();
+    auto loc = tokens[0].getLocation();
+    bool globalLookup = accept<TokenKind::Dot>();
 
     llvm::SmallVector<std::unique_ptr<ASTNode>> path;
 
@@ -1132,7 +1153,7 @@ namespace marco::parser
     loc.end = (*firstEntry)->getLocation().end;
     path.push_back(std::move(*firstEntry));
 
-    while (accept<Token::Dot>()) {
+    while (accept<TokenKind::Dot>()) {
       TRY(entry, parseComponentReferenceEntry());
       loc.end = (*entry)->getLocation().end;
       path.push_back(std::move(*entry));
@@ -1149,7 +1170,7 @@ namespace marco::parser
   std::optional<std::unique_ptr<ast::ASTNode>>
   Parser::parseComponentReferenceEntry()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     TRY(name, parseIdentifier());
     loc.end = name->getLocation().end;
@@ -1157,7 +1178,7 @@ namespace marco::parser
     auto result = std::make_unique<ComponentReferenceEntry>(loc);
     result->setName(name->getValue());
 
-    if (current == Token::LSquare) {
+    if (tokens[0].isa<TokenKind::LSquare>()) {
       TRY(arraySubscripts, parseArraySubscripts());
       loc.end = arraySubscripts.value().getLocation().end;
 
@@ -1168,14 +1189,15 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseFunctionCallArgs()
+  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>>
+  Parser::parseFunctionCallArgs()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::LPar);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::LPar);
 
     std::vector<std::unique_ptr<ast::ASTNode>> args;
 
-    if (current != Token::RPar) {
+    if (!tokens[0].isa<TokenKind::RPar>()) {
       TRY(functionArguments, parseFunctionArguments());
 
       for (auto& arg : *functionArguments) {
@@ -1183,20 +1205,34 @@ namespace marco::parser
       }
     }
 
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::RPar);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::RPar);
 
     return ValueWrapper(std::move(loc), std::move(args));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArguments()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseFunctionArguments()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
-    TRY(firstArg, parseExpression());
-    arguments.push_back(std::move(*firstArg));
+    if (tokens[0].isa<TokenKind::Identifier>() &&
+        tokens[1].isa<TokenKind::EqualityOperator>()) {
+      // Named arguments.
+      return parseNamedArguments();
+    }
 
-    if (accept<Token::Comma>()) {
+    TRY(firstArgExpression, parseExpression());
+
+    auto firstArg = std::make_unique<CallArgument>(
+        (*firstArgExpression)->getLocation());
+
+    firstArg->setValue(std::move(*firstArgExpression));
+
+    arguments.push_back(
+        static_cast<std::unique_ptr<ASTNode>>(std::move(firstArg)));
+
+    if (accept<TokenKind::Comma>()) {
       TRY(otherArgs, parseFunctionArgumentsNonFirst());
 
       for (auto& otherArg : *otherArgs) {
@@ -1207,21 +1243,32 @@ namespace marco::parser
     return arguments;
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseFunctionArgumentsNonFirst()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseFunctionArgumentsNonFirst()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
     do {
-      TRY(argument, parseExpression());
-      arguments.push_back(std::move(*argument));
-    } while (accept<Token::Comma>());
+      TRY(argumentExpression, parseExpression());
+
+      auto argument = std::make_unique<CallArgument>(
+          (*argumentExpression)->getLocation());
+
+      argument->setValue(std::move(*argumentExpression));
+
+      arguments.push_back(
+          static_cast<std::unique_ptr<ASTNode>>(std::move(argument)));
+    } while (accept<TokenKind::Comma>());
 
     return arguments;
   }
 
-  std::optional<std::pair<std::vector<std::unique_ptr<ASTNode>>, std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArrayArguments()
+  std::optional<std::pair<
+      std::vector<std::unique_ptr<ASTNode>>,
+      std::vector<std::unique_ptr<ASTNode>>>>
+  Parser::parseArrayArguments()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 		std::vector<std::unique_ptr<ast::ASTNode>> inductions;
 
@@ -1229,49 +1276,84 @@ namespace marco::parser
     loc.end = (*argument)->getLocation().end;
     arguments.push_back(std::move(*argument));
 
-    if (accept<Token::Comma>()) {
+    if (accept<TokenKind::Comma>()) {
       TRY(otherArguments, parseArrayArgumentsNonFirst());
 
       for (auto& otherArgument : *otherArguments) {
         loc.end = otherArgument->getLocation().end;
         arguments.push_back(std::move(otherArgument));
       }
-    } else if (accept<Token::For>()) {
+    } else if (accept<TokenKind::For>()) {
       // for-indices
       do {
         TRY(induction, parseForIndex());
         inductions.push_back(std::move(*induction));
-      } while (accept<Token::Comma>());
+      } while (accept<TokenKind::Comma>());
     }
 
     return std::make_pair(std::move(arguments), std::move(inductions));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseArrayArgumentsNonFirst()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseArrayArgumentsNonFirst()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
     do {
       TRY(argument, parseExpression());
       arguments.push_back(std::move(*argument));
-    } while (accept<Token::Comma>());
+    } while (accept<TokenKind::Comma>());
 
     return arguments;
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseFunctionArgument()
+  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+  Parser::parseNamedArguments()
+  {
+    std::vector<std::unique_ptr<ast::ASTNode>> arguments;
+
+    do {
+      TRY(argument, parseNamedArgument());
+      arguments.push_back(std::move(*argument));
+    } while (accept<TokenKind::Comma>());
+
+    return arguments;
+  }
+
+  std::optional<std::unique_ptr<ast::ASTNode>>
+  Parser::parseNamedArgument()
+  {
+    auto loc = tokens[0].getLocation();
+
+    auto identifier = lexer.getIdentifier();
+    EXPECT(TokenKind::Identifier);
+    EXPECT(TokenKind::EqualityOperator);
+
+    TRY(expression, parseFunctionArgument());
+    loc.end = (*expression)->getLocation().end;
+
+    auto result = std::make_unique<CallArgument>(loc);
+    result->setName(identifier);
+    result->setValue(std::move(*expression));
+
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+  }
+
+  std::optional<std::unique_ptr<ast::ASTNode>>
+  Parser::parseFunctionArgument()
   {
     return parseExpression();
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseOutputExpressionList()
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseOutputExpressionList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> expressions;
 
-    while (current != Token::RPar) {
-      auto loc = lexer.getTokenPosition();
+    while (!tokens[0].isa<TokenKind::RPar>()) {
+      auto loc = tokens[0].getLocation();
 
-      if (accept<Token::Comma>()) {
+      if (accept<TokenKind::Comma>()) {
         auto expression = std::make_unique<ComponentReference>(loc);
         expression->setDummy(true);
         expressions.push_back(std::move(expression));
@@ -1280,35 +1362,36 @@ namespace marco::parser
 
       TRY(expression, parseExpression());
       expressions.push_back(std::move(*expression));
-      accept<Token::Comma>();
+      accept<TokenKind::Comma>();
     }
 
     return expressions;
   }
 
-  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseArraySubscripts()
+  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>>
+  Parser::parseArraySubscripts()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::LSquare);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::LSquare);
 
     std::vector<std::unique_ptr<ast::ASTNode>> subscripts;
 
     do {
       TRY(subscript, parseSubscript());
       subscripts.push_back(std::move(*subscript));
-    } while (accept<Token::Comma>());
+    } while (accept<TokenKind::Comma>());
 
-    loc.end = lexer.getTokenPosition().end;
-    EXPECT(Token::RSquare);
+    loc.end = tokens[0].getLocation().end;
+    EXPECT(TokenKind::RSquare);
 
     return ValueWrapper(std::move(loc), std::move(subscripts));
   }
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseSubscript()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    if (accept<Token::Colon>()) {
+    if (accept<TokenKind::Colon>()) {
       auto result = std::make_unique<Constant>(loc);
       result->setValue(-1);
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
@@ -1320,8 +1403,8 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ASTNode>> Parser::parseAnnotation()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::Annotation);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::Annotation);
     TRY(classModification, parseClassModification());
     loc.end = (*classModification)->getLocation().end;
 
@@ -1332,23 +1415,23 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseEquationsBlock()
   {
-    auto loc = lexer.getTokenPosition();
-    EXPECT(Token::Equation);
+    auto loc = tokens[0].getLocation();
+    EXPECT(TokenKind::Equation);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> equations;
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> forEquations;
 
     while (
-        current != Token::End &&
-        current != Token::Public &&
-        current != Token::Protected &&
-        current != Token::Equation &&
-        current != Token::Initial &&
-        current != Token::Algorithm &&
-        current != Token::External &&
-        current != Token::Annotation &&
-        current != Token::EndOfFile) {
-      if (current == Token::For) {
+        !tokens[0].isa<TokenKind::End>() &&
+        !tokens[0].isa<TokenKind::Public>() &&
+        !tokens[0].isa<TokenKind::Protected>() &&
+        !tokens[0].isa<TokenKind::Equation>() &&
+        !tokens[0].isa<TokenKind::Initial>() &&
+        !tokens[0].isa<TokenKind::Algorithm>() &&
+        !tokens[0].isa<TokenKind::External>() &&
+        !tokens[0].isa<TokenKind::Annotation>() &&
+        !tokens[0].isa<TokenKind::EndOfFile>()) {
+      if (tokens[0].isa<TokenKind::For>()) {
         TRY(currentForEquations, parseForEquations());
 
         for (auto& forEquation : *currentForEquations) {
@@ -1357,7 +1440,7 @@ namespace marco::parser
       } else {
         TRY(equation, parseEquation());
         equations.push_back(std::move(*equation));
-        EXPECT(Token::Semicolon);
+        EXPECT(TokenKind::Semicolon);
       }
     }
 
@@ -1367,16 +1450,17 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> Parser::parseForEquations()
+  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+  Parser::parseForEquations()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> result;
 
-    EXPECT(Token::For);
+    EXPECT(TokenKind::For);
     TRY(induction, parseForIndex());
-    EXPECT(Token::Loop);
+    EXPECT(TokenKind::Loop);
 
-    while (current != Token::End) {
-      if (current == Token::For) {
+    while (!tokens[0].isa<TokenKind::End>()) {
+      if (tokens[0].isa<TokenKind::For>()) {
         TRY(nestedForEquations, parseForEquations());
 
         for (auto& forEquation : *nestedForEquations) {
@@ -1410,39 +1494,39 @@ namespace marco::parser
         newForEquation->setInductions((*induction)->clone());
         newForEquation->setEquation(std::move(*equation));
 
-        EXPECT(Token::Semicolon);
+        EXPECT(TokenKind::Semicolon);
 
         result.push_back(std::move(newForEquation));
       }
     }
 
-    EXPECT(Token::End);
-    EXPECT(Token::For);
-    EXPECT(Token::Semicolon);
+    EXPECT(TokenKind::End);
+    EXPECT(TokenKind::For);
+    EXPECT(TokenKind::Semicolon);
 
     return result;
   }
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
-    auto variableName = lexer.getIdentifier();
-    EXPECT(Token::Identifier);
+    auto variableName = tokens[0].getString();
+    EXPECT(TokenKind::Identifier);
 
-    EXPECT(Token::In);
+    EXPECT(TokenKind::In);
 
     // Hardcode a simple-expression because any other expression, while legal,
     // does not make any semantic sense
     TRY(firstExpression, parseLogicalExpression());
-    EXPECT(Token::Colon);
+    EXPECT(TokenKind::Colon);
     TRY(secondExpression, parseLogicalExpression());
 
     auto result = std::make_unique<Induction>(loc);
     result->setName(variableName);
     result->setBegin(std::move(*firstExpression));
 
-    if (accept<Token::Colon>()) {
+    if (accept<TokenKind::Colon>()) {
       TRY(thirdExpression, parseLogicalExpression());
       loc.end = (*thirdExpression)->getLocation().end;
 
@@ -1461,49 +1545,52 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>> Parser::parseElementList(bool publicSection)
+  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  Parser::parseElementList(bool publicSection)
   {
     std::vector<std::unique_ptr<ast::ASTNode>> members;
 
-    while (current != Token::Public &&
-           current != Token::Protected &&
-           current != Token::Function &&
-           current != Token::Equation &&
-           current != Token::Initial &&
-           current != Token::Algorithm &&
-           current != Token::End &&
-           current != Token::Class &&
-           current != Token::Function &&
-           current != Token::Model &&
-           current != Token::Package&&
-           current != Token::Record) {
+    while (!tokens[0].isa<TokenKind::Public>() &&
+           !tokens[0].isa<TokenKind::Protected>() &&
+           !tokens[0].isa<TokenKind::Function>() &&
+           !tokens[0].isa<TokenKind::Equation>() &&
+           !tokens[0].isa<TokenKind::Initial>() &&
+           !tokens[0].isa<TokenKind::Algorithm>() &&
+           !tokens[0].isa<TokenKind::End>() &&
+           !tokens[0].isa<TokenKind::Class>() &&
+           !tokens[0].isa<TokenKind::Function>() &&
+           !tokens[0].isa<TokenKind::Model>() &&
+           !tokens[0].isa<TokenKind::Package>() &&
+           !tokens[0].isa<TokenKind::Record>()) {
       TRY(member, parseElement(publicSection));
-      EXPECT(Token::Semicolon);
+      EXPECT(TokenKind::Semicolon);
       members.push_back(std::move(*member));
     }
 
     return members;
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseElement(bool publicSection)
+  std::optional<std::unique_ptr<ast::ASTNode>>
+  Parser::parseElement(bool publicSection)
   {
-    accept<Token::Final>();
+    accept<TokenKind::Final>();
     TRY(typePrefix, parseTypePrefix());
     TRY(type, parseVariableType());
     TRY(name, parseIdentifier());
 
     std::unique_ptr<ast::ASTNode> modification;
 
-    if (current == Token::LPar || current == Token::EqualityOperator) {
+    if (tokens[0].isa<TokenKind::LPar>() ||
+        tokens[0].isa<TokenKind::EqualityOperator>()) {
       TRY(mod, parseModification());
       modification = std::move(*mod);
     }
 
     // String comment. Ignore it for now.
-    accept<Token::String>();
+    accept<TokenKind::String>();
 
     // Annotation
-    if (current == Token::Annotation) {
+    if (tokens[0].isa<TokenKind::Annotation>()) {
       TRY(annotation, parseAnnotation());
       // TODO: handle elements annotations
     }
@@ -1523,23 +1610,23 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
 
     VariabilityQualifier variabilityQualifier = VariabilityQualifier::none;
 
-    if (accept<Token::Discrete>()) {
+    if (accept<TokenKind::Discrete>()) {
       variabilityQualifier = VariabilityQualifier::discrete;
-    } else if (accept<Token::Parameter>()) {
+    } else if (accept<TokenKind::Parameter>()) {
       variabilityQualifier = VariabilityQualifier::parameter;
-    } else if (accept<Token::Constant>()) {
+    } else if (accept<TokenKind::Constant>()) {
       variabilityQualifier = VariabilityQualifier::constant;
     }
 
     IOQualifier ioQualifier = IOQualifier::none;
 
-    if (accept<Token::Input>()) {
+    if (accept<TokenKind::Input>()) {
       ioQualifier = IOQualifier::input;
-    } else if (accept<Token::Output>()) {
+    } else if (accept<TokenKind::Output>()) {
       ioQualifier = IOQualifier::output;
     }
 
@@ -1551,12 +1638,12 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     std::unique_ptr<ast::ASTNode> result;
 
-    bool globalLookup = accept<Token::Dot>();
-    std::string name = lexer.getIdentifier();
-    EXPECT(Token::Identifier);
+    bool globalLookup = accept<TokenKind::Dot>();
+    std::string name = tokens[0].getString();
+    EXPECT(TokenKind::Identifier);
 
     if (name == "String") {
       result = std::make_unique<BuiltInType>(loc);
@@ -1578,10 +1665,10 @@ namespace marco::parser
       llvm::SmallVector<std::string> path;
       path.push_back(name);
 
-      while (accept<Token::Dot>()) {
-        loc.end = lexer.getTokenPosition().end;
-        path.push_back(lexer.getIdentifier());
-        EXPECT(Token::Identifier);
+      while (accept<TokenKind::Dot>()) {
+        loc.end = tokens[0].getLocation().end;
+        path.push_back(tokens[0].getString());
+        EXPECT(TokenKind::Identifier);
       }
 
       result = std::make_unique<UserDefinedType>(loc);
@@ -1591,13 +1678,13 @@ namespace marco::parser
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> dimensions;
 
-    if (accept<Token::LSquare>()) {
+    if (accept<TokenKind::LSquare>()) {
       do {
         TRY(arrayDimension, parseArrayDimension());
         dimensions.push_back(std::move(*arrayDimension));
-      } while (accept<Token::Comma>());
+      } while (accept<TokenKind::Comma>());
 
-      EXPECT(Token::RSquare);
+      EXPECT(TokenKind::RSquare);
     }
 
     result->dyn_cast<VariableType>()->setDimensions(dimensions);
@@ -1606,13 +1693,14 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
   {
-    auto loc = lexer.getTokenPosition();
+    auto loc = tokens[0].getLocation();
     auto result = std::make_unique<ArrayDimension>(loc);
 
-    if (accept<Token::Colon>()) {
+    if (accept<TokenKind::Colon>()) {
       result->setSize(-1);
-    } else if (accept<Token::Integer>()) {
-      result->setSize(lexer.getInt());
+    } else if (tokens[0].isa<TokenKind::Integer>()) {
+      result->setSize(tokens[0].getInt());
+      EXPECT(TokenKind::Integer);
     } else {
       TRY(expression, parseExpression());
       result->setSize(std::move(*expression));
@@ -1623,43 +1711,43 @@ namespace marco::parser
 
   std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification()
   {
-    EXPECT(Token::LPar);
+    EXPECT(TokenKind::LPar);
 
     std::unique_ptr<ast::ASTNode> expression;
 
     do {
-      accept<Token::Each>();
-      auto lastIndentifier = lexer.getIdentifier();
-      EXPECT(Token::Identifier);
-      EXPECT(Token::EqualityOperator);
+      accept<TokenKind::Each>();
+      auto lastIndentifier = tokens[0].getString();
+      EXPECT(TokenKind::Identifier);
+      EXPECT(TokenKind::EqualityOperator);
 
       if (lastIndentifier == "start") {
         TRY(exp, parseExpression());
         expression = std::move(*exp);
       }
 
-      if (accept<Token::FloatingPoint>()) {
+      if (accept<TokenKind::FloatingPoint>()) {
         continue;
       }
 
-      if (accept<Token::Integer>()) {
+      if (accept<TokenKind::Integer>()) {
         continue;
       }
 
-      if (accept<Token::String>()) {
+      if (accept<TokenKind::String>()) {
         continue;
       }
 
-      if (accept<Token::True>()) {
+      if (accept<TokenKind::True>()) {
         continue;
       }
 
-      if (accept<Token::False>()) {
+      if (accept<TokenKind::False>()) {
         continue;
       }
-    } while (accept<Token::Comma>());
+    } while (accept<TokenKind::Comma>());
 
-    EXPECT(Token::RPar);
+    EXPECT(TokenKind::RPar);
     return std::move(expression);
   }
 }

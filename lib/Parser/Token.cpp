@@ -7,292 +7,292 @@ using namespace ::marco::parser;
 
 namespace marco::parser
 {
-  std::string toString(Token obj)
+  std::string toString(TokenKind obj)
   {
     switch (obj) {
-      case Token::None:
+      case TokenKind::None:
         return "none";
 
-      case Token::Begin:
+      case TokenKind::Begin:
         return "begin";
 
-      case Token::EndOfFile:
+      case TokenKind::EndOfFile:
         return "EOF";
 
-      case Token::Error:
+      case TokenKind::Error:
         return "error";
 
-      case Token::Identifier:
+      case TokenKind::Identifier:
         return "identifier";
 
-      case Token::Integer:
+      case TokenKind::Integer:
         return "integer";
 
-      case Token::FloatingPoint:
+      case TokenKind::FloatingPoint:
         return "floating point";
 
-      case Token::String:
+      case TokenKind::String:
         return "string";
 
-      case Token::Algorithm:
+      case TokenKind::Algorithm:
         return "algorithm";
 
-      case Token::And:
+      case TokenKind::And:
         return "and";
 
-      case Token::Annotation:
+      case TokenKind::Annotation:
         return "annotation";
 
-      case Token::Block:
+      case TokenKind::Block:
         return "block";
 
-      case Token::Break:
+      case TokenKind::Break:
         return "break";
 
-      case Token::Class:
+      case TokenKind::Class:
         return "class";
 
-      case Token::Connect:
+      case TokenKind::Connect:
         return "connect";
 
-      case Token::Connector:
+      case TokenKind::Connector:
         return "connector";
 
-      case Token::Constant:
+      case TokenKind::Constant:
         return "constant";
 
-      case Token::ConstrainedBy:
+      case TokenKind::ConstrainedBy:
         return "constrainedby";
 
-      case Token::Der:
+      case TokenKind::Der:
         return "der";
 
-      case Token::Discrete:
+      case TokenKind::Discrete:
         return "discrete";
 
-      case Token::Each:
+      case TokenKind::Each:
         return "each";
 
-      case Token::Else:
+      case TokenKind::Else:
         return "else";
 
-      case Token::ElseIf:
+      case TokenKind::ElseIf:
         return "elseif";
 
-      case Token::ElseWhen:
+      case TokenKind::ElseWhen:
         return "elsewhen";
 
-      case Token::Encapsulated:
+      case TokenKind::Encapsulated:
         return "encapsulated";
 
-      case Token::End:
+      case TokenKind::End:
         return "end";
 
-      case Token::Enumeration:
+      case TokenKind::Enumeration:
         return "enumeration";
 
-      case Token::Equation:
+      case TokenKind::Equation:
         return "equation";
 
-      case Token::Expandable:
+      case TokenKind::Expandable:
         return "expandable";
 
-      case Token::Extends:
+      case TokenKind::Extends:
         return "extends";
 
-      case Token::External:
+      case TokenKind::External:
         return "external";
 
-      case Token::False:
+      case TokenKind::False:
         return "false";
 
-      case Token::Final:
+      case TokenKind::Final:
         return "final";
 
-      case Token::Flow:
+      case TokenKind::Flow:
         return "flow";
 
-      case Token::For:
+      case TokenKind::For:
         return "for";
 
-      case Token::Function:
+      case TokenKind::Function:
         return "function";
 
-      case Token::If:
+      case TokenKind::If:
         return "if";
 
-      case Token::Import:
+      case TokenKind::Import:
         return "import";
 
-      case Token::Impure:
+      case TokenKind::Impure:
         return "impure";
 
-      case Token::In:
+      case TokenKind::In:
         return "in";
 
-      case Token::Initial:
+      case TokenKind::Initial:
         return "initial";
 
-      case Token::Inner:
+      case TokenKind::Inner:
         return "inner";
 
-      case Token::Input:
+      case TokenKind::Input:
         return "input";
 
-      case Token::Loop:
+      case TokenKind::Loop:
         return "loop";
 
-      case Token::Model:
+      case TokenKind::Model:
         return "model";
 
-      case Token::Not:
+      case TokenKind::Not:
         return "not";
 
-      case Token::Operator:
+      case TokenKind::Operator:
         return "operator";
 
-      case Token::Or:
+      case TokenKind::Or:
         return "or";
 
-      case Token::Outer:
+      case TokenKind::Outer:
         return "outer";
 
-      case Token::Output:
+      case TokenKind::Output:
         return "output";
 
-      case Token::Package:
+      case TokenKind::Package:
         return "package";
 
-      case Token::Parameter:
+      case TokenKind::Parameter:
         return "parameter";
 
-      case Token::Partial:
+      case TokenKind::Partial:
         return "partial";
 
-      case Token::Protected:
+      case TokenKind::Protected:
         return "protected";
 
-      case Token::Public:
+      case TokenKind::Public:
         return "public";
 
-      case Token::Pure:
+      case TokenKind::Pure:
         return "pure";
 
-      case Token::Record:
+      case TokenKind::Record:
         return "record";
 
-      case Token::Redeclare:
+      case TokenKind::Redeclare:
         return "redeclare";
 
-      case Token::Replaceable:
+      case TokenKind::Replaceable:
         return "replaceable";
 
-      case Token::Return:
+      case TokenKind::Return:
         return "return";
 
-      case Token::Stream:
+      case TokenKind::Stream:
         return "stream";
 
-      case Token::Then:
+      case TokenKind::Then:
         return "then";
 
-      case Token::True:
+      case TokenKind::True:
         return "true";
 
-      case Token::Type:
+      case TokenKind::Type:
         return "type";
 
-      case Token::When:
+      case TokenKind::When:
         return "when";
 
-      case Token::While:
+      case TokenKind::While:
         return "while";
 
-      case Token::Within:
+      case TokenKind::Within:
         return "within";
 
-      case Token::Plus:
+      case TokenKind::Plus:
         return "+";
 
-      case Token::PlusEW:
+      case TokenKind::PlusEW:
         return ".+";
 
-      case Token::Minus:
+      case TokenKind::Minus:
         return "-";
 
-      case Token::MinusEW:
+      case TokenKind::MinusEW:
         return ".-";
 
-      case Token::Product:
+      case TokenKind::Product:
         return "*";
 
-      case Token::ProductEW:
+      case TokenKind::ProductEW:
         return ".*";
 
-      case Token::Division:
+      case TokenKind::Division:
         return "/";
 
-      case Token::DivisionEW:
+      case TokenKind::DivisionEW:
         return "./";
 
-      case Token::Pow:
+      case TokenKind::Pow:
         return "^";
 
-      case Token::PowEW:
+      case TokenKind::PowEW:
         return ".^";
 
-      case Token::Dot:
+      case TokenKind::Dot:
         return ".";
 
-      case Token::Equal:
+      case TokenKind::Equal:
         return "==";
 
-      case Token::NotEqual:
+      case TokenKind::NotEqual:
         return "<>";
 
-      case Token::Less:
+      case TokenKind::Less:
         return "<";
 
-      case Token::LessEqual:
+      case TokenKind::LessEqual:
         return "<=";
 
-      case Token::Greater:
+      case TokenKind::Greater:
         return ">";
 
-      case Token::GreaterEqual:
+      case TokenKind::GreaterEqual:
         return ">=";
 
-      case Token::Comma:
+      case TokenKind::Comma:
         return ",";
 
-      case Token::Semicolon:
+      case TokenKind::Semicolon:
         return ";";
 
-      case Token::Colon:
+      case TokenKind::Colon:
         return ":";
 
-      case Token::LPar:
+      case TokenKind::LPar:
         return "(";
 
-      case Token::RPar:
+      case TokenKind::RPar:
         return ")";
 
-      case Token::LSquare:
+      case TokenKind::LSquare:
         return "[";
 
-      case Token::RSquare:
+      case TokenKind::RSquare:
         return "]";
 
-      case Token::LCurly:
+      case TokenKind::LCurly:
         return "{";
 
-      case Token::RCurly:
+      case TokenKind::RCurly:
         return "}";
 
-      case Token::EqualityOperator:
+      case TokenKind::EqualityOperator:
         return "=";
 
-      case Token::AssignmentOperator:
+      case TokenKind::AssignmentOperator:
         return ":=";
     }
 
@@ -300,13 +300,84 @@ namespace marco::parser
     return "unknown";
   }
 
-  std::ostream& operator<<(std::ostream& os, const Token& obj)
+  std::ostream& operator<<(std::ostream& os, const TokenKind& obj)
   {
     return os << toString(obj);
   }
 
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Token& obj)
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TokenKind& obj)
   {
     return os << toString(obj);
+  }
+
+  Token::Token(TokenKind kind, SourceRange location)
+      : kind(kind), location(std::move(location))
+  {
+  }
+
+  Token::Token(TokenKind kind, SourceRange location, llvm::StringRef value)
+      : kind(kind),
+        location(std::move(location)),
+        value(value.str())
+  {
+
+  }
+
+  Token::Token(TokenKind kind, SourceRange location, int64_t value)
+      : kind(kind),
+        location(std::move(location)),
+        value(value)
+  {
+
+  }
+
+  Token::Token(TokenKind kind, SourceRange location, double value)
+      : kind(kind),
+        location(std::move(location)),
+        value(value)
+  {
+  }
+
+  TokenKind Token::getKind() const
+  {
+    return kind;
+  }
+
+  const SourceRange& Token::getLocation() const
+  {
+    return location;
+  }
+
+  std::string Token::getString() const
+  {
+    assert(std::holds_alternative<std::string>(value));
+    return std::get<std::string>(value);
+  }
+
+  int64_t Token::getInt() const
+  {
+    assert(std::holds_alternative<int64_t>(value));
+    return std::get<int64_t>(value);
+  }
+
+  double Token::getFloat() const
+  {
+    assert(std::holds_alternative<double>(value));
+    return std::get<double>(value);
+  }
+
+  std::string toString(const Token& obj)
+  {
+    return toString(obj.getKind());
+  }
+
+  std::ostream& operator<<(std::ostream& os, const Token& obj)
+  {
+    return os << obj.getKind();
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Token& obj)
+  {
+    return os << obj.getKind();
   }
 }

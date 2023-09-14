@@ -12,16 +12,13 @@
 namespace marco::lexer
 {
   template<>
-  struct TokenTraits<parser::Token>
+  struct TokenTraits<parser::TokenKind>
   {
-    static parser::Token getNoneToken()
-    {
-      return parser::Token::None;
-    }
-
     static parser::Token getEOFToken()
     {
-      return parser::Token::EndOfFile;
+      return parser::Token(
+          parser::TokenKind::EndOfFile,
+          SourceRange::unknown());
     }
   };
 }
@@ -63,60 +60,71 @@ namespace marco::parser
 
       ModelicaStateMachine(std::shared_ptr<SourceFile> file, char first);
 
-		  /// Returns the last seen identifier, or the one being built if the machine
-		  /// is in the process of recognizing one.
+    public:
+		  /// Returns the last seen identifier, or the one being built if the
+		  /// machine is in the process of recognizing one.
       std::string getIdentifier() const;
 
-		  /// Returns the last seen string, or the one being built if the machine is in
-		  /// the process of recognizing one.
+		  /// Returns the last seen string, or the one being built if the machine
+		  /// is in the process of recognizing one.
       std::string getString() const;
 
-		  /// Returns the last seen integer, or the one being built if the machine is
-		  /// in the process of recognizing one.
+		  /// Returns the last seen integer, or the one being built if the machine
+		  /// is in the process of recognizing one.
 		  ///
-		  /// Notice that as soon as a new number is found this value is overridden,
-		  /// even if it was a float and not a int.
+		  /// Notice that as soon as a new number is found this value is
+		  /// overridden, even if it was a float and not a int.
       int64_t getInt() const;
 
-		  /// Returns the last float seen, or the one being built if the machine is in
-		  /// the process of recognizing one.
+		  /// Returns the last float seen, or the one being built if the machine
+		  /// is in the process of recognizing one.
 		  ///
-		  /// Notice that as soon as a new number is found this value is overridden,
-		  /// even if it was a int and not a float.
+		  /// Notice that as soon as a new number is found this value is
+		  /// overridden, even if it was a int and not a float.
       double getFloat() const;
 
-      std::string getError() const;
+      llvm::StringRef getError() const;
 
       SourcePosition getCurrentPosition() const;
 
       SourceRange getTokenPosition() const;
 
     protected:
-      Token getNoneToken() const;
-
-      /// Feed a character to the state machine. Returns 'None' if
+      /// Feed a character to the state machine. Returns std::nullopt if
       /// the current token has not consumed all the possible character
-      /// Returns 'Error' if the input was malformed.
-      /// Returns 'EndOfFile' if '\0' was found.
-      Token step(char c);
+      /// Returns the 'Error' token if the input was malformed.
+      /// Returns the 'EndOfFile' token if '\0' was found.
+      std::optional<Token> step(char c);
 
     private:
 		  /// Move to the next character.
       void advance(char c);
 
       template<State s>
-      Token scan();
+      std::optional<Token> scan();
 
-      /// Try to scan the next symbol by taking into account both the current and the
-      /// next characters. This avoids the need to define custom states to recognize
-      /// simple symbols such as '==' or ':='.
-      Token trySymbolScan();
+      /// Try to scan the next symbol by taking into account both the current
+      /// and the next characters. This avoids the need to define custom states
+      /// to recognize simple symbols such as '==' or ':='.
+      std::optional<Token> trySymbolScan();
 
       void setTokenBeginPosition();
       void setTokenEndPosition();
 
+      Token makeToken(TokenKind kind);
+
+      template<typename T>
+      Token makeToken(TokenKind kind, T value)
+      {
+        return {
+          kind,
+          SourceRange(beginPosition, endPosition),
+          std::move(value)
+        };
+      }
+
     private:
-      llvm::StringMap<Token> reservedKeywords;
+      llvm::StringMap<TokenKind> reservedKeywords;
       State state;
 
       char current;

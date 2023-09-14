@@ -63,65 +63,65 @@ namespace marco::parser
       endPosition(SourcePosition(file, 1, 0))
   {
     // Populate the reserved keywords map
-    reservedKeywords["algorithm"] = Token::Algorithm;
-    reservedKeywords["and"] = Token::And;
-    reservedKeywords["annotation"] = Token::Annotation;
-    reservedKeywords["block"] = Token::Block;
-    reservedKeywords["break"] = Token::Break;
-    reservedKeywords["class"] = Token::Class;
-    reservedKeywords["connect"] = Token::Connect;
-    reservedKeywords["connector"] = Token::Connector;
-    reservedKeywords["constant"] = Token::Constant;
-    reservedKeywords["constrainedby"] = Token::ConstrainedBy;
-    reservedKeywords["der"] = Token::Der;
-    reservedKeywords["discrete"] = Token::Discrete;
-    reservedKeywords["each"] = Token::Each;
-    reservedKeywords["else"] = Token::Else;
-    reservedKeywords["elseif"] = Token::ElseIf;
-    reservedKeywords["elsewhen"] = Token::ElseWhen;
-    reservedKeywords["encapsulated"] = Token::Encapsulated;
-    reservedKeywords["end"] = Token::End;
-    reservedKeywords["enumeration"] = Token::Enumeration;
-    reservedKeywords["equation"] = Token::Equation;
-    reservedKeywords["expandable"] = Token::Expandable;
-    reservedKeywords["extends"] = Token::Extends;
-    reservedKeywords["external"] = Token::External;
-    reservedKeywords["false"] = Token::False;
-    reservedKeywords["final"] = Token::Final;
-    reservedKeywords["flow"] = Token::Flow;
-    reservedKeywords["for"] = Token::For;
-    reservedKeywords["function"] = Token::Function;
-    reservedKeywords["if"] = Token::If;
-    reservedKeywords["import"] = Token::Import;
-    reservedKeywords["impure"] = Token::Impure;
-    reservedKeywords["in"] = Token::In;
-    reservedKeywords["initial"] = Token::Initial;
-    reservedKeywords["inner"] = Token::Inner;
-    reservedKeywords["input"] = Token::Input;
-    reservedKeywords["loop"] = Token::Loop;
-    reservedKeywords["model"] = Token::Model;
-    reservedKeywords["not"] = Token::Not;
-    reservedKeywords["operator"] = Token::Operator;
-    reservedKeywords["or"] = Token::Or;
-    reservedKeywords["outer"] = Token::Outer;
-    reservedKeywords["output"] = Token::Output;
-    reservedKeywords["package"] = Token::Package;
-    reservedKeywords["parameter"] = Token::Parameter;
-    reservedKeywords["partial"] = Token::Partial;
-    reservedKeywords["protected"] = Token::Protected;
-    reservedKeywords["public"] = Token::Public;
-    reservedKeywords["pure"] = Token::Pure;
-    reservedKeywords["record"] = Token::Record;
-    reservedKeywords["redeclare"] = Token::Redeclare;
-    reservedKeywords["replaceable"] = Token::Replaceable;
-    reservedKeywords["return"] = Token::Return;
-    reservedKeywords["stream"] = Token::Stream;
-    reservedKeywords["then"] = Token::Then;
-    reservedKeywords["true"] = Token::True;
-    reservedKeywords["type"] = Token::Type;
-    reservedKeywords["when"] = Token::When;
-    reservedKeywords["while"] = Token::While;
-    reservedKeywords["within"] = Token::Within;
+    reservedKeywords["algorithm"] = TokenKind::Algorithm;
+    reservedKeywords["and"] = TokenKind::And;
+    reservedKeywords["annotation"] = TokenKind::Annotation;
+    reservedKeywords["block"] = TokenKind::Block;
+    reservedKeywords["break"] = TokenKind::Break;
+    reservedKeywords["class"] = TokenKind::Class;
+    reservedKeywords["connect"] = TokenKind::Connect;
+    reservedKeywords["connector"] = TokenKind::Connector;
+    reservedKeywords["constant"] = TokenKind::Constant;
+    reservedKeywords["constrainedby"] = TokenKind::ConstrainedBy;
+    reservedKeywords["der"] = TokenKind::Der;
+    reservedKeywords["discrete"] = TokenKind::Discrete;
+    reservedKeywords["each"] = TokenKind::Each;
+    reservedKeywords["else"] = TokenKind::Else;
+    reservedKeywords["elseif"] = TokenKind::ElseIf;
+    reservedKeywords["elsewhen"] = TokenKind::ElseWhen;
+    reservedKeywords["encapsulated"] = TokenKind::Encapsulated;
+    reservedKeywords["end"] = TokenKind::End;
+    reservedKeywords["enumeration"] = TokenKind::Enumeration;
+    reservedKeywords["equation"] = TokenKind::Equation;
+    reservedKeywords["expandable"] = TokenKind::Expandable;
+    reservedKeywords["extends"] = TokenKind::Extends;
+    reservedKeywords["external"] = TokenKind::External;
+    reservedKeywords["false"] = TokenKind::False;
+    reservedKeywords["final"] = TokenKind::Final;
+    reservedKeywords["flow"] = TokenKind::Flow;
+    reservedKeywords["for"] = TokenKind::For;
+    reservedKeywords["function"] = TokenKind::Function;
+    reservedKeywords["if"] = TokenKind::If;
+    reservedKeywords["import"] = TokenKind::Import;
+    reservedKeywords["impure"] = TokenKind::Impure;
+    reservedKeywords["in"] = TokenKind::In;
+    reservedKeywords["initial"] = TokenKind::Initial;
+    reservedKeywords["inner"] = TokenKind::Inner;
+    reservedKeywords["input"] = TokenKind::Input;
+    reservedKeywords["loop"] = TokenKind::Loop;
+    reservedKeywords["model"] = TokenKind::Model;
+    reservedKeywords["not"] = TokenKind::Not;
+    reservedKeywords["operator"] = TokenKind::Operator;
+    reservedKeywords["or"] = TokenKind::Or;
+    reservedKeywords["outer"] = TokenKind::Outer;
+    reservedKeywords["output"] = TokenKind::Output;
+    reservedKeywords["package"] = TokenKind::Package;
+    reservedKeywords["parameter"] = TokenKind::Parameter;
+    reservedKeywords["partial"] = TokenKind::Partial;
+    reservedKeywords["protected"] = TokenKind::Protected;
+    reservedKeywords["public"] = TokenKind::Public;
+    reservedKeywords["pure"] = TokenKind::Pure;
+    reservedKeywords["record"] = TokenKind::Record;
+    reservedKeywords["redeclare"] = TokenKind::Redeclare;
+    reservedKeywords["replaceable"] = TokenKind::Replaceable;
+    reservedKeywords["return"] = TokenKind::Return;
+    reservedKeywords["stream"] = TokenKind::Stream;
+    reservedKeywords["then"] = TokenKind::Then;
+    reservedKeywords["true"] = TokenKind::True;
+    reservedKeywords["type"] = TokenKind::Type;
+    reservedKeywords["when"] = TokenKind::When;
+    reservedKeywords["while"] = TokenKind::While;
+    reservedKeywords["within"] = TokenKind::Within;
   }
 
   std::string ModelicaStateMachine::getIdentifier() const
@@ -144,7 +144,7 @@ namespace marco::parser
     return numberLexer.get();
   }
 
-  std::string ModelicaStateMachine::getError() const
+  llvm::StringRef ModelicaStateMachine::getError() const
   {
     return error;
   }
@@ -156,16 +156,12 @@ namespace marco::parser
 
   SourceRange ModelicaStateMachine::getTokenPosition() const
   {
-    return SourceRange(beginPosition, endPosition);
-  }
-
-  Token ModelicaStateMachine::getNoneToken() const
-  {
-    return Token::None;
+    return {beginPosition, endPosition};
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingIdentifier>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingIdentifier>()
   {
     setTokenEndPosition();
     identifier.push_back(current);
@@ -174,42 +170,44 @@ namespace marco::parser
       state = State::Normal;
 
       if (auto it = reservedKeywords.find(identifier); it != reservedKeywords.end()) {
-        return it->second;
+        return makeToken(it->second);
       }
 
-      return Token::Identifier;
+      return makeToken(TokenKind::Identifier, getIdentifier());
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingQIdentifier>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingQIdentifier>()
   {
     setTokenEndPosition();
 
     if (current == '\\') {
       state = State::ParsingQIdentifierBackSlash;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '\'') {
       state = State::Normal;
-      return Token::Identifier;
+      return makeToken(TokenKind::Identifier, getIdentifier());
     }
 
     if (next == '\0') {
       state = State::Normal;
       error = "unexpected end of file while parsing a q-identifier";
-      return Token::Error;
+      return makeToken(TokenKind::Error, getError());
     }
 
     identifier.push_back(current);
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingNumber>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingNumber>()
   {
     setTokenEndPosition();
 
@@ -219,24 +217,24 @@ namespace marco::parser
 
     if (current == '.') {
       state = State::ParsingFloat;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == 'E' || current == 'e') {
       if (next == '+' || next == '-') {
         state = State::ParsingFloatExponentSign;
-        return Token::None;
+        return std::nullopt;
       }
 
       if (isDigit(next)) {
         numberLexer.setSign(true);
         state = State::ParsingFloatExponent;
-        return Token::None;
+        return std::nullopt;
       }
 
       state = State::Normal;
       error = "missing exponent in floating point number";
-      return Token::Error;
+      return makeToken(TokenKind::Error, getError());
     }
 
     auto isAcceptable = [](char c) {
@@ -245,18 +243,19 @@ namespace marco::parser
 
     if (!isAcceptable(next)) {
       state = State::Normal;
-      return Token::Integer;
+      return makeToken(TokenKind::Integer, getInt());
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingFloat>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingFloat>()
   {
     if (std::isspace(current) || current == '\0') {
       state = State::Normal;
-      return Token::FloatingPoint;
+      return makeToken(TokenKind::FloatingPoint, getFloat());
     }
 
     if (isDigit(current)) {
@@ -266,32 +265,33 @@ namespace marco::parser
     if (current == 'E' || current == 'e') {
       if (next == '+' || next == '-') {
         state = State::ParsingFloatExponentSign;
-        return Token::None;
+        return std::nullopt;
       }
 
       if (isDigit(next)) {
         numberLexer.setSign(true);
         state = State::ParsingFloatExponent;
-        return Token::None;
+        return std::nullopt;
       }
     }
 
     if (isDigit(next) || next == 'E' || next == 'e') {
-      return Token::None;
+      return std::nullopt;
     }
 
     state = State::Normal;
     setTokenEndPosition();
-    return Token::FloatingPoint;
+    return makeToken(TokenKind::FloatingPoint, getFloat());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingFloatExponentSign>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingFloatExponentSign>()
   {
     if (std::isspace(current) || current == '\0') {
       state = State::Normal;
       error = "unexpected termination of the floating point number";
-      return Token::Error;
+      return makeToken(TokenKind::Error, getError());
     }
 
     setTokenEndPosition();
@@ -300,26 +300,27 @@ namespace marco::parser
       if (!isDigit(next)) {
         error = "Exponent sign must be followed by a number";
         state = State::Normal;
-        return Token::Error;
+        return makeToken(TokenKind::Error, getError());
       }
 
       state = State::ParsingFloatExponent;
       numberLexer.setSign(current == '+');
-      return Token::None;
+      return std::nullopt;
     }
 
     error = "unexpected character '" + std::to_string(current) + "' in floating pointer number scan";
     state = State::Normal;
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingFloatExponent>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingFloatExponent>()
   {
     if (std::isspace(current) || current == '\0') {
       state = State::Normal;
       //error = "unexpected termination of the floating point number";
-      return Token::FloatingPoint;
+      return makeToken(TokenKind::FloatingPoint, getFloat());
     }
 
     setTokenEndPosition();
@@ -329,40 +330,42 @@ namespace marco::parser
     }
 
     if (isDigit(next)) {
-      return Token::None;
+      return std::nullopt;
     }
 
     state = State::Normal;
-    return Token::FloatingPoint;
+    return makeToken(TokenKind::FloatingPoint, getFloat());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingString>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingString>()
   {
     if (current == '\0') {
       state = State::End;
       error = "reached end of file while parsing a string";
-      return Token::Error;
+      return makeToken(TokenKind::Error, getError());
     }
 
     setTokenEndPosition();
 
     if (current == '"') {
       state = State::Normal;
-      return Token::String;
+      return makeToken(TokenKind::String, getString());
     }
 
     if (current == '\\') {
       state = State::ParsingBackSlash;
-      return Token::None;
+      return std::nullopt;
     }
 
     stringValue.push_back(current);
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingSingleLineComment>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingSingleLineComment>()
   {
     setTokenEndPosition();
 
@@ -374,11 +377,12 @@ namespace marco::parser
       state = State::Normal;
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingMultiLineComment>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingMultiLineComment>()
   {
     setTokenEndPosition();
 
@@ -390,131 +394,140 @@ namespace marco::parser
       state = State::IgnoredCharacter;
     }
 
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingBackSlash>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingBackSlash>()
   {
     setTokenEndPosition();
     stringValue.push_back(escapedChar(current));
     state = State::ParsingString;
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingQIdentifierBackSlash>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingQIdentifierBackSlash>()
   {
     setTokenEndPosition();
     identifier.push_back(escapedChar(current));
     state = State::ParsingQIdentifier;
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingElementWiseSymbol>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingElementWiseSymbol>()
   {
     setTokenEndPosition();
     state = State::Normal;
 
     if (current == '+') {
-      return Token::PlusEW;
+      return makeToken(TokenKind::PlusEW);
     }
 
     if (current == '-') {
-      return Token::MinusEW;
+      return makeToken(TokenKind::MinusEW);
     }
 
     if (current == '*') {
-      return Token::ProductEW;
+      return makeToken(TokenKind::ProductEW);
     }
 
     if (current == '/') {
-      return Token::DivisionEW;
+      return makeToken(TokenKind::DivisionEW);
     }
 
     if (current == '^') {
-      return Token::PowEW;
+      return makeToken(TokenKind::PowEW);
     }
 
     error = "unexpected character '" + std::to_string(current) + "'";
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingEqualSymbol>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingEqualSymbol>()
   {
     setTokenEndPosition();
     state = State::Normal;
 
     if (current == '=') {
-      return Token::Equal;
+      return makeToken(TokenKind::Equal);
     }
 
     error = "unexpected character '" + std::to_string(current) + "'";
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingLessSymbol>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingLessSymbol>()
   {
     setTokenEndPosition();
     state = State::Normal;
 
     if (current == '>') {
-      return Token::NotEqual;
+      return makeToken(TokenKind::NotEqual);
     }
 
     if (current == '=') {
-      return Token::LessEqual;
+      return makeToken(TokenKind::LessEqual);
     }
 
     error = "unexpected character '" + std::to_string(current) + "'";
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingGreaterSymbol>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingGreaterSymbol>()
   {
     setTokenEndPosition();
     state = State::Normal;
 
     if (current == '=') {
-      return Token::GreaterEqual;
+      return makeToken(TokenKind::GreaterEqual);
     }
 
     error = "unexpected character '" + std::to_string(current) + "'";
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::ParsingColonSymbol>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::ParsingColonSymbol>()
   {
     setTokenEndPosition();
     state = State::Normal;
 
     if (current == '=') {
-      return Token::AssignmentOperator;
+      return makeToken(TokenKind::AssignmentOperator);
     }
 
     error = "unexpected character '" + std::to_string(current) + "'";
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::IgnoredCharacter>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::IgnoredCharacter>()
   {
     setTokenEndPosition();
     state = State::Normal;
-    return Token::None;
+    return std::nullopt;
   }
 
   template<>
-  Token ModelicaStateMachine::scan<ModelicaStateMachine::State::Normal>()
+  std::optional<Token> ModelicaStateMachine::scan<
+      ModelicaStateMachine::State::Normal>()
   {
     if (std::isspace(current) != 0) {
       // Skip spaces
-      return Token::None;
+      return std::nullopt;
     }
 
     setTokenBeginPosition();
@@ -530,7 +543,7 @@ namespace marco::parser
     if (current == '\'') {
       state = State::ParsingQIdentifier;
       identifier = "";
-      return Token::None;
+      return std::nullopt;
     }
 
     if (isDigit(current)) {
@@ -542,28 +555,28 @@ namespace marco::parser
     if (current == '"') {
       state = State::ParsingString;
       stringValue = "";
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '/' && next == '/') {
       state = State::ParsingSingleLineComment;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '/' && next == '*') {
       state = State::ParsingMultiLineComment;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '\0') {
       state = State::End;
-      return Token::EndOfFile;
+      return makeToken(TokenKind::EndOfFile);
     }
 
     return trySymbolScan();
   }
 
-  Token ModelicaStateMachine::trySymbolScan()
+  std::optional<Token> ModelicaStateMachine::trySymbolScan()
   {
     if (current == '.') {
       switch (next) {
@@ -573,13 +586,13 @@ namespace marco::parser
         case '/':
         case '^':
           state = State::ParsingElementWiseSymbol;
-          return Token::None;
+          return std::nullopt;
       }
     }
 
     if (current == '=' && next == '=') {
       state = State::ParsingEqualSymbol;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == '<') {
@@ -587,83 +600,83 @@ namespace marco::parser
         case '>':
         case '=':
           state = State::ParsingLessSymbol;
-          return Token::None;
+          return std::nullopt;
       }
     }
 
     if (current == '>' && next == '=') {
       state = State::ParsingGreaterSymbol;
-      return Token::None;
+      return std::nullopt;
     }
 
     if (current == ':' && next == '=') {
       state = State::ParsingColonSymbol;
-      return Token::None;
+      return std::nullopt;
     }
 
     state = State::Normal;
 
     switch (current) {
       case '+':
-        return Token::Plus;
+        return makeToken(TokenKind::Plus);
 
       case '-':
-        return Token::Minus;
+        return makeToken(TokenKind::Minus);
 
       case '*':
-        return Token::Product;
+        return makeToken(TokenKind::Product);
 
       case '/':
-        return Token::Division;
+        return makeToken(TokenKind::Division);
 
       case '^':
-        return Token::Pow;
+        return makeToken(TokenKind::Pow);
 
       case '.':
-        return Token::Dot;
+        return makeToken(TokenKind::Dot);
 
       case '<':
-        return Token::Less;
+        return makeToken(TokenKind::Less);
 
       case '>':
-        return Token::Greater;
+        return makeToken(TokenKind::Greater);
 
       case ',':
-        return Token::Comma;
+        return makeToken(TokenKind::Comma);
 
       case ';':
-        return Token::Semicolon;
+        return makeToken(TokenKind::Semicolon);
 
       case ':':
-        return Token::Colon;
+        return makeToken(TokenKind::Colon);
 
       case '(':
-        return Token::LPar;
+        return makeToken(TokenKind::LPar);
 
       case ')':
-        return Token::RPar;
+        return makeToken(TokenKind::RPar);
 
       case '[':
-        return Token::LSquare;
+        return makeToken(TokenKind::LSquare);
 
       case ']':
-        return Token::RSquare;
+        return makeToken(TokenKind::RSquare);
 
       case '{':
-        return Token::LCurly;
+        return makeToken(TokenKind::LCurly);
 
       case '}':
-        return Token::RCurly;
+        return makeToken(TokenKind::RCurly);
 
       case '=':
-        return Token::EqualityOperator;
+        return makeToken(TokenKind::EqualityOperator);
     }
 
     error = "Unexpected character " + std::to_string(current);
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
-  Token ModelicaStateMachine::step(char c)
+  std::optional<Token> ModelicaStateMachine::step(char c)
   {
     advance(c);
 
@@ -672,7 +685,7 @@ namespace marco::parser
         return scan<State::Normal>();
 
       case State::End:
-        return Token::EndOfFile;
+        return makeToken(TokenKind::EndOfFile);
 
       case State::ParsingIdentifier:
         return scan<State::ParsingIdentifier>();
@@ -727,7 +740,7 @@ namespace marco::parser
     }
 
     llvm_unreachable("Unknown lexer state");
-    return Token::Error;
+    return makeToken(TokenKind::Error, getError());
   }
 
   void ModelicaStateMachine::advance(char c)
@@ -750,5 +763,10 @@ namespace marco::parser
   void ModelicaStateMachine::setTokenEndPosition()
   {
     endPosition = currentPosition;
+  }
+
+  Token ModelicaStateMachine::makeToken(TokenKind kind)
+  {
+    return Token(kind, SourceRange(beginPosition, endPosition));
   }
 }

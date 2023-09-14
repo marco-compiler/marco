@@ -26,6 +26,7 @@ namespace marco::ast
         Argument_ElementReplaceable,
         Argument_LastArgument,
         ArrayDimension,
+        CallArgument,
         Class,
         Class_Function,
         Class_Function_PartialDerFunction,

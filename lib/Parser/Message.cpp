@@ -7,7 +7,8 @@ using namespace ::marco::parser;
 
 namespace marco::parser
 {
-  UnexpectedTokenMessage::UnexpectedTokenMessage(SourceRange location, Token actual, Token expected)
+  UnexpectedTokenMessage::UnexpectedTokenMessage(
+      SourceRange location, TokenKind actual, TokenKind expected)
     : SourceMessage(std::move(location)),
       actual(actual),
       expected(expected)

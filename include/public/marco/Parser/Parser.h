@@ -5,6 +5,7 @@
 #include "marco/Diagnostic/Location.h"
 #include "marco/Parser/ModelicaStateMachine.h"
 #include "marco/AST/AST.h"
+#include "llvm/ADT/SmallVector.h"
 #include <memory>
 
 namespace marco::parser
@@ -47,12 +48,6 @@ namespace marco::parser
       template<typename T> ValueWrapper(SourceRange, T) -> ValueWrapper<T>;
 
       Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> source);
-
-      /*
-      Parser(diagnostic::DiagnosticEngine& diagnostics, llvm::StringRef file, const char* source);
-      Parser(diagnostic::DiagnosticEngine& diagnostics, const std::string& source);
-      Parser(diagnostic::DiagnosticEngine& diagnostics, const char* source);
-       */
 
       std::optional<std::unique_ptr<ast::ASTNode>> parseRoot();
 
@@ -176,6 +171,12 @@ namespace marco::parser
       /// Parse the 'array-arguments-non-first' symbol.
       std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArgumentsNonFirst();
 
+      /// Parse the 'named-arguments' symbol.
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseNamedArguments();
+
+      /// Parse the 'named-argument' symbol.
+      std::optional<std::unique_ptr<ast::ASTNode>> parseNamedArgument();
+
       /// Parse the 'function-argument' symbol.
       std::optional<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
 
@@ -213,16 +214,16 @@ namespace marco::parser
 
     private:
       /// Read the next token.
-      void next();
+      void advance();
 
       /// Accept the current token and move to the next one, but only
       /// if the current token is the one being expected. The function
       /// returns whether the expected token has been found.
-      template<Token t>
+      template<TokenKind Kind>
       bool accept()
       {
-        if (current == t) {
-          next();
+        if (tokens.front().getKind() == Kind) {
+          advance();
           return true;
         }
 
@@ -232,7 +233,7 @@ namespace marco::parser
     private:
       diagnostic::DiagnosticEngine* diagnostics;
       Lexer<ModelicaStateMachine> lexer;
-      Token current;
+      llvm::SmallVector<Token, 2> tokens{2, Token(TokenKind::Begin)};
   };
 }
 

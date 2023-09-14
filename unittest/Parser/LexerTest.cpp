@@ -25,7 +25,7 @@ TEST(ModelicaLexer, singleLineCommentsAreIgnored)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
   EXPECT_EQ(lexer.getCurrentPosition().line, 1);
   EXPECT_EQ(lexer.getCurrentPosition().column, 11);
 }
@@ -37,7 +37,7 @@ TEST(ModelicaLexer, multiLineCommentsAreIgnored)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
   EXPECT_EQ(lexer.getCurrentPosition().line, 3);
   EXPECT_EQ(lexer.getCurrentPosition().column, 3);
 }
@@ -49,10 +49,10 @@ TEST(ModelicaLexer, singleDigitInteger)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Integer);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, integerValue)
@@ -62,7 +62,7 @@ TEST(ModelicaLexer, integerValue)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Integer);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 12345);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -71,7 +71,7 @@ TEST(ModelicaLexer, integerValue)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, multipleIntegerValues)
@@ -81,7 +81,7 @@ TEST(ModelicaLexer, multipleIntegerValues)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Integer);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 1234);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -90,7 +90,7 @@ TEST(ModelicaLexer, multipleIntegerValues)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::Integer);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Integer>());
   EXPECT_EQ(lexer.getInt(), 5678);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -99,7 +99,7 @@ TEST(ModelicaLexer, multipleIntegerValues)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, floatValue)
@@ -109,7 +109,7 @@ TEST(ModelicaLexer, floatValue)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 1.23);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -118,7 +118,7 @@ TEST(ModelicaLexer, floatValue)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, multipleFloatValues)
@@ -128,7 +128,7 @@ TEST(ModelicaLexer, multipleFloatValues)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 1.23);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -137,7 +137,7 @@ TEST(ModelicaLexer, multipleFloatValues)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 4.56);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -146,7 +146,7 @@ TEST(ModelicaLexer, multipleFloatValues)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, floatsInExponentialFormat)
@@ -156,7 +156,7 @@ TEST(ModelicaLexer, floatsInExponentialFormat)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 20000);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -165,7 +165,7 @@ TEST(ModelicaLexer, floatsInExponentialFormat)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 0.03);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -174,7 +174,7 @@ TEST(ModelicaLexer, floatsInExponentialFormat)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 10);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, floatWithDotOnly)
@@ -184,7 +184,7 @@ TEST(ModelicaLexer, floatWithDotOnly)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::FloatingPoint);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::FloatingPoint>());
   EXPECT_DOUBLE_EQ(lexer.getFloat(), 2);
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -193,7 +193,7 @@ TEST(ModelicaLexer, floatWithDotOnly)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, exponentialFloatWithSignOnly)
@@ -203,7 +203,7 @@ TEST(ModelicaLexer, exponentialFloatWithSignOnly)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Error);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -211,7 +211,7 @@ TEST(ModelicaLexer, exponentialFloatWithSignOnly)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, exponentialFloatWithoutExponent)
@@ -221,7 +221,7 @@ TEST(ModelicaLexer, exponentialFloatWithoutExponent)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Error);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -229,7 +229,7 @@ TEST(ModelicaLexer, exponentialFloatWithoutExponent)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, string)
@@ -239,7 +239,7 @@ TEST(ModelicaLexer, string)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::String);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::String>());
   EXPECT_EQ(lexer.getString(), "string");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -248,7 +248,7 @@ TEST(ModelicaLexer, string)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, specialCharactersInsideString)
@@ -258,7 +258,7 @@ TEST(ModelicaLexer, specialCharactersInsideString)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::String);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::String>());
   EXPECT_EQ(lexer.getString(), "\"\n\r\t\v?");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -267,7 +267,7 @@ TEST(ModelicaLexer, specialCharactersInsideString)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 14);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, malformedString)
@@ -277,7 +277,7 @@ TEST(ModelicaLexer, malformedString)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Error);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Error>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -285,7 +285,7 @@ TEST(ModelicaLexer, malformedString)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, identifier)
@@ -295,7 +295,7 @@ TEST(ModelicaLexer, identifier)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Identifier);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "identifier");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -304,7 +304,7 @@ TEST(ModelicaLexer, identifier)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 10);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, singleCharIdentifier)
@@ -314,7 +314,7 @@ TEST(ModelicaLexer, singleCharIdentifier)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Identifier);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "x");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -323,7 +323,7 @@ TEST(ModelicaLexer, singleCharIdentifier)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, qIdentifier)
@@ -333,7 +333,7 @@ TEST(ModelicaLexer, qIdentifier)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Identifier);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "identifier");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -342,7 +342,7 @@ TEST(ModelicaLexer, qIdentifier)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 12);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, qIdentifierWithEscapedChars)
@@ -352,7 +352,7 @@ TEST(ModelicaLexer, qIdentifierWithEscapedChars)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Identifier);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Identifier>());
   EXPECT_EQ(lexer.getIdentifier(), "identifier'\t");
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
@@ -361,7 +361,7 @@ TEST(ModelicaLexer, qIdentifierWithEscapedChars)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 16);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, algorithmKeyword)
@@ -371,7 +371,7 @@ TEST(ModelicaLexer, algorithmKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Algorithm);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Algorithm>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -379,7 +379,7 @@ TEST(ModelicaLexer, algorithmKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, andKeyword)
@@ -389,7 +389,7 @@ TEST(ModelicaLexer, andKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::And);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::And>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -397,7 +397,7 @@ TEST(ModelicaLexer, andKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, annotationKeyword)
@@ -407,7 +407,7 @@ TEST(ModelicaLexer, annotationKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Annotation);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Annotation>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -415,7 +415,7 @@ TEST(ModelicaLexer, annotationKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 10);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, blockKeyword)
@@ -425,7 +425,7 @@ TEST(ModelicaLexer, blockKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Block);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Block>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -433,7 +433,7 @@ TEST(ModelicaLexer, blockKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, breakKeyword)
@@ -443,7 +443,7 @@ TEST(ModelicaLexer, breakKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Break);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Break>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -451,7 +451,7 @@ TEST(ModelicaLexer, breakKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, classKeyword)
@@ -461,7 +461,7 @@ TEST(ModelicaLexer, classKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Class);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Class>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -469,7 +469,7 @@ TEST(ModelicaLexer, classKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, connectKeyword)
@@ -479,7 +479,7 @@ TEST(ModelicaLexer, connectKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Connect);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Connect>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -487,7 +487,7 @@ TEST(ModelicaLexer, connectKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 7);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, connectorKeyword)
@@ -497,7 +497,7 @@ TEST(ModelicaLexer, connectorKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Connector);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Connector>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -505,7 +505,7 @@ TEST(ModelicaLexer, connectorKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, constantKeyword)
@@ -515,7 +515,7 @@ TEST(ModelicaLexer, constantKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Constant);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Constant>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -523,7 +523,7 @@ TEST(ModelicaLexer, constantKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, constrainedByKeyword)
@@ -533,7 +533,7 @@ TEST(ModelicaLexer, constrainedByKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::ConstrainedBy);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::ConstrainedBy>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -541,7 +541,7 @@ TEST(ModelicaLexer, constrainedByKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 13);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, derKeyword)
@@ -551,7 +551,7 @@ TEST(ModelicaLexer, derKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Der);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Der>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -559,7 +559,7 @@ TEST(ModelicaLexer, derKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, discreteKeyword)
@@ -569,7 +569,7 @@ TEST(ModelicaLexer, discreteKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Discrete);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Discrete>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -577,7 +577,7 @@ TEST(ModelicaLexer, discreteKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, eachKeyword)
@@ -587,7 +587,7 @@ TEST(ModelicaLexer, eachKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Each);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Each>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -595,7 +595,7 @@ TEST(ModelicaLexer, eachKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, elseKeyword)
@@ -605,7 +605,7 @@ TEST(ModelicaLexer, elseKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Else);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Else>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -613,7 +613,7 @@ TEST(ModelicaLexer, elseKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, elseIfKeyword)
@@ -623,7 +623,7 @@ TEST(ModelicaLexer, elseIfKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::ElseIf);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::ElseIf>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -631,7 +631,7 @@ TEST(ModelicaLexer, elseIfKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, elseWhenKeyword)
@@ -641,7 +641,7 @@ TEST(ModelicaLexer, elseWhenKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::ElseWhen);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::ElseWhen>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -649,7 +649,7 @@ TEST(ModelicaLexer, elseWhenKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, encapsulatedKeyword)
@@ -659,7 +659,7 @@ TEST(ModelicaLexer, encapsulatedKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Encapsulated);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Encapsulated>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -667,7 +667,7 @@ TEST(ModelicaLexer, encapsulatedKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 12);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, endKeyword)
@@ -677,7 +677,7 @@ TEST(ModelicaLexer, endKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::End);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::End>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -685,7 +685,7 @@ TEST(ModelicaLexer, endKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, enumerationKeyword)
@@ -695,7 +695,7 @@ TEST(ModelicaLexer, enumerationKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Enumeration);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Enumeration>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -703,7 +703,7 @@ TEST(ModelicaLexer, enumerationKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 11);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, equationKeyword)
@@ -713,7 +713,7 @@ TEST(ModelicaLexer, equationKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Equation);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Equation>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -721,7 +721,7 @@ TEST(ModelicaLexer, equationKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, expandableKeyword)
@@ -731,7 +731,7 @@ TEST(ModelicaLexer, expandableKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Expandable);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Expandable>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -739,7 +739,7 @@ TEST(ModelicaLexer, expandableKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 10);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, extendsKeyword)
@@ -749,7 +749,7 @@ TEST(ModelicaLexer, extendsKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Extends);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Extends>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -757,7 +757,7 @@ TEST(ModelicaLexer, extendsKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 7);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, externalKeyword)
@@ -767,7 +767,7 @@ TEST(ModelicaLexer, externalKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::External);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::External>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -775,7 +775,7 @@ TEST(ModelicaLexer, externalKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, falseKeyword)
@@ -785,7 +785,7 @@ TEST(ModelicaLexer, falseKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::False);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::False>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -793,7 +793,7 @@ TEST(ModelicaLexer, falseKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, finalKeyword)
@@ -803,7 +803,7 @@ TEST(ModelicaLexer, finalKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Final);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Final>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -811,7 +811,7 @@ TEST(ModelicaLexer, finalKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, flowKeyword)
@@ -821,7 +821,7 @@ TEST(ModelicaLexer, flowKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Flow);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Flow>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -829,7 +829,7 @@ TEST(ModelicaLexer, flowKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, forKeyword)
@@ -839,7 +839,7 @@ TEST(ModelicaLexer, forKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::For);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::For>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -847,7 +847,7 @@ TEST(ModelicaLexer, forKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, functionKeyword)
@@ -857,7 +857,7 @@ TEST(ModelicaLexer, functionKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Function);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Function>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -865,7 +865,7 @@ TEST(ModelicaLexer, functionKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, ifKeyword)
@@ -875,7 +875,7 @@ TEST(ModelicaLexer, ifKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::If);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::If>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -883,7 +883,7 @@ TEST(ModelicaLexer, ifKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, importKeyword)
@@ -893,7 +893,7 @@ TEST(ModelicaLexer, importKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Import);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Import>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -901,7 +901,7 @@ TEST(ModelicaLexer, importKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, impureKeyword)
@@ -911,7 +911,7 @@ TEST(ModelicaLexer, impureKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Impure);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Impure>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -919,7 +919,7 @@ TEST(ModelicaLexer, impureKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, inKeyword)
@@ -929,7 +929,7 @@ TEST(ModelicaLexer, inKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::In);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::In>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -937,7 +937,7 @@ TEST(ModelicaLexer, inKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, initialKeyword)
@@ -947,7 +947,7 @@ TEST(ModelicaLexer, initialKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Initial);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Initial>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -955,7 +955,7 @@ TEST(ModelicaLexer, initialKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 7);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, innerKeyword)
@@ -965,7 +965,7 @@ TEST(ModelicaLexer, innerKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Inner);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Inner>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -973,7 +973,7 @@ TEST(ModelicaLexer, innerKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, inputKeyword)
@@ -983,7 +983,7 @@ TEST(ModelicaLexer, inputKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Input);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Input>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -991,7 +991,7 @@ TEST(ModelicaLexer, inputKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, loopKeyword)
@@ -1001,7 +1001,7 @@ TEST(ModelicaLexer, loopKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Loop);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Loop>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1009,7 +1009,7 @@ TEST(ModelicaLexer, loopKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, modelKeyword)
@@ -1019,7 +1019,7 @@ TEST(ModelicaLexer, modelKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Model);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Model>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1027,7 +1027,7 @@ TEST(ModelicaLexer, modelKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, notKeyword)
@@ -1037,7 +1037,7 @@ TEST(ModelicaLexer, notKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Not);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Not>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1045,7 +1045,7 @@ TEST(ModelicaLexer, notKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 3);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, operatorKeyword)
@@ -1055,7 +1055,7 @@ TEST(ModelicaLexer, operatorKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Operator);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Operator>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1063,7 +1063,7 @@ TEST(ModelicaLexer, operatorKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 8);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, oorKeyword)
@@ -1073,7 +1073,7 @@ TEST(ModelicaLexer, oorKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Or);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Or>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1081,7 +1081,7 @@ TEST(ModelicaLexer, oorKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, outerKeyword)
@@ -1091,7 +1091,7 @@ TEST(ModelicaLexer, outerKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Outer);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Outer>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1099,7 +1099,7 @@ TEST(ModelicaLexer, outerKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, outputKeyword)
@@ -1109,7 +1109,7 @@ TEST(ModelicaLexer, outputKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Output);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Output>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1117,7 +1117,7 @@ TEST(ModelicaLexer, outputKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, packageKeyword)
@@ -1127,7 +1127,7 @@ TEST(ModelicaLexer, packageKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Package);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Package>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1135,7 +1135,7 @@ TEST(ModelicaLexer, packageKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 7);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, parameterKeyword)
@@ -1145,7 +1145,7 @@ TEST(ModelicaLexer, parameterKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Parameter);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Parameter>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1153,7 +1153,7 @@ TEST(ModelicaLexer, parameterKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, partialKeyword)
@@ -1163,7 +1163,7 @@ TEST(ModelicaLexer, partialKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Partial);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Partial>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1171,7 +1171,7 @@ TEST(ModelicaLexer, partialKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 7);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, protectedKeyword)
@@ -1181,7 +1181,7 @@ TEST(ModelicaLexer, protectedKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Protected);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Protected>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1189,7 +1189,7 @@ TEST(ModelicaLexer, protectedKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, publicKeyword)
@@ -1199,7 +1199,7 @@ TEST(ModelicaLexer, publicKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Public);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Public>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1207,7 +1207,7 @@ TEST(ModelicaLexer, publicKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, pureKeyword)
@@ -1217,7 +1217,7 @@ TEST(ModelicaLexer, pureKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Pure);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Pure>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1225,7 +1225,7 @@ TEST(ModelicaLexer, pureKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, recordKeyword)
@@ -1235,7 +1235,7 @@ TEST(ModelicaLexer, recordKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Record);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Record>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1243,7 +1243,7 @@ TEST(ModelicaLexer, recordKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, redeclareKeyword)
@@ -1253,7 +1253,7 @@ TEST(ModelicaLexer, redeclareKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Redeclare);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Redeclare>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1261,7 +1261,7 @@ TEST(ModelicaLexer, redeclareKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 9);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, replaceableKeyword)
@@ -1271,7 +1271,7 @@ TEST(ModelicaLexer, replaceableKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Replaceable);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Replaceable>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1279,7 +1279,7 @@ TEST(ModelicaLexer, replaceableKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 11);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, returnKeyword)
@@ -1289,7 +1289,7 @@ TEST(ModelicaLexer, returnKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Return);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Return>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1297,7 +1297,7 @@ TEST(ModelicaLexer, returnKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, streamKeyword)
@@ -1307,7 +1307,7 @@ TEST(ModelicaLexer, streamKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Stream);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Stream>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1315,7 +1315,7 @@ TEST(ModelicaLexer, streamKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, thenKeyword)
@@ -1325,7 +1325,7 @@ TEST(ModelicaLexer, thenKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Then);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Then>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1333,7 +1333,7 @@ TEST(ModelicaLexer, thenKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, trueKeyword)
@@ -1343,7 +1343,7 @@ TEST(ModelicaLexer, trueKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::True);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::True>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1351,7 +1351,7 @@ TEST(ModelicaLexer, trueKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, typeKeyword)
@@ -1361,7 +1361,7 @@ TEST(ModelicaLexer, typeKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Type);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Type>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1369,7 +1369,7 @@ TEST(ModelicaLexer, typeKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, whenKeyword)
@@ -1379,7 +1379,7 @@ TEST(ModelicaLexer, whenKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::When);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::When>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1387,7 +1387,7 @@ TEST(ModelicaLexer, whenKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 4);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, whileKeyword)
@@ -1397,7 +1397,7 @@ TEST(ModelicaLexer, whileKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::While);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::While>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1405,7 +1405,7 @@ TEST(ModelicaLexer, whileKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 5);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, withinKeyword)
@@ -1415,7 +1415,7 @@ TEST(ModelicaLexer, withinKeyword)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Within);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Within>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1423,7 +1423,7 @@ TEST(ModelicaLexer, withinKeyword)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 6);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, plus)
@@ -1433,7 +1433,7 @@ TEST(ModelicaLexer, plus)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Plus);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Plus>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1441,7 +1441,7 @@ TEST(ModelicaLexer, plus)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, plusEW)
@@ -1451,7 +1451,7 @@ TEST(ModelicaLexer, plusEW)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::PlusEW);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::PlusEW>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1459,7 +1459,7 @@ TEST(ModelicaLexer, plusEW)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, minus)
@@ -1469,7 +1469,7 @@ TEST(ModelicaLexer, minus)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Minus);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Minus>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1477,7 +1477,7 @@ TEST(ModelicaLexer, minus)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, minusEW)
@@ -1487,7 +1487,7 @@ TEST(ModelicaLexer, minusEW)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::MinusEW);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::MinusEW>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1495,7 +1495,7 @@ TEST(ModelicaLexer, minusEW)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, product)
@@ -1505,7 +1505,7 @@ TEST(ModelicaLexer, product)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Product);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Product>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1513,7 +1513,7 @@ TEST(ModelicaLexer, product)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, productEW)
@@ -1523,7 +1523,7 @@ TEST(ModelicaLexer, productEW)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::ProductEW);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::ProductEW>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1531,7 +1531,7 @@ TEST(ModelicaLexer, productEW)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, division)
@@ -1541,7 +1541,7 @@ TEST(ModelicaLexer, division)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Division);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Division>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1549,7 +1549,7 @@ TEST(ModelicaLexer, division)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, divisionEW)
@@ -1559,7 +1559,7 @@ TEST(ModelicaLexer, divisionEW)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::DivisionEW);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::DivisionEW>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1567,7 +1567,7 @@ TEST(ModelicaLexer, divisionEW)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, pow)
@@ -1577,7 +1577,7 @@ TEST(ModelicaLexer, pow)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Pow);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Pow>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1585,7 +1585,7 @@ TEST(ModelicaLexer, pow)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, powEW)
@@ -1595,7 +1595,7 @@ TEST(ModelicaLexer, powEW)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::PowEW);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::PowEW>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1603,7 +1603,7 @@ TEST(ModelicaLexer, powEW)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, dot)
@@ -1613,7 +1613,7 @@ TEST(ModelicaLexer, dot)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Dot);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Dot>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1621,7 +1621,7 @@ TEST(ModelicaLexer, dot)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, equal)
@@ -1631,7 +1631,7 @@ TEST(ModelicaLexer, equal)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Equal);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Equal>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1639,7 +1639,7 @@ TEST(ModelicaLexer, equal)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, notEqual)
@@ -1649,7 +1649,7 @@ TEST(ModelicaLexer, notEqual)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::NotEqual);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::NotEqual>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1657,7 +1657,7 @@ TEST(ModelicaLexer, notEqual)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, less)
@@ -1667,7 +1667,7 @@ TEST(ModelicaLexer, less)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Less);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Less>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1675,7 +1675,7 @@ TEST(ModelicaLexer, less)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, lessEqual)
@@ -1685,7 +1685,7 @@ TEST(ModelicaLexer, lessEqual)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::LessEqual);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::LessEqual>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1693,7 +1693,7 @@ TEST(ModelicaLexer, lessEqual)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, greater)
@@ -1703,7 +1703,7 @@ TEST(ModelicaLexer, greater)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Greater);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Greater>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1711,7 +1711,7 @@ TEST(ModelicaLexer, greater)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, greaterEqual)
@@ -1721,7 +1721,7 @@ TEST(ModelicaLexer, greaterEqual)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::GreaterEqual);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::GreaterEqual>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1729,7 +1729,7 @@ TEST(ModelicaLexer, greaterEqual)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, comma)
@@ -1739,7 +1739,7 @@ TEST(ModelicaLexer, comma)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Comma);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Comma>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1747,7 +1747,7 @@ TEST(ModelicaLexer, comma)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, semicolon)
@@ -1757,7 +1757,7 @@ TEST(ModelicaLexer, semicolon)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Semicolon);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Semicolon>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1765,7 +1765,7 @@ TEST(ModelicaLexer, semicolon)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, colon)
@@ -1775,7 +1775,7 @@ TEST(ModelicaLexer, colon)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::Colon);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::Colon>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1783,7 +1783,7 @@ TEST(ModelicaLexer, colon)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, LPar)
@@ -1793,7 +1793,7 @@ TEST(ModelicaLexer, LPar)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::LPar);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::LPar>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1801,7 +1801,7 @@ TEST(ModelicaLexer, LPar)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, RPar)
@@ -1811,7 +1811,7 @@ TEST(ModelicaLexer, RPar)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::RPar);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::RPar>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1819,7 +1819,7 @@ TEST(ModelicaLexer, RPar)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, LSquare)
@@ -1829,7 +1829,7 @@ TEST(ModelicaLexer, LSquare)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::LSquare);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::LSquare>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1837,7 +1837,7 @@ TEST(ModelicaLexer, LSquare)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, RSquare)
@@ -1847,7 +1847,7 @@ TEST(ModelicaLexer, RSquare)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::RSquare);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::RSquare>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1855,7 +1855,7 @@ TEST(ModelicaLexer, RSquare)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, LCurly)
@@ -1865,7 +1865,7 @@ TEST(ModelicaLexer, LCurly)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::LCurly);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::LCurly>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1873,7 +1873,7 @@ TEST(ModelicaLexer, LCurly)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, RCurly)
@@ -1883,7 +1883,7 @@ TEST(ModelicaLexer, RCurly)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::RCurly);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::RCurly>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1891,7 +1891,7 @@ TEST(ModelicaLexer, RCurly)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, equalityOperator)
@@ -1901,7 +1901,7 @@ TEST(ModelicaLexer, equalityOperator)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::EqualityOperator);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EqualityOperator>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1909,7 +1909,7 @@ TEST(ModelicaLexer, equalityOperator)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 1);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }
 
 TEST(ModelicaLexer, assignmentOperator)
@@ -1919,7 +1919,7 @@ TEST(ModelicaLexer, assignmentOperator)
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
   Lexer<ModelicaStateMachine> lexer(sourceFile);
 
-  EXPECT_EQ(lexer.scan(), Token::AssignmentOperator);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::AssignmentOperator>());
 
   EXPECT_EQ(lexer.getTokenPosition().begin.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().begin.column, 1);
@@ -1927,5 +1927,5 @@ TEST(ModelicaLexer, assignmentOperator)
   EXPECT_EQ(lexer.getTokenPosition().end.line, 1);
   EXPECT_EQ(lexer.getTokenPosition().end.column, 2);
 
-  EXPECT_EQ(lexer.scan(), Token::EndOfFile);
+  EXPECT_TRUE(lexer.scan().isa<TokenKind::EndOfFile>());
 }

@@ -27,8 +27,10 @@ namespace marco::codegen::lowering
     if (*calleeOp) {
       if (mlir::isa<FunctionOp, DerFunctionOp>(*calleeOp)) {
         // User-defined function.
-        llvm::SmallVector<mlir::Value, 3> args;
-        lowerArgs(call, args);
+        llvm::SmallVector<std::string, 3> argNames;
+        llvm::SmallVector<mlir::Value, 3> argValues;
+        lowerArgs(call, argNames, argValues);
+        assert(argNames.empty() && "Named arguments not supported yet");
 
         llvm::SmallVector<int64_t, 3> expectedArgRanks;
         getFunctionExpectedArgRanks(*calleeOp, expectedArgRanks);
@@ -39,7 +41,8 @@ namespace marco::codegen::lowering
         llvm::SmallVector<mlir::Type, 1> resultTypes;
 
         if (!getVectorizedResultTypes(
-                args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+                argValues, expectedArgRanks,
+                scalarizedResultTypes, resultTypes)) {
           assert("Can't vectorize function call");
           return {};
         }
@@ -47,7 +50,7 @@ namespace marco::codegen::lowering
         auto callOp = builder().create<CallOp>(
             loc(call.getLocation()),
             getSymbolRefFromRoot(*calleeOp),
-            resultTypes, args);
+            resultTypes, argValues);
 
         std::vector<Reference> results;
 
@@ -60,15 +63,17 @@ namespace marco::codegen::lowering
 
       // Check if it's an implicit record constructor.
       if (auto recordConstructor = mlir::dyn_cast<RecordOp>(*calleeOp)) {
-        llvm::SmallVector<mlir::Value, 3> args;
-        lowerArgs(call, args);
+        llvm::SmallVector<std::string, 3> argNames;
+        llvm::SmallVector<mlir::Value, 3> argValues;
+        lowerArgs(call, argNames, argValues);
+        assert(argNames.empty() && "Named args for records not yet supported");
 
         mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(recordConstructor);
 
         mlir::Value result = builder().create<RecordCreateOp>(
             loc(call.getLocation()),
             RecordType::get(builder().getContext(), symbol),
-            args);
+            argValues);
 
         return Reference::ssa(builder(), result);
       }
@@ -121,10 +126,24 @@ namespace marco::codegen::lowering
 
   void CallLowerer::lowerArgs(
       const ast::Call& call,
+      llvm::SmallVectorImpl<std::string>& argNames,
+      llvm::SmallVectorImpl<mlir::Value>& argValues)
+  {
+    for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
+      if (call.getArgument(i)->isNamed()) {
+        argNames.push_back(call.getArgument(i)->getName().str());
+      }
+
+      argValues.push_back(lowerArg(*call.getArgument(i)->getValue()));
+    }
+  }
+
+  void CallLowerer::lowerBuiltInFunctionArgs(
+      const ast::Call& call,
       llvm::SmallVectorImpl<mlir::Value>& args)
   {
     for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
-      args.push_back(lowerArg(*call.getArgument(i)));
+      args.push_back(lowerArg(*call.getArgument(i)->getValue()));
     }
   }
 
@@ -513,7 +532,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -545,7 +564,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -577,7 +596,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -609,7 +628,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -641,7 +660,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 2> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -674,7 +693,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -706,7 +725,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -738,7 +757,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -770,7 +789,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -802,7 +821,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto resultType = ArrayType::get(
         {ArrayType::kDynamic, ArrayType::kDynamic},
@@ -822,7 +841,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType = IntegerType::get(builder().getContext());
 
@@ -845,7 +864,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -876,11 +895,13 @@ namespace marco::codegen::lowering
 
     assert(call.getNumOfArguments() > 0);
 
-    mlir::Value value = lowerArg(*call.getArgument(0));
+    assert(!call.getArgument(0)->isNamed());
+    mlir::Value value = lowerArg(*call.getArgument(0)->getValue());
     llvm::SmallVector<int64_t, 1> shape;
 
     for (size_t i = 1, e = call.getNumOfArguments(); i < e; ++i) {
-      const ast::Expression* arg = call.getArgument(i);
+      assert(!call.getArgument(i)->isNamed());
+      const ast::Expression* arg = call.getArgument(i)->getValue();
       assert(arg->isa<ast::Constant>());
       shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
     }
@@ -902,7 +923,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -934,7 +955,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto resultType = ArrayType::get(
         {ArrayType::kDynamic, ArrayType::kDynamic},
@@ -954,7 +975,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -986,7 +1007,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 3);
 
     llvm::SmallVector<mlir::Value, 3> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto resultType = ArrayType::get(
         ArrayType::kDynamic, RealType::get(builder().getContext()));
@@ -1005,7 +1026,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1037,7 +1058,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1069,7 +1090,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType;
 
@@ -1094,7 +1115,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType;
 
@@ -1119,7 +1140,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType = IntegerType::get(builder().getContext());
 
@@ -1142,7 +1163,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto resultType = IntegerType::get(builder().getContext());
 
@@ -1160,7 +1181,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() > 0);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
 
@@ -1181,7 +1202,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto argArrayType = args[0].getType().cast<ArrayType>();
     mlir::Type resultType = argArrayType.getElementType();
@@ -1200,7 +1221,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType = IntegerType::get(builder().getContext());
 
@@ -1223,7 +1244,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto resultType = IntegerType::get(builder().getContext());
 
@@ -1239,7 +1260,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1271,7 +1292,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1303,7 +1324,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     if (args.size() == 1) {
       mlir::Type resultType = ArrayType::get(
@@ -1338,7 +1359,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1370,7 +1391,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     auto argArrayType = args[0].getType().cast<ArrayType>();
     mlir::Type resultType = argArrayType.getElementType();
@@ -1389,7 +1410,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType = args[0].getType();
 
@@ -1407,7 +1428,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1439,7 +1460,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> expectedArgRanks;
     expectedArgRanks.push_back(0);
@@ -1471,7 +1492,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 2> shape;
     auto argArrayType = args[0].getType().cast<ArrayType>();
@@ -1493,7 +1514,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() > 0);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    lowerArgs(call, args);
+    lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
 
