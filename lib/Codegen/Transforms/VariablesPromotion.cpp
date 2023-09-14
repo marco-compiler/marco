@@ -192,18 +192,20 @@ namespace marco::modeling::dependency
       auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
           (*equation)->op, *(*equation)->symbolTable);
 
-      for (auto& access : cachedAccesses) {
-        auto accessFunction = getAccessFunction(
-            (*equation)->op.getContext(), access);
+      if (cachedAccesses) {
+        for (auto& access : *cachedAccesses) {
+          auto accessFunction = getAccessFunction(
+              (*equation)->op.getContext(), access);
 
-        auto variableIt =
-            (*(*equation)->variablesMap).find(access.getVariable());
+          auto variableIt =
+              (*(*equation)->variablesMap).find(access.getVariable());
 
-        if (variableIt != (*(*equation)->variablesMap).end()) {
-          accesses.emplace_back(
-              variableIt->getSecond(),
-              std::move(accessFunction),
-              access.getPath());
+          if (variableIt != (*(*equation)->variablesMap).end()) {
+            accesses.emplace_back(
+                variableIt->getSecond(),
+                std::move(accessFunction),
+                access.getPath());
+          }
         }
       }
 
@@ -239,11 +241,16 @@ namespace marco::modeling::dependency
 
       llvm::SmallVector<VariableAccess> readAccesses;
 
+      if (!accesses) {
+        llvm_unreachable("Can't compute read accesses");
+        return {};
+      }
+
       if (mlir::failed((*equation)->op.getReadAccesses(
               readAccesses,
               *(*equation)->symbolTable,
               equationIndices,
-              accesses))) {
+              *accesses))) {
         llvm_unreachable("Can't compute read accesses");
         return {};
       }
@@ -411,6 +418,11 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       auto accesses = equation->accessAnalysis->getAccesses(
           equation->op, *equation->symbolTable);
 
+      if (!accesses) {
+        llvm_unreachable("Can't compute read accesses");
+        return mlir::failure();
+      }
+
       // Check if the equation uses the 'time' variable. If it does, then it
       // must not be promoted to an initial equation.
       bool timeUsage = false;
@@ -437,7 +449,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       }
 
       // Check the accesses to the variables.
-      promotable &= llvm::all_of(accesses, [&](const VariableAccess& access) {
+      promotable &= llvm::all_of(*accesses, [&](const VariableAccess& access) {
         auto readVariableOp =
             symbolTableCollection.lookupSymbolIn<VariableOp>(
                 modelOp, access.getVariable());

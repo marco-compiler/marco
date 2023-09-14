@@ -246,7 +246,12 @@ namespace marco::modeling::dependency
       auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
           (*equation)->op, *(*equation)->symbolTable);
 
-      for (auto& access : cachedAccesses) {
+      if (!cachedAccesses) {
+        llvm_unreachable("Can't compute read accesses");
+        return {};
+      }
+
+      for (auto& access : *cachedAccesses) {
         auto accessFunction = getAccessFunction(
             (*equation)->op.getContext(), access);
 
@@ -291,13 +296,18 @@ namespace marco::modeling::dependency
       auto accesses = (*equation)->accessAnalysis->getAccesses(
           (*equation)->op, *(*equation)->symbolTable);
 
+      if (!accesses) {
+        llvm_unreachable("Can't compute read accesses");
+        return {};
+      }
+
       llvm::SmallVector<VariableAccess> readAccesses;
 
       if (mlir::failed((*equation)->op.getReadAccesses(
               readAccesses,
               *(*equation)->symbolTable,
               equationIndices,
-              accesses))) {
+              *accesses))) {
         llvm_unreachable("Can't compute read accesses");
         return {};
       }

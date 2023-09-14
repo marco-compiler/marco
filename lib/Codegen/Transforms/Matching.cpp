@@ -60,11 +60,6 @@ namespace
           EquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
 
-      VariableOp resolveVariable(
-          ModelOp modelOp,
-          mlir::SymbolRefAttr variable,
-          mlir::SymbolTableCollection& symbolTable);
-
       mlir::LogicalResult match(
           mlir::OpBuilder& builder,
           ModelOp modelOp,
@@ -105,8 +100,10 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
   // Perform the matching on the 'main' model.
   if (processMainModel && !equations.empty()) {
     auto matchableIndicesFn = [&](mlir::SymbolRefAttr variable) -> IndexSet {
-      auto variableOp = resolveVariable(
-          modelOp, variable, symbolTableCollection);
+      assert(variable.getNestedReferences().empty());
+
+      auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+          modelOp, variable.getRootReference());
 
       if (variableOp.isReadOnly()) {
         // Read-only variables are handled by initial equations.
@@ -166,22 +163,6 @@ MatchingPass::getVariableAccessAnalysis(
   }
 
   return std::reference_wrapper(analysis);
-}
-
-VariableOp MatchingPass::resolveVariable(
-    ModelOp modelOp,
-    mlir::SymbolRefAttr variable,
-    mlir::SymbolTableCollection& symbolTable)
-{
-  auto variableOp = symbolTable.lookupSymbolIn<VariableOp>(
-      modelOp, variable.getRootReference());
-
-  for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
-    // TODO
-    llvm_unreachable("Member lookup not supported yet");
-  }
-
-  return variableOp;
 }
 
 namespace
@@ -307,18 +288,20 @@ namespace marco::modeling::matching
       auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
           (*equation)->op, *(*equation)->symbolTable);
 
-      for (auto& access : cachedAccesses) {
-        auto accessFunction = getAccessFunction(
-            (*equation)->op.getContext(), equation, access);
+      if (cachedAccesses) {
+        for (auto& access : *cachedAccesses) {
+          auto accessFunction = getAccessFunction(
+              (*equation)->op.getContext(), access);
 
-        auto variableIt =
-            (*(*equation)->variablesMap).find(access.getVariable());
+          auto variableIt =
+              (*(*equation)->variablesMap).find(access.getVariable());
 
-        if (variableIt != (*(*equation)->variablesMap).end()) {
-          accesses.emplace_back(
-              variableIt->getSecond(),
-              std::move(accessFunction),
-              access.getPath());
+          if (variableIt != (*(*equation)->variablesMap).end()) {
+            accesses.emplace_back(
+                variableIt->getSecond(),
+                std::move(accessFunction),
+                access.getPath());
+          }
         }
       }
 
@@ -327,7 +310,6 @@ namespace marco::modeling::matching
 
     static std::unique_ptr<AccessFunction> getAccessFunction(
         mlir::MLIRContext* context,
-        const Equation* equation,
         const VariableAccess& access)
     {
       const AccessFunction& accessFunction = access.getAccessFunction();

@@ -12,13 +12,13 @@ namespace mlir::modelica
   }
 
   mlir::LogicalResult VariableAccessAnalysis::initialize(
-      mlir::SymbolTableCollection& symbolTable)
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     if (initialized) {
       return mlir::success();
     }
 
-    if (mlir::failed(loadAccesses(symbolTable))) {
+    if (mlir::failed(loadAccesses(symbolTableCollection))) {
       initialized = false;
       return mlir::failure();
     }
@@ -38,14 +38,15 @@ namespace mlir::modelica
     return !initialized || !valid;
   }
 
-  llvm::ArrayRef<VariableAccess> VariableAccessAnalysis::getAccesses(
+  std::optional<llvm::ArrayRef<VariableAccess>>
+  VariableAccessAnalysis::getAccesses(
       EquationInstanceOp instanceOp,
-      mlir::SymbolTableCollection& symbolTable)
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     assert(initialized && "Variable access analysis not initialized");
 
     if (!valid) {
-      if (mlir::failed(loadAccesses(symbolTable))) {
+      if (mlir::failed(loadAccesses(symbolTableCollection))) {
         return std::nullopt;
       }
     }
@@ -59,14 +60,37 @@ namespace mlir::modelica
     return std::nullopt;
   }
 
-  llvm::ArrayRef<VariableAccess> VariableAccessAnalysis::getAccesses(
+  std::optional<llvm::ArrayRef<VariableAccess>>
+  VariableAccessAnalysis::getAccesses(
       MatchedEquationInstanceOp instanceOp,
-      mlir::SymbolTableCollection& symbolTable)
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     assert(initialized && "Variable access analysis not initialized");
 
     if (!valid) {
-      if (mlir::failed(loadAccesses(symbolTable))) {
+      if (mlir::failed(loadAccesses(symbolTableCollection))) {
+        return std::nullopt;
+      }
+    }
+
+    uint64_t elementIndex = instanceOp.getViewElementIndex();
+
+    if (auto it = accesses.find(elementIndex); it != accesses.end()) {
+      return {it->getSecond()};
+    }
+
+    return std::nullopt;
+  }
+
+  std::optional<llvm::ArrayRef<VariableAccess>>
+  VariableAccessAnalysis::getAccesses(
+      ScheduledEquationInstanceOp instanceOp,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    assert(initialized && "Variable access analysis not initialized");
+
+    if (!valid) {
+      if (mlir::failed(loadAccesses(symbolTableCollection))) {
         return std::nullopt;
       }
     }
@@ -81,7 +105,7 @@ namespace mlir::modelica
   }
 
   mlir::LogicalResult VariableAccessAnalysis::loadAccesses(
-      mlir::SymbolTableCollection& symbolTable)
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     mlir::Block* bodyBlock = equationTemplate.getBody();
 
@@ -94,8 +118,10 @@ namespace mlir::modelica
     size_t numOfSideElements = equationSidesOp.getLhsValues().size();
 
     for (size_t i = 0; i < numOfSideElements; ++i) {
+      accesses[i].clear();
+
       if (mlir::failed(equationTemplate.getAccesses(
-              accesses[i], symbolTable, i))) {
+              accesses[i], symbolTableCollection, i))) {
         return mlir::failure();
       }
     }
