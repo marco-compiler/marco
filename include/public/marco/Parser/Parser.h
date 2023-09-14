@@ -45,8 +45,6 @@ namespace marco::parser
           T value;
       };
 
-      template<typename T> ValueWrapper(SourceRange, T) -> ValueWrapper<T>;
-
       Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> source);
 
       std::optional<std::unique_ptr<ast::ASTNode>> parseRoot();
