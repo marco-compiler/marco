@@ -13,7 +13,7 @@ using namespace ::mlir::modelica;
 
 static std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank,
-    std::function<llvm::ArrayRef<Range>(size_t)> rangesFn,
+    llvm::function_ref<llvm::ArrayRef<Range>(size_t)> rangesFn,
     size_t startingDimension)
 {
   assert(startingDimension < rank);
@@ -50,7 +50,7 @@ static std::vector<MultidimensionalRange> getRangesCombinations(
 
 static std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank,
-    std::function<llvm::ArrayRef<Range>(size_t)> rangesFn)
+    llvm::function_ref<llvm::ArrayRef<Range>(size_t)> rangesFn)
 {
   return getRangesCombinations(rank, rangesFn, 0);
 }

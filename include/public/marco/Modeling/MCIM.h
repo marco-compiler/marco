@@ -28,7 +28,7 @@ namespace marco::modeling::internal
           IndicesIterator(
               const IndexSet& equationRanges,
               const IndexSet& variableRanges,
-              std::function<IndexSet::const_point_iterator(const IndexSet&)> initFunction);
+              llvm::function_ref<IndexSet::const_point_iterator(const IndexSet&)> initFunction);
 
           bool operator==(const IndicesIterator& it) const;
 

@@ -166,7 +166,7 @@ namespace marco::codegen::lowering
   mlir::Operation* Lowerer::resolveSymbolName(
       llvm::StringRef name,
       mlir::Operation* currentScope,
-      std::function<bool(mlir::Operation*)> filterFn)
+      llvm::function_ref<bool(mlir::Operation*)> filterFn)
   {
     mlir::Operation* scope = currentScope;
 

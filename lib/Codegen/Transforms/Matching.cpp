@@ -70,7 +70,7 @@ namespace
           ModelOp modelOp,
           llvm::ArrayRef<EquationInstanceOp> equations,
           mlir::SymbolTableCollection& symbolTable,
-          std::function<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn);
+          llvm::function_ref<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn);
   };
 }
 
@@ -349,7 +349,7 @@ mlir::LogicalResult MatchingPass::match(
     ModelOp modelOp,
     llvm::ArrayRef<EquationInstanceOp> equations,
     mlir::SymbolTableCollection& symbolTableCollection,
-    std::function<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn)
+    llvm::function_ref<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn)
 {
   using MatchingGraph =
       ::marco::modeling::MatchingGraph<::VariableBridge*, ::EquationBridge*>;

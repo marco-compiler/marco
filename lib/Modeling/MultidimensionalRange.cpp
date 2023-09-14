@@ -383,7 +383,7 @@ namespace marco::modeling
 
   MultidimensionalRange::Iterator::Iterator(
       llvm::ArrayRef<Range> ranges,
-      std::function<Range::const_iterator(const Range&)> initFunction)
+      llvm::function_ref<Range::const_iterator(const Range&)> initFunction)
   {
     for (const auto& range: ranges) {
       beginIterators.push_back(range.begin());

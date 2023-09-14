@@ -588,7 +588,7 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::IRMapping& ssaDerivatives,
-      std::function<mlir::ValueRange(
+      llvm::function_ref<mlir::ValueRange(
           mlir::OpBuilder&,
           mlir::Operation*,
           mlir::SymbolTableCollection&,

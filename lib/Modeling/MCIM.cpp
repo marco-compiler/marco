@@ -18,7 +18,7 @@ namespace marco::modeling::internal
   MCIM::IndicesIterator::IndicesIterator(
       const IndexSet& equationRange,
       const IndexSet& variableRange,
-      std::function<IndexSet::const_point_iterator(const IndexSet&)> initFunction)
+      llvm::function_ref<IndexSet::const_point_iterator(const IndexSet&)> initFunction)
       : eqCurrentIt(initFunction(equationRange)),
         eqEndIt(equationRange.end()),
         varBeginIt(variableRange.begin()),

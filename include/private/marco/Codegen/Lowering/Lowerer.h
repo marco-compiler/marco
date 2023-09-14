@@ -185,7 +185,7 @@ namespace marco::codegen::lowering
       mlir::Operation* resolveSymbolName(
           llvm::StringRef name,
           mlir::Operation* currentScope,
-          std::function<bool(mlir::Operation*)> filterFn);
+          llvm::function_ref<bool(mlir::Operation*)> filterFn);
 
     private:
       BridgeInterface* bridge;

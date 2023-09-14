@@ -22,7 +22,7 @@ static void iterateArray(
     mlir::OpBuilder& builder,
     mlir::Location loc,
     mlir::Value array,
-    std::function<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> callback)
+    llvm::function_ref<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> callback)
 {
   assert(array.getType().isa<ArrayType>());
   auto arrayType = array.getType().cast<ArrayType>();

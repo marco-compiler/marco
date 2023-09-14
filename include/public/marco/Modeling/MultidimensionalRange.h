@@ -23,7 +23,7 @@ namespace marco::modeling
           using reference = Point&;
 
           Iterator(llvm::ArrayRef<Range> ranges,
-                   std::function<Range::const_iterator(const Range&)> initFn);
+                   llvm::function_ref<Range::const_iterator(const Range&)> initFn);
 
           bool operator==(const Iterator& it) const;
           bool operator!=(const Iterator& it) const;

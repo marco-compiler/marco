@@ -1659,7 +1659,7 @@ namespace
   splitNode(
       RTreeIndexSet::Node& node,
       const size_t minElements,
-      std::function<llvm::SmallVectorImpl<T>&(RTreeIndexSet::Node&)> containerFn)
+      llvm::function_ref<llvm::SmallVectorImpl<T>&(RTreeIndexSet::Node&)> containerFn)
   {
     auto seeds = pickSeeds(llvm::ArrayRef(containerFn(node)));
 

@@ -77,11 +77,11 @@ namespace
 
       mlir::LogicalResult replaceRecordUsage(
           mlir::PatternRewriter& rewriter,
-          std::function<mlir::Value(
+          llvm::function_ref<mlir::Value(
               mlir::OpBuilder& builder,
               mlir::Location loc,
               llvm::StringRef)> componentGetter,
-          std::function<mlir::LogicalResult(
+          llvm::function_ref<mlir::LogicalResult(
               mlir::OpBuilder&,
               mlir::Location loc,
               llvm::StringRef,
@@ -201,7 +201,7 @@ namespace
           mlir::OpBuilder& builder,
           CallOp callOp,
           mlir::Value arg,
-          std::function<mlir::Value(
+          llvm::function_ref<mlir::Value(
               mlir::OpBuilder&,
               mlir::Location,
               llvm::StringRef)> componentGetter,

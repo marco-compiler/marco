@@ -549,7 +549,7 @@ namespace
           mlir::Location loc,
           llvm::StringRef functionName,
           const llvm::DenseMap<int64_t, IndexSet> printableIndicesMap,
-          std::function<int64_t(const Range&)> boundaryGetterCallback) const
+          llvm::function_ref<int64_t(const Range&)> boundaryGetterCallback) const
       {
         llvm::SmallVector<mlir::Type, 3> argTypes;
         argTypes.push_back(builder.getI64Type());
