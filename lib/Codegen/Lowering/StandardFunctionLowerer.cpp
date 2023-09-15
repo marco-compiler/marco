@@ -173,7 +173,7 @@ namespace marco::codegen::lowering
       auto algorithmOp = builder().create<AlgorithmOp>(location);
 
       builder().createBlock(&algorithmOp.getBodyRegion());
-      builder().setInsertionPointToStart(algorithmOp.bodyBlock());
+      builder().setInsertionPointToStart(algorithmOp.getBody());
 
       llvm::SmallVector<mlir::Value, 3> args;
       llvm::SmallVector<VariableOp, 1> resultVariables;

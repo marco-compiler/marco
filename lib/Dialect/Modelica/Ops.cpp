@@ -8619,6 +8619,19 @@ namespace mlir::modelica
       }
     }
   }
+
+  void ModelOp::collectAlgorithms(
+      llvm::SmallVectorImpl<AlgorithmOp>& initialAlgorithms,
+      llvm::SmallVectorImpl<AlgorithmOp>& algorithms)
+  {
+    for (AlgorithmOp op : getOps<AlgorithmOp>()) {
+      if (op.getInitial()) {
+        initialAlgorithms.push_back(op);
+      } else {
+        algorithms.push_back(op);
+      }
+    }
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -11878,53 +11891,6 @@ namespace mlir::modelica
   {
     printer.printOptionalAttrDict(getOperation()->getAttrs());
     printer << " " << getValues() << " : " << getResult().getType();
-  }
-}
-
-//===---------------------------------------------------------------------===//
-// AlgorithmOp
-
-namespace mlir::modelica
-{
-  mlir::Block* AlgorithmOp::bodyBlock()
-  {
-    assert(getBodyRegion().getBlocks().size() == 1);
-    return &getBodyRegion().front();
-  }
-}
-
-//===---------------------------------------------------------------------===//
-// InitialAlgorithmOp
-
-namespace mlir::modelica
-{
-  mlir::Block* InitialAlgorithmOp::bodyBlock()
-  {
-    assert(getBodyRegion().getBlocks().size() == 1);
-    return &getBodyRegion().front();
-  }
-
-  mlir::ParseResult InitialAlgorithmOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  }
-
-  void InitialAlgorithmOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-    printer << " ";
-    printer.printRegion(getBodyRegion());
   }
 }
 

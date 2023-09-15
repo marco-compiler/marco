@@ -2777,6 +2777,11 @@ def Modelica_ModelOp : Modelica_Op<"model",
         void collectSCCs(
             llvm::SmallVectorImpl<SCCOp>& initialEquations,
             llvm::SmallVectorImpl<SCCOp>& equations);
+
+        /// Collect all the initial and non-initial algorithms of a model.
+        void collectAlgorithms(
+            llvm::SmallVectorImpl<AlgorithmOp>& initialAlgorithms,
+            llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
     }];
 }
 
@@ -3567,8 +3572,7 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
 }
 
 def Modelica_EquationOp : Modelica_Op<"equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
-    EquationInterface]>
+    [ParentOneOf<["ModelOp", "ForEquationOp"]>]>
 {
     let summary = "Equation.";
 
@@ -3591,8 +3595,7 @@ def Modelica_EquationOp : Modelica_Op<"equation",
 }
 
 def Modelica_InitialEquationOp : Modelica_Op<"initial_equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
-    EquationInterface]>
+    [ParentOneOf<["ModelOp", "ForEquationOp"]>]>
 {
     let summary = "Initial equation.";
 
@@ -3683,7 +3686,7 @@ def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
 def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
     [IsolatedFromAbove,
     ParentOneOf<["ModelOp", "FunctionOp"]>,
-    AlgorithmInterface,
+    SingleBlock,
     NoTerminator]>
 {
     let summary = "Algorithm.";
@@ -3692,7 +3695,7 @@ def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
         The operation represents a Modelica algorithm.
     }];
 
-    let arguments = (ins);
+    let arguments = (ins DefaultValuedAttr<BoolAttr, "false">:$initial);
     let results = (outs);
 
     let regions = (region
@@ -3702,36 +3705,6 @@ def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
     let assemblyFormat = [{
        attr-dict-with-keyword $bodyRegion
     }];
-
-    let extraClassDeclaration = [{
-        Block* bodyBlock();
-    }];
-}
-
-def Modelica_InitialAlgorithmOp : Modelica_Op<"initial_algorithm",
-    [IsolatedFromAbove,
-    ParentOneOf<["ModelOp"]>,
-    AlgorithmInterface,
-    NoTerminator]>
-{
-  let summary = "Initial algorithm.";
-
-  let description = [{
-      The operation represents a Modelica initial algorithm.
-  }];
-
-  let arguments = (ins);
-  let results = (outs);
-
-  let regions = (region
-      SizedRegion<1>:$bodyRegion
-  );
-
-  let hasCustomAssemblyFormat = 1;
-
-  let extraClassDeclaration = [{
-    Block* bodyBlock();
-  }];
 }
 
 def Modelica_AssignmentOp : Modelica_Op<"assignment",

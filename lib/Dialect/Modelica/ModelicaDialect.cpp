@@ -45,7 +45,6 @@ namespace
           DefaultOp,
           EquationOp,
           EquationTemplateOp,
-          InitialAlgorithmOp,
           InitialEquationOp,
           StartOp,
           VariableOp>(region->getParentOp());

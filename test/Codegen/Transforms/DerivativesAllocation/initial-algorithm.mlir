@@ -11,7 +11,7 @@
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<5x!modelica.real>
 
-    modelica.initial_algorithm {
+    modelica.algorithm attributes {initial = true} {
         %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
         %1 = modelica.constant 3 : index
         %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
@@ -25,7 +25,7 @@ modelica.model @Test {
 // Check variable usage.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.initial_algorithm {
+// CHECK:       modelica.algorithm attributes {initial = true} {
 // CHECK-DAG:       %[[index:.*]] = modelica.constant 3 : index
 // CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
 // CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
@@ -36,7 +36,7 @@ modelica.model @Test {
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<5x!modelica.real>
 
-    modelica.initial_algorithm {
+    modelica.algorithm attributes {initial = true} {
         %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
         %1 = modelica.constant 3 : index
         %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
@@ -59,7 +59,7 @@ modelica.model @Test {
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<5x!modelica.real>
 
-    modelica.initial_algorithm {
+    modelica.algorithm attributes {initial = true} {
         %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
         %1 = modelica.constant 3 : index
         %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
@@ -77,7 +77,7 @@ modelica.model @Test {
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<5x!modelica.real>
 
-    modelica.initial_algorithm {
+    modelica.algorithm attributes {initial = true} {
         %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
         %1 = modelica.constant 3 : index
         %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>

@@ -50,14 +50,6 @@ namespace
           MutexCollection& mutexCollection,
           AlgorithmOp algorithmOp) const;
 
-      mlir::LogicalResult collectDerivedIndices(
-          ModelOp modelOp,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
-          DerivativesMap& derivativesMap,
-          MutexCollection& mutexCollection,
-          InitialAlgorithmOp initialAlgorithmOp) const;
-
       mlir::LogicalResult collectDerivedIndicesInAlgorithmRegion(
           ModelOp modelOp,
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -85,12 +77,6 @@ namespace
           MutexCollection& mutexCollection,
           AlgorithmOp algorithmOp);
 
-      mlir::LogicalResult removeDerOps(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          const DerivativesMap& derivativesMap,
-          MutexCollection& mutexCollection,
-          InitialAlgorithmOp initialAlgorithmOp);
-
       mlir::LogicalResult createStartOpsAndDummyEquations(
           ModelOp modelOp,
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -115,7 +101,6 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
 
   llvm::DenseSet<EquationInstanceOp> equationInstanceOps;
   llvm::DenseSet<AlgorithmOp> algorithmOps;
-  llvm::DenseSet<InitialAlgorithmOp> initialAlgorithmOps;
 
   for (auto& op : modelOp.getOps()) {
     if (auto equationInstanceOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
@@ -125,11 +110,6 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
 
     if (auto algorithmOp = mlir::dyn_cast<AlgorithmOp>(op)) {
       algorithmOps.insert(algorithmOp);
-      continue;
-    }
-
-    if (auto initialAlgorithmOp = mlir::dyn_cast<InitialAlgorithmOp>(op)) {
-      initialAlgorithmOps.insert(initialAlgorithmOp);
       continue;
     }
   }
@@ -160,17 +140,6 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
     return mlir::failure();
   }
 
-  if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), initialAlgorithmOps,
-          [&](InitialAlgorithmOp initialAlgorithmOp) {
-            return collectDerivedIndices(
-                modelOp, symbolTableCollection,
-                derivedVariables, derivativesMap, mutexCollection,
-                initialAlgorithmOp);
-          }))) {
-    return mlir::failure();
-  }
-
   // Create the derivative variables.
   if (mlir::failed(createDerivativeVariables(
           modelOp, symbolTableCollection, derivativesMap, derivedVariables,
@@ -195,16 +164,6 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
             return removeDerOps(
                 symbolTableCollection, derivativesMap, mutexCollection,
                 algorithmOp);
-          }))) {
-    return mlir::failure();
-  }
-
-  if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), initialAlgorithmOps,
-          [&](InitialAlgorithmOp initialAlgorithmOp) {
-            return removeDerOps(
-                symbolTableCollection, derivativesMap, mutexCollection,
-                initialAlgorithmOp);
           }))) {
     return mlir::failure();
   }
@@ -424,20 +383,6 @@ mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
       modelOp, symbolTableCollection,
       derivedVariables, derivativesMap, mutexCollection,
       algorithmOp.getBodyRegion());
-}
-
-mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
-    ModelOp modelOp,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
-    DerivativesMap& derivativesMap,
-    MutexCollection& mutexCollection,
-    InitialAlgorithmOp initialAlgorithmOp) const
-{
-  return collectDerivedIndicesInAlgorithmRegion(
-      modelOp, symbolTableCollection,
-      derivedVariables, derivativesMap, mutexCollection,
-      initialAlgorithmOp.getBodyRegion());
 }
 
 mlir::LogicalResult
@@ -675,21 +620,6 @@ mlir::LogicalResult DerivativesAllocationPass::removeDerOps(
       mutexCollection.symbolTableCollectionMutex, derivativesMap);
 
   return applyPatternsAndFoldGreedily(algorithmOp, std::move(patterns));
-}
-
-mlir::LogicalResult DerivativesAllocationPass::removeDerOps(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    const DerivativesMap& derivativesMap,
-    MutexCollection& mutexCollection,
-    InitialAlgorithmOp initialAlgorithmOp)
-{
-  mlir::RewritePatternSet patterns(&getContext());
-
-  patterns.add<DerOpRemovePattern>(
-      &getContext(), symbolTableCollection,
-      mutexCollection.symbolTableCollectionMutex, derivativesMap);
-
-  return applyPatternsAndFoldGreedily(initialAlgorithmOp, std::move(patterns));
 }
 
 static mlir::LogicalResult createStartOp(

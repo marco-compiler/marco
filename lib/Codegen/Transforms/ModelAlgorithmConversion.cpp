@@ -13,32 +13,33 @@ using namespace ::mlir::modelica;
 
 namespace
 {
-  template<typename Op>
-  class AlgorithmInterfacePattern : public mlir::OpRewritePattern<Op>
+  class AlgorithmOpPattern : public mlir::OpRewritePattern<AlgorithmOp>
   {
     public:
-      AlgorithmInterfacePattern(
+      AlgorithmOpPattern(
           mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTable)
-          : mlir::OpRewritePattern<Op>(context),
-            symbolTable(&symbolTable)
+          mlir::SymbolTableCollection& symbolTable,
+          size_t& initialAlgorithmsCounter,
+          size_t& algorithmsCounter)
+          : mlir::OpRewritePattern<AlgorithmOp>(context),
+            symbolTable(&symbolTable),
+            initialAlgorithmsCounter(&initialAlgorithmsCounter),
+            algorithmsCounter(&algorithmsCounter)
       {
       }
 
       mlir::LogicalResult matchAndRewrite(
-          Op op,
+          AlgorithmOp op,
           mlir::PatternRewriter& rewriter) const override
       {
         mlir::Location loc = op.getLoc();
-
-        auto algorithmInt = mlir::cast<AlgorithmInterface>(op.getOperation());
-        auto modelOp = algorithmInt->template getParentOfType<ModelOp>();
+        auto modelOp = op->getParentOfType<ModelOp>();
 
         // Determine the read and written variables.
         llvm::DenseSet<VariableOp> readVariables;
         llvm::DenseSet<VariableOp> writtenVariables;
 
-        algorithmInt.walk([&](VariableGetOp getOp) {
+        op.walk([&](VariableGetOp getOp) {
           auto variableOp = symbolTable->lookupSymbolIn<VariableOp>(
               modelOp, getOp.getVariableAttr());
 
@@ -57,7 +58,7 @@ namespace
           }
         });
 
-        algorithmInt.walk([&](VariableSetOp setOp) {
+        op.walk([&](VariableSetOp setOp) {
           auto variableOp = symbolTable->lookupSymbolIn<VariableOp>(
               modelOp, setOp.getVariableAttr());
 
@@ -78,7 +79,7 @@ namespace
         }
 
         // Obtain a unique name for the function to be created.
-        std::string functionName = getFunctionName(modelOp);
+        std::string functionName = getFunctionName(modelOp, op);
 
         // Create the function.
         auto moduleOp = modelOp->template getParentOfType<mlir::ModuleOp>();
@@ -152,7 +153,7 @@ namespace
         auto algorithmOp = rewriter.create<AlgorithmOp>(loc);
 
         rewriter.inlineRegionBefore(
-            algorithmInt->getRegion(0),
+            op.getBodyRegion(),
             algorithmOp.getBodyRegion(),
             algorithmOp.getBodyRegion().end());
 
@@ -160,7 +161,7 @@ namespace
         rewriter.setInsertionPointToEnd(modelOp.getBody());
 
         mlir::Region* equationRegion =
-            createEquation(rewriter, loc, outputVariables);
+            createEquation(rewriter, loc, op, outputVariables);
 
         rewriter.setInsertionPointToStart(&equationRegion->front());
 
@@ -198,7 +199,21 @@ namespace
         return mlir::success();
       }
 
-      virtual std::string getFunctionName(ModelOp modelOp) const = 0;
+    private:
+      std::string getFunctionName(
+          ModelOp modelOp, AlgorithmOp algorithmOp) const
+      {
+        std::string result = modelOp.getSymName().str();
+
+        if (algorithmOp.getInitial()) {
+          result += "_initial_algorithm_" +
+              std::to_string((*initialAlgorithmsCounter)++);
+        } else {
+          result += "_algorithm_" + std::to_string((*algorithmsCounter)++);
+        }
+
+        return result;
+      }
 
       StartOp getStartOp(ModelOp modelOp, llvm::StringRef variable) const
       {
@@ -212,12 +227,47 @@ namespace
         return nullptr;
       }
 
-      virtual mlir::Region* createEquation(
+      mlir::Region* createEquation(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          llvm::ArrayRef<VariableOp> outputVariables) const = 0;
+          AlgorithmOp algorithmOp,
+          llvm::ArrayRef<VariableOp> outputVariables) const
+      {
+        mlir::OpBuilder::InsertionGuard guard(builder);
 
-    private:
+        // Create the equation template.
+        auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
+        assert(equationTemplateOp.getBodyRegion().empty());
+        builder.createBlock(&equationTemplateOp.getBodyRegion());
+
+        // Create the equation instance.
+        builder.setInsertionPointAfter(equationTemplateOp);
+
+        for (uint64_t i = 0, e = outputVariables.size(); i < e; ++i) {
+          auto equationInstanceOp = builder.create<EquationInstanceOp>(
+              loc, equationTemplateOp, algorithmOp.getInitial());
+
+          equationInstanceOp.setViewElementIndex(i);
+
+          VariableOp variableOp = outputVariables[i];
+          VariableType variableType = variableOp.getVariableType();
+
+          if (!variableType.isScalar()) {
+            llvm::SmallVector<Range> ranges;
+
+            for (int64_t dimension : variableType.getShape()) {
+              ranges.push_back(Range(0, dimension));
+            }
+
+            equationInstanceOp.setImplicitIndicesAttr(
+                MultidimensionalRangeAttr::get(
+                    builder.getContext(), MultidimensionalRange(ranges)));
+          }
+        }
+
+        return &equationTemplateOp.getBodyRegion();
+      }
+
       /// Determine if an array is read or written.
       /// The return value consists in pair of boolean values, respectively
       /// indicating whether the array is read and written.
@@ -285,131 +335,8 @@ namespace
 
     private:
       mlir::SymbolTableCollection* symbolTable;
-  };
-
-  class AlgorithmOpPattern : public AlgorithmInterfacePattern<AlgorithmOp>
-  {
-    public:
-      AlgorithmOpPattern(
-          mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTable,
-          size_t& functionsCounter)
-          : AlgorithmInterfacePattern(context, symbolTable),
-            functionsCounter(&functionsCounter)
-      {
-      }
-
-      std::string getFunctionName(ModelOp modelOp) const override
-      {
-        return modelOp.getSymName().str() +
-            "_algorithm_" + std::to_string((*functionsCounter)++);
-      }
-
-      mlir::Region* createEquation(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          llvm::ArrayRef<VariableOp> outputVariables) const override
-      {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-
-        // Create the equation template.
-        auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
-        assert(equationTemplateOp.getBodyRegion().empty());
-        builder.createBlock(&equationTemplateOp.getBodyRegion());
-
-        // Create the equation instance.
-        builder.setInsertionPointAfter(equationTemplateOp);
-
-        for (uint64_t i = 0, e = outputVariables.size(); i < e; ++i) {
-          auto equationInstanceOp = builder.create<EquationInstanceOp>(
-              loc, equationTemplateOp, false);
-
-          equationInstanceOp.setViewElementIndex(i);
-
-          VariableOp variableOp = outputVariables[i];
-          VariableType variableType = variableOp.getVariableType();
-
-          if (!variableType.isScalar()) {
-            llvm::SmallVector<Range> ranges;
-
-            for (uint64_t dimension : variableType.getShape()) {
-              ranges.push_back(Range(0, dimension));
-            }
-
-            equationInstanceOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    builder.getContext(), MultidimensionalRange(ranges)));
-          }
-        }
-
-        return &equationTemplateOp.getBodyRegion();
-      }
-
-    private:
-      size_t* functionsCounter;
-  };
-
-  class InitialAlgorithmOpPattern
-      : public AlgorithmInterfacePattern<InitialAlgorithmOp>
-  {
-    public:
-      InitialAlgorithmOpPattern(
-          mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTable,
-          size_t& functionsCounter)
-          : AlgorithmInterfacePattern(context, symbolTable),
-            functionsCounter(&functionsCounter)
-      {
-      }
-
-      std::string getFunctionName(ModelOp modelOp) const override
-      {
-        return modelOp.getSymName().str() +
-            "_initial_algorithm_" + std::to_string((*functionsCounter)++);
-      }
-
-      mlir::Region* createEquation(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          llvm::ArrayRef<VariableOp> outputVariables) const override
-      {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-
-        // Create the equation template.
-        auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
-        assert(equationTemplateOp.getBodyRegion().empty());
-        builder.createBlock(&equationTemplateOp.getBodyRegion());
-
-        // Create the equation instance.
-        builder.setInsertionPointAfter(equationTemplateOp);
-
-        for (uint64_t i = 0, e = outputVariables.size(); i < e; ++i) {
-          auto equationInstanceOp = builder.create<EquationInstanceOp>(
-              loc, equationTemplateOp, true);
-
-          equationInstanceOp.setViewElementIndex(i);
-
-          VariableOp variableOp = outputVariables[i];
-          VariableType variableType = variableOp.getVariableType();
-
-          if (!variableType.isScalar()) {
-            llvm::SmallVector<Range> ranges;
-
-            for (uint64_t dimension : variableType.getShape()) {
-              ranges.push_back(Range(0, dimension));
-            }
-
-            equationInstanceOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    builder.getContext(), MultidimensionalRange(ranges)));
-          }
-        }
-
-        return &equationTemplateOp.getBodyRegion();
-      }
-
-    private:
-      size_t* functionsCounter;
+      size_t* initialAlgorithmsCounter;
+      size_t* algorithmsCounter;
   };
 }
 
@@ -426,11 +353,6 @@ namespace
       {
         mlir::ModuleOp moduleOp = getOperation();
         mlir::ConversionTarget target(getContext());
-
-        target.addDynamicallyLegalOp<InitialAlgorithmOp>(
-            [](InitialAlgorithmOp op) {
-              return !mlir::isa<ModelOp>(op->getParentOp());
-            });
 
         target.addDynamicallyLegalOp<AlgorithmOp>([](AlgorithmOp op) {
           return !mlir::isa<ModelOp>(op->getParentOp());
@@ -449,10 +371,8 @@ namespace
         mlir::SymbolTableCollection symbolTable;
 
         patterns.insert<AlgorithmOpPattern>(
-            &getContext(), symbolTable, algorithmsCounter);
-
-        patterns.insert<InitialAlgorithmOpPattern>(
-            &getContext(), symbolTable, initialAlgorithmsCounter);
+            &getContext(), symbolTable,
+            initialAlgorithmsCounter, algorithmsCounter);
 
         if (mlir::failed(applyPartialConversion(
                 moduleOp, target, std::move(patterns)))) {
