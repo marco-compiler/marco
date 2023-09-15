@@ -1529,7 +1529,7 @@ TEST(Parser, expression_functionCall_noArgs)
   EXPECT_TRUE(args.empty());
 }
 
-TEST(Parser, expression_functionCall_withArgs)
+TEST(Parser, expression_functionCall_unnamedArgs)
 {
   std::string str = "foo(x, 1, 2)";
 
@@ -1557,20 +1557,65 @@ TEST(Parser, expression_functionCall_withArgs)
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
-  ASSERT_TRUE(args[0]->isa<ast::CallArgument>());
-  EXPECT_FALSE(args[0]->cast<ast::CallArgument>()->isNamed());
-  ASSERT_TRUE(args[0]->cast<ast::CallArgument>()->getValue()->isa<ast::ComponentReference>());
-  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(args[0]->cast<ast::CallArgument>()->getValue()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
+  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(args[1]->isa<ast::CallArgument>());
-  ASSERT_TRUE(args[1]->cast<ast::CallArgument>()->getValue()->isa<Constant>());
-  EXPECT_EQ(args[1]->cast<ast::CallArgument>()->getValue()->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[1]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
 
-  ASSERT_TRUE(args[2]->isa<ast::CallArgument>());
-  ASSERT_TRUE(args[2]->cast<ast::CallArgument>()->getValue()->isa<Constant>());
-  EXPECT_EQ(args[2]->cast<ast::CallArgument>()->getValue()->cast<Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[2]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
+}
+
+TEST(Parser, expression_functionCall_namedArgs)
+{
+  std::string str = "foo(x = k, y = 1, z = 2)";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 24);
+
+  ASSERT_TRUE((*node)->isa<Call>());
+  auto call = (*node)->cast<Call>();
+
+  ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+
+  auto args = call->getArguments();
+  EXPECT_EQ(args.size(), 3);
+
+  ASSERT_TRUE(args[0]->isa<ast::NamedFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
+  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getName(), "k");
+  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+
+  ASSERT_TRUE(args[1]->isa<ast::NamedFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::Constant>());
+  EXPECT_EQ(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::Constant>()->as<int64_t>(), 1);
+
+  ASSERT_TRUE(args[2]->isa<ast::NamedFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::Constant>());
+  EXPECT_EQ(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::Constant>()->as<int64_t>(), 2);
 }
 
 TEST(Parser, annotation_inlineTrue)

@@ -27,9 +27,20 @@ namespace marco::codegen::lowering
     if (*calleeOp) {
       if (mlir::isa<FunctionOp, DerFunctionOp>(*calleeOp)) {
         // User-defined function.
+        llvm::SmallVector<VariableOp> inputVariables;
+
+        if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
+          getCustomFunctionInputVariables(inputVariables, functionOp);
+        }
+
+        if (auto derFunctionOp = mlir::dyn_cast<DerFunctionOp>(*calleeOp)) {
+          getCustomFunctionInputVariables(inputVariables, derFunctionOp);
+        }
+
         llvm::SmallVector<std::string, 3> argNames;
         llvm::SmallVector<mlir::Value, 3> argValues;
-        lowerArgs(call, argNames, argValues);
+
+        lowerCustomFunctionArgs(call, inputVariables, argNames, argValues);
         assert(argNames.empty() && "Named arguments not supported yet");
 
         llvm::SmallVector<int64_t, 3> expectedArgRanks;
@@ -63,9 +74,12 @@ namespace marco::codegen::lowering
 
       // Check if it's an implicit record constructor.
       if (auto recordConstructor = mlir::dyn_cast<RecordOp>(*calleeOp)) {
+        llvm::SmallVector<VariableOp> inputVariables;
+        getRecordConstructorInputVariables(inputVariables, recordConstructor);
+
         llvm::SmallVector<std::string, 3> argNames;
         llvm::SmallVector<mlir::Value, 3> argValues;
-        lowerArgs(call, argNames, argValues);
+        lowerRecordConstructorArgs(call, inputVariables, argNames, argValues);
         assert(argNames.empty() && "Named args for records not yet supported");
 
         mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(recordConstructor);
@@ -124,17 +138,153 @@ namespace marco::codegen::lowering
     return results[0].get(location);
   }
 
-  void CallLowerer::lowerArgs(
+  void CallLowerer::getCustomFunctionInputVariables(
+      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+      FunctionOp functionOp)
+  {
+    for (VariableOp variableOp : functionOp.getVariables()) {
+      if (variableOp.isInput()) {
+        inputVariables.push_back(variableOp);
+      }
+    }
+  }
+
+  void CallLowerer::getCustomFunctionInputVariables(
+      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+      DerFunctionOp derFunctionOp)
+  {
+    mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+
+    while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
+      derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
+          derFunctionOp.getDerivedFunction(),
+          derivedFunctionOp);
+    }
+
+    assert(derivedFunctionOp && "Derived function not found");
+    auto functionOp = mlir::cast<FunctionOp>(derivedFunctionOp);
+    getCustomFunctionInputVariables(inputVariables, functionOp);
+  }
+
+  void CallLowerer::lowerCustomFunctionArgs(
       const ast::Call& call,
+      llvm::ArrayRef<VariableOp> calleeInputs,
       llvm::SmallVectorImpl<std::string>& argNames,
       llvm::SmallVectorImpl<mlir::Value>& argValues)
   {
-    for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
-      if (call.getArgument(i)->isNamed()) {
-        argNames.push_back(call.getArgument(i)->getName().str());
+    size_t numOfArgs = call.getNumOfArguments();
+
+    if (numOfArgs != 0) {
+      if (auto reductionArg =
+              call.getArgument(0)
+                  ->dyn_cast<ast::ReductionFunctionArgument>()) {
+        assert(call.getNumOfArguments() == 1);
+        llvm_unreachable("ReductionOp has not been implemented yet");
+        return;
+      }
+    }
+
+    bool existsNamedArgument = false;
+
+    for (size_t i = 0; i < numOfArgs && !existsNamedArgument; ++i) {
+      if (call.getArgument(i)->isa<ast::NamedFunctionArgument>()) {
+        existsNamedArgument = true;
+      }
+    }
+
+    size_t argIndex = 0;
+
+    // Process the unnamed arguments.
+    while (argIndex < numOfArgs &&
+           !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
+      auto arg = call.getArgument(argIndex)
+                     ->cast<ast::ExpressionFunctionArgument>();
+
+      argValues.push_back(lowerArg(*arg->getExpression()));
+
+      if (existsNamedArgument) {
+        VariableOp variableOp = calleeInputs[argIndex];
+        argNames.push_back(variableOp.getSymName().str());
       }
 
-      argValues.push_back(lowerArg(*call.getArgument(i)->getValue()));
+      ++argIndex;
+    }
+
+    // Process the named arguments.
+    while (argIndex < numOfArgs) {
+      auto arg = call.getArgument(argIndex)
+                     ->cast<ast::NamedFunctionArgument>();
+
+      argValues.push_back(lowerArg(
+          *arg->getValue()
+               ->cast<ast::ExpressionFunctionArgument>()
+               ->getExpression()));
+
+      argNames.push_back(arg->getName().str());
+      ++argIndex;
+    }
+  }
+
+  void CallLowerer::getRecordConstructorInputVariables(
+      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+      mlir::modelica::RecordOp recordOp)
+  {
+    for (VariableOp variableOp : recordOp.getVariables()) {
+      if (variableOp.isInput()) {
+        inputVariables.push_back(variableOp);
+      }
+    }
+  }
+
+  void CallLowerer::lowerRecordConstructorArgs(
+      const ast::Call& call,
+      llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
+      llvm::SmallVectorImpl<std::string>& argNames,
+      llvm::SmallVectorImpl<mlir::Value>& argValues)
+  {
+    assert(llvm::none_of(call.getArguments(), [](const auto& arg) {
+      return arg->template isa<ast::ReductionFunctionArgument>();
+    }));
+
+    size_t numOfArgs = call.getNumOfArguments();
+    bool existsNamedArgument = false;
+
+    for (size_t i = 0; i < numOfArgs && !existsNamedArgument; ++i) {
+      if (call.getArgument(i)->isa<ast::NamedFunctionArgument>()) {
+        existsNamedArgument = true;
+      }
+    }
+
+    size_t argIndex = 0;
+
+    // Process the unnamed arguments.
+    while (argIndex < numOfArgs &&
+           !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
+      auto arg = call.getArgument(argIndex)
+                     ->cast<ast::ExpressionFunctionArgument>();
+
+      argValues.push_back(lowerArg(*arg->getExpression()));
+
+      if (existsNamedArgument) {
+        VariableOp variableOp = calleeInputs[argIndex];
+        argNames.push_back(variableOp.getSymName().str());
+      }
+
+      ++argIndex;
+    }
+
+    // Process the named arguments.
+    while (argIndex < numOfArgs) {
+      auto arg = call.getArgument(argIndex)
+                     ->cast<ast::NamedFunctionArgument>();
+
+      argValues.push_back(lowerArg(
+          *arg->getValue()
+               ->cast<ast::ExpressionFunctionArgument>()
+                   ->getExpression()));
+
+      argNames.push_back(arg->getName().str());
+      ++argIndex;
     }
   }
 
@@ -142,8 +292,16 @@ namespace marco::codegen::lowering
       const ast::Call& call,
       llvm::SmallVectorImpl<mlir::Value>& args)
   {
+    assert(llvm::none_of(call.getArguments(), [](const auto& arg) {
+      return arg->template isa<ast::ReductionFunctionArgument>() ||
+          arg->template isa<ast::NamedFunctionArgument>();
+    }));
+
     for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
-      args.push_back(lowerArg(*call.getArgument(i)->getValue()));
+      args.push_back(lowerArg(
+          *call.getArgument(i)
+               ->cast<ast::ExpressionFunctionArgument>()
+               ->getExpression()));
     }
   }
 
@@ -895,13 +1053,23 @@ namespace marco::codegen::lowering
 
     assert(call.getNumOfArguments() > 0);
 
-    assert(!call.getArgument(0)->isNamed());
-    mlir::Value value = lowerArg(*call.getArgument(0)->getValue());
+    assert(call.getArgument(0)->isa<ast::ExpressionFunctionArgument>());
+
+    mlir::Value value = lowerArg(
+        *call.getArgument(0)
+             ->cast<ast::ExpressionFunctionArgument>()
+             ->getExpression());
+
     llvm::SmallVector<int64_t, 1> shape;
 
     for (size_t i = 1, e = call.getNumOfArguments(); i < e; ++i) {
-      assert(!call.getArgument(i)->isNamed());
-      const ast::Expression* arg = call.getArgument(i)->getValue();
+      assert(call.getArgument(i)->isa<ast::ExpressionFunctionArgument>());
+
+      const ast::Expression* arg =
+          call.getArgument(i)
+              ->cast<ast::ExpressionFunctionArgument>()
+              ->getExpression();
+
       assert(arg->isa<ast::Constant>());
       shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
     }

@@ -14,7 +14,7 @@ namespace marco::ast
 
       Class(const Class& other);
 
-      virtual ~Class();
+      ~Class() override;
 
       static bool classof(const ASTNode* node)
       {

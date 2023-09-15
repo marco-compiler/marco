@@ -100,13 +100,20 @@ namespace marco::parser
       /// Parse the 'if-statement' symbol.
       std::optional<std::unique_ptr<ast::ASTNode>> parseIfStatement();
 
-      /// Parse the 'for-statement'.
+      /// Parse the 'for-statement' symbol.
       std::optional<std::unique_ptr<ast::ASTNode>> parseForStatement();
 
-      /// Parse the 'while-statement'.
+      /// Parse the 'for-indices' symbol.
+      std::optional<ValueWrapper<
+          std::vector<std::unique_ptr<ast::ASTNode>>>> parseForIndices();
+
+      /// Parse the 'for-index' symbol.
+      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
+
+      /// Parse the 'while-statement' symbol.
       std::optional<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
 
-      /// Parse the 'when-statement'.
+      /// Parse the 'when-statement' symbol.
       std::optional<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
 
       /// Parse the 'expression' symbol.
@@ -195,8 +202,8 @@ namespace marco::parser
 
       std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseForEquations();
 
-      /// Parse the 'for-index' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
+      /// Parse the 'for-index' symbol (old version, to be removed).
+      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndexOld();
 
       std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseElementList(bool publicSection);
 

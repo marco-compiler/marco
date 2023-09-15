@@ -7,7 +7,7 @@
 
 namespace marco::ast
 {
-  class CallArgument;
+  class FunctionArgument;
 
 	class Call : public Expression
 	{
@@ -37,9 +37,9 @@ namespace marco::ast
 
       size_t getNumOfArguments() const;
 
-      CallArgument* getArgument(size_t index);
+      FunctionArgument* getArgument(size_t index);
 
-      const CallArgument* getArgument(size_t index) const;
+      const FunctionArgument* getArgument(size_t index) const;
 
       llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 

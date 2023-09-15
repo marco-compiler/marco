@@ -350,19 +350,28 @@ namespace marco::parser
 
   std::string Token::getString() const
   {
-    assert(std::holds_alternative<std::string>(value));
+    if (!std::holds_alternative<std::string>(value)) {
+      return "";
+    }
+
     return std::get<std::string>(value);
   }
 
   int64_t Token::getInt() const
   {
-    assert(std::holds_alternative<int64_t>(value));
+    if (!std::holds_alternative<int64_t>(value)) {
+      return 0;
+    }
+
     return std::get<int64_t>(value);
   }
 
   double Token::getFloat() const
   {
-    assert(std::holds_alternative<double>(value));
+    if (!std::holds_alternative<double>(value)) {
+      return 0;
+    }
+
     return std::get<double>(value);
   }
 

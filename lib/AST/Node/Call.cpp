@@ -1,5 +1,5 @@
 #include "marco/AST/Node/Call.h"
-#include "marco/AST/Node/CallArgument.h"
+#include "marco/AST/Node/FunctionArgument.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -71,16 +71,16 @@ namespace marco::ast
     return arguments.size();
   }
 
-  CallArgument* Call::getArgument(size_t index)
+  FunctionArgument* Call::getArgument(size_t index)
   {
     assert(index < arguments.size());
-    return arguments[index]->cast<CallArgument>();
+    return arguments[index]->cast<FunctionArgument>();
   }
 
-  const CallArgument* Call::getArgument(size_t index) const
+  const FunctionArgument* Call::getArgument(size_t index) const
   {
     assert(index < arguments.size());
-    return arguments[index]->cast<CallArgument>();
+    return arguments[index]->cast<FunctionArgument>();
   }
 
   llvm::ArrayRef<std::unique_ptr<ASTNode>> Call::getArguments() const
@@ -94,7 +94,7 @@ namespace marco::ast
     arguments.clear();
 
     for (const auto& node : nodes) {
-      assert(node->isa<CallArgument>());
+      assert(node->isa<FunctionArgument>());
       auto& clone = arguments.emplace_back(node->clone());
       clone->setParent(this);
     }

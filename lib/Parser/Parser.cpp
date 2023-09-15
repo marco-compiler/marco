@@ -605,7 +605,7 @@ namespace marco::parser
     auto loc = tokens[0].getLocation();
 
     EXPECT(TokenKind::For);
-    TRY(induction, parseForIndex());
+    TRY(induction, parseForIndexOld());
     EXPECT(TokenKind::Loop);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> statements;
@@ -624,6 +624,38 @@ namespace marco::parser
     auto result = std::make_unique<ForStatement>(loc);
     result->setInduction(std::move(*induction));
     result->setStatements(statements);
+    return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
+  }
+
+  std::optional<Parser::ValueWrapper<
+      std::vector<std::unique_ptr<ast::ASTNode>>>> Parser::parseForIndices()
+  {
+    auto loc = tokens[0].getLocation();
+    std::vector<std::unique_ptr<ast::ASTNode>> result;
+
+    do {
+      TRY(firstIndex, parseForIndex());
+      result.push_back(std::move(*firstIndex));
+    } while (accept<TokenKind::Comma>());
+
+    return ValueWrapper(loc, std::move(result));
+  }
+
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
+  {
+    auto loc = tokens[0].getLocation();
+    auto name = tokens[0].getString();
+    EXPECT(TokenKind::Identifier);
+
+    auto result = std::make_unique<ForIndex>(loc);
+
+    if (accept<TokenKind::In>()) {
+      TRY(expression, parseExpression());
+      loc.end = (*expression)->getLocation().end;
+      result->setLocation(loc);
+      result->setExpression(std::move(*expression));
+    }
+
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
@@ -1224,18 +1256,30 @@ namespace marco::parser
 
     TRY(firstArgExpression, parseExpression());
 
-    auto firstArg = std::make_unique<CallArgument>(
-        (*firstArgExpression)->getLocation());
+    if (tokens[0].isa<TokenKind::For>()) {
+      // Reduction argument.
+      TRY(forIndices, parseForIndices());
 
-    firstArg->setValue(std::move(*firstArgExpression));
+      auto reductionArg = std::make_unique<ReductionFunctionArgument>(
+          (*firstArgExpression)->getLocation());
 
-    arguments.push_back(
-        static_cast<std::unique_ptr<ASTNode>>(std::move(firstArg)));
+      auto loc = reductionArg->getLocation();
+      loc.end = (*forIndices).getLocation().end;
+
+      reductionArg->setForIndices(forIndices->getValue());
+      return arguments;
+    }
+
+    auto firstArg = std::make_unique<ExpressionFunctionArgument>(
+                        (*firstArgExpression)->getLocation());
+
+    firstArg->setExpression(std::move(*firstArgExpression));
+    arguments.push_back(std::move(firstArg));
 
     if (accept<TokenKind::Comma>()) {
-      TRY(otherArgs, parseFunctionArgumentsNonFirst());
+      TRY(nonFirstArgs, parseFunctionArgumentsNonFirst());
 
-      for (auto& otherArg : *otherArgs) {
+      for (auto& otherArg : *nonFirstArgs) {
         arguments.push_back(std::move(otherArg));
       }
     }
@@ -1246,19 +1290,24 @@ namespace marco::parser
   std::optional<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseFunctionArgumentsNonFirst()
   {
+    if (tokens[0].isa<TokenKind::Identifier>() &&
+        tokens[1].isa<TokenKind::EqualityOperator>()) {
+      // Named arguments.
+      return parseNamedArguments();
+    }
+
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
-    do {
-      TRY(argumentExpression, parseExpression());
+    TRY(firstArg, parseFunctionArgument());
+    arguments.push_back(std::move(*firstArg));
 
-      auto argument = std::make_unique<CallArgument>(
-          (*argumentExpression)->getLocation());
+    while (accept<TokenKind::Comma>()) {
+      TRY(remainingArgs, parseFunctionArgumentsNonFirst());
 
-      argument->setValue(std::move(*argumentExpression));
-
-      arguments.push_back(
-          static_cast<std::unique_ptr<ASTNode>>(std::move(argument)));
-    } while (accept<TokenKind::Comma>());
+      for (auto& remainingArg : *remainingArgs) {
+        arguments.push_back(std::move(remainingArg));
+      }
+    }
 
     return arguments;
   }
@@ -1286,7 +1335,7 @@ namespace marco::parser
     } else if (accept<TokenKind::For>()) {
       // for-indices
       do {
-        TRY(induction, parseForIndex());
+        TRY(induction, parseForIndexOld());
         inductions.push_back(std::move(*induction));
       } while (accept<TokenKind::Comma>());
     }
@@ -1332,7 +1381,7 @@ namespace marco::parser
     TRY(expression, parseFunctionArgument());
     loc.end = (*expression)->getLocation().end;
 
-    auto result = std::make_unique<CallArgument>(loc);
+    auto result = std::make_unique<NamedFunctionArgument>(loc);
     result->setName(identifier);
     result->setValue(std::move(*expression));
 
@@ -1342,7 +1391,13 @@ namespace marco::parser
   std::optional<std::unique_ptr<ast::ASTNode>>
   Parser::parseFunctionArgument()
   {
-    return parseExpression();
+    TRY(expression, parseExpression());
+
+    auto result = std::make_unique<ExpressionFunctionArgument>(
+        (*expression)->getLocation());
+
+    result->setExpression(std::move(*expression));
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   std::optional<std::vector<std::unique_ptr<ASTNode>>>
@@ -1456,7 +1511,7 @@ namespace marco::parser
     std::vector<std::unique_ptr<ast::ASTNode>> result;
 
     EXPECT(TokenKind::For);
-    TRY(induction, parseForIndex());
+    TRY(induction, parseForIndexOld());
     EXPECT(TokenKind::Loop);
 
     while (!tokens[0].isa<TokenKind::End>()) {
@@ -1507,7 +1562,7 @@ namespace marco::parser
     return result;
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
+  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndexOld()
   {
     auto loc = tokens[0].getLocation();
 

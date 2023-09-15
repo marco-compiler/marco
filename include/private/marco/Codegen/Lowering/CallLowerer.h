@@ -27,8 +27,27 @@ namespace marco::codegen::lowering
 
       mlir::Value lowerArg(const ast::Expression& expression);
 
-      void lowerArgs(
+      void getCustomFunctionInputVariables(
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+          mlir::modelica::FunctionOp functionOp);
+
+      void getCustomFunctionInputVariables(
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+          mlir::modelica::DerFunctionOp derFunctionOp);
+
+      void lowerCustomFunctionArgs(
           const ast::Call& call,
+          llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
+          llvm::SmallVectorImpl<std::string>& argNames,
+          llvm::SmallVectorImpl<mlir::Value>& argValues);
+
+      void getRecordConstructorInputVariables(
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+          mlir::modelica::RecordOp recordOp);
+
+      void lowerRecordConstructorArgs(
+          const ast::Call& call,
+          llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
           llvm::SmallVectorImpl<std::string>& argNames,
           llvm::SmallVectorImpl<mlir::Value>& argValues);
 

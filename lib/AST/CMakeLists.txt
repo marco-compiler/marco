@@ -9,26 +9,30 @@ set(AST_NODES
 	Node/ASTNode.cpp
 	Node/BreakStatement.cpp
 	Node/Call.cpp
-	Node/CallArgument.cpp
 	Node/Class.cpp
 	Node/ComponentReference.cpp
 	Node/ComponentReferenceEntry.cpp
 	Node/EquationsBlock.cpp
+	Node/ExpressionFunctionArgument.cpp
 	Node/Model.cpp
 	Node/Constant.cpp
 	Node/Equation.cpp
 	Node/Expression.cpp
 	Node/ForEquation.cpp
+	Node/ForIndex.cpp
 	Node/ForStatement.cpp
 	Node/Function.cpp
+	Node/FunctionArgument.cpp
 	Node/IfStatement.cpp
 	Node/Induction.cpp
 	Node/Member.cpp
 	Node/Modification.cpp
+	Node/NamedFunctionArgument.cpp
 	Node/Operation.cpp
 	Node/Package.cpp
 	Node/Record.cpp
 	Node/Reduction.cpp
+	Node/ReductionFunctionArgument.cpp
 	Node/ReturnStatement.cpp
 	Node/Root.cpp
 	Node/Statement.cpp
