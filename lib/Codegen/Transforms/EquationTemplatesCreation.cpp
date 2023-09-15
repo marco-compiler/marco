@@ -57,22 +57,21 @@ static std::vector<MultidimensionalRange> getRangesCombinations(
 
 namespace
 {
-  template<typename Op>
-  class EquationPattern : public mlir::OpRewritePattern<Op>
+  class EquationOpPattern : public mlir::OpRewritePattern<EquationOp>
   {
     public:
-      EquationPattern(
+      EquationOpPattern(
           mlir::MLIRContext* context)
-          : mlir::OpRewritePattern<Op>(context)
+          : mlir::OpRewritePattern<EquationOp>(context)
       {
       }
 
       mlir::LogicalResult matchAndRewrite(
-          Op op, mlir::PatternRewriter& rewriter) const override
+          EquationOp op, mlir::PatternRewriter& rewriter) const override
       {
         mlir::Location loc = op.getLoc();
 
-        auto modelOp = op->template getParentOfType<ModelOp>();
+        auto modelOp = op->getParentOfType<ModelOp>();
         rewriter.setInsertionPointToEnd(modelOp.getBody());
 
         llvm::SmallVector<ForEquationOp, 3> loops;
@@ -117,7 +116,7 @@ namespace
 
     private:
       void getForEquationOps(
-          Op op, llvm::SmallVectorImpl<ForEquationOp>& result) const
+          EquationOp op, llvm::SmallVectorImpl<ForEquationOp>& result) const
       {
         std::stack<ForEquationOp> loopsStack;
         auto parentLoop = op->template getParentOfType<ForEquationOp>();
@@ -170,13 +169,13 @@ namespace
 
       mlir::LogicalResult createEquationInstances(
           mlir::OpBuilder& builder,
-          Op equationOp,
+          EquationOp equationOp,
           EquationTemplateOp templateOp,
           const IndexSet& explicitIndices) const
       {
         // Compute how many equalities the equation contains.
         auto equationSidesOp = mlir::cast<EquationSidesOp>(
-            equationOp.bodyBlock()->getTerminator());
+            equationOp.getBody()->getTerminator());
 
         size_t cardinality = equationSidesOp.getLhsValues().size();
 
@@ -188,23 +187,26 @@ namespace
           if (!explicitIndices.empty()) {
             if (implicitIndices) {
               if (mlir::failed(createInstanceWithExplicitAndImplicitIndices(
-                      builder, templateOp, i,
+                      builder, templateOp, equationOp.getInitial(), i,
                       explicitIndices, *implicitIndices))) {
                 return mlir::failure();
               }
             } else {
               if (mlir::failed(createInstanceWithExplicitIndices(
-                      builder, templateOp, i, explicitIndices))) {
+                      builder, templateOp,
+                      equationOp.getInitial(), i, explicitIndices))) {
                 return mlir::failure();
               }
             }
           } else if (implicitIndices) {
             if (mlir::failed(createInstanceWithImplicitIndices(
-                    builder, templateOp, i, *implicitIndices))) {
+                    builder, templateOp,
+                    equationOp.getInitial(), i, *implicitIndices))) {
               return mlir::failure();
             }
           } else {
-            if (mlir::failed(createScalarInstance(builder, templateOp, i))) {
+            if (mlir::failed(createScalarInstance(
+                    builder, templateOp, equationOp.getInitial(), i))) {
               return mlir::failure();
             }
           }
@@ -216,9 +218,11 @@ namespace
       mlir::LogicalResult createScalarInstance(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex) const
       {
-        auto instanceOp = createInstance(builder, templateOp);
+        auto instanceOp = builder.create<EquationInstanceOp>(
+            templateOp.getLoc(), templateOp, initial);
 
         if (!instanceOp) {
           return mlir::failure();
@@ -231,13 +235,14 @@ namespace
       mlir::LogicalResult createInstanceWithExplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const IndexSet& explicitIndices) const
       {
         for (const MultidimensionalRange& range : llvm::make_range(
                  explicitIndices.rangesBegin(), explicitIndices.rangesEnd())) {
           if (mlir::failed(createInstanceWithExplicitIndices(
-                  builder, templateOp, viewElementIndex, range))) {
+                  builder, templateOp, initial, viewElementIndex, range))) {
             return mlir::failure();
           }
         }
@@ -248,10 +253,14 @@ namespace
       mlir::LogicalResult createInstanceWithExplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const MultidimensionalRange& explicitIndices) const
       {
-        auto instanceOp = createInstance(builder, templateOp);
+        auto instanceOp = builder.create<EquationInstanceOp>(
+            templateOp.getLoc(), templateOp, initial);
+
+        instanceOp.setViewElementIndex(viewElementIndex);
 
         instanceOp.setIndicesAttr(MultidimensionalRangeAttr::get(
             builder.getContext(), explicitIndices));
@@ -262,13 +271,14 @@ namespace
       mlir::LogicalResult createInstanceWithImplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const IndexSet& implicitIndices) const
       {
         for (const MultidimensionalRange& range : llvm::make_range(
                  implicitIndices.rangesBegin(), implicitIndices.rangesEnd())) {
           if (mlir::failed(createInstanceWithImplicitIndices(
-                  builder, templateOp, viewElementIndex, range))) {
+                  builder, templateOp, initial, viewElementIndex, range))) {
             return mlir::failure();
           }
         }
@@ -279,10 +289,14 @@ namespace
       mlir::LogicalResult createInstanceWithImplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const MultidimensionalRange& implicitIndices) const
       {
-        auto instanceOp = createInstance(builder, templateOp);
+        auto instanceOp = builder.create<EquationInstanceOp>(
+            templateOp.getLoc(), templateOp, initial);
+
+        instanceOp.setViewElementIndex(viewElementIndex);
 
         instanceOp.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
             builder.getContext(), implicitIndices));
@@ -293,6 +307,7 @@ namespace
       mlir::LogicalResult createInstanceWithExplicitAndImplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const IndexSet& explicitIndices,
           const IndexSet& implicitIndices) const
@@ -304,7 +319,7 @@ namespace
                    implicitIndices.rangesBegin(),
                    implicitIndices.rangesEnd())) {
             if (mlir::failed(createInstanceWithExplicitAndImplicitIndices(
-                    builder, templateOp, viewElementIndex,
+                    builder, templateOp, initial, viewElementIndex,
                     explicitRange, implicitRange))) {
               return mlir::failure();
             }
@@ -317,11 +332,15 @@ namespace
       mlir::LogicalResult createInstanceWithExplicitAndImplicitIndices(
           mlir::OpBuilder& builder,
           EquationTemplateOp templateOp,
+          bool initial,
           uint64_t viewElementIndex,
           const MultidimensionalRange& explicitIndices,
           const MultidimensionalRange& implicitIndices) const
       {
-        auto instanceOp = createInstance(builder, templateOp);
+        auto instanceOp = builder.create<EquationInstanceOp>(
+            templateOp.getLoc(), templateOp, initial);
+
+        instanceOp.setViewElementIndex(viewElementIndex);
 
         instanceOp.setIndicesAttr(MultidimensionalRangeAttr::get(
             builder.getContext(), explicitIndices));
@@ -330,41 +349,6 @@ namespace
             builder.getContext(), implicitIndices));
 
         return mlir::success();
-      }
-
-    protected:
-      virtual EquationInstanceOp createInstance(
-          mlir::OpBuilder& builder,
-          EquationTemplateOp templateOp) const = 0;
-  };
-
-  class EquationOpPattern : public EquationPattern<EquationOp>
-  {
-    public:
-      using EquationPattern<EquationOp>::EquationPattern;
-
-    protected:
-      EquationInstanceOp createInstance(
-          mlir::OpBuilder& builder,
-          EquationTemplateOp templateOp) const override
-      {
-        return builder.create<EquationInstanceOp>(
-            templateOp.getLoc(), templateOp, false);
-      }
-  };
-
-  class InitialEquationOpPattern : public EquationPattern<InitialEquationOp>
-  {
-    public:
-      using EquationPattern<InitialEquationOp>::EquationPattern;
-
-    protected:
-      EquationInstanceOp createInstance(
-          mlir::OpBuilder& builder,
-          EquationTemplateOp templateOp) const override
-      {
-        return builder.create<EquationInstanceOp>(
-            templateOp.getLoc(), templateOp, true);
       }
   };
 }
@@ -388,17 +372,14 @@ void EquationTemplatesCreationPass::runOnOperation()
   ModelOp modelOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
-  target.addIllegalOp<EquationOp, InitialEquationOp>();
+  target.addIllegalOp<EquationOp>();
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
   });
 
   mlir::RewritePatternSet patterns(&getContext());
-
-  patterns.insert<
-      EquationOpPattern,
-      InitialEquationOpPattern>(&getContext());
+  patterns.insert<EquationOpPattern>(&getContext());
 
   if (mlir::failed(applyPartialConversion(
           modelOp, target, std::move(patterns)))) {

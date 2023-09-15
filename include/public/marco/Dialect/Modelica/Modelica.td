@@ -3572,7 +3572,8 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
 }
 
 def Modelica_EquationOp : Modelica_Op<"equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>]>
+    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
+    SingleBlock]>
 {
     let summary = "Equation.";
 
@@ -3580,45 +3581,20 @@ def Modelica_EquationOp : Modelica_Op<"equation",
         The operation represents a Modelica equation.
     }];
 
-    let arguments = (ins);
+    let arguments = (ins DefaultValuedAttr<BoolAttr, "false">:$initial);
     let results = (outs);
 
     let regions = (region
         SizedRegion<1>:$bodyRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        Block* bodyBlock();
-    }];
-}
-
-def Modelica_InitialEquationOp : Modelica_Op<"initial_equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>]>
-{
-    let summary = "Initial equation.";
-
-    let description = [{
-        The operation represents a Modelica initial equation.
-    }];
-
-    let arguments = (ins);
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        Block* bodyBlock();
+    let assemblyFormat = [{
+       attr-dict-with-keyword $bodyRegion
     }];
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",
-    [ParentOneOf<["EquationTemplateOp", "EquationOp", "InitialEquationOp"]>]>
+    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>]>
 {
     let summary = "Equation side.";
 
@@ -3641,7 +3617,7 @@ def Modelica_EquationSideOp : Modelica_Op<"equation_side",
 }
 
 def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
-    [ParentOneOf<["EquationTemplateOp", "EquationOp", "InitialEquationOp"]>,
+    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>,
     Terminator]>
 {
     let summary = "Equation terminator.";
