@@ -146,7 +146,7 @@ namespace marco::parser
         return kind == Kind;
       }
 
-      [[nodiscard]] const SourceRange& getLocation() const;
+      [[nodiscard]] SourceRange getLocation() const;
 
       [[nodiscard]] std::string getString() const;
 

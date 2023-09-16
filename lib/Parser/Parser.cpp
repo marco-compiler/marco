@@ -5,12 +5,12 @@ using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-#define EXPECT(Token)                                           \
-	if (!accept<Token>()) {                                       \
-	  diagnostics->emitError<UnexpectedTokenMessage>(             \
-        tokens[0].getLocation(), tokens[0].getKind(), Token);   \
-    return std::nullopt;                                        \
-  }                                                             \
+#define EXPECT(Token)                                                   \
+	if (!accept<Token>()) {                                               \
+	  diagnostics->emitError<UnexpectedTokenMessage>(                     \
+        lookahead[0].getLocation(), lookahead[0].getKind(), Token);     \
+    return std::nullopt;                                                \
+  }                                                                     \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -28,26 +28,52 @@ namespace marco::parser
       : diagnostics(&diagnostics),
         lexer(std::move(file))
   {
-    for (size_t i = 0, e = tokens.size(); i < e; ++i) {
+    for (size_t i = 0, e = lookahead.size(); i < e; ++i) {
       advance();
     }
   }
 
   void Parser::advance()
   {
-    for (size_t i = 0, e = tokens.size(); i + 1 < e; ++i) {
-      tokens[i] = tokens[i + 1];
+    token = lookahead[0];
+
+    for (size_t i = 0, e = lookahead.size(); i + 1 < e; ++i) {
+      lookahead[i] = lookahead[i + 1];
     }
     
-    tokens.back() = lexer.scan();
+    lookahead.back() = lexer.scan();
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
+  SourceRange Parser::getLocation() const
   {
-    auto loc = tokens[0].getLocation();
+    return token.getLocation();
+  }
+
+  SourceRange Parser::getCursorLocation() const
+  {
+    return {getLocation().end, getLocation().end};
+  }
+
+  std::string Parser::getString() const
+  {
+    return token.getString();
+  }
+
+  int64_t Parser::getInt() const
+  {
+    return token.getInt();
+  }
+
+  double Parser::getFloat() const
+  {
+    return token.getFloat();
+  }
+
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
+  {
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 1> classes;
 
-    while (!tokens[0].isa<TokenKind::EndOfFile>()) {
+    while (!lookahead[0].isa<TokenKind::EndOfFile>()) {
       TRY(classDefinition, parseClassDefinition());
       classes.push_back(std::move(*classDefinition));
     }
@@ -57,55 +83,52 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(root));
   }
 
-  std::optional<Parser::ValueWrapper<bool>> Parser::parseBoolValue()
+  WrappedParseResult<bool> Parser::parseBoolValue()
   {
-    auto loc = tokens[0].getLocation();
-
     if (accept<TokenKind::True>()) {
-      return ValueWrapper(loc, true);
+      return ValueWrapper(getLocation(), true);
     }
 
     EXPECT(TokenKind::False);
-    return ValueWrapper(loc, false);
+    return ValueWrapper(getLocation(), false);
   }
 
-  std::optional<Parser::ValueWrapper<int64_t>> Parser::parseIntValue()
+  WrappedParseResult<int64_t> Parser::parseIntValue()
   {
-    auto loc = tokens[0].getLocation();
-    auto value = tokens[0].getInt();
-    accept<TokenKind::Integer>();
-    return ValueWrapper(loc, value);
+    if (!accept<TokenKind::Integer>()) {
+      return std::nullopt;
+    }
+
+    return ValueWrapper(getLocation(), getInt());
   }
 
-  std::optional<Parser::ValueWrapper<double>> Parser::parseFloatValue()
+  WrappedParseResult<double> Parser::parseFloatValue()
   {
-    auto loc = tokens[0].getLocation();
-    auto value = tokens[0].getFloat();
-    accept<TokenKind::FloatingPoint>();
-    return ValueWrapper(loc, value);
+    if (!accept<TokenKind::FloatingPoint>()) {
+      return std::nullopt;
+    }
+
+    return ValueWrapper(getLocation(), getFloat());
   }
 
-  std::optional<Parser::ValueWrapper<std::string>> Parser::parseString()
+  WrappedParseResult<std::string> Parser::parseString()
   {
-    auto loc = tokens[0].getLocation();
-    auto value = tokens[0].getString();
-    accept<TokenKind::String>();
-    return ValueWrapper(loc, value);
+    if (!accept<TokenKind::String>()) {
+      return std::nullopt;
+    }
+
+    return ValueWrapper(getLocation(), getString());
   }
 
-  std::optional<Parser::ValueWrapper<std::string>> Parser::parseIdentifier()
+  WrappedParseResult<std::string> Parser::parseIdentifier()
   {
-    auto loc = tokens[0].getLocation();
-
-    std::string identifier = tokens[0].getString();
     EXPECT(TokenKind::Identifier);
-
-    return ValueWrapper(loc, std::move(identifier));
+    return ValueWrapper(getLocation(), getString());
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseClassDefinition()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     std::unique_ptr<ASTNode> result;
 
     bool isOperator = accept<TokenKind::Operator>();
@@ -192,9 +215,9 @@ namespace marco::parser
 
     bool firstElementListParsable = true;
 
-    while (!tokens[0].isa<TokenKind::End>() &&
-        !tokens[0].isa<TokenKind::Annotation>()) {
-      if (tokens[0].isa<TokenKind::Equation>()) {
+    while (!lookahead[0].isa<TokenKind::End>() &&
+        !lookahead[0].isa<TokenKind::Annotation>()) {
+      if (lookahead[0].isa<TokenKind::Equation>()) {
         TRY(equationsBlock, parseEquationsBlock());
         equationsBlocks.push_back(std::move(*equationsBlock));
         continue;
@@ -206,17 +229,17 @@ namespace marco::parser
         continue;
       }
 
-      if (tokens[0].isa<TokenKind::Algorithm>()) {
+      if (lookahead[0].isa<TokenKind::Algorithm>()) {
         TRY(algorithm, parseAlgorithmSection());
         algorithms.emplace_back(std::move(*algorithm));
         continue;
       }
 
-      if (tokens[0].isa<TokenKind::Class>() ||
-          tokens[0].isa<TokenKind::Function>() ||
-          tokens[0].isa<TokenKind::Model>() ||
-          tokens[0].isa<TokenKind::Package>() ||
-          tokens[0].isa<TokenKind::Record>()) {
+      if (lookahead[0].isa<TokenKind::Class>() ||
+          lookahead[0].isa<TokenKind::Function>() ||
+          lookahead[0].isa<TokenKind::Model>() ||
+          lookahead[0].isa<TokenKind::Package>() ||
+          lookahead[0].isa<TokenKind::Record>()) {
         TRY(innerClass, parseClassDefinition());
         innerClasses.emplace_back(std::move(*innerClass));
         continue;
@@ -254,7 +277,7 @@ namespace marco::parser
     }
 
     // Parse an optional annotation.
-    if (tokens[0].isa<TokenKind::Annotation>()) {
+    if (lookahead[0].isa<TokenKind::Annotation>()) {
       TRY(annotation, parseAnnotation());
       EXPECT(TokenKind::Semicolon);
       result->dyn_cast<Class>()->setAnnotation(std::move(*annotation));
@@ -283,11 +306,11 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseModification()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseModification()
   {
-    auto loc = tokens[0].getLocation();
-
-    if (accept<TokenKind::EqualityOperator>() || accept<TokenKind::AssignmentOperator>()) {
+    if (accept<TokenKind::EqualityOperator>() ||
+        accept<TokenKind::AssignmentOperator>()) {
+      SourceRange loc = getLocation();
       TRY(expression, parseExpression());
       loc.end = (*expression)->getLocation().end;
 
@@ -297,7 +320,7 @@ namespace marco::parser
     }
 
     TRY(classModification, parseClassModification());
-    loc.end = (*classModification)->getLocation().end;
+    SourceRange loc = (*classModification)->getLocation();
 
     if (accept<TokenKind::EqualityOperator>()) {
       TRY(expression, parseExpression());
@@ -314,20 +337,20 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseClassModification()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassModification()
   {
-    auto loc = tokens[0].getLocation();
     EXPECT(TokenKind::LPar);
+    SourceRange loc = getLocation();
     TRY(argumentList, parseArgumentList());
-    loc.end = tokens[0].getLocation().end;
     EXPECT(TokenKind::RPar);
+    loc.end = getLocation().end;
 
     auto result = std::make_unique<ClassModification>(loc);
-    result->setArguments(*argumentList);
+    result->setArguments(**argumentList);
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseArgumentList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
@@ -337,14 +360,15 @@ namespace marco::parser
       arguments.push_back(std::move(*arg));
     } while (accept<TokenKind::Comma>());
 
-    return arguments;
+    SourceRange loc = arguments.front()->getLocation();
+    loc.end = arguments.back()->getLocation().end;
+
+    return ValueWrapper(std::move(loc), std::move(arguments));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseArgument()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseArgument()
   {
-    auto loc = tokens[0].getLocation();
-
-    if (tokens[0].isa<TokenKind::Redeclare>()) {
+    if (lookahead[0].isa<TokenKind::Redeclare>()) {
       TRY(elementRedeclaration, parseElementRedeclaration());
       return std::move(*elementRedeclaration);
     }
@@ -352,7 +376,7 @@ namespace marco::parser
     bool each = accept<TokenKind::Each>();
     bool final = accept<TokenKind::Final>();
 
-    if (tokens[0].isa<TokenKind::Replaceable>()) {
+    if (lookahead[0].isa<TokenKind::Replaceable>()) {
       TRY(elementReplaceable, parseElementReplaceable(each, final));
       return std::move(*elementReplaceable);
     }
@@ -361,61 +385,63 @@ namespace marco::parser
     return std::move(*elementModification);
   }
 
-  std::optional<std::unique_ptr<ASTNode>>
+  ParseResult<std::unique_ptr<ASTNode>>
   Parser::parseElementModification(bool each, bool final)
   {
-    auto loc = tokens[0].getLocation();
-
-    auto name = tokens[0].getString();
     EXPECT(TokenKind::Identifier);
+    std::string name = getString();
+
+    SourceRange loc = getLocation();
 
     auto result = std::make_unique<ElementModification>(loc);
     result->setName(name);
     result->setEachProperty(each);
     result->setFinalProperty(final);
 
-    if (!tokens[0].isa<TokenKind::LPar>() &&
-        !tokens[0].isa<TokenKind::EqualityOperator>() &&
-        !tokens[0].isa<TokenKind::AssignmentOperator>()) {
+    if (!lookahead[0].isa<TokenKind::LPar>() &&
+        !lookahead[0].isa<TokenKind::EqualityOperator>() &&
+        !lookahead[0].isa<TokenKind::AssignmentOperator>()) {
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
     TRY(modification, parseModification());
+    loc.end = (*modification)->getLocation().end;
+    result->setLocation(loc);
     result->setModification(std::move(*modification));
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseElementRedeclaration()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseElementRedeclaration()
   {
     llvm_unreachable("Not implemented");
     return std::nullopt;
   }
 
-  std::optional<std::unique_ptr<ASTNode>>
+  ParseResult<std::unique_ptr<ASTNode>>
   Parser::parseElementReplaceable(bool each, bool final)
   {
     llvm_unreachable("Not implemented");
     return std::nullopt;
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection()
   {
-    auto loc = tokens[0].getLocation();
     EXPECT(TokenKind::Algorithm);
+    SourceRange loc = getLocation();
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 10> statements;
 
-    while (!tokens[0].isa<TokenKind::End>() &&
-           !tokens[0].isa<TokenKind::Public>() &&
-           !tokens[0].isa<TokenKind::Protected>() &&
-           !tokens[0].isa<TokenKind::Equation>() &&
-           !tokens[0].isa<TokenKind::Algorithm>() &&
-           !tokens[0].isa<TokenKind::External>() &&
-           !tokens[0].isa<TokenKind::Annotation>() &&
-           !tokens[0].isa<TokenKind::EndOfFile>()) {
+    while (!lookahead[0].isa<TokenKind::End>() &&
+           !lookahead[0].isa<TokenKind::Public>() &&
+           !lookahead[0].isa<TokenKind::Protected>() &&
+           !lookahead[0].isa<TokenKind::Equation>() &&
+           !lookahead[0].isa<TokenKind::Algorithm>() &&
+           !lookahead[0].isa<TokenKind::External>() &&
+           !lookahead[0].isa<TokenKind::Annotation>() &&
+           !lookahead[0].isa<TokenKind::EndOfFile>()) {
       TRY(statement, parseStatement());
-      loc.end = tokens[0].getLocation().end;
       EXPECT(TokenKind::Semicolon);
+      loc.end = getLocation().end;
       statements.push_back(std::move(*statement));
     }
 
@@ -424,16 +450,15 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseEquation()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseEquation()
   {
-    auto loc = tokens[0].getLocation();
-
     TRY(lhs, parseExpression());
     EXPECT(TokenKind::EqualityOperator);
     TRY(rhs, parseExpression());
-
-    loc.end = (*rhs)->getLocation().end;
     accept<TokenKind::String>();
+
+    SourceRange loc = (*lhs)->getLocation();
+    loc.end = getLocation().end;
 
     auto result = std::make_unique<Equation>(loc);
     result->setLhsExpression(std::move(*lhs));
@@ -441,53 +466,48 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseStatement()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseStatement()
   {
-    if (tokens[0].isa<TokenKind::If>()) {
+    if (lookahead[0].isa<TokenKind::If>()) {
       TRY(statement, parseIfStatement());
       return std::move(*statement);
     }
 
-    if (tokens[0].isa<TokenKind::For>()) {
+    if (lookahead[0].isa<TokenKind::For>()) {
       TRY(statement, parseForStatement());
       return std::move(*statement);
     }
 
-    if (tokens[0].isa<TokenKind::While>()) {
+    if (lookahead[0].isa<TokenKind::While>()) {
       TRY(statement, parseWhileStatement());
       return std::move(*statement);
     }
 
-    if (tokens[0].isa<TokenKind::When>()) {
+    if (lookahead[0].isa<TokenKind::When>()) {
       TRY(statement, parseWhenStatement());
       return std::move(*statement);
     }
 
-    if (tokens[0].isa<TokenKind::Break>()) {
-      auto loc = tokens[0].getLocation();
+    if (lookahead[0].isa<TokenKind::Break>()) {
       EXPECT(TokenKind::Break);
-
-      auto result = std::make_unique<BreakStatement>(loc);
+      auto result = std::make_unique<BreakStatement>(getLocation());
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
-    if (tokens[0].isa<TokenKind::Return>()) {
-      auto loc = tokens[0].getLocation();
+    if (lookahead[0].isa<TokenKind::Return>()) {
       EXPECT(TokenKind::Return);
-
-      auto result = std::make_unique<ReturnStatement>(loc);
+      auto result = std::make_unique<ReturnStatement>(getLocation());
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
-    // Assignment statement
-    auto loc = tokens[0].getLocation();
-
+    // Assignment statement.
     if (accept<TokenKind::LPar>()) {
+      SourceRange loc = getLocation();
       TRY(destinations, parseOutputExpressionList());
-      loc.end = tokens[0].getLocation().end;
+      loc.end = destinations->getLocation().end;
 
       auto destinationsTuple = std::make_unique<Tuple>(loc);
-      destinationsTuple->setExpressions(destinations.value());
+      destinationsTuple->setExpressions(**destinations);
 
       EXPECT(TokenKind::RPar);
       EXPECT(TokenKind::AssignmentOperator);
@@ -509,6 +529,7 @@ namespace marco::parser
     TRY(destination, parseComponentReference());
     EXPECT(TokenKind::AssignmentOperator);
     TRY(expression, parseExpression());
+    SourceRange loc = (*destination)->getLocation();
     loc.end = (*expression)->getLocation().end;
 
     auto result = std::make_unique<AssignmentStatement>(loc);
@@ -517,21 +538,20 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseIfStatement()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseIfStatement()
   {
-    auto loc = tokens[0].getLocation();
-    auto result = std::make_unique<IfStatement>(loc);
-
     EXPECT(TokenKind::If);
+    SourceRange loc = getLocation();
+
     TRY(ifCondition, parseExpression());
     EXPECT(TokenKind::Then);
 
-    auto statementsBlockLoc = tokens[0].getLocation();
+    auto statementsBlockLoc = lookahead[0].getLocation();
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> ifStatements;
 
-    while (!tokens[0].isa<TokenKind::ElseIf>() &&
-           !tokens[0].isa<TokenKind::Else>() &&
-           !tokens[0].isa<TokenKind::End>()) {
+    while (!lookahead[0].isa<TokenKind::ElseIf>() &&
+           !lookahead[0].isa<TokenKind::Else>() &&
+           !lookahead[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
       EXPECT(TokenKind::Semicolon);
       auto& stmnt = ifStatements.emplace_back(std::move(*statement));
@@ -542,24 +562,25 @@ namespace marco::parser
     ifBlock->setBody(ifStatements);
     loc.end = ifBlock->getLocation().end;
 
+    auto result = std::make_unique<IfStatement>(loc);
     result->setIfCondition(std::move(*ifCondition));
     result->setIfBlock(std::move(ifBlock));
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfConditions;
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfBlocks;
 
-    while (!tokens[0].isa<TokenKind::Else>() &&
-        !tokens[0].isa<TokenKind::End>()) {
+    while (!lookahead[0].isa<TokenKind::Else>() &&
+        !lookahead[0].isa<TokenKind::End>()) {
       EXPECT(TokenKind::ElseIf);
       TRY(elseIfCondition, parseExpression());
       elseIfConditions.push_back(std::move(*elseIfCondition));
       EXPECT(TokenKind::Then);
       llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseIfStatements;
-      auto elseIfStatementsBlockLoc = tokens[0].getLocation();
+      auto elseIfStatementsBlockLoc = lookahead[0].getLocation();
 
-      while (!tokens[0].isa<TokenKind::ElseIf>() &&
-             !tokens[0].isa<TokenKind::Else>() &&
-             !tokens[0].isa<TokenKind::End>()) {
+      while (!lookahead[0].isa<TokenKind::ElseIf>() &&
+             !lookahead[0].isa<TokenKind::Else>() &&
+             !lookahead[0].isa<TokenKind::End>()) {
         TRY(statement, parseStatement());
         EXPECT(TokenKind::Semicolon);
         auto& stmnt = elseIfStatements.emplace_back(std::move(*statement));
@@ -576,10 +597,10 @@ namespace marco::parser
     result->setElseIfBlocks(elseIfBlocks);
 
     if (accept<TokenKind::Else>()) {
-      auto elseBlockLoc = tokens[0].getLocation();
+      auto elseBlockLoc = lookahead[0].getLocation();
       llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> elseStatements;
 
-      while (!tokens[0].isa<TokenKind::End>()) {
+      while (!lookahead[0].isa<TokenKind::End>()) {
         TRY(statement, parseStatement());
         EXPECT(TokenKind::Semicolon);
         auto& stmnt = elseStatements.emplace_back(std::move(*statement));
@@ -593,24 +614,24 @@ namespace marco::parser
     }
 
     EXPECT(TokenKind::End);
-    loc.end = tokens[0].getLocation().end;
+    loc.end = lookahead[0].getLocation().end;
     EXPECT(TokenKind::If);
 
     result->setLocation(loc);
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseForStatement()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseForStatement()
   {
-    auto loc = tokens[0].getLocation();
-
     EXPECT(TokenKind::For);
+    SourceRange loc = getLocation();
+
     TRY(induction, parseForIndexOld());
     EXPECT(TokenKind::Loop);
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> statements;
 
-    while (!tokens[0].isa<TokenKind::End>()) {
+    while (!lookahead[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
       EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
@@ -618,7 +639,7 @@ namespace marco::parser
 
     EXPECT(TokenKind::End);
 
-    loc.end = tokens[0].getLocation().end;
+    loc.end = lookahead[0].getLocation().end;
     EXPECT(TokenKind::For);
 
     auto result = std::make_unique<ForStatement>(loc);
@@ -627,58 +648,59 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<Parser::ValueWrapper<
-      std::vector<std::unique_ptr<ast::ASTNode>>>> Parser::parseForIndices()
+  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+  Parser::parseForIndices()
   {
-    auto loc = tokens[0].getLocation();
     std::vector<std::unique_ptr<ast::ASTNode>> result;
+    SourceRange loc = getLocation();
 
     do {
       TRY(firstIndex, parseForIndex());
       result.push_back(std::move(*firstIndex));
     } while (accept<TokenKind::Comma>());
 
+    loc.begin = result.front()->getLocation().begin;
+    loc.end = result.back()->getLocation().end;
     return ValueWrapper(loc, std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseForIndex()
   {
-    auto loc = tokens[0].getLocation();
-    auto name = tokens[0].getString();
     EXPECT(TokenKind::Identifier);
+    SourceRange loc = getLocation();
 
     auto result = std::make_unique<ForIndex>(loc);
+    result->setName(getString());
 
     if (accept<TokenKind::In>()) {
       TRY(expression, parseExpression());
       loc.end = (*expression)->getLocation().end;
-      result->setLocation(loc);
       result->setExpression(std::move(*expression));
     }
 
+    result->setLocation(loc);
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseWhileStatement()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhileStatement()
   {
-    auto loc = tokens[0].getLocation();
-
     EXPECT(TokenKind::While);
+    SourceRange loc = getLocation();
+
     TRY(condition, parseExpression());
     EXPECT(TokenKind::Loop);
 
     std::vector<std::unique_ptr<ast::ASTNode>> statements;
 
-    while (!tokens[0].isa<TokenKind::End>()) {
+    while (!lookahead[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
       EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
     EXPECT(TokenKind::End);
-
-    loc.end = tokens[0].getLocation().end;
     EXPECT(TokenKind::While);
+    loc.end = getLocation().end;
 
     auto result = std::make_unique<WhileStatement>(loc);
     result->setCondition(std::move(*condition));
@@ -686,26 +708,25 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseWhenStatement()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseWhenStatement()
   {
-    auto loc = tokens[0].getLocation();
-
     EXPECT(TokenKind::When);
+    SourceRange loc = getLocation();
+
     TRY(condition, parseExpression());
     EXPECT(TokenKind::Loop);
 
     std::vector<std::unique_ptr<ast::ASTNode>> statements;
 
-    while (!tokens[0].isa<TokenKind::End>()) {
+    while (!lookahead[0].isa<TokenKind::End>()) {
       TRY(statement, parseStatement());
       EXPECT(TokenKind::Semicolon);
       statements.push_back(std::move(*statement));
     }
 
     EXPECT(TokenKind::End);
-
-    loc.end = tokens[0].getLocation().end;
     EXPECT(TokenKind::When);
+    loc.end = getLocation().end;
 
     auto result = std::make_unique<WhenStatement>(loc);
     result->setCondition(std::move(*condition));
@@ -713,11 +734,11 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseExpression()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseExpression()
   {
-    auto loc = tokens[0].getLocation();
-
     if (accept<TokenKind::If>()) {
+      SourceRange loc = getLocation();
+
       TRY(condition, parseExpression());
       EXPECT(TokenKind::Then);
       TRY(trueExpression, parseExpression());
@@ -740,11 +761,10 @@ namespace marco::parser
     return parseSimpleExpression();
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseSimpleExpression()
   {
-    auto loc = tokens[0].getLocation();
     TRY(l1, parseLogicalExpression());
-    loc.end = (*l1)->getLocation().end;
+    SourceRange loc = (*l1)->getLocation();
 
     if (accept<TokenKind::Colon>()) {
       std::vector<std::unique_ptr<ast::ASTNode>> arguments;
@@ -769,15 +789,12 @@ namespace marco::parser
     return std::move(*l1);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalExpression()
   {
-    auto loc = tokens[0].getLocation();
-
     std::vector<std::unique_ptr<ast::ASTNode>> logicalTerms;
     TRY(logicalTerm, parseLogicalTerm());
-    loc.end = (*logicalTerm)->getLocation().end;
 
-    if (!tokens[0].isa<TokenKind::Or>()) {
+    if (!lookahead[0].isa<TokenKind::Or>()) {
       return std::move(*logicalTerm);
     }
 
@@ -785,9 +802,11 @@ namespace marco::parser
 
     while (accept<TokenKind::Or>()) {
       TRY(additionalLogicalTerm, parseLogicalTerm());
-      loc.end = (*additionalLogicalTerm)->getLocation().end;
-      logicalTerms.emplace_back(std::move(*additionalLogicalTerm));
+      logicalTerms.push_back(std::move(*additionalLogicalTerm));
     }
+
+    SourceRange loc = logicalTerms.front()->getLocation();
+    loc.end = logicalTerms.back()->getLocation().end;
 
     auto result = std::make_unique<Operation>(loc);
     result->setOperationKind(OperationKind::lor);
@@ -795,15 +814,12 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm()
   {
-    auto loc = tokens[0].getLocation();
-
     std::vector<std::unique_ptr<ast::ASTNode>> logicalFactors;
     TRY(logicalFactor, parseLogicalFactor());
-    loc.end = (*logicalFactor)->getLocation().end;
 
-    if (!tokens[0].isa<TokenKind::And>()) {
+    if (!lookahead[0].isa<TokenKind::And>()) {
       return std::move(*logicalFactor);
     }
 
@@ -811,9 +827,11 @@ namespace marco::parser
 
     while (accept<TokenKind::And>()) {
       TRY(additionalLogicalFactor, parseLogicalFactor());
-      loc.end = (*additionalLogicalFactor)->getLocation().end;
       logicalFactors.emplace_back(std::move(*additionalLogicalFactor));
     }
+
+    SourceRange loc = logicalFactors.front()->getLocation();
+    loc.end = logicalFactors.back()->getLocation().end;
 
     auto result = std::make_unique<Operation>(loc);
     result->setOperationKind(OperationKind::land);
@@ -821,78 +839,79 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor()
   {
-    auto loc = tokens[0].getLocation();
     bool negated = accept<TokenKind::Not>();
+    SourceRange loc = getLocation();
 
     TRY(relation, parseRelation());
-    loc.end = (*relation)->getLocation().end;
 
     if (negated) {
+      loc.end = (*relation)->getLocation().end;
+
       auto result = std::make_unique<Operation>(loc);
       result->setOperationKind(OperationKind::lnot);
-      result->setArguments(std::move(*relation));
+      result->setArguments({std::move(*relation)});
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
     return std::move(*relation);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseRelation()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseRelation()
   {
-    auto loc = tokens[0].getLocation();
-
     TRY(lhs, parseArithmeticExpression());
-    loc.end = (*lhs)->getLocation().end;
 
-    auto op = parseRelationalOperator();
-
-    if (!op.has_value()) {
+    if (!lookahead[0].isa<TokenKind::GreaterEqual>() &&
+        !lookahead[0].isa<TokenKind::Greater>() &&
+        !lookahead[0].isa<TokenKind::LessEqual>() &&
+        !lookahead[0].isa<TokenKind::Less>() &&
+        !lookahead[0].isa<TokenKind::Equal>() &&
+        !lookahead[0].isa<TokenKind::NotEqual>()) {
       return std::move(*lhs);
     }
 
+    TRY(op, parseRelationalOperator());
     TRY(rhs, parseArithmeticExpression());
+
+    SourceRange loc = (*lhs)->getLocation();
     loc.end = (*rhs)->getLocation().end;
 
     auto result = std::make_unique<Operation>(loc);
-    result->setOperationKind(op.value());
+    result->setOperationKind(**op);
     result->setArguments({ std::move(*lhs), std::move(*rhs) });
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<OperationKind> Parser::parseRelationalOperator()
+  WrappedParseResult<OperationKind> Parser::parseRelationalOperator()
   {
     if (accept<TokenKind::GreaterEqual>()) {
-      return OperationKind::greaterEqual;
+      return ValueWrapper(getLocation(), OperationKind::greaterEqual);
     }
 
     if (accept<TokenKind::Greater>()) {
-      return OperationKind::greater;
+      return ValueWrapper(getLocation(), OperationKind::greater);
     }
 
     if (accept<TokenKind::LessEqual>()) {
-      return OperationKind::lessEqual;
+      return ValueWrapper(getLocation(), OperationKind::lessEqual);
     }
 
     if (accept<TokenKind::Less>()) {
-      return OperationKind::less;
+      return ValueWrapper(getLocation(), OperationKind::less);
     }
 
     if (accept<TokenKind::Equal>()) {
-      return OperationKind::equal;
+      return ValueWrapper(getLocation(), OperationKind::equal);
     }
 
-    if (accept<TokenKind::NotEqual>()) {
-      return OperationKind::different;
-    }
-
-    return std::nullopt;
+    EXPECT(TokenKind::NotEqual);
+    return ValueWrapper(getLocation(), OperationKind::different);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseArithmeticExpression()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     bool negative = false;
 
     if (accept<TokenKind::Minus>()) {
@@ -909,14 +928,14 @@ namespace marco::parser
     if (negative) {
       auto newResult = std::make_unique<Operation>(loc);
       newResult->setOperationKind(ast::OperationKind::negate);
-      newResult->setArguments(std::move(result));
+      newResult->setArguments({std::move(result)});
       result = std::move(newResult);
     }
 
-    while (tokens[0].isa<TokenKind::Plus>() ||
-           tokens[0].isa<TokenKind::PlusEW>() ||
-           tokens[0].isa<TokenKind::Minus>() ||
-           tokens[0].isa<TokenKind::MinusEW>()) {
+    while (lookahead[0].isa<TokenKind::Plus>() ||
+           lookahead[0].isa<TokenKind::PlusEW>() ||
+           lookahead[0].isa<TokenKind::Minus>() ||
+           lookahead[0].isa<TokenKind::MinusEW>()) {
       TRY(addOperator, parseAddOperator());
       TRY(rhs, parseTerm());
       loc.end = (*rhs)->getLocation().end;
@@ -926,7 +945,7 @@ namespace marco::parser
       args.push_back(std::move(*rhs));
 
       auto newResult = std::make_unique<Operation>(loc);
-      newResult->setOperationKind(*addOperator);
+      newResult->setOperationKind(**addOperator);
       newResult->setArguments(args);
       result = std::move(newResult);
     }
@@ -934,40 +953,37 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<OperationKind> Parser::parseAddOperator()
+  WrappedParseResult<OperationKind> Parser::parseAddOperator()
   {
     if (accept<TokenKind::Plus>()) {
-      return OperationKind::add;
+      return ValueWrapper(getLocation(), OperationKind::add);
     }
 
     if (accept<TokenKind::PlusEW>()) {
-      return OperationKind::addEW;
+      return ValueWrapper(getLocation(), OperationKind::addEW);
     }
 
     if (accept<TokenKind::Minus>()) {
-      return OperationKind::subtract;
+      return ValueWrapper(getLocation(), OperationKind::subtract);
     }
 
-    if (accept<TokenKind::MinusEW>()) {
-      return OperationKind::subtractEW;
-    }
-
-    return std::nullopt;
+    EXPECT(TokenKind::MinusEW);
+    return ValueWrapper(getLocation(), OperationKind::subtractEW);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseTerm()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseTerm()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
 
     TRY(factor, parseFactor());
     loc.end = (*factor)->getLocation().end;
 
     auto result = std::move(*factor);
 
-    while (tokens[0].isa<TokenKind::Product>() ||
-           tokens[0].isa<TokenKind::ProductEW>() ||
-           tokens[0].isa<TokenKind::Division>() ||
-           tokens[0].isa<TokenKind::DivisionEW>()) {
+    while (lookahead[0].isa<TokenKind::Product>() ||
+           lookahead[0].isa<TokenKind::ProductEW>() ||
+           lookahead[0].isa<TokenKind::Division>() ||
+           lookahead[0].isa<TokenKind::DivisionEW>()) {
       TRY(mulOperator, parseMulOperator());
       TRY(rhs, parseFactor());
       loc.end = (*rhs)->getLocation().end;
@@ -977,7 +993,7 @@ namespace marco::parser
       args.push_back(std::move(*rhs));
 
       auto newResult = std::make_unique<Operation>(loc);
-      newResult->setOperationKind(*mulOperator);
+      newResult->setOperationKind(**mulOperator);
       newResult->setArguments(args);
       result = std::move(newResult);
     }
@@ -985,38 +1001,34 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<OperationKind> Parser::parseMulOperator()
+  WrappedParseResult<OperationKind> Parser::parseMulOperator()
   {
     if (accept<TokenKind::Product>()) {
-      return OperationKind::multiply;
+      return ValueWrapper(getLocation(), OperationKind::multiply);
     }
 
     if (accept<TokenKind::ProductEW>()) {
-      return OperationKind::multiplyEW;
+      return ValueWrapper(getLocation(), OperationKind::multiplyEW);
     }
 
     if (accept<TokenKind::Division>()) {
-      return OperationKind::divide;
+      return ValueWrapper(getLocation(), OperationKind::divide);
     }
 
-    if (accept<TokenKind::DivisionEW>()) {
-      return OperationKind::divideEW;
-    }
-
-    return std::nullopt;
+    EXPECT(TokenKind::DivisionEW);
+    return ValueWrapper(getLocation(), OperationKind::divideEW);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseFactor()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseFactor()
   {
-    auto loc = tokens[0].getLocation();
-
     TRY(primary, parsePrimary());
+    SourceRange loc = getLocation();
     loc.end = (*primary)->getLocation().end;
 
     auto result = std::move(*primary);
 
-    while (tokens[0].isa<TokenKind::Pow>() ||
-        tokens[0].isa<TokenKind::PowEW>()) {
+    while (lookahead[0].isa<TokenKind::Pow>() ||
+        lookahead[0].isa<TokenKind::PowEW>()) {
       std::vector<std::unique_ptr<ast::ASTNode>> args;
       args.push_back(std::move(result));
 
@@ -1046,33 +1058,33 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parsePrimary()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
 
-    if (tokens[0].isa<TokenKind::Integer>()) {
+    if (lookahead[0].isa<TokenKind::Integer>()) {
       TRY(value, parseIntValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (tokens[0].isa<TokenKind::FloatingPoint>()) {
+    if (lookahead[0].isa<TokenKind::FloatingPoint>()) {
       TRY(value, parseFloatValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (tokens[0].isa<TokenKind::String>()) {
+    if (lookahead[0].isa<TokenKind::String>()) {
       TRY(value, parseString());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
       return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
     }
 
-    if (tokens[0].isa<TokenKind::True>() ||
-        tokens[0].isa<TokenKind::False>()) {
+    if (lookahead[0].isa<TokenKind::True>() ||
+        lookahead[0].isa<TokenKind::False>()) {
       TRY(value, parseBoolValue());
       auto result = std::make_unique<Constant>(value->getLocation());
       result->setValue(value->getValue());
@@ -1083,21 +1095,21 @@ namespace marco::parser
 
     if (accept<TokenKind::LPar>()) {
       TRY(outputExpressionList, parseOutputExpressionList());
-      loc.end = tokens[0].getLocation().end;
+      loc.end = lookahead[0].getLocation().end;
       EXPECT(TokenKind::RPar);
 
-      if (outputExpressionList->size() == 1) {
-        (*outputExpressionList)[0]->setLocation(loc);
-        return std::move((*outputExpressionList)[0]);
+      if ((**outputExpressionList).size() == 1) {
+        (**outputExpressionList)[0]->setLocation(loc);
+        return std::move((**outputExpressionList)[0]);
       }
 
       auto newResult = std::make_unique<Tuple>(loc);
-      newResult->setExpressions(*outputExpressionList);
+      newResult->setExpressions(**outputExpressionList);
       result = std::move(newResult);
 
     } else if (accept<TokenKind::LCurly>()) {
       TRY(arrayArguments, parseArrayArguments());
-      loc.end = tokens[0].getLocation().end;
+      loc.end = lookahead[0].getLocation().end;
       EXPECT(TokenKind::RCurly);
 
       auto &expressions = arrayArguments->first;
@@ -1134,11 +1146,11 @@ namespace marco::parser
       newResult->setArguments(functionCallArgs->getValue());
       result = std::move(newResult);
 
-    } else if (tokens[0].isa<TokenKind::Identifier>()) {
+    } else if (lookahead[0].isa<TokenKind::Identifier>()) {
       TRY(identifier, parseComponentReference());
       loc.end = (*identifier)->getLocation().end;
 
-      if (!tokens[0].isa<TokenKind::LPar>()) {
+      if (!lookahead[0].isa<TokenKind::LPar>()) {
         // Identifier.
         return std::move(*identifier);
       }
@@ -1154,7 +1166,7 @@ namespace marco::parser
 
     assert(result != nullptr);
 
-    if (tokens[0].isa<TokenKind::LSquare>()) {
+    if (lookahead[0].isa<TokenKind::LSquare>()) {
       TRY(arraySubscripts, parseArraySubscripts());
       loc.end = arraySubscripts.value().getLocation().end;
 
@@ -1174,9 +1186,9 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseComponentReference()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseComponentReference()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     bool globalLookup = accept<TokenKind::Dot>();
 
     llvm::SmallVector<std::unique_ptr<ASTNode>> path;
@@ -1199,18 +1211,17 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::ASTNode>>
   Parser::parseComponentReferenceEntry()
   {
-    auto loc = tokens[0].getLocation();
-
     TRY(name, parseIdentifier());
+    SourceRange loc = getLocation();
     loc.end = name->getLocation().end;
 
     auto result = std::make_unique<ComponentReferenceEntry>(loc);
     result->setName(name->getValue());
 
-    if (tokens[0].isa<TokenKind::LSquare>()) {
+    if (lookahead[0].isa<TokenKind::LSquare>()) {
       TRY(arraySubscripts, parseArraySubscripts());
       loc.end = arraySubscripts.value().getLocation().end;
 
@@ -1221,53 +1232,54 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseFunctionCallArgs()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     EXPECT(TokenKind::LPar);
 
     std::vector<std::unique_ptr<ast::ASTNode>> args;
 
-    if (!tokens[0].isa<TokenKind::RPar>()) {
+    if (!lookahead[0].isa<TokenKind::RPar>()) {
       TRY(functionArguments, parseFunctionArguments());
 
-      for (auto& arg : *functionArguments) {
+      for (auto& arg : **functionArguments) {
         args.push_back(std::move(std::move(arg)));
       }
     }
 
-    loc.end = tokens[0].getLocation().end;
+    loc.end = lookahead[0].getLocation().end;
     EXPECT(TokenKind::RPar);
 
     return ValueWrapper(std::move(loc), std::move(args));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseFunctionArguments()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 
-    if (tokens[0].isa<TokenKind::Identifier>() &&
-        tokens[1].isa<TokenKind::EqualityOperator>()) {
+    if (lookahead[0].isa<TokenKind::Identifier>() &&
+        lookahead[1].isa<TokenKind::EqualityOperator>()) {
       // Named arguments.
       return parseNamedArguments();
     }
 
     TRY(firstArgExpression, parseExpression());
 
-    if (tokens[0].isa<TokenKind::For>()) {
+    if (lookahead[0].isa<TokenKind::For>()) {
       // Reduction argument.
       TRY(forIndices, parseForIndices());
 
       auto reductionArg = std::make_unique<ReductionFunctionArgument>(
           (*firstArgExpression)->getLocation());
 
-      auto loc = reductionArg->getLocation();
+      SourceRange loc = reductionArg->getLocation();
       loc.end = (*forIndices).getLocation().end;
 
       reductionArg->setForIndices(forIndices->getValue());
-      return arguments;
+
+      return ValueWrapper(std::move(loc), std::move(arguments));
     }
 
     auto firstArg = std::make_unique<ExpressionFunctionArgument>(
@@ -1279,19 +1291,22 @@ namespace marco::parser
     if (accept<TokenKind::Comma>()) {
       TRY(nonFirstArgs, parseFunctionArgumentsNonFirst());
 
-      for (auto& otherArg : *nonFirstArgs) {
+      for (auto& otherArg : **nonFirstArgs) {
         arguments.push_back(std::move(otherArg));
       }
     }
 
-    return arguments;
+    SourceRange loc = arguments.front()->getLocation();
+    loc.end = arguments.back()->getLocation().end;
+
+    return ValueWrapper(std::move(loc), std::move(arguments));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseFunctionArgumentsNonFirst()
   {
-    if (tokens[0].isa<TokenKind::Identifier>() &&
-        tokens[1].isa<TokenKind::EqualityOperator>()) {
+    if (lookahead[0].isa<TokenKind::Identifier>() &&
+        lookahead[1].isa<TokenKind::EqualityOperator>()) {
       // Named arguments.
       return parseNamedArguments();
     }
@@ -1304,20 +1319,23 @@ namespace marco::parser
     while (accept<TokenKind::Comma>()) {
       TRY(remainingArgs, parseFunctionArgumentsNonFirst());
 
-      for (auto& remainingArg : *remainingArgs) {
+      for (auto& remainingArg : **remainingArgs) {
         arguments.push_back(std::move(remainingArg));
       }
     }
 
-    return arguments;
+    SourceRange loc = arguments.front()->getLocation();
+    loc.end = arguments.back()->getLocation().end;
+
+    return ValueWrapper(std::move(loc), std::move(arguments));
   }
 
-  std::optional<std::pair<
+  ParseResult<std::pair<
       std::vector<std::unique_ptr<ASTNode>>,
       std::vector<std::unique_ptr<ASTNode>>>>
   Parser::parseArrayArguments()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
 		std::vector<std::unique_ptr<ast::ASTNode>> inductions;
 
@@ -1328,7 +1346,7 @@ namespace marco::parser
     if (accept<TokenKind::Comma>()) {
       TRY(otherArguments, parseArrayArgumentsNonFirst());
 
-      for (auto& otherArgument : *otherArguments) {
+      for (auto& otherArgument : **otherArguments) {
         loc.end = otherArgument->getLocation().end;
         arguments.push_back(std::move(otherArgument));
       }
@@ -1343,7 +1361,7 @@ namespace marco::parser
     return std::make_pair(std::move(arguments), std::move(inductions));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseArrayArgumentsNonFirst()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
@@ -1353,10 +1371,13 @@ namespace marco::parser
       arguments.push_back(std::move(*argument));
     } while (accept<TokenKind::Comma>());
 
-    return arguments;
+    SourceRange loc = arguments.front()->getLocation();
+    loc.end = arguments.back()->getLocation().end;
+
+    return ValueWrapper(std::move(loc), std::move(arguments));
   }
 
-  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
   Parser::parseNamedArguments()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> arguments;
@@ -1366,16 +1387,18 @@ namespace marco::parser
       arguments.push_back(std::move(*argument));
     } while (accept<TokenKind::Comma>());
 
-    return arguments;
+    SourceRange loc = arguments.front()->getLocation();
+    loc.end = arguments.back()->getLocation().end;
+
+    return ValueWrapper(std::move(loc), std::move(arguments));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::ASTNode>>
   Parser::parseNamedArgument()
   {
-    auto loc = tokens[0].getLocation();
-
-    auto identifier = lexer.getIdentifier();
     EXPECT(TokenKind::Identifier);
+    SourceRange loc = getLocation();
+    std::string identifier = getString();
     EXPECT(TokenKind::EqualityOperator);
 
     TRY(expression, parseFunctionArgument());
@@ -1388,7 +1411,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::ASTNode>>
   Parser::parseFunctionArgument()
   {
     TRY(expression, parseExpression());
@@ -1400,13 +1423,13 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseOutputExpressionList()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> expressions;
 
-    while (!tokens[0].isa<TokenKind::RPar>()) {
-      auto loc = tokens[0].getLocation();
+    while (!lookahead[0].isa<TokenKind::RPar>()) {
+      SourceRange loc = lookahead[0].getLocation();
 
       if (accept<TokenKind::Comma>()) {
         auto expression = std::make_unique<ComponentReference>(loc);
@@ -1420,14 +1443,21 @@ namespace marco::parser
       accept<TokenKind::Comma>();
     }
 
-    return expressions;
+    SourceRange loc = getCursorLocation();
+
+    if (!expressions.empty()) {
+      loc = expressions.front()->getLocation();
+      loc.end = expressions.back()->getLocation().end;
+    }
+
+    return ValueWrapper(std::move(loc), std::move(expressions));
   }
 
-  std::optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>>
+  WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseArraySubscripts()
   {
-    auto loc = tokens[0].getLocation();
     EXPECT(TokenKind::LSquare);
+    SourceRange loc = getLocation();
 
     std::vector<std::unique_ptr<ast::ASTNode>> subscripts;
 
@@ -1436,18 +1466,16 @@ namespace marco::parser
       subscripts.push_back(std::move(*subscript));
     } while (accept<TokenKind::Comma>());
 
-    loc.end = tokens[0].getLocation().end;
     EXPECT(TokenKind::RSquare);
+    loc.end = getLocation().end;
 
     return ValueWrapper(std::move(loc), std::move(subscripts));
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseSubscript()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseSubscript()
   {
-    auto loc = tokens[0].getLocation();
-
     if (accept<TokenKind::Colon>()) {
-      auto result = std::make_unique<Constant>(loc);
+      auto result = std::make_unique<Constant>(getLocation());
       result->setValue(-1);
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
@@ -1456,10 +1484,11 @@ namespace marco::parser
     return std::move(*expression);
   }
 
-  std::optional<std::unique_ptr<ASTNode>> Parser::parseAnnotation()
+  ParseResult<std::unique_ptr<ASTNode>> Parser::parseAnnotation()
   {
-    auto loc = tokens[0].getLocation();
     EXPECT(TokenKind::Annotation);
+    SourceRange loc = getLocation();
+
     TRY(classModification, parseClassModification());
     loc.end = (*classModification)->getLocation().end;
 
@@ -1468,25 +1497,24 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseEquationsBlock()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseEquationsBlock()
   {
-    auto loc = tokens[0].getLocation();
     EXPECT(TokenKind::Equation);
+    SourceRange loc = getLocation();
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> equations;
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> forEquations;
 
-    while (
-        !tokens[0].isa<TokenKind::End>() &&
-        !tokens[0].isa<TokenKind::Public>() &&
-        !tokens[0].isa<TokenKind::Protected>() &&
-        !tokens[0].isa<TokenKind::Equation>() &&
-        !tokens[0].isa<TokenKind::Initial>() &&
-        !tokens[0].isa<TokenKind::Algorithm>() &&
-        !tokens[0].isa<TokenKind::External>() &&
-        !tokens[0].isa<TokenKind::Annotation>() &&
-        !tokens[0].isa<TokenKind::EndOfFile>()) {
-      if (tokens[0].isa<TokenKind::For>()) {
+    while (!lookahead[0].isa<TokenKind::End>() &&
+           !lookahead[0].isa<TokenKind::Public>() &&
+           !lookahead[0].isa<TokenKind::Protected>() &&
+           !lookahead[0].isa<TokenKind::Equation>() &&
+           !lookahead[0].isa<TokenKind::Initial>() &&
+           !lookahead[0].isa<TokenKind::Algorithm>() &&
+           !lookahead[0].isa<TokenKind::External>() &&
+           !lookahead[0].isa<TokenKind::Annotation>() &&
+           !lookahead[0].isa<TokenKind::EndOfFile>()) {
+      if (lookahead[0].isa<TokenKind::For>()) {
         TRY(currentForEquations, parseForEquations());
 
         for (auto& forEquation : *currentForEquations) {
@@ -1505,7 +1533,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+  ParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
   Parser::parseForEquations()
   {
     std::vector<std::unique_ptr<ast::ASTNode>> result;
@@ -1514,8 +1542,8 @@ namespace marco::parser
     TRY(induction, parseForIndexOld());
     EXPECT(TokenKind::Loop);
 
-    while (!tokens[0].isa<TokenKind::End>()) {
-      if (tokens[0].isa<TokenKind::For>()) {
+    while (!lookahead[0].isa<TokenKind::End>()) {
+      if (lookahead[0].isa<TokenKind::For>()) {
         TRY(nestedForEquations, parseForEquations());
 
         for (auto& forEquation : *nestedForEquations) {
@@ -1562,12 +1590,11 @@ namespace marco::parser
     return result;
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseForIndexOld()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseForIndexOld()
   {
-    auto loc = tokens[0].getLocation();
-
-    auto variableName = tokens[0].getString();
     EXPECT(TokenKind::Identifier);
+    SourceRange loc = getLocation();
+    std::string variableName = getString();
 
     EXPECT(TokenKind::In);
 
@@ -1600,23 +1627,23 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::vector<std::unique_ptr<ASTNode>>>
+  ParseResult<std::vector<std::unique_ptr<ASTNode>>>
   Parser::parseElementList(bool publicSection)
   {
     std::vector<std::unique_ptr<ast::ASTNode>> members;
 
-    while (!tokens[0].isa<TokenKind::Public>() &&
-           !tokens[0].isa<TokenKind::Protected>() &&
-           !tokens[0].isa<TokenKind::Function>() &&
-           !tokens[0].isa<TokenKind::Equation>() &&
-           !tokens[0].isa<TokenKind::Initial>() &&
-           !tokens[0].isa<TokenKind::Algorithm>() &&
-           !tokens[0].isa<TokenKind::End>() &&
-           !tokens[0].isa<TokenKind::Class>() &&
-           !tokens[0].isa<TokenKind::Function>() &&
-           !tokens[0].isa<TokenKind::Model>() &&
-           !tokens[0].isa<TokenKind::Package>() &&
-           !tokens[0].isa<TokenKind::Record>()) {
+    while (!lookahead[0].isa<TokenKind::Public>() &&
+           !lookahead[0].isa<TokenKind::Protected>() &&
+           !lookahead[0].isa<TokenKind::Function>() &&
+           !lookahead[0].isa<TokenKind::Equation>() &&
+           !lookahead[0].isa<TokenKind::Initial>() &&
+           !lookahead[0].isa<TokenKind::Algorithm>() &&
+           !lookahead[0].isa<TokenKind::End>() &&
+           !lookahead[0].isa<TokenKind::Class>() &&
+           !lookahead[0].isa<TokenKind::Function>() &&
+           !lookahead[0].isa<TokenKind::Model>() &&
+           !lookahead[0].isa<TokenKind::Package>() &&
+           !lookahead[0].isa<TokenKind::Record>()) {
       TRY(member, parseElement(publicSection));
       EXPECT(TokenKind::Semicolon);
       members.push_back(std::move(*member));
@@ -1625,7 +1652,7 @@ namespace marco::parser
     return members;
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>>
+  ParseResult<std::unique_ptr<ast::ASTNode>>
   Parser::parseElement(bool publicSection)
   {
     accept<TokenKind::Final>();
@@ -1635,8 +1662,8 @@ namespace marco::parser
 
     std::unique_ptr<ast::ASTNode> modification;
 
-    if (tokens[0].isa<TokenKind::LPar>() ||
-        tokens[0].isa<TokenKind::EqualityOperator>()) {
+    if (lookahead[0].isa<TokenKind::LPar>() ||
+        lookahead[0].isa<TokenKind::EqualityOperator>()) {
       TRY(mod, parseModification());
       modification = std::move(*mod);
     }
@@ -1645,7 +1672,7 @@ namespace marco::parser
     accept<TokenKind::String>();
 
     // Annotation
-    if (tokens[0].isa<TokenKind::Annotation>()) {
+    if (lookahead[0].isa<TokenKind::Annotation>()) {
       TRY(annotation, parseAnnotation());
       // TODO: handle elements annotations
     }
@@ -1663,10 +1690,9 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix()
   {
-    auto loc = tokens[0].getLocation();
-
+    SourceRange loc = lookahead[0].getLocation();
     VariabilityQualifier variabilityQualifier = VariabilityQualifier::none;
 
     if (accept<TokenKind::Discrete>()) {
@@ -1677,6 +1703,10 @@ namespace marco::parser
       variabilityQualifier = VariabilityQualifier::constant;
     }
 
+    if (variabilityQualifier != VariabilityQualifier::none) {
+      loc.end = getLocation().end;
+    }
+
     IOQualifier ioQualifier = IOQualifier::none;
 
     if (accept<TokenKind::Input>()) {
@@ -1685,20 +1715,24 @@ namespace marco::parser
       ioQualifier = IOQualifier::output;
     }
 
+    if (ioQualifier != IOQualifier::none) {
+      loc.end = getLocation().end;
+    }
+
     auto result = std::make_unique<ast::TypePrefix>(loc);
     result->setVariabilityQualifier(variabilityQualifier);
     result->setIOQualifier(ioQualifier);
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
   {
-    auto loc = tokens[0].getLocation();
     std::unique_ptr<ast::ASTNode> result;
 
     bool globalLookup = accept<TokenKind::Dot>();
-    std::string name = tokens[0].getString();
+    std::string name = lookahead[0].getString();
     EXPECT(TokenKind::Identifier);
+    SourceRange loc = getLocation();
 
     if (name == "String") {
       result = std::make_unique<BuiltInType>(loc);
@@ -1721,8 +1755,8 @@ namespace marco::parser
       path.push_back(name);
 
       while (accept<TokenKind::Dot>()) {
-        loc.end = tokens[0].getLocation().end;
-        path.push_back(tokens[0].getString());
+        loc.end = lookahead[0].getLocation().end;
+        path.push_back(lookahead[0].getString());
         EXPECT(TokenKind::Identifier);
       }
 
@@ -1746,15 +1780,15 @@ namespace marco::parser
     return std::move(result);
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
   {
-    auto loc = tokens[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
     auto result = std::make_unique<ArrayDimension>(loc);
 
     if (accept<TokenKind::Colon>()) {
       result->setSize(-1);
-    } else if (tokens[0].isa<TokenKind::Integer>()) {
-      result->setSize(tokens[0].getInt());
+    } else if (lookahead[0].isa<TokenKind::Integer>()) {
+      result->setSize(lookahead[0].getInt());
       EXPECT(TokenKind::Integer);
     } else {
       TRY(expression, parseExpression());
@@ -1764,7 +1798,7 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  std::optional<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification()
+  ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification()
   {
     EXPECT(TokenKind::LPar);
 
@@ -1772,7 +1806,7 @@ namespace marco::parser
 
     do {
       accept<TokenKind::Each>();
-      auto lastIndentifier = tokens[0].getString();
+      std::string lastIndentifier = lookahead[0].getString();
       EXPECT(TokenKind::Identifier);
       EXPECT(TokenKind::EqualityOperator);
 

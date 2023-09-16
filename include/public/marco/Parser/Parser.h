@@ -10,204 +10,244 @@
 
 namespace marco::parser
 {
+  template<typename T>
+  class ValueWrapper
+  {
+    public:
+      ValueWrapper(SourceRange location, T value)
+          : location(std::move(location)), value(std::move(value))
+      {
+      }
+
+      SourceRange getLocation()
+      {
+        return location;
+      }
+
+      T& operator*()
+      {
+        return value;
+      }
+
+      const T& operator*() const
+      {
+        return value;
+      }
+
+      T& getValue()
+      {
+        return value;
+      }
+
+      const T& getValue() const
+      {
+        return value;
+      }
+
+    private:
+      SourceRange location;
+      T value;
+  };
+
+  // Deduction guide for ValueWrapper.
+  template<typename T>
+  ValueWrapper(SourceRange, T) -> ValueWrapper<T>;
+
+  // An optional parse result.
+  template<typename T>
+  using ParseResult = std::optional<T>;
+
+  // An optional parse result wrapped with its location.
+  // Useful to provide a unique location for a set of multiple objects.
+  template<typename T>
+  using WrappedParseResult = std::optional<ValueWrapper<T>>;
+
 	/// The parser encapsulates the lexer but not the memory where the string we
 	/// are reading is held. It exposes parts of the grammatical rules that are
-	/// available in the grammar (can be found at page ~ 265 of the 3.4 doc).
+	/// available in the grammar.
   class Parser
   {
     public:
-      template<typename T>
-      class ValueWrapper
-      {
-        public:
-          ValueWrapper(SourceRange location, T value)
-            : location(std::move(location)), value(std::move(value))
-          {
-          }
+      Parser(
+        diagnostic::DiagnosticEngine& diagnostics,
+        std::shared_ptr<SourceFile> source);
 
-          SourceRange getLocation()
-          {
-            return location;
-          }
-
-          T& getValue()
-          {
-            return value;
-          }
-
-          const T& getValue() const
-          {
-            return value;
-          }
-
-        private:
-          SourceRange location;
-          T value;
-      };
-
-      Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> source);
-
-      std::optional<std::unique_ptr<ast::ASTNode>> parseRoot();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseRoot();
 
       /// Parse a boolean value.
-      std::optional<ValueWrapper<bool>> parseBoolValue();
+      WrappedParseResult<bool> parseBoolValue();
 
       /// Parse an integer value.
-      std::optional<ValueWrapper<int64_t>> parseIntValue();
+      WrappedParseResult<int64_t> parseIntValue();
 
       /// Parse a floating point value.
-      std::optional<ValueWrapper<double>> parseFloatValue();
+      WrappedParseResult<double> parseFloatValue();
 
       /// Parse a string.
-      std::optional<ValueWrapper<std::string>> parseString();
+      WrappedParseResult<std::string> parseString();
 
       /// Parse the name of an identifier.
-      std::optional<ValueWrapper<std::string>> parseIdentifier();
+      WrappedParseResult<std::string> parseIdentifier();
 
       /// Parse the 'class-definition' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
 
       /// Parse the 'modification' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseModification();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseModification();
 
       /// Parse the 'class-modification' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseClassModification();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseClassModification();
 
       /// Parse the 'argument-list' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArgumentList();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseArgumentList();
 
       /// Parse the 'argument' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseArgument();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseArgument();
 
       /// Parse the 'element-modification' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseElementModification(bool each, bool final);
+      ParseResult<std::unique_ptr<ast::ASTNode>>
+      parseElementModification(bool each, bool final);
 
       /// Parse the 'element-redeclaration' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseElementRedeclaration();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseElementRedeclaration();
 
       /// Parse the 'element-replaceable' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseElementReplaceable(bool each, bool final);
+      ParseResult<std::unique_ptr<ast::ASTNode>>
+      parseElementReplaceable(bool each, bool final);
 
       /// Parse the 'algorithm-section' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
 
       /// Parse the 'equation' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseEquation();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseEquation();
 
       /// Parse the 'statement' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseStatement();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseStatement();
 
       /// Parse the 'if-statement' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseIfStatement();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseIfStatement();
 
       /// Parse the 'for-statement' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseForStatement();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseForStatement();
 
       /// Parse the 'for-indices' symbol.
-      std::optional<ValueWrapper<
-          std::vector<std::unique_ptr<ast::ASTNode>>>> parseForIndices();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseForIndices();
 
       /// Parse the 'for-index' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndex();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseForIndex();
 
       /// Parse the 'while-statement' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
 
       /// Parse the 'when-statement' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
 
       /// Parse the 'expression' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseExpression();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseExpression();
 
       /// Parse the 'simple-expression' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseSimpleExpression();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseSimpleExpression();
 
       /// Parse the 'logical-expression' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalExpression();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalExpression();
 
       /// Parse the 'logical-term' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalTerm();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalTerm();
 
       /// Parse the 'logical-factor' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseLogicalFactor();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseLogicalFactor();
 
       /// Parse the 'relation' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseRelation();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseRelation();
 
       /// Parse the 'relational-operator' symbol.
-      std::optional<ast::OperationKind> parseRelationalOperator();
+      WrappedParseResult<ast::OperationKind> parseRelationalOperator();
 
       /// Parse the 'arithmetic-expression' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseArithmeticExpression();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseArithmeticExpression();
 
       /// Parse the 'add-operator' symbol.
-      std::optional<ast::OperationKind> parseAddOperator();
+      WrappedParseResult<ast::OperationKind> parseAddOperator();
 
       /// Parse the 'term' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseTerm();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseTerm();
 
       /// Parse the mul-operator' symbol.
-      std::optional<ast::OperationKind> parseMulOperator();
+      WrappedParseResult<ast::OperationKind> parseMulOperator();
 
       /// Parse the 'factor' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseFactor();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseFactor();
 
       /// Parse the 'primary' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parsePrimary();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parsePrimary();
 
       /// Parse the 'component-reference' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseComponentReference();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseComponentReference();
 
-      std::optional<std::unique_ptr<ast::ASTNode>>
+      ParseResult<std::unique_ptr<ast::ASTNode>>
       parseComponentReferenceEntry();
 
       /// Parse the 'function-call-args' symbol.
-      std::optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseFunctionCallArgs();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseFunctionCallArgs();
 
       /// Parse the 'function-arguments' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArguments();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseFunctionArguments();
 
       /// Parse the 'function-arguments-non-first' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseFunctionArgumentsNonFirst();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseFunctionArgumentsNonFirst();
 
       /// Parse the 'array-arguments' symbol.
-      std::optional<std::pair<std::vector<std::unique_ptr<ast::ASTNode>>, std::vector<std::unique_ptr<ast::ASTNode>>>> parseArrayArguments();
+      ParseResult<std::pair<
+          std::vector<std::unique_ptr<ast::ASTNode>>,
+          std::vector<std::unique_ptr<ast::ASTNode>>>> parseArrayArguments();
 
       /// Parse the 'array-arguments-non-first' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseArrayArgumentsNonFirst();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseArrayArgumentsNonFirst();
 
       /// Parse the 'named-arguments' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseNamedArguments();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseNamedArguments();
 
       /// Parse the 'named-argument' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseNamedArgument();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseNamedArgument();
 
       /// Parse the 'function-argument' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseFunctionArgument();
 
       /// Parse the 'output-expression-list' symbol.
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseOutputExpressionList();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseOutputExpressionList();
 
       /// Parse the 'array-subscripts' symbol.
-      std::optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseArraySubscripts();
+      WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseArraySubscripts();
 
       /// Parse the 'subscript' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseSubscript();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseSubscript();
 
       /// Parse the 'annotation' symbol.
-      std::optional<std::unique_ptr<ast::ASTNode>> parseAnnotation();
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseAnnotation();
 
     private:
       std::optional<std::unique_ptr<ast::ASTNode>> parseEquationsBlock();
 
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseForEquations();
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseForEquations();
 
       /// Parse the 'for-index' symbol (old version, to be removed).
       std::optional<std::unique_ptr<ast::ASTNode>> parseForIndexOld();
 
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>> parseElementList(bool publicSection);
+      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
+      parseElementList(bool publicSection);
 
-      std::optional<std::unique_ptr<ast::ASTNode>> parseElement(bool publicSection);
+      std::optional<std::unique_ptr<ast::ASTNode>>
+      parseElement(bool publicSection);
 
       std::optional<std::unique_ptr<ast::ASTNode>> parseTypePrefix();
 
@@ -218,16 +258,15 @@ namespace marco::parser
       std::optional<std::unique_ptr<ast::ASTNode>> parseTermModification();
 
     private:
-      /// Read the next token.
+      /// Move to the next token.
       void advance();
 
-      /// Accept the current token and move to the next one, but only
-      /// if the current token is the one being expected. The function
-      /// returns whether the expected token has been found.
+      /// Check if the first lookahead has the requested type.
+      /// If it does, shift the tokens. Otherwise, keep the current state.
       template<TokenKind Kind>
       bool accept()
       {
-        if (tokens.front().getKind() == Kind) {
+        if (lookahead.front().getKind() == Kind) {
           advance();
           return true;
         }
@@ -235,10 +274,26 @@ namespace marco::parser
         return false;
       }
 
+      /// Get the source location of the current token.
+      [[nodiscard]] SourceRange getLocation() const;
+
+      /// Get the current parsing location.
+      [[nodiscard]] SourceRange getCursorLocation() const;
+
+      /// Get the string value stored with the current token.
+      [[nodiscard]] std::string getString() const;
+
+      /// Get the integer value stored with the current token.
+      [[nodiscard]] int64_t getInt() const;
+
+      /// Get the floating point value stored with the current token.
+      [[nodiscard]] double getFloat() const;
+
     private:
       diagnostic::DiagnosticEngine* diagnostics;
       Lexer<ModelicaStateMachine> lexer;
-      llvm::SmallVector<Token, 2> tokens{2, Token(TokenKind::Begin)};
+      Token token{TokenKind::Begin};
+      llvm::SmallVector<Token, 2> lookahead{2, Token(TokenKind::Begin)};
   };
 }
 
