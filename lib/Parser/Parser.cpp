@@ -1248,8 +1248,8 @@ namespace marco::parser
       }
     }
 
-    loc.end = lookahead[0].getLocation().end;
     EXPECT(TokenKind::RPar);
+    loc.end = getLocation().end;
 
     return ValueWrapper(std::move(loc), std::move(args));
   }
@@ -1269,6 +1269,7 @@ namespace marco::parser
 
     if (lookahead[0].isa<TokenKind::For>()) {
       // Reduction argument.
+      EXPECT(TokenKind::For);
       TRY(forIndices, parseForIndices());
 
       auto reductionArg = std::make_unique<ReductionFunctionArgument>(
@@ -1277,7 +1278,9 @@ namespace marco::parser
       SourceRange loc = reductionArg->getLocation();
       loc.end = (*forIndices).getLocation().end;
 
+      reductionArg->setExpression(std::move(*firstArgExpression));
       reductionArg->setForIndices(forIndices->getValue());
+      arguments.push_back(std::move(reductionArg));
 
       return ValueWrapper(std::move(loc), std::move(arguments));
     }

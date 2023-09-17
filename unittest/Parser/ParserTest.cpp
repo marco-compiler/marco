@@ -1618,6 +1618,48 @@ TEST(Parser, expression_functionCall_namedArgs)
   EXPECT_EQ(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::Constant>()->as<int64_t>(), 2);
 }
 
+TEST(Parser, expression_functionCall_reductionArg)
+{
+  std::string str = "foo(x[i,j] for i in 1:3, j in 2:4)";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 34);
+
+  ASSERT_TRUE((*node)->isa<Call>());
+  auto call = (*node)->cast<Call>();
+
+  ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+
+  auto args = call->getArguments();
+  EXPECT_EQ(args.size(), 1);
+
+  ASSERT_TRUE(args[0]->isa<ast::ReductionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
+
+  ASSERT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getNumOfForIndices(), 2);
+
+  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getName(), "i");
+  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getExpression()->isa<ast::Operation>());
+  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getExpression()->cast<ast::Operation>()->getOperationKind(), ast::OperationKind::range);
+
+  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getName(), "j");
+  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getExpression()->isa<ast::Operation>());
+  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getExpression()->cast<ast::Operation>()->getOperationKind(), ast::OperationKind::range);
+}
+
 TEST(Parser, annotation_inlineTrue)
 {
   std::string str = "annotation(inline = true)";

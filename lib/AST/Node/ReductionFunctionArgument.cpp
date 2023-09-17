@@ -94,7 +94,7 @@ namespace marco::ast
     forIndices.clear();
 
     for (const auto& node : nodes) {
-      assert(node->isa<Expression>());
+      assert(node->isa<ForIndex>());
       auto& clone = forIndices.emplace_back(node->clone());
       clone->setParent(this);
     }
