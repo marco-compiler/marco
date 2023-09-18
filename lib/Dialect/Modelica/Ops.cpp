@@ -225,6 +225,57 @@ static mlir::Operation* resolveSymbol(
 #include "marco/Dialect/Modelica/Modelica.cpp.inc"
 
 //===---------------------------------------------------------------------===//
+// Iteration space operations
+//===---------------------------------------------------------------------===//
+
+//===---------------------------------------------------------------------===//
+// RangeOp
+
+namespace
+{
+  struct RangeOpToConstantRangeOpPattern
+      : public mlir::OpRewritePattern<RangeOp>
+  {
+    using mlir::OpRewritePattern<RangeOp>::OpRewritePattern;
+
+    mlir::LogicalResult match(RangeOp op) const override
+    {
+      mlir::Operation* lowerBoundOp = op.getLowerBound().getDefiningOp();
+      mlir::Operation* upperBoundOp = op.getUpperBound().getDefiningOp();
+      mlir::Operation* stepOp = op.getStep().getDefiningOp();
+
+      return mlir::LogicalResult::success(
+          mlir::isa<ConstantOp>(lowerBoundOp) &&
+          mlir::isa<ConstantOp>(upperBoundOp) &&
+          mlir::isa<ConstantOp>(stepOp));
+    }
+
+    void rewrite(RangeOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto lowerBoundOp = op.getLowerBound().getDefiningOp<ConstantOp>();
+      auto upperBoundOp = op.getUpperBound().getDefiningOp<ConstantOp>();
+      auto stepOp = op.getStep().getDefiningOp<ConstantOp>();
+
+      rewriter.replaceOpWithNewOp<ConstantRangeOp>(
+          op,
+          op.getResult().getType(),
+          lowerBoundOp.getValue(),
+          upperBoundOp.getValue(),
+          stepOp.getValue());
+    }
+  };
+}
+
+namespace mlir::modelica
+{
+  void RangeOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<RangeOpToConstantRangeOpPattern>(context);
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // Array operations
 //===---------------------------------------------------------------------===//
 

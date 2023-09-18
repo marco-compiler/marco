@@ -238,6 +238,8 @@ def RangeOp : Modelica_Op<"range", []>
     let results = (outs ModelicaIterable:$result);
 
     let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
+
+    let hasCanonicalizer = 1;
 }
 
 def ConstantRangeOp : Modelica_Op<"constant_range", []>
@@ -256,9 +258,9 @@ def ConstantRangeOp : Modelica_Op<"constant_range", []>
     }];
 
     let arguments = (ins
-        IndexAttr:$lowerBound,
-        IndexAttr:$upperBound,
-        DefaultValuedAttr<IndexAttr, "1">:$step);
+        AnyAttr:$lowerBound,
+        AnyAttr:$upperBound,
+        AnyAttr:$step);
 
     let results = (outs ModelicaIterable:$result);
 
