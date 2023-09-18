@@ -48,7 +48,7 @@ namespace marco::codegen::lowering
       } else if (auto forGen = current->dyn_cast<ast::ArrayForGenerator>()) {
         unsigned inductions = forGen->getNumIndices();
         for (unsigned i = 0; i < inductions; i++) {
-          const ast::Induction *ind = forGen->getIndex(i);
+          const ast::Induction *ind = forGen->getIndex(inductions - i - 1);
           
           if (!ind->getBegin()->isa<ast::Constant>() ||
               !ind->getEnd()->isa<ast::Constant>() ||
