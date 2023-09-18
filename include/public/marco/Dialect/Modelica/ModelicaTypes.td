@@ -289,4 +289,22 @@ def EquationType : Modelica_Type<"Equation">
     }];
 }
 
+def IterableType : Modelica_Type<"Iterable">
+{
+    let summary = "Iterable space type";
+    let mnemonic = "iterable";
+
+    let description = [{
+        Type representing an iterable element.
+    }];
+
+    let parameters = (ins
+        "mlir::Type":$inductionType
+    );
+
+    let assemblyFormat = [{
+        $inductionType
+    }];
+}
+
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

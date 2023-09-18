@@ -81,6 +81,9 @@ namespace marco::codegen::lowering
         case ast::OperationKind::powerOfEW:
           return &OperationLowerer::powerOfEW;
 
+        case ast::OperationKind::range:
+          return &OperationLowerer::range;
+
         default:
           return nullptr;
       }
@@ -1300,7 +1303,7 @@ namespace marco::codegen::lowering
 
     llvm::SmallVector<mlir::Value, 4> args;
     lowerArgs(operation, args);
-    assert(args.size() >= 1);
+    assert(!args.empty());
 
     mlir::Value array = args[0];
     assert(array.getType().isa<ArrayType>());
@@ -1468,6 +1471,65 @@ namespace marco::codegen::lowering
 
     mlir::Value result = builder().create<PowEWOp>(
         location, resultTypes[0], args[0], args[1]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  template<>
+  bool OperationLowerer::inferResultTypes<ast::OperationKind::range>(
+      mlir::MLIRContext* context,
+      llvm::ArrayRef<mlir::Value> operands,
+      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
+  {
+    assert(operands.size() == 3);
+    mlir::Type lowerBoundType = operands[0].getType();
+    mlir::Type upperBoundType = operands[2].getType();
+    mlir::Type stepType = operands[1].getType();
+
+    if (isScalarType(lowerBoundType) &&
+        isScalarType(upperBoundType) &&
+        isScalarType(stepType)) {
+      mlir::Type lowerUpperGeneric =
+          getMostGenericScalarType(lowerBoundType, upperBoundType);
+
+      inferredTypes.push_back(
+          getMostGenericScalarType(lowerUpperGeneric, stepType));
+
+      return true;
+    }
+
+    return false;
+  }
+
+  Results OperationLowerer::range(const ast::Operation& operation)
+  {
+    mlir::Location location = loc(operation.getLocation());
+
+    llvm::SmallVector<mlir::Value, 3> args;
+    lowerArgs(operation, args);
+    assert(args.size() == 2 || args.size() == 3);
+
+    if (args.size() == 2) {
+      args.push_back(args[1]);
+
+      mlir::Value step = builder().create<ConstantOp>(
+          location, builder().getIndexAttr(1));
+
+      args[1] = step;
+    }
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    bool inferResult = inferResultTypes<ast::OperationKind::range>(
+        builder().getContext(), args, resultTypes);
+
+    assert(inferResult && "Can't infer result type");
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<RangeOp>(
+        location,
+        IterableType::get(builder().getContext(), resultTypes[0]),
+        args[0], args[2], args[1]);
 
     return Reference::ssa(builder(), result);
   }

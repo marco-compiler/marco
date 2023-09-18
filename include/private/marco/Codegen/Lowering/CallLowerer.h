@@ -55,6 +55,9 @@ namespace marco::codegen::lowering
           const ast::Call& call,
           llvm::SmallVectorImpl<mlir::Value>& args);
 
+      mlir::Value lowerBuiltInFunctionArg(
+          const ast::FunctionArgument& arg);
+
       /// Get the argument expected ranks of a user-defined function.
       void getFunctionExpectedArgRanks(
           mlir::Operation* op,
@@ -99,11 +102,19 @@ namespace marco::codegen::lowering
       Results log(const ast::Call& call);
       Results log10(const ast::Call& call);
       Results max(const ast::Call& call);
+      Results maxArray(const ast::Call& call);
+      Results maxReduction(const ast::Call& call);
+      Results maxScalars(const ast::Call& call);
       Results min(const ast::Call& call);
+      Results minArray(const ast::Call& call);
+      Results minReduction(const ast::Call& call);
+      Results minScalars(const ast::Call& call);
       Results mod(const ast::Call& call);
       Results ndims(const ast::Call& call);
       Results ones(const ast::Call& call);
       Results product(const ast::Call& call);
+      Results productArray(const ast::Call& call);
+      Results productReduction(const ast::Call& call);
       Results rem(const ast::Call& call);
       Results sign(const ast::Call& call);
       Results sin(const ast::Call& call);
@@ -111,11 +122,15 @@ namespace marco::codegen::lowering
       Results size(const ast::Call& call);
       Results sqrt(const ast::Call& call);
       Results sum(const ast::Call& call);
+      Results sumArray(const ast::Call& call);
+      Results sumReduction(const ast::Call& call);
       Results symmetric(const ast::Call& call);
       Results tan(const ast::Call& call);
       Results tanh(const ast::Call& call);
       Results transpose(const ast::Call& call);
       Results zeros(const ast::Call& call);
+
+      Results reduction(const ast::Call& call, llvm::StringRef action);
   };
 }
 

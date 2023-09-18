@@ -43,6 +43,7 @@ namespace marco::codegen::lowering
       Results subscription(const ast::Operation& operation);
       Results powerOf(const ast::Operation& operation);
       Results powerOfEW(const ast::Operation& operation);
+      Results range(const ast::Operation& operation);
 
       template<ast::OperationKind OperationKind>
       bool inferResultTypes(

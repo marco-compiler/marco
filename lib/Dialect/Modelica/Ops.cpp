@@ -8487,6 +8487,119 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ReductionOp
+
+namespace mlir::modelica
+{
+  mlir::ParseResult ReductionOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto loc = parser.getCurrentLocation();
+    std::string action;
+
+    if (parser.parseString(&action) ||
+        parser.parseComma()) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand> iterables;
+    llvm::SmallVector<mlir::Type> iterablesTypes;
+
+    while (!mlir::succeeded(parser.parseOptionalKeyword("inductions"))) {
+      mlir::OpAsmParser::UnresolvedOperand iterable;
+
+      if (parser.parseOperand(iterable) ||
+          parser.parseComma()) {
+        return mlir::failure();
+      }
+    }
+
+    llvm::SmallVector<mlir::OpAsmParser::Argument> inductions;
+    mlir::Region* expressionRegion = result.addRegion();
+    mlir::Type resultType;
+
+    if (parser.parseEqual() ||
+        parser.parseArgumentList(
+            inductions, mlir::AsmParser::Delimiter::Square) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
+        parser.parseRegion(*expressionRegion, inductions) ||
+        parser.parseColon() ||
+        parser.parseLParen() ||
+        parser.parseTypeList(iterablesTypes) ||
+        parser.parseRParen() ||
+        parser.resolveOperands(
+            iterables, iterablesTypes, loc, result.operands) ||
+        parser.parseArrow() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void ReductionOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " " << getAction();
+
+    for (mlir::Value iterable : getIterables()) {
+      printer << ", " << iterable;
+    }
+
+    printer << ", inductions = [";
+
+    for (size_t i = 0, e = getInductions().size(); i < e; ++i) {
+      if (i != 0) {
+        printer << ", ";
+      }
+
+      printer.printRegionArgument(getInductions()[i]);
+    }
+
+    printer << "] ";
+
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(getActionAttrName().getValue());
+
+    printer.printOptionalAttrDictWithKeyword(
+        getOperation()->getAttrs(), elidedAttrs);
+
+    printer.printRegion(getExpressionRegion(), false);
+    printer << " : ";
+
+    auto iterables = getIterables();
+    printer << "(";
+
+    for (size_t i = 0, e = iterables.size(); i < e; ++i) {
+      if (i != 0) {
+        printer << ", ";
+      }
+
+      printer << iterables[i].getType();
+    }
+
+    printer << ") -> ";
+
+    printer << getResult().getType();
+  }
+
+  mlir::Block* ReductionOp::createExpressionBlock(mlir::OpBuilder& builder)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    llvm::SmallVector<mlir::Type> argTypes;
+    llvm::SmallVector<mlir::Location> argLocs;
+
+    for (mlir::Value iterable : getIterables()) {
+      auto iterableType = iterable.getType().cast<IterableType>();
+      argTypes.push_back(iterableType.getInductionType());
+      argLocs.push_back(builder.getUnknownLoc());
+    }
+
+    return builder.createBlock(&getExpressionRegion(), {}, argTypes, argLocs);
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // Modeling operations
 //===---------------------------------------------------------------------===//
 

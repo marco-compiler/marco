@@ -103,9 +103,15 @@ class VariableOf<list<Type> allowedTypes> :
 
 def AnyVariable : VariableOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
-// Equation type
-def ModelicaEquation: Type<CPred<"$_self.isa<::mlir::modelica::EquationType>()">,
-                           "equation", "::mlir::modelica::EquationType">;
+// Equation type.
+def ModelicaEquation : Type<CPred<
+    "$_self.isa<::mlir::modelica::EquationType>()">,
+    "equation", "::mlir::modelica::EquationType">;
+
+// Iteration space type.
+def ModelicaIterable : Type<CPred<
+    "$_self.isa<::mlir::modelica::IterableType>()">,
+    "iterable", "::mlir::modelica::IterableType">;
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
@@ -203,6 +209,60 @@ class Modelica_BinaryOp<string mnemonic, list<Trait> traits = []> :
   let results = (outs AnyType:$result);
 
   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+//===---------------------------------------------------------------------===//
+// Iteration space operations
+//===---------------------------------------------------------------------===//
+
+def RangeOp : Modelica_Op<"range", []>
+{
+    let summary = "Range space";
+
+    let description = [{
+        The operation represents a mono-dimensional range, with a lower bound,
+        an upper bound and a step.
+
+        Example:
+
+        ```mlir
+        %0 = modelica.range %0, %1, %2 : (index, index, index) -> !modelica.iterable<index>
+        ```
+    }];
+
+    let arguments = (ins
+        AnyType:$lowerBound,
+        AnyType:$upperBound,
+        AnyType:$step);
+
+    let results = (outs ModelicaIterable:$result);
+
+    let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
+}
+
+def ConstantRangeOp : Modelica_Op<"constant_range", []>
+{
+    let summary = "Range space";
+
+    let description = [{
+        The operation represents a mono-dimensional range, with a lower bound,
+        an upper bound and a step.
+
+        Example:
+
+        ```mlir
+        %0 = modelica.range {lowerBound = 2 : index, upperBound = 5 : index, step = 1 : index} : !modelica.iterable<index>
+        ```
+    }];
+
+    let arguments = (ins
+        IndexAttr:$lowerBound,
+        IndexAttr:$upperBound,
+        DefaultValuedAttr<IndexAttr, "1">:$step);
+
+    let results = (outs ModelicaIterable:$result);
+
+    let assemblyFormat = "attr-dict `:` type($result)";
 }
 
 //===---------------------------------------------------------------------===//
@@ -2679,6 +2739,48 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
     }];
 }
 
+def Modelica_ReductionOp : Modelica_Op<"reduction", [SingleBlock]>
+{
+    let summary = "Iteration space reduction.";
+
+    let description = [{
+        Apply a function on a given iteration space.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.iterable<index>
+        %1 = ... : !modelica.iterable<index>
+
+        %2 = modelica.reduction "max", %0, %1 inductions = [%i: index, %j: index] {
+            %3 = ... : !modelica.real
+            modelica.yield %3 : !modelica.real
+        } : !modelica.real
+        ```
+    }];
+
+    let arguments = (ins
+        StrAttr:$action,
+        Variadic<ModelicaIterable>:$iterables);
+
+    let results = (outs AnyType:$result);
+
+    let regions = (region
+        SizedRegion<1>:$expressionRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        mlir::Block* createExpressionBlock(mlir::OpBuilder& builder);
+
+        auto getInductions()
+        {
+            return getExpressionRegion().getArguments();
+        }
+    }];
+}
+
 //===---------------------------------------------------------------------===//
 // Modeling operations
 //===---------------------------------------------------------------------===//
@@ -4384,7 +4486,8 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
 def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
     ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp",
-                 "VariableOp", "StartOp", "DefaultOp", "BindingEquationOp"]>]>
+                 "VariableOp", "StartOp", "DefaultOp", "BindingEquationOp",
+                 "ReductionOp"]>]>
 {
     let summary = "Yield values to the parent operation.";
 

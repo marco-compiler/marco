@@ -298,11 +298,16 @@ namespace marco::codegen::lowering
     }));
 
     for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
-      args.push_back(lowerArg(
-          *call.getArgument(i)
-               ->cast<ast::ExpressionFunctionArgument>()
-               ->getExpression()));
+      args.push_back(lowerBuiltInFunctionArg(
+          *call.getArgument(i)->cast<ast::ExpressionFunctionArgument>()));
     }
+  }
+
+  mlir::Value CallLowerer::lowerBuiltInFunctionArg(
+      const ast::FunctionArgument& arg)
+  {
+    auto* expressionArg = arg.cast<ast::ExpressionFunctionArgument>();
+    return lowerArg(*expressionArg->getExpression());
   }
 
   void CallLowerer::getFunctionExpectedArgRanks(
@@ -1255,19 +1260,50 @@ namespace marco::codegen::lowering
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "max");
 
-    assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
+    size_t numOfArguments = call.getNumOfArguments();
+    assert(numOfArguments == 1 || numOfArguments == 2);
+
+    if (numOfArguments == 1) {
+      if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+        return maxReduction(call);
+      }
+
+      return maxArray(call);
+    }
+
+    return maxScalars(call);
+  }
+
+  Results CallLowerer::maxArray(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerBuiltInFunctionArgs(call, args);
+
+    mlir::Type resultType =
+        args[0].getType().cast<ArrayType>().getElementType();
+
+    mlir::Value result = builder().create<MaxOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::maxReduction(const ast::Call& call)
+  {
+    return reduction(call, "max");
+  }
+
+  Results CallLowerer::maxScalars(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    mlir::Type resultType;
-
-    if (args.size() == 1) {
-      resultType = args[0].getType().cast<ArrayType>().getElementType();
-    } else {
-      resultType = getMostGenericScalarType(
-          args[0].getType(), args[1].getType());
-    }
+    mlir::Type resultType = getMostGenericScalarType(
+        args[0].getType(), args[1].getType());
 
     mlir::Value result = builder().create<MaxOp>(
         loc(call.getLocation()), resultType, args);
@@ -1280,19 +1316,50 @@ namespace marco::codegen::lowering
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "min");
 
-    assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
+    size_t numOfArguments = call.getNumOfArguments();
+    assert(numOfArguments == 1 || numOfArguments == 2);
+
+    if (numOfArguments == 1) {
+      if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+        return minReduction(call);
+      }
+
+      return minArray(call);
+    }
+
+    return minScalars(call);
+  }
+
+  Results CallLowerer::minArray(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerBuiltInFunctionArgs(call, args);
+
+    mlir::Type resultType =
+        args[0].getType().cast<ArrayType>().getElementType();
+
+    mlir::Value result = builder().create<MinOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::minReduction(const ast::Call& call)
+  {
+    return reduction(call, "min");
+  }
+
+  Results CallLowerer::minScalars(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    mlir::Type resultType;
-
-    if (args.size() == 1) {
-      resultType = args[0].getType().cast<ArrayType>().getElementType();
-    } else {
-      resultType = getMostGenericScalarType(
-          args[0].getType(), args[1].getType());
-    }
+    mlir::Type resultType = getMostGenericScalarType(
+        args[0].getType(), args[1].getType());
 
     mlir::Value result = builder().create<MinOp>(
         loc(call.getLocation()), resultType, args);
@@ -1369,6 +1436,17 @@ namespace marco::codegen::lowering
 
     assert(call.getNumOfArguments() == 1);
 
+    if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+      return productReduction(call);
+    }
+
+    return productArray(call);
+  }
+
+  Results CallLowerer::productArray(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 1);
+
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
@@ -1379,6 +1457,11 @@ namespace marco::codegen::lowering
         loc(call.getLocation()), resultType, args[0]);
 
     return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::productReduction(const ast::Call& call)
+  {
+    return reduction(call, "mul");
   }
 
   Results CallLowerer::rem(const ast::Call& call)
@@ -1558,6 +1641,17 @@ namespace marco::codegen::lowering
 
     assert(call.getNumOfArguments() == 1);
 
+    if (call.getArgument(0)->isa<ast::ReductionFunctionArgument>()) {
+      return sumReduction(call);
+    }
+
+    return sumArray(call);
+  }
+
+  Results CallLowerer::sumArray(const ast::Call& call)
+  {
+    assert(call.getNumOfArguments() == 1);
+
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
@@ -1568,6 +1662,11 @@ namespace marco::codegen::lowering
         loc(call.getLocation()), resultType, args[0]);
 
     return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::sumReduction(const ast::Call& call)
+  {
+    return reduction(call, "add");
   }
 
   Results CallLowerer::symmetric(const ast::Call& call)
@@ -1693,5 +1792,62 @@ namespace marco::codegen::lowering
         loc(call.getLocation()), resultType, args);
 
     return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::reduction(const ast::Call& call, llvm::StringRef action)
+  {
+    assert(call.getNumOfArguments() == 1);
+    mlir::Type resultType = RealType::get(builder().getContext());
+
+    auto* reductionArg =
+        call.getArgument(0)->cast<ast::ReductionFunctionArgument>();
+
+    // Lower the iteration ranges.
+    llvm::SmallVector<mlir::Value, 3> iterables;
+
+    for (size_t i = 0, e = reductionArg->getNumOfForIndices(); i < e; ++i) {
+      Results inductionResults =
+          lower(*reductionArg->getForIndex(i)->getExpression());
+
+      assert(inductionResults.size() == 1);
+
+      iterables.push_back(
+          inductionResults[0].get(inductionResults[0].getLoc()));
+    }
+
+    // Create the operation.
+    auto reductionOp = builder().create<ReductionOp>(
+        loc(call.getLocation()), resultType, action, iterables);
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    builder().setInsertionPointToStart(
+        reductionOp.createExpressionBlock(builder()));
+
+    // Map the induction variables.
+    assert(reductionArg->getNumOfForIndices() ==
+           reductionOp.getInductions().size());
+
+    Lowerer::VariablesScope scope(getVariablesSymbolTable());
+
+    for (size_t i = 0, e = reductionArg->getNumOfForIndices(); i < e; ++i) {
+      getVariablesSymbolTable().insert(
+          reductionArg->getForIndex(i)->getName(),
+          Reference::ssa(builder(), reductionOp.getInductions()[i]));
+    }
+
+    // Lower the expression.
+    Results expressionResults = lower(*reductionArg->getExpression());
+    assert(expressionResults.size() == 1);
+
+    mlir::Value result =
+        expressionResults[0].get(expressionResults[0].getLoc());
+
+    if (result.getType() != resultType) {
+      result = builder().create<CastOp>(result.getLoc(), resultType, result);
+    }
+
+    builder().create<YieldOp>(result.getLoc(), result);
+    return Reference::ssa(builder(), reductionOp.getResult());
   }
 }

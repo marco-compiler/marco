@@ -194,6 +194,11 @@ namespace mlir::modelica
       return;
     }
 
+    if (auto iterableType = type.dyn_cast<IterableType>()) {
+      printer << "iterable<" << iterableType.getInductionType() << ">";
+      return;
+    }
+
     llvm_unreachable("Unexpected 'Modelica' type kind");
   }
 
