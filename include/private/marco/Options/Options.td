@@ -201,6 +201,14 @@ def print_statistics : Flag<["--"], "print-statistics">,
     Flags<[DriverOption, MC1Option]>,
     HelpText<"Print statistics">;
 
+defm multithreading : BoolOption<"", "multithreading",
+    CodegenOpts<"Multithreading">,
+    DefaultTrue,
+    PosFlag<SetTrue, [], "Use">,
+    NegFlag<SetFalse, [], "Don't use">,
+    BothFlags<[DriverOption, MC1Option], " multithreading">>,
+    Group<Codegen_Group>;
+
 def o : JoinedOrSeparate<["-"], "o">,
     Flags<[DriverOption, MC1Option]>,
     HelpText<"Write output to <file>">,

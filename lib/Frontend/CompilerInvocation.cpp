@@ -161,6 +161,11 @@ static void parseFrontendArgs(
   options.showVersion = args.hasArg(options::OPT_version);
   options.printStatistics = args.hasArg(options::OPT_print_statistics);
 
+  options.multithreading = args.hasFlag(
+      options::OPT_multithreading,
+      options::OPT_no_multithreading,
+      options.multithreading);
+
   // Collect the input files and save them in our instance of FrontendOptions
   std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);
   options.inputs.clear();

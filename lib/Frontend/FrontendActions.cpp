@@ -476,6 +476,8 @@ namespace marco::frontend
     mlir::func::registerInlinerExtension(mlirDialectRegistry);
 
     mlirContext = std::make_unique<mlir::MLIRContext>(mlirDialectRegistry);
+    mlirContext->enableMultithreading(ci.getFrontendOptions().multithreading);
+
     mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
     mlirContext->loadDialect<mlir::DLTIDialect>();
     mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();

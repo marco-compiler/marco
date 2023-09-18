@@ -56,6 +56,8 @@ namespace marco::frontend
 
     // Whether to print statistics when the compilation finishes.
     bool printStatistics = false;
+
+    bool multithreading = true;
   };
 }
 
