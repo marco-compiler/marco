@@ -8505,20 +8505,18 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand> iterables;
     llvm::SmallVector<mlir::Type> iterablesTypes;
 
-    while (!mlir::succeeded(parser.parseOptionalKeyword("inductions"))) {
-      mlir::OpAsmParser::UnresolvedOperand iterable;
-
-      if (parser.parseOperand(iterable) ||
-          parser.parseComma()) {
-        return mlir::failure();
-      }
-    }
-
     llvm::SmallVector<mlir::OpAsmParser::Argument> inductions;
+
     mlir::Region* expressionRegion = result.addRegion();
     mlir::Type resultType;
 
-    if (parser.parseEqual() ||
+    if (parser.parseKeyword("iterables") ||
+        parser.parseEqual() ||
+        parser.parseOperandList(
+            iterables, mlir::AsmParser::Delimiter::Square) ||
+        parser.parseComma() ||
+        parser.parseKeyword("inductions") ||
+        parser.parseEqual() ||
         parser.parseArgumentList(
             inductions, mlir::AsmParser::Delimiter::Square) ||
         parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
@@ -8539,13 +8537,9 @@ namespace mlir::modelica
 
   void ReductionOp::print(mlir::OpAsmPrinter& printer)
   {
-    printer << " " << getAction();
-
-    for (mlir::Value iterable : getIterables()) {
-      printer << ", " << iterable;
-    }
-
-    printer << ", inductions = [";
+    printer << " " << getAction()
+            << ", iterables = [" << getIterables()
+            << "], inductions = [";
 
     for (size_t i = 0, e = getInductions().size(); i < e; ++i) {
       if (i != 0) {

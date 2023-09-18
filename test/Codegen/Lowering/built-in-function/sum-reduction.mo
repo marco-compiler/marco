@@ -9,7 +9,7 @@
 // CHECK-DAG: %[[j_ub:.*]] = modelica.constant #modelica.int<6>
 // CHECK-DAG: %[[j_step:.*]] = modelica.constant #modelica.int<2>
 // CHECK-DAG: %[[j_space:.*]] = modelica.range %[[j_lb]], %[[j_ub]], %[[j_step]]
-// CHECK:       modelica.reduction add, %[[i_space]], %[[j_space]], inductions = [%[[i:.*]]: !modelica.int, %[[j:.*]]: !modelica.int] {
+// CHECK:       modelica.reduction add, iterables = [%[[i_space]], %[[j_space]]], inductions = [%[[i:.*]]: !modelica.int, %[[j:.*]]: !modelica.int] {
 // CHECK-DAG:       %[[i_offset:.*]] = modelica.constant -1
 // CHECK-DAG:       %[[index_0:.*]] = modelica.add %[[i]], %[[i_offset]]
 // CHECK-DAG:       %[[j_offset:.*]] = modelica.constant -1
