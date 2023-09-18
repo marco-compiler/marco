@@ -3,6 +3,10 @@
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/ArrayConstant.h"
+#include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/ComponentReference.h"
+#include "marco/AST/Node/ExpressionFunctionArgument.h"
+#include "marco/AST/Node/FunctionArgument.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -302,9 +306,12 @@ namespace marco::ast
       const auto* modification = elementModification->getModification();
       assert(modification->hasExpression());
       const auto* modificationExpression = modification->getExpression();
+
       if (modificationExpression->isa<Constant>()) {
         return modificationExpression->cast<Constant>()->as<bool>();
-      } else if (modificationExpression->isa<ArrayConstant>()) {
+      }
+
+      if (modificationExpression->isa<ArrayConstant>()) {
         // FIXME: Handle this case without special casing
         // fixed = {{{{true, true}, {true, true}}, {{true, true}, {true, ...
         const auto *array = modificationExpression->cast<ArrayConstant>();
@@ -312,6 +319,23 @@ namespace marco::ast
         assert(val);
         return val.value();
       }
+
+      if (auto call = modificationExpression->dyn_cast<Call>()) {
+        // FIXME: Handle this case without special casing
+        if (auto callee = call->getCallee()->dyn_cast<ComponentReference>()) {
+          if (callee->getName() == "fill") {
+            if (auto expressionArg =
+                    call->getArgument(0)
+                        ->dyn_cast<ExpressionFunctionArgument>()) {
+              if (auto constantArg =
+                      expressionArg->getExpression()->dyn_cast<Constant>()) {
+                return constantArg->as<bool>();
+              }
+            }
+          }
+        }
+      }
+
       assert(false);
       return false;
     }
