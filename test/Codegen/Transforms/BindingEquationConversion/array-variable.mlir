@@ -11,7 +11,7 @@
 // CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[array]]
 // CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]]
+// CHECK:       modelica.equation_instance %[[t0]] {implicit_indices = #modeling<multidim_range [0,2]>, view_element_index = 0 : i64}
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x!modelica.int>

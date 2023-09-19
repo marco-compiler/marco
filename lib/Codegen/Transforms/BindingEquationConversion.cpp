@@ -67,7 +67,7 @@ namespace
       mlir::Value lhsValue = rewriter.create<VariableGetOp>(loc, variableOp);
       mlir::Value rhsValue = expression;
 
-      rewriter.setInsertionPoint(yieldOp);
+      rewriter.setInsertionPointAfter(yieldOp);
 
       mlir::Value lhsTuple = rewriter.create<EquationSideOp>(loc, lhsValue);
       mlir::Value rhsTuple = rewriter.create<EquationSideOp>(loc, rhsValue);
@@ -84,7 +84,26 @@ namespace
 
       // Create the equation instance.
       rewriter.setInsertionPointAfter(equationTemplateOp);
-      rewriter.create<EquationInstanceOp>(loc, equationTemplateOp, false);
+
+      if (auto implicitIndices =
+              equationTemplateOp.computeImplicitIterationSpace(0)) {
+        for (const MultidimensionalRange& range : llvm::make_range(
+                 implicitIndices->rangesBegin(),
+                 implicitIndices->rangesEnd())) {
+          auto equationInstanceOp = rewriter.create<EquationInstanceOp>(
+              loc, equationTemplateOp, false);
+
+          equationInstanceOp.setViewElementIndex(0);
+
+          equationInstanceOp.setImplicitIndicesAttr(
+              MultidimensionalRangeAttr::get(getContext(), range));
+        }
+      } else {
+        auto equationInstanceOp = rewriter.create<EquationInstanceOp>(
+            loc, equationTemplateOp, false);
+
+        equationInstanceOp.setViewElementIndex(0);
+      }
     }
   };
 

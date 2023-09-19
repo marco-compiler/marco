@@ -10,7 +10,7 @@
 // CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
 // CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]]
+// CHECK:       modelica.equation_instance %[[t0]] {view_element_index = 0 : i64}
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>

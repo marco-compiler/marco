@@ -60,7 +60,7 @@ def BindingEquationConversionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::modelica::ModelicaDialect"
     ];
 
     let constructor = "mlir::modelica::createBindingEquationConversionPass()";
