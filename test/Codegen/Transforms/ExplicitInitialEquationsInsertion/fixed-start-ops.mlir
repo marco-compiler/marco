@@ -9,7 +9,7 @@
 // CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[value]]
 // CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {initial = true}
+// CHECK:       modelica.equation_instance %[[t0]] {initial = true, view_element_index = 0 : i64}
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>
@@ -57,7 +57,7 @@ modelica.model @Test {
 // CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[value]]
 // CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {initial = true}
+// CHECK:       modelica.equation_instance %[[t0]] {implicit_indices = #modeling<multidim_range [0,2]>, initial = true, view_element_index = 0 : i64}
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x!modelica.int>

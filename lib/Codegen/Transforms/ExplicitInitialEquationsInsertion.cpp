@@ -147,7 +147,24 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOp(
   builder.setInsertionPointAfter(equationTemplateOp);
 
   if (variableRank == expressionRank) {
-    builder.create<EquationInstanceOp>(loc, equationTemplateOp, true);
+    if (auto implicitIndices =
+            equationTemplateOp.computeImplicitIterationSpace(0)) {
+      for (const MultidimensionalRange& range : llvm::make_range(
+               implicitIndices->rangesBegin(), implicitIndices->rangesEnd())) {
+        auto equationInstanceOp = builder.create<EquationInstanceOp>(
+            loc, equationTemplateOp, true);
+
+        equationInstanceOp.setViewElementIndex(0);
+
+        equationInstanceOp.setImplicitIndicesAttr(
+            MultidimensionalRangeAttr::get(&getContext(), range));
+      }
+    } else {
+      auto equationInstanceOp = builder.create<EquationInstanceOp>(
+          loc, equationTemplateOp, true);
+
+      equationInstanceOp.setViewElementIndex(0);
+    }
   } else {
     llvm::SmallVector<Range, 3> ranges;
 
