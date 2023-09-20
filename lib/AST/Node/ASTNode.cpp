@@ -41,6 +41,8 @@ static std::string toString(ASTNode::Kind kind)
       return "equations_block";
     case ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant:
       return "array_constant";
+    case ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator:
+      return "array_for_generator";
     case ASTNode::Kind::Expression_Call:
       return "call";
     case ASTNode::Kind::Expression_ComponentReference:
@@ -53,6 +55,14 @@ static std::string toString(ASTNode::Kind kind)
       return "tuple";
     case ASTNode::Kind::ForEquation:
       return "for_equation";
+    case ASTNode::Kind::ForIndex:
+      return "for_index";
+    case ASTNode::Kind::FunctionArgument_Expression:
+      return "function_argument_expression";
+    case ASTNode::Kind::FunctionArgument_Named:
+      return "function_argument_named";
+    case ASTNode::Kind::FunctionArgument_Reduction:
+      return "function_argument_reduction";
     case ASTNode::Kind::Induction:
       return "induction";
     case ASTNode::Kind::Member:
