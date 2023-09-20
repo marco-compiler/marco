@@ -217,7 +217,7 @@ class Modelica_BinaryOp<string mnemonic, list<Trait> traits = []> :
 
 def RangeOp : Modelica_Op<"range", []>
 {
-    let summary = "Range space";
+    let summary = "Range";
 
     let description = [{
         The operation represents a mono-dimensional range, with a lower bound,
@@ -244,7 +244,7 @@ def RangeOp : Modelica_Op<"range", []>
 
 def ConstantRangeOp : Modelica_Op<"constant_range", []>
 {
-    let summary = "Range space";
+    let summary = "Constant range";
 
     let description = [{
         The operation represents a mono-dimensional range, with a lower bound,
@@ -265,6 +265,36 @@ def ConstantRangeOp : Modelica_Op<"constant_range", []>
     let results = (outs ModelicaIterable:$result);
 
     let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+def UnboundedRangeOp : Modelica_Op<"unbounded_range", []>
+{
+    let summary = "Unbounded range";
+
+    let description = [{
+        The operation represents a mono-dimensional range with unbounded
+        bounds.
+
+        Example:
+
+        ```mlir
+        %0 = modelica.unbounded_range : !modelica.iterable<index>
+        ```
+    }];
+
+    let arguments = (ins);
+    let results = (outs ModelicaIterable:$result);
+
+    let assemblyFormat = "attr-dict `:` type($result)";
+
+    let builders = [
+        OpBuilder<(ins), [{
+            auto iterableType = IterableType::get(
+                $_builder.getContext(), $_builder.getIndexType());
+
+            build($_builder, $_state, iterableType);
+        }]>
+    ];
 }
 
 //===---------------------------------------------------------------------===//
