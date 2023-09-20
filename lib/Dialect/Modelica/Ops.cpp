@@ -131,7 +131,7 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
 namespace
 {
   template<typename T>
-  std::optional<T> getAttributeValue(mlir::Attribute attribute)
+  std::optional<T> getScalarAttributeValue(mlir::Attribute attribute)
   {
     if (isScalarIntegerLike(attribute)) {
       return static_cast<T>(getScalarIntegerLikeValue(attribute));
@@ -143,12 +143,12 @@ namespace
   }
 
   template<typename T>
-  bool getAttributesValues(
+  bool getScalarAttributesValues(
       llvm::ArrayRef<mlir::Attribute> attributes,
       llvm::SmallVectorImpl<T>& result)
   {
     for (mlir::Attribute attribute : attributes) {
-      if (auto value = getAttributeValue<T>(attribute)) {
+      if (auto value = getScalarAttributeValue<T>(attribute)) {
         result.push_back(*value);
       } else {
         return false;
@@ -286,10 +286,10 @@ namespace mlir::modelica
 {
   mlir::LogicalResult AllocaOp::verify()
   {
-    auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
-    auto valuesAmount = getDynamicSizes().size();
+    int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+    size_t valuesAmount = getDynamicSizes().size();
 
-    if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
+    if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
       return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
@@ -341,10 +341,10 @@ namespace mlir::modelica
 {
   mlir::LogicalResult AllocOp::verify()
   {
-    auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
-    auto valuesAmount = getDynamicSizes().size();
+    int64_t dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
+    size_t valuesAmount = getDynamicSizes().size();
 
-    if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
+    if (dynamicDimensionsAmount != static_cast<int64_t>(valuesAmount)) {
       return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
@@ -403,7 +403,7 @@ namespace mlir::modelica
     int64_t arrayFlatSize = getArrayType().getNumElements();
     size_t numOfValues = getValues().size();
 
-    if (numOfValues != static_cast<size_t>(arrayFlatSize)) {
+    if (arrayFlatSize != static_cast<int64_t>(numOfValues)) {
       return emitOpError(
           "incorrect number of values (expected " +
           std::to_string(arrayFlatSize) + ", got " +
@@ -429,7 +429,7 @@ namespace mlir::modelica
       if (elementType.isa<BooleanType>()) {
         llvm::SmallVector<bool> casted;
 
-        if (!getAttributesValues(adaptor.getOperands(), casted)) {
+        if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -439,7 +439,7 @@ namespace mlir::modelica
       if (elementType.isa<IntegerType>()) {
         llvm::SmallVector<int64_t> casted;
 
-        if (!getAttributesValues(adaptor.getOperands(), casted)) {
+        if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -449,7 +449,7 @@ namespace mlir::modelica
       if (elementType.isa<RealType>()) {
         llvm::SmallVector<double> casted;
 
-        if (!getAttributesValues(adaptor.getOperands(), casted)) {
+        if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
           return {};
         }
 
@@ -725,10 +725,10 @@ namespace mlir::modelica
 
   mlir::LogicalResult LoadOp::verify()
   {
-    auto indicesAmount = getIndices().size();
-    auto rank = getArrayType().getRank();
+    size_t indicesAmount = getIndices().size();
+    int64_t rank = getArrayType().getRank();
 
-    if (indicesAmount != static_cast<size_t>(rank)) {
+    if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError()
           << "incorrect number of indices (expected " << rank
           << ", got " + std::to_string(indicesAmount) << ")";
@@ -843,10 +843,10 @@ namespace mlir::modelica
 
   mlir::LogicalResult StoreOp::verify()
   {
-    auto indicesAmount = getIndices().size();
-    auto rank = getArrayType().getRank();
+    size_t indicesAmount = getIndices().size();
+    int64_t rank = getArrayType().getRank();
 
-    if (indicesAmount != static_cast<size_t>(rank)) {
+    if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError(
           "incorrect number of indices for store (expected " +
           std::to_string(rank) + ", got " + std::to_string(indicesAmount) +
