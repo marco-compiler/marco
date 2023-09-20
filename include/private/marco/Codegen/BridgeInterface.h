@@ -83,6 +83,8 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Tuple& tuple) = 0;
 
+      virtual Results lower(const ast::Subscript& subscript) = 0;
+
       virtual void lower(const ast::Algorithm& algorithm) = 0;
 
       virtual void lower(const ast::Statement& statement) = 0;

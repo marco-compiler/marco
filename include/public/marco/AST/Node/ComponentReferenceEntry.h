@@ -1,12 +1,14 @@
 #ifndef MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
 #define MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
 
-#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Type.h"
 #include <string>
 
 namespace marco::ast
 {
+  class Subscript;
+
   class ComponentReferenceEntry : public ASTNode
   {
     public:
@@ -31,9 +33,9 @@ namespace marco::ast
 
       size_t getNumOfSubscripts() const;
 
-      Expression* getSubscript(size_t index);
+      Subscript* getSubscript(size_t index);
 
-      const Expression* getSubscript(size_t index) const;
+      const Subscript* getSubscript(size_t index) const;
 
       void setSubscripts(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 

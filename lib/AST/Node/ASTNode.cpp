@@ -51,6 +51,8 @@ static std::string toString(ASTNode::Kind kind)
       return "constant";
     case ASTNode::Kind::Expression_Operation:
       return "operation";
+    case ASTNode::Kind::Expression_Subscript:
+      return "subscript";
     case ASTNode::Kind::Expression_Tuple:
       return "tuple";
     case ASTNode::Kind::ForEquation:
@@ -85,8 +87,6 @@ static std::string toString(ASTNode::Kind kind)
       return "while_statement";
     case ASTNode::Kind::StatementsBlock:
       return "statements_block";
-    case ASTNode::Kind::Subscript:
-      return "subscript";
     case ASTNode::Kind::TypePrefix:
       return "type_prefix";
     case ASTNode::Kind::VariableType_BuiltIn:

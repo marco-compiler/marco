@@ -6,7 +6,7 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
   Subscript::Subscript(SourceRange location)
-      : ASTNode(ASTNode::Kind::Subscript, std::move(location))
+      : ASTNode(ASTNode::Kind::Expression_Subscript, std::move(location))
   {
   }
 

@@ -403,6 +403,11 @@ namespace marco::codegen::lowering
     return bridge->lower(tuple);
   }
 
+  Results Lowerer::lower(const ast::Subscript& subscript)
+  {
+    return bridge->lower(subscript);
+  }
+
   void Lowerer::lower(const ast::Algorithm& algorithm)
   {
     return bridge->lower(algorithm);

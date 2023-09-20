@@ -254,22 +254,22 @@ TEST(Parser, partialDerFunction)
   ASSERT_TRUE((*node)->isa<PartialDerFunction>());
   auto function = (*node)->cast<PartialDerFunction>();
 
-  ASSERT_TRUE(function->getDerivedFunction()->isa<ast::ComponentReference>());
-  EXPECT_EQ(function->getDerivedFunction()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getDerivedFunction()->cast<ast::ComponentReference>()->getElement(0)->getName(), "Foo");
-  EXPECT_EQ(function->getDerivedFunction()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(function->getDerivedFunction()->isa<ComponentReference>());
+  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getElement(0)->getName(), "Foo");
+  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   EXPECT_EQ(function->getIndependentVariables().size(), 2);
 
-  ASSERT_TRUE(function->getIndependentVariables()[0]->isa<ast::ComponentReference>());
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(function->getIndependentVariables()[0]->isa<ComponentReference>());
+  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(function->getIndependentVariables()[1]->isa<ast::ComponentReference>());
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(function->getIndependentVariables()[1]->isa<ComponentReference>());
+  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, algorithm_statementsCount)
@@ -316,16 +316,16 @@ TEST(Parser, equation)
   ASSERT_TRUE((*node)->isa<Equation>());
 
   auto lhs = (*node)->cast<Equation>()->getLhsExpression();
-  ASSERT_TRUE(lhs->isa<ast::ComponentReference>());
-  EXPECT_EQ(lhs->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(lhs->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(lhs->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(lhs->isa<ComponentReference>());
+  EXPECT_EQ(lhs->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto rhs = (*node)->cast<Equation>()->getRhsExpression();
-  ASSERT_TRUE(rhs->isa<ast::ComponentReference>());
-  EXPECT_EQ(rhs->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(rhs->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(rhs->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(rhs->isa<ComponentReference>());
+  EXPECT_EQ(rhs->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, statement_assignment)
@@ -354,15 +354,15 @@ TEST(Parser, statement_assignment)
   auto destinations = statement->getDestinations()->cast<Tuple>();
   ASSERT_EQ(destinations->size(), 1);
 
-  ASSERT_TRUE(destinations->getExpression(0)->isa<ast::ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(statement->getExpression()->isa<ast::ComponentReference>());
-  EXPECT_EQ(statement->getExpression()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(statement->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(statement->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(statement->getExpression()->isa<ComponentReference>());
+  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, statement_assignmentWithMultipleDestinations)
@@ -391,15 +391,15 @@ TEST(Parser, statement_assignmentWithMultipleDestinations)
 
   ASSERT_EQ(destinations->size(), 2);
 
-  ASSERT_TRUE(destinations->getExpression(0)->isa<ast::ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(destinations->getExpression(1)->isa<ast::ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(1)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(1)->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(destinations->getExpression(1)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(destinations->getExpression(1)->isa<ComponentReference>());
+  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
@@ -428,18 +428,18 @@ TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
 
   ASSERT_EQ(destinations->size(), 3);
 
-  ASSERT_TRUE(destinations->getExpression(0)->isa<ast::ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(destinations->getExpression(1)->isa<ast::ComponentReference>());
-  EXPECT_TRUE(destinations->getExpression(1)->cast<ast::ComponentReference>()->isDummy());
+  ASSERT_TRUE(destinations->getExpression(1)->isa<ComponentReference>());
+  EXPECT_TRUE(destinations->getExpression(1)->cast<ComponentReference>()->isDummy());
 
-  ASSERT_TRUE(destinations->getExpression(2)->isa<ast::ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(2)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(2)->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(destinations->getExpression(2)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(destinations->getExpression(2)->isa<ComponentReference>());
+  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, statement_if)
@@ -1039,25 +1039,25 @@ TEST(Parser, expression_additionAndMultiplication)
   auto* addition = (*node)->cast<Operation>();
 
   auto* x = addition->getArgument(0);
-  ASSERT_TRUE(x->isa<ast::ComponentReference>());
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(x->isa<ComponentReference>());
+  EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* multiplication = addition->getArgument(1)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
   auto* y = multiplication->getArgument(0);
-  ASSERT_TRUE(y->isa<ast::ComponentReference>());
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(y->isa<ComponentReference>());
+  EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* z = multiplication->getArgument(1);
-  ASSERT_TRUE(z->isa<ast::ComponentReference>());
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(z->isa<ComponentReference>());
+  EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_multiplicationAndAddition)
@@ -1083,10 +1083,10 @@ TEST(Parser, expression_multiplicationAndAddition)
   auto* addition = (*node)->cast<Operation>();
 
   auto* z = addition->getArgument(1);
-  ASSERT_TRUE(z->isa<ast::ComponentReference>());
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(z->isa<ComponentReference>());
+  EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   ASSERT_TRUE(addition->getArgument(0)->isa<Operation>());
 
@@ -1094,16 +1094,16 @@ TEST(Parser, expression_multiplicationAndAddition)
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
   auto* x = multiplication->getArgument(0);
-  ASSERT_TRUE(x->isa<ast::ComponentReference>());
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(x->isa<ComponentReference>());
+  EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* y = multiplication->getArgument(1);
-  ASSERT_TRUE(y->isa<ast::ComponentReference>());
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(y->isa<ComponentReference>());
+  EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_multiplicationAndDivision)
@@ -1129,10 +1129,10 @@ TEST(Parser, expression_multiplicationAndDivision)
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
   auto* z = division->getArgument(1);
-  ASSERT_TRUE(z->isa<ast::ComponentReference>());
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(z->isa<ComponentReference>());
+  EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   ASSERT_TRUE(division->getArgument(0)->isa<Operation>());
 
@@ -1140,16 +1140,16 @@ TEST(Parser, expression_multiplicationAndDivision)
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
   auto* x = multiplication->getArgument(0);
-  ASSERT_TRUE(x->isa<ast::ComponentReference>());
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(x->isa<ComponentReference>());
+  EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* y = multiplication->getArgument(1);
-  ASSERT_TRUE(y->isa<ast::ComponentReference>());
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(y->isa<ComponentReference>());
+  EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_divisionAndMultiplication)
@@ -1175,10 +1175,10 @@ TEST(Parser, expression_divisionAndMultiplication)
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
   auto* z = multiplication->getArgument(1);
-  ASSERT_TRUE(z->isa<ast::ComponentReference>());
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(z->isa<ComponentReference>());
+  EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   ASSERT_TRUE(multiplication->getArgument(0)->isa<Operation>());
 
@@ -1186,16 +1186,16 @@ TEST(Parser, expression_divisionAndMultiplication)
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
   auto* x = division->getArgument(0);
-  ASSERT_TRUE(x->isa<ast::ComponentReference>());
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(x->isa<ComponentReference>());
+  EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* y = division->getArgument(1);
-  ASSERT_TRUE(y->isa<ast::ComponentReference>());
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(y->isa<ComponentReference>());
+  EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_arithmeticExpressionWithParentheses)
@@ -1221,10 +1221,10 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses)
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
   auto* x = division->getArgument(0);
-  ASSERT_TRUE(x->isa<ast::ComponentReference>());
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(x->isa<ComponentReference>());
+  EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   ASSERT_TRUE(division->getArgument(1)->isa<Operation>());
 
@@ -1232,16 +1232,16 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses)
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
   auto* y = multiplication->getArgument(0);
-  ASSERT_TRUE(y->isa<ast::ComponentReference>());
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(y->isa<ComponentReference>());
+  EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto* z = multiplication->getArgument(1);
-  ASSERT_TRUE(z->isa<ast::ComponentReference>());
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(z->isa<ComponentReference>());
+  EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_pow)
@@ -1324,10 +1324,10 @@ TEST(Parser, expression_componentReference)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 3);
 
-  ASSERT_TRUE((*node)->isa<ast::ComponentReference>());
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getName(), "var");
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE((*node)->isa<ComponentReference>());
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "var");
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, expression_array)
@@ -1433,22 +1433,23 @@ TEST(Parser, expression_subscription)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 10);
 
-  ASSERT_TRUE((*node)->isa<ast::ComponentReference>());
+  ASSERT_TRUE((*node)->isa<ComponentReference>());
 
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getName(), "var");
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 3);
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "var");
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 3);
 
-  ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(0)->isa<Constant>());
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(0)->cast<Constant>()->as<int64_t>(), 3);
+  ASSERT_FALSE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->isUnbounded());
+  ASSERT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->getExpression()->isa<Constant>());
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->getExpression()->cast<Constant>()->as<int64_t>(), 3);
 
-  ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->isa<ast::ComponentReference>());
-  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getPathLength(), 1);
-  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getElement(0)->getName(), "i");
-  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_FALSE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->isUnbounded());
+  ASSERT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->isa<ComponentReference>());
+  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
+  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "i");
+  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->isa<Constant>());
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->cast<Constant>()->as<int64_t>(), -1);
+  EXPECT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(2)->isUnbounded());
 }
 
 TEST(Parser, expression_subscriptionOfInlineArray)
@@ -1474,7 +1475,9 @@ TEST(Parser, expression_subscriptionOfInlineArray)
   auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<ArrayConstant>());
-  ASSERT_TRUE(args[1]->isa<ast::ComponentReference>());
+  
+  ASSERT_FALSE(args[1]->cast<Subscript>()->isUnbounded());
+  ASSERT_TRUE(args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
 }
 
 TEST(Parser, expression_subscriptionOfFunctionCall)
@@ -1500,7 +1503,9 @@ TEST(Parser, expression_subscriptionOfFunctionCall)
   auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<Call>());
-  ASSERT_TRUE(args[1]->isa<ComponentReference>());
+  
+  ASSERT_FALSE(args[1]->cast<Subscript>()->isUnbounded());
+  EXPECT_TRUE(args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
 }
 
 TEST(Parser, expression_functionCall_noArgs)
@@ -1549,27 +1554,27 @@ TEST(Parser, expression_functionCall_unnamedArgs)
   ASSERT_TRUE((*node)->isa<Call>());
   auto call = (*node)->cast<Call>();
 
-  ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
-  ASSERT_TRUE(args[0]->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
-  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(args[0]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->isa<ComponentReference>());
+  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(args[1]->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[1]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[1]->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
 
-  ASSERT_TRUE(args[2]->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[2]->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[2]->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
 }
 
 TEST(Parser, expression_functionCall_namedArgs)
@@ -1592,30 +1597,30 @@ TEST(Parser, expression_functionCall_namedArgs)
   ASSERT_TRUE((*node)->isa<Call>());
   auto call = (*node)->cast<Call>();
 
-  ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
-  ASSERT_TRUE(args[0]->isa<ast::NamedFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
-  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getName(), "k");
-  EXPECT_EQ(args[0]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]->isa<NamedFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<ComponentReference>());
+  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "k");
+  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  ASSERT_TRUE(args[1]->isa<ast::NamedFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::Constant>());
-  EXPECT_EQ(args[1]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]->isa<NamedFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[1]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[1]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
 
-  ASSERT_TRUE(args[2]->isa<ast::NamedFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->isa<ast::ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->isa<ast::Constant>());
-  EXPECT_EQ(args[2]->cast<ast::NamedFunctionArgument>()->getValue()->cast<ast::ExpressionFunctionArgument>()->getExpression()->cast<ast::Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]->isa<NamedFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[2]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
+  EXPECT_EQ(args[2]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
 }
 
 TEST(Parser, expression_functionCall_reductionArg)
@@ -1638,26 +1643,26 @@ TEST(Parser, expression_functionCall_reductionArg)
   ASSERT_TRUE((*node)->isa<Call>());
   auto call = (*node)->cast<Call>();
 
-  ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
+  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 1);
 
-  ASSERT_TRUE(args[0]->isa<ast::ReductionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getExpression()->isa<ast::ComponentReference>());
+  ASSERT_TRUE(args[0]->isa<ReductionFunctionArgument>());
+  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getExpression()->isa<ComponentReference>());
 
-  ASSERT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getNumOfForIndices(), 2);
+  ASSERT_EQ(args[0]->cast<ReductionFunctionArgument>()->getNumOfForIndices(), 2);
 
-  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getName(), "i");
-  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getExpression()->isa<ast::Operation>());
-  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(0)->getExpression()->cast<ast::Operation>()->getOperationKind(), ast::OperationKind::range);
+  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getName(), "i");
+  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getExpression()->isa<Operation>());
+  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getExpression()->cast<Operation>()->getOperationKind(), OperationKind::range);
 
-  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getName(), "j");
-  ASSERT_TRUE(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getExpression()->isa<ast::Operation>());
-  EXPECT_EQ(args[0]->cast<ast::ReductionFunctionArgument>()->getForIndex(1)->getExpression()->cast<ast::Operation>()->getOperationKind(), ast::OperationKind::range);
+  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getName(), "j");
+  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getExpression()->isa<Operation>());
+  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getExpression()->cast<Operation>()->getOperationKind(), OperationKind::range);
 }
 
 TEST(Parser, annotation_inlineTrue)

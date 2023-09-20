@@ -25,6 +25,7 @@ set(SOURCES
     Lowering/ReturnStatementLowerer.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
+    Lowering/SubscriptLowerer.cpp
     Lowering/TupleLowerer.cpp
     Lowering/Verifier.cpp
     Lowering/WhenStatementLowerer.cpp

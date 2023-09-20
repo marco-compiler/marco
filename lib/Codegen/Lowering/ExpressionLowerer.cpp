@@ -38,6 +38,10 @@ namespace marco::codegen::lowering
       return lower(*tuple);
     }
 
+    if (auto subscript = expression.dyn_cast<ast::Subscript>()) {
+      return lower(*subscript);
+    }
+
     llvm_unreachable("Unknown expression type");
     return {};
   }

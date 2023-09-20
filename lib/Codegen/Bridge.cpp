@@ -21,6 +21,7 @@
 #include "marco/Codegen/Lowering/ReturnStatementLowerer.h"
 #include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
 #include "marco/Codegen/Lowering/StatementLowerer.h"
+#include "marco/Codegen/Lowering/SubscriptLowerer.h"
 #include "marco/Codegen/Lowering/TupleLowerer.h"
 #include "marco/Codegen/Lowering/WhenStatementLowerer.h"
 #include "marco/Codegen/Lowering/WhileStatementLowerer.h"
@@ -119,6 +120,8 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Tuple& tuple) override;
 
+      Results lower(const ast::Subscript& subscript) override;
+
       void lower(const ast::Algorithm& node) override;
 
       void lower(const ast::Statement& node) override;
@@ -165,6 +168,7 @@ namespace marco::codegen::lowering
       std::unique_ptr<OperationLowerer> operationLowerer;
       std::unique_ptr<ComponentReferenceLowerer> componentReferenceLowerer;
       std::unique_ptr<TupleLowerer> tupleLowerer;
+      std::unique_ptr<SubscriptLowerer> subscriptLowerer;
       std::unique_ptr<AlgorithmLowerer> algorithmLowerer;
       std::unique_ptr<StatementLowerer> statementLowerer;
       std::unique_ptr<AssignmentStatementLowerer> assignmentStatementLowerer;
@@ -208,6 +212,7 @@ namespace marco::codegen::lowering
     this->constantLowerer = std::make_unique<ConstantLowerer>(this);
     this->operationLowerer = std::make_unique<OperationLowerer>(this);
     this->tupleLowerer = std::make_unique<TupleLowerer>(this);
+    this->subscriptLowerer = std::make_unique<SubscriptLowerer>(this);
     this->algorithmLowerer = std::make_unique<AlgorithmLowerer>(this);
     this->statementLowerer = std::make_unique<StatementLowerer>(this);
 
@@ -464,6 +469,12 @@ namespace marco::codegen::lowering
   {
     assert(tupleLowerer != nullptr);
     return tupleLowerer->lower(tuple);
+  }
+
+  Results Bridge::Impl::lower(const ast::Subscript& subscript)
+  {
+    assert(subscriptLowerer != nullptr);
+    return subscriptLowerer->lower(subscript);
   }
 
   void Bridge::Impl::lower(const ast::Algorithm& algorithm)

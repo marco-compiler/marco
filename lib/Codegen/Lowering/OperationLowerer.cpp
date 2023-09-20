@@ -1308,25 +1308,14 @@ namespace marco::codegen::lowering
     mlir::Value array = args[0];
     assert(array.getType().isa<ArrayType>());
 
-    // Indices in Modelica are 1-based, while in the MLIR dialect are
-    // 0-based. Thus, we need to shift them by one. In doing so, we also
-    // force the result to be of index type.
-    std::vector<mlir::Value> zeroBasedIndices;
+    llvm::SmallVector<mlir::Value> indices;
 
-    for (size_t i = 1; i < args.size(); ++i) {
-      mlir::Value index = args[i];
-
-      mlir::Value one = builder().create<ConstantOp>(
-          index.getLoc(), builder().getIndexAttr(-1));
-
-      mlir::Value zeroBasedIndex = builder().create<AddOp>(
-          index.getLoc(), builder().getIndexType(), index, one);
-
-      zeroBasedIndices.push_back(zeroBasedIndex);
+    for (size_t i = 1, e = args.size(); i < e; ++i) {
+      indices.push_back(args[i]);
     }
 
     mlir::Value result = builder().create<SubscriptionOp>(
-        location, array, zeroBasedIndices);
+        location, array, indices);
 
     return Reference::memory(builder(), result);
   }

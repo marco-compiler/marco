@@ -78,28 +78,19 @@ namespace marco::codegen::lowering
   Reference ComponentReferenceLowerer::lowerSubscripts(
       Reference current, const ast::ComponentReferenceEntry& entry)
   {
-    // Indices in Modelica are 1-based.
-    std::vector<mlir::Value> zeroBasedIndices;
+    std::vector<mlir::Value> indices;
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
-      mlir::Location indexLoc = loc(entry.getSubscript(i)->getLocation());
-      mlir::Value index = lower(*entry.getSubscript(i))[0].get(indexLoc);
-
-      mlir::Value one = builder().create<ConstantOp>(
-          index.getLoc(), builder().getIndexAttr(-1));
-
-      mlir::Value zeroBasedIndex = builder().create<AddOp>(
-          index.getLoc(), builder().getIndexType(), index, one);
-
-      zeroBasedIndices.push_back(zeroBasedIndex);
+      Result index = lower(*entry.getSubscript(i))[0];
+      indices.push_back(index.get(index.getLoc()));
     }
 
-    if (!zeroBasedIndices.empty()) {
+    if (!indices.empty()) {
       mlir::Location location = loc(entry.getLocation());
       mlir::Value array = current.get(loc(entry.getLocation()));
 
       mlir::Value result = builder().create<SubscriptionOp>(
-          location, array, zeroBasedIndices);
+          location, array, indices);
 
       return Reference::memory(builder(), result);
     }

@@ -1478,13 +1478,16 @@ namespace marco::parser
   ParseResult<std::unique_ptr<ASTNode>> Parser::parseSubscript()
   {
     if (accept<TokenKind::Colon>()) {
-      auto result = std::make_unique<Constant>(getLocation());
-      result->setValue(-1);
+      auto result = std::make_unique<Subscript>(getLocation());
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
     TRY(expression, parseExpression());
-    return std::move(*expression);
+
+    auto result = std::make_unique<Subscript>((*expression)->getLocation());
+    result->setExpression(std::move(*expression));
+
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   ParseResult<std::unique_ptr<ASTNode>> Parser::parseAnnotation()

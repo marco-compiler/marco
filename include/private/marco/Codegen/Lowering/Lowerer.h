@@ -153,6 +153,8 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Tuple& tuple) override;
 
+      virtual Results lower(const ast::Subscript& subscript) override;
+
       virtual void lower(const ast::Algorithm& node) override;
 
       virtual void lower(const ast::Statement& node) override;

@@ -1,4 +1,5 @@
 #include "marco/AST/Node/ComponentReferenceEntry.h"
+#include "marco/AST/Node/Subscript.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -58,16 +59,16 @@ namespace marco::ast
     return subscripts.size();
   }
 
-  Expression* ComponentReferenceEntry::getSubscript(size_t index)
+  Subscript* ComponentReferenceEntry::getSubscript(size_t index)
   {
     assert(index < subscripts.size());
-    return subscripts[index]->cast<Expression>();
+    return subscripts[index]->cast<Subscript>();
   }
 
-  const Expression* ComponentReferenceEntry::getSubscript(size_t index) const
+  const Subscript* ComponentReferenceEntry::getSubscript(size_t index) const
   {
     assert(index < subscripts.size());
-    return subscripts[index]->cast<Expression>();
+    return subscripts[index]->cast<Subscript>();
   }
 
   void ComponentReferenceEntry::setSubscripts(
@@ -76,7 +77,7 @@ namespace marco::ast
     subscripts.clear();
 
     for (const auto& node : nodes) {
-      assert(node->isa<Expression>());
+      assert(node->isa<Subscript>());
       auto& clone = subscripts.emplace_back(node->clone());
       clone->setParent(this);
     }
