@@ -730,8 +730,26 @@ namespace mlir::modelica
 
     if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError()
-          << "incorrect number of indices (expected " << rank
-          << ", got " + std::to_string(indicesAmount) << ")";
+          << "incorrect number of indices for store (expected " << rank
+          << ", got " << indicesAmount << ")";
+    }
+
+    for (size_t i = 0; i < indicesAmount; ++i) {
+      if (auto constantOp = getIndices()[i].getDefiningOp<ConstantOp>()) {
+        if (auto index = getScalarAttributeValue<int64_t>(
+                constantOp.getValue())) {
+          if (*index < 0) {
+            return emitOpError() << "invalid index (" << *index << ")";
+          }
+
+          if (int64_t dimSize = getArrayType().getDimSize(i);
+              *index >= dimSize) {
+            return emitOpError()
+                << "out of bounds access (index = " << *index
+                << ", dimension = " << dimSize << ")";
+          }
+        }
+      }
     }
 
     return mlir::success();
@@ -847,10 +865,27 @@ namespace mlir::modelica
     int64_t rank = getArrayType().getRank();
 
     if (rank != static_cast<int64_t>(indicesAmount)) {
-      return emitOpError(
-          "incorrect number of indices for store (expected " +
-          std::to_string(rank) + ", got " + std::to_string(indicesAmount) +
-          ")");
+      return emitOpError()
+          << "incorrect number of indices for store (expected " << rank
+          << ", got " << indicesAmount << ")";
+    }
+
+    for (size_t i = 0; i < indicesAmount; ++i) {
+      if (auto constantOp = getIndices()[i].getDefiningOp<ConstantOp>()) {
+        if (auto index = getScalarAttributeValue<int64_t>(
+                constantOp.getValue())) {
+          if (*index < 0) {
+            return emitOpError() << "invalid index (" << *index << ")";
+          }
+
+          if (int64_t dimSize = getArrayType().getDimSize(i);
+              *index >= dimSize) {
+            return emitOpError()
+                << "out of bounds access (index = " << *index
+                << ", dimension = " << dimSize << ")";
+          }
+        }
+      }
     }
 
     return mlir::success();
