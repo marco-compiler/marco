@@ -166,7 +166,7 @@ static int64_t getIntegerFromAttribute(mlir::Attribute attribute)
   }
 
   if (isScalarFloatLike(attribute)) {
-    return getScalarFloatLikeValue(attribute);
+    return static_cast<int64_t>(getScalarFloatLikeValue(attribute));
   }
 
   llvm_unreachable("Unknown attribute type");
@@ -1895,27 +1895,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) + getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) + getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) + getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) + getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue + rhsValue);
       }
     }
 
@@ -2231,27 +2231,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) + getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) + getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) + getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue + rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) + getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue + rhsValue);
       }
     }
 
@@ -2562,27 +2562,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) - getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) - getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) - getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) - getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue - rhsValue);
       }
     }
 
@@ -2898,27 +2898,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) - getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) - getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) - getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue - rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) - getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue - rhsValue);
       }
     }
 
@@ -3236,27 +3236,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) * getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) * getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) * getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) * getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue * rhsValue);
       }
     }
 
@@ -3608,27 +3608,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) * getScalarIntegerLikeValue(rhs));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) * getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) * getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue * rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) * getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue * rhsValue);
       }
     }
 
@@ -3978,27 +3978,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) / getScalarIntegerLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) / getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) / getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) / getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue / rhsValue);
       }
     }
 
@@ -4341,27 +4341,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) / getScalarIntegerLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) / getScalarFloatLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(lhs) / getScalarFloatLikeValue(rhs));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, lhsValue / rhsValue);
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            getScalarFloatLikeValue(lhs) / getScalarIntegerLikeValue(rhs));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, lhsValue / rhsValue);
       }
     }
 
@@ -4706,27 +4706,33 @@ namespace mlir::modelica
 
     if (isScalar(base) && isScalar(exponent)) {
       if (isScalarIntegerLike(base) && isScalarIntegerLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarIntegerLikeValue(base), getScalarIntegerLikeValue(exponent)));
+        auto baseValue = static_cast<double>(getScalarIntegerLikeValue(base));
+
+        auto exponentValue =
+            static_cast<double>(getScalarIntegerLikeValue(exponent));
+
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarFloatLike(base) && isScalarFloatLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarFloatLikeValue(base), getScalarFloatLikeValue(exponent)));
+        double baseValue = getScalarFloatLikeValue(base);
+        double exponentValue = getScalarFloatLikeValue(exponent);
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarIntegerLike(base) && isScalarFloatLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarIntegerLikeValue(base), getScalarFloatLikeValue(exponent)));
+        auto baseValue = static_cast<double>(getScalarIntegerLikeValue(base));
+        double exponentValue = getScalarFloatLikeValue(exponent);
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarFloatLike(base) && isScalarIntegerLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarFloatLikeValue(base), getScalarIntegerLikeValue(exponent)));
+        double baseValue = getScalarFloatLikeValue(base);
+
+        auto exponentValue =
+            static_cast<double>(getScalarIntegerLikeValue(exponent));
+
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
     }
 
@@ -4849,27 +4855,33 @@ namespace mlir::modelica
 
     if (isScalar(base) && isScalar(exponent)) {
       if (isScalarIntegerLike(base) && isScalarIntegerLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarIntegerLikeValue(base), getScalarIntegerLikeValue(exponent)));
+        auto baseValue = static_cast<double>(getScalarIntegerLikeValue(base));
+
+        auto exponentValue =
+            static_cast<double>(getScalarIntegerLikeValue(exponent));
+
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarFloatLike(base) && isScalarFloatLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarFloatLikeValue(base), getScalarFloatLikeValue(exponent)));
+        double baseValue = getScalarFloatLikeValue(base);
+        double exponentValue = getScalarFloatLikeValue(exponent);
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarIntegerLike(base) && isScalarFloatLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarIntegerLikeValue(base), getScalarFloatLikeValue(exponent)));
+        auto baseValue = static_cast<double>(getScalarIntegerLikeValue(base));
+        double exponentValue = getScalarFloatLikeValue(exponent);
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
 
       if (isScalarFloatLike(base) && isScalarIntegerLike(exponent)) {
-        return getAttr(
-            resultType,
-            std::pow(getScalarFloatLikeValue(base), getScalarIntegerLikeValue(exponent)));
+        double baseValue = getScalarFloatLikeValue(base);
+
+        auto exponentValue =
+            static_cast<double>(getScalarIntegerLikeValue(exponent));
+
+        return getAttr(resultType, std::pow(baseValue, exponentValue));
       }
     }
 
@@ -4981,27 +4993,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) == getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue == rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) == getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue == rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) == getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue == rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) == getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue == rhsValue));
       }
     }
 
@@ -5027,27 +5039,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue != rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue != rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue != rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue != rhsValue));
       }
     }
 
@@ -5073,27 +5085,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) > getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue > rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) > getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue > rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) > getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue > rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) > getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue > rhsValue));
       }
     }
 
@@ -5119,27 +5131,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) >= getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue >= rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) >= getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue >= rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) >= getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue >= rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) >= getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue >= rhsValue));
       }
     }
 
@@ -5165,27 +5177,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) < getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue < rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) < getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue < rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) < getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue < rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) < getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue < rhsValue));
       }
     }
 
@@ -5211,27 +5223,27 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) <= getScalarIntegerLikeValue(rhs)));
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue <= rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) <= getScalarFloatLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue <= rhsValue));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) <= getScalarFloatLikeValue(rhs)));
+        auto lhsValue = static_cast<double>(getScalarIntegerLikeValue(lhs));
+        double rhsValue = getScalarFloatLikeValue(rhs);
+        return getAttr(resultType, static_cast<int64_t>(lhsValue <= rhsValue));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) <= getScalarIntegerLikeValue(rhs)));
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+        return getAttr(resultType, static_cast<int64_t>(lhsValue <= rhsValue));
       }
     }
 
@@ -5260,15 +5272,13 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(operand) == 0));
+        int64_t operandValue = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, static_cast<int64_t>(operandValue == 0));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(operand) == 0));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, static_cast<int64_t>(operandValue == 0));
       }
     }
 
@@ -5319,27 +5329,39 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != 0 && getScalarIntegerLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 && rhsValue != 0));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != 0 && getScalarFloatLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 && rhsValue != 0));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != 0 && getScalarFloatLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 && rhsValue != 0));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != 0 && getScalarIntegerLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 && rhsValue != 0));
       }
     }
 
@@ -5397,27 +5419,39 @@ namespace mlir::modelica
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != 0 || getScalarIntegerLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 || rhsValue != 0));
       }
 
       if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != 0 || getScalarFloatLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 || rhsValue != 0));
       }
 
       if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        int64_t lhsValue = getScalarIntegerLikeValue(lhs);
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != 0 || getScalarFloatLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 || rhsValue != 0));
       }
 
       if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        double lhsValue = getScalarFloatLikeValue(lhs);
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+
         return getAttr(
             resultType,
-            static_cast<int64_t>(getScalarFloatLikeValue(lhs) != 0 || getScalarIntegerLikeValue(rhs) != 0));
+            static_cast<int64_t>(lhsValue != 0 || rhsValue != 0));
       }
     }
 
@@ -5572,15 +5606,13 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::abs(getScalarIntegerLikeValue(operand)));
+        int64_t operandValue = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, std::abs(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::abs(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::abs(operandValue));
       }
     }
 
@@ -5664,15 +5696,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::acos(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::acos(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::acos(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::acos(operandValue));
       }
     }
 
@@ -5800,15 +5832,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::asin(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::asin(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::asin(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::asin(operandValue));
       }
     }
 
@@ -5934,15 +5966,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::atan(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::atan(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::atan(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::atan(operandValue));
       }
     }
 
@@ -6198,15 +6230,13 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(operand));
+        int64_t operandValue = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, operandValue);
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::ceil(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::ceil(operandValue));
       }
     }
 
@@ -6290,15 +6320,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::cos(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::cos(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::cos(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::cos(operandValue));
       }
     }
 
@@ -6415,15 +6445,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::cosh(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::cosh(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::cosh(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::cosh(operandValue));
       }
     }
 
@@ -6565,26 +6595,26 @@ namespace mlir::modelica
 
     if (isScalar(x) && isScalar(y)) {
       if (isScalarIntegerLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        auto xValue = static_cast<double>(getScalarIntegerLikeValue(x));
+        auto yValue = static_cast<double>(getScalarIntegerLikeValue(y));
         return getAttr(resultType, xValue / yValue);
       }
 
       if (isScalarFloatLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        double yValue = getScalarFloatLikeValue(y);
         return getAttr(resultType, std::trunc(xValue / yValue));
       }
 
       if (isScalarIntegerLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        auto xValue = static_cast<double>(getScalarIntegerLikeValue(x));
+        double yValue = getScalarFloatLikeValue(y);
         return getAttr(resultType, std::trunc(xValue / yValue));
       }
 
       if (isScalarFloatLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        auto yValue = static_cast<double>(getScalarIntegerLikeValue(y));
         return getAttr(resultType, std::trunc(xValue / yValue));
       }
     }
@@ -6610,15 +6640,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::exp(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::exp(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::exp(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::exp(operandValue));
       }
     }
 
@@ -6753,15 +6783,13 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(operand));
+        int64_t operandValue = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, operandValue);
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::floor(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::floor(operandValue));
       }
     }
 
@@ -6867,15 +6895,13 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            getScalarIntegerLikeValue(operand));
+        int64_t operandValue = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, operandValue);
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::floor(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::floor(operandValue));
       }
     }
 
@@ -6981,15 +7007,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::log(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::log(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::log(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::log(operandValue));
       }
     }
 
@@ -7103,15 +7129,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::log10(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::log10(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::log10(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::log10(operandValue));
       }
     }
 
@@ -7316,20 +7342,22 @@ namespace mlir::modelica
 
       if (isScalar(first) && isScalar(second)) {
         if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
-          return getAttr(
-              resultType,
-              std::max(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+          int64_t firstValue = getScalarIntegerLikeValue(first);
+          int64_t secondValue = getScalarIntegerLikeValue(second);
+          return getAttr(resultType, std::max(firstValue, secondValue));
         }
 
         if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
-          return getAttr(
-              resultType,
-              std::max(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+          double firstValue = getScalarFloatLikeValue(first);
+          double secondValue = getScalarFloatLikeValue(second);
+          return getAttr(resultType, std::max(firstValue, secondValue));
         }
 
         if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
-          auto firstValue = getScalarIntegerLikeValue(first);
-          auto secondValue = getScalarFloatLikeValue(second);
+          auto firstValue =
+              static_cast<double>(getScalarIntegerLikeValue(first));
+
+          double secondValue = getScalarFloatLikeValue(second);
 
           if (firstValue >= secondValue) {
             return getAttr(resultType, firstValue);
@@ -7339,8 +7367,10 @@ namespace mlir::modelica
         }
 
         if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
-          auto firstValue = getScalarFloatLikeValue(first);
-          auto secondValue = getScalarIntegerLikeValue(second);
+          double firstValue = getScalarFloatLikeValue(first);
+
+          auto secondValue =
+              static_cast<double>(getScalarIntegerLikeValue(second));
 
           if (firstValue >= secondValue) {
             return getAttr(resultType, firstValue);
@@ -7468,20 +7498,22 @@ namespace mlir::modelica
 
       if (isScalar(first) && isScalar(second)) {
         if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
-          return getAttr(
-              resultType,
-              std::min(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+          int64_t firstValue = getScalarIntegerLikeValue(first);
+          int64_t secondValue = getScalarIntegerLikeValue(second);
+          return getAttr(resultType, std::min(firstValue, secondValue));
         }
 
         if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
-          return getAttr(
-              resultType,
-              std::min(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+          double firstValue = getScalarFloatLikeValue(first);
+          double secondValue = getScalarFloatLikeValue(second);
+          return getAttr(resultType, std::min(firstValue, secondValue));
         }
 
         if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
-          auto firstValue = getScalarIntegerLikeValue(first);
-          auto secondValue = getScalarFloatLikeValue(second);
+          auto firstValue =
+              static_cast<double>(getScalarIntegerLikeValue(first));
+
+          double secondValue = getScalarFloatLikeValue(second);
 
           if (firstValue <= secondValue) {
             return getAttr(resultType, firstValue);
@@ -7491,8 +7523,10 @@ namespace mlir::modelica
         }
 
         if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
-          auto firstValue = getScalarFloatLikeValue(first);
-          auto secondValue = getScalarIntegerLikeValue(second);
+          double firstValue = getScalarFloatLikeValue(first);
+
+          auto secondValue =
+              static_cast<double>(getScalarIntegerLikeValue(second));
 
           if (firstValue <= secondValue) {
             return getAttr(resultType, firstValue);
@@ -7538,17 +7572,17 @@ namespace mlir::modelica
 
     if (isScalar(x) && isScalar(y)) {
       if (isScalarIntegerLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        auto xValue = static_cast<double>(getScalarIntegerLikeValue(x));
+        auto yValue = static_cast<double>(getScalarIntegerLikeValue(y));
 
         return getAttr(
             resultType,
-            xValue - std::floor(static_cast<double>(xValue) / yValue) * yValue);
+            xValue - std::floor(xValue / yValue) * yValue);
       }
 
       if (isScalarFloatLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        double yValue = getScalarFloatLikeValue(y);
 
         return getAttr(
             resultType,
@@ -7556,8 +7590,8 @@ namespace mlir::modelica
       }
 
       if (isScalarIntegerLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        auto xValue = static_cast<double>(getScalarIntegerLikeValue(x));
+        double yValue = getScalarFloatLikeValue(y);
 
         return getAttr(
             resultType,
@@ -7565,8 +7599,8 @@ namespace mlir::modelica
       }
 
       if (isScalarFloatLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        auto yValue = static_cast<double>(getScalarIntegerLikeValue(y));
 
         return getAttr(
             resultType,
@@ -7635,26 +7669,26 @@ namespace mlir::modelica
 
     if (isScalar(x) && isScalar(y)) {
       if (isScalarIntegerLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        int64_t xValue = getScalarIntegerLikeValue(x);
+        int64_t yValue = getScalarIntegerLikeValue(y);
         return getAttr(resultType, xValue % yValue);
       }
 
       if (isScalarFloatLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        double yValue = getScalarFloatLikeValue(y);
         return getAttr(resultType, std::fmod(xValue, yValue));
       }
 
       if (isScalarIntegerLike(x) && isScalarFloatLike(y)) {
-        auto xValue = getScalarIntegerLikeValue(x);
-        auto yValue = getScalarFloatLikeValue(y);
+        auto xValue = static_cast<double>(getScalarIntegerLikeValue(x));
+        double yValue = getScalarFloatLikeValue(y);
         return getAttr(resultType, std::fmod(xValue, yValue));
       }
 
       if (isScalarFloatLike(x) && isScalarIntegerLike(y)) {
-        auto xValue = getScalarFloatLikeValue(x);
-        auto yValue = getScalarIntegerLikeValue(y);
+        double xValue = getScalarFloatLikeValue(x);
+        auto yValue = static_cast<double>(getScalarIntegerLikeValue(y));
         return getAttr(resultType, std::fmod(xValue, yValue));
       }
     }
@@ -7680,7 +7714,7 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        auto value = getScalarIntegerLikeValue(operand);
+        int64_t value = getScalarIntegerLikeValue(operand);
 
         if (value == 0) {
           return getAttr(resultType, static_cast<int64_t>(0));
@@ -7692,7 +7726,7 @@ namespace mlir::modelica
       }
 
       if (isScalarFloatLike(operand)) {
-        auto value = getScalarFloatLikeValue(operand);
+        double value = getScalarFloatLikeValue(operand);
 
         if (value == 0) {
           return getAttr(resultType, static_cast<int64_t>(0));
@@ -7782,15 +7816,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sin(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::sin(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sin(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::sin(operandValue));
       }
     }
 
@@ -7902,15 +7936,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sinh(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::sinh(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sinh(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::sinh(operandValue));
       }
     }
 
@@ -8134,15 +8168,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sqrt(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::sqrt(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::sqrt(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::sqrt(operandValue));
       }
     }
 
@@ -8308,15 +8342,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::tan(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::tan(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::tan(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::tan(operandValue));
       }
     }
 
@@ -8437,15 +8471,15 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(
-            resultType,
-            std::tanh(getScalarIntegerLikeValue(operand)));
+        auto operandValue =
+            static_cast<double>(getScalarIntegerLikeValue(operand));
+
+        return getAttr(resultType, std::tanh(operandValue));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(
-            resultType,
-            std::tanh(getScalarFloatLikeValue(operand)));
+        double operandValue = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, std::tanh(operandValue));
       }
     }
 
