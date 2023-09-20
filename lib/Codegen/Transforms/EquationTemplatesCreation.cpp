@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/EquationTemplatesCreation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <stack>
 
 namespace mlir::modelica
@@ -60,11 +60,7 @@ namespace
   class EquationOpPattern : public mlir::OpRewritePattern<EquationOp>
   {
     public:
-      EquationOpPattern(
-          mlir::MLIRContext* context)
-          : mlir::OpRewritePattern<EquationOp>(context)
-      {
-      }
+      using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
 
       mlir::LogicalResult matchAndRewrite(
           EquationOp op, mlir::PatternRewriter& rewriter) const override
@@ -351,6 +347,23 @@ namespace
         return mlir::success();
       }
   };
+
+  class ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
+  {
+    public:
+      using mlir::OpRewritePattern<ForEquationOp>::OpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ForEquationOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        if (op.getOps().empty()) {
+          rewriter.eraseOp(op);
+          return mlir::success();
+        }
+
+        return mlir::failure();
+      }
+  };
 }
 
 namespace
@@ -370,20 +383,16 @@ namespace
 void EquationTemplatesCreationPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
-  mlir::ConversionTarget target(getContext());
-
-  target.addIllegalOp<EquationOp>();
-
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
 
   mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationOpPattern>(&getContext());
+  patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
-  if (mlir::failed(applyPartialConversion(
-          modelOp, target, std::move(patterns)))) {
-      return signalPassFailure();
+  mlir::GreedyRewriteConfig config;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+
+  if (mlir::failed(applyPatternsAndFoldGreedily(
+          modelOp, std::move(patterns), config))) {
+    return signalPassFailure();
   }
 }
 
