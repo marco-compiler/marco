@@ -409,7 +409,8 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
 }
 
 def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Create an array with a given value in all positions.";
 

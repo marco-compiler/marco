@@ -531,6 +531,34 @@ namespace mlir::modelica
         getResult(),
         mlir::SideEffects::DefaultResource::get());
   }
+
+  mlir::ValueRange ArrayBroadcastOp::derive(
+      mlir::OpBuilder& builder,
+      const llvm::DenseMap<
+          mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
+      mlir::IRMapping& derivatives)
+  {
+    mlir::Value derivedValue = derivatives.lookup(getValue());
+
+    auto derivedOp = builder.create<ArrayFromElementsOp>(
+        getLoc(),
+        getArrayType().toElementType(RealType::get(builder.getContext())),
+        derivedValue);
+
+    return derivedOp->getResults();
+  }
+
+  void ArrayBroadcastOp::getOperandsToBeDerived(
+      llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    toBeDerived.push_back(getValue());
+  }
+
+  void ArrayBroadcastOp::getDerivableRegions(
+      llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+    // No regions to be derived.
+  }
 }
 
 //===---------------------------------------------------------------------===//
