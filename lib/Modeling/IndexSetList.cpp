@@ -704,6 +704,10 @@ namespace marco::modeling::impl
 
   bool ListIndexSet::contains(const MultidimensionalRange& other) const
   {
+    if (empty()) {
+      return false;
+    }
+
     std::queue<MultidimensionalRange> nonOverlappingRanges;
     nonOverlappingRanges.push(other);
 
