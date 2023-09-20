@@ -71,6 +71,7 @@ namespace marco::ast
         Statement_While,
         Statement_LastStatement,
         StatementsBlock,
+        Subscript,
         TypePrefix,
         VariableType,
         VariableType_BuiltIn,

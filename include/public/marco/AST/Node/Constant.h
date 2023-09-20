@@ -1,5 +1,5 @@
-#ifndef MARCO_AST_NODE_COSTANT_H
-#define MARCO_AST_NODE_COSTANT_H
+#ifndef MARCO_AST_NODE_CONSTANT_H
+#define MARCO_AST_NODE_CONSTANT_H
 
 #include "marco/AST/Node/Expression.h"
 #include <string>
@@ -71,4 +71,4 @@ namespace marco::ast
 	};
 }
 
-#endif // MARCO_AST_NODE_COSTANT_H
+#endif // MARCO_AST_NODE_CONSTANT_H

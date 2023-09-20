@@ -39,6 +39,7 @@
 #include "marco/AST/Node/Root.h"
 #include "marco/AST/Node/Statement.h"
 #include "marco/AST/Node/StatementsBlock.h"
+#include "marco/AST/Node/Subscript.h"
 #include "marco/AST/Node/Tuple.h"
 #include "marco/AST/Node/Type.h"
 #include "marco/AST/Node/TypePrefix.h"

@@ -37,6 +37,7 @@ set(AST_NODES
 	Node/Root.cpp
 	Node/Statement.cpp
 	Node/StatementsBlock.cpp
+	Node/Subscript.cpp
 	Node/Tuple.cpp
 	Node/Type.cpp
 	Node/TypePrefix.cpp
