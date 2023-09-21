@@ -29,8 +29,14 @@ namespace marco::codegen::lowering
     mlir::Value one = builder().create<ConstantOp>(
         index.getLoc(), builder().getIndexAttr(-1));
 
+    mlir::Type resultType = builder().getIndexType();
+
+    if (index.getType().isa<IterableType>()) {
+      resultType = IterableType::get(builder().getContext(), resultType);
+    }
+
     mlir::Value zeroBasedIndex = builder().create<AddOp>(
-        index.getLoc(), builder().getIndexType(), index, one);
+        index.getLoc(), resultType, index, one);
 
     return Reference::ssa(builder(), zeroBasedIndex);
   }

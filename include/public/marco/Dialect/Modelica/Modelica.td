@@ -705,7 +705,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 
     let arguments = (ins
         AnyArray:$source,
-        Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
+        Variadic<AnyTypeOf<[Index, ModelicaInteger, ModelicaIterable]>>:$indices);
 
     let results = (outs AnyType:$result);
 
