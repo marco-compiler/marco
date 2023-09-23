@@ -231,47 +231,33 @@ static mlir::Operation* resolveSymbol(
 //===---------------------------------------------------------------------===//
 // RangeOp
 
-namespace
-{
-  struct RangeOpToConstantRangeOpPattern
-      : public mlir::OpRewritePattern<RangeOp>
-  {
-    using mlir::OpRewritePattern<RangeOp>::OpRewritePattern;
-
-    mlir::LogicalResult match(RangeOp op) const override
-    {
-      mlir::Operation* lowerBoundOp = op.getLowerBound().getDefiningOp();
-      mlir::Operation* upperBoundOp = op.getUpperBound().getDefiningOp();
-      mlir::Operation* stepOp = op.getStep().getDefiningOp();
-
-      return mlir::LogicalResult::success(
-          mlir::isa<ConstantOp>(lowerBoundOp) &&
-          mlir::isa<ConstantOp>(upperBoundOp) &&
-          mlir::isa<ConstantOp>(stepOp));
-    }
-
-    void rewrite(RangeOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto lowerBoundOp = op.getLowerBound().getDefiningOp<ConstantOp>();
-      auto upperBoundOp = op.getUpperBound().getDefiningOp<ConstantOp>();
-      auto stepOp = op.getStep().getDefiningOp<ConstantOp>();
-
-      rewriter.replaceOpWithNewOp<ConstantRangeOp>(
-          op,
-          op.getResult().getType(),
-          lowerBoundOp.getValue(),
-          upperBoundOp.getValue(),
-          stepOp.getValue());
-    }
-  };
-}
-
 namespace mlir::modelica
 {
-  void RangeOp::getCanonicalizationPatterns(
-      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor)
   {
-    patterns.add<RangeOpToConstantRangeOpPattern>(context);
+    auto lowerBound = adaptor.getLowerBound();
+    auto upperBound = adaptor.getUpperBound();
+    auto step = adaptor.getStep();
+
+    if (!lowerBound || !upperBound || !step) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalarIntegerLike(lowerBound) &&
+        isScalarIntegerLike(upperBound) &&
+        isScalarIntegerLike(step)) {
+      int64_t lowerBoundValue = getScalarIntegerLikeValue(lowerBound);
+      int64_t upperBoundValue = getScalarIntegerLikeValue(upperBound);
+      int64_t stepValue = getScalarIntegerLikeValue(step);
+
+      return IntegerRangeAttr::get(
+          getContext(), getResult().getType(),
+          lowerBoundValue, upperBoundValue, stepValue);
+    }
+
+    return {};
   }
 }
 

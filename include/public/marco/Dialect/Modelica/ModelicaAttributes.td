@@ -306,4 +306,26 @@ def Modelica_EquationMatchAttr : Modelica_Attr<"EquationMatch">
     }];
 }
 
+def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterface]>
+{
+    let summary = "Iterable range attribute";
+
+    let description = [{
+        Attribute representing an iterable range.
+    }];
+
+    let mnemonic = "int_range";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        "int64_t":$lowerBound,
+        "int64_t":$upperBound,
+        "int64_t":$step);
+
+    let assemblyFormat = [{
+        $lowerBound `,` $upperBound `,` $step `:` $type
+    }];
+}
+
+
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

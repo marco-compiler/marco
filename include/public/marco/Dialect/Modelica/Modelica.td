@@ -239,32 +239,7 @@ def RangeOp : Modelica_Op<"range", []>
 
     let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
 
-    let hasCanonicalizer = 1;
-}
-
-def ConstantRangeOp : Modelica_Op<"constant_range", []>
-{
-    let summary = "Constant range";
-
-    let description = [{
-        The operation represents a mono-dimensional range, with a lower bound,
-        an upper bound and a step.
-
-        Example:
-
-        ```mlir
-        %0 = modelica.range {lowerBound = 2 : index, upperBound = 5 : index, step = 1 : index} : !modelica.iterable<index>
-        ```
-    }];
-
-    let arguments = (ins
-        AnyAttr:$lowerBound,
-        AnyAttr:$upperBound,
-        AnyAttr:$step);
-
-    let results = (outs ModelicaIterable:$result);
-
-    let assemblyFormat = "attr-dict `:` type($result)";
+    let hasFolder = 1;
 }
 
 def UnboundedRangeOp : Modelica_Op<"unbounded_range", []>
@@ -685,10 +660,10 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
     NoMemoryEffect,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Create a reduced-rank view of an array.";
+    let summary = "Create a view over an array.";
 
     let description = [{
-        Create a reduced-rank view of an array.
+        Create a view over an array.
         The values of the original arrays are not copied and all the modifications
         performed on the subview do reflect on the original array.
 
