@@ -54,7 +54,7 @@ namespace mlir
       printer << "R";
     }
 
-    for (int64_t index : path) {
+    for (uint64_t index : path) {
       printer << ", " << index;
     }
 
