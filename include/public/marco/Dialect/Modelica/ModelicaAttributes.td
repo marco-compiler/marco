@@ -325,6 +325,11 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterfac
     let assemblyFormat = [{
         $lowerBound `,` $upperBound `,` $step `:` $type
     }];
+
+    let builders = [
+        AttrBuilder<(
+            ins "int64_t":$lowerBound, "int64_t":$upperBound, "int64_t":$step)>
+    ];
 }
 
 def Modelica_RealRangeAttr : Modelica_Attr<"RealRange", [TypedAttrInterface]>
@@ -344,6 +349,11 @@ def Modelica_RealRangeAttr : Modelica_Attr<"RealRange", [TypedAttrInterface]>
         APFloatParameter<"Step">:$step);
 
     let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        AttrBuilder<(
+            ins "double":$lowerBound, "double":$upperBound, "double":$step)>
+    ];
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

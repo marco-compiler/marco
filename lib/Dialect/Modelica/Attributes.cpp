@@ -811,8 +811,32 @@ namespace mlir::modelica
   }
 
   //===-------------------------------------------------------------------===//
+  // IntegerRangeAttr
+  //===-------------------------------------------------------------------===//
+
+  IntegerRangeAttr IntegerRangeAttr::get(
+      mlir::MLIRContext *context,
+      int64_t lowerBound, int64_t upperBound, int64_t step)
+  {
+    auto type = IterableType::get(context, IntegerType::get(context));
+    return get(context, type, lowerBound, upperBound, step);
+  }
+
+  //===-------------------------------------------------------------------===//
   // RealRangeAttr
   //===-------------------------------------------------------------------===//
+
+  RealRangeAttr RealRangeAttr::get(
+      mlir::MLIRContext *context,
+      double lowerBound, double upperBound, double step)
+  {
+    auto type = IterableType::get(context, RealType::get(context));
+
+    return get(context, type,
+               llvm::APFloat(lowerBound),
+               llvm::APFloat(upperBound),
+               llvm::APFloat(step));
+  }
 
   mlir::Attribute RealRangeAttr::parse(mlir::AsmParser& parser, mlir::Type)
   {
