@@ -308,10 +308,10 @@ def Modelica_EquationMatchAttr : Modelica_Attr<"EquationMatch">
 
 def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterface]>
 {
-    let summary = "Iterable range attribute";
+    let summary = "Iterable Integer range attribute";
 
     let description = [{
-        Attribute representing an iterable range.
+        Attribute representing an iterable range of Integer values.
     }];
 
     let mnemonic = "int_range";
@@ -327,5 +327,23 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterfac
     }];
 }
 
+def Modelica_RealRangeAttr : Modelica_Attr<"RealRange", [TypedAttrInterface]>
+{
+    let summary = "Iterable Real range attribute";
+
+    let description = [{
+        Attribute representing an iterable range of Real values.
+    }];
+
+    let mnemonic = "real_range";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        APFloatParameter<"Lower bound">:$lowerBound,
+        APFloatParameter<"Upper bound">:$upperBound,
+        APFloatParameter<"Step">:$step);
+
+    let hasCustomAssemblyFormat = 1;
+}
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

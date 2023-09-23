@@ -809,4 +809,43 @@ namespace mlir::modelica
   {
     printer << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
   }
+
+  //===-------------------------------------------------------------------===//
+  // RealRangeAttr
+  //===-------------------------------------------------------------------===//
+
+  mlir::Attribute RealRangeAttr::parse(mlir::AsmParser& parser, mlir::Type)
+  {
+    double lowerBound;
+    double upperBound;
+    double step;
+
+    if (parser.parseLess() ||
+        parser.parseFloat(lowerBound) ||
+        parser.parseComma() ||
+        parser.parseFloat(upperBound) ||
+        parser.parseComma() ||
+        parser.parseFloat(step) ||
+        parser.parseGreater()) {
+      return {};
+    }
+
+    mlir::Type type = IterableType::get(
+        parser.getContext(), RealType::get(parser.getContext()));
+
+    return RealRangeAttr::get(
+        parser.getContext(), type,
+        llvm::APFloat(lowerBound),
+        llvm::APFloat(upperBound),
+        llvm::APFloat(step));
+  }
+
+  void RealRangeAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<"
+            << getLowerBound() << ", "
+            << getUpperBound() << ", "
+            << getStep()
+            << ">";
+  }
 }
