@@ -963,6 +963,17 @@ namespace
 
 namespace mlir::modelica
 {
+  void SubscriptionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      mlir::Value source,
+      mlir::ValueRange indices)
+  {
+    build(builder, state,
+          inferResultType(source.getType().cast<ArrayType>(), indices),
+          source, indices);
+  }
+
   mlir::ParseResult SubscriptionOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
@@ -1009,11 +1020,24 @@ namespace mlir::modelica
 
   mlir::LogicalResult SubscriptionOp::verify()
   {
-    auto indicesAmount = getIndices().size();
+    ArrayType sourceType = getSourceArrayType();
+    ArrayType resultType = getResultArrayType();
+    ArrayType expectedResultType = inferResultType(sourceType, getIndices());
 
-    if (getSourceArrayType().slice(indicesAmount) != getResultArrayType()) {
-      return emitOpError(
-          "incompatible source array type and result sliced type");
+    if (resultType.getRank() != expectedResultType.getRank()) {
+      return emitOpError() << "incompatible result rank";
+    }
+
+    for (int64_t i = 0, e = resultType.getRank(); i < e; ++i) {
+      int64_t actualDimSize = resultType.getDimSize(i);
+      int64_t expectedDimSize = expectedResultType.getDimSize(i);
+
+      if (actualDimSize != ArrayType::kDynamic &&
+          actualDimSize != expectedDimSize) {
+        return emitOpError() << "incompatible size for dimension " << i
+                             << " (expected " << expectedDimSize << ", got "
+                             << actualDimSize << ")";
+      }
     }
 
     return mlir::success();
@@ -1048,6 +1072,38 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
     // No regions to be derived.
+  }
+
+  ArrayType SubscriptionOp::inferResultType(
+      ArrayType source, mlir::ValueRange indices)
+  {
+    llvm::SmallVector<int64_t> shape;
+    size_t numOfSubscriptions = indices.size();
+
+    for (size_t i = 0; i < numOfSubscriptions; ++i) {
+      mlir::Value index = indices[i];
+
+      if (index.getType().isa<IterableType>()) {
+        int64_t dimension = ArrayType::kDynamic;
+
+        if (auto constantOp = index.getDefiningOp<ConstantOp>()) {
+          mlir::Attribute indexAttr = constantOp.getValue();
+
+          if (auto rangeAttr = mlir::dyn_cast<RangeAttrInterface>(indexAttr)) {
+            dimension = rangeAttr.getNumOfElements();
+          }
+        }
+
+        shape.push_back(dimension);
+      }
+    }
+
+    for (int64_t dimension :
+         source.getShape().drop_front(numOfSubscriptions)) {
+      shape.push_back(dimension);
+    }
+
+    return source.withShape(shape);
   }
 }
 
