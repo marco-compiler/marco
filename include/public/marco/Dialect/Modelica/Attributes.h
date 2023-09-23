@@ -23,14 +23,14 @@ namespace mlir::modelica
 
   using EquationScheduleDirection = ::marco::modeling::scheduling::Direction;
 
-  mlir::TypedAttr getAttr(mlir::Type type, int64_t value);
-  mlir::TypedAttr getAttr(mlir::Type type, double value);
+  mlir::Attribute getAttr(mlir::Type type, int64_t value);
+  mlir::Attribute getAttr(mlir::Type type, double value);
 
-  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
-  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
 
-  mlir::TypedAttr getZeroAttr(mlir::Type type);
-  mlir::TypedAttr getOneAttr(mlir::Type type);
+  mlir::Attribute getZeroAttr(mlir::Type type);
+  mlir::Attribute getOneAttr(mlir::Type type);
 
   namespace detail
   {

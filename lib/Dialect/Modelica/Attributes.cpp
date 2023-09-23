@@ -129,7 +129,7 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::TypedAttr getAttr(mlir::Type type, int64_t value)
+  mlir::Attribute getAttr(mlir::Type type, int64_t value)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), value != 0);
@@ -159,7 +159,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::TypedAttr getAttr(mlir::Type type, double value)
+  mlir::Attribute getAttr(mlir::Type type, double value)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), value != 0);
@@ -189,7 +189,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values)
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values)
   {
     mlir::Type elementType = arrayType.getElementType();
 
@@ -239,7 +239,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<double> values)
+  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values)
   {
     mlir::Type elementType = arrayType.getElementType();
 
@@ -295,7 +295,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::TypedAttr getZeroAttr(mlir::Type type)
+  mlir::Attribute getZeroAttr(mlir::Type type)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), false);
@@ -343,7 +343,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::TypedAttr getOneAttr(mlir::Type type)
+  mlir::Attribute getOneAttr(mlir::Type type)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), true);

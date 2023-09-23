@@ -1062,8 +1062,9 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     let hasFolder = 1;
 
     let builders = [
-        OpBuilder<(ins "mlir::TypedAttr":$value), [{
-            build($_builder, $_state, value.getType(), value);
+        OpBuilder<(ins "mlir::Attribute":$value), [{
+            auto typedAttr = value.cast<mlir::TypedAttr>();
+            build($_builder, $_state, typedAttr.getType(), typedAttr);
         }]>
     ];
 }
