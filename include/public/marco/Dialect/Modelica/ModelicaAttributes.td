@@ -322,9 +322,7 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterfac
         "int64_t":$upperBound,
         "int64_t":$step);
 
-    let assemblyFormat = [{
-        $lowerBound `,` $upperBound `,` $step `:` $type
-    }];
+    let hasCustomAssemblyFormat = 1;
 
     let builders = [
         AttrBuilder<(

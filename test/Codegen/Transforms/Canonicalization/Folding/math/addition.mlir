@@ -102,3 +102,63 @@ func.func @test() -> (f64) {
     %result = modelica.add %x, %y : (f64, f64) -> f64
     return %result : f64
 }
+
+// -----
+
+// Integer range and Integer offset.
+
+// CHECK-LABEL: @test
+// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.int_range<7, 9, 1>
+// CHECK-NEXT: return %[[cst]]
+
+func.func @test() -> (!modelica<iterable !modelica.int>) {
+    %x = modelica.constant #modelica.int_range<5, 7, 1>
+    %y = modelica.constant #modelica.int<2>
+    %result = modelica.add %x, %y : (!modelica<iterable !modelica.int>, !modelica.int) -> !modelica<iterable !modelica.int>
+    return %result : !modelica<iterable !modelica.int>
+}
+
+// -----
+
+// Integer range and Real offset.
+
+// CHECK-LABEL: @test
+// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.real_range<7.000000e+00, 9.000000e+00, 1.000000e+00>
+// CHECK-NEXT: return %[[cst]]
+
+func.func @test() -> (!modelica<iterable !modelica.real>) {
+    %x = modelica.constant #modelica.int_range<5, 7, 1>
+    %y = modelica.constant #modelica.real<2.0>
+    %result = modelica.add %x, %y : (!modelica<iterable !modelica.int>, !modelica.real) -> !modelica<iterable !modelica.real>
+    return %result : !modelica<iterable !modelica.real>
+}
+
+// -----
+
+// Real range and Integer offset.
+
+// CHECK-LABEL: @test
+// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.real_range<7.000000e+00, 9.000000e+00, 1.000000e+00>
+// CHECK-NEXT: return %[[cst]]
+
+func.func @test() -> (!modelica<iterable !modelica.real>) {
+    %x = modelica.constant #modelica.real_range<5.0, 7.0, 1.0>
+    %y = modelica.constant #modelica.int<2>
+    %result = modelica.add %x, %y : (!modelica<iterable !modelica.real>, !modelica.int) -> !modelica<iterable !modelica.real>
+    return %result : !modelica<iterable !modelica.real>
+}
+
+// -----
+
+// Real range and Real offset.
+
+// CHECK-LABEL: @test
+// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.real_range<7.000000e+00, 9.000000e+00, 1.000000e+00>
+// CHECK-NEXT: return %[[cst]]
+
+func.func @test() -> (!modelica<iterable !modelica.real>) {
+    %x = modelica.constant #modelica.real_range<5.0, 7.0, 1.0>
+    %y = modelica.constant #modelica.real<2.0>
+    %result = modelica.add %x, %y : (!modelica<iterable !modelica.real>, !modelica.real) -> !modelica<iterable !modelica.real>
+    return %result : !modelica<iterable !modelica.real>
+}

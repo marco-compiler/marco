@@ -391,9 +391,9 @@ namespace mlir::modelica
     return {};
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // BooleanAttr
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::Attribute BooleanAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
@@ -429,9 +429,9 @@ namespace mlir::modelica
     printer << "<" << (getValue() == 0 ? "false" : "true") << ">";
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // IntegerAttr
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::Attribute IntegerAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
@@ -447,7 +447,8 @@ namespace mlir::modelica
       type = IntegerType::get(parser.getContext());
     }
 
-    return IntegerAttr::get(parser.getContext(), type, llvm::APInt(sizeof(long) * 8, value, true));
+    return IntegerAttr::get(
+        parser.getContext(), type, llvm::APInt(sizeof(long) * 8, value, true));
   }
 
   void IntegerAttr::print(mlir::AsmPrinter& printer) const
@@ -455,11 +456,11 @@ namespace mlir::modelica
     printer << "<" << getValue() << ">";
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // RealAttr
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  mlir::Attribute RealAttr::parse(mlir::AsmParser& parser, mlir::Type)
+  mlir::Attribute RealAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     double value;
 
@@ -469,10 +470,11 @@ namespace mlir::modelica
       return {};
     }
 
-    return RealAttr::get(
-        parser.getContext(),
-        RealType::get(parser.getContext()),
-        llvm::APFloat(value));
+    if (!type) {
+      type = RealType::get(parser.getContext());
+    }
+
+    return RealAttr::get(parser.getContext(), type, llvm::APFloat(value));
   }
 
   void RealAttr::print(mlir::AsmPrinter& printer) const
@@ -822,6 +824,41 @@ namespace mlir::modelica
     return get(context, type, lowerBound, upperBound, step);
   }
 
+  mlir::Attribute IntegerRangeAttr::parse(
+      mlir::AsmParser& parser, mlir::Type type)
+  {
+    int64_t lowerBound;
+    int64_t upperBound;
+    int64_t step;
+
+    if (parser.parseLess() ||
+        parser.parseInteger(lowerBound) ||
+        parser.parseComma() ||
+        parser.parseInteger(upperBound) ||
+        parser.parseComma() ||
+        parser.parseInteger(step) ||
+        parser.parseGreater()) {
+      return {};
+    }
+
+    if (!type) {
+      type = IterableType::get(
+          parser.getContext(), IntegerType::get(parser.getContext()));
+    }
+
+    return IntegerRangeAttr::get(
+        parser.getContext(), type, lowerBound, upperBound, step);
+  }
+
+  void IntegerRangeAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<"
+            << getLowerBound() << ", "
+            << getUpperBound() << ", "
+            << getStep()
+            << ">";
+  }
+
   //===-------------------------------------------------------------------===//
   // RealRangeAttr
   //===-------------------------------------------------------------------===//
@@ -838,7 +875,8 @@ namespace mlir::modelica
                llvm::APFloat(step));
   }
 
-  mlir::Attribute RealRangeAttr::parse(mlir::AsmParser& parser, mlir::Type)
+  mlir::Attribute RealRangeAttr::parse(
+      mlir::AsmParser& parser, mlir::Type type)
   {
     double lowerBound;
     double upperBound;
@@ -854,8 +892,10 @@ namespace mlir::modelica
       return {};
     }
 
-    mlir::Type type = IterableType::get(
-        parser.getContext(), RealType::get(parser.getContext()));
+    if (!type) {
+      type = IterableType::get(
+          parser.getContext(), RealType::get(parser.getContext()));
+    }
 
     return RealRangeAttr::get(
         parser.getContext(), type,

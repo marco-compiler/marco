@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test
-// CHECK: %[[range:.*]] = modelica.constant #modelica<int_range 0, 5, 1 : !modelica<iterable index>>
+// CHECK: %[[range:.*]] = modelica.constant #modelica.int_range<0, 5, 1>
 // CHECK: return %[[range]] : !modelica<iterable index>
 
 func.func @test() -> !modelica<iterable index> {
