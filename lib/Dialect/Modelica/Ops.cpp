@@ -1840,6 +1840,32 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AddOp
 
+namespace
+{
+  struct AddOpIterableOrderingPattern : public mlir::OpRewritePattern<AddOp>
+  {
+    using mlir::OpRewritePattern<AddOp>::OpRewritePattern;
+
+    mlir::LogicalResult match(AddOp op) const override
+    {
+      mlir::Value lhs = op.getLhs();
+      mlir::Value rhs = op.getRhs();
+
+      return mlir::LogicalResult::success(
+          !lhs.getType().isa<IterableType>() &&
+          rhs.getType().isa<IterableType>());
+    }
+
+    void rewrite(
+        AddOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      // Swap the operands.
+      rewriter.replaceOpWithNewOp<AddOp>(
+          op, op.getResult().getType(), op.getRhs(), op.getLhs());
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   mlir::OpFoldResult AddOp::fold(FoldAdaptor adaptor)
@@ -1880,6 +1906,12 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void AddOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<AddOpIterableOrderingPattern>(context);
   }
 
   void AddOp::getEffects(

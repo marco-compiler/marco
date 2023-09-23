@@ -1128,6 +1128,7 @@ def Modelica_AddOp : Modelica_Op<"add",
     }];
 
     let hasFolder = 1;
+    let hasCanonicalizer = 1;
 }
 
 def Modelica_AddEWOp : Modelica_Op<"add_ew",
