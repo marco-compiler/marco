@@ -1,27 +1,27 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICAINTERFACES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICAINTERFACES_TD
+#ifndef MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD
+#define MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD
 
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
-// Modelica interface definitions
+// Modelica op interface definitions
 //===---------------------------------------------------------------------===//
 
-class Modelica_Interface<string name>
+class Modelica_OpInterface<string name>
     : OpInterface<name>
 {
     let cppNamespace = "::mlir::modelica";
 }
 
-def ClassInterface : Modelica_Interface<"ClassInterface">
+def ClassInterface : Modelica_OpInterface<"ClassInterface">
 {
     let description = [{
         Interface for a Modelica class.
     }];
 }
 
-def VectorizableOpInterface : Modelica_Interface<"VectorizableOpInterface">
+def VectorizableOpInterface : Modelica_OpInterface<"VectorizableOpInterface">
 {
     let description = [{
         Interface for a vectorizable operation.
@@ -45,7 +45,7 @@ def VectorizableOpInterface : Modelica_Interface<"VectorizableOpInterface">
     ];
 }
 
-def InvertibleOpInterface : Modelica_Interface<"InvertibleOpInterface">
+def InvertibleOpInterface : Modelica_OpInterface<"InvertibleOpInterface">
 {
     let description = [{
         This interface is used to abstract an operation that can be propagated
@@ -63,7 +63,7 @@ def InvertibleOpInterface : Modelica_Interface<"InvertibleOpInterface">
     ];
 }
 
-def DistributableOpInterface : Modelica_Interface<"DistributableOpInterface">
+def DistributableOpInterface : Modelica_OpInterface<"DistributableOpInterface">
 {
     let description = [{
         Interface for an distributable operation.
@@ -79,7 +79,7 @@ def DistributableOpInterface : Modelica_Interface<"DistributableOpInterface">
     ];
 }
 
-def NegateOpDistributionInterface : Modelica_Interface<"NegateOpDistributionInterface">
+def NegateOpDistributionInterface : Modelica_OpInterface<"NegateOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the NegateOp to be distributed among its operands.
@@ -96,7 +96,7 @@ def NegateOpDistributionInterface : Modelica_Interface<"NegateOpDistributionInte
     ];
 }
 
-def MulOpDistributionInterface : Modelica_Interface<"MulOpDistributionInterface">
+def MulOpDistributionInterface : Modelica_OpInterface<"MulOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the MulOp to be distributed among its operands.
@@ -114,7 +114,7 @@ def MulOpDistributionInterface : Modelica_Interface<"MulOpDistributionInterface"
     ];
 }
 
-def DivOpDistributionInterface : Modelica_Interface<"DivOpDistributionInterface">
+def DivOpDistributionInterface : Modelica_OpInterface<"DivOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the DivOp to be distributed among its operands.
@@ -132,7 +132,7 @@ def DivOpDistributionInterface : Modelica_Interface<"DivOpDistributionInterface"
     ];
 }
 
-def DerivableOpInterface : Modelica_Interface<"DerivableOpInterface">
+def DerivableOpInterface : Modelica_OpInterface<"DerivableOpInterface">
 {
     let description = [{
         Interface to describe an operation that can be traversed while
@@ -161,4 +161,4 @@ def DerivableOpInterface : Modelica_Interface<"DerivableOpInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICAINTERFACES_TD
+#endif // MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD

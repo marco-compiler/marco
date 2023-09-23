@@ -1,17 +1,18 @@
 #ifndef MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
 #define MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
 
-#include "marco/Dialect/Modelica/Types.h"
 #include "marco/Dialect/Modelica/EquationPath.h"
 #include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "marco/Dialect/Modelica/AttrInterfaces.h"
+#include "marco/Dialect/Modelica/Types.h"
 #include "marco/Dialect/Modeling/Attributes.h"
 #include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/Attributes.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/StringRef.h"
 #include <map>
 
 namespace mlir::modelica

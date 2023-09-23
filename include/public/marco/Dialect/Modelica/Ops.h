@@ -2,7 +2,7 @@
 #define MARCO_DIALECTS_MODELICA_OPS_H
 
 #include "marco/Dialect/Modelica/Attributes.h"
-#include "marco/Dialect/Modelica/Interfaces.h"
+#include "marco/Dialect/Modelica/OpInterfaces.h"
 #include "marco/Dialect/Modelica/Types.h"
 #include "marco/Dialect/Modelica/VariableAccess.h"
 #include "marco/Dialect/Modeling/Attributes.h"

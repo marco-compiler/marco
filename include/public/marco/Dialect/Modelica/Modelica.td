@@ -3,7 +3,7 @@
 
 include "marco/Dialect/Modelica/ModelicaAttributes.td"
 include "marco/Dialect/Modelica/ModelicaDialect.td"
-include "marco/Dialect/Modelica/ModelicaInterfaces.td"
+include "marco/Dialect/Modelica/ModelicaOpInterfaces.td"
 include "marco/Dialect/Modelica/ModelicaTypes.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -689,13 +689,13 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
     let hasCanonicalizer = 1;
 
     let builders = [
-        OpBuilder<(ins "Value":$source, "ValueRange":$indices), [{
-            auto slicedArrayType = source.getType().cast<ArrayType>().slice(indices.size());
-            build($_builder, $_state, slicedArrayType, source, indices);
-        }]>
+        OpBuilder<(ins "Value":$source, "ValueRange":$indices)>
     ];
 
     let extraClassDeclaration = [{
+        static ArrayType inferResultType(
+            ArrayType source, mlir::ValueRange indices);
+
         ArrayType getSourceArrayType() {
             return getSource().getType().cast<ArrayType>();
         }

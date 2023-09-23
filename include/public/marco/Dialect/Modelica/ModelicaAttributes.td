@@ -2,6 +2,7 @@
 #define MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD
 
 include "marco/Dialect/Modelica/ModelicaDialect.td"
+include "marco/Dialect/Modelica/ModelicaAttrInterfaces.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -306,7 +307,9 @@ def Modelica_EquationMatchAttr : Modelica_Attr<"EquationMatch">
     }];
 }
 
-def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterface]>
+def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange",
+    [TypedAttrInterface,
+    DeclareAttrInterfaceMethods<RangeAttrInterface>]>
 {
     let summary = "Iterable Integer range attribute";
 
@@ -330,7 +333,9 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange", [TypedAttrInterfac
     ];
 }
 
-def Modelica_RealRangeAttr : Modelica_Attr<"RealRange", [TypedAttrInterface]>
+def Modelica_RealRangeAttr : Modelica_Attr<"RealRange",
+    [TypedAttrInterface,
+    DeclareAttrInterfaceMethods<RangeAttrInterface>]>
 {
     let summary = "Iterable Real range attribute";
 

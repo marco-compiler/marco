@@ -859,6 +859,11 @@ namespace mlir::modelica
             << ">";
   }
 
+  int64_t IntegerRangeAttr::getNumOfElements() const
+  {
+    return 1 + (getUpperBound() - getLowerBound()) / getStep();
+  }
+
   //===-------------------------------------------------------------------===//
   // RealRangeAttr
   //===-------------------------------------------------------------------===//
@@ -911,5 +916,11 @@ namespace mlir::modelica
             << getUpperBound() << ", "
             << getStep()
             << ">";
+  }
+
+  int64_t RealRangeAttr::getNumOfElements() const
+  {
+    llvm::APFloat result = ((getUpperBound() - getLowerBound()) / getStep());
+    return 1 + static_cast<int64_t>(result.convertToDouble());
   }
 }
