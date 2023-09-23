@@ -126,9 +126,12 @@ namespace mlir::modelica
   }
 
   Operation* ModelicaDialect::materializeConstant(
-      mlir::OpBuilder& builder, mlir::Attribute value, mlir::Type type, mlir::Location loc)
+      mlir::OpBuilder& builder,
+      mlir::Attribute value,
+      mlir::Type type,
+      mlir::Location loc)
   {
-    return builder.create<ConstantOp>(loc, type, value);
+    return builder.create<ConstantOp>(loc, type, value.cast<mlir::TypedAttr>());
   }
 }
 

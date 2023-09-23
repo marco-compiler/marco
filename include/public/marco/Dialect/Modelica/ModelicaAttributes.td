@@ -85,13 +85,13 @@ def Modelica_RealAttr
 
     let parameters = (ins
         AttributeSelfTypeParameter<"">:$type,
-        "::llvm::APFloat":$value);
+        APFloatParameter<"">:$value);
 
     let builders = [
-        AttrBuilderWithInferredContext<(ins "Type":$type, "double":$value), [{
+        AttrBuilderWithInferredContext<(ins "::mlir::Type":$type, "double":$value), [{
             return $_get(type.getContext(), type, ::llvm::APFloat(value));
         }]>,
-        AttrBuilderWithInferredContext<(ins "MLIRContext*":$context, "double":$value), [{
+        AttrBuilderWithInferredContext<(ins "::mlir::MLIRContext*":$context, "double":$value), [{
             return $_get(context, RealType::get(context), ::llvm::APFloat(value));
         }]>
     ];

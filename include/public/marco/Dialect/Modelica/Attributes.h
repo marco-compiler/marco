@@ -7,9 +7,7 @@
 #include "marco/Dialect/Modeling/Attributes.h"
 #include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/Attributes.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinAttributeInterfaces.h"
-#include "mlir/Support/StorageUniquer.h"
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -24,14 +22,14 @@ namespace mlir::modelica
 
   using EquationScheduleDirection = ::marco::modeling::scheduling::Direction;
 
-  mlir::Attribute getAttr(mlir::Type type, int64_t value);
-  mlir::Attribute getAttr(mlir::Type type, double value);
+  mlir::TypedAttr getAttr(mlir::Type type, int64_t value);
+  mlir::TypedAttr getAttr(mlir::Type type, double value);
 
-  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
-  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
+  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
+  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
 
-  mlir::Attribute getZeroAttr(mlir::Type type);
-  mlir::Attribute getOneAttr(mlir::Type type);
+  mlir::TypedAttr getZeroAttr(mlir::Type type);
+  mlir::TypedAttr getOneAttr(mlir::Type type);
 
   namespace detail
   {

@@ -1565,32 +1565,6 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::ParseResult ConstantOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    mlir::Attribute value;
-
-    if (parser.parseAttribute(value)) {
-      return mlir::failure();
-    }
-
-    result.attributes.append("value", value);
-    result.addTypes(value.cast<mlir::TypedAttr>().getType());
-
-    return mlir::success();
-  }
-
-  void ConstantOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer.printOptionalAttrDict(getOperation()->getAttrs(), {"value"});
-    printer << " " << getValue();
-
-    // If the value is a symbol reference, print a trailing type.
-    if (getValue().isa<mlir::SymbolRefAttr>()) {
-      printer << " : " << getType();
-    }
-  }
-
   mlir::OpFoldResult ConstantOp::fold(FoldAdaptor adaptor)
   {
     return getValue();

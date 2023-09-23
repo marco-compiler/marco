@@ -14,27 +14,27 @@ namespace marco::codegen::lowering
   Results ConstantLowerer::lower(const ast::Constant& constant)
   {
     mlir::Location location = loc(constant.getLocation());
-    mlir::Attribute attribute = constant.visit(*this);
+    mlir::TypedAttr attribute = constant.visit(*this);
     auto result = builder().create<ConstantOp>(location, attribute);
     return Reference::ssa(builder(), result);
   }
 
-  mlir::Attribute ConstantLowerer::operator()(bool value)
+  mlir::TypedAttr ConstantLowerer::operator()(bool value)
   {
     return BooleanAttr::get(builder().getContext(), value);
   }
 
-  mlir::Attribute ConstantLowerer::operator()(int64_t value)
+  mlir::TypedAttr ConstantLowerer::operator()(int64_t value)
   {
     return IntegerAttr::get(builder().getContext(), value);
   }
 
-  mlir::Attribute ConstantLowerer::operator()(double value)
+  mlir::TypedAttr ConstantLowerer::operator()(double value)
   {
     return RealAttr::get(builder().getContext(), value);
   }
 
-  mlir::Attribute ConstantLowerer::operator()(std::string value)
+  mlir::TypedAttr ConstantLowerer::operator()(std::string value)
   {
     llvm_unreachable("Unsupported constant type");
     return nullptr;

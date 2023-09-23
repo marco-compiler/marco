@@ -15,10 +15,10 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Constant& constant) override;
 
-      mlir::Attribute operator()(bool value);
-      mlir::Attribute operator()(int64_t value);
-      mlir::Attribute operator()(double value);
-      mlir::Attribute operator()(std::string value);
+      mlir::TypedAttr operator()(bool value);
+      mlir::TypedAttr operator()(int64_t value);
+      mlir::TypedAttr operator()(double value);
+      mlir::TypedAttr operator()(std::string value);
   };
 }
 

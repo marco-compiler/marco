@@ -129,7 +129,7 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::Attribute getAttr(mlir::Type type, int64_t value)
+  mlir::TypedAttr getAttr(mlir::Type type, int64_t value)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), value != 0);
@@ -159,7 +159,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getAttr(mlir::Type type, double value)
+  mlir::TypedAttr getAttr(mlir::Type type, double value)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), value != 0);
@@ -189,7 +189,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values)
+  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values)
   {
     mlir::Type elementType = arrayType.getElementType();
 
@@ -239,7 +239,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values)
+  mlir::TypedAttr getAttr(ArrayType arrayType, llvm::ArrayRef<double> values)
   {
     mlir::Type elementType = arrayType.getElementType();
 
@@ -295,7 +295,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getZeroAttr(mlir::Type type)
+  mlir::TypedAttr getZeroAttr(mlir::Type type)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), false);
@@ -343,7 +343,7 @@ namespace mlir::modelica
     return {};
   }
 
-  mlir::Attribute getOneAttr(mlir::Type type)
+  mlir::TypedAttr getOneAttr(mlir::Type type)
   {
     if (type.isa<BooleanType>()) {
       return BooleanAttr::get(type.getContext(), true);
@@ -459,7 +459,7 @@ namespace mlir::modelica
   // RealAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute RealAttr::parse(mlir::AsmParser& parser, mlir::Type type)
+  mlir::Attribute RealAttr::parse(mlir::AsmParser& parser, mlir::Type)
   {
     double value;
 
@@ -469,11 +469,10 @@ namespace mlir::modelica
       return {};
     }
 
-    if (!type) {
-      type = RealType::get(parser.getContext());
-    }
-
-    return RealAttr::get(parser.getContext(), type, llvm::APFloat(value));
+    return RealAttr::get(
+        parser.getContext(),
+        RealType::get(parser.getContext()),
+        llvm::APFloat(value));
   }
 
   void RealAttr::print(mlir::AsmPrinter& printer) const

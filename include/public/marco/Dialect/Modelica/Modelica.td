@@ -1039,6 +1039,7 @@ def Modelica_GlobalVariableGetOp : Modelica_Op<"global_variable_get",
 def Modelica_ConstantOp : Modelica_Op<"constant",
     [ConstantLike,
     Pure,
+    AllTypesMatch<["value", "result"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
@@ -1054,15 +1055,15 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
         ```
     }];
 
-    let arguments = (ins AnyAttr:$value);
-    let results = (outs AnyType);
+    let arguments = (ins TypedAttrInterface:$value);
+    let results = (outs AnyType:$result);
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = "$value attr-dict";
     let hasFolder = 1;
 
     let builders = [
-        OpBuilder<(ins "Attribute":$value), [{
-            build($_builder, $_state, value.cast<mlir::TypedAttr>().getType(), value);
+        OpBuilder<(ins "mlir::TypedAttr":$value), [{
+            build($_builder, $_state, value.getType(), value);
         }]>
     ];
 }
