@@ -65,10 +65,10 @@ modelica.model @Test {
         %1 = modelica.variable_get @x2 : !modelica.array<3x5x!modelica.int>
         %2 = modelica.variable_get @x3 : !modelica.array<3x5x!modelica.int>
         %3 = modelica.variable_get @x4 : !modelica.array<3x5x!modelica.int>
-        %4 = modelica.subscription %0[%i0] : !modelica.array<3x5x!modelica.int>
-        %5 = modelica.subscription %1[%i0] : !modelica.array<3x5x!modelica.int>
-        %6 = modelica.subscription %2[%i0] : !modelica.array<3x5x!modelica.int>
-        %7 = modelica.subscription %3[%i0] : !modelica.array<3x5x!modelica.int>
+        %4 = modelica.subscription %0[%i0] : !modelica.array<3x5x!modelica.int>, index -> !modelica.array<5x!modelica.int>
+        %5 = modelica.subscription %1[%i0] : !modelica.array<3x5x!modelica.int>, index -> !modelica.array<5x!modelica.int>
+        %6 = modelica.subscription %2[%i0] : !modelica.array<3x5x!modelica.int>, index -> !modelica.array<5x!modelica.int>
+        %7 = modelica.subscription %3[%i0] : !modelica.array<3x5x!modelica.int>, index -> !modelica.array<5x!modelica.int>
         %8 = modelica.equation_side %4, %5 : tuple<!modelica.array<5x!modelica.int>, !modelica.array<5x!modelica.int>>
         %9 = modelica.equation_side %6, %7 : tuple<!modelica.array<5x!modelica.int>, !modelica.array<5x!modelica.int>>
         modelica.equation_sides %8, %9 : tuple<!modelica.array<5x!modelica.int>, !modelica.array<5x!modelica.int>>, tuple<!modelica.array<5x!modelica.int>, !modelica.array<5x!modelica.int>>

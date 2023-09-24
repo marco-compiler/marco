@@ -116,9 +116,9 @@ modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x,
     // x[i] = der(x[i])
     %t0 = modelica.equation_template inductions = [%i0] {
         %0 = modelica.variable_get @x : !modelica.array<2x3x!modelica.real>
-        %1 = modelica.subscription %0[%i0] : !modelica.array<2x3x!modelica.real>
+        %1 = modelica.subscription %0[%i0] : !modelica.array<2x3x!modelica.real>, index -> !modelica.array<3x!modelica.real>
         %2 = modelica.variable_get @der_x : !modelica.array<2x3x!modelica.real>
-        %3 = modelica.subscription %2[%i0] : !modelica.array<2x3x!modelica.real>
+        %3 = modelica.subscription %2[%i0] : !modelica.array<2x3x!modelica.real>, index -> !modelica.array<3x!modelica.real>
         %4 = modelica.equation_side %1 : tuple<!modelica.array<3x!modelica.real>>
         %5 = modelica.equation_side %3 : tuple<!modelica.array<3x!modelica.real>>
         modelica.equation_sides %4, %5 : tuple<!modelica.array<3x!modelica.real>>, tuple<!modelica.array<3x!modelica.real>>

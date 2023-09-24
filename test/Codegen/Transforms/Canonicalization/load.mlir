@@ -16,8 +16,8 @@ func.func @test(%arg0: !modelica.array<2x3x4x5x6x!modelica.int>) -> (!modelica.i
     %2 = modelica.constant 2 : index
     %3 = modelica.constant 3 : index
     %4 = modelica.constant 4 : index
-    %5 = modelica.subscription %arg0[%0, %1] : !modelica.array<2x3x4x5x6x!modelica.int>
-    %6 = modelica.subscription %5[%2, %3] : !modelica.array<4x5x6x!modelica.int>
+    %5 = modelica.subscription %arg0[%0, %1] : !modelica.array<2x3x4x5x6x!modelica.int>, index, index -> !modelica.array<4x5x6x!modelica.int>
+    %6 = modelica.subscription %5[%2, %3] : !modelica.array<4x5x6x!modelica.int>, index, index -> !modelica.array<6x!modelica.int>
     %7 = modelica.load %6[%4] : !modelica.array<6x!modelica.int>
     return %7 : !modelica.int
 }

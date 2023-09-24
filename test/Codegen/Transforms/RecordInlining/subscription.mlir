@@ -48,12 +48,12 @@ modelica.model @Test {
 // CHECK:       modelica.equation {
 // CHECK-DAG:       %[[index:.*]] = modelica.constant 0 : index
 // CHECK-DAG:       %[[x:.*]] = modelica.variable_get @r.x : !modelica.array<3x5x!modelica.real>
-// CHECK-DAG:       %[[subscription_x_1:.*]] = modelica.subscription %[[x]][%[[index]]] : !modelica.array<3x5x!modelica.real>
-// CHECK-DAG:       %[[subscription_x_2:.*]] = modelica.subscription %[[subscription_x_1]][%[[index]]] : !modelica.array<5x!modelica.real>
+// CHECK-DAG:       %[[subscription_x_1:.*]] = modelica.subscription %[[x]][%[[index]]]
+// CHECK-DAG:       %[[subscription_x_2:.*]] = modelica.subscription %[[subscription_x_1]][%[[index]]]
 // CHECK-DAG:       %[[load_x:.*]] = modelica.load %[[subscription_x_2]]
 // CHECK-DAG:       %[[y:.*]] = modelica.variable_get @r.y : !modelica.array<3x5x!modelica.real>
-// CHECK-DAG:       %[[subscription_y_1:.*]] = modelica.subscription %[[y]][%[[index]]] : !modelica.array<3x5x!modelica.real>
-// CHECK-DAG:       %[[subscription_y_2:.*]] = modelica.subscription %[[subscription_y_1]][%[[index]]] : !modelica.array<5x!modelica.real>
+// CHECK-DAG:       %[[subscription_y_1:.*]] = modelica.subscription %[[y]][%[[index]]]
+// CHECK-DAG:       %[[subscription_y_2:.*]] = modelica.subscription %[[subscription_y_1]][%[[index]]]
 // CHECK-DAG:       %[[load_y:.*]] = modelica.load %[[subscription_y_2]]
 // CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[load_x]]
 // CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[load_y]]
@@ -71,7 +71,7 @@ modelica.model @Test {
     modelica.equation {
         %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica.record<@R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>
+        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>, index -> !modelica.array<5x!modelica.record<@R>>
         %3 = modelica.load %2[%1] : !modelica.array<5x!modelica.record<@R>>
         %4 = modelica.component_get %3, @x : !modelica.record<@R> -> !modelica.real
         %5 = modelica.component_get %3, @y : !modelica.record<@R> -> !modelica.real
@@ -149,7 +149,7 @@ modelica.function @Test {
     modelica.algorithm {
         %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica.record<@R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>
+        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>, index -> !modelica.array<5x!modelica.record<@R>>
         %3 = modelica.load %2[%1] : !modelica.array<5x!modelica.record<@R>>
         %4 = modelica.constant #modelica.real<1.0>
         %5 = modelica.constant #modelica.real<1.0>

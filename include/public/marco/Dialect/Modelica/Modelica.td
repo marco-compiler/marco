@@ -801,7 +801,10 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 
     let results = (outs AnyType:$result);
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $source `[` $indices `]` attr-dict `:` type($source) (`,` type($indices)^)? `->` type($result)
+    }];
+
     let hasVerifier = 1;
     let hasCanonicalizer = 1;
 

@@ -80,7 +80,7 @@ modelica.model @Test {
     // y[i] = {0, 0, 0}
     %t1 = modelica.equation_template inductions = [%i0] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.array<2x3x!modelica.real>
-        %1 = modelica.subscription %0[%i0] : !modelica.array<2x3x!modelica.real>
+        %1 = modelica.subscription %0[%i0] : !modelica.array<2x3x!modelica.real>, index -> !modelica.array<3x!modelica.real>
         %2 = modelica.constant #modelica.real<0.0>
         %3 = modelica.array_broadcast %2 : !modelica.real -> !modelica.array<3x!modelica.real>
         %4 = modelica.equation_side %1 : tuple<!modelica.array<3x!modelica.real>>

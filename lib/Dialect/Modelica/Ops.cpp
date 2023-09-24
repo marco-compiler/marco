@@ -974,50 +974,6 @@ namespace mlir::modelica
           source, indices);
   }
 
-  mlir::ParseResult SubscriptionOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    auto loc = parser.getCurrentLocation();
-    mlir::OpAsmParser::UnresolvedOperand source;
-    mlir::Type sourceType;
-    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
-    llvm::SmallVector<mlir::Type, 3> indicesTypes;
-
-    if (parser.parseOperand(source) ||
-        parser.parseOperandList(indices,
-                                mlir::OpAsmParser::Delimiter::Square) ||
-        parser.parseColonType(sourceType) ||
-        parser.resolveOperand(source, sourceType, result.operands)) {
-      return mlir::failure();
-    }
-
-    indicesTypes.resize(
-        indices.size(),
-        mlir::IndexType::get(result.getContext()));
-
-    size_t i = 0;
-
-    while (mlir::succeeded(parser.parseOptionalComma())) {
-      if (parser.parseType(indicesTypes[i++])) {
-        return mlir::failure();
-      }
-    }
-
-    if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
-      return mlir::failure();
-    }
-
-    result.addTypes(sourceType.cast<ArrayType>().slice(indices.size()));
-    return mlir::success();
-  }
-
-  void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " " << getSource() << "[" << getIndices() << "]";
-    printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getSource().getType();
-  }
-
   mlir::LogicalResult SubscriptionOp::verify()
   {
     ArrayType sourceType = getSourceArrayType();

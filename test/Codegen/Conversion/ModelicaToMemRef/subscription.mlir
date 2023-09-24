@@ -1,5 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-memref | FileCheck %s
 
+// Scalar indices.
+
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.array<6x5x4x3x2x!modelica.int>) -> !modelica.array<4x3x2x!modelica.int>
 // CHECK: %[[memref:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.array<6x5x4x3x2x!modelica.int> to memref<6x5x4x3x2xi64>
@@ -13,6 +15,6 @@
 func.func @foo(%arg0: !modelica.array<6x5x4x3x2x!modelica.int>) -> !modelica.array<4x3x2x!modelica.int> {
     %0 = arith.constant 3 : index
     %1 = arith.constant 2 : index
-    %2 = modelica.subscription %arg0[%0, %1] : !modelica.array<6x5x4x3x2x!modelica.int>
+    %2 = modelica.subscription %arg0[%0, %1] : !modelica.array<6x5x4x3x2x!modelica.int>, index, index -> !modelica.array<4x3x2x!modelica.int>
     func.return %2 : !modelica.array<4x3x2x!modelica.int>
 }
