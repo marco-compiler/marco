@@ -272,6 +272,123 @@ def UnboundedRangeOp : Modelica_Op<"unbounded_range", []>
     ];
 }
 
+def IterableBeginOp : Modelica_Op<"iterable_begin", []>
+{
+    let summary = "Get the begin value of an iterable";
+
+    let description = [{
+        Get the begin value of an iterable space.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica<iterable index>
+        %0 = modelica.iterable_begin %0 : !modelica.iterable<index> -> index
+        ```
+    }];
+
+    let arguments = (ins ModelicaIterable:$iterable);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$iterable), [{
+            auto inductionType =
+                iterable.getType().cast<IterableType>().getInductionType();
+
+            build($_builder, $_state, inductionType, iterable);
+        }]>
+    ];
+}
+
+def IterableEndOp : Modelica_Op<"iterable_end", []>
+{
+    let summary = "Get the end value of an iterable";
+
+    let description = [{
+        Get the end value of an iterable space.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica<iterable index>
+        %0 = modelica.iterable_end %0 : !modelica.iterable<index> -> index
+        ```
+    }];
+
+    let arguments = (ins ModelicaIterable:$iterable);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$iterable), [{
+            auto inductionType =
+                iterable.getType().cast<IterableType>().getInductionType();
+
+            build($_builder, $_state, inductionType, iterable);
+        }]>
+    ];
+}
+
+def IterableStepOp : Modelica_Op<"iterable_step", []>
+{
+    let summary = "Get the step value of an iterable";
+
+    let description = [{
+        Get the step value of an iterable space.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica<iterable index>
+        %0 = modelica.iterable_step %0 : !modelica.iterable<index> -> index
+        ```
+    }];
+
+    let arguments = (ins ModelicaIterable:$iterable);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$iterable), [{
+            auto inductionType =
+                iterable.getType().cast<IterableType>().getInductionType();
+
+            build($_builder, $_state, inductionType, iterable);
+        }]>
+    ];
+}
+
+def IterableSizeOp : Modelica_Op<"iterable_size", []>
+{
+    let summary = "Get the step value of an iterable";
+
+    let description = [{
+        Get the number of elements of an iterable space.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica<iterable index>
+        %0 = modelica.iterable_size %0 : !modelica.iterable<index> -> index
+        ```
+    }];
+
+    let arguments = (ins ModelicaIterable:$iterable);
+    let results = (outs Index:$result);
+
+    let assemblyFormat = "$iterable attr-dict `:` type($iterable)";
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$iterable), [{
+            build($_builder, $_state, $_builder.getIndexType(), iterable);
+        }]>
+    ];
+}
+
 //===---------------------------------------------------------------------===//
 // Array operations
 //===---------------------------------------------------------------------===//
