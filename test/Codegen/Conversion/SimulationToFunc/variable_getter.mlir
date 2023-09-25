@@ -3,9 +3,8 @@
 // Scalar variable.
 
 // CHECK:       func.func @getter(%arg0: !llvm.ptr<i64>) -> f64 {
-// CHECK-NEXT:      %[[cst:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      %[[result:.*]] = modelica.cast %[[cst]] : !modelica.real -> f64
-// CHECK-NEXT:      return %[[result]] : f64
+// CHECK-NEXT:      %[[cst:.*]] = modelica.constant 0.000000e+00 : f64
+// CHECK-NEXT:      return %[[cst]] : f64
 // CHECK-NEXT:  }
 
 simulation.variable_getter @getter() -> f64 {

@@ -4663,6 +4663,8 @@ def Modelica_CastOp : Modelica_Op<"cast",
     let assemblyFormat = [{
         $value attr-dict `:` type($value) `->` type($result)
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_PrintOp : Modelica_Op<"print",

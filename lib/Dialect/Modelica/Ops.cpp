@@ -12226,7 +12226,7 @@ namespace mlir::modelica
     }
 
     mlir::Region* bodyRegion = result.addRegion();
-    
+
     if (parser.parseRegion(*bodyRegion)) {
       return mlir::failure();
     }
@@ -13413,6 +13413,31 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::OpFoldResult CastOp::fold(FoldAdaptor adaptor)
+  {
+    auto operand = adaptor.getValue();
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        int64_t value = getScalarIntegerLikeValue(operand);
+        return getAttr(resultType, value);
+      }
+
+      if (isScalarFloatLike(operand)) {
+        double value = getScalarFloatLikeValue(operand);
+        return getAttr(resultType, value);
+      }
+    }
+
+    return {};
+  }
+
   mlir::ValueRange CastOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
