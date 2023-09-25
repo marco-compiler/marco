@@ -21,6 +21,8 @@ namespace mlir::modelica
     private:
       mlir::Type forwardConversion(mlir::Type type);
 
+      mlir::Type convertRangeType(mlir::modelica::RangeType type);
+
     private:
       unsigned int bitWidth;
       mlir::modelica::TypeConverter baseTypeConverter;

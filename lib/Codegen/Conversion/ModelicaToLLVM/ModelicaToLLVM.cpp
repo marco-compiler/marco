@@ -54,6 +54,67 @@ namespace
 }
 
 //===---------------------------------------------------------------------===//
+// Range operations
+//===---------------------------------------------------------------------===//
+
+namespace
+{
+  struct RangeBeginOpLowering
+      : public ModelicaOpConversionPattern<RangeBeginOp>
+  {
+      using ModelicaOpConversionPattern<RangeBeginOp>
+          ::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RangeBeginOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+            op, adaptor.getRange(), 0);
+
+        return mlir::success();
+      }
+  };
+
+  struct RangeEndOpLowering
+      : public ModelicaOpConversionPattern<RangeEndOp>
+  {
+      using ModelicaOpConversionPattern<RangeEndOp>
+          ::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RangeEndOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+            op, adaptor.getRange(), 1);
+
+        return mlir::success();
+      }
+  };
+
+  struct RangeStepOpLowering
+      : public ModelicaOpConversionPattern<RangeStepOp>
+  {
+      using ModelicaOpConversionPattern<RangeStepOp>
+          ::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RangeStepOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        rewriter.replaceOpWithNewOp<mlir::LLVM::ExtractValueOp>(
+            op, adaptor.getRange(), 2);
+
+        return mlir::success();
+      }
+  };
+}
+
+//===---------------------------------------------------------------------===//
 // Cast operations
 //===---------------------------------------------------------------------===//
 
@@ -230,6 +291,12 @@ static void populateModelicaToLLVMPatterns(
 		mlir::RewritePatternSet& patterns,
 		mlir::LLVMTypeConverter& typeConverter)
 {
+  // Range operations.
+  patterns.insert<
+      RangeBeginOpLowering,
+      RangeEndOpLowering,
+      RangeStepOpLowering>(typeConverter);
+
   // Cast operations.
   patterns.insert<
       CastOpIntegerLowering,
@@ -298,8 +365,13 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
 
 mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
 {
-  auto module = getOperation();
+  auto moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
+
+  target.addIllegalOp<
+      RangeBeginOp,
+      RangeEndOp,
+      RangeStepOp>();
 
   target.addIllegalOp<
       DerOp,
@@ -319,7 +391,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
     return true;
   });
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeSimulation()

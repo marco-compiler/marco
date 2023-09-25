@@ -19,7 +19,9 @@ namespace mlir::modelica
       mlir::Type convertIntegerType(mlir::modelica::IntegerType type);
       mlir::Type convertRealType(mlir::modelica::RealType type);
       mlir::Type convertArrayType(mlir::modelica::ArrayType type);
-      mlir::Type convertUnrankedArrayType(mlir::modelica::UnrankedArrayType type);
+
+      mlir::Type convertUnrankedArrayType(
+          mlir::modelica::UnrankedArrayType type);
 
     private:
 		  unsigned int bitWidth;

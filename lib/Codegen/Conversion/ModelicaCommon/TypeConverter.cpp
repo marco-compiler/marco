@@ -1,4 +1,5 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 using namespace ::mlir::modelica;
 
@@ -35,21 +36,35 @@ namespace mlir::modelica
       return type;
     });
 
-    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> std::optional<mlir::Value> {
-      if (inputs.size() != 1) {
-        return std::nullopt;
-      }
+    addTargetMaterialization(
+        [&](mlir::OpBuilder& builder,
+            mlir::Type resultType,
+            mlir::ValueRange inputs,
+            mlir::Location loc) -> std::optional<mlir::Value> {
+          if (inputs.size() != 1) {
+            return std::nullopt;
+          }
 
-      return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs).getResult(0);
-    });
+          auto castOp = builder.create<mlir::UnrealizedConversionCastOp>(
+              loc, resultType, inputs);
 
-    addSourceMaterialization([&](mlir::OpBuilder& builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> std::optional<mlir::Value> {
-      if (inputs.size() != 1) {
-        return std::nullopt;
-      }
+          return castOp.getResult(0);
+        });
 
-      return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs).getResult(0);
-    });
+    addSourceMaterialization(
+        [&](mlir::OpBuilder& builder,
+            mlir::Type resultType,
+            mlir::ValueRange inputs,
+            mlir::Location loc) -> std::optional<mlir::Value> {
+          if (inputs.size() != 1) {
+            return std::nullopt;
+          }
+
+          auto castOp = builder.create<mlir::UnrealizedConversionCastOp>(
+              loc, resultType, inputs);
+
+          return castOp.getResult(0);
+        });
   }
 
   mlir::Type TypeConverter::convertBooleanType(BooleanType type)

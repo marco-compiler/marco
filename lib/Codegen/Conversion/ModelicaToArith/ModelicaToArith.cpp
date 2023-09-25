@@ -236,6 +236,50 @@ namespace
 }
 
 //===---------------------------------------------------------------------===//
+// Range operations
+//===---------------------------------------------------------------------===//
+
+namespace
+{
+  struct RangeSizeOpLowering
+      : public ModelicaOpRewritePattern<RangeSizeOp>
+  {
+      using ModelicaOpRewritePattern<RangeSizeOp>::ModelicaOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RangeSizeOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        mlir::Value beginValue =
+            rewriter.create<RangeBeginOp>(loc, op.getRange());
+
+        mlir::Value endValue = rewriter.create<RangeEndOp>(loc, op.getRange());
+
+        mlir::Value stepValue =
+            rewriter.create<RangeStepOp>(loc, op.getRange());
+
+        mlir::Value result = rewriter.create<SubOp>(
+            loc, op.getRange().getType().getInductionType(),
+            endValue, beginValue);
+
+        result = rewriter.create<DivOp>(
+            loc, rewriter.getIndexType(), result, stepValue);
+
+        mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+            loc, rewriter.getIndexAttr(1));
+
+        result = rewriter.create<AddOp>(
+            loc, rewriter.getIndexType(), result, one);
+
+        rewriter.replaceOp(op, result);
+        return mlir::success();
+      }
+  };
+}
+
+//===---------------------------------------------------------------------===//
 // Comparison operations
 //===---------------------------------------------------------------------===//
 
@@ -3557,6 +3601,9 @@ static void populateModelicaToArithPatterns(
     mlir::TypeConverter& typeConverter,
     bool assertions)
 {
+  // Range operations.
+  patterns.insert<RangeSizeOpLowering>(context);
+
   // Comparison operations.
   patterns.insert<
       EqOpLowering,
@@ -3669,6 +3716,8 @@ namespace
       {
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
+
+        target.addIllegalOp<RangeSizeOp>();
 
         target.addIllegalOp<
             EqOp,
