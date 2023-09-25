@@ -255,6 +255,157 @@ namespace mlir::modelica
           lowerBoundValue, upperBoundValue, stepValue);
     }
 
+    if ((isScalarIntegerLike(lowerBound) || isScalarFloatLike(lowerBound)) &&
+        (isScalarIntegerLike(upperBound) || isScalarFloatLike(upperBound)) &&
+        (isScalarIntegerLike(step) || isScalarFloatLike(step))) {
+      double lowerBoundValue;
+      double upperBoundValue;
+      double stepValue;
+
+      if (isScalarIntegerLike(lowerBound)) {
+        lowerBoundValue =
+            static_cast<double>(getScalarIntegerLikeValue(lowerBound));
+      } else {
+        lowerBoundValue = getScalarFloatLikeValue(lowerBound);
+      }
+
+      if (isScalarIntegerLike(upperBound)) {
+        upperBoundValue =
+            static_cast<double>(getScalarIntegerLikeValue(upperBound));
+      } else {
+        upperBoundValue = getScalarFloatLikeValue(upperBound);
+      }
+
+      if (isScalarIntegerLike(step)) {
+        stepValue =
+            static_cast<double>(getScalarIntegerLikeValue(step));
+      } else {
+        stepValue = getScalarFloatLikeValue(step);
+      }
+
+      return RealRangeAttr::get(
+          getContext(), getResult().getType(),
+          llvm::APFloat(lowerBoundValue),
+          llvm::APFloat(upperBoundValue),
+          llvm::APFloat(stepValue));
+    }
+
+    return {};
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// RangeBeginOp
+
+namespace mlir::modelica
+{
+  mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor)
+  {
+    auto range = adaptor.getRange();
+
+    if (!range) {
+      return {};
+    }
+
+    if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+      return IntegerAttr::get(getContext(), intRange.getLowerBound());
+    }
+
+    if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+      return RealAttr::get(
+          getContext(), realRange.getLowerBound().convertToDouble());
+    }
+
+    return {};
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// RangeEndOp
+
+namespace mlir::modelica
+{
+  mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor)
+  {
+    auto range = adaptor.getRange();
+
+    if (!range) {
+      return {};
+    }
+
+    if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+      return IntegerAttr::get(getContext(), intRange.getUpperBound());
+    }
+
+    if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+      return RealAttr::get(
+          getContext(), realRange.getUpperBound().convertToDouble());
+    }
+
+    return {};
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// RangeStepOp
+
+namespace mlir::modelica
+{
+  mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor)
+  {
+    auto range = adaptor.getRange();
+
+    if (!range) {
+      return {};
+    }
+
+    if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+      return IntegerAttr::get(getContext(), intRange.getStep());
+    }
+
+    if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+      return RealAttr::get(
+          getContext(), realRange.getStep().convertToDouble());
+    }
+
+    return {};
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// RangeSizeOp
+
+namespace mlir::modelica
+{
+  mlir::OpFoldResult RangeSizeOp::fold(FoldAdaptor adaptor)
+  {
+    auto range = adaptor.getRange();
+
+    if (!range) {
+      return {};
+    }
+
+    if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+      int64_t lowerBound = intRange.getLowerBound();
+      int64_t upperBound = intRange.getUpperBound();
+      int64_t step = intRange.getStep();
+      int64_t result = 1 + (upperBound - lowerBound) / step;
+
+      return mlir::IntegerAttr::get(
+          mlir::IndexType::get(getContext()), result);
+    }
+
+    if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+      double lowerBound = realRange.getLowerBound().convertToDouble();
+      double upperBound = realRange.getUpperBound().convertToDouble();
+      double step = realRange.getStep().convertToDouble();
+      double result = 1 + (upperBound - lowerBound) / step;
+
+      return mlir::IntegerAttr::get(
+          mlir::IndexType::get(getContext()),
+          static_cast<int64_t>(result));
+    }
+
     return {};
   }
 }

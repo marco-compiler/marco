@@ -292,6 +292,8 @@ def RangeBeginOp : Modelica_Op<"range_begin", []>
 
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
+    let hasFolder = 1;
+
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
@@ -321,6 +323,8 @@ def RangeEndOp : Modelica_Op<"range_end", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
+
+    let hasFolder = 1;
 
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
@@ -352,6 +356,8 @@ def RangeStepOp : Modelica_Op<"range_step", []>
 
     let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
+    let hasFolder = 1;
+
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
@@ -381,6 +387,8 @@ def RangeSizeOp : Modelica_Op<"range_size", []>
     let results = (outs Index:$result);
 
     let assemblyFormat = "$range attr-dict `:` type($range)";
+
+    let hasFolder = 1;
 
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
