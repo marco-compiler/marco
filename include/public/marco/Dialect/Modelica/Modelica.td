@@ -2891,10 +2891,10 @@ def Modelica_ReductionOp : Modelica_Op<"reduction", [SingleBlock]>
         %0 = ... : !modelica.range<index>
         %1 = ... : !modelica.range<index>
 
-        %2 = modelica.reduction "max", %0, %1 inductions = [%i: index, %j: index] {
+        %2 = modelica.reduction "max" iterables = [%0, %1] inductions = [%i: index, %j: index] {
             %3 = ... : !modelica.real
             modelica.yield %3 : !modelica.real
-        } : !modelica.real
+        } : (!modelica.range<index>, !modelica.range<index>) -> !modelica.real
         ```
     }];
 
