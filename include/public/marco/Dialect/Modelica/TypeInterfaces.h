@@ -1,8 +1,7 @@
 #ifndef MARCO_DIALECTS_MODELICA_TYPEINTERFACES_H
 #define MARCO_DIALECTS_MODELICA_TYPEINTERFACES_H
 
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/Builders.h"
+#include "mlir/IR/Dialect.h"
 
 #define GET_TYPE_FWD_DEFINES
 #include "marco/Dialect/Modelica/Modelica.h.inc"
