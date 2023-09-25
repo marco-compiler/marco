@@ -820,7 +820,7 @@ namespace mlir::modelica
       mlir::MLIRContext *context,
       int64_t lowerBound, int64_t upperBound, int64_t step)
   {
-    auto type = IterableType::get(context, IntegerType::get(context));
+    auto type = RangeType::get(context, IntegerType::get(context));
     return get(context, type, lowerBound, upperBound, step);
   }
 
@@ -842,7 +842,7 @@ namespace mlir::modelica
     }
 
     if (!type) {
-      type = IterableType::get(
+      type = RangeType::get(
           parser.getContext(), IntegerType::get(parser.getContext()));
     }
 
@@ -872,7 +872,7 @@ namespace mlir::modelica
       mlir::MLIRContext *context,
       double lowerBound, double upperBound, double step)
   {
-    auto type = IterableType::get(context, RealType::get(context));
+    auto type = RangeType::get(context, RealType::get(context));
 
     return get(context, type,
                llvm::APFloat(lowerBound),
@@ -898,7 +898,7 @@ namespace mlir::modelica
     }
 
     if (!type) {
-      type = IterableType::get(
+      type = RangeType::get(
           parser.getContext(), RealType::get(parser.getContext()));
     }
 

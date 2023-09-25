@@ -18,7 +18,7 @@
 // CHECK:           %[[subscription:.*]] = modelica.subscription %[[x]][%[[index_0]], %[[index_1]]]
 // CHECK:           %[[load:.*]] = modelica.load %[[subscription]][]
 // CHECK:           modelica.yield %[[load]]
-// CHECK:       } : (!modelica<iterable !modelica.int>, !modelica<iterable !modelica.int>) -> !modelica.real
+// CHECK:       } : (!modelica<range !modelica.int>, !modelica<range !modelica.int>) -> !modelica.real
 
 function foo
     input Real[9,6] x;

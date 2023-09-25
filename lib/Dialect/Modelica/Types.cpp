@@ -49,20 +49,20 @@ namespace mlir::modelica
       llvm::SmallVector<int64_t, 3> dimensions;
 
       if (parser.parseLess()) {
-        return mlir::Type();
+        return {};
       }
 
       if (mlir::succeeded(parser.parseOptionalStar())) {
         isUnranked = true;
 
         if (parser.parseXInDimensionList()) {
-          return mlir::Type();
+          return {};
         }
       } else {
         isUnranked = false;
 
         if (parser.parseDimensionList(dimensions)) {
-          return mlir::Type();
+          return {};
         }
       }
 
@@ -70,12 +70,12 @@ namespace mlir::modelica
       mlir::Attribute memorySpace;
 
       if (parser.parseType(elementType)) {
-        return mlir::Type();
+        return {};
       }
 
       if (mlir::succeeded(parser.parseOptionalComma())) {
         if (parser.parseAttribute(memorySpace)) {
-          return mlir::Type();
+          return {};
         }
       }
 
@@ -88,19 +88,19 @@ namespace mlir::modelica
 
     if (typeTag == "variable") {
       if (parser.parseLess()) {
-        return mlir::Type();
+        return {};
       }
 
       llvm::SmallVector<int64_t, 3> dimensions;
 
       if (parser.parseDimensionList(dimensions)) {
-        return mlir::Type();
+        return {};
       }
 
       mlir::Type elementType;
 
       if (parser.parseType(elementType)) {
-        return mlir::Type();
+        return {};
       }
 
       VariabilityProperty variabilityProperty = VariabilityProperty::none;
@@ -121,15 +121,27 @@ namespace mlir::modelica
       }
 
       if (parser.parseGreater()) {
-        return mlir::Type();
+        return {};
       }
 
       return VariableType::get(
           dimensions, elementType, variabilityProperty, ioProperty);
     }
 
+    if (typeTag == "range") {
+      mlir::Type inductionType;
+
+      if (parser.parseLess() ||
+          parser.parseType(inductionType) ||
+          parser.parseGreater()) {
+        return {};
+      }
+
+      return RangeType::get(getContext(), inductionType);
+    }
+
     llvm_unreachable("Unexpected 'Modelica' type kind");
-    return mlir::Type();
+    return {};
   }
 
   void ModelicaDialect::printType(
@@ -194,8 +206,8 @@ namespace mlir::modelica
       return;
     }
 
-    if (auto iterableType = type.dyn_cast<IterableType>()) {
-      printer << "iterable<" << iterableType.getInductionType() << ">";
+    if (auto rangeType = type.dyn_cast<RangeType>()) {
+      printer << "range<" << rangeType.getInductionType() << ">";
       return;
     }
 

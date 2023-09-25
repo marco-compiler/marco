@@ -108,10 +108,10 @@ def ModelicaEquation : Type<CPred<
     "$_self.isa<::mlir::modelica::EquationType>()">,
     "equation", "::mlir::modelica::EquationType">;
 
-// Iteration space type.
-def ModelicaIterable : Type<CPred<
-    "$_self.isa<::mlir::modelica::IterableType>()">,
-    "iterable", "::mlir::modelica::IterableType">;
+// Range type.
+def ModelicaRange : Type<CPred<
+    "$_self.isa<::mlir::modelica::RangeType>()">,
+    "range", "::mlir::modelica::RangeType">;
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
@@ -212,7 +212,7 @@ class Modelica_BinaryOp<string mnemonic, list<Trait> traits = []> :
 }
 
 //===---------------------------------------------------------------------===//
-// Iteration space operations
+// Range operations
 //===---------------------------------------------------------------------===//
 
 def RangeOp : Modelica_Op<"range", []>
@@ -226,7 +226,7 @@ def RangeOp : Modelica_Op<"range", []>
         Example:
 
         ```mlir
-        %0 = modelica.range %0, %1, %2 : (index, index, index) -> !modelica.iterable<index>
+        %0 = modelica.range %0, %1, %2 : (index, index, index) -> !modelica<range index>
         ```
     }];
 
@@ -235,7 +235,7 @@ def RangeOp : Modelica_Op<"range", []>
         AnyType:$upperBound,
         AnyType:$step);
 
-    let results = (outs ModelicaIterable:$result);
+    let results = (outs ModelicaRange:$result);
 
     let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
 
@@ -253,138 +253,138 @@ def UnboundedRangeOp : Modelica_Op<"unbounded_range", []>
         Example:
 
         ```mlir
-        %0 = modelica.unbounded_range : !modelica.iterable<index>
+        %0 = modelica.unbounded_range : !modelica<range index>
         ```
     }];
 
     let arguments = (ins);
-    let results = (outs ModelicaIterable:$result);
+    let results = (outs ModelicaRange:$result);
 
     let assemblyFormat = "attr-dict `:` type($result)";
 
     let builders = [
         OpBuilder<(ins), [{
-            auto iterableType = IterableType::get(
+            auto rangeType = RangeType::get(
                 $_builder.getContext(), $_builder.getIndexType());
 
-            build($_builder, $_state, iterableType);
+            build($_builder, $_state, rangeType);
         }]>
     ];
 }
 
-def IterableBeginOp : Modelica_Op<"iterable_begin", []>
+def RangeBeginOp : Modelica_Op<"range_begin", []>
 {
-    let summary = "Get the begin value of an iterable";
+    let summary = "Get the begin value of a range";
 
     let description = [{
-        Get the begin value of an iterable space.
+        Get the begin value of a range.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica<iterable index>
-        %0 = modelica.iterable_begin %0 : !modelica.iterable<index> -> index
+        %0 = ... : !modelica<range index>
+        %0 = modelica.range_begin %0 : !modelica<range index> -> index
         ```
     }];
 
-    let arguments = (ins ModelicaIterable:$iterable);
+    let arguments = (ins ModelicaRange:$range);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+    let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$iterable), [{
+        OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                iterable.getType().cast<IterableType>().getInductionType();
+                range.getType().cast<RangeType>().getInductionType();
 
-            build($_builder, $_state, inductionType, iterable);
+            build($_builder, $_state, inductionType, range);
         }]>
     ];
 }
 
-def IterableEndOp : Modelica_Op<"iterable_end", []>
+def RangeEndOp : Modelica_Op<"range_end", []>
 {
-    let summary = "Get the end value of an iterable";
+    let summary = "Get the end value of a range";
 
     let description = [{
-        Get the end value of an iterable space.
+        Get the end value of a range.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica<iterable index>
-        %0 = modelica.iterable_end %0 : !modelica.iterable<index> -> index
+        %0 = ... : !modelica<range index>
+        %0 = modelica.range_end %0 : !modelica<range index> -> index
         ```
     }];
 
-    let arguments = (ins ModelicaIterable:$iterable);
+    let arguments = (ins ModelicaRange:$range);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+    let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$iterable), [{
+        OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                iterable.getType().cast<IterableType>().getInductionType();
+                range.getType().cast<RangeType>().getInductionType();
 
-            build($_builder, $_state, inductionType, iterable);
+            build($_builder, $_state, inductionType, range);
         }]>
     ];
 }
 
-def IterableStepOp : Modelica_Op<"iterable_step", []>
+def RangeStepOp : Modelica_Op<"range_step", []>
 {
-    let summary = "Get the step value of an iterable";
+    let summary = "Get the step value of a range";
 
     let description = [{
-        Get the step value of an iterable space.
+        Get the step value of a range.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica<iterable index>
-        %0 = modelica.iterable_step %0 : !modelica.iterable<index> -> index
+        %0 = ... : !modelica<range index>
+        %0 = modelica.range_step %0 : !modelica<range index> -> index
         ```
     }];
 
-    let arguments = (ins ModelicaIterable:$iterable);
+    let arguments = (ins ModelicaRange:$range);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = "$iterable attr-dict `:` type($iterable) `->` type($result)";
+    let assemblyFormat = "$range attr-dict `:` type($range) `->` type($result)";
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$iterable), [{
+        OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                iterable.getType().cast<IterableType>().getInductionType();
+                range.getType().cast<RangeType>().getInductionType();
 
-            build($_builder, $_state, inductionType, iterable);
+            build($_builder, $_state, inductionType, range);
         }]>
     ];
 }
 
-def IterableSizeOp : Modelica_Op<"iterable_size", []>
+def RangeSizeOp : Modelica_Op<"range_size", []>
 {
-    let summary = "Get the step value of an iterable";
+    let summary = "Get the step value of a range";
 
     let description = [{
-        Get the number of elements of an iterable space.
+        Get the number of elements of a range.
 
         Example:
 
         ```mlir
-        %0 = ... : !modelica<iterable index>
-        %0 = modelica.iterable_size %0 : !modelica.iterable<index> -> index
+        %0 = ... : !modelica<range index>
+        %0 = modelica.range_size %0 : !modelica<range index> -> index
         ```
     }];
 
-    let arguments = (ins ModelicaIterable:$iterable);
+    let arguments = (ins ModelicaRange:$range);
     let results = (outs Index:$result);
 
-    let assemblyFormat = "$iterable attr-dict `:` type($iterable)";
+    let assemblyFormat = "$range attr-dict `:` type($range)";
 
     let builders = [
-        OpBuilder<(ins "mlir::Value":$iterable), [{
-            build($_builder, $_state, $_builder.getIndexType(), iterable);
+        OpBuilder<(ins "mlir::Value":$range), [{
+            build($_builder, $_state, $_builder.getIndexType(), range);
         }]>
     ];
 }
@@ -797,7 +797,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 
     let arguments = (ins
         AnyArray:$source,
-        Variadic<AnyTypeOf<[Index, ModelicaInteger, ModelicaIterable]>>:$indices);
+        Variadic<AnyTypeOf<[Index, ModelicaInteger, ModelicaRange]>>:$indices);
 
     let results = (outs AnyType:$result);
 
@@ -2880,8 +2880,8 @@ def Modelica_ReductionOp : Modelica_Op<"reduction", [SingleBlock]>
         Example:
 
         ```mlir
-        %0 = ... : !modelica.iterable<index>
-        %1 = ... : !modelica.iterable<index>
+        %0 = ... : !modelica.range<index>
+        %1 = ... : !modelica.range<index>
 
         %2 = modelica.reduction "max", %0, %1 inductions = [%i: index, %j: index] {
             %3 = ... : !modelica.real
@@ -2892,7 +2892,7 @@ def Modelica_ReductionOp : Modelica_Op<"reduction", [SingleBlock]>
 
     let arguments = (ins
         StrAttr:$action,
-        Variadic<ModelicaIterable>:$iterables);
+        Variadic<ModelicaRange>:$iterables);
 
     let results = (outs AnyType:$result);
 

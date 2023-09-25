@@ -13,6 +13,12 @@ mlir_tablegen(ModelicaOpInterfaces.cpp.inc -gen-op-interface-defs)
 add_public_tablegen_target(MLIRModelicaOpInterfacesIncGen)
 add_dependencies(MLIRModelicaIncGen MLIRModelicaOpInterfacesIncGen)
 
+set(LLVM_TARGET_DEFINITIONS ModelicaTypeInterfaces.td)
+mlir_tablegen(ModelicaTypeInterfaces.h.inc -gen-type-interface-decls)
+mlir_tablegen(ModelicaTypeInterfaces.cpp.inc -gen-type-interface-defs)
+add_public_tablegen_target(MLIRModelicaTypeInterfacesIncGen)
+add_dependencies(MLIRModelicaIncGen MLIRModelicaTypeInterfacesIncGen)
+
 set(LLVM_TARGET_DEFINITIONS ModelicaAttrInterfaces.td)
 mlir_tablegen(ModelicaAttrInterfaces.h.inc -gen-attr-interface-decls)
 mlir_tablegen(ModelicaAttrInterfaces.cpp.inc -gen-attr-interface-defs)

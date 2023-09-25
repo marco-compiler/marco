@@ -564,15 +564,15 @@ namespace
         if (i < numOfSubscriptions) {
           mlir::Value subscription = op.getIndices()[i];
 
-          if (subscription.getType().isa<IterableType>()) {
+          if (subscription.getType().isa<RangeType>()) {
             mlir::Value lowerBound =
-                rewriter.create<IterableBeginOp>(loc, subscription);
+                rewriter.create<RangeBeginOp>(loc, subscription);
 
             mlir::Value step =
-                rewriter.create<IterableStepOp>(loc, subscription);
+                rewriter.create<RangeStepOp>(loc, subscription);
 
             mlir::Value numOfElements =
-                rewriter.create<IterableSizeOp>(loc, subscription);
+                rewriter.create<RangeSizeOp>(loc, subscription);
 
             if (!lowerBound.getType().isa<mlir::IndexType>()) {
               lowerBound = rewriter.create<CastOp>(

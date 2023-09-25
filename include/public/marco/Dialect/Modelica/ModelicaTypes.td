@@ -2,6 +2,7 @@
 #define MARCO_DIALECTS_MODELICA_MODELICATYPES_TD
 
 include "marco/Dialect/Modelica/ModelicaDialect.td"
+include "marco/Dialect/Modelica/ModelicaTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 
@@ -289,22 +290,20 @@ def EquationType : Modelica_Type<"Equation">
     }];
 }
 
-def IterableType : Modelica_Type<"Iterable">
+def RangeType : Modelica_Type<"Range", [IterableTypeInterface]>
 {
-    let summary = "Iterable space type";
-    let mnemonic = "iterable";
+    let summary = "Range type";
+    let mnemonic = "range";
 
     let description = [{
-        Type representing an iterable element.
+        Type representing a range.
     }];
 
     let parameters = (ins
         "mlir::Type":$inductionType
     );
 
-    let assemblyFormat = [{
-        $inductionType
-    }];
+    let assemblyFormat = "$inductionType";
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

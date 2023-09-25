@@ -31,8 +31,8 @@ namespace marco::codegen::lowering
 
     mlir::Type resultType = builder().getIndexType();
 
-    if (index.getType().isa<IterableType>()) {
-      resultType = IterableType::get(builder().getContext(), resultType);
+    if (index.getType().isa<RangeType>()) {
+      resultType = RangeType::get(builder().getContext(), resultType);
     }
 
     mlir::Value zeroBasedIndex = builder().create<AddOp>(

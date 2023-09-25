@@ -1517,7 +1517,7 @@ namespace marco::codegen::lowering
 
     mlir::Value result = builder().create<RangeOp>(
         location,
-        IterableType::get(builder().getContext(), resultTypes[0]),
+        RangeType::get(builder().getContext(), resultTypes[0]),
         args[0], args[2], args[1]);
 
     return Reference::ssa(builder(), result);

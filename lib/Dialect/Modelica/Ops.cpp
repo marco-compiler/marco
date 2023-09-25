@@ -1039,7 +1039,7 @@ namespace mlir::modelica
     for (size_t i = 0; i < numOfSubscriptions; ++i) {
       mlir::Value index = indices[i];
 
-      if (index.getType().isa<IterableType>()) {
+      if (index.getType().isa<RangeType>()) {
         int64_t dimension = ArrayType::kDynamic;
 
         if (auto constantOp = index.getDefiningOp<ConstantOp>()) {
@@ -1852,7 +1852,7 @@ namespace mlir::modelica
 
 namespace
 {
-  struct AddOpIterableOrderingPattern : public mlir::OpRewritePattern<AddOp>
+  struct AddOpRangeOrderingPattern : public mlir::OpRewritePattern<AddOp>
   {
     using mlir::OpRewritePattern<AddOp>::OpRewritePattern;
 
@@ -1862,8 +1862,8 @@ namespace
       mlir::Value rhs = op.getRhs();
 
       return mlir::LogicalResult::success(
-          !lhs.getType().isa<IterableType>() &&
-          rhs.getType().isa<IterableType>());
+          !lhs.getType().isa<RangeType>() &&
+          rhs.getType().isa<RangeType>());
     }
 
     void rewrite(
@@ -1978,7 +1978,7 @@ namespace mlir::modelica
   void AddOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {
-    patterns.add<AddOpIterableOrderingPattern>(context);
+    patterns.add<AddOpRangeOrderingPattern>(context);
   }
 
   void AddOp::getEffects(
@@ -8791,7 +8791,8 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Location> argLocs;
 
     for (mlir::Value iterable : getIterables()) {
-      auto iterableType = iterable.getType().cast<IterableType>();
+      // TODO type interface for Iterable types
+      auto iterableType = iterable.getType().cast<IterableTypeInterface>();
       argTypes.push_back(iterableType.getInductionType());
       argLocs.push_back(builder.getUnknownLoc());
     }

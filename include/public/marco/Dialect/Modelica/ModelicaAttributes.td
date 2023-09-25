@@ -311,10 +311,10 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange",
     [TypedAttrInterface,
     DeclareAttrInterfaceMethods<RangeAttrInterface>]>
 {
-    let summary = "Iterable Integer range attribute";
+    let summary = "Integer range attribute";
 
     let description = [{
-        Attribute representing an iterable range of Integer values.
+        Attribute representing a range of Integer values.
     }];
 
     let mnemonic = "int_range";
@@ -337,10 +337,10 @@ def Modelica_RealRangeAttr : Modelica_Attr<"RealRange",
     [TypedAttrInterface,
     DeclareAttrInterfaceMethods<RangeAttrInterface>]>
 {
-    let summary = "Iterable Real range attribute";
+    let summary = "Real range attribute";
 
     let description = [{
-        Attribute representing an iterable range of Real values.
+        Attribute representing a range of Real values.
     }];
 
     let mnemonic = "real_range";
