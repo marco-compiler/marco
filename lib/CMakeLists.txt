@@ -12,9 +12,7 @@ add_subdirectory(AST)
 add_subdirectory(Parser)
 add_subdirectory(Dialect)
 add_subdirectory(Codegen)
-add_subdirectory(Options)
 add_subdirectory(IO)
-add_subdirectory(Driver)
 add_subdirectory(Frontend)
 
 # Add the shared runtime support library for JIT compilation.

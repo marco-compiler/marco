@@ -5,7 +5,9 @@ set(SOURCES
     FrontendAction.cpp
     FrontendActions.cpp
     FrontendOptions.cpp
-    SimulationOptions.cpp)
+    SimulationOptions.cpp
+    TextDiagnostic.cpp
+    TextDiagnosticPrinter.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
@@ -34,12 +36,17 @@ marco_add_library(frontend
     marco::parser
     marco::codegen
     marco::IO
-    marco::options
     marco::variableFilter
     ${MLIR_LIBS}
 
     LINK_COMPONENTS
     Option
     Support)
+
+clang_target_link_libraries(frontend
+  PRIVATE
+  clangBasic
+  clangDriver
+)
 
 mlir_check_all_link_libraries(frontend)

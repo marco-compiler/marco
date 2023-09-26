@@ -14,4 +14,10 @@ marco_add_tool(marco ${SOURCES})
 target_link_libraries(marco
     PRIVATE
     marco::frontend
-    marco::driver)
+)
+
+clang_target_link_libraries(marco
+  PRIVATE
+  clangDriver
+  clangBasic
+)

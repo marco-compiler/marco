@@ -61,13 +61,22 @@ if (DEFINED LLVM_PATH)
 	else()
 		set(MLIR_DIR "${LLVM_PATH}/lib/cmake/mlir")
 	endif()
+
+	# Emit a warning if both LLVM_ROOT and MLIR_DIR have been set
+	if (DEFINED CLANG_DIR)
+		message(WARNING "Both LLVM_PATH and CLANG_DIR have been set. LLVM_PATH has been ignored")
+	else()
+		set(CLANG_DIR "${LLVM_PATH}/lib/cmake/clang")
+	endif()
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG PATHS "${CLANG_DIR}" NO_DEFAULT_PATH)
 
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+message(STATUS "Using ClangConfig.cmake in: ${CLANG_DIR}")
 
 # These are a bit of a hack, because we're hijacking a lot of LLVM machinery.
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
@@ -76,11 +85,13 @@ set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CLANG_DIR}")
 
 include(HandleLLVMOptions)
 include(TableGen)
 include(AddLLVM)
 include(AddMLIR)
+include(AddClang)
 
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
@@ -172,6 +183,7 @@ set_target_properties(marco-headers PROPERTIES FOLDER "Misc")
 # Add MLIR and LLVM headers to the include path
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(${CLANG_INCLUDE_DIRS})
 
 # Add MARCO files to the include path
 include_directories(${MARCO_INCLUDE_DIRS})

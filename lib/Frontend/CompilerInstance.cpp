@@ -3,7 +3,7 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/FrontendActions.h"
-#include "marco/Options/Options.h"
+#include "clang/Driver/Options.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"

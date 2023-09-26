@@ -1,6 +1,6 @@
 #include "marco/Diagnostic/Printer.h"
 #include "marco/Frontend/CompilerInvocation.h"
-#include "marco/Options/Options.h"
+#include "clang/Driver/Options.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/StringRef.h"
@@ -16,7 +16,7 @@ using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 using namespace ::marco::io;
-
+using namespace clang::driver;
 //===---------------------------------------------------------------------===//
 // Messages
 //===---------------------------------------------------------------------===//
@@ -112,18 +112,16 @@ static void parseFrontendArgs(
   // Default action
   options.programAction = EmitObject;
 
-  if (const llvm::opt::Arg* a = args.getLastArg(options::OPT_Action_Group)) {
+  if(args.hasArg(options::OPT_emit_ast)) { //emit ast is not part of action group in clang's options..
+    options.programAction = EmitAST;
+  } else if (const llvm::opt::Arg* a = args.getLastArg(options::OPT_Action_Group)) {
     switch (a->getOption().getID()) {
       case options::OPT_init_only:
         options.programAction = InitOnly;
         break;
 
-      case options::OPT_emit_flattened:
+      case options::OPT_emit_modelica_flattened:
         options.programAction = EmitFlattened;
-        break;
-
-      case options::OPT_emit_ast:
-        options.programAction = EmitAST;
         break;
 
       case options::OPT_emit_final_ast:
@@ -134,19 +132,19 @@ static void parseFrontendArgs(
         options.programAction = EmitMLIR;
         break;
 
-      case options::OPT_emit_llvm_ir:
+      case options::OPT_emit_llvm:
         options.programAction = EmitLLVMIR;
         break;
 
-      case options::OPT_emit_llvm_bitcode:
+      case options::OPT_emit_llvm_bc:
         options.programAction = EmitLLVMBitcode;
         break;
 
-      case options::OPT_compile_only:
+      case options::OPT_S: //old OPT_compile_only
         options.programAction = EmitAssembly;
         break;
 
-      case options::OPT_compile_and_assemble_only:
+      case options::OPT_emit_obj:
         options.programAction = EmitObject;
         break;
 
@@ -204,7 +202,7 @@ static void parseCodegenArgs(
     DiagnosticEngine& diagnostics)
 {
   // Determine the optimization level
-  for (const auto& arg : args.getAllArgValues(options::OPT_opt)) {
+  for (const auto& arg : args.getAllArgValues(options::OPT_O)) {
     if (arg == "0") {
       options.optLevel = llvm::OptimizationLevel::O0;
     } else if (arg == "1") {
@@ -252,7 +250,7 @@ static void parseCodegenArgs(
   // default options given by the optimization level.
 
   if (!options.debug) {
-    options.debug = args.hasArg(options::OPT_debug);
+    options.debug = args.hasArg(options::OPT_g_Flag);
   }
 
   options.assertions = args.hasFlag(
@@ -311,7 +309,7 @@ static void parseCodegenArgs(
     options.target = llvm::sys::getDefaultTargetTriple();
   }
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_cpu)) {
+  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_mcpu_EQ)) {
     llvm::StringRef value = arg->getValue();
     options.cpu = value.str();
 
@@ -375,11 +373,11 @@ namespace marco::frontend
     auto numOfErrors = diagnostics.numOfErrors();
 
     // Parse the arguments
-    const llvm::opt::OptTable& opts = options::getDriverOptTable();
+    const llvm::opt::OptTable& opts = getDriverOptTable();
     unsigned missingArgIndex, missingArgCount;
 
     llvm::opt::InputArgList args = opts.ParseArgs(
-        commandLineArgs, missingArgIndex, missingArgCount, options::MC1Option);
+        commandLineArgs, missingArgIndex, missingArgCount, llvm::opt::Visibility(clang::driver::options::MC1Option));
 
     // Check for missing argument error
     if (missingArgCount != 0) {
