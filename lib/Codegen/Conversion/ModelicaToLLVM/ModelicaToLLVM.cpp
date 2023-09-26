@@ -59,6 +59,60 @@ namespace
 
 namespace
 {
+  struct RangeOpLowering
+      : public ModelicaOpConversionPattern<RangeOp>
+  {
+      using ModelicaOpConversionPattern<RangeOp>::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RangeOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        auto structType =
+            getTypeConverter()->convertType(op.getResult().getType())
+                .cast<mlir::LLVM::LLVMStructType>();
+
+        mlir::Value lowerBound = adaptor.getLowerBound();
+
+        if (mlir::Type requiredType = structType.getBody()[0];
+            lowerBound.getType() != requiredType) {
+          lowerBound = rewriter.create<CastOp>(loc, requiredType, lowerBound);
+        }
+
+        mlir::Value upperBound = adaptor.getUpperBound();
+
+        if (mlir::Type requiredType = structType.getBody()[1];
+            upperBound.getType() != requiredType) {
+          upperBound = rewriter.create<CastOp>(loc, requiredType, upperBound);
+        }
+
+        mlir::Value step = adaptor.getStep();
+
+        if (mlir::Type requiredType = structType.getBody()[2];
+            step.getType() != requiredType) {
+          step = rewriter.create<CastOp>(loc, requiredType, step);
+        }
+
+        mlir::Value result =
+            rewriter.create<mlir::LLVM::UndefOp>(loc, structType);
+
+        result = rewriter.create<mlir::LLVM::InsertValueOp>(
+            loc, structType, result, lowerBound, 0);
+
+        result = rewriter.create<mlir::LLVM::InsertValueOp>(
+            loc, structType, result, upperBound, 1);
+
+        result = rewriter.create<mlir::LLVM::InsertValueOp>(
+            loc, structType, result, step, 2);
+
+        rewriter.replaceOp(op, result);
+        return mlir::success();
+      }
+  };
+
   struct RangeBeginOpLowering
       : public ModelicaOpConversionPattern<RangeBeginOp>
   {
@@ -293,6 +347,7 @@ static void populateModelicaToLLVMPatterns(
 {
   // Range operations.
   patterns.insert<
+      RangeOpLowering,
       RangeBeginOpLowering,
       RangeEndOpLowering,
       RangeStepOpLowering>(typeConverter);
@@ -369,6 +424,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<
+      RangeOp,
       RangeBeginOp,
       RangeEndOp,
       RangeStepOp>();
