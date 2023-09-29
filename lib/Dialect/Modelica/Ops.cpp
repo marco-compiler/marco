@@ -12280,6 +12280,40 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EquationSideOp
 
+namespace
+{
+  struct EquationSideTypePropagationPattern
+      : public mlir::OpRewritePattern<EquationSideOp>
+  {
+    using mlir::OpRewritePattern<EquationSideOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        EquationSideOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      bool different = false;
+      llvm::SmallVector<mlir::Type> newTypes;
+
+      for (size_t i = 0, e = op.getValues().size(); i < e; ++i) {
+        mlir::Type existingType = op.getResult().getType().getType(i);
+        mlir::Type expectedType = op.getValues()[i].getType();
+
+        if (existingType != expectedType) {
+          different = true;
+        }
+
+        newTypes.push_back(expectedType);
+      }
+
+      if (!different) {
+        return mlir::failure();
+      }
+
+      rewriter.replaceOpWithNewOp<EquationSideOp>(op, op.getValues());
+      return mlir::failure();
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   mlir::ParseResult EquationSideOp::parse(
@@ -12313,6 +12347,12 @@ namespace mlir::modelica
   {
     printer.printOptionalAttrDict(getOperation()->getAttrs());
     printer << " " << getValues() << " : " << getResult().getType();
+  }
+
+  void EquationSideOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<EquationSideTypePropagationPattern>(context);
   }
 }
 

@@ -3852,6 +3852,8 @@ def Modelica_EquationSideOp : Modelica_Op<"equation_side",
 
     let hasCustomAssemblyFormat = 1;
 
+    let hasCanonicalizer = 1;
+
     let builders = [
         OpBuilder<(ins "ValueRange":$values), [{
             auto tupleType = $_builder.getTupleType(values.getTypes());
