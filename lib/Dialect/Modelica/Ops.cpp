@@ -1071,6 +1071,30 @@ namespace mlir::modelica
 
 namespace
 {
+  struct InferSubscriptionResultTypePattern
+      : public mlir::OpRewritePattern<SubscriptionOp>
+  {
+    using mlir::OpRewritePattern<SubscriptionOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        SubscriptionOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      ArrayType inferredResultType = SubscriptionOp::inferResultType(
+          op.getSource().getType(), op.getIndices());
+
+      if (inferredResultType != op.getResultArrayType()) {
+        auto newOp = rewriter.create<SubscriptionOp>(
+            op.getLoc(), inferredResultType, op.getSource(), op.getIndices());
+
+        newOp->setAttrs(op->getAttrs());
+        rewriter.replaceOp(op, newOp);
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+  };
+
   struct MergeSubscriptionsPattern
       : public mlir::OpRewritePattern<SubscriptionOp>
   {
@@ -1153,7 +1177,9 @@ namespace mlir::modelica
   void SubscriptionOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {
-    patterns.add<MergeSubscriptionsPattern>(context);
+    patterns.add<
+        InferSubscriptionResultTypePattern,
+        MergeSubscriptionsPattern>(context);
   }
 
   mlir::ValueRange SubscriptionOp::derive(
