@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/RangeBoundariesInference.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::modelica
 {
@@ -21,6 +21,18 @@ namespace
       mlir::LogicalResult matchAndRewrite(
           SubscriptionOp op, mlir::PatternRewriter& rewriter) const override
       {
+        if (llvm::all_of(op.getIndices(), [](mlir::Value index) {
+              mlir::Operation* definingOp = index.getDefiningOp();
+
+              if (!definingOp) {
+                return true;
+              }
+
+              return !mlir::isa<UnboundedRangeOp>(definingOp);
+            })) {
+          return mlir::failure();
+        }
+
         mlir::Location loc = op.getLoc();
         llvm::SmallVector<mlir::Value> newIndices;
 
@@ -80,27 +92,11 @@ namespace
       {
         auto moduleOp = getOperation();
 
-        mlir::ConversionTarget target(getContext());
-        target.addLegalDialect<ModelicaDialect>();
-
-        target.addDynamicallyLegalOp<SubscriptionOp>([](SubscriptionOp op) {
-          return llvm::all_of(op.getIndices(), [](mlir::Value index) {
-            mlir::Operation* definingOp = index.getDefiningOp();
-
-            if (!definingOp) {
-              return true;
-            }
-
-            return !mlir::isa<UnboundedRangeOp>(definingOp);
-          });
-        });
-
         mlir::RewritePatternSet patterns(&getContext());
-
         patterns.insert<SubscriptionOpPattern>(&getContext());
 
-        if (mlir::failed(applyPartialConversion(
-                moduleOp, target, std::move(patterns)))) {
+        if (mlir::failed(applyPatternsAndFoldGreedily(
+                moduleOp, std::move(patterns)))) {
           moduleOp.emitOpError() << "Can't infer range boundaries";
           return signalPassFailure();
         }

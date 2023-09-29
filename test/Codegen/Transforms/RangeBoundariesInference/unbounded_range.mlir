@@ -2,13 +2,12 @@
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[source:.*]]: !modelica.array<6x5x4x3x2x!modelica.int>)
-// CHECK: %[[lowerBound:.*]] = modelica.constant 0
-// CHECK: %[[dim:.*]] = modelica.constant 0 : index
-// CHECK: %[[dimSize:.*]] = modelica.dim %[[source]], %[[dim]]
-// CHECK: %[[offset:.*]] = modelica.constant -1
-// CHECK: %[[upperBound:.*]] = modelica.add %[[dimSize]], %[[offset]]
-// CHECK: %[[step:.*]] = modelica.constant 1
-// CHECK: %[[range:.*]] = modelica.range %[[lowerBound]], %[[upperBound]], %[[step]]
+// CHECK-DAG: %[[zero:.*]] = modelica.constant 0
+// CHECK-DAG: %[[one:.*]] = modelica.constant 1
+// CHECK-DAG: %[[minus_one:.*]] = modelica.constant -1
+// CHECK-DAG: %[[dimSize:.*]] = modelica.dim %[[source]], %[[zero]]
+// CHECK-DAG: %[[upperBound:.*]] = modelica.add %[[dimSize]], %[[minus_one]]
+// CHECK: %[[range:.*]] = modelica.range %[[zero]], %[[upperBound]], %[[one]]
 // CHECK: %[[subscription:.*]] = modelica.subscription %[[source]][%[[range]]]
 // CHECK: return %[[subscription]]
 
