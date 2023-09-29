@@ -225,6 +225,21 @@ def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp">
     let constructor = "mlir::modelica::createFunctionInliningPass()";
 }
 
+def RangeBoundariesInferencePass : Pass<"infer-range-boundaries", "mlir::ModuleOp">
+{
+    let summary = "Infer the boundaries of unbounded ranges.";
+
+    let description = [{
+        Infer the boundaries of unbounded ranges.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor = "mlir::modelica::createRangeBoundariesInferencePass()";
+}
+
 def RecordInliningPass : Pass<"inline-records", "mlir::ModuleOp">
 {
     let summary = "Instantiate a model.";

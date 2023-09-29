@@ -20,6 +20,7 @@ set(SOURCES
     Matching.cpp
     ModelAlgorithmConversion.cpp
     OpDistribution.cpp
+    RangeBoundariesInference.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp
     Scheduling.cpp

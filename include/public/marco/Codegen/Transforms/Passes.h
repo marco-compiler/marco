@@ -21,6 +21,7 @@
 #include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Codegen/Transforms/ModelAlgorithmConversion.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
+#include "marco/Codegen/Transforms/RangeBoundariesInference.h"
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
 #include "marco/Codegen/Transforms/RecordInlining.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
