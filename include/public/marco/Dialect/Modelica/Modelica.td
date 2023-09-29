@@ -242,7 +242,7 @@ def RangeOp : Modelica_Op<"range", []>
     let hasFolder = 1;
 }
 
-def UnboundedRangeOp : Modelica_Op<"unbounded_range", []>
+def UnboundedRangeOp : Modelica_Op<"unbounded_range", [Pure]>
 {
     let summary = "Unbounded range";
 
@@ -798,7 +798,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
         %array = ... : !modelica.array<3x5x4x!modelica.int>
         %c1 : constant 1 : index
         %c2 : constant 2 : index
-        %view = modelica.subscription $array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
+        %view = modelica.subscription %array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
         // %view has type !modelica.array<4x!modelica.int>
         ```
     }];
@@ -824,18 +824,21 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
         static ArrayType inferResultType(
             ArrayType source, mlir::ValueRange indices);
 
-        ArrayType getSourceArrayType() {
+        ArrayType getSourceArrayType()
+        {
             return getSource().getType().cast<ArrayType>();
         }
 
-        ArrayType getResultArrayType() {
+        ArrayType getResultArrayType()
+        {
             return getResult().getType().cast<ArrayType>();
         }
 
         /// @name ViewLikeOpInterface methods
         /// {
 
-        Value getViewSource() {
+        Value getViewSource()
+        {
             return getSource();
         }
 
