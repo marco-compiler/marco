@@ -1194,7 +1194,7 @@ namespace mlir::modelica
         int64_t dimension = ArrayType::kDynamic;
 
         if (auto constantOp = index.getDefiningOp<ConstantOp>()) {
-          mlir::Attribute indexAttr = constantOp.getValue();
+          auto indexAttr = constantOp.getValue();
 
           if (auto rangeAttr = mlir::dyn_cast<RangeAttrInterface>(indexAttr)) {
             dimension = rangeAttr.getNumOfElements();
