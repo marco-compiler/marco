@@ -22,13 +22,13 @@ Full set of compiler flags
 --------------------------
 Array based models:
 ```
--f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations
+-f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --showStructuralAnnotations
 ```
 Automatic vectorization of model with many scalar instances of the same components:
 ```
--f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations
+-f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --showStructuralAnnotations
 ```
-If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag and remove the `--newBackend` flag.
+If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag.
 
 These flags should be set in [run-marco.sh](https://github.com/modelica-polimi/marco/blob/5bac719666ea7e050463ef584b74be520ee7e955/run-marco.sh#L99), around line 99.
 
@@ -48,8 +48,6 @@ Explanations
   Prints flat record type definitions instead of constructor function definitions, which is the default.
 - [``-d=evaluateAllParameters``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-evaluateallparameters)
   Evaluate all parameters in the frontend and produce literal values only for parameter modifiers.
-- [``--newBackend``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-newbackend)
-  avoids flattening records in variable declarations.
 - [``--showStructuralAnnotations``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-showstructuralannotations)
   keeps structural annotations in the function definitions, such as ``Inline = true``.
 - [``--vectorizeBindings``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-vectorizebindings)
