@@ -3,6 +3,7 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Modeling/Cycles.h"
+#include "marco/Codegen/Transforms/ModelSolving/CyclesSymbolicSolver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
 
@@ -704,121 +705,24 @@ mlir::LogicalResult CyclesSolvingPass::solveCycles(
   return mlir::success();
 }
 
-static mlir::LogicalResult solveCycleSymbolic(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
+void getLoopEquationSet(
     const Cycle& cycle,
-    size_t index,
-    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
-{
-  if (index + 1 == cycle.size()) {
-    MatchedEquationInstanceOp equationOp = cycle[index].equation;
-    rewriter.setInsertionPoint(equationOp);
+    std::vector<marco::codegen::MatchedEquationSubscription>& equations,
+    marco::codegen::CyclesSymbolicSolver solver) {
 
-    newEquations.push_back(mlir::cast<MatchedEquationInstanceOp>(
-        rewriter.clone(*equationOp.getOperation())));
+  for (const auto& it : cycle) {
+    LLVM_DEBUG(
+        std::cerr << std::endl << cycle.getEquation() << std::endl;
+        cycle.getEquation()->dumpIR();
+        std::cerr << std::endl;);
 
-    return mlir::success();
-  }
+    IndexSet range = it.equationIndices;
 
-  llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
-
-  auto removeWritingEquations = llvm::make_scope_exit([&]() {
-    for (MatchedEquationInstanceOp writingEquation : writingEquations) {
-      rewriter.eraseOp(writingEquation);
-    }
-  });
-
-  if (mlir::failed(solveCycleSymbolic(
-          rewriter, symbolTableCollection, cycle, index + 1,
-          writingEquations))) {
-    return mlir::failure();
-  }
-
-  const CyclicEquation& readingEquation = cycle[index];
-  MatchedEquationInstanceOp readingEquationOp = readingEquation.equation;
-
-  LLVM_DEBUG(llvm::dbgs() << "Cycle index: " << index << "\n");
-
-  LLVM_DEBUG(llvm::dbgs() << "Reading equation:\n"
-                          << readingEquationOp.getTemplate() << "\n"
-                          << readingEquationOp << "\n");
-
-  const AccessFunction& readAccessFunction =
-      readingEquation.readAccess.getAccessFunction();
-
-  for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
-    LLVM_DEBUG(llvm::dbgs() << "Writing equation:\n"
-                            << writingEquationOp.getTemplate() << "\n"
-                            << writingEquationOp << "\n");
-
-    MatchedEquationInstanceOp explicitWritingEquationOp =
-        writingEquationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
-
-    if (!explicitWritingEquationOp) {
-      return mlir::failure();
-    }
-
-    auto removeExplicitEquation = llvm::make_scope_exit([&]() {
-      rewriter.eraseOp(explicitWritingEquationOp);
-    });
-
-    auto explicitWriteAccess =
-        explicitWritingEquationOp.getMatchedAccess(symbolTableCollection);
-
-    if (!explicitWriteAccess) {
-      return mlir::failure();
-    }
-
-    const AccessFunction& writeAccessFunction =
-        explicitWriteAccess->getAccessFunction();
-
-    IndexSet writingEquationIndices =
-        explicitWritingEquationOp.getIterationSpace();
-
-    IndexSet writtenVariableIndices =
-        writeAccessFunction.map(writingEquationIndices);
-
-    IndexSet readingEquationIndices;
-
-    if (writtenVariableIndices.empty()) {
-      readingEquationIndices = readingEquation.equationIndices;
-    } else {
-      readingEquationIndices = readAccessFunction.inverseMap(
-          writtenVariableIndices, readingEquation.equationIndices);
-
-      readingEquationIndices = readingEquationIndices.intersect(
-          readingEquation.equationIndices);
-    }
-
-    llvm::Optional<std::reference_wrapper<const IndexSet>>
-        optionalReadingEquationIndices = llvm::None;
-
-    if (!readingEquationIndices.empty()) {
-      optionalReadingEquationIndices =
-          std::reference_wrapper(readingEquationIndices);
-    }
-
-    if (mlir::failed(readingEquationOp.cloneWithReplacedAccess(
-            rewriter,
-            optionalReadingEquationIndices,
-            readingEquation.readAccess,
-            explicitWritingEquationOp.getTemplate(),
-            *explicitWriteAccess,
-            newEquations))) {
-      return mlir::failure();
+    if (!solver.hasSolvedEquation(&it.equation, range)) {
+      auto test = marco::codegen::MatchedEquationSubscription(it.equation, range);
+      equations.emplace_back(it.equation, range);
     }
   }
-
-  LLVM_DEBUG({
-    llvm::dbgs() << "New equations:\n";
-
-    for (MatchedEquationInstanceOp equation : newEquations) {
-      llvm::dbgs() << equation.getTemplate() << "\n" << equation << "\n";
-    }
-  });
-
-  return mlir::success();
 }
 
 static mlir::LogicalResult solveCycleSymbolic(
@@ -836,7 +740,15 @@ static mlir::LogicalResult solveCycleSymbolic(
     }
   });
 
-  return ::solveCycleSymbolic(rewriter, symbolTableCollection, cycle, 0, newEquations);
+  auto solver = marco::codegen::CyclesSymbolicSolver(rewriter);
+  std::vector<marco::codegen::MatchedEquationSubscription> equations;
+  getLoopEquationSet(cycle, equations, solver);
+
+  if (!equations.empty()) {
+    solver.solve(equations);
+  }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult CyclesSolvingPass::solveCyclesSymbolic(

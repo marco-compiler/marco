@@ -5,6 +5,7 @@ set(SOURCES
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
     CyclesSolving.cpp
+    CyclesSymbolicSolver.cpp
     DerivativesAllocation.cpp
     EquationAccessSplit.cpp
     EquationExplicitationTest.cpp

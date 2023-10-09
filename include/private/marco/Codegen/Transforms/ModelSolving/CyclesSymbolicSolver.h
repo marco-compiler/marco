@@ -1,12 +1,10 @@
 #ifndef MARCO_CYCLESSYMBOLICSOLVER_H
 #define MARCO_CYCLESSYMBOLICSOLVER_H
 
-#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Modeling/Cycles.h"
 
 
-#include "marco/Codegen/Utils.h"
 #include "mlir/IR/Builders.h"
 #include "llvm/ADT/DirectedGraph.h"
 #include "llvm/ADT/GraphTraits.h"
@@ -19,7 +17,7 @@
 namespace marco::codegen {
   struct MatchedEquationSubscription
   {
-    MatchedEquationSubscription(MatchedEquation* equation, llvm::ArrayRef<modeling::IndexSet> subscriptionIndices)
+    MatchedEquationSubscription(mlir::modelica::MatchedEquationInstanceOp equation, llvm::ArrayRef<modeling::IndexSet> subscriptionIndices)
         : equation(std::move(equation))
     {
       for (const auto& indices : subscriptionIndices) {
@@ -29,7 +27,7 @@ namespace marco::codegen {
 
     // The equation which originally had cycles.
     // The pointer refers to the original equation, which presented (and still presents) cycles.
-    MatchedEquation* equation;
+    mlir::modelica::MatchedEquationInstanceOp equation;
 
     // The indices of the equations for which the cycles have been solved
     modeling::IndexSet solvedIndices;
@@ -38,7 +36,7 @@ namespace marco::codegen {
   /// An equation which originally presented cycles but now, for some indices, does not anymore.
   struct SolvedEquation
   {
-    SolvedEquation(const Equation* equation, llvm::ArrayRef<modeling::IndexSet> solvedIndices)
+    SolvedEquation(const mlir::modelica::MatchedEquationInstanceOp* equation, llvm::ArrayRef<modeling::IndexSet> solvedIndices)
         : equation(std::move(equation))
     {
       for (const auto& indices : solvedIndices) {
@@ -48,7 +46,7 @@ namespace marco::codegen {
 
     // The equation which originally had cycles.
     // The pointer refers to the original equation, which presented (and still presents) cycles.
-    const Equation* equation;
+    const mlir::modelica::MatchedEquationInstanceOp* equation;
 
     // The indices of the equations for which the cycles have been solved
     modeling::IndexSet solvedIndices;
@@ -59,7 +57,7 @@ namespace marco::codegen {
     std::string variableName;
     mlir::Type variableType;
     std::vector<GiNaC::ex> indices;
-    MatchedEquation* matchedEquation;
+    mlir::modelica::MatchedEquationInstanceOp* matchedEquation;
     modeling::IndexSet subscriptionIndices;
   };
 
@@ -72,15 +70,15 @@ namespace marco::codegen {
     std::vector<SolvedEquation> solvedEquations_;
 
     // The newly created equations which has no cycles anymore.
-    Equations<MatchedEquation> newEquations_;
+    std::vector<mlir::modelica::MatchedEquationInstanceOp*> newEquations_;
 
     // The cycles that can't be solved by substitution.
-    std::vector<MatchedEquation*> unsolvedCycles_;
+    std::vector<mlir::modelica::MatchedEquationInstanceOp*> unsolvedCycles_;
 
   public:
     void addSolvedEquation(
         std::vector<SolvedEquation>& solvedEquations,
-        Equation* const equation,
+        mlir::modelica::MatchedEquationInstanceOp* const equation,
         modeling::IndexSet indices)
     {
         auto it = llvm::find_if(solvedEquations, [&](SolvedEquation& solvedEquation) {
@@ -95,7 +93,7 @@ namespace marco::codegen {
         }
     }
 
-    bool hasSolvedEquation(Equation* const equation, modeling::IndexSet indices) const
+    bool hasSolvedEquation(const mlir::modelica::MatchedEquationInstanceOp* equation, modeling::IndexSet indices) const
     {
         auto it = llvm::find_if(solvedEquations_, [&](const SolvedEquation& solvedEquation) {
           return solvedEquation.equation == equation && solvedEquation.solvedIndices.contains(indices);
@@ -106,13 +104,11 @@ namespace marco::codegen {
 
     explicit CyclesSymbolicSolver(mlir::OpBuilder& builder);
 
-    bool solve(const std::vector<MatchedEquationSubscription>& equations);
+    bool solve(std::vector<MatchedEquationSubscription>& equations);
 
-    [[nodiscard]] Equations<MatchedEquation> getSolution() const;
+    [[nodiscard]] std::vector<mlir::modelica::MatchedEquationInstanceOp*> getSolution() const;
 
     [[nodiscard]] bool hasUnsolvedCycles() const;
-
-    [[nodiscard]] Equations<MatchedEquation> getUnsolvedEquations() const;
 
   };
 
@@ -161,6 +157,7 @@ namespace marco::codegen {
       GiNaC::ex& solution;
       modeling::IndexSet subscriptionIndices;
       size_t numberOfForLoops;
+      mlir::SymbolTableCollection symbolTableCollection;
 
       public:
       ModelicaToSymbolicEquationVisitor(

@@ -88,7 +88,7 @@ void printExpressions(GiNaC::ex system) {
   std::cerr << '}' << std::endl << std::endl;
 }
 
-bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>& equationSet)
+bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equationSet)
 {
   GiNaC::lst systemEquations;
   GiNaC::lst matchedVariables;
@@ -104,9 +104,7 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
   GiNaC::lst trivialEquations;
 
   for (auto& equation : equationSet) {
-    auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation.equation->getOperation().bodyBlock()->getTerminator());
-
-    GiNaC::ex expression = getExpressionFromEquation(equation.equation, symbolNameToInfoMap, equation.solvedIndices);
+    GiNaC::ex expression = getExpressionFromEquation(&equation.equation, symbolNameToInfoMap, equation.solvedIndices);
 
     expression = expression.expand();
 
@@ -171,25 +169,36 @@ bool CyclesSymbolicSolver::solve(const std::vector<MatchedEquationSubscription>&
       SymbolInfo symbolInfo = symbolNameToInfoMap[matchedVariableName];
       auto equation = symbolInfo.matchedEquation;
 
-      auto simpleEquation = Equation::build(equation->cloneIR(), equation->getVariables());
-      auto matchedEquation = newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), symbolInfo.subscriptionIndices, EquationPath::LEFT)));
+      for (const mlir::modelica::MultidimensionalRange& inductionRange :
+           llvm::make_range(symbolInfo.subscriptionIndices.rangesBegin(),
+                            symbolInfo.subscriptionIndices.rangesEnd())) {
+        bool initial = equation->getInitial();
+        auto loc = equation->getLoc();
 
-      auto equationOp = matchedEquation->getOperation();
-      auto loc = equationOp.getLoc();
-      builder.setInsertionPoint(equationOp);
+        auto path = mlir::modelica::EquationPath(mlir::modelica::EquationPath::LEFT, llvm::SmallVector<uint64_t>());
 
-      equationOp.bodyBlock()->erase();
-      assert(equationOp.getBodyRegion().empty());
-      mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
-      builder.setInsertionPointToStart(equationBodyBlock);
+        auto equationTemplate = builder.create<mlir::modelica::EquationTemplateOp>(loc);
+        auto equationInstance = builder.create<mlir::modelica::MatchedEquationInstanceOp>(
+            loc, equationTemplate, initial, mlir::modelica::EquationPathAttr::get(builder.getContext(), path));
 
-      MatchedEquationSubscription matchedEquationSubscription(matchedEquation, symbolInfo.subscriptionIndices);
+        equationInstance.setIndicesAttr(mlir::modelica::MultidimensionalRangeAttr::get(builder.getContext(), inductionRange));
 
-      SymbolicToModelicaEquationVisitor visitor = SymbolicToModelicaEquationVisitor(builder, loc, matchedEquationSubscription, symbolNameToInfoMap);
+        builder.setInsertionPoint(equationTemplate);
 
-      expr.traverse_postorder(visitor);
+        assert(equationTemplate.getBodyRegion().empty());
+        mlir::Block* equationBodyBlock = builder.createBlock(&equationTemplate.getBodyRegion());
+        builder.setInsertionPointToStart(equationBodyBlock);
 
-      addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
+        MatchedEquationSubscription matchedEquationSubscription(equationInstance, symbolInfo.subscriptionIndices);
+
+        SymbolicToModelicaEquationVisitor visitor = SymbolicToModelicaEquationVisitor(
+            builder, loc, matchedEquationSubscription, symbolNameToInfoMap);
+
+        expr.traverse_postorder(visitor);
+
+        addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
+      }
+
 
 //      GiNaC::ex checkExpression = getExpressionFromEquation(matchedEquation, symbolNameToInfoMap, symbolInfo.subscriptionIndices);
 //      checkEquations.append(checkExpression);
@@ -224,7 +233,7 @@ SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
   std::stack<mlir::modelica::ForEquationOp> forEquations;
-  auto forEquationOp = matchedEquation.equation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
+  auto forEquationOp = matchedEquation.equation->getParentOfType<mlir::modelica::ForEquationOp>();
   while (forEquationOp) {
     forEquations.push(forEquationOp);
     forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
@@ -255,7 +264,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::add & x) {
 
   for (size_t i = 1; i < x.nops(); ++i) {
     mlir::Value rhs = expressionHashToValueMap[x.op(i)];
-    mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
+    mlir::Type type = mlir::modelica::getMostGenericType(lhs.getType(), rhs.getType());
     lhs = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
   }
 
@@ -273,7 +282,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::mul & x) {
 
   for (size_t i = 1; i < x.nops(); ++i) {
     mlir::Value rhs = expressionHashToValueMap[x.op(i)];
-    mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
+    mlir::Type type = mlir::modelica::getMostGenericType(lhs.getType(), rhs.getType());
     lhs = builder.create<mlir::modelica::MulOp>(loc, type, lhs, rhs);
   }
 
@@ -284,7 +293,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::power & x) {
   mlir::Value lhs = expressionHashToValueMap[x.op(0)];
   mlir::Value rhs = expressionHashToValueMap[x.op(1)];
 
-  mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
+  mlir::Type type = mlir::modelica::getMostGenericType(lhs.getType(), rhs.getType());
 
   mlir::Value value = builder.create<mlir::modelica::PowOp>(loc, type, lhs, rhs);
   expressionHashToValueMap[x] = value;
@@ -381,7 +390,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
 //        }
 
         mlir::Value lhs = expressionHashToValueMap[argSymbol];
-        mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
+        mlir::Type type = mlir::modelica::getMostGenericType(lhs.getType(), rhs.getType());
         mlir::Value index = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
 
         currentIndices.push_back(index);
@@ -415,7 +424,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
   }
 }
 
-Equations<MatchedEquation> CyclesSymbolicSolver::getSolution() const
+std::vector<mlir::modelica::MatchedEquationInstanceOp*> CyclesSymbolicSolver::getSolution() const
 {
   return newEquations_;
 }
@@ -423,22 +432,6 @@ Equations<MatchedEquation> CyclesSymbolicSolver::getSolution() const
 bool CyclesSymbolicSolver::hasUnsolvedCycles() const
 {
   return !unsolvedCycles_.empty();
-}
-
-Equations<MatchedEquation> CyclesSymbolicSolver::getUnsolvedEquations() const
-{
-  Equations<MatchedEquation> result;
-
-  for (const auto& equation : unsolvedCycles_) {
-    modeling::IndexSet indices(equation->getIterationRanges());
-
-    for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-      result.add(std::make_unique<MatchedEquation>(
-          equation->clone(), modeling::IndexSet(range), equation->getWrite().getPath()));
-    }
-  }
-
-  return result;
 }
 
 ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
@@ -502,10 +495,11 @@ void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp vari
   }
 
   if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
-    // If the this is the matched variable for the equation, add it to the array
-    auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
+    // If this is the matched variable for the equation, add it to the array
+    auto write = equationInstance->getTemplate().getValueAtPath(
+        equationInstance->getMatchedAccess(symbolTableCollection)->getPath()).getDefiningOp();
     if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
-      symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+      symbolNameToInfoMap[variableName].matchedEquation = equationInstance;
       symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
     }
   }
@@ -578,17 +572,18 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
       }
 
       if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
-        // If the this is the matched variable for the equation, add it to the array
-        auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
+        // If this is the matched variable for the equation, add it to the array
+        auto write = equationInstance->getTemplate().getValueAtPath(
+            equationInstance->getMatchedAccess(symbolTableCollection)->getPath()).getDefiningOp();
         if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
-          symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+          symbolNameToInfoMap[variableName].matchedEquation = equationInstance;
           symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
         }
       }
 
       valueToExpressionMap[loadOp->getResult(0)] = symbolNameToInfoMap[variableName].symbol;
     } else {
-      matchedEquation->dumpIR();
+      equationInstance->dump();
       subscriptionOp->dump();
       subscriptionOp->getOperand(0).getDefiningOp()->dump();
       llvm_unreachable("Not a VariableGetOp.");
