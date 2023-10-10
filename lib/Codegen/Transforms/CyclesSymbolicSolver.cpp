@@ -73,11 +73,6 @@ GiNaC::ex getExpressionFromEquation(
     ++operation;
   }
 
-  for (auto [key, value] : symbolNameToInfoMap) {
-    std::cerr << "Key: " << key << std::endl;
-    std::cerr << "Symbol: " << value.symbol << std::endl;
-  }
-
   return solution;
 }
 
@@ -113,9 +108,9 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
 
     expression = expression.expand();
 
-    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
-    equation.equation.getTemplate()->dump();
+//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+//    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+//    equation.equation.getTemplate()->dump();
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
 //    if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -182,6 +177,7 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
 
         auto path = mlir::modelica::EquationPath(mlir::modelica::EquationPath::LEFT, llvm::SmallVector<uint64_t>());
 
+        builder.setInsertionPointAfter(equation->getOperation());
         auto equationTemplate = builder.create<mlir::modelica::EquationTemplateOp>(loc);
         auto equationInstance = builder.create<mlir::modelica::MatchedEquationInstanceOp>(
             loc, equationTemplate, initial, mlir::modelica::EquationPathAttr::get(builder.getContext(), path));
@@ -193,6 +189,12 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
         assert(equationTemplate.getBodyRegion().empty());
         mlir::Block* equationBodyBlock = builder.createBlock(&equationTemplate.getBodyRegion());
         builder.setInsertionPointToStart(equationBodyBlock);
+
+        size_t index = 0;
+        while (index < equation->getIndices().value().getValue().rank()) {
+          equationBodyBlock->addArgument(mlir::IndexType::get(builder.getContext()), loc);
+          ++index;
+        }
 
         MatchedEquationSubscription matchedEquationSubscription(equationInstance, symbolInfo.subscriptionIndices);
 
@@ -237,24 +239,9 @@ SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     std::map<std::string, SymbolInfo> symbolNameToInfoMap
     ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
-  std::stack<mlir::modelica::ForEquationOp> forEquations;
-  auto forEquationOp = matchedEquation.equation->getParentOfType<mlir::modelica::ForEquationOp>();
-  while (forEquationOp) {
-    forEquations.push(forEquationOp);
-    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
-  }
-
   size_t index = 0;
-  while (!forEquations.empty()) {
-    mlir::modelica::ForEquationOp op = forEquations.top();
-    forEquations.pop();
-
-    llvm::APInt from = op.getFrom();
-    llvm::APInt to = op.getTo();
-
-    matchedEquationForEquationRanges.emplace_back(from, to);
-
-    mlir::BlockArgument blockArgument = op.bodyBlock()->getArgument(0);
+  while (index < matchedEquation.equation.getIndices().value().getValue().rank()) {
+    mlir::BlockArgument blockArgument = matchedEquation.equation.getTemplate().getBody()->getArgument(index);
     std::string argumentName = "%arg" + std::to_string(index);
 
     GiNaC::symbol argumentSymbol = symbolNameToInfoMap[argumentName].symbol;
@@ -606,9 +593,6 @@ void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::NegateOp negateOp)
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::AddOp addOp)
 {
   valueToExpressionMap[addOp.getResult()] = valueToExpressionMap[addOp->getOperand(0)] + valueToExpressionMap[addOp->getOperand(1)];
-  std::cerr << "Operand 1: " << valueToExpressionMap[addOp->getOperand(0)] << std::endl;
-  std::cerr << "Operand 2: " << valueToExpressionMap[addOp->getOperand(1)] << std::endl;
-  std::cerr << "Result: " << valueToExpressionMap[addOp.getResult()] << std::endl;
 }
 
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::SubOp subOp)

@@ -711,11 +711,6 @@ void getLoopEquationSet(
     marco::codegen::CyclesSymbolicSolver solver) {
 
   for (const auto& it : cycle) {
-    LLVM_DEBUG(
-        std::cerr << std::endl << cycle.getEquation() << std::endl;
-        cycle.getEquation()->dumpIR();
-        std::cerr << std::endl;);
-
     IndexSet range = it.equationIndices;
 
     if (!solver.hasSolvedEquation(&it.equation, range)) {
