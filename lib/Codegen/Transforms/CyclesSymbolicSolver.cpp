@@ -73,6 +73,11 @@ GiNaC::ex getExpressionFromEquation(
     ++operation;
   }
 
+  for (auto [key, value] : symbolNameToInfoMap) {
+    std::cerr << "Key: " << key << std::endl;
+    std::cerr << "Symbol: " << value.symbol << std::endl;
+  }
+
   return solution;
 }
 
@@ -496,80 +501,78 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::Subscription
 
 void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadOp)
 {
-  if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
-    if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(subscriptionOp->getOperand(0).getDefiningOp())) {
-      std::string baseVariableName = variableGetOp.getVariable().str();
+  if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(loadOp->getOperand(0).getDefiningOp())) {
+    std::string baseVariableName = variableGetOp.getVariable().str();
 
-      std::string offset;
+    std::string offset;
 
-      std::vector<GiNaC::ex> indices;
+    std::vector<GiNaC::ex> indices;
 
-      llvm::SmallVector<size_t> sizes;
-      auto multidimensionalRange = *subscriptionIndices.rangesBegin();
-      multidimensionalRange.getSizes(sizes);
+    llvm::SmallVector<size_t> sizes;
+    auto multidimensionalRange = *subscriptionIndices.rangesBegin();
+    multidimensionalRange.getSizes(sizes);
 
-      auto range = *subscriptionIndices.rangesBegin();
-      auto iterator = range.begin();
-      marco::modeling::Point leftPoint = *iterator;
+    auto range = *subscriptionIndices.rangesBegin();
+    auto iterator = range.begin();
+    marco::modeling::Point leftPoint = *iterator;
 
-      // Populate the indices vector with the arguments of the SubscriptionOp
-      for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
-        GiNaC::ex index = valueToExpressionMap[subscriptionOp->getOperand(i)];
-        indices.push_back(index);
+    // Populate the indices vector with the arguments of the SubscriptionOp
+    for (size_t i = 1; i < loadOp->getNumOperands(); ++i) {
+      GiNaC::ex index = valueToExpressionMap[loadOp->getOperand(i)];
+      indices.push_back(index);
 
-        offset += '[';
+      offset += '[';
 
-        GiNaC::ex leftIndex = index;
-        GiNaC::ex rightIndex = index;
+      GiNaC::ex leftIndex = index;
+      GiNaC::ex rightIndex = index;
 
-        if (leftPoint.rank() == 0) {
-          std::cerr << "The rank is zero: scalar variable" << std::endl;
-        }
-
-        std::string blockArgumentName = "%arg" + std::to_string(i - 1);
-        if (symbolNameToInfoMap.count(blockArgumentName)) {
-          GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
-
-          leftIndex = leftIndex.subs(argument == leftPoint[i - 1]);
-          rightIndex = rightIndex.subs(argument == leftPoint[i - 1] + sizes[i - 1]);
-        }
-
-        std::ostringstream oss;
-        oss << leftIndex;
-        oss << ':';
-        oss << rightIndex;
-        offset += oss.str();
-
-        offset += ']';
+      if (leftPoint.rank() == 0) {
+        std::cerr << "The rank is zero: scalar variable" << std::endl;
       }
 
-      std::string variableName = baseVariableName + offset;
+      std::string blockArgumentName = "%arg" + std::to_string(i - 1);
+      if (symbolNameToInfoMap.count(blockArgumentName)) {
+        GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
 
-      if(!symbolNameToInfoMap.count(variableName)) {
-        symbolNameToInfoMap[variableName] = SymbolInfo();
-        symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
-        symbolNameToInfoMap[variableName].variableName = baseVariableName;
-        symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
-        symbolNameToInfoMap[variableName].indices = indices;
+        leftIndex = leftIndex.subs(argument == leftPoint[i - 1]);
+        rightIndex = rightIndex.subs(argument == leftPoint[i - 1] + sizes[i - 1]);
       }
 
-      if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
-        // If this is the matched variable for the equation, add it to the array
-        auto write = equationInstance->getTemplate().getValueAtPath(
-            equationInstance->getMatchedAccess(symbolTableCollection)->getPath()).getDefiningOp();
-        if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
-          symbolNameToInfoMap[variableName].matchedEquation = equationInstance;
-          symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
-        }
-      }
+      std::ostringstream oss;
+      oss << leftIndex;
+      oss << ':';
+      oss << rightIndex;
+      offset += oss.str();
 
-      valueToExpressionMap[loadOp->getResult(0)] = symbolNameToInfoMap[variableName].symbol;
-    } else {
-      equationInstance->dump();
-      subscriptionOp->dump();
-      subscriptionOp->getOperand(0).getDefiningOp()->dump();
-      llvm_unreachable("Not a VariableGetOp.");
+      offset += ']';
     }
+
+    std::string variableName = baseVariableName + offset;
+
+    if(!symbolNameToInfoMap.count(variableName)) {
+      symbolNameToInfoMap[variableName] = SymbolInfo();
+      symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
+      symbolNameToInfoMap[variableName].variableName = baseVariableName;
+      symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
+      symbolNameToInfoMap[variableName].indices = indices;
+    }
+
+    if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
+      // If this is the matched variable for the equation, add it to the array
+      auto write = equationInstance->getTemplate().getValueAtPath(
+          equationInstance->getMatchedAccess(symbolTableCollection)->getPath()).getDefiningOp();
+      if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
+        symbolNameToInfoMap[variableName].matchedEquation = equationInstance;
+        symbolNameToInfoMap[variableName].subscriptionIndices = subscriptionIndices;
+      }
+    }
+
+    valueToExpressionMap[loadOp->getResult(0)] = symbolNameToInfoMap[variableName].symbol;
+  } else {
+    equationInstance->dump();
+    loadOp->dump();
+    loadOp->getOperand(0).getDefiningOp()->dump();
+    llvm_unreachable("Not a VariableGetOp.");
   }
 }
 
