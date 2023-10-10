@@ -29,6 +29,8 @@ cmake \
   -DLLVM_TARGETS_TO_BUILD="host" \
   -DLLVM_INSTALL_UTILS=True \
   -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;mlir;openmp" \
+  -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_EH=ON \
   ../llvm
 
 cmake --build . --target install
