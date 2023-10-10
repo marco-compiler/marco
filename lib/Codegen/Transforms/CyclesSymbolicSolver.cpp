@@ -39,8 +39,6 @@ GiNaC::ex getExpressionFromEquation(
   while (operation != equationInstance->getTemplate().getBody()->end()) {
     if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(operation)) {
       visitor.visit(variableGetOp);
-    } else if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(operation)) {
-      visitor.visit(subscriptionOp);
     } else if(auto loadOp = mlir::dyn_cast<mlir::modelica::LoadOp>(operation)) {
       visitor.visit(loadOp);
     } else if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(operation)) {
@@ -406,8 +404,7 @@ void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
       } else {
         value = builder.create<mlir::modelica::VariableGetOp>(loc, type, baseVariableName);
         if (!currentIndices.empty()) {
-          value = builder.create<mlir::modelica::SubscriptionOp>(loc, value, currentIndices);
-          value = builder.create<mlir::modelica::LoadOp>(loc, value);
+          value = builder.create<mlir::modelica::LoadOp>(loc, value, currentIndices);
         }
       }
     }
@@ -481,11 +478,6 @@ void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp vari
   valueToExpressionMap[variableGetOp.getResult()] = symbolNameToInfoMap[variableName].symbol;
 }
 
-void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::SubscriptionOp subscriptionOp)
-{
-  // As of now we don't need to do anything when we visit a SubscriptionOp, as array loading is managed by LoadOp
-}
-
 void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadOp)
 {
   if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(loadOp->getOperand(0).getDefiningOp())) {
@@ -503,7 +495,6 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
     auto iterator = range.begin();
     marco::modeling::Point leftPoint = *iterator;
 
-    // Populate the indices vector with the arguments of the SubscriptionOp
     for (size_t i = 1; i < loadOp->getNumOperands(); ++i) {
       GiNaC::ex index = valueToExpressionMap[loadOp->getOperand(i)];
       indices.push_back(index);

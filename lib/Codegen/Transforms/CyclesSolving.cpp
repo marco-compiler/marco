@@ -92,6 +92,8 @@ namespace
 void CyclesSolvingPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
+  std::cerr << "BEFORE: " << std::endl;
+  modelOp.dump();
 
   if (mlir::failed(processModelOp(modelOp))) {
       return signalPassFailure();
@@ -111,6 +113,9 @@ void CyclesSolvingPass::runOnOperation()
       analysis->get().preserve();
     }
   }
+
+  std::cerr << "AFTER: " << std::endl;
+  modelOp.dump();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
