@@ -108,9 +108,9 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
 
     expression = expression.expand();
 
-//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-//    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
-//    equation.equation->dumpIR();
+    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+    equation.equation.getTemplate()->dump();
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
 //    if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -443,24 +443,9 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
         solution(solution),
         subscriptionIndices(std::move(subscriptionIndices))
 {
-  // Initialize the block arguments of the valueToExpressionMap
-
-  std::stack<mlir::modelica::ForEquationOp> forEquations;
-  auto forEquationOp = equationInstance->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
-
-  while (forEquationOp) {
-    forEquations.push(forEquationOp);
-    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
-  }
-
-  numberOfForLoops = forEquations.size();
-
   size_t index = 0;
-  while (!forEquations.empty()) {
-    mlir::modelica::ForEquationOp op = forEquations.top();
-    forEquations.pop();
-
-    mlir::BlockArgument blockArgument = op.bodyBlock()->getArgument(0);
+  while (index < equationInstance->getIndices().value().getValue().rank()) {
+    mlir::BlockArgument blockArgument = equationInstance->getTemplate().getBody()->getArgument(index);
     std::string argumentName = "%arg" + std::to_string(index);
 
     if (!symbolNameToInfoMap.count(argumentName)) {
@@ -471,15 +456,12 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
       symbolNameToInfoMap[argumentName].indices = {};
     }
 
-
     if (!valueToExpressionMap.count(blockArgument)) {
       valueToExpressionMap[blockArgument] = symbolNameToInfoMap[argumentName].symbol;
     }
 
     ++index;
   }
-
-//  std::cerr << std::endl;
 }
 
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
@@ -621,6 +603,9 @@ void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::NegateOp negateOp)
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::AddOp addOp)
 {
   valueToExpressionMap[addOp.getResult()] = valueToExpressionMap[addOp->getOperand(0)] + valueToExpressionMap[addOp->getOperand(1)];
+  std::cerr << "Operand 1: " << valueToExpressionMap[addOp->getOperand(0)] << std::endl;
+  std::cerr << "Operand 2: " << valueToExpressionMap[addOp->getOperand(1)] << std::endl;
+  std::cerr << "Result: " << valueToExpressionMap[addOp.getResult()] << std::endl;
 }
 
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::SubOp subOp)
