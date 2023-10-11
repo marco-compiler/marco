@@ -86,6 +86,18 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+
+      void cloneIntervals(
+          mlir::RewriterBase& rewriter,
+          const IndexSet& indices,
+          MatchedEquationInstanceOp equation,
+          llvm::SmallVector<MatchedEquationInstanceOp>& newEquations);
+
+      void cloneInterval(
+          mlir::RewriterBase& rewriter,
+          const MultidimensionalRange& range,
+          MatchedEquationInstanceOp equation,
+          llvm::SmallVector<MatchedEquationInstanceOp>& newEquations);
   };
 }
 
@@ -356,6 +368,7 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'initial conditions' model.
   if (!initialEquations.empty()) {
+    std::cerr << "INITIAL MODEL" << std::endl;
     if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, initialEquations))) {
       if (!allowUnsolvedCycles) {
@@ -369,6 +382,7 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'main' model.
   if (!equations.empty()) {
+    std::cerr << "MAIN MODEL" << std::endl;
     if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, equations))) {
       if (!allowUnsolvedCycles) {
@@ -748,7 +762,56 @@ static mlir::LogicalResult solveCycleSymbolic(
     solver.solve(equations);
   }
 
+  for (auto equation : solver.getSolution()) {
+    newEquations.push_back(*equation);
+  }
+
   return mlir::success();
+}
+
+void CyclesSolvingPass::cloneInterval(
+    mlir::RewriterBase& rewriter,
+    const MultidimensionalRange& range,
+    MatchedEquationInstanceOp equation,
+    llvm::SmallVector<MatchedEquationInstanceOp>& newEquations) {
+  auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+      rewriter.clone(*equation.getOperation()));
+
+  if (auto explicitIndices = equation.getIndices()) {
+    MultidimensionalRange explicitRange =
+        range.takeFirstDimensions(
+            explicitIndices->getValue().rank());
+
+    clonedOp.setIndicesAttr(
+        MultidimensionalRangeAttr::get(
+            rewriter.getContext(), std::move(explicitRange)));
+  }
+
+  if (auto implicitIndices = equation.getImplicitIndices()) {
+    MultidimensionalRange implicitRange =
+        range.takeLastDimensions(
+            implicitIndices->getValue().rank());
+
+    clonedOp.setImplicitIndicesAttr(
+        MultidimensionalRangeAttr::get(
+            rewriter.getContext(), std::move(implicitRange)));
+  }
+
+  newEquations.push_back(clonedOp);
+}
+
+void CyclesSolvingPass::cloneIntervals(
+    mlir::RewriterBase& rewriter,
+    const IndexSet& indices,
+    MatchedEquationInstanceOp equation,
+    llvm::SmallVector<MatchedEquationInstanceOp>& newEquations) {
+  rewriter.setInsertionPoint(equation);
+
+  for (const MultidimensionalRange& range : llvm::make_range(
+           indices.rangesBegin(),
+           indices.rangesEnd())) {
+    cloneInterval(rewriter, range, equation, newEquations);
+  }
 }
 
 mlir::LogicalResult CyclesSolvingPass::solveCyclesSymbolic(
@@ -779,16 +842,6 @@ mlir::LogicalResult CyclesSolvingPass::solveCyclesSymbolic(
   bool atLeastOneChanged;
 
   while (!cycles.empty()) {
-    // Collect all the equation indices leading to cycles.
-    llvm::DenseMap<MatchedEquationInstanceOp, IndexSet> cyclicIndices;
-
-    for (const Cycle& cycle : cycles) {
-      MatchedEquationInstanceOp equationOp = cycle[0].equation;
-      IndexSet indices = equationOp.getIterationSpace();
-      cyclicIndices[equationOp] += indices;
-    }
-
-    // Try to solve one cycle.
     atLeastOneChanged = false;
 
     for (const Cycle& cycle : cycles) {
@@ -797,49 +850,19 @@ mlir::LogicalResult CyclesSolvingPass::solveCyclesSymbolic(
 
       if (mlir::succeeded(::solveCycleSymbolic(
               rewriter, symbolTableCollection, cycle, newEquations))) {
-        MatchedEquationInstanceOp firstEquation = cycle[0].equation;
-        IndexSet originalIterationSpace = firstEquation.getIterationSpace();
+        for (const auto& cyclicEquation : cycle) {
+          MatchedEquationInstanceOp equation = cyclicEquation.equation;
+          IndexSet originalIterationSpace = equation.getIterationSpace();
 
-        if (!originalIterationSpace.empty()) {
-          IndexSet remainingIndices = originalIterationSpace;
+          if (!originalIterationSpace.empty()) {
+            IndexSet remainingIndices = originalIterationSpace;
 
-          for (MatchedEquationInstanceOp newEquation : newEquations) {
-            remainingIndices -= newEquation.getIterationSpace();
+            remainingIndices -= cyclicEquation.equationIndices;
+
+            cloneIntervals(rewriter, remainingIndices, equation, currentEquations);
           }
-
-          rewriter.setInsertionPoint(firstEquation);
-
-          for (const MultidimensionalRange& range : llvm::make_range(
-                   remainingIndices.rangesBegin(),
-                   remainingIndices.rangesEnd())) {
-            auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-                rewriter.clone(*firstEquation.getOperation()));
-
-            if (auto explicitIndices = firstEquation.getIndices()) {
-              MultidimensionalRange explicitRange =
-                  range.takeFirstDimensions(
-                      explicitIndices->getValue().rank());
-
-              clonedOp.setIndicesAttr(
-                  MultidimensionalRangeAttr::get(
-                      rewriter.getContext(), std::move(explicitRange)));
-            }
-
-            if (auto implicitIndices = firstEquation.getImplicitIndices()) {
-              MultidimensionalRange implicitRange =
-                  range.takeLastDimensions(
-                      implicitIndices->getValue().rank());
-
-              clonedOp.setImplicitIndicesAttr(
-                  MultidimensionalRangeAttr::get(
-                      rewriter.getContext(), std::move(implicitRange)));
-            }
-
-            currentEquations.push_back(clonedOp);
-          }
+          toBeErased.insert(equation);
         }
-
-        toBeErased.insert(firstEquation);
 
         for (MatchedEquationInstanceOp newEquation : newEquations) {
           allNewEquations.push_back(newEquation);

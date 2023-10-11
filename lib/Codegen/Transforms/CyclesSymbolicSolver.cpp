@@ -106,9 +106,10 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
 
     expression = expression.expand();
 
-//    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-//    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
-//    equation.equation.getTemplate()->dump();
+    std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+    equation.equation.getTemplate()->dump();
+    equation.equation->dump();
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
 //    if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -127,10 +128,10 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
     }
   }
 
-//  std::cerr << "System equations: \n";
-//  printExpressions(systemEquations);
-//  std::cerr << "Matched variables: \n";
-//  printExpressions(matchedVariables);
+  std::cerr << "System equations: \n";
+  printExpressions(systemEquations);
+  std::cerr << "Matched variables: \n";
+  printExpressions(matchedVariables);
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -150,8 +151,8 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
     newEquations.append(expandedSolutionEquation);
   }
 
-//  std::cerr << "Solution: \n";
-//  printExpressions(solutionEquations);
+  std::cerr << "Solution: \n";
+  printExpressions(solutionEquations);
 
   GiNaC::lst checkEquations;
 
@@ -170,15 +171,15 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
       for (const mlir::modelica::MultidimensionalRange& inductionRange :
            llvm::make_range(symbolInfo.subscriptionIndices.rangesBegin(),
                             symbolInfo.subscriptionIndices.rangesEnd())) {
-        bool initial = equation->getInitial();
+
         auto loc = equation->getLoc();
 
-        auto path = mlir::modelica::EquationPath(mlir::modelica::EquationPath::LEFT, llvm::SmallVector<uint64_t>());
+        auto path = mlir::modelica::EquationPath(mlir::modelica::EquationPath::LEFT, llvm::SmallVector<uint64_t>(1, 0));
 
-        builder.setInsertionPointAfter(equation->getOperation());
+        builder.setInsertionPoint(equation->getTemplate().getOperation());
         auto equationTemplate = builder.create<mlir::modelica::EquationTemplateOp>(loc);
         auto equationInstance = builder.create<mlir::modelica::MatchedEquationInstanceOp>(
-            loc, equationTemplate, initial, mlir::modelica::EquationPathAttr::get(builder.getContext(), path));
+            loc, equationTemplate, equation->getInitial(), mlir::modelica::EquationPathAttr::get(builder.getContext(), path));
 
         equationInstance.setIndicesAttr(mlir::modelica::MultidimensionalRangeAttr::get(builder.getContext(), inductionRange));
 
@@ -188,8 +189,12 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
         mlir::Block* equationBodyBlock = builder.createBlock(&equationTemplate.getBodyRegion());
         builder.setInsertionPointToStart(equationBodyBlock);
 
+        size_t rank = 0;
+        if (equation->getIndices().has_value()) {
+          rank = equation->getIndices().value().getValue().rank();
+        }
         size_t index = 0;
-        while (index < equation->getIndices().value().getValue().rank()) {
+        while (index < rank) {
           equationBodyBlock->addArgument(mlir::IndexType::get(builder.getContext()), loc);
           ++index;
         }
@@ -202,15 +207,19 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
         expr.traverse_postorder(visitor);
 
         addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
+        newEquations_.push_back(&equationInstance);
+
+        std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
+        std::cerr << "New equation: " << std::endl;
+        equationTemplate->dump();
+        equationInstance->dump();
       }
 
 
 //      GiNaC::ex checkExpression = getExpressionFromEquation(matchedEquation, symbolNameToInfoMap, symbolInfo.subscriptionIndices);
 //      checkEquations.append(checkExpression);
 
-//      std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
-//      std::cerr << "New equation: " << std::endl;
-//      matchedEquation->dumpIR();
+
     }
 
 //    std::cerr << "Check: \n";
@@ -237,8 +246,12 @@ SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     std::map<std::string, SymbolInfo> symbolNameToInfoMap
     ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
+  size_t rank = 0;
+  if (matchedEquation.equation.getIndices().has_value()) {
+    rank = matchedEquation.equation.getIndices().value().getValue().rank();
+  }
   size_t index = 0;
-  while (index < matchedEquation.equation.getIndices().value().getValue().rank()) {
+  while (index < rank) {
     mlir::BlockArgument blockArgument = matchedEquation.equation.getTemplate().getBody()->getArgument(index);
     std::string argumentName = "%arg" + std::to_string(index);
 
@@ -433,7 +446,11 @@ ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
         subscriptionIndices(std::move(subscriptionIndices))
 {
   size_t index = 0;
-  while (index < equationInstance->getIndices().value().getValue().rank()) {
+  size_t rank = 0;
+  if (equationInstance->getIndices().has_value()) {
+    rank = equationInstance->getIndices().value().getValue().rank();
+  }
+  while (index < rank) {
     mlir::BlockArgument blockArgument = equationInstance->getTemplate().getBody()->getArgument(index);
     std::string argumentName = "%arg" + std::to_string(index);
 
@@ -513,7 +530,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         GiNaC::symbol argument = symbolNameToInfoMap[blockArgumentName].symbol;
 
         leftIndex = leftIndex.subs(argument == leftPoint[i - 1]);
-        rightIndex = rightIndex.subs(argument == leftPoint[i - 1] + sizes[i - 1]);
+        rightIndex = rightIndex.subs(argument == leftPoint[i - 1] + sizes[i - 1] - 1);
       }
 
       std::ostringstream oss;
