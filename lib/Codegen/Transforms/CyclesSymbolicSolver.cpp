@@ -106,10 +106,10 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
 
     expression = expression.expand();
 
-    std::cerr << '\n' << "Expression: \n" << expression << '\n';
-    std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
-    equation.equation.getTemplate()->dump();
-    equation.equation->dump();
+    // std::cerr << '\n' << "Expression: \n" << expression << '\n';
+    // std::cerr << "Indices: \n" << equation.solvedIndices << '\n';
+    // equation.equation.getTemplate()->dump();
+    // equation.equation->dump();
 
 //    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
 //    if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
@@ -128,10 +128,10 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
     }
   }
 
-  std::cerr << "System equations: \n";
-  printExpressions(systemEquations);
-  std::cerr << "Matched variables: \n";
-  printExpressions(matchedVariables);
+  // std::cerr << "System equations: \n";
+  // printExpressions(systemEquations);
+  // std::cerr << "Matched variables: \n";
+  // printExpressions(matchedVariables);
 
   assert(systemEquations.nops() == matchedVariables.nops() && "Number of equations different from number of matched variables.");
 
@@ -151,8 +151,8 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
     newEquations.append(expandedSolutionEquation);
   }
 
-  std::cerr << "Solution: \n";
-  printExpressions(solutionEquations);
+  // std::cerr << "Solution: \n";
+  // printExpressions(solutionEquations);
 
   GiNaC::lst checkEquations;
 
@@ -209,10 +209,10 @@ bool CyclesSymbolicSolver::solve(std::vector<MatchedEquationSubscription>& equat
         addSolvedEquation(solvedEquations_, equation, symbolInfo.subscriptionIndices);
         newEquations_.push_back(&equationInstance);
 
-        std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
-        std::cerr << "New equation: " << std::endl;
-        equationTemplate->dump();
-        equationInstance->dump();
+        // std::cerr << "Indices: " << symbolInfo.subscriptionIndices;
+        // std::cerr << "New equation: " << std::endl;
+        // equationTemplate->dump();
+        // equationInstance->dump();
       }
 
 

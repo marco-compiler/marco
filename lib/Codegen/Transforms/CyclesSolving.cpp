@@ -104,8 +104,6 @@ namespace
 void CyclesSolvingPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
-  std::cerr << "BEFORE: " << std::endl;
-  modelOp.dump();
 
   if (mlir::failed(processModelOp(modelOp))) {
       return signalPassFailure();
@@ -125,9 +123,6 @@ void CyclesSolvingPass::runOnOperation()
       analysis->get().preserve();
     }
   }
-
-  std::cerr << "AFTER: " << std::endl;
-  modelOp.dump();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
@@ -368,7 +363,6 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'initial conditions' model.
   if (!initialEquations.empty()) {
-    std::cerr << "INITIAL MODEL" << std::endl;
     if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, initialEquations))) {
       if (!allowUnsolvedCycles) {
@@ -382,7 +376,6 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(ModelOp modelOp)
 
   // Perform the solving process on the 'main' model.
   if (!equations.empty()) {
-    std::cerr << "MAIN MODEL" << std::endl;
     if (mlir::failed(solveCyclesSymbolic(
             rewriter, symbolTableCollection, modelOp, equations))) {
       if (!allowUnsolvedCycles) {
