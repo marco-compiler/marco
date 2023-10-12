@@ -1,4 +1,4 @@
-// RUN: marco %s --omc-bypass --emit-mlir -o - | FileCheck %s
+// RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK:       %[[if_condition:.*]] = modelica.eq
 // CHECK:       modelica.if (%[[if_condition]] : !modelica.bool) {

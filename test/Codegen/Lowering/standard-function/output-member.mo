@@ -1,4 +1,4 @@
-// RUN: marco %s --omc-bypass --emit-mlir -o - | FileCheck %s
+// RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @outputBooleanScalar
 // CHECK: modelica.variable @y : !modelica.variable<!modelica.bool, output>

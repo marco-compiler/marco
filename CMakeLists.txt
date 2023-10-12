@@ -238,6 +238,16 @@ endif()
 #-------------------------------------------------------------------------------
 # Tests
 #-------------------------------------------------------------------------------
+
+# Search for the runtime library.
+find_package(MARCORuntime CONFIG)
+
+if (MARCORuntime_FOUND)
+	set(MARCO_TEST_SIMULATION_ENABLED ON)
+else()
+	set(MARCO_TEST_SIMULATION_ENABLED OFF)
+endif()
+
 enable_testing()
 
 FetchContent_Declare(

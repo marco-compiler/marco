@@ -102,7 +102,13 @@ if (MARCO_ENABLE_SUNDIALS)
         set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
     endif()
 
-    find_package(SUNDIALS REQUIRED)
+    find_package(SUNDIALS)
+
+    if (SUNDIALS_FOUND)
+        set(IDA_ENABLE ON)
+    else()
+        set(IDA_ENABLE OFF)
+    endif()
 
     if (NOT MARCO_USE_BUILTIN_SUNDIALS)
         # Compute SUNDIALS installation prefix

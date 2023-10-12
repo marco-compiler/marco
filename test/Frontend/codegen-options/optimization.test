@@ -1,46 +1,46 @@
-// RUN: marco -mc1 --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+// RUN: marco -mc1 -init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
 // CHECK-DEFAULT-DAG: Time optimization level: 0
 // CHECK-DEFAULT-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+// RUN: marco -mc1 -init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
 
 // CHECK-O0-LABEL: [Code generation]
 // CHECK-O0-DAG: Time optimization level: 0
 // CHECK-O0-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
+// RUN: marco -mc1 -init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
 
 // CHECK-O1-LABEL: [Code generation]
 // CHECK-O1-DAG: Time optimization level: 1
 // CHECK-O1-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
+// RUN: marco -mc1 -init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
 
 // CHECK-O2-LABEL: [Code generation]
 // CHECK-O2-DAG: Time optimization level: 2
 // CHECK-O2-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
+// RUN: marco -mc1 -init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
 
 // CHECK-O3-LABEL: [Code generation]
 // CHECK-O3-DAG: Time optimization level: 3
 // CHECK-O3-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
+// RUN: marco -mc1 -init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
 
 // CHECK-Ofast-LABEL: [Code generation]
 // CHECK-Ofast-DAG: Time optimization level: 3
 // CHECK-Ofast-DAG: Size optimization level: 0
 
-// RUN: marco -mc1 --init-only -Os | FileCheck %s --check-prefix="CHECK-Os"
+// RUN: marco -mc1 -init-only -Os | FileCheck %s --check-prefix="CHECK-Os"
 
 // CHECK-Os-LABEL: [Code generation]
 // CHECK-Os-DAG: Time optimization level: 2
 // CHECK-Os-DAG: Size optimization level: 1
 
-// RUN: marco -mc1 --init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
+// RUN: marco -mc1 -init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
 
 // CHECK-Oz-LABEL: [Code generation]
 // CHECK-Oz-DAG: Time optimization level: 2

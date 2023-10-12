@@ -3,7 +3,7 @@
 import sys
 
 config.host_triple = "@LLVM_HOST_TRIPLE@"
-config.target_triple = "@TARGET_TRIPLE@"
+config.target_triple = "@LLVM_TARGET_TRIPLE@"
 config.llvm_include_dirs = "@LLVM_INCLUDE_DIRS@"
 config.llvm_src_root = "@LLVM_SOURCE_DIR@"
 config.llvm_obj_root = "@LLVM_BINARY_DIR@"
@@ -41,6 +41,14 @@ config.marco_include_dirs = "@MARCO_INCLUDE_PUBLIC_DIR@"
 config.marco_obj_root = "@MARCO_BUILD_DIR@"
 config.marco_tools_dir = "@MARCO_TOOLS_DIR@"
 config.marco_libs_dir = "@MARCO_LIBS_DIR@"
+
+# Runtime library.
+config.marco_runtime_found = "@MARCORuntime_FOUND@"
+config.marco_runtime_lib_dir = "@MARCORuntime_LIB_PATH@"
+
+config.marco_runtime_sundials_lib_dir = "@MARCORuntime_SUNDIALS_LIB_PATH@"
+
+config.marco_runtime_ida_enabled = "@MARCORuntime_IDA_ENABLE@"
 
 # Support substitution of the tools_dir with user parameters. This is
 # used when we can't determine the tool dir at configuration time.

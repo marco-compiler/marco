@@ -1,4 +1,4 @@
-// RUN: marco %s --omc-bypass --emit-mlir -o - | FileCheck %s
+// RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
 // CHECK: modelica.mul %{{.*}}, %{{.*}} : (!modelica.array<3x5x!modelica.int>, !modelica.array<5x4x!modelica.int>) -> !modelica.array<3x4x!modelica.int>

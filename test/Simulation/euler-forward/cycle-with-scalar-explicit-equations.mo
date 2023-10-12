@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=M1 --solver=euler-forward -o %basename_t %s
+// RUN: marco --omc-bypass --model=M1 --solver=euler-forward -o %basename_t -L %runtime_lib_dir %s
 // RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x","y","z"
