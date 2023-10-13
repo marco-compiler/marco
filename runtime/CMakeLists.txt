@@ -52,19 +52,9 @@ endif()
 #------------------------------------------------------------------------------
 
 if (DEFINED LLVM_PATH)
-    # Emit a warning if both LLVM_ROOT and LLVM_DIR have been set
-    if (DEFINED LLVM_DIR)
-        message(WARNING "Both LLVM_PATH and LLVM_DIR have been set. LLVM_PATH has been ignored")
-    else()
-        set(LLVM_DIR "${LLVM_PATH}/lib/cmake/llvm")
-    endif()
-
-    # Emit a warning if both LLVM_ROOT and MLIR_DIR have been set
-    if (DEFINED MLIR_DIR)
-        message(WARNING "Both LLVM_PATH and MLIR_DIR have been set. LLVM_PATH has been ignored")
-    else()
-        set(MLIR_DIR "${LLVM_PATH}/lib/cmake/mlir")
-    endif()
+    get_filename_component(LLVM_ABS_PATH ${LLVM_PATH} ABSOLUTE)
+    set(LLVM_DIR "${LLVM_ABS_PATH}/lib/cmake/llvm")
+    set(MLIR_DIR "${LLVM_ABS_PATH}/lib/cmake/mlir")
 endif()
 
 find_package(LLVM REQUIRED CONFIG)

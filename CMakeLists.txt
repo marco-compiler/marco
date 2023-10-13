@@ -48,35 +48,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 #------------------------------------------------------------------------------
 
 if (DEFINED LLVM_PATH)
-	# Emit a warning if both LLVM_PATH and LLVM_DIR have been set
-	if (DEFINED LLVM_DIR)
-		message(WARNING "Both LLVM_PATH and LLVM_DIR have been set. LLVM_PATH has been ignored.")
-	else()
-		set(LLVM_DIR "${LLVM_PATH}/lib/cmake/llvm")
-	endif()
-
-	# Emit a warning if both LLVM_PATH and MLIR_DIR have been set
-	if (DEFINED MLIR_DIR)
-		message(WARNING "Both LLVM_PATH and MLIR_DIR have been set. LLVM_PATH has been ignored.")
-	else()
-		set(MLIR_DIR "${LLVM_PATH}/lib/cmake/mlir")
-	endif()
-
-	# Emit a warning if both LLVM_ROOT and MLIR_DIR have been set
-	if (DEFINED CLANG_DIR)
-		message(WARNING "Both LLVM_PATH and CLANG_DIR have been set. LLVM_PATH has been ignored")
-	else()
-		set(CLANG_DIR "${LLVM_PATH}/lib/cmake/clang")
-	endif()
+	get_filename_component(LLVM_ABS_PATH ${LLVM_PATH} ABSOLUTE)
+	set(LLVM_DIR "${LLVM_ABS_PATH}/lib/cmake/llvm")
+	set(MLIR_DIR "${LLVM_ABS_PATH}/lib/cmake/mlir")
+	set(Clang_DIR "${LLVM_ABS_PATH}/lib/cmake/clang")
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
-find_package(Clang REQUIRED CONFIG PATHS "${CLANG_DIR}" NO_DEFAULT_PATH)
+find_package(Clang REQUIRED CONFIG)
 
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-message(STATUS "Using ClangConfig.cmake in: ${CLANG_DIR}")
+message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
 # These are a bit of a hack, because we're hijacking a lot of LLVM machinery.
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
@@ -85,7 +69,7 @@ set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${CLANG_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${Clang_DIR}")
 
 include(HandleLLVMOptions)
 include(TableGen)
