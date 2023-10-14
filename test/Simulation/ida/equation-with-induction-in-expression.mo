@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=InductionUsage --solver=ida -o %basename_t -L %runtime_lib_dir %s
+// RUN: marco --omc-bypass --model=InductionUsage --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir %s
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=4 | FileCheck %s
 
 // CHECK: "time","x[1]","x[2]","x[3]","x[4]","x[5]"

@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=CycleWithAllImplicitEquations --solver=ida -o %basename_t -L %runtime_lib_dir %s
+// RUN: marco --omc-bypass --model=CycleWithAllImplicitEquations --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir %s
 // RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=4 | FileCheck %s
 
 // CHECK: "time","x","y"
