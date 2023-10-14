@@ -21,6 +21,8 @@ namespace marco::runtime::ida
     os << "  --end-time=<value>                     Set the end time (in seconds)." << std::endl;
     os << "  --time-step=<value>                    Set the time step (in seconds)." << std::endl;
 
+    os << "  --equations-chunks-factor              Set the factor which, once multiplied by the threads count, determines the number of equation chunks" << std::endl;
+
     os << "  --ida-relative-tolerance=<value>       Set the relative tolerance." << std::endl;
     os << "  --ida-absolute-tolerance=<value>       Set the absolute tolerance." << std::endl;
     os << "  --ida-max-algebraic-abs-tol=<value>    Set the maximum absolute tolerance allowed for algebraic variables." << std::endl;
@@ -53,6 +55,8 @@ namespace marco::runtime::ida
 
     getOptions().equidistantTimeGrid = static_cast<bool>(
         options("time-step") >> getOptions().timeStep);
+
+    options("equations-chunks-factor") >> getOptions().equationsChunksFactor;
 
     options("ida-max-steps") >> getOptions().maxSteps;
     options("ida-initial-step-size") >> getOptions().initialStepSize;

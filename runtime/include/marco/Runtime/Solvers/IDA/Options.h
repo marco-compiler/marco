@@ -97,6 +97,12 @@ namespace marco::runtime::ida
 
     // Whether to turn on or off the linesearch algorithm
     booleantype lineSearchOff = SUNFALSE;
+
+    // The factor multiplying the threads count when computing the total number
+    // of equations chunks.
+    // In other words, it is the amount of chunks each thread would process in
+    // a perfectly balanced scenario.
+    int64_t equationsChunksFactor = 10;
   };
 
   Options& getOptions();

@@ -465,10 +465,11 @@ namespace marco::runtime::ida
       using ThreadEquationsChunk = std::tuple<
           Equation, std::vector<int64_t>, std::vector<int64_t>>;
 
-      // How the equations are divided among multiple threads.
+      // The list of chunks the threads will process. Each thread elaborates
+      // one chunk at a time.
       // The information is computed only once during the initialization to
       // save time during the actual simulation.
-      std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
+      std::vector<ThreadEquationsChunk> threadEquationsChunks;
   };
 }
 

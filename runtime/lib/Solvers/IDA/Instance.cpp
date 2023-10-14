@@ -1553,119 +1553,55 @@ namespace marco::runtime::ida
 
   void IDAInstance::computeThreadChunks()
   {
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
+
+    int64_t chunksFactor = getOptions().equationsChunksFactor;
+    int64_t numOfChunks = numOfThreads * chunksFactor;
+
     uint64_t numOfVectorizedEquations = getNumOfVectorizedEquations();
     uint64_t numOfScalarEquations = getNumOfScalarEquations();
-    unsigned int numOfThreads = threadPool.getNumOfThreads();
-    threadEquationsChunks.resize(numOfThreads);
 
     size_t chunkSize =
-        (numOfScalarEquations + numOfThreads - 1) / numOfThreads;
+        (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
 
     // The number of vectorized equations whose indices have been completely
     // assigned.
     uint64_t processedEquations = 0;
 
-    Equation equation = equationsProcessingOrder[processedEquations];
-    std::vector<int64_t> equationIndices;
-
-    // Set the indices to the beginning.
-    getEquationBeginIndices(equation, equationIndices);
-
-    for (unsigned int thread = 0; thread < numOfThreads - 1; ++thread) {
-      size_t currentChunkSize = 0;
-
-      while (processedEquations < numOfVectorizedEquations &&
-             currentChunkSize < chunkSize) {
-        const MultidimensionalRange& ranges = equationRanges[equation];
-        uint64_t equationFlatSize = getEquationFlatSize(equation);
-        uint64_t flatIndex = getEquationFlatIndex(equationIndices, ranges);
-        uint64_t remainingScalarEquations = equationFlatSize - flatIndex;
-
-        if (remainingScalarEquations + currentChunkSize <= chunkSize) {
-          // All the remaining indices can be processed without exceeding the
-          // maximum chunk size.
-          std::vector<int64_t> endIndices;
-          getEquationEndIndices(equation, endIndices);
-
-          // Add the chunk.
-          threadEquationsChunks[thread].emplace_back(
-              equation, equationIndices, endIndices);
-
-          // Update the size of the current chunk.
-          currentChunkSize += remainingScalarEquations;
-
-          // Move to the next equation.
-          ++processedEquations;
-
-          if (processedEquations < numOfVectorizedEquations) {
-            equation = equationsProcessingOrder[processedEquations];
-            getEquationBeginIndices(equation, equationIndices);
-          }
-        } else {
-          // Only part of the indices can be processed before exceeding the
-          // maximum chunk size.
-          size_t numOfScalarEquationsToBeAdded = chunkSize - currentChunkSize;
-          assert(numOfScalarEquationsToBeAdded < remainingScalarEquations);
-
-          std::vector<int64_t> endIndices;
-
-          getEquationIndicesFromFlatIndex(
-              flatIndex + numOfScalarEquationsToBeAdded,
-              endIndices, equationRanges[equation]);
-
-          // Add the chunk.
-          threadEquationsChunks[thread].emplace_back(
-              equation, equationIndices, endIndices);
-
-          // The next chunk will start from here.
-          equationIndices = endIndices;
-
-          // Update the size of the current chunk.
-          currentChunkSize += numOfScalarEquationsToBeAdded;
-        }
-      }
-    }
-
-    // Assign the chunks to the last thread separately, in order to ensure that
-    // all the remaining equations are processed.
-
-    auto isEndIndices =
-        [](const std::vector<int64_t>& indices,
-           const MultidimensionalRange& ranges) {
-          assert(indices.size() == ranges.size());
-
-          for (size_t i = 0, e = ranges.size(); i < e; ++i) {
-            if (indices[i] != ranges[i].end) {
-              return false;
-            }
-          }
-
-          return true;
-        };
-
-    // Add the remaining indices for the current equation.
-    if (processedEquations < numOfVectorizedEquations &&
-        !isEndIndices(equationIndices, equationRanges[equation])) {
-      std::vector<int64_t> endIndices(equationRanges[equation].size());
-      getEquationEndIndices(equation, endIndices);
-
-      threadEquationsChunks.back().emplace_back(
-          equation, equationIndices, endIndices);
-
-      ++processedEquations;
-    }
-
-    // Add the remaining equations.
     while (processedEquations < numOfVectorizedEquations) {
-      equation = equationsProcessingOrder[processedEquations];
-      getEquationBeginIndices(equation, equationIndices);
+      Equation equation = equationsProcessingOrder[processedEquations];
+      uint64_t equationFlatSize = getEquationFlatSize(equation);
+      uint64_t equationFlatIndex = 0;
 
-      std::vector<int64_t> endIndices;
-      getEquationEndIndices(equation, endIndices);
+      // Divide the ranges into chunks.
+      while (equationFlatIndex < equationFlatSize) {
+        uint64_t beginFlatIndex = equationFlatIndex;
 
-      threadEquationsChunks.back().emplace_back(
-          equation, equationIndices, endIndices);
+        uint64_t endFlatIndex = std::min(
+            beginFlatIndex + static_cast<uint64_t>(chunkSize),
+            equationFlatSize);
 
+        std::vector<int64_t> beginIndices;
+        std::vector<int64_t> endIndices;
+
+        getEquationIndicesFromFlatIndex(
+            beginFlatIndex, beginIndices, equationRanges[equation]);
+
+        if (endFlatIndex == equationFlatSize) {
+          getEquationEndIndices(equation, endIndices);
+        } else {
+          getEquationIndicesFromFlatIndex(
+              endFlatIndex, endIndices, equationRanges[equation]);
+        }
+
+        threadEquationsChunks.emplace_back(
+            equation, std::move(beginIndices), std::move(endIndices));
+
+        // Move to the next chunk.
+        equationFlatIndex = endFlatIndex;
+      }
+
+      // Move to the next vectorized equation.
       ++processedEquations;
     }
   }
@@ -1897,16 +1833,21 @@ namespace marco::runtime::ida
   {
     // Shard the work among multiple threads.
     unsigned int numOfThreads = threadPool.getNumOfThreads();
-    assert(numOfThreads == threadEquationsChunks.size());
+    std::atomic_size_t chunkIndex = 0;
 
     for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
-      threadPool.async([&, t = thread]() {
-        for (const ThreadEquationsChunk& chunk : threadEquationsChunks[t]) {
+      threadPool.async([&]() {
+        size_t assignedChunk;
+
+        while ((assignedChunk = chunkIndex++) < threadEquationsChunks.size()) {
+          const ThreadEquationsChunk& chunk =
+              threadEquationsChunks[assignedChunk];
+
           Equation equation = std::get<0>(chunk);
           std::vector<int64_t> equationIndices = std::get<1>(chunk);
 
           do {
-            processFn(equation, equationIndices);
+              processFn(equation, equationIndices);
           } while (advanceEquationIndicesUntil(
               equationIndices, equationRanges[equation], std::get<2>(chunk)));
         }
