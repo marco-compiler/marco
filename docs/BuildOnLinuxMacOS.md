@@ -3,21 +3,22 @@ We provide here directions to install ONNX-MLIR on Linux and macOS.
 The commands for installing some packages are based on the `apt` tool, but it can be easily adapted to other package managers.
 
 ## Requirements
-### MLIR
+### LLVM
 MARCO has been though as a standalone project and thus does not live inside the LLVM repository.
 This allows for faster configuration and build.
-However, the LLVM infrastructures still needs to be installed within the host system and, due to the absence of MLIR in public packages, there is need for a manual build.
-Moreover, as the MLIR project changes rapidly, the referenced LLVM's commit is periodically updated in order to be always up-to-date with respect to MLIR.
-In order to ease the process for newcomers, the instructions needed to build LLVM on the required commit are reported here.
+However, the LLVM infrastructures still needs to be installed within the host system.
+More in detail, a customized version of LLVM is used to take advantage of the Clang driver library within MARCO.
+
+In order to ease the process for newcomers, the instructions needed to build LLVM are reported here.
 
 The build type is set to `Release` in order to allow for faster build and execution times, but it strongly suggested setting it to `Debug` when developing on MARCO.
 
-The installation path is optional, but it strongly recommended setting it to a custom path in order not mix the installed files with system ones or with other installations coming from package managers.
+The `LLVM_INSTALL_PATH` variable must be set to the desired installation path.
 
 ```bash
-git clone https://github.com/llvm/llvm-project.git
+git clone https://github.com/modelica-polimi/llvm-project.git
 cd llvm-project
-git checkout b027ce0ab93060bc6cb79d5402d21520e8b93fb7
+git checkout marco-llvm
 mkdir build && cd build
 
 # Set the installation path.
@@ -54,7 +55,9 @@ sudo apt install libmpc-dev
 ```
 
 The libraries can then be built by running the `sundials.sh` script inside the `dependencies` folder.
-Replace the `install_path` keyword with your preferred installation path, which will be used later to build the MARCO runtime library.
+
+The `SUNDIALS_INSTALL_PATH` variable must be set to the desired installation path.
+
 ```bash
 # Set the installation path.
 SUNDIALS_INSTALL_PATH=sundials_install_path
@@ -73,7 +76,9 @@ pip install lit
 ```
 
 ## Building and installing the runtime library
-Despite living in the same repository, the MARCO runtime library is by all means a separate projects that must be built separately and installed before compiling the MARCO compiler.
+Despite living in the same repository, the MARCO runtime library consists in a separate projects that must be built separately and installed before compiling the MARCO compiler.
+
+The `RUNTIME_INSTALL_PATH` variable must be set to the desired installation path.
 
 The `LLVM_PATH` variable must be set to the installation path that was used during the LLVM installation process.
 
@@ -106,6 +111,12 @@ cmake --build . --target install
 ```
 
 ## Building and installing the compiler
+With all the requirements set in place, the compiler can be now built through the following procedure.
+
+The `MARCO_INSTALL_PATH` variable must be set to the desired installation path.
+
+The `LIT_PATH` variable must be set to path of the `lit` tool, which is used to run the regression tests.
+
 ```bash
 cd marco
 mkdir build && cd build
