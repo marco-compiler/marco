@@ -30,7 +30,7 @@ Automatic vectorization of model with many scalar instances of the same componen
 ```
 If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag.
 
-These flags should be set in [run-marco.sh](https://github.com/modelica-polimi/marco/blob/5bac719666ea7e050463ef584b74be520ee7e955/run-marco.sh#L99), around line 99.
+These flags should be set in [FrontendActions.cpp](https://github.com/modelica-polimi/marco/blob/master/lib/Frontend/FrontendActions.cpp), around line 248.
 
 Explanations
 -----------
