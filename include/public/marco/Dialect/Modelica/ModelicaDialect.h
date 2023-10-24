@@ -13,9 +13,41 @@
 
 namespace mlir::modelica
 {
+  using DimensionAccess = ::marco::modeling::DimensionAccess;
+  using DimensionAccessConstant = ::marco::modeling::DimensionAccessConstant;
+  using DimensionAccessDimension = ::marco::modeling::DimensionAccessDimension;
+  using DimensionAccessAdd = ::marco::modeling::DimensionAccessAdd;
+  using DimensionAccessSub = ::marco::modeling::DimensionAccessSub;
+  using DimensionAccessMul = ::marco::modeling::DimensionAccessMul;
+  using DimensionAccessDiv = ::marco::modeling::DimensionAccessDiv;
+  using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
+
   mlir::Type getMostGenericType(mlir::Value x, mlir::Value y);
 
   mlir::Type getMostGenericType(mlir::Type x, mlir::Type y);
+
+  bool isScalar(mlir::Type type);
+
+  bool isScalar(mlir::Attribute attribute);
+
+  bool isScalarIntegerLike(mlir::Type type);
+
+  bool isScalarIntegerLike(mlir::Attribute attribute);
+
+  bool isScalarFloatLike(mlir::Type type);
+
+  bool isScalarFloatLike(mlir::Attribute attribute);
+
+  int64_t getScalarIntegerLikeValue(mlir::Attribute attribute);
+
+  double getScalarFloatLikeValue(mlir::Attribute attribute);
+
+  int64_t getIntegerFromAttribute(mlir::Attribute attribute);
+
+  std::unique_ptr<DimensionAccess> getDimensionAccess(
+      const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      const llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
+      mlir::Value value);
 
   mlir::LogicalResult materializeAffineMap(
       mlir::OpBuilder& builder,

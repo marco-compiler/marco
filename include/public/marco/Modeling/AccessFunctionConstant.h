@@ -8,9 +8,14 @@ namespace marco::modeling
   class AccessFunctionConstant : public AccessFunction
   {
     public:
-      AccessFunctionConstant(mlir::AffineMap affineMap);
+      AccessFunctionConstant(
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
-      ~AccessFunctionConstant();
+      explicit AccessFunctionConstant(mlir::AffineMap affineMap);
+
+      ~AccessFunctionConstant() override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -21,6 +26,10 @@ namespace marco::modeling
       }
 
       /// }
+
+      static bool canBeBuilt(
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       static bool canBeBuilt(mlir::AffineMap affineMap);
 

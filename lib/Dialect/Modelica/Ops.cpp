@@ -32,102 +32,6 @@ static mlir::Type convertToRealType(mlir::Type type)
   return RealType::get(type.getContext());
 }
 
-static bool isScalar(mlir::Type type)
-{
-  if (!type) {
-    return false;
-  }
-
-  return type.isa<
-      BooleanType, IntegerType, RealType,
-      mlir::IndexType, mlir::IntegerType, mlir::FloatType>();
-}
-
-static bool isScalar(mlir::Attribute attribute)
-{
-  if (!attribute) {
-    return false;
-  }
-
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
-    return isScalar(typedAttr.getType());
-  }
-
-  return false;
-}
-
-static bool isScalarIntegerLike(mlir::Type type)
-{
-  if (!isScalar(type)) {
-    return false;
-  }
-
-  return type.isa<
-      BooleanType, IntegerType,
-      mlir::IndexType, mlir::IntegerType>();
-}
-
-static bool isScalarIntegerLike(mlir::Attribute attribute)
-{
-  if (!attribute) {
-    return false;
-  }
-
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
-    return isScalarIntegerLike(typedAttr.getType());
-  }
-
-  return false;
-}
-
-static bool isScalarFloatLike(mlir::Type type)
-{
-  if (!isScalar(type)) {
-    return false;
-  }
-
-  return type.isa<RealType, mlir::FloatType>();
-}
-
-static bool isScalarFloatLike(mlir::Attribute attribute)
-{
-  if (!attribute) {
-    return false;
-  }
-
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
-    return isScalarFloatLike(typedAttr.getType());
-  }
-
-  return false;
-}
-
-static int64_t getScalarIntegerLikeValue(mlir::Attribute attribute)
-{
-  assert(isScalarIntegerLike(attribute));
-
-  if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
-    return booleanAttr.getValue();
-  }
-
-  if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
-    return integerAttr.getValue().getSExtValue();
-  }
-
-  return attribute.dyn_cast<mlir::IntegerAttr>().getValue().getSExtValue();
-}
-
-static double getScalarFloatLikeValue(mlir::Attribute attribute)
-{
-  assert(isScalarFloatLike(attribute));
-
-  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
-    return realAttr.getValue().convertToDouble();
-  }
-
-  return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
-}
-
 namespace
 {
   template<typename T>
@@ -157,20 +61,6 @@ namespace
 
     return true;
   }
-}
-
-static int64_t getIntegerFromAttribute(mlir::Attribute attribute)
-{
-  if (isScalarIntegerLike(attribute)) {
-    return getScalarIntegerLikeValue(attribute);
-  }
-
-  if (isScalarFloatLike(attribute)) {
-    return static_cast<int64_t>(getScalarFloatLikeValue(attribute));
-  }
-
-  llvm_unreachable("Unknown attribute type");
-  return 0;
 }
 
 static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
@@ -907,6 +797,43 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  mlir::LogicalResult LoadOp::getEquationAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+      uint64_t numOfImplicitInductions,
+      EquationPath path)
+  {
+    auto indices = getIndices();
+
+    for (size_t i = 0, e = indices.size(); i < e; ++i) {
+      mlir::Value index = indices[e - 1 - i];
+
+      auto dimensionAccess = getDimensionAccess(
+          explicitInductionsPositionMap, additionalInductionsIndicesMap,
+          index);
+
+      if (!dimensionAccess) {
+        return mlir::failure();
+      }
+
+      dimensionAccesses.push_back(std::move(dimensionAccess));
+    }
+
+    auto arrayOp = getArray().getDefiningOp<EquationExpressionOpInterface>();
+
+    if (!arrayOp) {
+      return mlir::failure();
+    }
+
+    return arrayOp.getEquationAccesses(
+        accesses, symbolTable, explicitInductionsPositionMap,
+        additionalInductionsIndicesMap,
+        dimensionAccesses, numOfImplicitInductions, std::move(path));
+  }
+
   mlir::ValueRange LoadOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -1180,6 +1107,43 @@ namespace mlir::modelica
     patterns.add<
         InferSubscriptionResultTypePattern,
         MergeSubscriptionsPattern>(context);
+  }
+
+  mlir::LogicalResult SubscriptionOp::getEquationAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+      uint64_t numOfImplicitInductions,
+      EquationPath path)
+  {
+    auto indices = getIndices();
+
+    for (size_t i = 0, e = indices.size(); i < e; ++i) {
+      mlir::Value index = indices[e - 1 - i];
+
+      auto dimensionAccess = getDimensionAccess(
+          explicitInductionsPositionMap, additionalInductionsIndicesMap,
+          index);
+
+      if (!dimensionAccess) {
+        return mlir::failure();
+      }
+
+      dimensionAccesses.push_back(std::move(dimensionAccess));
+    }
+
+    auto sourceOp = getSource().getDefiningOp<EquationExpressionOpInterface>();
+
+    if (!sourceOp) {
+      return mlir::failure();
+    }
+
+    return sourceOp.getEquationAccesses(
+        accesses, symbolTable, explicitInductionsPositionMap,
+        additionalInductionsIndicesMap,
+        dimensionAccesses, numOfImplicitInductions, std::move(path));
   }
 
   mlir::ValueRange SubscriptionOp::derive(
@@ -1533,6 +1497,65 @@ namespace mlir::modelica
 
     if (unwrappedType != getResult().getType()) {
       return emitOpError() << "result type does not match the variable type";
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult VariableGetOp::getEquationAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+      uint64_t numOfImplicitInductions,
+      EquationPath path)
+  {
+    // Revert the dimension accesses.
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> reverted;
+
+    for (size_t i = 0, e = dimensionAccesses.size(); i < e; ++i) {
+      reverted.push_back(dimensionAccesses[e - i - 1]->clone());
+    }
+
+    // Finalize the accesses.
+    auto numOfExplicitInductions =
+        static_cast<uint64_t>(explicitInductionsPositionMap.size());
+
+    uint64_t numOfInductions =
+        numOfExplicitInductions + numOfImplicitInductions;
+
+    if (path.size() == 1) {
+      // Add the implicit inductions if we are at a leaf of the equation.
+      for (uint64_t i = numOfExplicitInductions; i < numOfInductions; ++i) {
+        reverted.push_back(DimensionAccess::build(
+            mlir::getAffineDimExpr(i, getContext())));
+      }
+
+      accesses.push_back(VariableAccess(
+          std::move(path),
+          mlir::SymbolRefAttr::get(getVariableAttr()),
+          AccessFunction::build(getContext(), numOfInductions, reverted)));
+    } else {
+      if (auto arrayType = getType().dyn_cast<ArrayType>();
+          arrayType &&
+          arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
+        // Access to each scalar variable.
+        for (int64_t i = static_cast<int64_t>(reverted.size()),
+                     rank = arrayType.getRank(); i < rank; ++i) {
+          int64_t dimension = arrayType.getDimSize(i);
+          assert(dimension != ArrayType::kDynamic);
+          IndexSet range(MultidimensionalRange(Range(0, dimension)));
+
+          reverted.push_back(std::make_unique<DimensionAccessIndices>(
+              getContext(), std::move(range)));
+        }
+      }
+
+      accesses.push_back(VariableAccess(
+          std::move(path),
+          mlir::SymbolRefAttr::get(getVariableAttr()),
+          AccessFunction::build(getContext(), numOfInductions, reverted)));
     }
 
     return mlir::success();
@@ -8968,7 +8991,6 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Location> argLocs;
 
     for (mlir::Value iterable : getIterables()) {
-      // TODO type interface for Iterable types
       auto iterableType = iterable.getType().cast<IterableTypeInterface>();
       argTypes.push_back(iterableType.getInductionType());
       argLocs.push_back(builder.getUnknownLoc());
@@ -9646,255 +9668,34 @@ namespace mlir::modelica
     return accesses[0];
   }
 
-  std::optional<mlir::AffineMap> EquationTemplateOp::getAccessFunction(
-      llvm::ArrayRef<mlir::Value> indices)
-  {
-    // Get the induction variables and number them.
-    mlir::ValueRange inductionVariables = getInductionVariables();
-    llvm::DenseMap<mlir::Value, unsigned int> inductionsPositionMap;
-
-    for (const auto& inductionVariable : llvm::enumerate(inductionVariables)) {
-      inductionsPositionMap[inductionVariable.value()] =
-          inductionVariable.index();
-    }
-
-    llvm::SmallVector<mlir::AffineExpr, 3> expressions;
-
-    for (mlir::Value index : indices) {
-      if (auto expression = getAffineExpr(inductionsPositionMap, index)) {
-        expressions.push_back(*expression);
-      } else {
-        return std::nullopt;
-      }
-    }
-
-    return mlir::AffineMap::get(
-        inductionVariables.size(), 0, expressions, getContext());
-  }
-
   mlir::LogicalResult EquationTemplateOp::searchAccesses(
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
-      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
       mlir::Value value,
       EquationPath path)
   {
-    llvm::SmallVector<mlir::AffineExpr, 10> dimensionAccesses;
+    mlir::Operation* definingOp = value.getDefiningOp();
 
-    return searchAccesses(accesses, symbolTable, inductionsPositionMap,
-                   value, dimensionAccesses, std::move(path));
-  }
-
-  mlir::LogicalResult EquationTemplateOp::searchAccesses(
-      llvm::SmallVectorImpl<VariableAccess>& accesses,
-      mlir::SymbolTableCollection& symbolTable,
-      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-      mlir::Value value,
-      llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
-      EquationPath path)
-  {
-    if (mlir::Operation* definingOp = value.getDefiningOp()) {
-      if (mlir::failed(searchAccesses(
-              accesses, symbolTable, inductionsPositionMap,
-              definingOp, dimensionAccesses, std::move(path)))) {
-        return mlir::failure();
-      }
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult EquationTemplateOp::searchAccesses(
-      llvm::SmallVectorImpl<VariableAccess>& accesses,
-      mlir::SymbolTableCollection& symbolTable,
-      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-      mlir::Operation* op,
-      llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
-      EquationPath path)
-  {
-    if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
-      llvm::SmallVector<mlir::AffineExpr, 3> reverted(
-          dimensionAccesses.rbegin(), dimensionAccesses.rend());
-
-      uint64_t numOfExplicitInductions =
-          static_cast<uint64_t>(inductionsPositionMap.size());
-
-      uint64_t numOfImplicitInductions =
-          getNumOfImplicitInductionVariables(path[0]);
-
-      uint64_t numOfInductions =
-          numOfExplicitInductions + numOfImplicitInductions;
-
-      if (path.size() == 1) {
-        for (uint64_t i = numOfExplicitInductions; i < numOfInductions; ++i) {
-          reverted.push_back(mlir::getAffineDimExpr(i, getContext()));
-        }
-
-        auto affineMap = mlir::AffineMap::get(
-            numOfInductions, 0, reverted, getContext());
-
-        accesses.push_back(VariableAccess(
-            std::move(path),
-            mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
-            AccessFunction::build(affineMap)));
-      } else {
-        if (auto arrayType = variableGetOp.getType().dyn_cast<ArrayType>();
-            arrayType &&
-            arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
-          // Access to each scalar variable.
-          llvm::SmallVector<Range, 3> ranges;
-
-          for (int64_t i = static_cast<int64_t>(reverted.size()),
-                       rank = arrayType.getRank(); i < rank; ++i) {
-            int64_t dimension = arrayType.getDimSize(i);
-            assert(dimension != ArrayType::kDynamic);
-            ranges.push_back(Range(0, dimension));
-          }
-
-          MultidimensionalRange indices(ranges);
-
-          for (Point point : indices) {
-            llvm::SmallVector<mlir::AffineExpr, 3> extendedExpressions(
-                reverted.begin(), reverted.end());
-
-            for (int64_t index : point) {
-              extendedExpressions.push_back(
-                  mlir::getAffineConstantExpr(index, getContext()));
-            }
-
-            auto affineMap = mlir::AffineMap::get(
-                numOfInductions, 0, extendedExpressions, getContext());
-
-            accesses.push_back(VariableAccess(
-                std::move(path),
-                mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
-                AccessFunction::build(affineMap)));
-          }
-        } else {
-          auto affineMap = mlir::AffineMap::get(
-              numOfInductions, 0, reverted, getContext());
-
-          accesses.push_back(VariableAccess(
-              std::move(path),
-              mlir::SymbolRefAttr::get(variableGetOp.getVariableAttr()),
-              AccessFunction::build(affineMap)));
-        }
-      }
-
+    if (!definingOp) {
       return mlir::success();
     }
 
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-      for (size_t i = 0, e = loadOp.getIndices().size(); i < e; ++i) {
-        mlir::Value index = loadOp.getIndices()[e - 1 - i];
-        auto expression = getAffineExpr(inductionsPositionMap, index);
+    llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap;
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> dimensionAccesses;
 
-        if (!expression) {
-          loadOp.emitOpError() << "Can't compute access";
-          return mlir::failure();
-        }
+    uint64_t numOfImplicitInductions =
+        getNumOfImplicitInductionVariables(path[0]);
 
-        dimensionAccesses.push_back(*expression);
-      }
-
-      return searchAccesses(
-          accesses, symbolTable, inductionsPositionMap,
-          loadOp.getArray(), dimensionAccesses, std::move(path));
+    if (auto expressionInt =
+            mlir::dyn_cast<EquationExpressionOpInterface>(definingOp)) {
+      return expressionInt.getEquationAccesses(
+          accesses, symbolTable, explicitInductionsPositionMap,
+          additionalInductionsIndicesMap, dimensionAccesses,
+          numOfImplicitInductions, std::move(path));
     }
 
-    if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
-      for (size_t i = 0, e = subscriptionOp.getIndices().size(); i < e; ++i) {
-        mlir::Value index = subscriptionOp.getIndices()[e - 1 - i];
-        auto expression = getAffineExpr(inductionsPositionMap, index);
-
-        if (!expression) {
-          subscriptionOp.emitOpError() << "Can't compute access";
-          return mlir::failure();
-        }
-
-        dimensionAccesses.push_back(*expression);
-      }
-
-      return searchAccesses(
-          accesses, symbolTable, inductionsPositionMap,
-          subscriptionOp.getSource(), dimensionAccesses, std::move(path));
-    }
-
-    for (size_t i = 0, e = op->getNumOperands(); i < e; ++i) {
-      EquationPath::Guard guard(path);
-      path += i;
-
-      if (mlir::failed(searchAccesses(
-              accesses, symbolTable, inductionsPositionMap,
-              op->getOperand(i), path))) {
-        return mlir::failure();
-      }
-    }
-
-    return mlir::success();
-  }
-
-  std::optional<mlir::AffineExpr> EquationTemplateOp::getAffineExpr(
-      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-      mlir::Value index)
-  {
-    if (auto definingOp = index.getDefiningOp()) {
-      if (auto op = mlir::dyn_cast<ConstantOp>(definingOp)) {
-        return mlir::getAffineConstantExpr(
-            getIntegerFromAttribute(op.getValue()), index.getContext());
-      }
-
-      if (auto op = mlir::dyn_cast<AddOp>(definingOp)) {
-        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
-        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
-
-        if (!lhs || !rhs) {
-          return std::nullopt;
-        }
-
-        return *lhs + *rhs;
-      }
-
-      if (auto op = mlir::dyn_cast<SubOp>(definingOp)) {
-        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
-        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
-
-        if (!lhs || !rhs) {
-          return std::nullopt;
-        }
-
-        return *lhs - *rhs;
-      }
-
-      if (auto op = mlir::dyn_cast<MulOp>(definingOp)) {
-        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
-        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
-
-        if (!lhs || !rhs) {
-          return std::nullopt;
-        }
-
-        return *lhs * *rhs;
-      }
-
-      if (auto op = mlir::dyn_cast<DivOp>(definingOp)) {
-        auto lhs = getAffineExpr(inductionsPositionMap, op.getLhs());
-        auto rhs = getAffineExpr(inductionsPositionMap, op.getRhs());
-
-        if (!lhs || !rhs) {
-          return std::nullopt;
-        }
-
-        return lhs->floorDiv(*rhs);
-      }
-    }
-
-    if (auto it = inductionsPositionMap.find(index);
-        it != inductionsPositionMap.end()) {
-      return mlir::getAffineDimExpr(it->second, getContext());
-    }
-
-    return std::nullopt;
+    return mlir::failure();
   }
 
   mlir::LogicalResult EquationTemplateOp::cloneWithReplacedAccess(
@@ -9945,7 +9746,7 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
-    mlir::AffineMap destinationMap = access.getAccessFunction().getAffineMap();
+    auto destinationAccessFunction = access.getAccessFunction().clone();
 
     // The extra subscription indices to be applied to the replacement value.
     llvm::SmallVector<mlir::Value> additionalSubscriptionIndices;
@@ -9957,12 +9758,11 @@ namespace mlir::modelica
       // results in possibly wasted additional computations, but does lead to
       // a correct result.
 
-      destinationMap = mlir::AffineMap::get(
-          destinationMap.getNumDims(),
-          destinationMap.getNumSymbols(),
-          destinationMap.getResults().drop_back(
-              sourceRank - destinationRank),
-          destinationMap.getContext());
+      destinationAccessFunction = AccessFunction::build(
+          destinationAccessFunction->getContext(),
+          destinationAccessFunction->getNumOfDims(),
+          destinationAccessFunction->getResults().drop_back(
+              sourceRank - destinationRank));
 
       // If the destination access has more indices than the source one,
       // then collect the additional ones and apply them to the
@@ -10020,7 +9820,7 @@ namespace mlir::modelica
 
     VariableAccess destinationAccess(
         access.getPath(), access.getVariable(),
-        AccessFunction::build(destinationMap));
+        std::move(destinationAccessFunction));
 
     // Try to perform a vectorized replacement first.
     if (mlir::failed(cloneWithReplacedVectorizedAccess(
@@ -10032,10 +9832,8 @@ namespace mlir::modelica
 
     // Perform scalar replacements on the remaining equation indices.
     // TODO
-    /*
-    for (Point scalarEquationIndices : remainingEquationIndices) {
-    }
-     */
+    //for (Point scalarEquationIndices : remainingEquationIndices) {
+    //}
 
     if (remainingEquationIndices.empty()) {
       cleanOnFailure.release();
@@ -10226,6 +10024,10 @@ namespace mlir::modelica
     // Check if the source access is invertible by removing the constant
     // accesses.
 
+    if (!sourceAccess.isAffine() || !destinationAccess.isAffine()) {
+      return nullptr;
+    }
+
     // Determine the constant results to be removed.
     mlir::AffineMap sourceAffineMap = sourceAccess.getAffineMap();
     llvm::SmallVector<int64_t, 3> constantExprPositions;
@@ -10271,6 +10073,10 @@ namespace mlir::modelica
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(destination.getBody());
+
+    if (!transformation.isAffine()) {
+      return mlir::failure();
+    }
 
     mlir::AffineMap affineMap = transformation.getAffineMap();
 
@@ -10947,8 +10753,7 @@ namespace mlir::modelica
       return true;
     }
 
-    if (firstAccessFunction.getAffineMap() ==
-        secondAccessFunction.getAffineMap()) {
+    if (firstAccessFunction == secondAccessFunction) {
       return true;
     }
 

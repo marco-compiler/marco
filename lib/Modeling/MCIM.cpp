@@ -225,8 +225,11 @@ namespace marco::modeling::internal
     }
 
     for (const Point& equationPoint : equations) {
-      auto variablePoint = access.map(equationPoint);
-      set(equationPoint, variablePoint);
+      auto variablePoints = access.map(equationPoint);
+
+      for (Point variablePoint : variablePoints) {
+        set(equationPoint, variablePoint);
+      }
     }
   }
 

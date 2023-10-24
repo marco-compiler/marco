@@ -8,9 +8,14 @@ namespace marco::modeling
   class AccessFunctionZeroResults : public AccessFunction
   {
     public:
-      AccessFunctionZeroResults(mlir::AffineMap affineMap);
+      AccessFunctionZeroResults(
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
-      ~AccessFunctionZeroResults();
+      explicit AccessFunctionZeroResults(mlir::AffineMap affineMap);
+
+      ~AccessFunctionZeroResults() override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -21,6 +26,10 @@ namespace marco::modeling
       }
 
       /// }
+
+      static bool canBeBuilt(
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       static bool canBeBuilt(mlir::AffineMap affineMap);
 

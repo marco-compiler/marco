@@ -5,19 +5,37 @@ using namespace ::marco::modeling;
 namespace marco::modeling
 {
   AccessFunctionZeroDims::AccessFunctionZeroDims(
-      mlir::AffineMap affineMap)
+      mlir::MLIRContext* context,
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunction(
           AccessFunction::Kind::ZeroDims,
-          affineMap)
+          context, numOfDimensions, results)
   {
-    assert(canBeBuilt(affineMap));
+    assert(canBeBuilt(numOfDimensions, results));
+  }
+
+  AccessFunctionZeroDims::AccessFunctionZeroDims(mlir::AffineMap affineMap)
+      : AccessFunction(affineMap.getContext(),
+                       affineMap.getNumDims(),
+                       convertAffineExpressions(affineMap.getResults()))
+  {
   }
 
   AccessFunctionZeroDims::~AccessFunctionZeroDims() = default;
 
+  bool AccessFunctionZeroDims::canBeBuilt(
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+  {
+    return numOfDimensions == 0;
+  }
+
   bool AccessFunctionZeroDims::canBeBuilt(mlir::AffineMap affineMap)
   {
-    return affineMap.getNumDims() == 0;
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
+    AccessFunction::convertAffineExpressions(affineMap.getResults());
+    return AccessFunctionZeroDims::canBeBuilt(affineMap.getNumDims(), results);
   }
 
   std::unique_ptr<AccessFunction> AccessFunctionZeroDims::clone() const
@@ -27,12 +45,13 @@ namespace marco::modeling
 
   IndexSet AccessFunctionZeroDims::map(const IndexSet& indices) const
   {
-    auto extendedAccessFunction = getWithAtLeastNDimensions(1);
+    Point dummyPoint(0);
+    IndexSet mappedIndices;
 
-    llvm::SmallVector<Range, 3> dummyRanges(
-        extendedAccessFunction->getNumOfDims(), Range(0, 1));
+    for (const auto& result : getResults()) {
+      mappedIndices = mappedIndices.append(result->map(dummyPoint));
+    }
 
-    return extendedAccessFunction->map(
-        IndexSet(MultidimensionalRange(dummyRanges)));
+    return mappedIndices;
   }
 }

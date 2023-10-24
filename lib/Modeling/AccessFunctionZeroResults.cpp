@@ -5,19 +5,38 @@ using namespace ::marco::modeling;
 namespace marco::modeling
 {
   AccessFunctionZeroResults::AccessFunctionZeroResults(
-      mlir::AffineMap affineMap)
+      mlir::MLIRContext* context,
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunction(
           AccessFunction::Kind::ZeroResults,
-          affineMap)
+          context, numOfDimensions, results)
   {
-    assert(canBeBuilt(affineMap));
+    assert(canBeBuilt(numOfDimensions, results));
+  }
+
+  AccessFunctionZeroResults::AccessFunctionZeroResults(
+      mlir::AffineMap affineMap)
+      : AccessFunction(affineMap.getContext(),
+                       affineMap.getNumDims(),
+                       convertAffineExpressions(affineMap.getResults()))
+  {
   }
 
   AccessFunctionZeroResults::~AccessFunctionZeroResults() = default;
 
+  bool AccessFunctionZeroResults::canBeBuilt(
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+  {
+    return results.empty();
+  }
+
   bool AccessFunctionZeroResults::canBeBuilt(mlir::AffineMap affineMap)
   {
-    return affineMap.getNumResults() == 0;
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
+    AccessFunction::convertAffineExpressions(affineMap.getResults());
+    return AccessFunctionZeroResults::canBeBuilt(affineMap.getNumDims(), results);
   }
 
   std::unique_ptr<AccessFunction> AccessFunctionZeroResults::clone() const

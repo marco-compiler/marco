@@ -45,6 +45,77 @@ def VectorizableOpInterface : Modelica_OpInterface<"VectorizableOpInterface">
     ];
 }
 
+def EquationExpressionOpInterface
+    : Modelica_OpInterface<"EquationExpressionOpInterface">
+{
+    let description = [{
+        This interface is used to represent an operation that can be used to
+        represent an expression within an equation.
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "Get the number of elements.",
+            "uint64_t", "getNumOfExpressionElements",
+            (ins), [{}], [{
+                return $_op.getOperation()->getNumOperands();
+            }]>,
+        InterfaceMethod<
+            "Get the element at a given position.",
+            "::mlir::Value", "getExpressionElement",
+            (ins "uint64_t":$element), [{}], [{
+                return $_op.getOperation()->getOperand(element);
+            }]>,
+        InterfaceMethod<
+            "Get the accesses of this expression",
+            "::mlir::LogicalResult", "getEquationAccesses",
+            (ins "::llvm::SmallVectorImpl<VariableAccess>&":$accesses,
+                 "::mlir::SymbolTableCollection&":$symbolTable,
+                 "::llvm::DenseMap<::mlir::Value, unsigned int>&":$explicitInductionsPositionMap,
+                 "::llvm::DenseMap<mlir::Value, IndexSet>":$additionalInductionsIndicesMap,
+                 "::llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>&":$dimensionAccesses,
+                 "uint64_t":$numOfImplicitInductions,
+                 "EquationPath":$path), [{}], [{
+                auto opInterface = mlir::cast<EquationExpressionOpInterface>($_op.getOperation());
+                uint64_t numOfChildren = opInterface.getNumOfExpressionElements();
+
+                for (uint64_t i = 0; i < numOfChildren; ++i) {
+                    size_t initialDimensionAccessesCount = dimensionAccesses.size();
+                    mlir::Value child = opInterface.getExpressionElement(i);
+
+                    auto childOp = child.getDefiningOp();
+
+                    if (!childOp) {
+                        continue;
+                    }
+
+                    auto childInt =
+                        mlir::dyn_cast<EquationExpressionOpInterface>(childOp);
+
+                    if (!childInt) {
+                        return mlir::failure();
+                    }
+
+                    dimensionAccesses.clear();
+
+                    if (mlir::failed(childInt.getEquationAccesses(
+                            accesses, symbolTable,
+                            explicitInductionsPositionMap,
+                            additionalInductionsIndicesMap,
+                            dimensionAccesses, numOfImplicitInductions,
+                            path + i))) {
+                       return mlir::failure();
+                    }
+
+                    assert(dimensionAccesses.size() >= initialDimensionAccessesCount);
+                    dimensionAccesses.resize(initialDimensionAccessesCount);
+                }
+
+                return mlir::success();
+             }]>
+    ];
+}
+
 def InvertibleOpInterface : Modelica_OpInterface<"InvertibleOpInterface">
 {
     let description = [{

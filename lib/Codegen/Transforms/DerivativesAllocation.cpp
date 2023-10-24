@@ -294,6 +294,43 @@ static mlir::LogicalResult getAccess(
   return mlir::failure();
 }
 
+static void collectDerOps(
+    llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>>& result,
+    mlir::Value value,
+    const EquationPath& path)
+{
+  if (auto definingOp = value.getDefiningOp()) {
+    if (auto derOp = mlir::dyn_cast<DerOp>(definingOp)) {
+      result.emplace_back(derOp, path);
+    } else {
+      for (unsigned int i = 0, e = definingOp->getNumOperands(); i < e; ++i) {
+        collectDerOps(result, definingOp->getOperand(i), path + i);
+      }
+    }
+  }
+}
+
+static void collectDerOps(
+    llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>>& result,
+    EquationTemplateOp equationTemplateOp)
+{
+  auto equationSidesOp = mlir::cast<EquationSidesOp>(
+      equationTemplateOp.getBody()->getTerminator());
+
+  auto lhsValues = equationSidesOp.getLhsValues();
+  auto rhsValues = equationSidesOp.getRhsValues();
+
+  // Left-hand side of the equation.
+  for (size_t i = 0, e = lhsValues.size(); i < e; ++i) {
+    collectDerOps(result, lhsValues[i], EquationPath(EquationPath::LEFT, i));
+  }
+
+  // Right-hand side of the equation.
+  for (size_t i = 0, e = lhsValues.size(); i < e; ++i) {
+    collectDerOps(result, rhsValues[i], EquationPath(EquationPath::RIGHT, i));
+  }
+}
+
 mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -302,70 +339,73 @@ mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
     MutexCollection& mutexCollection,
     EquationInstanceOp equationInstanceOp) const
 {
-  llvm::SmallVector<DerOp> derOps;
   EquationTemplateOp equationTemplateOp = equationInstanceOp.getTemplate();
 
-  equationTemplateOp.getBody()->walk([&](DerOp derOp) {
-    derOps.push_back(derOp);
-  });
+  llvm::SmallVector<std::pair<DerOp, EquationPath>> derOps;
+  collectDerOps(derOps, equationTemplateOp);
 
-  for (DerOp derOp : derOps) {
-    llvm::SmallVector<mlir::FlatSymbolRefAttr, 3> symbols;
-    llvm::SmallVector<mlir::Value, 3> indices;
+  for (const auto& derOp : derOps) {
+    llvm::SmallVector<VariableAccess, 1> accesses;
 
-    if (mlir::failed(getAccess(derOp.getOperand(), symbols, indices))) {
-      derOp.emitOpError() << "Can't obtain the access to the variable";
-      return mlir::failure();
-    }
+    {
+      std::lock_guard<std::mutex> symbolTableLock(
+          mutexCollection.symbolTableCollectionMutex);
 
-    mlir::SymbolRefAttr variable = getSymbolRefFromPath(symbols);
-    llvm::SmallVector<int64_t, 3> variableShape;
+      auto access = equationTemplateOp.getAccessAtPath(
+          symbolTableCollection, derOp.second + 0);
 
-    if (mlir::failed(getShape(
-            variableShape, modelOp, symbolTableCollection,
-            mutexCollection.symbolTableCollectionMutex,
-            variable))) {
-      return mlir::failure();
-    }
-
-    auto affineMap = equationTemplateOp.getAccessFunction(indices);
-
-    if (!affineMap) {
-      derOp.emitOpError() << "Can't analyze the access to the variable";
-      return mlir::failure();
-    }
-
-    IndexSet derivedIndices;
-
-    if (affineMap->getNumResults() != 0) {
-      auto accessFunction = AccessFunction::build(*affineMap);
-      IndexSet equationIndices;
-
-      if (auto equationRanges = equationInstanceOp.getIndices()) {
-        equationIndices += equationRanges->getValue();
+      if (!access) {
+        return mlir::failure();
       }
 
-      derivedIndices = accessFunction->map(equationIndices);
+      accesses.push_back(std::move(*access));
     }
 
-    size_t derivedIndicesRank = derivedIndices.rank();
-    size_t variableIndicesRank = variableShape.size();
+    IndexSet equationIndices;
 
-    if (derivedIndicesRank < variableIndicesRank) {
-      llvm::SmallVector<Range, 3> extraDimensions;
+    if (auto equationRanges = equationInstanceOp.getIndices()) {
+      equationIndices += equationRanges->getValue();
+    }
 
-      for (size_t i = derivedIndicesRank; i < variableIndicesRank; ++i) {
-        extraDimensions.push_back(Range(0, variableShape[i]));
+    for (const VariableAccess& access : accesses) {
+      llvm::SmallVector<int64_t, 3> variableShape;
+
+      if (mlir::failed(getShape(
+              variableShape, modelOp, symbolTableCollection,
+              mutexCollection.symbolTableCollectionMutex,
+              access.getVariable()))) {
+        return mlir::failure();
       }
 
-      derivedIndices = derivedIndices.append(
-          IndexSet(MultidimensionalRange(extraDimensions)));
-    }
+      const AccessFunction& accessFunction = access.getAccessFunction();
 
-    // Add the derived indices.
-    std::lock_guard<std::mutex> lock(mutexCollection.derivativesMutex);
-    derivedVariables.insert(variable);
-    derivativesMap.addDerivedIndices(variable, std::move(derivedIndices));
+      IndexSet derivedIndices;
+
+      if (accessFunction.getNumOfResults() != 0) {
+        derivedIndices = accessFunction.map(equationIndices);
+      }
+
+      size_t derivedIndicesRank = derivedIndices.rank();
+      size_t variableIndicesRank = variableShape.size();
+
+      if (derivedIndicesRank < variableIndicesRank) {
+        llvm::SmallVector<Range, 3> extraDimensions;
+
+        for (size_t i = derivedIndicesRank; i < variableIndicesRank; ++i) {
+          extraDimensions.push_back(Range(0, variableShape[i]));
+        }
+
+        derivedIndices = derivedIndices.append(
+            IndexSet(MultidimensionalRange(extraDimensions)));
+      }
+
+      // Add the derived indices.
+      std::lock_guard<std::mutex> lock(mutexCollection.derivativesMutex);
+      derivedVariables.insert(access.getVariable());
+
+      derivativesMap.addDerivedIndices(
+          access.getVariable(), std::move(derivedIndices));
+    }
   }
 
   return mlir::success();

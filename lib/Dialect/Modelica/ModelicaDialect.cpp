@@ -171,6 +171,209 @@ namespace mlir::modelica
     return x;
   }
 
+  bool isScalar(mlir::Type type)
+  {
+    if (!type) {
+      return false;
+    }
+
+    return type.isa<
+        BooleanType, IntegerType, RealType,
+        mlir::IndexType, mlir::IntegerType, mlir::FloatType>();
+  }
+
+  bool isScalar(mlir::Attribute attribute)
+  {
+    if (!attribute) {
+      return false;
+    }
+
+    if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+      return isScalar(typedAttr.getType());
+    }
+
+    return false;
+  }
+
+  bool isScalarIntegerLike(mlir::Type type)
+  {
+    if (!isScalar(type)) {
+      return false;
+    }
+
+    return type.isa<
+        BooleanType, IntegerType,
+        mlir::IndexType, mlir::IntegerType>();
+  }
+
+  bool isScalarIntegerLike(mlir::Attribute attribute)
+  {
+    if (!attribute) {
+      return false;
+    }
+
+    if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+      return isScalarIntegerLike(typedAttr.getType());
+    }
+
+    return false;
+  }
+
+  bool isScalarFloatLike(mlir::Type type)
+  {
+    if (!isScalar(type)) {
+      return false;
+    }
+
+    return type.isa<RealType, mlir::FloatType>();
+  }
+
+  bool isScalarFloatLike(mlir::Attribute attribute)
+  {
+    if (!attribute) {
+      return false;
+    }
+
+    if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+      return isScalarFloatLike(typedAttr.getType());
+    }
+
+    return false;
+  }
+
+  int64_t getScalarIntegerLikeValue(mlir::Attribute attribute)
+  {
+    assert(isScalarIntegerLike(attribute));
+
+    if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+      return booleanAttr.getValue();
+    }
+
+    if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+      return integerAttr.getValue().getSExtValue();
+    }
+
+    return attribute.dyn_cast<mlir::IntegerAttr>().getValue().getSExtValue();
+  }
+
+  double getScalarFloatLikeValue(mlir::Attribute attribute)
+  {
+    assert(isScalarFloatLike(attribute));
+
+    if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+      return realAttr.getValue().convertToDouble();
+    }
+
+    return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
+  }
+
+  int64_t getIntegerFromAttribute(mlir::Attribute attribute)
+  {
+    if (isScalarIntegerLike(attribute)) {
+      return getScalarIntegerLikeValue(attribute);
+    }
+
+    if (isScalarFloatLike(attribute)) {
+      return static_cast<int64_t>(getScalarFloatLikeValue(attribute));
+    }
+
+    llvm_unreachable("Unknown attribute type");
+    return 0;
+  }
+
+  std::unique_ptr<DimensionAccess> getDimensionAccess(
+      const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      const llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
+      mlir::Value value)
+  {
+    if (auto definingOp = value.getDefiningOp()) {
+      if (auto op = mlir::dyn_cast<ConstantOp>(definingOp)) {
+        auto attr = mlir::cast<mlir::Attribute>(op.getValue());
+
+        return std::make_unique<DimensionAccessConstant>(
+            value.getContext(), getIntegerFromAttribute(attr));
+      }
+
+      if (auto op = mlir::dyn_cast<AddOp>(definingOp)) {
+        auto lhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getLhs());
+
+        auto rhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getRhs());
+
+        if (!lhs || !rhs) {
+          return nullptr;
+        }
+
+        return *lhs + *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<SubOp>(definingOp)) {
+        auto lhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getLhs());
+
+        auto rhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getRhs());
+
+        if (!lhs || !rhs) {
+          return nullptr;
+        }
+
+        return *lhs - *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<MulOp>(definingOp)) {
+        auto lhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getLhs());
+
+        auto rhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getRhs());
+
+        if (!lhs || !rhs) {
+          return nullptr;
+        }
+
+        return *lhs * *rhs;
+      }
+
+      if (auto op = mlir::dyn_cast<DivOp>(definingOp)) {
+        auto lhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getLhs());
+
+        auto rhs = getDimensionAccess(
+            explicitInductionsPositionMap, additionalInductionsIndicesMap,
+            op.getRhs());
+
+        if (!lhs || !rhs) {
+          return nullptr;
+        }
+
+        return *lhs / *rhs;
+      }
+    }
+
+    if (auto it = explicitInductionsPositionMap.find(value);
+        it != explicitInductionsPositionMap.end()) {
+      return std::make_unique<DimensionAccessDimension>(
+          value.getContext(), it->getSecond());
+    }
+
+    if (auto it = additionalInductionsIndicesMap.find(value);
+        it != additionalInductionsIndicesMap.end()) {
+      return std::make_unique<DimensionAccessIndices>(
+          value.getContext(), it->getSecond());
+    }
+
+    return nullptr;
+  }
+
   mlir::LogicalResult materializeAffineMap(
       mlir::OpBuilder& builder,
       mlir::Location loc,

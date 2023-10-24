@@ -642,6 +642,10 @@ namespace marco::frontend
     pm.addPass(mlir::modelica::createRecordInliningPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
+    // Infer the range boundaries for subscriptions.
+    pm.addPass(mlir::modelica::createRangeBoundariesInferencePass());
+    pm.addPass(mlir::createCanonicalizerPass());
+
     // Lift the equations.
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createEquationTemplatesCreationPass());

@@ -80,13 +80,15 @@ void GeneratorDefault::fetchNext()
     value = nullptr;
   } else {
     Point equationPoint = **pointsIt;
-    Point variablePoint = accessFunction->map(equationPoint);
+    auto variablePoints = accessFunction->map(equationPoint);
 
-    MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
-    matrix.set(equationPoint, variablePoint);
-    value = std::make_unique<MCIM>(std::move(matrix));
+    for (Point variablePoint : variablePoints) {
+      MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
+      matrix.set(equationPoint, variablePoint);
+      value = std::make_unique<MCIM>(std::move(matrix));
 
-    ++(*pointsIt);
+      ++(*pointsIt);
+    }
   }
 }
 

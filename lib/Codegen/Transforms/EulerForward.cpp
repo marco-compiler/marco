@@ -92,6 +92,8 @@ mlir::LogicalResult EulerForwardSolver::solveICModel(
       if (!explicitEquationOp) {
         equationOp.cloneAndExplicitate(
             rewriter, symbolTableCollection);
+        equationOp.getTemplate()->dump();
+        equationOp->dump();
         return mlir::failure();
       }
 

@@ -6,6 +6,14 @@ set(SOURCES
     AccessFunctionZeroDims.cpp
     AccessFunctionZeroResults.cpp
     Dependency.cpp
+    DimensionAccess.cpp
+    DimensionAccessAdd.cpp
+    DimensionAccessConstant.cpp
+    DimensionAccessDimension.cpp
+    DimensionAccessDiv.cpp
+    DimensionAccessIndices.cpp
+    DimensionAccessMul.cpp
+    DimensionAccessSub.cpp
     Dumpable.cpp
     Graph.cpp
     IndexSet.cpp

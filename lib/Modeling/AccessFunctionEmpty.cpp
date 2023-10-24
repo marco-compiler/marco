@@ -5,19 +5,37 @@ using namespace ::marco::modeling;
 namespace marco::modeling
 {
   AccessFunctionEmpty::AccessFunctionEmpty(
-      mlir::AffineMap affineMap)
+      mlir::MLIRContext* context,
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunction(
           AccessFunction::Kind::Empty,
-          affineMap)
+          context, numOfDimensions, results)
   {
-    assert(canBeBuilt(affineMap));
+    assert(canBeBuilt(numOfDimensions, results));
+  }
+
+  AccessFunctionEmpty::AccessFunctionEmpty(mlir::AffineMap affineMap)
+      : AccessFunction(affineMap.getContext(),
+                       affineMap.getNumDims(),
+                       convertAffineExpressions(affineMap.getResults()))
+  {
   }
 
   AccessFunctionEmpty::~AccessFunctionEmpty() = default;
 
+  bool AccessFunctionEmpty::canBeBuilt(
+      unsigned int numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+  {
+    return numOfDimensions == 0 && results.empty();
+  }
+
   bool AccessFunctionEmpty::canBeBuilt(mlir::AffineMap affineMap)
   {
-    return affineMap.isEmpty();
+    return AccessFunctionEmpty::canBeBuilt(
+        affineMap.getNumDims(),
+        AccessFunction::convertAffineExpressions(affineMap.getResults()));
   }
 
   std::unique_ptr<AccessFunction> AccessFunctionEmpty::clone() const

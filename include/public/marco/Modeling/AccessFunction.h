@@ -1,9 +1,11 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTION_H
 #define MARCO_MODELING_ACCESSFUNCTION_H
 
+#include "marco/Modeling/DimensionAccess.h"
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/AffineMap.h"
 #include "llvm/Support/Casting.h"
+#include <variant>
 
 namespace marco::modeling
 {
@@ -21,15 +23,44 @@ namespace marco::modeling
         ZeroResults
       };
 
+      static std::unique_ptr<AccessFunction> build(
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+
       static std::unique_ptr<AccessFunction> build(mlir::AffineMap affineMap);
+
+      static std::unique_ptr<AccessFunction> fromExtendedMap(
+          mlir::AffineMap affineMap,
+          const DimensionAccess::FakeDimensionsMap& fakeDimensionsMap);
+
+      static llvm::SmallVector<std::unique_ptr<DimensionAccess>>
+      convertAffineExpressions(llvm::ArrayRef<mlir::AffineExpr> expressions);
+
+      AccessFunction(
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       explicit AccessFunction(mlir::AffineMap affineMap);
 
     protected:
-      AccessFunction(Kind kind, mlir::AffineMap affineMap);
+      AccessFunction(
+          Kind kind,
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
     public:
+      AccessFunction(const AccessFunction& other);
+
       virtual ~AccessFunction();
+
+      AccessFunction& operator=(const AccessFunction& other);
+
+      AccessFunction& operator=(AccessFunction&& other);
+
+      friend void swap(AccessFunction& first, AccessFunction& second);
 
       virtual std::unique_ptr<AccessFunction> clone() const;
 
@@ -82,13 +113,19 @@ namespace marco::modeling
 
       bool operator!=(const AccessFunction& other) const;
 
-      mlir::AffineMap getAffineMap() const;
+      mlir::MLIRContext* getContext() const;
 
       /// Get the number of dimensions.
       virtual size_t getNumOfDims() const;
 
       /// Get the number of results.
       virtual size_t getNumOfResults() const;
+
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> getResults() const;
+
+      bool isAffine() const;
+
+      mlir::AffineMap getAffineMap() const;
 
       /// Check if the access function has an identity layout, that is if the
       /// i-th dimension accesses the i-th induction variable with offset 0
@@ -113,9 +150,9 @@ namespace marco::modeling
       /// Returns nullptr if the inverse function can't be computed.
       virtual std::unique_ptr<AccessFunction> inverse() const;
 
-      /// Apply the access function to the equation indices, in order to obtain
-      /// the accessed variable.
-      virtual Point map(const Point& equationIndices) const;
+      /// Apply the access function to a point, in order to obtain the mapped
+      /// indices.
+      virtual IndexSet map(const Point& point) const;
 
       /// Apply the access function to an index set, in order to obtain the
       /// mapped indices.
@@ -128,16 +165,18 @@ namespace marco::modeling
           const IndexSet& accessedIndices,
           const IndexSet& parentIndices) const;
 
-      virtual std::unique_ptr<AccessFunction> getWithAtLeastNDimensions(
-          unsigned int dimensions) const;
-
     protected:
-      mlir::AffineMap
-      getAffineMapWithAtLeastNDimensions(unsigned int dimensions) const;
+      mlir::AffineMap getExtendedAffineMap(
+          DimensionAccess::FakeDimensionsMap& fakeDimensionsMap) const;
+
+      std::unique_ptr<AccessFunction> getWithAtLeastNumDimensions(
+          unsigned int requestedDims) const;
 
     private:
       Kind kind;
-      mlir::AffineMap affineMap;
+      mlir::MLIRContext* context;
+      unsigned int numOfDimensions;
+      llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
   };
 }
 

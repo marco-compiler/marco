@@ -18,7 +18,7 @@ TEST(AccessFunction, mapPoint_constantAccess)
   auto accessFunction = std::make_unique<AccessFunction>(affineMap);
 
   Point p({2, -5, 7});
-  Point mapped = accessFunction->map(p);
+  IndexSet mapped = accessFunction->map(p);
   EXPECT_EQ(mapped, Point(5));
 }
 
@@ -34,7 +34,7 @@ TEST(AccessFunction, mapPoint_offsetAccess)
   auto accessFunction = std::make_unique<AccessFunction>(affineMap);
 
   Point p({3, 7, -5});
-  Point mapped = accessFunction->map(p);
+  IndexSet mapped = accessFunction->map(p);
   EXPECT_EQ(mapped, Point({-2, 1}));
 }
 
@@ -135,7 +135,6 @@ TEST(AccessFunction, combine)
   ASSERT_TRUE(combinedAccessFunction);
 
   Point p({5, 9});
-  Point mapped = combinedAccessFunction->map(p);
-  EXPECT_EQ(mapped[0], 6);
-  EXPECT_EQ(mapped[1], 12);
+  IndexSet mapped = combinedAccessFunction->map(p);
+  EXPECT_EQ(mapped, IndexSet(Point({6, 12})));
 }

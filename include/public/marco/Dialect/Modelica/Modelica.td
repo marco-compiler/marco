@@ -492,6 +492,7 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
 
 def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Create an array with the given elements.";
@@ -540,6 +541,7 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
 
 def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Create an array with a given value in all positions.";
@@ -605,7 +607,8 @@ def Modelica_FreeOp : Modelica_Op<"free",
     }];
 }
 
-def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
+def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
+    [ViewLikeOpInterface, EquationExpressionOpInterface]>
 {
     let summary = "Cast operation for array types.";
 
@@ -651,7 +654,9 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
     }];
 }
 
-def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
+def Modelica_DimOp : Modelica_Op<"dim",
+    [NoMemoryEffect,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -666,7 +671,7 @@ def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
         ```mlir
         %array = ... : !modelica.array<?x?x?x!modelica.int>
         %c2 = constant 2 : index
-        %dim = modelica.dim %array, $c2 : !modelica.array<?x?x?x!modelica.int>
+        %dim = modelica.dim %array, %c2 : !modelica.array<?x?x?x!modelica.int>
         ```
     }];
 
@@ -692,6 +697,7 @@ def Modelica_LoadOp : Modelica_Op<"load",
                      "array", "result",
                      "$_self.cast<ArrayType>().getElementType()">,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["getEquationAccesses"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Load a value from an array.";
@@ -707,7 +713,7 @@ def Modelica_LoadOp : Modelica_Op<"load",
         $array = ... : !modelica.array<?x?x!modelica.int>
         %0 = constant 3 : index
         %1 = constant 5 : index
-        %value = modelica.load $array[%0, %1] : !modelica.array<?x?x!modelica.int>
+        %value = modelica.load %array[%0, %1] : !modelica.array<?x?x!modelica.int>
         ```
     }];
 
@@ -783,6 +789,7 @@ def Modelica_StoreOp : Modelica_Op<"store",
 def Modelica_SubscriptionOp : Modelica_Op<"subscription",
     [ViewLikeOpInterface,
     NoMemoryEffect,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["getEquationAccesses"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Create a view over an array.";
@@ -997,6 +1004,7 @@ def Modelica_VariableOp : Modelica_Op<"variable",
 
 def Modelica_VariableGetOp : Modelica_Op<"variable_get",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["getEquationAccesses"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>,
     NoMemoryEffect]>
 {
@@ -1171,6 +1179,7 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     [ConstantLike,
     Pure,
     AllTypesMatch<["value", "result"]>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
@@ -1202,6 +1211,7 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
 
 def Modelica_NegateOp : Modelica_Op<"neg",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1230,6 +1240,7 @@ def Modelica_AddOp : Modelica_Op<"add",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -1267,6 +1278,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -1301,6 +1313,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
 def Modelica_SubOp : Modelica_Op<"sub",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -1336,6 +1349,7 @@ def Modelica_SubOp : Modelica_Op<"sub",
 def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
@@ -1370,6 +1384,7 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
 def Modelica_MulOp : Modelica_Op<"mul",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1407,6 +1422,7 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     AlwaysSpeculatable,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1441,6 +1457,7 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
 
 def Modelica_DivOp : Modelica_Op<"div",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1476,6 +1493,7 @@ def Modelica_DivOp : Modelica_Op<"div",
 
 def Modelica_DivEWOp : Modelica_Op<"div_ew",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
@@ -1510,6 +1528,7 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
 
 def Modelica_PowOp : Modelica_Op<"pow",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Pow.";
@@ -1539,6 +1558,7 @@ def Modelica_PowOp : Modelica_Op<"pow",
 
 def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Element-wise pow.";
@@ -1586,7 +1606,10 @@ class Modelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
     }];
 }
 
-def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative, Pure]>
+def Modelica_EqOp : Modelica_ComparisonOp<"eq",
+    [Commutative,
+    Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if two values are equal.";
 
@@ -1605,7 +1628,10 @@ def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative, Pure]>
     let hasFolder = 1;
 }
 
-def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative, Pure]>
+def Modelica_NotEqOp : Modelica_ComparisonOp<"neq",
+    [Commutative,
+    Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if two values are not equal.";
 
@@ -1624,7 +1650,9 @@ def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative, Pure]>
     let hasFolder = 1;
 }
 
-def Modelica_GtOp : Modelica_ComparisonOp<"gt", [Pure]>
+def Modelica_GtOp : Modelica_ComparisonOp<"gt",
+    [Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if a value is greater than another one.";
 
@@ -1643,7 +1671,9 @@ def Modelica_GtOp : Modelica_ComparisonOp<"gt", [Pure]>
     let hasFolder = 1;
 }
 
-def Modelica_GteOp : Modelica_ComparisonOp<"gte", [Pure]>
+def Modelica_GteOp : Modelica_ComparisonOp<"gte",
+    [Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if a value is greater or equal than another one.";
 
@@ -1662,7 +1692,9 @@ def Modelica_GteOp : Modelica_ComparisonOp<"gte", [Pure]>
     let hasFolder = 1;
 }
 
-def Modelica_LtOp : Modelica_ComparisonOp<"lt", [Pure]>
+def Modelica_LtOp : Modelica_ComparisonOp<"lt",
+    [Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if a value is less than another one.";
 
@@ -1681,7 +1713,9 @@ def Modelica_LtOp : Modelica_ComparisonOp<"lt", [Pure]>
     let hasFolder = 1;
 }
 
-def Modelica_LteOp : Modelica_ComparisonOp<"lte", [Pure]>
+def Modelica_LteOp : Modelica_ComparisonOp<"lte",
+    [Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Check if a value is less or equal than another one.";
 
@@ -1704,8 +1738,9 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte", [Pure]>
 //===---------------------------------------------------------------------===//
 
 def Modelica_NotOp : Modelica_Op<"not",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Compute the logical NOT of a boolean value.";
 
@@ -1742,8 +1777,9 @@ def Modelica_NotOp : Modelica_Op<"not",
 }
 
 def Modelica_AndOp : Modelica_Op<"and",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Compute the logical AND between two boolean values.";
 
@@ -1783,8 +1819,9 @@ def Modelica_AndOp : Modelica_Op<"and",
 }
 
 def Modelica_OrOp : Modelica_Op<"or",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Compute the logical OR between two boolean values.";
 
@@ -1824,7 +1861,9 @@ def Modelica_OrOp : Modelica_Op<"or",
 }
 
 def Modelica_SelectOp : Modelica_Op<"select",
-    [SameVariadicOperandSize, AlwaysSpeculatable]>
+    [SameVariadicOperandSize,
+    AlwaysSpeculatable,
+    EquationExpressionOpInterface]>
 {
     let summary = "Ternary operator";
 
@@ -1848,8 +1887,9 @@ def Modelica_SelectOp : Modelica_Op<"select",
 //===---------------------------------------------------------------------===//
 
 def Modelica_AbsOp : Modelica_Op<"abs",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Compute the absolute value.";
@@ -1877,6 +1917,7 @@ def Modelica_AbsOp : Modelica_Op<"abs",
 
 def Modelica_AcosOp : Modelica_Op<"acos",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1905,6 +1946,7 @@ def Modelica_AcosOp : Modelica_Op<"acos",
 
 def Modelica_AsinOp : Modelica_Op<"asin",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1932,8 +1974,9 @@ def Modelica_AsinOp : Modelica_Op<"asin",
 }
 
 def Modelica_AtanOp : Modelica_Op<"atan",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1962,6 +2005,7 @@ def Modelica_AtanOp : Modelica_Op<"atan",
 
 def Modelica_Atan2Op : Modelica_Op<"atan2",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -1989,8 +2033,9 @@ def Modelica_Atan2Op : Modelica_Op<"atan2",
 }
 
 def Modelica_CeilOp : Modelica_Op<"ceil",
-  [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-  AlwaysSpeculatable,
+  [AlwaysSpeculatable,
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  EquationExpressionOpInterface,
   DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Ceil function.";
@@ -2017,8 +2062,9 @@ def Modelica_CeilOp : Modelica_Op<"ceil",
 }
 
 def Modelica_CosOp : Modelica_Op<"cos",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2046,8 +2092,9 @@ def Modelica_CosOp : Modelica_Op<"cos",
 }
 
 def Modelica_CoshOp : Modelica_Op<"cosh",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2075,8 +2122,9 @@ def Modelica_CoshOp : Modelica_Op<"cosh",
 }
 
 def Modelica_DiagonalOp : Modelica_Op<"diagonal",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get a diagonal matrix with the given values";
 
@@ -2100,7 +2148,8 @@ def Modelica_DiagonalOp : Modelica_Op<"diagonal",
     }];
 }
 
-def Modelica_DivTruncOp : Modelica_Op<"div_trunc", []>
+def Modelica_DivTruncOp : Modelica_Op<"div_trunc",
+    [EquationExpressionOpInterface]>
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2128,8 +2177,9 @@ def Modelica_DivTruncOp : Modelica_Op<"div_trunc", []>
 }
 
 def Modelica_ExpOp : Modelica_Op<"exp",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2157,7 +2207,8 @@ def Modelica_ExpOp : Modelica_Op<"exp",
 }
 
 def Modelica_FillOp : Modelica_Op<"fill",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Create an array with a given value in all positions.";
 
@@ -2188,8 +2239,9 @@ def Modelica_FillOp : Modelica_Op<"fill",
 }
 
 def Modelica_FloorOp : Modelica_Op<"floor",
-   [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-   AlwaysSpeculatable,
+   [AlwaysSpeculatable,
+   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+   EquationExpressionOpInterface,
    DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Floor function.";
@@ -2216,8 +2268,9 @@ def Modelica_FloorOp : Modelica_Op<"floor",
 }
 
 def Modelica_IdentityOp : Modelica_Op<"identity",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Returns an identity matrix with a given dimensions size.";
 
@@ -2242,8 +2295,9 @@ def Modelica_IdentityOp : Modelica_Op<"identity",
 }
 
 def Modelica_IntegerOp : Modelica_Op<"integer",
-  [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-  AlwaysSpeculatable,
+  [AlwaysSpeculatable,
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  EquationExpressionOpInterface,
   DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
   let summary = "Integer function.";
@@ -2270,7 +2324,8 @@ def Modelica_IntegerOp : Modelica_Op<"integer",
 }
 
 def Modelica_LinspaceOp : Modelica_Op<"linspace",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get an array with equally spaced values.";
 
@@ -2292,6 +2347,7 @@ def Modelica_LinspaceOp : Modelica_Op<"linspace",
 
 def Modelica_LogOp : Modelica_Op<"log",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2320,6 +2376,7 @@ def Modelica_LogOp : Modelica_Op<"log",
 
 def Modelica_Log10Op : Modelica_Op<"log10",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2347,8 +2404,9 @@ def Modelica_Log10Op : Modelica_Op<"log10",
 }
 
 def Modelica_MaxOp : Modelica_Op<"max",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the greatest value among an array or two scalar values.";
 
@@ -2386,8 +2444,9 @@ def Modelica_MaxOp : Modelica_Op<"max",
 }
 
 def Modelica_MinOp : Modelica_Op<"min",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the smallest value among an array or two scalar values.";
 
@@ -2424,7 +2483,8 @@ def Modelica_MinOp : Modelica_Op<"min",
     let hasFolder = 1;
 }
 
-def Modelica_ModOp : Modelica_Op<"mod", []>
+def Modelica_ModOp : Modelica_Op<"mod",
+    [EquationExpressionOpInterface]>
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2451,7 +2511,9 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
     let hasFolder = 1;
 }
 
-def Modelica_NDimsOp : Modelica_Op<"ndims", [Pure]>
+def Modelica_NDimsOp : Modelica_Op<"ndims",
+    [Pure,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the number of dimensions of an array.";
 
@@ -2477,8 +2539,9 @@ def Modelica_NDimsOp : Modelica_Op<"ndims", [Pure]>
 }
 
 def Modelica_OnesOp : Modelica_Op<"ones",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get an array with all the elements set to '1'";
 
@@ -2506,8 +2569,9 @@ def Modelica_OnesOp : Modelica_Op<"ones",
 }
 
 def Modelica_ProductOp : Modelica_Op<"product",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the product of the values of an array.";
 
@@ -2530,7 +2594,8 @@ def Modelica_ProductOp : Modelica_Op<"product",
     }];
 }
 
-def Modelica_RemOp : Modelica_Op<"rem", []>
+def Modelica_RemOp : Modelica_Op<"rem",
+    [EquationExpressionOpInterface]>
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2558,8 +2623,9 @@ def Modelica_RemOp : Modelica_Op<"rem", []>
 }
 
 def Modelica_SignOp : Modelica_Op<"sign",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Get an integer representing the sign of a value.";
@@ -2587,8 +2653,9 @@ def Modelica_SignOp : Modelica_Op<"sign",
 }
 
 def Modelica_SinOp : Modelica_Op<"sin",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2612,8 +2679,9 @@ def Modelica_SinOp : Modelica_Op<"sin",
 }
 
 def Modelica_SinhOp : Modelica_Op<"sinh",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2641,8 +2709,9 @@ def Modelica_SinhOp : Modelica_Op<"sinh",
 }
 
 def Modelica_SizeOp : Modelica_Op<"size",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the dimensions of an array.";
 
@@ -2684,6 +2753,7 @@ def Modelica_SizeOp : Modelica_Op<"size",
 
 def Modelica_SqrtOp : Modelica_Op<"sqrt",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2711,8 +2781,9 @@ def Modelica_SqrtOp : Modelica_Op<"sqrt",
 }
 
 def Modelica_SumOp : Modelica_Op<"sum",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get the sum of the values of an array.";
 
@@ -2736,8 +2807,9 @@ def Modelica_SumOp : Modelica_Op<"sum",
 }
 
 def Modelica_SymmetricOp : Modelica_Op<"symmetric",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get a symmetric matrix.";
 
@@ -2768,6 +2840,7 @@ def Modelica_SymmetricOp : Modelica_Op<"symmetric",
 
 def Modelica_TanOp : Modelica_Op<"tan",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2795,8 +2868,9 @@ def Modelica_TanOp : Modelica_Op<"tan",
 }
 
 def Modelica_TanhOp : Modelica_Op<"tanh",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable,
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -2824,8 +2898,9 @@ def Modelica_TanhOp : Modelica_Op<"tanh",
 }
 
 def Modelica_TransposeOp : Modelica_Op<"transpose",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Matrix transposition.";
 
@@ -2853,8 +2928,9 @@ def Modelica_TransposeOp : Modelica_Op<"transpose",
 }
 
 def Modelica_ZerosOp : Modelica_Op<"zeros",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    AlwaysSpeculatable]>
+    [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface]>
 {
     let summary = "Get an array with all the elements set to '0'";
 
@@ -2881,7 +2957,9 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
     }];
 }
 
-def Modelica_ReductionOp : Modelica_Op<"reduction", [SingleBlock]>
+def Modelica_ReductionOp : Modelica_Op<"reduction",
+    [SingleBlock,
+    EquationExpressionOpInterface]>
 {
     let summary = "Iteration space reduction.";
 
@@ -3168,7 +3246,8 @@ def Modelica_DefaultOp : Modelica_Op<"default",
     }];
 }
 
-def Modelica_DerOp : Modelica_Op<"der", []>
+def Modelica_DerOp : Modelica_Op<"der",
+    [EquationExpressionOpInterface]>
 {
     let summary = "Derivative.";
 
@@ -3184,7 +3263,7 @@ def Modelica_DerOp : Modelica_Op<"der", []>
     }];
 }
 
-def Modelica_TimeOp : Modelica_Op<"time", []>
+def Modelica_TimeOp : Modelica_Op<"time", [EquationExpressionOpInterface]>
 {
     let summary = "Time.";
 
@@ -3355,11 +3434,6 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
                 mlir::SymbolTableCollection& symbolTable,
                 const EquationPath& path);
 
-            /// Get the access function given the values (expressions) of the
-            /// indices.
-            std::optional<mlir::AffineMap> getAccessFunction(
-                llvm::ArrayRef<mlir::Value> indices);
-
             IndexSet applyAccessFunction(
                 const AccessFunction& accessFunction,
                 std::optional<MultidimensionalRange> explicitEquationIndices,
@@ -3403,26 +3477,6 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
                 llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
                 mlir::Value value,
                 EquationPath path);
-
-            mlir::LogicalResult searchAccesses(
-                llvm::SmallVectorImpl<VariableAccess>& accesses,
-                mlir::SymbolTableCollection& symbolTable,
-                llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-                mlir::Value value,
-                llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
-                EquationPath path);
-
-            mlir::LogicalResult searchAccesses(
-                llvm::SmallVectorImpl<VariableAccess>& accesses,
-                mlir::SymbolTableCollection& symbolTable,
-                llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-                mlir::Operation* op,
-                llvm::SmallVectorImpl<mlir::AffineExpr>& dimensionAccesses,
-                EquationPath path);
-
-            std::optional<mlir::AffineExpr> getAffineExpr(
-                llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
-                mlir::Value index);
 
             mlir::LogicalResult cloneWithReplacedVectorizedAccess(
                 mlir::RewriterBase& rewriter,
@@ -4288,6 +4342,7 @@ def Modelica_CallOp : Modelica_Op<"call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<InvertibleOpInterface>]>
 {
@@ -4605,8 +4660,6 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
     let description = [{
         The operation represents the condition to be evaluated at each iteration of the
         parent loop (which can be either a `modelica.for` or `modelica.while`).
-
-
     }];
 
     let arguments = (ins ModelicaBoolean:$condition, Variadic<AnyType>:$values);
@@ -4653,6 +4706,7 @@ def Modelica_YieldOp : Modelica_Op<"yield",
 
 def Modelica_CastOp : Modelica_Op<"cast",
     [NoMemoryEffect,
+    EquationExpressionOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Cast a scalar value to another type.";

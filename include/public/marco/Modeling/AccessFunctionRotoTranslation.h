@@ -8,9 +8,14 @@ namespace marco::modeling
   class AccessFunctionRotoTranslation : public AccessFunction
   {
     public:
-      AccessFunctionRotoTranslation(mlir::AffineMap affineMap);
+      AccessFunctionRotoTranslation(
+          mlir::MLIRContext* context,
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
-      ~AccessFunctionRotoTranslation();
+      explicit AccessFunctionRotoTranslation(mlir::AffineMap affineMap);
+
+      ~AccessFunctionRotoTranslation() override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -21,6 +26,10 @@ namespace marco::modeling
       }
 
       /// }
+
+      static bool canBeBuilt(
+          unsigned int numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       static bool canBeBuilt(mlir::AffineMap affineMap);
 
@@ -46,16 +55,10 @@ namespace marco::modeling
 
       void countVariablesUsages(llvm::SmallVectorImpl<size_t>& usages) const;
 
-      std::optional<unsigned int>
+      std::optional<uint64_t>
       getInductionVariableIndex(unsigned int expressionIndex) const;
 
       int64_t getOffset(unsigned int expressionIndex) const;
-
-    private:
-      std::optional<unsigned int> getInductionVariableIndex(
-          mlir::AffineExpr expression) const;
-
-      int64_t getOffset(mlir::AffineExpr expression) const;
   };
 }
 
