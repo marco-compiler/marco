@@ -92,8 +92,7 @@ mlir::LogicalResult EulerForwardSolver::solveICModel(
       if (!explicitEquationOp) {
         equationOp.cloneAndExplicitate(
             rewriter, symbolTableCollection);
-        equationOp.getTemplate()->dump();
-        equationOp->dump();
+
         return mlir::failure();
       }
 
@@ -114,6 +113,10 @@ mlir::LogicalResult EulerForwardSolver::solveICModel(
         equationOp.getIterationDirections(),
         "initial_equation_" + std::to_string(equationFunctionsCounter++),
         localToGlobalVariablesMap);
+
+    if (!templateFunction) {
+      return mlir::failure();
+    }
 
     equationFunctions[equationOp] = templateFunction;
   }
@@ -169,6 +172,10 @@ mlir::LogicalResult EulerForwardSolver::solveMainModel(
           equationOp.getIterationDirections(),
           "equation_" + std::to_string(equationFunctionsCounter++),
           localToGlobalVariablesMap);
+
+      if (!templateFunction) {
+        return mlir::failure();
+      }
 
       equationFunctions[equationOp] = templateFunction;
     }

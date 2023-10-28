@@ -3,7 +3,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 using namespace ::marco;
 using namespace ::mlir::modelica;
@@ -48,6 +48,87 @@ static IndexSet getPrintableIndices(
   return std::move(result);
 }
 
+static void createIterationLoops(
+    mlir::OpBuilder& builder,
+    mlir::Location loc,
+    llvm::ArrayRef<mlir::Value> beginIndices,
+    llvm::ArrayRef<mlir::Value> endIndices,
+    llvm::ArrayRef<mlir::Value> steps,
+    mlir::ArrayAttr iterationDirections,
+    llvm::SmallVectorImpl<mlir::Value>& inductions)
+{
+  assert(beginIndices.size() == endIndices.size());
+  assert(beginIndices.size() == steps.size());
+
+  assert(llvm::all_of(
+      iterationDirections.getAsRange<EquationScheduleDirectionAttr>(),
+      [](EquationScheduleDirectionAttr direction) {
+        return direction.getValue() == EquationScheduleDirection::Forward ||
+            direction.getValue() == EquationScheduleDirection::Backward;
+      }));
+
+  auto conditionFn =
+      [&](EquationScheduleDirectionAttr direction,
+          mlir::Value index, mlir::Value end) -> mlir::Value {
+    if (direction.getValue() == EquationScheduleDirection::Backward) {
+      return builder.create<mlir::arith::CmpIOp>(
+          loc, mlir::arith::CmpIPredicate::sgt, index, end);
+    }
+
+    return builder.create<mlir::arith::CmpIOp>(
+        loc, mlir::arith::CmpIPredicate::slt, index, end);
+  };
+
+  auto updateFn =
+      [&](EquationScheduleDirectionAttr direction,
+          mlir::Value index, mlir::Value step) -> mlir::Value {
+    if (direction.getValue() == EquationScheduleDirection::Backward) {
+      return builder.create<mlir::arith::SubIOp>(loc, index, step);
+    }
+
+    return builder.create<mlir::arith::AddIOp>(loc, index, step);
+  };
+
+  for (size_t i = 0; i < steps.size(); ++i) {
+    auto whileOp = builder.create<mlir::scf::WhileOp>(
+        loc, builder.getIndexType(), beginIndices[i]);
+
+    // Check the condition.
+    // A naive check can consist in the equality comparison. However, in
+    // order to be future-proof with respect to steps greater than one, we
+    // need to check if the current value is beyond the end boundary. This in
+    // turn requires to know the iteration direction.
+
+    mlir::Block* beforeBlock = builder.createBlock(
+        &whileOp.getBefore(), {}, builder.getIndexType(), loc);
+
+    builder.setInsertionPointToStart(beforeBlock);
+
+    mlir::Value condition = conditionFn(
+        iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
+        whileOp.getBefore().getArgument(0), endIndices[i]);
+
+    builder.create<mlir::scf::ConditionOp>(
+        loc, condition, whileOp.getBefore().getArgument(0));
+
+    // Execute the loop body.
+    mlir::Block* afterBlock = builder.createBlock(
+        &whileOp.getAfter(), {}, builder.getIndexType(), loc);
+
+    mlir::Value inductionVariable = afterBlock->getArgument(0);
+    inductions.push_back(inductionVariable);
+    builder.setInsertionPointToStart(afterBlock);
+
+    // Update the induction variable.
+    mlir::Value nextValue = updateFn(
+        iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
+        inductionVariable, steps[i]);
+
+    builder.create<mlir::scf::YieldOp>(loc, nextValue);
+    builder.setInsertionPoint(nextValue.getDefiningOp());
+  }
+}
+
 namespace
 {
   class TimeOpLowering : public mlir::OpRewritePattern<TimeOp>
@@ -70,6 +151,229 @@ namespace
 
         return mlir::success();
       }
+  };
+}
+
+namespace
+{
+  class EquationTemplateEquationSidesOpPattern
+      : public mlir::OpRewritePattern<EquationSidesOp>
+  {
+    public:
+      using mlir::OpRewritePattern<EquationSidesOp>::OpRewritePattern;
+
+      EquationTemplateEquationSidesOpPattern(
+          mlir::MLIRContext* context,
+          uint64_t viewElementIndex,
+          uint64_t numOfExplicitInductions,
+          uint64_t numOfImplicitInductions,
+          mlir::ArrayAttr iterationDirections,
+          mlir::ValueRange functionArgs)
+          : mlir::OpRewritePattern<EquationSidesOp>(context),
+            viewElementIndex(viewElementIndex),
+            numOfExplicitInductions(numOfExplicitInductions),
+            numOfImplicitInductions(numOfImplicitInductions),
+            iterationDirections(iterationDirections)
+      {
+        for (mlir::Value functionArg : functionArgs) {
+          this->functionArgs.push_back(functionArg);
+        }
+      }
+
+      mlir::LogicalResult matchAndRewrite(
+          EquationSidesOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        mlir::Value lhsValue = op.getLhsValues()[viewElementIndex];
+        mlir::Value rhsValue = op.getRhsValues()[viewElementIndex];
+
+        if (mlir::failed(convertToAssignment(
+                rewriter, loc, lhsValue, rhsValue))) {
+          return mlir::failure();
+        }
+
+        // Erase the equation terminator and also the operations for its sides.
+        auto lhsOp = op.getLhs().getDefiningOp<EquationSideOp>();
+        auto rhsOp = op.getRhs().getDefiningOp<EquationSideOp>();
+        rewriter.eraseOp(op);
+        rewriter.eraseOp(lhsOp);
+        rewriter.eraseOp(rhsOp);
+
+        return mlir::success();
+      }
+
+    private:
+      /// Convert the equality to an assignment.
+      mlir::LogicalResult convertToAssignment(
+          mlir::OpBuilder& builder, mlir::Location loc,
+          mlir::Value lhsValue, mlir::Value rhsValue) const
+      {
+        if (auto arrayType = lhsValue.getType().dyn_cast<ArrayType>()) {
+          // Vectorized assignment.
+          // We need to turn the implicit inductions into explicit ones.
+          assert(arrayType.getRank() ==
+                 static_cast<int64_t>(numOfImplicitInductions));
+
+          assert(rhsValue.getType().isa<ArrayType>());
+          assert(rhsValue.getType().cast<ArrayType>().getRank() ==
+                 static_cast<int64_t>(numOfImplicitInductions));
+
+          llvm::SmallVector<mlir::Value, 3> implicitInductions;
+
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsBegin;
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsEnd;
+          llvm::SmallVector<mlir::Value, 3> implicitIterationsStep;
+
+          for (size_t i = 0; i < numOfImplicitInductions; ++i) {
+            implicitIterationsBegin.push_back(
+                functionArgs[numOfExplicitInductions * 3 + i * 3]);
+
+            implicitIterationsEnd.push_back(
+                functionArgs[numOfExplicitInductions * 3 + i * 3 + 1]);
+
+            implicitIterationsStep.push_back(
+                functionArgs[numOfExplicitInductions * 3 + i * 3 + 2]);
+          }
+
+          ::createIterationLoops(
+              builder, loc,
+              implicitIterationsBegin,
+              implicitIterationsEnd,
+              implicitIterationsStep,
+              iterationDirections, implicitInductions);
+
+          rhsValue = builder.create<LoadOp>(loc, rhsValue, implicitInductions);
+
+          rhsValue = builder.create<CastOp>(
+              loc, arrayType.getElementType(), rhsValue);
+
+          builder.create<StoreOp>(loc, rhsValue, lhsValue, implicitInductions);
+          return mlir::success();
+        }
+
+        if (auto loadOp = lhsValue.getDefiningOp<LoadOp>()) {
+          // Left-hand side is a scalar element extract from an array variable.
+          rhsValue = builder.create<CastOp>(loc, lhsValue.getType(), rhsValue);
+
+          builder.create<StoreOp>(
+              loc, rhsValue, loadOp.getArray(), loadOp.getIndices());
+
+          return mlir::success();
+        }
+
+        if (auto variableGetOp = lhsValue.getDefiningOp<VariableGetOp>()) {
+          // Left-hand side is a scalar variable.
+          rhsValue = builder.create<CastOp>(loc, lhsValue.getType(), rhsValue);
+
+          builder.create<VariableSetOp>(
+              loc, variableGetOp.getVariable(), rhsValue);
+
+          return mlir::success();
+        }
+
+        return mlir::failure();
+      }
+
+    private:
+      uint64_t viewElementIndex;
+      uint64_t numOfExplicitInductions;
+      uint64_t numOfImplicitInductions;
+      mlir::ArrayAttr iterationDirections;
+      llvm::SmallVector<mlir::Value, 10> functionArgs;
+  };
+
+  class EquationTemplateVariableGetOpPattern
+      : public mlir::OpRewritePattern<VariableGetOp>
+  {
+    public:
+      EquationTemplateVariableGetOpPattern(
+          mlir::MLIRContext* context,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+          : mlir::OpRewritePattern<VariableGetOp>(context),
+            localToGlobalVariablesMap(&localToGlobalVariablesMap)
+      {
+      }
+
+      mlir::LogicalResult matchAndRewrite(
+          VariableGetOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        auto globalVariableIt =
+            localToGlobalVariablesMap->find(op.getVariable());
+
+        if (globalVariableIt != localToGlobalVariablesMap->end()) {
+          mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
+              loc, globalVariableIt->getValue());
+
+          if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
+              arrayType && arrayType.isScalar()) {
+            replacement = rewriter.create<LoadOp>(
+                loc, replacement, std::nullopt);
+          }
+
+          rewriter.replaceOp(op, replacement);
+          return mlir::success();
+        }
+
+        return mlir::failure();
+      }
+
+    private:
+      const llvm::StringMap<GlobalVariableOp>* localToGlobalVariablesMap;
+  };
+
+  class EquationTemplateVariableSetOpPattern
+      : public mlir::OpRewritePattern<VariableSetOp>
+  {
+    public:
+      EquationTemplateVariableSetOpPattern(
+          mlir::MLIRContext* context,
+          const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+          : mlir::OpRewritePattern<VariableSetOp>(context),
+            localToGlobalVariablesMap(&localToGlobalVariablesMap)
+      {
+      }
+
+      mlir::LogicalResult matchAndRewrite(
+          VariableSetOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        auto globalVariableIt =
+            localToGlobalVariablesMap->find(op.getVariable());
+
+        if (globalVariableIt == localToGlobalVariablesMap->end()) {
+          return mlir::failure();
+        }
+
+        GlobalVariableOp globalVariableOp = globalVariableIt->getValue();
+
+        mlir::Value globalVariable =
+            rewriter.create<GlobalVariableGetOp>(loc, globalVariableOp);
+
+        mlir::Value storedValue = op.getValue();
+        auto arrayType = globalVariable.getType().cast<ArrayType>();
+
+        if (!arrayType.isScalar()) {
+          return mlir::failure();
+        }
+
+        if (mlir::Type expectedType = arrayType.getElementType();
+            storedValue.getType() != expectedType) {
+          storedValue = rewriter.create<CastOp>(
+              loc, expectedType, storedValue);
+        }
+
+        rewriter.replaceOpWithNewOp<StoreOp>(
+            op, storedValue, globalVariable, std::nullopt);
+
+        return mlir::success();
+      }
+
+    private:
+      const llvm::StringMap<GlobalVariableOp>* localToGlobalVariablesMap;
   };
 }
 
@@ -705,7 +1009,7 @@ namespace mlir::modelica::impl
       mlir::ModuleOp moduleOp,
       mlir::SymbolTableCollection& symbolTableCollection,
       EquationTemplateOp equationTemplateOp,
-      uint64_t elementViewIndex,
+      uint64_t viewElementIndex,
       mlir::ArrayAttr iterationDirections,
       llvm::StringRef functionName,
       const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
@@ -720,7 +1024,7 @@ namespace mlir::modelica::impl
 
     size_t numOfImplicitInductions =
         equationTemplateOp.getNumOfImplicitInductionVariables(
-            elementViewIndex);
+            viewElementIndex);
 
     llvm::SmallVector<mlir::Type, 9> argTypes(
         numOfExplicitInductions * 3 + numOfImplicitInductions * 3,
@@ -749,7 +1053,7 @@ namespace mlir::modelica::impl
       explicitIterationsStep.push_back(rawFunctionOp.getArgument(i * 3 + 2));
     }
 
-    createIterationLoops(
+    ::createIterationLoops(
         builder, loc,
         explicitIterationsBegin, explicitIterationsEnd, explicitIterationsStep,
         iterationDirections, explicitInductions);
@@ -763,87 +1067,43 @@ namespace mlir::modelica::impl
 
     // Clone the equation body.
     for (auto& op : equationTemplateOp.getOps()) {
-      if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
-        // Convert the equality to an assignment.
-        mlir::Value lhsValue =
-            equationSidesOp.getLhsValues()[elementViewIndex];
+      builder.clone(op, mapping);
+    }
 
-        mlir::Value rhsValue =
-            equationSidesOp.getRhsValues()[elementViewIndex];
+    mlir::ConversionTarget target(*builder.getContext());
+    target.addLegalDialect<ModelicaDialect>();
+    target.addIllegalOp<EquationSidesOp>();
 
-        lhsValue = mapping.lookup(lhsValue);
-        rhsValue = mapping.lookup(rhsValue);
+    target.addDynamicallyLegalOp<VariableGetOp>([&](VariableGetOp op) {
+      auto globalVariableIt = localToGlobalVariablesMap.find(op.getVariable());
+      return globalVariableIt == localToGlobalVariablesMap.end();
+    });
 
-        if (auto arrayType = lhsValue.getType().dyn_cast<ArrayType>()) {
-          assert(arrayType.getRank() ==
-                 static_cast<int64_t>(numOfImplicitInductions));
+    target.addDynamicallyLegalOp<VariableSetOp>([&](VariableSetOp op) {
+      auto globalVariableIt = localToGlobalVariablesMap.find(op.getVariable());
+      return globalVariableIt == localToGlobalVariablesMap.end();
+    });
 
-          assert(rhsValue.getType().isa<ArrayType>());
-          assert(rhsValue.getType().cast<ArrayType>().getRank() ==
-                 static_cast<int64_t>(numOfImplicitInductions));
+    target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+      return true;
+    });
 
-          llvm::SmallVector<mlir::Value, 3> implicitInductions;
+    mlir::RewritePatternSet patterns(builder.getContext());
 
-          llvm::SmallVector<mlir::Value, 3> implicitIterationsBegin;
-          llvm::SmallVector<mlir::Value, 3> implicitIterationsEnd;
-          llvm::SmallVector<mlir::Value, 3> implicitIterationsStep;
+    patterns.insert<EquationTemplateEquationSidesOpPattern>(
+        builder.getContext(), viewElementIndex,
+        numOfExplicitInductions, numOfImplicitInductions,
+        iterationDirections, rawFunctionOp.getArguments());
 
-          for (size_t i = 0; i < numOfImplicitInductions; ++i) {
-            implicitIterationsBegin.push_back(rawFunctionOp.getArgument(
-                numOfExplicitInductions * 3 + i * 3));
+    patterns.insert<EquationTemplateVariableGetOpPattern>(
+        builder.getContext(), localToGlobalVariablesMap);
 
-            implicitIterationsEnd.push_back(rawFunctionOp.getArgument(
-                numOfExplicitInductions * 3 + i * 3 + 1));
+    patterns.insert<EquationTemplateVariableSetOpPattern>(
+        builder.getContext(), localToGlobalVariablesMap);
 
-            implicitIterationsStep.push_back(rawFunctionOp.getArgument(
-                numOfExplicitInductions * 3 + i * 3 + 2));
-          }
-
-          createIterationLoops(
-              builder, loc,
-              implicitIterationsBegin,
-              implicitIterationsEnd,
-              implicitIterationsStep,
-              iterationDirections, implicitInductions);
-
-          rhsValue = builder.create<LoadOp>(loc, rhsValue, implicitInductions);
-
-          rhsValue = builder.create<CastOp>(
-              loc, arrayType.getElementType(), rhsValue);
-
-          builder.create<StoreOp>(loc, rhsValue, lhsValue, implicitInductions);
-        } else {
-          auto loadOp = mlir::cast<LoadOp>(lhsValue.getDefiningOp());
-          rhsValue = builder.create<CastOp>(loc, lhsValue.getType(), rhsValue);
-
-          builder.create<StoreOp>(
-              loc, rhsValue, loadOp.getArray(), loadOp.getIndices());
-        }
-      } else if (mlir::isa<EquationSideOp>(op)) {
-        // Ignore equation sides.
-        continue;
-      } else if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
-        auto globalVariableIt =
-            localToGlobalVariablesMap.find(variableGetOp.getVariable());
-
-        if (globalVariableIt != localToGlobalVariablesMap.end()) {
-          mlir::Value replacement = builder.create<GlobalVariableGetOp>(
-              op.getLoc(), globalVariableIt->getValue());
-
-          if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
-              arrayType && arrayType.isScalar()) {
-            replacement = builder.create<LoadOp>(
-                loc, replacement, std::nullopt);
-          }
-
-          mapping.map(variableGetOp.getResult(), replacement);
-        } else {
-          builder.clone(op, mapping);
-        }
-      } else {
-        // Clone all the other operations.
-        builder.clone(op, mapping);
-      }
+    if (mlir::failed(applyPartialConversion(
+            rawFunctionOp, target, std::move(patterns)))) {
+      return nullptr;
     }
 
     // Create the return operation.
@@ -862,76 +1122,8 @@ namespace mlir::modelica::impl
       mlir::ArrayAttr iterationDirections,
       llvm::SmallVectorImpl<mlir::Value>& inductions)
   {
-    assert(beginIndices.size() == endIndices.size());
-    assert(beginIndices.size() == steps.size());
-
-    assert(llvm::all_of(
-        iterationDirections.getAsRange<EquationScheduleDirectionAttr>(),
-        [](EquationScheduleDirectionAttr direction) {
-          return direction.getValue() == EquationScheduleDirection::Forward ||
-              direction.getValue() == EquationScheduleDirection::Backward;
-        }));
-
-    auto conditionFn =
-        [&](EquationScheduleDirectionAttr direction,
-            mlir::Value index, mlir::Value end) -> mlir::Value {
-      if (direction.getValue() == EquationScheduleDirection::Backward) {
-        return builder.create<mlir::arith::CmpIOp>(
-            loc, mlir::arith::CmpIPredicate::sgt, index, end);
-      }
-
-      return builder.create<mlir::arith::CmpIOp>(
-          loc, mlir::arith::CmpIPredicate::slt, index, end);
-    };
-
-    auto updateFn =
-        [&](EquationScheduleDirectionAttr direction,
-            mlir::Value index, mlir::Value step) -> mlir::Value {
-      if (direction.getValue() == EquationScheduleDirection::Backward) {
-        return builder.create<mlir::arith::SubIOp>(loc, index, step);
-      }
-
-      return builder.create<mlir::arith::AddIOp>(loc, index, step);
-    };
-
-    for (size_t i = 0; i < steps.size(); ++i) {
-      auto whileOp = builder.create<mlir::scf::WhileOp>(
-          loc, builder.getIndexType(), beginIndices[i]);
-
-      // Check the condition.
-      // A naive check can consist in the equality comparison. However, in
-      // order to be future-proof with respect to steps greater than one, we
-      // need to check if the current value is beyond the end boundary. This in
-      // turn requires to know the iteration direction.
-
-      mlir::Block* beforeBlock = builder.createBlock(
-          &whileOp.getBefore(), {}, builder.getIndexType(), loc);
-
-      builder.setInsertionPointToStart(beforeBlock);
-
-      mlir::Value condition = conditionFn(
-          iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
-          whileOp.getBefore().getArgument(0), endIndices[i]);
-
-      builder.create<mlir::scf::ConditionOp>(
-          loc, condition, whileOp.getBefore().getArgument(0));
-
-      // Execute the loop body.
-      mlir::Block* afterBlock = builder.createBlock(
-          &whileOp.getAfter(), {}, builder.getIndexType(), loc);
-
-      mlir::Value inductionVariable = afterBlock->getArgument(0);
-      inductions.push_back(inductionVariable);
-      builder.setInsertionPointToStart(afterBlock);
-
-      // Update the induction variable.
-      mlir::Value nextValue = updateFn(
-          iterationDirections[i].cast<EquationScheduleDirectionAttr>(),
-              inductionVariable, steps[i]);
-
-      builder.create<mlir::scf::YieldOp>(loc, nextValue);
-      builder.setInsertionPoint(nextValue.getDefiningOp());
-    }
+    ::createIterationLoops(builder, loc, beginIndices, endIndices, steps,
+                           iterationDirections, inductions);
   }
 
   mlir::LogicalResult ModelSolver::callEquationFunction(

@@ -154,7 +154,7 @@ namespace mlir::modelica::impl
           mlir::ModuleOp moduleOp,
           mlir::SymbolTableCollection& symbolTableCollection,
           EquationTemplateOp equationTemplateOp,
-          uint64_t elementViewIndex,
+          uint64_t viewElementIndex,
           mlir::ArrayAttr iterationDirections,
           llvm::StringRef functionName,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
