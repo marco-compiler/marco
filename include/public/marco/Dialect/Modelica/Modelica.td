@@ -2959,7 +2959,9 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
 
 def Modelica_ReductionOp : Modelica_Op<"reduction",
     [SingleBlock,
-    EquationExpressionOpInterface]>
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface,
+        ["getNumOfExpressionElements", "getExpressionElement",
+        "mapAdditionalInductions"]>]>
 {
     let summary = "Iteration space reduction.";
 

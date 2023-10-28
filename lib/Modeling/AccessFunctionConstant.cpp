@@ -18,9 +18,10 @@ namespace marco::modeling
   }
 
   AccessFunctionConstant::AccessFunctionConstant(mlir::AffineMap affineMap)
-      : AccessFunction(affineMap.getContext(),
-                       affineMap.getNumDims(),
-                       convertAffineExpressions(affineMap.getResults()))
+      : AccessFunctionConstant(
+          affineMap.getContext(),
+          affineMap.getNumDims(),
+          convertAffineExpressions(affineMap.getResults()))
   {
   }
 
@@ -60,7 +61,8 @@ namespace marco::modeling
     IndexSet mappedIndices;
 
     for (const auto& result : getResults()) {
-      mappedIndices = mappedIndices.append(result->map(dummyPoint));
+      mappedIndices = mappedIndices.append(
+          result->map(dummyPoint, getFakeDimensionsMap()));
     }
 
     return mappedIndices;

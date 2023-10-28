@@ -110,13 +110,15 @@ namespace marco::modeling
     return firstExpr * secondExpr;
   }
 
-  IndexSet DimensionAccessMul::map(const Point& point) const
+  IndexSet DimensionAccessMul::map(
+      const Point& point,
+      const FakeDimensionsMap& fakeDimensionsMap) const
   {
     const DimensionAccess& lhs = getFirst();
     const DimensionAccess& rhs = getSecond();
 
-    IndexSet mappedLhs = lhs.map(point);
-    IndexSet mappedRhs = rhs.map(point);
+    IndexSet mappedLhs = lhs.map(point, fakeDimensionsMap);
+    IndexSet mappedRhs = rhs.map(point, fakeDimensionsMap);
 
     IndexSet result;
     llvm::SmallVector<Point::data_type, 10> coordinates;

@@ -101,8 +101,15 @@ namespace marco::modeling
     return mlir::getAffineDimExpr(getDimension(), getContext());
   }
 
-  IndexSet DimensionAccessDimension::map(const Point& point) const
+  IndexSet DimensionAccessDimension::map(
+      const Point& point,
+      const FakeDimensionsMap& fakeDimensionsMap) const
   {
+    if (auto it = fakeDimensionsMap.find(getDimension());
+        it != fakeDimensionsMap.end()) {
+      return it->getSecond()->map(point, fakeDimensionsMap);
+    }
+
     return {Point(point[getDimension()])};
   }
 

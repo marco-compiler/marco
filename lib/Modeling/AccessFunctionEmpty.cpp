@@ -16,9 +16,10 @@ namespace marco::modeling
   }
 
   AccessFunctionEmpty::AccessFunctionEmpty(mlir::AffineMap affineMap)
-      : AccessFunction(affineMap.getContext(),
-                       affineMap.getNumDims(),
-                       convertAffineExpressions(affineMap.getResults()))
+      : AccessFunctionEmpty(
+          affineMap.getContext(),
+          affineMap.getNumDims(),
+          convertAffineExpressions(affineMap.getResults()))
   {
   }
 

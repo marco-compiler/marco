@@ -89,13 +89,17 @@ namespace marco::modeling
       DimensionAccess::FakeDimensionsMap& fakeDimensionsMap) const
   {
     unsigned int numOfFakeDimensions = fakeDimensionsMap.size();
-    fakeDimensionsMap[numOfDimensions + numOfFakeDimensions] = this;
+
+    fakeDimensionsMap[numOfDimensions + numOfFakeDimensions] =
+        Redirect(clone());
 
     return mlir::getAffineDimExpr(
         numOfDimensions + numOfFakeDimensions, getContext());
   }
 
-  IndexSet DimensionAccessIndices::map(const Point& point) const
+  IndexSet DimensionAccessIndices::map(
+      const Point& point,
+      const FakeDimensionsMap& fakeDimensionsMap) const
   {
     return getIndices();
   }

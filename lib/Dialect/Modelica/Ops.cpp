@@ -801,7 +801,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -1113,7 +1113,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -1506,7 +1506,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::DenseMap<mlir::Value, IndexSet> additionalInductionsIndicesMap,
+      llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -1527,7 +1527,8 @@ namespace mlir::modelica
 
     if (path.size() == 1) {
       // Add the implicit inductions if we are at a leaf of the equation.
-      for (uint64_t i = numOfExplicitInductions; i < numOfInductions; ++i) {
+      for (uint64_t i = numOfExplicitInductions + reverted.size();
+           i < numOfInductions; ++i) {
         reverted.push_back(DimensionAccess::build(
             mlir::getAffineDimExpr(i, getContext())));
       }
@@ -8997,6 +8998,67 @@ namespace mlir::modelica
     }
 
     return builder.createBlock(&getExpressionRegion(), {}, argTypes, argLocs);
+  }
+
+  uint64_t ReductionOp::getNumOfExpressionElements()
+  {
+    auto terminator = mlir::cast<YieldOp>(getBody()->getTerminator());
+    return terminator.getValues().size();
+  }
+
+  mlir::Value ReductionOp::getExpressionElement(uint64_t element)
+  {
+    auto terminator = mlir::cast<YieldOp>(getBody()->getTerminator());
+    return terminator.getValues()[element];
+  }
+
+  mlir::LogicalResult ReductionOp::mapAdditionalInductions(
+      llvm::DenseMap<mlir::Value, IndexSet>& map)
+  {
+    for (const auto& [induction, iterable] :
+         llvm::zip(getInductions(), getIterables())) {
+      auto constantOp = iterable.getDefiningOp<ConstantOp>();
+
+      if (!constantOp) {
+        return mlir::failure();
+      }
+
+      auto iterableAttr = constantOp.getValue();
+
+      if (auto rangeAttr = iterableAttr.dyn_cast<IntegerRangeAttr>()) {
+        assert(rangeAttr.getStep() == 1);
+
+        auto lowerBound = static_cast<Range::data_type>(
+            rangeAttr.getLowerBound());
+
+        auto upperBound = static_cast<Range::data_type>(
+            rangeAttr.getUpperBound());
+
+        map[induction] = IndexSet(MultidimensionalRange(
+            Range(lowerBound, upperBound)));
+
+        continue;
+      }
+
+      if (auto rangeAttr = iterableAttr.dyn_cast<RealRangeAttr>()) {
+        assert(rangeAttr.getStep().convertToDouble() == 1);
+
+        auto lowerBound = static_cast<Range::data_type>(
+            rangeAttr.getLowerBound().convertToDouble());
+
+        auto upperBound = static_cast<Range::data_type>(
+            rangeAttr.getUpperBound().convertToDouble());
+
+        map[induction] = IndexSet(MultidimensionalRange(
+            Range(lowerBound, upperBound)));
+
+        continue;
+      }
+
+      return mlir::failure();
+    }
+
+    return mlir::success();
   }
 }
 

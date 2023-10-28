@@ -50,7 +50,9 @@ namespace marco::modeling
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const override;
 
-      IndexSet map(const Point& point) const override;
+      IndexSet map(
+          const Point& point,
+          const FakeDimensionsMap& fakeDimensionsMap) const override;
 
       DimensionAccess& getFirst();
 

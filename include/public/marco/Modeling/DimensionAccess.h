@@ -28,8 +28,35 @@ namespace marco::modeling
         Indices
       };
 
-      using FakeDimensionsMap =
-          llvm::DenseMap<unsigned int, const DimensionAccess*>;
+      class Redirect
+      {
+        public:
+          Redirect();
+
+          explicit Redirect(std::unique_ptr<DimensionAccess> dimensionAccess);
+
+          Redirect(const Redirect& other);
+
+          Redirect(Redirect&& other);
+
+          ~Redirect();
+
+          Redirect& operator=(const Redirect& other);
+
+          Redirect& operator=(Redirect&& other);
+
+          friend void swap(Redirect& first, Redirect& second);
+
+          const DimensionAccess& operator*() const;
+
+          const DimensionAccess* operator->() const;
+
+        private:
+          std::unique_ptr<DimensionAccess> dimensionAccess;
+      };
+
+      using FakeDimensionsMap = llvm::DenseMap<
+          unsigned int, DimensionAccess::Redirect>;
 
       static std::unique_ptr<DimensionAccess> build(
           mlir::AffineExpr expression);
@@ -119,7 +146,9 @@ namespace marco::modeling
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
-      virtual IndexSet map(const Point& point) const = 0;
+      virtual IndexSet map(
+          const Point& point,
+          const FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
     private:
       Kind kind;

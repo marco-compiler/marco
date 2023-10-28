@@ -11,6 +11,57 @@ using namespace ::marco::modeling;
 
 namespace marco::modeling
 {
+  DimensionAccess::Redirect::Redirect()
+  {
+  }
+
+  DimensionAccess::Redirect::Redirect(
+      std::unique_ptr<DimensionAccess> dimensionAccess)
+      : dimensionAccess(std::move(dimensionAccess))
+  {
+  }
+
+  DimensionAccess::Redirect::Redirect(const Redirect& other)
+      : dimensionAccess(other.dimensionAccess->clone())
+  {
+  }
+
+  DimensionAccess::Redirect::Redirect(
+      DimensionAccess::Redirect&& other) = default;
+
+  DimensionAccess::Redirect::~Redirect() = default;
+
+  DimensionAccess::Redirect& DimensionAccess::Redirect::operator=(
+      const DimensionAccess::Redirect& other)
+  {
+    DimensionAccess::Redirect result(other);
+    swap(*this, result);
+    return *this;
+  }
+
+  DimensionAccess::Redirect& DimensionAccess::Redirect::operator=(
+      DimensionAccess::Redirect&& other) = default;
+
+  void swap(
+      DimensionAccess::Redirect& first,
+      DimensionAccess::Redirect& second)
+  {
+    using std::swap;
+    swap(first.dimensionAccess, second.dimensionAccess);
+  }
+
+  const DimensionAccess& DimensionAccess::Redirect::operator*() const
+  {
+    assert(dimensionAccess && "Dimension access not set");
+    return *dimensionAccess;
+  }
+
+  const DimensionAccess* DimensionAccess::Redirect::operator->() const
+  {
+    assert(dimensionAccess && "Dimension access not set");
+    return dimensionAccess.get();
+  }
+
   std::unique_ptr<DimensionAccess> DimensionAccess::build(
       mlir::AffineExpr expression)
   {
@@ -80,22 +131,28 @@ namespace marco::modeling
       if (kind == mlir::AffineExprKind::Add) {
         return std::make_unique<DimensionAccessAdd>(
             binaryExpr.getContext(),
-            DimensionAccess::build(binaryExpr.getLHS()),
-            DimensionAccess::build(binaryExpr.getRHS()));
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getLHS(), fakeDimensionsMap),
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getRHS(), fakeDimensionsMap));
       }
 
       if (kind == mlir::AffineExprKind::Mul) {
         return std::make_unique<DimensionAccessMul>(
             binaryExpr.getContext(),
-            DimensionAccess::build(binaryExpr.getLHS()),
-            DimensionAccess::build(binaryExpr.getRHS()));
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getLHS(), fakeDimensionsMap),
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getRHS(), fakeDimensionsMap));
       }
 
       if (kind == mlir::AffineExprKind::FloorDiv) {
         return std::make_unique<DimensionAccessDiv>(
             binaryExpr.getContext(),
-            DimensionAccess::build(binaryExpr.getLHS()),
-            DimensionAccess::build(binaryExpr.getRHS()));
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getLHS(), fakeDimensionsMap),
+            DimensionAccess::getDimensionAccessFromExtendedMap(
+                binaryExpr.getRHS(), fakeDimensionsMap));
       }
     }
 

@@ -13,35 +13,39 @@ using namespace ::marco::modeling;
 static std::unique_ptr<AccessFunction> build(
     mlir::MLIRContext* context,
     unsigned int numOfDimensions,
-    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
+    DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
 {
-  if (AccessFunctionEmpty::canBeBuilt(numOfDimensions, results)) {
-    return std::make_unique<AccessFunctionEmpty>(
-        context, numOfDimensions, results);
-  }
+  if (fakeDimensionsMap.empty()) {
+    if (AccessFunctionEmpty::canBeBuilt(numOfDimensions, results)) {
+      return std::make_unique<AccessFunctionEmpty>(
+          context, numOfDimensions, results);
+    }
 
-  if (AccessFunctionZeroDims::canBeBuilt(numOfDimensions, results)) {
-    return std::make_unique<AccessFunctionZeroDims>(
-        context, numOfDimensions, results);
-  }
+    if (AccessFunctionZeroDims::canBeBuilt(numOfDimensions, results)) {
+      return std::make_unique<AccessFunctionZeroDims>(
+          context, numOfDimensions, results);
+    }
 
-  if (AccessFunctionZeroResults::canBeBuilt(numOfDimensions, results)) {
-    return std::make_unique<AccessFunctionZeroResults>(
-        context, numOfDimensions, results);
-  }
+    if (AccessFunctionZeroResults::canBeBuilt(numOfDimensions, results)) {
+      return std::make_unique<AccessFunctionZeroResults>(
+          context, numOfDimensions, results);
+    }
 
-  if (AccessFunctionConstant::canBeBuilt(numOfDimensions, results)) {
-    return std::make_unique<AccessFunctionConstant>(
-        context, numOfDimensions, results);
-  }
+    if (AccessFunctionConstant::canBeBuilt(numOfDimensions, results)) {
+      return std::make_unique<AccessFunctionConstant>(
+          context, numOfDimensions, results);
+    }
 
-  if (AccessFunctionRotoTranslation::canBeBuilt(numOfDimensions, results)) {
-    return std::make_unique<AccessFunctionRotoTranslation>(
-        context, numOfDimensions, results);
+    if (AccessFunctionRotoTranslation::canBeBuilt(numOfDimensions, results)) {
+      return std::make_unique<AccessFunctionRotoTranslation>(
+          context, numOfDimensions, results);
+    }
   }
 
   // Fallback implementation.
-  return std::make_unique<AccessFunction>(context, numOfDimensions, results);
+  return std::make_unique<AccessFunction>(
+      context, numOfDimensions, results, std::move(fakeDimensionsMap));
 }
 
 namespace marco::modeling
@@ -77,28 +81,33 @@ namespace marco::modeling
   {
     assert(affineMap.getNumSymbols() == 0);
     mlir::AffineMap simplifiedAffineMap = mlir::simplifyAffineMap(affineMap);
+    DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
 
     return ::build(
         simplifiedAffineMap.getContext(), simplifiedAffineMap.getNumDims(),
-        convertAffineExpressions(simplifiedAffineMap.getResults()));
+        convertAffineExpressions(simplifiedAffineMap.getResults()),
+        std::move(fakeDimensionsMap));
   }
 
   std::unique_ptr<AccessFunction> AccessFunction::fromExtendedMap(
       mlir::AffineMap affineMap,
       const DimensionAccess::FakeDimensionsMap& fakeDimensionsMap)
   {
+    mlir::AffineMap simplifiedAffineMap = mlir::simplifyAffineMap(affineMap);
     llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
 
-    for (mlir::AffineExpr result : affineMap.getResults()) {
+    for (mlir::AffineExpr result : simplifiedAffineMap.getResults()) {
       results.push_back(
           DimensionAccess::getDimensionAccessFromExtendedMap(
               result, fakeDimensionsMap));
     }
 
+    size_t numOfFakeDimensions = fakeDimensionsMap.size();
+
     return ::build(
-        affineMap.getContext(),
-        affineMap.getNumDims() - fakeDimensionsMap.size(),
-        results);
+        simplifiedAffineMap.getContext(),
+        simplifiedAffineMap.getNumDims() - numOfFakeDimensions,
+        results, fakeDimensionsMap);
   }
 
   llvm::SmallVector<std::unique_ptr<DimensionAccess>>
@@ -117,15 +126,18 @@ namespace marco::modeling
   AccessFunction::AccessFunction(
       mlir::MLIRContext* context,
       unsigned int numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
-      : AccessFunction(Kind::Generic, context, numOfDimensions, results)
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
+      DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
+      : AccessFunction(Kind::Generic, context, numOfDimensions, results,
+                       std::move(fakeDimensionsMap))
   {
   }
 
   AccessFunction::AccessFunction(mlir::AffineMap affineMap)
       : AccessFunction(affineMap.getContext(),
                        affineMap.getNumDims(),
-                       convertAffineExpressions(affineMap.getResults()))
+                       convertAffineExpressions(affineMap.getResults()),
+                       DimensionAccess::FakeDimensionsMap())
   {
   }
 
@@ -133,10 +145,12 @@ namespace marco::modeling
       AccessFunction::Kind kind,
       mlir::MLIRContext* context,
       unsigned int numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
+      DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
       : kind(kind),
         context(context),
-        numOfDimensions(numOfDimensions)
+        numOfDimensions(numOfDimensions),
+        fakeDimensionsMap(std::move(fakeDimensionsMap))
   {
     for (const auto& result : results) {
       this->results.push_back(result->clone());
@@ -146,7 +160,8 @@ namespace marco::modeling
   AccessFunction::AccessFunction(const AccessFunction& other)
       : kind(other.kind),
         context(other.context),
-        numOfDimensions(other.numOfDimensions)
+        numOfDimensions(other.numOfDimensions),
+        fakeDimensionsMap(other.fakeDimensionsMap)
   {
     for (const auto& result : other.results) {
       results.push_back(result->clone());
@@ -176,6 +191,8 @@ namespace marco::modeling
 
     first.results = std::move(second.results);
     second.results = std::move(firstTmp);
+
+    swap(first.fakeDimensionsMap, second.fakeDimensionsMap);
   }
 
   std::unique_ptr<AccessFunction> AccessFunction::clone() const
@@ -351,17 +368,19 @@ namespace marco::modeling
     mlir::AffineMap combinedAffineMap = rhsAffineMap.compose(lhsAffineMap);
 
     // Determine the fake dimensions of the result.
-    DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
+    DimensionAccess::FakeDimensionsMap resultFakeDimensionsMap;
 
-    for (size_t i = 0; i < rhsExtraDimensions; ++i) {
+    for (size_t i = 0; i < rhsFakeDimensionsCount; ++i) {
       size_t rhsDimension = other.getNumOfDims() + rhsExtraDimensions + i;
       size_t lhsDimension = getNumOfDims() + i;
-      fakeDimensionsMap[lhsDimension] = rhsFakeDimensionsMap[rhsDimension];
+
+      resultFakeDimensionsMap[lhsDimension] =
+          rhsFakeDimensionsMap[rhsDimension];
     }
 
     // Remove the additional dimensions.
     return AccessFunction::fromExtendedMap(
-        combinedAffineMap, fakeDimensionsMap);
+        combinedAffineMap, resultFakeDimensionsMap);
   }
 
   bool AccessFunction::isInvertible() const
@@ -379,7 +398,8 @@ namespace marco::modeling
     IndexSet mappedIndices;
 
     for (const auto& result : getResults()) {
-      mappedIndices = mappedIndices.append(result->map(point));
+      mappedIndices = mappedIndices.append(
+          result->map(point, getFakeDimensionsMap()));
     }
 
     return mappedIndices;
@@ -409,6 +429,12 @@ namespace marco::modeling
     }
 
     return result;
+  }
+
+  const DimensionAccess::FakeDimensionsMap&
+  AccessFunction::getFakeDimensionsMap() const
+  {
+    return fakeDimensionsMap;
   }
 
   mlir::AffineMap AccessFunction::getExtendedAffineMap(

@@ -45,7 +45,8 @@ namespace marco::modeling
       AccessFunction(
           mlir::MLIRContext* context,
           unsigned int numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
+          DimensionAccess::FakeDimensionsMap fakeDimensionsMap);
 
       explicit AccessFunction(mlir::AffineMap affineMap);
 
@@ -54,7 +55,9 @@ namespace marco::modeling
           Kind kind,
           mlir::MLIRContext* context,
           unsigned int numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
+          DimensionAccess::FakeDimensionsMap fakeDimensionsMap =
+              DimensionAccess::FakeDimensionsMap());
 
     public:
       AccessFunction(const AccessFunction& other);
@@ -173,6 +176,8 @@ namespace marco::modeling
           const IndexSet& parentIndices) const;
 
     protected:
+      const DimensionAccess::FakeDimensionsMap& getFakeDimensionsMap() const;
+
       mlir::AffineMap getExtendedAffineMap(
           DimensionAccess::FakeDimensionsMap& fakeDimensionsMap) const;
 
@@ -184,6 +189,7 @@ namespace marco::modeling
       mlir::MLIRContext* context;
       unsigned int numOfDimensions;
       llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
+      DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
   };
 
   llvm::raw_ostream& operator<<(

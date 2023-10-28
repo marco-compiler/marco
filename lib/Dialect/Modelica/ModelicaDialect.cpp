@@ -290,6 +290,34 @@ namespace mlir::modelica
       if (auto op = mlir::dyn_cast<ConstantOp>(definingOp)) {
         auto attr = mlir::cast<mlir::Attribute>(op.getValue());
 
+        if (auto rangeAttr = attr.dyn_cast<IntegerRangeAttr>()) {
+          assert(rangeAttr.getStep() == 1);
+
+          auto lowerBound = static_cast<Range::data_type>(
+              rangeAttr.getLowerBound());
+
+          auto upperBound = static_cast<Range::data_type>(
+              rangeAttr.getUpperBound());
+
+          return std::make_unique<DimensionAccessIndices>(
+              value.getContext(),
+              IndexSet(MultidimensionalRange(Range(lowerBound, upperBound))));
+        }
+
+        if (auto rangeAttr = attr.dyn_cast<RealRangeAttr>()) {
+          assert(rangeAttr.getStep().convertToDouble() == 1);
+
+          auto lowerBound = static_cast<Range::data_type>(
+              rangeAttr.getLowerBound().convertToDouble());
+
+          auto upperBound = static_cast<Range::data_type>(
+              rangeAttr.getUpperBound().convertToDouble());
+
+          return std::make_unique<DimensionAccessIndices>(
+              value.getContext(),
+              IndexSet(MultidimensionalRange(Range(lowerBound, upperBound))));
+        }
+
         return std::make_unique<DimensionAccessConstant>(
             value.getContext(), getIntegerFromAttribute(attr));
       }

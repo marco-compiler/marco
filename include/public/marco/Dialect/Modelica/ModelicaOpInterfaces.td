@@ -67,17 +67,27 @@ def EquationExpressionOpInterface
                 return $_op.getOperation()->getOperand(element);
             }]>,
         InterfaceMethod<
+            "Get the element at a given position.",
+            "::mlir::LogicalResult", "mapAdditionalInductions",
+            (ins "::llvm::DenseMap<mlir::Value, IndexSet>&":$additionalInductionsIndicesMap), [{}], [{
+                return mlir::success();
+            }]>,
+        InterfaceMethod<
             "Get the accesses of this expression",
             "::mlir::LogicalResult", "getEquationAccesses",
             (ins "::llvm::SmallVectorImpl<VariableAccess>&":$accesses,
                  "::mlir::SymbolTableCollection&":$symbolTable,
                  "::llvm::DenseMap<::mlir::Value, unsigned int>&":$explicitInductionsPositionMap,
-                 "::llvm::DenseMap<mlir::Value, IndexSet>":$additionalInductionsIndicesMap,
+                 "::llvm::DenseMap<mlir::Value, IndexSet>&":$additionalInductionsIndicesMap,
                  "::llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>&":$dimensionAccesses,
                  "uint64_t":$numOfImplicitInductions,
                  "EquationPath":$path), [{}], [{
                 auto opInterface = mlir::cast<EquationExpressionOpInterface>($_op.getOperation());
                 uint64_t numOfChildren = opInterface.getNumOfExpressionElements();
+
+                if (mlir::failed(opInterface.mapAdditionalInductions(additionalInductionsIndicesMap))) {
+                    return mlir::failure();
+                }
 
                 for (uint64_t i = 0; i < numOfChildren; ++i) {
                     size_t initialDimensionAccessesCount = dimensionAccesses.size();

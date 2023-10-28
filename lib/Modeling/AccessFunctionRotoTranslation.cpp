@@ -20,9 +20,10 @@ namespace marco::modeling
 
   AccessFunctionRotoTranslation::AccessFunctionRotoTranslation(
       mlir::AffineMap affineMap)
-      : AccessFunction(affineMap.getContext(),
-                       affineMap.getNumDims(),
-                       convertAffineExpressions(affineMap.getResults()))
+      : AccessFunctionRotoTranslation(
+          affineMap.getContext(),
+          affineMap.getNumDims(),
+          convertAffineExpressions(affineMap.getResults()))
   {
   }
 
