@@ -6,6 +6,7 @@
 #include "marco/Modeling/AccessFunctionZeroResults.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessDimension.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -212,6 +213,32 @@ namespace marco::modeling
     return false;
   }
 
+  llvm::raw_ostream& AccessFunction::dump(llvm::raw_ostream& os) const
+  {
+    os << "(";
+
+    for (size_t i = 0, e = getNumOfDims(); i < e; ++i) {
+      if (i != 0) {
+        os << ", ";
+      }
+
+      os << "d" << i;
+    }
+
+    os << ") -> (";
+
+    for (size_t i = 0, e = getNumOfResults(); i < e; ++i) {
+      if (i != 0) {
+        os << ", ";
+      }
+
+      os << *getResults()[i];
+    }
+
+    os << ")";
+    return os;
+  }
+
   mlir::MLIRContext* AccessFunction::getContext() const
   {
     return context;
@@ -404,5 +431,11 @@ namespace marco::modeling
   {
     return AccessFunction::build(
         getContext(), std::max(numOfDimensions, requestedDims), getResults());
+  }
+
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const AccessFunction& obj)
+  {
+    return obj.dump(os);
   }
 }

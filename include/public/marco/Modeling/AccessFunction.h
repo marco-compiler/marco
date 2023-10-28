@@ -7,6 +7,11 @@
 #include "llvm/Support/Casting.h"
 #include <variant>
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling
 {
   /// The access function describes how an array variable is accessed.
@@ -113,6 +118,8 @@ namespace marco::modeling
 
       bool operator!=(const AccessFunction& other) const;
 
+      llvm::raw_ostream& dump(llvm::raw_ostream& os) const;
+
       mlir::MLIRContext* getContext() const;
 
       /// Get the number of dimensions.
@@ -178,6 +185,9 @@ namespace marco::modeling
       unsigned int numOfDimensions;
       llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
   };
+
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const AccessFunction& obj);
 }
 
 #endif  // MARCO_MODELING_ACCESSFUNCTION_H

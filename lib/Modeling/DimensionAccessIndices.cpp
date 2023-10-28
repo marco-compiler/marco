@@ -1,4 +1,5 @@
 #include "marco/Modeling/DimensionAccessIndices.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -76,6 +77,11 @@ namespace marco::modeling
   bool DimensionAccessIndices::operator!=(const DimensionAccessIndices& other) const
   {
     return getIndices() != other.getIndices();
+  }
+
+  llvm::raw_ostream& DimensionAccessIndices::dump(llvm::raw_ostream& os) const
+  {
+    return os << getIndices();
   }
 
   mlir::AffineExpr DimensionAccessIndices::getAffineExpr(

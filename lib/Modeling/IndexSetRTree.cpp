@@ -1,6 +1,8 @@
 #include "marco/Modeling/IndexSetRTree.h"
 #include "marco/Modeling/IndexSetList.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <queue>
 #include <set>
 #include <stack>
@@ -622,14 +624,24 @@ namespace marco::modeling::impl
 
   RTreeIndexSet::~RTreeIndexSet() = default;
 
-  std::ostream& operator<<(std::ostream& os, const RTreeIndexSet& obj)
+  std::unique_ptr<IndexSet::Impl> RTreeIndexSet::clone() const
+  {
+    return std::make_unique<RTreeIndexSet>(*this);
+  }
+
+  llvm::hash_code hash_value(const RTreeIndexSet& value)
+  {
+    return llvm::hash_combine_range(value.rangesBegin(), value.rangesEnd());
+  }
+
+  llvm::raw_ostream& RTreeIndexSet::dump(llvm::raw_ostream& os) const
   {
     os << "{";
 
     bool separator = false;
 
     for (const MultidimensionalRange& range :
-         llvm::make_range(obj.rangesBegin(), obj.rangesEnd())) {
+         llvm::make_range(rangesBegin(), rangesEnd())) {
       if (separator) {
         os << ", ";
       }
@@ -639,16 +651,6 @@ namespace marco::modeling::impl
     }
 
     return os << "}";
-  }
-
-  std::unique_ptr<IndexSet::Impl> RTreeIndexSet::clone() const
-  {
-    return std::make_unique<RTreeIndexSet>(*this);
-  }
-
-  llvm::hash_code hash_value(const RTreeIndexSet& value)
-  {
-    return llvm::hash_combine_range(value.rangesBegin(), value.rangesEnd());
   }
 
   bool RTreeIndexSet::operator==(const Point& rhs) const
@@ -1894,17 +1896,17 @@ namespace marco::modeling::impl
   bool RTreeIndexSet::isValid() const
   {
     if (!checkParentRelationships(*this)) {
-      std::cerr << "IndexSet: parents hierarchy invariant failure" << std::endl;
+      llvm::dbgs() << "IndexSet: parents hierarchy invariant failure\n";
       return false;
     }
 
     if (!checkMBRsInvariant(*this)) {
-      std::cerr << "IndexSet: MBRs invariant failure" << std::endl;
+      llvm::dbgs() << "IndexSet: MBRs invariant failure\n";
       return false;
     }
 
     if (!checkFanOutInvariant(*this)) {
-      std::cerr << "IndexSet: fan-out invariant failure" << std::endl;
+      llvm::dbgs() << "IndexSet: fan-out invariant failure\n";
       return false;
     }
 

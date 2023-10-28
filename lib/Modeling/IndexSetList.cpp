@@ -1,4 +1,5 @@
 #include "marco/Modeling/IndexSetList.h"
+#include "llvm/Support/raw_ostream.h"
 #include <queue>
 
 using namespace ::marco::modeling;
@@ -397,14 +398,23 @@ namespace marco::modeling::impl
 
   ListIndexSet::~ListIndexSet() = default;
 
-  std::ostream& operator<<(
-      std::ostream& os, const ListIndexSet& obj)
+  std::unique_ptr<IndexSet::Impl> ListIndexSet::clone() const
+  {
+    return std::make_unique<ListIndexSet>(*this);
+  }
+
+  llvm::hash_code hash_value(const ListIndexSet& value)
+  {
+    return llvm::hash_combine_range(value.ranges.begin(), value.ranges.end());
+  }
+
+  llvm::raw_ostream& ListIndexSet::dump(llvm::raw_ostream& os) const
   {
     os << "{";
 
     bool separator = false;
 
-    for (const MultidimensionalRange& range : obj.ranges) {
+    for (const MultidimensionalRange& range : ranges) {
       if (separator) {
         os << ", ";
       }
@@ -414,16 +424,6 @@ namespace marco::modeling::impl
     }
 
     return os << "}";
-  }
-
-  std::unique_ptr<IndexSet::Impl> ListIndexSet::clone() const
-  {
-    return std::make_unique<ListIndexSet>(*this);
-  }
-
-  llvm::hash_code hash_value(const ListIndexSet& value)
-  {
-    return llvm::hash_combine_range(value.ranges.begin(), value.ranges.end());
   }
 
   bool ListIndexSet::operator==(const Point& rhs) const

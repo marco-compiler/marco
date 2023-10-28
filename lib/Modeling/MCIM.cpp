@@ -3,6 +3,7 @@
 #include "marco/Modeling/AccessFunction.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 #include <numeric>
 
 using namespace ::marco;
@@ -934,10 +935,10 @@ static size_t getWrappedIndexesLength(size_t indexesLength, size_t numberOfIndex
 
 namespace marco::modeling::internal
 {
-  std::ostream& operator<<(std::ostream& stream, const MCIM& mcim)
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const MCIM& obj)
   {
-    const auto& equationRanges = mcim.getEquationRanges();
-    const auto& variableRanges = mcim.getVariableRanges();
+    const auto& equationRanges = obj.getEquationRanges();
+    const auto& variableRanges = obj.getVariableRanges();
 
     // Determine the max widths of the indexes of the equation, so that they
     // will be properly aligned.
@@ -979,54 +980,54 @@ namespace marco::modeling::internal
 
     // Print the spacing of the first line
     for (size_t i = 0, e = equationIndexesColumnWidth; i < e; ++i) {
-      stream << " ";
+      os << " ";
     }
 
     // Print the variable indexes
     for (const auto& variableIndexes : variableRanges) {
-      stream << " ";
+      os << " ";
       size_t columnWidth = getIndicesWidth(variableIndexes);
 
       for (size_t i = columnWidth; i < variableIndexesMaxWidth; ++i) {
-        stream << " ";
+        os << " ";
       }
 
-      stream << variableIndexes;
+      os << variableIndexes;
     }
 
     // The first line containing the variable indexes is finished
-    stream << "\n";
+    os << "\n";
 
     // Print a line for each equation
     for (const auto& equation : equationRanges) {
       for (size_t i = getIndicesWidth(equation);
            i < equationIndexesMaxWidth; ++i) {
-        stream << " ";
+        os << " ";
       }
 
-      stream << equation;
+      os << equation;
 
       for (const auto& variable : variableRanges) {
-        stream << " ";
+        os << " ";
 
         size_t columnWidth = variableIndexesColumnWidth;
         size_t spacesAfter = (columnWidth - 1) / 2;
         size_t spacesBefore = columnWidth - 1 - spacesAfter;
 
         for (size_t i = 0; i < spacesBefore; ++i) {
-          stream << " ";
+          os << " ";
         }
 
-        stream << (mcim.get(equation, variable) ? 1 : 0);
+        os << (obj.get(equation, variable) ? 1 : 0);
 
         for (size_t i = 0; i < spacesAfter; ++i) {
-          stream << " ";
+          os << " ";
         }
       }
 
-      stream << "\n";
+      os << "\n";
     }
 
-    return stream;
+    return os;
   }
 }

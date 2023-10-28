@@ -1,4 +1,5 @@
 #include "marco/Modeling/DimensionAccessSub.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -78,6 +79,11 @@ namespace marco::modeling
   bool DimensionAccessSub::operator!=(const DimensionAccessSub& other) const
   {
     return getFirst() != other.getFirst() || getSecond() != other.getSecond();
+  }
+
+  llvm::raw_ostream& DimensionAccessSub::dump(llvm::raw_ostream& os) const
+  {
+    return os << "(" << getFirst() << " - " << getSecond() << ")";
   }
 
   bool DimensionAccessSub::isAffine() const

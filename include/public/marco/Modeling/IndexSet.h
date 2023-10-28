@@ -6,6 +6,11 @@
 #include "llvm/ADT/ArrayRef.h"
 #include <memory>
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling
 {
   class IndexSet
@@ -108,9 +113,12 @@ namespace marco::modeling
 
       friend void swap(IndexSet& first, IndexSet& second);
 
-      friend std::ostream& operator<<(std::ostream& os, const IndexSet& obj);
-
       friend llvm::hash_code hash_value(const IndexSet& value);
+
+      friend llvm::raw_ostream& operator<<(
+          llvm::raw_ostream& os, const IndexSet& obj);
+
+      llvm::raw_ostream& dump(llvm::raw_ostream& os) const;
 
       bool operator==(const Point& rhs) const;
 

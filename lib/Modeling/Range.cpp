@@ -1,4 +1,5 @@
 #include "marco/Modeling/Range.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling
 {
@@ -161,11 +162,6 @@ namespace marco::modeling
     return const_iterator(getEnd(), getEnd());
   }
 
-  std::ostream& operator<<(std::ostream& stream, const Range& obj)
-  {
-    return stream << "[" << obj.getBegin() << "," << obj.getEnd() << ")";
-  }
-
   Range::Iterator::Iterator(Point::data_type begin, Point::data_type end)
       : current(begin), end(end)
   {
@@ -198,5 +194,10 @@ namespace marco::modeling
   Range::Iterator::value_type Range::Iterator::operator*()
   {
     return current;
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Range& obj)
+  {
+    return os << "[" << obj.getBegin() << "," << obj.getEnd() << ")";
   }
 }

@@ -7,6 +7,11 @@
 #include "llvm/Support/Casting.h"
 #include <memory>
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling
 {
   class DimensionAccess
@@ -90,6 +95,8 @@ namespace marco::modeling
 
       virtual bool operator!=(const DimensionAccess& other) const = 0;
 
+      virtual llvm::raw_ostream& dump(llvm::raw_ostream& os) const = 0;
+
       virtual std::unique_ptr<DimensionAccess> operator+(
           const DimensionAccess& other) const;
 
@@ -118,6 +125,9 @@ namespace marco::modeling
       Kind kind;
       mlir::MLIRContext* context;
   };
+
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const DimensionAccess& dimensionAccess);
 }
 
 #endif // MARCO_MODELING_DIMENSIONACCESS_H

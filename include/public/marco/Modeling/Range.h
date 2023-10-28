@@ -4,6 +4,11 @@
 #include "marco/Modeling/Point.h"
 #include "llvm/ADT/Hashing.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling
 {
   /// 1-D half-open range [a,b).
@@ -103,7 +108,7 @@ namespace marco::modeling
       data_type end_;
   };
 
-  std::ostream& operator<<(std::ostream& stream, const Range& obj);
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Range& obj);
 }
 
 #endif  // MARCO_MODELING_RANGE_H

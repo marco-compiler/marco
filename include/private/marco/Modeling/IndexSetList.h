@@ -44,12 +44,11 @@ namespace marco::modeling::impl
 
       /// }
 
-      friend std::ostream& operator<<(
-          std::ostream& stream, const ListIndexSet& obj);
-
       std::unique_ptr<Impl> clone() const override;
 
       friend llvm::hash_code hash_value(const ListIndexSet& value);
+
+      llvm::raw_ostream& dump(llvm::raw_ostream& os) const override;
 
       bool operator==(const Point& rhs) const override;
 

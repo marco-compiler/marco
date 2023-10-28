@@ -40,6 +40,8 @@ namespace marco::modeling
 
       bool operator!=(const DimensionAccessAdd& other) const;
 
+      llvm::raw_ostream& dump(llvm::raw_ostream& os) const override;
+
       bool isAffine() const override;
 
       mlir::AffineExpr getAffineExpr() const override;

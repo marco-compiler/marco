@@ -5,6 +5,7 @@
 #include "marco/Modeling/DimensionAccessDiv.h"
 #include "marco/Modeling/DimensionAccessMul.h"
 #include "marco/Modeling/DimensionAccessSub.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -162,5 +163,11 @@ namespace marco::modeling
   {
     llvm_unreachable("Not an affine expression");
     return nullptr;
+  }
+
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const DimensionAccess& dimensionAccess)
+  {
+    return dimensionAccess.dump(os);
   }
 }

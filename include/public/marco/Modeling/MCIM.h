@@ -5,6 +5,11 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling::internal
 {
   /// Multidimensional Compressed Index Map (MCIM).
@@ -115,7 +120,7 @@ namespace marco::modeling::internal
       std::unique_ptr<Impl> impl;
   };
 
-  std::ostream& operator<<(std::ostream& stream, const MCIM& mcim);
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const MCIM& obj);
 }
 
 #endif  // MARCO_MODELING_MCIM_H

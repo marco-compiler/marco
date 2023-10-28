@@ -7,6 +7,11 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace marco::modeling
 {
   /// n-D range. Each dimension is half-open as the 1-D range.
@@ -115,7 +120,8 @@ namespace marco::modeling
       llvm::SmallVector<Range, 2> ranges;
   };
 
-  std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& obj);
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const MultidimensionalRange& obj);
 }
 
 #endif // MARCO_MODELING_MULTIDIMENSIONALRANGE_H

@@ -1,4 +1,5 @@
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling
 {
@@ -365,22 +366,6 @@ namespace marco::modeling
     return MultidimensionalRange(result);
   }
 
-  std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& obj)
-  {
-    stream << "[";
-
-    for (size_t i = 0, e = obj.rank(); i < e; ++i) {
-      if (i != 0) {
-        stream << ",";
-      }
-
-      stream << obj[i];
-    }
-
-    stream << "]";
-    return stream;
-  }
-
   MultidimensionalRange::Iterator::Iterator(
       llvm::ArrayRef<Range> ranges,
       llvm::function_ref<Range::const_iterator(const Range&)> initFunction)
@@ -455,5 +440,21 @@ namespace marco::modeling
         indices[i] = *currentIterators[i];
       }
     }
+  }
+
+  llvm::raw_ostream& operator<<(
+      llvm::raw_ostream& os, const MultidimensionalRange& obj)
+  {
+    os << "[";
+
+    for (size_t i = 0, e = obj.rank(); i < e; ++i) {
+      if (i != 0) {
+        os << ",";
+      }
+
+      os << obj[i];
+    }
+
+    return os << "]";
   }
 }

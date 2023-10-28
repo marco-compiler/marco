@@ -1,6 +1,7 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/IndexSetList.h"
 #include "marco/Modeling/IndexSetRTree.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco;
 using namespace ::marco::modeling;
@@ -113,16 +114,16 @@ namespace marco::modeling
     swap(first.impl, second.impl);
   }
 
-  std::ostream& operator<<(std::ostream& os, const IndexSet& obj)
-  {
-    assert(obj.impl != nullptr);
-    return os << *obj.impl;
-  }
-
   llvm::hash_code hash_value(const IndexSet& value)
   {
     assert(value.impl != nullptr);
     return hash_value(*value.impl);
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const IndexSet& obj)
+  {
+    assert(obj.impl != nullptr);
+    return obj.impl->dump(os);
   }
 
   bool IndexSet::operator==(const Point& rhs) const

@@ -1,4 +1,5 @@
 #include "marco/Modeling/DimensionAccessConstant.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -75,6 +76,12 @@ namespace marco::modeling
   bool DimensionAccessConstant::operator!=(const DimensionAccessConstant& other) const
   {
     return getValue() != other.getValue();
+  }
+
+  llvm::raw_ostream& DimensionAccessConstant::dump(
+      llvm::raw_ostream& os) const
+  {
+    return os << getValue();
   }
 
   bool DimensionAccessConstant::isAffine() const

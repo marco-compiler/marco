@@ -5,7 +5,11 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
-#include <iostream>
+
+namespace llvm
+{
+  class raw_ostream;
+}
 
 namespace marco::modeling
 {
@@ -48,7 +52,7 @@ namespace marco::modeling
       Container values;
   };
 
-  std::ostream& operator<<(std::ostream& stream, const Point& obj);
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Point& obj);
 }
 
 #endif // MARCO_MODELING_POINT_H

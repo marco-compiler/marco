@@ -1,4 +1,5 @@
 #include "marco/Modeling/Point.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling
 {
@@ -79,19 +80,18 @@ namespace marco::modeling
     return values;
   }
 
-  std::ostream& operator<<(std::ostream& stream, const Point& obj)
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Point& obj)
   {
-    stream << "(";
+    os << "(";
 
     for (size_t i = 0, e = obj.rank(); i < e; ++i) {
       if (i != 0) {
-        stream << ",";
+        os << ",";
       }
 
-      stream << obj[i];
+      os << obj[i];
     }
 
-    stream << ")";
-    return stream;
+    return os << ")";
   }
 }

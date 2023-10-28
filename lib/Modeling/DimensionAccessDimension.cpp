@@ -1,4 +1,5 @@
 #include "marco/Modeling/DimensionAccessDimension.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
@@ -70,6 +71,12 @@ namespace marco::modeling
     }
 
     return true;
+  }
+
+  llvm::raw_ostream& DimensionAccessDimension::dump(
+      llvm::raw_ostream& os) const
+  {
+    return os << "d" << getDimension();
   }
 
   bool DimensionAccessDimension::operator!=(const DimensionAccessDimension& other) const

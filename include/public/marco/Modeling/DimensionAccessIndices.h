@@ -39,6 +39,8 @@ namespace marco::modeling
 
       bool operator!=(const DimensionAccessIndices& other) const;
 
+      llvm::raw_ostream& dump(llvm::raw_ostream& os) const override;
+
       mlir::AffineExpr getAffineExpr(
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const override;
