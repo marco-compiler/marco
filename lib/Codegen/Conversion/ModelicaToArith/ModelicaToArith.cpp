@@ -8,6 +8,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include <limits>
 
 namespace mlir
 {
@@ -1407,7 +1408,8 @@ namespace
           mlir::ConversionPatternRewriter& rewriter) const override
       {
         mlir::TypedAttr attribute = convertAttribute(
-            rewriter, op.getResult().getType(), op.getValue());
+            rewriter, op.getResult().getType(),
+            mlir::cast<mlir::Attribute>(op.getValue()));
 
         if (!attribute) {
           return rewriter.notifyMatchFailure(
@@ -3501,6 +3503,357 @@ namespace
     private:
       bool assertions;
   };
+
+  struct ReductionOpLowering : public ModelicaOpConversionPattern<ReductionOp>
+  {
+      using ModelicaOpConversionPattern<ReductionOp>
+          ::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ReductionOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        if (llvm::any_of(op.getIterables(), [](mlir::Value iterable) {
+              return !iterable.getType().isa<RangeType>();
+            })) {
+          return mlir::failure();
+        }
+
+        // Determine the initial value of the accumulator.
+        auto yieldOp = mlir::cast<YieldOp>(op.getBody()->getTerminator());
+
+        mlir::Type resultType =
+            getTypeConverter()->convertType(yieldOp.getValues()[0].getType());
+
+        llvm::SmallVector<mlir::Value, 1> initialValues;
+
+        if (mlir::failed(getInitialValues(
+                rewriter, loc, op.getAction(), resultType, initialValues))) {
+          return mlir::failure();
+        }
+
+        // Compute the boundaries and steps so that the step becomes positive.
+        llvm::SmallVector<mlir::Value, 6> lowerBounds;
+        llvm::SmallVector<mlir::Value, 6> upperBounds;
+        llvm::SmallVector<mlir::Value, 6> steps;
+
+        mlir::Value zero = rewriter.create<ConstantOp>(
+            loc, rewriter.getIndexAttr(0));
+
+        mlir::Value one = rewriter.create<ConstantOp>(
+            loc, rewriter.getIndexAttr(1));
+
+        mlir::Type indexType = rewriter.getIndexType();
+
+        for (mlir::Value iterable : op.getIterables()) {
+          mlir::Value step = rewriter.create<RangeStepOp>(loc, iterable);
+
+          mlir::Value isNonNegativeStep = rewriter.create<GteOp>(
+              loc, BooleanType::get(rewriter.getContext()), step, zero);
+
+          mlir::Value beginValue =
+              rewriter.create<RangeBeginOp>(loc, iterable);
+
+          mlir::Value size = rewriter.create<RangeSizeOp>(loc, iterable);
+
+          // begin + (size - 1) * step
+          mlir::Value actualEndValue = rewriter.create<AddOp>(
+              loc, indexType, beginValue,
+              rewriter.create<MulOp>(
+                  loc, indexType,
+                  step, rewriter.create<SubOp>(loc, indexType, size, one)));
+
+          auto lowerBoundSelectOp = rewriter.create<SelectOp>(
+              loc, indexType, isNonNegativeStep, beginValue, actualEndValue);
+
+          auto upperBoundSelectOp = rewriter.create<SelectOp>(
+              loc, indexType, isNonNegativeStep, actualEndValue, beginValue);
+
+          mlir::Value negatedStep =
+              rewriter.create<NegateOp>(loc, indexType, step);
+
+          auto stepSelectOp = rewriter.create<SelectOp>(
+              loc, indexType, isNonNegativeStep, step, negatedStep);
+
+          lowerBounds.push_back(lowerBoundSelectOp.getResult(0));
+          upperBounds.push_back(upperBoundSelectOp.getResult(0));
+          steps.push_back(stepSelectOp.getResult(0));
+        }
+
+        // Create the parallel loops.
+        auto parallelOp = rewriter.create<mlir::scf::ParallelOp>(
+            loc, lowerBounds, upperBounds, steps, initialValues);
+
+        // Erase the default-created YieldOp inside ParallelOp.
+        rewriter.eraseOp(parallelOp.getBody()->getTerminator());
+
+        // Create the reduce operation.
+        rewriter.setInsertionPoint(yieldOp);
+
+        mlir::Value currentElementValue = yieldOp.getValues()[0];
+
+        currentElementValue = getTypeConverter()->materializeTargetConversion(
+            rewriter, loc, resultType, currentElementValue);
+
+        auto reduceOp = rewriter.create<mlir::scf::ReduceOp>(
+            loc, currentElementValue);
+
+        rewriter.setInsertionPointToEnd(
+            &reduceOp.getReductionOperator().front());
+
+        mlir::Value reductionResult = computeReductionResult(
+            rewriter, loc, op.getAction(), resultType,
+            reduceOp.getReductionOperator().front().getArgument(0),
+            reduceOp.getReductionOperator().front().getArgument(0));
+
+        rewriter.create<mlir::scf::ReduceReturnOp>(loc, reductionResult);
+        rewriter.eraseOp(yieldOp);
+
+        // Inline the old body.
+        llvm::SmallVector<mlir::Value, 6> newInductions;
+        rewriter.setInsertionPointToStart(parallelOp.getBody());
+
+        for (auto [oldInduction, newInduction] :
+             llvm::zip(op.getInductions(), parallelOp.getInductionVars())) {
+          mlir::Value mapped = rewriter.create<CastOp>(
+              loc, getTypeConverter()->convertType(oldInduction.getType()),
+              newInduction);
+
+          mapped = getTypeConverter()->materializeSourceConversion(
+              rewriter, loc, oldInduction.getType(), mapped);
+
+          newInductions.push_back(mapped);
+        }
+
+        rewriter.mergeBlocks(op.getBody(), parallelOp.getBody(), newInductions);
+
+        // Recreate the YieldOp for ParallelOp.
+        rewriter.setInsertionPointToEnd(parallelOp.getBody());
+        rewriter.create<mlir::scf::YieldOp>(loc);
+
+        rewriter.replaceOp(op, parallelOp);
+
+        return mlir::success();
+      }
+
+    private:
+      mlir::LogicalResult getInitialValues(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          llvm::StringRef action,
+          mlir::Type resultType,
+          llvm::SmallVectorImpl<mlir::Value>& initialValues) const
+      {
+        if (action == "add") {
+          if (resultType.isa<mlir::IntegerType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIntegerAttr(resultType, 0)));
+
+            return mlir::success();
+          }
+
+          if (resultType.isa<mlir::FloatType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getFloatAttr(resultType, 0)));
+
+            return mlir::success();
+          }
+
+          if (resultType.isa<mlir::IndexType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(0)));
+
+            return mlir::success();
+          }
+        }
+
+        if (action == "mul") {
+          if (resultType.isa<mlir::IntegerType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIntegerAttr(resultType, 1)));
+
+            return mlir::success();
+          }
+
+          if (resultType.isa<mlir::FloatType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getFloatAttr(resultType, 1)));
+
+            return mlir::success();
+          }
+
+          if (resultType.isa<mlir::IndexType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(1)));
+
+            return mlir::success();
+          }
+        }
+
+        if (action == "min") {
+          if (resultType.isa<mlir::IntegerType>()) {
+            unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+
+            if (bitWidth == 8) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int8_t>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 16) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int16_t>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 32) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int32_t>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 64) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int64_t>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+          }
+
+          if (resultType.isa<mlir::FloatType>()) {
+            unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+
+            if (bitWidth == 32) {
+              mlir::Attribute value = builder.getFloatAttr(
+                  resultType, std::numeric_limits<float>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 64) {
+              mlir::Attribute value = builder.getFloatAttr(
+                  resultType, std::numeric_limits<double>::max());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+          }
+
+          if (resultType.isa<mlir::IndexType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(std::numeric_limits<int64_t>::max())));
+
+            return mlir::success();
+          }
+        }
+
+        if (action == "max") {
+          if (resultType.isa<mlir::IntegerType>()) {
+            unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+
+            if (bitWidth == 8) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int8_t>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 16) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int16_t>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 32) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int32_t>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 64) {
+              mlir::Attribute value = builder.getIntegerAttr(
+                  resultType, std::numeric_limits<int64_t>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+          }
+
+          if (resultType.isa<mlir::FloatType>()) {
+            unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
+
+            if (bitWidth == 32) {
+              mlir::Attribute value = builder.getFloatAttr(
+                  resultType, std::numeric_limits<float>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+
+            if (bitWidth == 64) {
+              mlir::Attribute value = builder.getFloatAttr(
+                  resultType, std::numeric_limits<double>::min());
+
+              initialValues.push_back(builder.create<ConstantOp>(loc, value));
+              return mlir::success();
+            }
+          }
+
+          if (resultType.isa<mlir::IndexType>()) {
+            initialValues.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(std::numeric_limits<int64_t>::min())));
+
+            return mlir::success();
+          }
+        }
+
+        return mlir::failure();
+      }
+
+      mlir::Value computeReductionResult(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          llvm::StringRef action,
+          mlir::Type resultType,
+          mlir::Value lhs,
+          mlir::Value rhs) const
+      {
+        if (action == "add") {
+          return builder.create<AddOp>(loc, resultType, lhs, rhs);
+        }
+
+        if (action == "mul") {
+          return builder.create<MulOp>(loc, resultType, lhs, rhs);
+        }
+
+        if (action == "min") {
+          return builder.create<MinOp>(loc, resultType, lhs, rhs);
+        }
+
+        if (action == "max") {
+          return builder.create<MaxOp>(loc, resultType, lhs, rhs);
+        }
+
+        llvm_unreachable("Unexpected reduction kind");
+        return nullptr;
+      }
+  };
 }
 
 //===---------------------------------------------------------------------===//
@@ -3686,6 +4039,8 @@ static void populateModelicaToArithPatterns(
       MulOpMatrixVectorLowering,
       MulOpMatrixLowering>(typeConverter, context, assertions);
 
+  patterns.insert<ReductionOpLowering>(typeConverter, context);
+
   // Various operations.
   patterns.insert<
       SelectOpLowering>(typeConverter, context);
@@ -3751,8 +4106,8 @@ namespace
           return !op.getBase().getType().isa<ArrayType>();
         });
 
-        target.addIllegalOp<
-            SelectOp>();
+        target.addIllegalOp<ReductionOp>();
+        target.addIllegalOp<SelectOp>();
 
         target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
           return true;
