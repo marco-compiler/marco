@@ -1,21 +1,29 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTIONROTOTRANSLATION_H
 #define MARCO_MODELING_ACCESSFUNCTIONROTOTRANSLATION_H
 
-#include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionAffineMap.h"
 
 namespace marco::modeling
 {
-  class AccessFunctionRotoTranslation : public AccessFunction
+  class AccessFunctionRotoTranslation : public AccessFunctionAffineMap
   {
     public:
-      AccessFunctionRotoTranslation(
-          mlir::MLIRContext* context,
+      static bool canBeBuilt(
           unsigned int numOfDimensions,
           llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
+      static bool canBeBuilt(mlir::AffineMap affineMap);
+
       explicit AccessFunctionRotoTranslation(mlir::AffineMap affineMap);
 
+      AccessFunctionRotoTranslation(
+          mlir::MLIRContext* context,
+          uint64_t numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+
       ~AccessFunctionRotoTranslation() override;
+
+      [[nodiscard]] std::unique_ptr<AccessFunction> clone() const override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -27,38 +35,49 @@ namespace marco::modeling
 
       /// }
 
-      static bool canBeBuilt(
-          unsigned int numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+      [[nodiscard]] bool operator==(
+          const AccessFunction& other) const override;
 
-      static bool canBeBuilt(mlir::AffineMap affineMap);
+      [[nodiscard]] bool operator==(
+          const AccessFunctionRotoTranslation& other) const;
 
-      std::unique_ptr<AccessFunction> clone() const override;
+      [[nodiscard]] bool operator!=(
+          const AccessFunction& other) const override;
 
-      bool isInvertible() const override;
+      [[nodiscard]] bool operator!=(
+          const AccessFunctionRotoTranslation& other) const;
 
-      std::unique_ptr<AccessFunction> inverse() const override;
+      [[nodiscard]] bool isInvertible() const override;
+
+      [[nodiscard]] std::unique_ptr<AccessFunction> inverse() const override;
 
       using AccessFunction::map;
 
-      MultidimensionalRange map(const MultidimensionalRange& indices) const;
+      [[nodiscard]] MultidimensionalRange map(
+          const MultidimensionalRange& indices) const;
 
-      IndexSet map(const IndexSet& indices) const override;
+      [[nodiscard]] IndexSet map(const IndexSet& indices) const override;
 
-      IndexSet inverseMap(
+      [[nodiscard]] IndexSet inverseMap(
           const IndexSet& accessedIndices,
           const IndexSet& parentIndices) const override;
 
       /// Check if each i-th dimension is accessed at the i-th position (with
       /// an optional offset).
-      bool isIdentityLike() const;
+      [[nodiscard]] bool isIdentityLike() const;
 
       void countVariablesUsages(llvm::SmallVectorImpl<size_t>& usages) const;
 
-      std::optional<uint64_t>
-      getInductionVariableIndex(unsigned int expressionIndex) const;
+      [[nodiscard]] std::optional<uint64_t>
+      getInductionVariableIndex(uint64_t expressionIndex) const;
 
-      int64_t getOffset(unsigned int expressionIndex) const;
+      [[nodiscard]] int64_t getOffset(uint64_t expressionIndex) const;
+
+    private:
+      [[nodiscard]] std::optional<uint64_t>
+      getInductionVariableIndex(mlir::AffineExpr expression) const;
+
+      [[nodiscard]] int64_t getOffset(mlir::AffineExpr expression) const;
   };
 }
 

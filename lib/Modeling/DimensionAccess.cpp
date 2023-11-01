@@ -50,6 +50,16 @@ namespace marco::modeling
     swap(first.dimensionAccess, second.dimensionAccess);
   }
 
+  bool DimensionAccess::Redirect::operator==(const Redirect& other) const
+  {
+    return *dimensionAccess == *other.dimensionAccess;
+  }
+
+  bool DimensionAccess::Redirect::operator!=(const Redirect& other) const
+  {
+    return !(*this == other);
+  }
+
   const DimensionAccess& DimensionAccess::Redirect::operator*() const
   {
     assert(dimensionAccess && "Dimension access not set");

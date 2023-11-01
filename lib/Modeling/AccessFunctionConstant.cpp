@@ -1,34 +1,13 @@
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessIndices.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
 
 namespace marco::modeling
 {
-  AccessFunctionConstant::AccessFunctionConstant(
-      mlir::MLIRContext* context,
-      unsigned int numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
-      : AccessFunction(
-          AccessFunction::Kind::Constant,
-          context, numOfDimensions, results)
-  {
-    assert(canBeBuilt(numOfDimensions, results));
-  }
-
-  AccessFunctionConstant::AccessFunctionConstant(mlir::AffineMap affineMap)
-      : AccessFunctionConstant(
-          affineMap.getContext(),
-          affineMap.getNumDims(),
-          convertAffineExpressions(affineMap.getResults()))
-  {
-  }
-
-  AccessFunctionConstant::~AccessFunctionConstant() = default;
-
   bool AccessFunctionConstant::canBeBuilt(
-      unsigned int numOfDimensions,
       llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
   {
     if (results.empty()) {
@@ -43,10 +22,32 @@ namespace marco::modeling
 
   bool AccessFunctionConstant::canBeBuilt(mlir::AffineMap affineMap)
   {
-    return AccessFunctionConstant::canBeBuilt(
-        affineMap.getNumDims(),
-        AccessFunction::convertAffineExpressions(affineMap.getResults()));
+    return llvm::all_of(
+        affineMap.getResults(), [](mlir::AffineExpr expression) {
+          return expression.isa<mlir::AffineConstantExpr>();
+        });
   }
+
+  AccessFunctionConstant::AccessFunctionConstant(
+      mlir::MLIRContext* context,
+      uint64_t numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+      : AccessFunctionGeneric(
+          Kind::Constant, context, numOfDimensions, results,
+          DimensionAccess::FakeDimensionsMap())
+  {
+    assert(canBeBuilt(results));
+  }
+
+  AccessFunctionConstant::AccessFunctionConstant(mlir::AffineMap affineMap)
+      : AccessFunctionConstant(
+            affineMap.getContext(),
+            affineMap.getNumDims(),
+            convertAffineExpressions(affineMap.getResults()))
+  {
+  }
+
+  AccessFunctionConstant::~AccessFunctionConstant() = default;
 
   std::unique_ptr<AccessFunction> AccessFunctionConstant::clone() const
   {
@@ -57,15 +58,7 @@ namespace marco::modeling
   {
     llvm::SmallVector<Point::data_type, 6> dummyCoordinates(getNumOfDims(), 0);
     Point dummyPoint(dummyCoordinates);
-
-    IndexSet mappedIndices;
-
-    for (const auto& result : getResults()) {
-      mappedIndices = mappedIndices.append(
-          result->map(dummyPoint, getFakeDimensionsMap()));
-    }
-
-    return mappedIndices;
+    return map(dummyPoint);
   }
 
   IndexSet AccessFunctionConstant::inverseMap(

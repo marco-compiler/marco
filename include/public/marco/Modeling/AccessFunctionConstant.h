@@ -1,21 +1,28 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTIONCONSTANT_H
 #define MARCO_MODELING_ACCESSFUNCTIONCONSTANT_H
 
-#include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionGeneric.h"
 
 namespace marco::modeling
 {
-  class AccessFunctionConstant : public AccessFunction
+  class AccessFunctionConstant : public AccessFunctionGeneric
   {
     public:
+      static bool canBeBuilt(
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+
+      static bool canBeBuilt(mlir::AffineMap affineMap);
+
       AccessFunctionConstant(
           mlir::MLIRContext* context,
-          unsigned int numOfDimensions,
+          uint64_t numOfDimensions,
           llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       explicit AccessFunctionConstant(mlir::AffineMap affineMap);
 
       ~AccessFunctionConstant() override;
+
+      [[nodiscard]] std::unique_ptr<AccessFunction> clone() const override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -27,19 +34,11 @@ namespace marco::modeling
 
       /// }
 
-      static bool canBeBuilt(
-          unsigned int numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+      using AccessFunctionGeneric::map;
 
-      static bool canBeBuilt(mlir::AffineMap affineMap);
+      [[nodiscard]] IndexSet map(const IndexSet& indices) const override;
 
-      std::unique_ptr<AccessFunction> clone() const override;
-
-      using AccessFunction::map;
-
-      IndexSet map(const IndexSet& indices) const override;
-
-      IndexSet inverseMap(
+      [[nodiscard]] IndexSet inverseMap(
           const IndexSet& accessedIndices,
           const IndexSet& parentIndices) const override;
   };

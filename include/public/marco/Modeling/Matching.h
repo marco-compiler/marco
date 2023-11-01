@@ -1213,7 +1213,7 @@ namespace marco::modeling
           auto matchOptions = internal::solveLocalMatchingProblem(
               u.getEquationRanges(),
               u.getVariableRanges(),
-              edge.getAccessFunction());
+              edge.getAccessFunction().clone());
 
           // The simplification steps is executed only in case of a single
           // matching option. In case of multiple ones, in fact, the choice

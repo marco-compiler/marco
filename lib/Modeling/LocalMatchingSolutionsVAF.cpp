@@ -255,13 +255,16 @@ void GeneratorRotoTranslation::fetchNext()
 namespace marco::modeling::internal
 {
   VAFSolutions::VAFSolutions(
-      llvm::ArrayRef<AccessFunction> accessFunctions,
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
       IndexSet equationIndices,
       IndexSet variableIndices)
-      : accessFunctions(accessFunctions.begin(), accessFunctions.end()),
-        equationIndices(std::move(equationIndices)),
+      : equationIndices(std::move(equationIndices)),
         variableIndices(std::move(variableIndices))
   {
+    for (const auto& accessFunction : accessFunctions) {
+      this->accessFunctions.push_back(accessFunction->clone());
+    }
+
     initialize();
   }
 
@@ -284,11 +287,9 @@ namespace marco::modeling::internal
 
   void VAFSolutions::initialize()
   {
-    llvm::sort(
-        accessFunctions,
-        [&](const AccessFunction& lhs, const AccessFunction& rhs) -> bool {
-          return compareAccessFunctions(lhs, rhs);
-        });
+    llvm::sort(accessFunctions, [&](const auto& lhs, const auto& rhs) -> bool {
+      return compareAccessFunctions(*lhs, *rhs);
+    });
 
     // Determine the amount of solutions. Precomputing it allows the actual
     // solutions to be determined only when requested. This is useful when
@@ -297,8 +298,8 @@ namespace marco::modeling::internal
 
     solutionsAmount = 0;
 
-    for (const AccessFunction& accessFunction : accessFunctions) {
-      solutionsAmount += getSolutionsAmount(accessFunction);
+    for (const auto& accessFunction : accessFunctions) {
+      solutionsAmount += getSolutionsAmount(*accessFunction);
     }
   }
 
@@ -306,7 +307,7 @@ namespace marco::modeling::internal
   {
     if (generator == nullptr) {
       if (currentAccessFunction < accessFunctions.size()) {
-        generator = getGenerator(accessFunctions[currentAccessFunction++]);
+        generator = getGenerator(*accessFunctions[currentAccessFunction++]);
         ++currentAccessFunction;
       }
     }
@@ -315,7 +316,7 @@ namespace marco::modeling::internal
            !generator->hasValue() &&
            currentAccessFunction < accessFunctions.size()) {
       // Advance to the first generator with a valid value.
-      generator = getGenerator(accessFunctions[currentAccessFunction++]);
+      generator = getGenerator(*accessFunctions[currentAccessFunction++]);
     }
 
     if (generator && generator->hasValue()) {

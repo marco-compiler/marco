@@ -30,7 +30,7 @@ namespace marco::modeling::internal
       };
 
       VAFSolutions(
-          llvm::ArrayRef<AccessFunction> accessFunctions,
+          llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
           IndexSet equationIndices,
           IndexSet variableIndices);
 
@@ -64,7 +64,7 @@ namespace marco::modeling::internal
           const AccessFunction& accessFunction) const;
 
     private:
-      llvm::SmallVector<AccessFunction, 3> accessFunctions;
+      llvm::SmallVector<std::unique_ptr<AccessFunction>, 3> accessFunctions;
       IndexSet equationIndices;
       IndexSet variableIndices;
 

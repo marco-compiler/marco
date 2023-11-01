@@ -47,6 +47,10 @@ namespace marco::modeling
 
           friend void swap(Redirect& first, Redirect& second);
 
+          bool operator==(const Redirect& other) const;
+
+          bool operator!=(const Redirect& other) const;
+
           const DimensionAccess& operator*() const;
 
           const DimensionAccess* operator->() const;

@@ -1,21 +1,29 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTIONEMPTY_H
 #define MARCO_MODELING_ACCESSFUNCTIONEMPTY_H
 
-#include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionAffineMap.h"
 
 namespace marco::modeling
 {
-  class AccessFunctionEmpty : public AccessFunction
+  class AccessFunctionEmpty : public AccessFunctionAffineMap
   {
     public:
-      AccessFunctionEmpty(
-          mlir::MLIRContext* context,
-          unsigned int numOfDimensions,
+      static bool canBeBuilt(
+          uint64_t numOfDimensions,
           llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+
+      static bool canBeBuilt(mlir::AffineMap affineMap);
 
       explicit AccessFunctionEmpty(mlir::AffineMap affineMap);
 
+      AccessFunctionEmpty(
+          mlir::MLIRContext* context,
+          uint64_t numOfDimensions,
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+
       ~AccessFunctionEmpty() override;
+
+      [[nodiscard]] std::unique_ptr<AccessFunction> clone() const override;
 
       /// @name LLVM-style RTTI methods
       /// {
@@ -27,21 +35,23 @@ namespace marco::modeling
 
       /// }
 
-      static bool canBeBuilt(
-          unsigned int numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
+      [[nodiscard]] bool operator==(
+          const AccessFunction& other) const override;
 
-      static bool canBeBuilt(mlir::AffineMap affineMap);
+      [[nodiscard]] bool operator==(const AccessFunctionEmpty& other) const;
 
-      std::unique_ptr<AccessFunction> clone() const override;
+      [[nodiscard]] bool operator!=(
+          const AccessFunction& other) const override;
 
-      bool isInvertible() const override;
+      [[nodiscard]] bool operator!=(const AccessFunctionEmpty& other) const;
 
-      std::unique_ptr<AccessFunction> inverse() const override;
+      [[nodiscard]] bool isInvertible() const override;
 
-      using AccessFunction::map;
+      [[nodiscard]] std::unique_ptr<AccessFunction> inverse() const override;
 
-      IndexSet map(const IndexSet& indices) const override;
+      [[nodiscard]] IndexSet map(const Point& point) const override;
+
+      [[nodiscard]] IndexSet map(const IndexSet& indices) const override;
   };
 }
 

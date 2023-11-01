@@ -1,7 +1,9 @@
 set(SOURCES
     AccessFunction.cpp
+    AccessFunctionAffineMap.cpp
     AccessFunctionConstant.cpp
     AccessFunctionEmpty.cpp
+    AccessFunctionGeneric.cpp
     AccessFunctionRotoTranslation.cpp
     Dependency.cpp
     DimensionAccess.cpp

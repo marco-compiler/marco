@@ -65,7 +65,7 @@ namespace marco::modeling::internal
       using iterator = Iterator<LocalMatchingSolutions, MCIM>;
 
       LocalMatchingSolutions(
-          llvm::ArrayRef<AccessFunction> accessFunctions,
+          llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
           IndexSet equationIndices,
           IndexSet variableIndices);
 
@@ -88,7 +88,7 @@ namespace marco::modeling::internal
   LocalMatchingSolutions solveLocalMatchingProblem(
       const IndexSet& equationRanges,
       const IndexSet& variableRanges,
-      llvm::ArrayRef<AccessFunction> accessFunctions);
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions);
 
   LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& matrix);
 }

@@ -6,11 +6,11 @@ namespace marco::modeling::internal
   LocalMatchingSolutions::ImplInterface::~ImplInterface() = default;
 
   LocalMatchingSolutions::LocalMatchingSolutions(
-      llvm::ArrayRef<AccessFunction> accessFunctions,
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
       IndexSet equationIndices,
       IndexSet variableIndices)
       : impl(std::make_unique<VAFSolutions>(
-          std::move(accessFunctions),
+          accessFunctions,
           std::move(equationIndices),
           std::move(variableIndices)))
   {
@@ -46,10 +46,10 @@ namespace marco::modeling::internal
   LocalMatchingSolutions solveLocalMatchingProblem(
       const IndexSet& equationIndices,
       const IndexSet& variableIndices,
-      llvm::ArrayRef<AccessFunction> accessFunctions)
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions)
   {
     return LocalMatchingSolutions(
-        std::move(accessFunctions), equationIndices, variableIndices);
+        accessFunctions, equationIndices, variableIndices);
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& obj)

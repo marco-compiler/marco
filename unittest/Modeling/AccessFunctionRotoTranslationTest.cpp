@@ -89,7 +89,7 @@ TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess)
   Point p({3, 7, -5});
   IndexSet mapped = accessFunction->map(p);
 
-  EXPECT_EQ(mapped, std::make_unique<AccessFunction>(affineMap)->map(p));
+  EXPECT_EQ(mapped, IndexSet(Point({-3, 1})));
 }
 
 TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)

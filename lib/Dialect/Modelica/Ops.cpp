@@ -9592,7 +9592,7 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTable,
       uint64_t elementIndex)
   {
-    auto equationSides =
+    auto equationSidesOp =
         mlir::cast<EquationSidesOp>(getBody()->getTerminator());
 
     // Get the induction variables and number them.
@@ -9601,7 +9601,7 @@ namespace mlir::modelica
     // Search the accesses starting from the left-hand side of the equation.
     if (mlir::failed(searchAccesses(
             result, symbolTable, inductionsPositionMap,
-            equationSides.getLhsValues()[elementIndex],
+            equationSidesOp.getLhsValues()[elementIndex],
             EquationPath(EquationPath::LEFT, elementIndex)))) {
       return mlir::failure();
     }
@@ -9609,7 +9609,7 @@ namespace mlir::modelica
     // Search the accesses starting from the right-hand side of the equation.
     if (mlir::failed(searchAccesses(
             result, symbolTable, inductionsPositionMap,
-            equationSides.getRhsValues()[elementIndex],
+            equationSidesOp.getRhsValues()[elementIndex],
             EquationPath(EquationPath::RIGHT, elementIndex)))) {
       return mlir::failure();
     }
@@ -9820,10 +9820,13 @@ namespace mlir::modelica
       // results in possibly wasted additional computations, but does lead to
       // a correct result.
 
+      auto destinationDimensionAccesses =
+          destinationAccessFunction->getGeneralizedAccesses();
+
       destinationAccessFunction = AccessFunction::build(
           destinationAccessFunction->getContext(),
           destinationAccessFunction->getNumOfDims(),
-          destinationAccessFunction->getResults().drop_back(
+          llvm::ArrayRef(destinationDimensionAccesses).drop_back(
               sourceRank - destinationRank));
 
       // If the destination access has more indices than the source one,

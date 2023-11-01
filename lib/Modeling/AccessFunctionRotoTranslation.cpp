@@ -7,29 +7,6 @@ using namespace ::marco::modeling;
 
 namespace marco::modeling
 {
-  AccessFunctionRotoTranslation::AccessFunctionRotoTranslation(
-      mlir::MLIRContext* context,
-      unsigned int numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
-      : AccessFunction(
-          AccessFunction::Kind::RotoTranslation,
-          context, numOfDimensions, results)
-  {
-    assert(canBeBuilt(numOfDimensions, results));
-  }
-
-  AccessFunctionRotoTranslation::AccessFunctionRotoTranslation(
-      mlir::AffineMap affineMap)
-      : AccessFunctionRotoTranslation(
-          affineMap.getContext(),
-          affineMap.getNumDims(),
-          convertAffineExpressions(affineMap.getResults()))
-  {
-  }
-
-  AccessFunctionRotoTranslation
-      ::~AccessFunctionRotoTranslation() = default;
-
   bool AccessFunctionRotoTranslation::canBeBuilt(
       unsigned int numOfDimensions,
       llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
@@ -72,9 +49,56 @@ namespace marco::modeling
         AccessFunction::convertAffineExpressions(affineMap.getResults()));
   }
 
+  AccessFunctionRotoTranslation::AccessFunctionRotoTranslation(
+      mlir::AffineMap affineMap)
+      : AccessFunctionAffineMap(Kind::RotoTranslation, affineMap)
+  {
+    assert(canBeBuilt(affineMap));
+  }
+
+  AccessFunctionRotoTranslation::AccessFunctionRotoTranslation(
+      mlir::MLIRContext* context,
+      uint64_t numOfDimensions,
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+      : AccessFunctionRotoTranslation(
+          buildAffineMap(context, numOfDimensions, results))
+  {
+  }
+
+  AccessFunctionRotoTranslation
+      ::~AccessFunctionRotoTranslation() = default;
+
   std::unique_ptr<AccessFunction> AccessFunctionRotoTranslation::clone() const
   {
     return std::make_unique<AccessFunctionRotoTranslation>(*this);
+  }
+
+  bool AccessFunctionRotoTranslation::operator==(
+      const AccessFunction& other) const
+  {
+    if (auto otherCasted = other.dyn_cast<AccessFunctionRotoTranslation>()) {
+      return *this == *otherCasted;
+    }
+
+    return false;
+  }
+
+  bool AccessFunctionRotoTranslation::operator==(
+      const AccessFunctionRotoTranslation& other) const
+  {
+    return getAffineMap() == other.getAffineMap();
+  }
+
+  bool AccessFunctionRotoTranslation::operator!=(
+      const AccessFunction& other) const
+  {
+    return !(*this == other);
+  }
+
+  bool AccessFunctionRotoTranslation::operator!=(
+      const AccessFunctionRotoTranslation& other) const
+  {
+    return !(*this == other);
   }
 
   bool AccessFunctionRotoTranslation::isInvertible() const
@@ -157,20 +181,7 @@ namespace marco::modeling
       upperBounds.push_back(indices[i].getEnd());
     }
 
-    llvm::SmallVector<mlir::AffineExpr> mapExpressions;
-    DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
-
-    for (const auto& result : getResults()) {
-      mapExpressions.push_back(
-          result->getAffineExpr(getNumOfDims(), fakeDimensionsMap));
-
-      assert(fakeDimensionsMap.empty());
-    }
-
-    auto map = mlir::AffineMap::get(
-        std::max(getNumOfDims(), static_cast<size_t>(indices.rank())), 0,
-        mapExpressions, getContext());
-
+    mlir::AffineMap map = getAffineMapWithGivenDimensions(indices.rank());
     auto mappedLowerBounds = map.compose(lowerBounds);
     auto mappedUpperBounds = map.compose(upperBounds);
 
@@ -186,7 +197,6 @@ namespace marco::modeling
       ranges.push_back(Range(mappedLowerBound, mappedUpperBound));
     }
 
-    assert(ranges.size() == getNumOfResults());
     return {ranges};
   }
 
@@ -261,23 +271,27 @@ namespace marco::modeling
 
   std::optional<uint64_t>
   AccessFunctionRotoTranslation::getInductionVariableIndex(
-      unsigned int expressionIndex) const
+      uint64_t expressionIndex) const
   {
-    const DimensionAccess* access = getResults()[expressionIndex].get();
+    return getInductionVariableIndex(
+        getAffineMap().getResult(expressionIndex));
+  }
 
-    if (auto dimExpr = access->dyn_cast<DimensionAccessDimension>()) {
-      return dimExpr->getDimension();
+  std::optional<uint64_t>
+  AccessFunctionRotoTranslation::getInductionVariableIndex(
+      mlir::AffineExpr expression) const
+  {
+    if (auto dimExpr = expression.dyn_cast<mlir::AffineDimExpr>()) {
+      return dimExpr.getPosition();
     }
 
-    if (auto addOp = access->dyn_cast<DimensionAccessAdd>()) {
-      if (auto dimExpr =
-              addOp->getFirst().dyn_cast<DimensionAccessDimension>()) {
-        return dimExpr->getDimension();
+    if (auto binaryOp = expression.dyn_cast<mlir::AffineBinaryOpExpr>()) {
+      if (auto dimExpr = binaryOp.getLHS().dyn_cast<mlir::AffineDimExpr>()) {
+        return dimExpr.getPosition();
       }
 
-      if (auto dimExpr =
-              addOp->getSecond().dyn_cast<DimensionAccessDimension>()) {
-        return dimExpr->getDimension();
+      if (auto dimExpr = binaryOp.getRHS().dyn_cast<mlir::AffineDimExpr>()) {
+        return dimExpr.getPosition();
       }
     }
 
@@ -285,23 +299,27 @@ namespace marco::modeling
   }
 
   int64_t AccessFunctionRotoTranslation::getOffset(
-      unsigned int expressionIndex) const
+      uint64_t expressionIndex) const
   {
-    const DimensionAccess* access = getResults()[expressionIndex].get();
+    return getOffset(getAffineMap().getResult(expressionIndex));
+  }
 
-    if (access->isa<DimensionAccessDimension>()) {
+  int64_t AccessFunctionRotoTranslation::getOffset(
+      mlir::AffineExpr expression) const
+  {
+    if (auto dimExpr = expression.dyn_cast<mlir::AffineDimExpr>()) {
       return 0;
     }
 
-    if (auto addOp = access->dyn_cast<DimensionAccessAdd>()) {
-      if (auto constantExpr =
-              addOp->getFirst().dyn_cast<DimensionAccessConstant>()) {
-        return constantExpr->getValue();
+    if (auto binaryOp = expression.dyn_cast<mlir::AffineBinaryOpExpr>()) {
+      if (auto constExpr =
+              binaryOp.getLHS().dyn_cast<mlir::AffineConstantExpr>()) {
+        return constExpr.getValue();
       }
 
-      if (auto constantExpr =
-              addOp->getSecond().dyn_cast<DimensionAccessConstant>()) {
-        return constantExpr->getValue();
+      if (auto constExpr =
+              binaryOp.getRHS().dyn_cast<mlir::AffineConstantExpr>()) {
+        return constExpr.getValue();
       }
     }
 
