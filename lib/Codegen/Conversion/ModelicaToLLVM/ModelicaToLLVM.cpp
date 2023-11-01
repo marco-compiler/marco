@@ -59,9 +59,109 @@ namespace
 
 namespace
 {
-  struct RangeOpLowering
+  class ConstantOpRangeLowering
+      : public ModelicaOpConversionPattern<ConstantOp>
+  {
+    public:
+      using ModelicaOpConversionPattern<ConstantOp>::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ConstantOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        if (!op.getResult().getType().isa<RangeType>()) {
+          return mlir::failure();
+        }
+
+        auto structType =
+            getTypeConverter()->convertType(op.getResult().getType())
+                .cast<mlir::LLVM::LLVMStructType>();
+
+        mlir::Type inductionType = op.getResult().getType()
+                                       .cast<IterableTypeInterface>()
+                                       .getInductionType();
+
+        mlir::Value result =
+            rewriter.create<mlir::LLVM::UndefOp>(loc, structType);
+
+        if (auto rangeAttr = op.getValue().dyn_cast<IntegerRangeAttr>()) {
+          auto lowerBoundAttr = rewriter.getIntegerAttr(
+              structType.getBody()[0], rangeAttr.getLowerBound());
+
+          auto upperBoundAttr = rewriter.getIntegerAttr(
+              structType.getBody()[1], rangeAttr.getUpperBound());
+
+          auto stepAttr = rewriter.getIntegerAttr(
+              structType.getBody()[2], rangeAttr.getStep());
+
+          mlir::Value lowerBound =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, lowerBoundAttr);
+
+          mlir::Value upperBound =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, upperBoundAttr);
+
+          mlir::Value step =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, stepAttr);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, lowerBound, 0);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, upperBound, 1);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, step, 2);
+
+          rewriter.replaceOp(op, result);
+          return mlir::success();
+        }
+
+        if (auto rangeAttr = op.getValue().dyn_cast<RealRangeAttr>()) {
+          auto lowerBoundAttr = rewriter.getFloatAttr(
+              structType.getBody()[0],
+              rangeAttr.getLowerBound().convertToDouble());
+
+          auto upperBoundAttr = rewriter.getFloatAttr(
+              structType.getBody()[1],
+              rangeAttr.getUpperBound().convertToDouble());
+
+          auto stepAttr = rewriter.getFloatAttr(
+              structType.getBody()[2],
+              rangeAttr.getStep().convertToDouble());
+
+          mlir::Value lowerBound =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, lowerBoundAttr);
+
+          mlir::Value upperBound =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, upperBoundAttr);
+
+          mlir::Value step =
+              rewriter.create<mlir::LLVM::ConstantOp>(loc, stepAttr);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, lowerBound, 0);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, upperBound, 1);
+
+          result = rewriter.create<mlir::LLVM::InsertValueOp>(
+              loc, structType, result, step, 2);
+
+          rewriter.replaceOp(op, result);
+          return mlir::success();
+        }
+
+        return mlir::failure();
+      }
+  };
+
+  class RangeOpLowering
       : public ModelicaOpConversionPattern<RangeOp>
   {
+    public:
       using ModelicaOpConversionPattern<RangeOp>::ModelicaOpConversionPattern;
 
       mlir::LogicalResult matchAndRewrite(
@@ -347,6 +447,7 @@ static void populateModelicaToLLVMPatterns(
 {
   // Range operations.
   patterns.insert<
+      ConstantOpRangeLowering,
       RangeOpLowering,
       RangeBeginOpLowering,
       RangeEndOpLowering,
@@ -422,6 +523,10 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
 {
   auto moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
+
+  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+    return !op.getResult().getType().isa<RangeType>();
+  });
 
   target.addIllegalOp<
       RangeOp,

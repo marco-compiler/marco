@@ -4088,7 +4088,8 @@ namespace
             OrOp>();
 
         target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
-          return op.getResult().getType().isa<ArrayType>();
+          mlir::Type resultType = op.getResult().getType();
+          return mlir::isa<ArrayType, RangeType>(resultType);
         });
 
         target.addIllegalOp<
