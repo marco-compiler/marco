@@ -724,6 +724,11 @@ namespace marco::frontend
           mlir::createConvertSCFToOpenMPPass());
     }
 
+    // Try to fold constants and run again the Modelica -> Arith conversion
+    // pass to convert the new constants.
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(createMLIRModelicaToArithConversionPass());
+
     pm.addNestedPass<mlir::func::FuncOp>(
         createMLIRVectorToSCFConversionPass());
 
