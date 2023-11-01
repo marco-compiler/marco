@@ -3,8 +3,6 @@ set(SOURCES
     AccessFunctionConstant.cpp
     AccessFunctionEmpty.cpp
     AccessFunctionRotoTranslation.cpp
-    AccessFunctionZeroDims.cpp
-    AccessFunctionZeroResults.cpp
     Dependency.cpp
     DimensionAccess.cpp
     DimensionAccessAdd.cpp

@@ -24,7 +24,6 @@ namespace marco::modeling
         Constant,
         Generic,
         RotoTranslation,
-        ZeroDims,
         ZeroResults
       };
 

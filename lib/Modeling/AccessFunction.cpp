@@ -2,8 +2,6 @@
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/AccessFunctionEmpty.h"
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
-#include "marco/Modeling/AccessFunctionZeroDims.h"
-#include "marco/Modeling/AccessFunctionZeroResults.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessDimension.h"
 #include "llvm/Support/raw_ostream.h"
@@ -22,17 +20,7 @@ static std::unique_ptr<AccessFunction> build(
           context, numOfDimensions, results);
     }
 
-    if (AccessFunctionZeroDims::canBeBuilt(numOfDimensions, results)) {
-      return std::make_unique<AccessFunctionZeroDims>(
-          context, numOfDimensions, results);
-    }
-
-    if (AccessFunctionZeroResults::canBeBuilt(numOfDimensions, results)) {
-      return std::make_unique<AccessFunctionZeroResults>(
-          context, numOfDimensions, results);
-    }
-
-    if (AccessFunctionConstant::canBeBuilt(numOfDimensions, results)) {
+    if (AccessFunctionConstant::canBeBuilt(results)) {
       return std::make_unique<AccessFunctionConstant>(
           context, numOfDimensions, results);
     }
