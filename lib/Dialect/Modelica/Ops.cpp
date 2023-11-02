@@ -9040,7 +9040,9 @@ namespace mlir::modelica
             rangeAttr.getUpperBound());
 
         Range range(lowerBound, upperBound);
-        iterationSpace.append(IndexSet(MultidimensionalRange(range)));
+
+        iterationSpace = iterationSpace.append(
+            IndexSet(MultidimensionalRange(range)));
 
         uint64_t currentDimension =
             static_cast<uint64_t>(iterationSpace.rank() - 1);
