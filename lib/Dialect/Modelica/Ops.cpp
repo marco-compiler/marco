@@ -936,7 +936,7 @@ namespace mlir::modelica
     for (size_t i = 0; i < indicesAmount; ++i) {
       if (auto constantOp = getIndices()[i].getDefiningOp<ConstantOp>()) {
         if (auto index = getScalarAttributeValue<int64_t>(
-                constantOp.getValue())) {
+                mlir::cast<mlir::Attribute>(constantOp.getValue()))) {
           if (*index < 0) {
             return emitOpError() << "invalid index (" << *index << ")";
           }
