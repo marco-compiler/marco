@@ -1530,16 +1530,47 @@ namespace mlir::modelica
 
     if (path.size() == 1) {
       // Add the implicit inductions if we are at a leaf of the equation.
-      for (uint64_t i = numOfExplicitInductions + reverted.size();
-           i < numOfInductions; ++i) {
-        reverted.push_back(DimensionAccess::build(
-            mlir::getAffineDimExpr(i, getContext())));
+      uint64_t remainingImplicitInductions = numOfImplicitInductions;
+
+      llvm::SmallVector<std::unique_ptr<DimensionAccess>> leafAccesses;
+
+      for (const auto& access : reverted) {
+        if (auto rangeAccess = access->dyn_cast<DimensionAccessRange>()) {
+          int64_t beginValue = rangeAccess->getRange().getBegin();
+
+          mlir::AffineExpr implicitDimensionAccess = mlir::getAffineDimExpr(
+              numOfImplicitInductions - remainingImplicitInductions,
+              getContext());
+
+          if (beginValue != 0) {
+            implicitDimensionAccess = implicitDimensionAccess +
+                mlir::getAffineConstantExpr(beginValue, getContext());
+
+            implicitDimensionAccess = implicitDimensionAccess -
+                mlir::getAffineConstantExpr(1, getContext());
+          }
+
+          leafAccesses.push_back(
+              DimensionAccess::build(implicitDimensionAccess));
+
+          --remainingImplicitInductions;
+        } else {
+          leafAccesses.push_back(access->clone());
+        }
+      }
+
+      for (uint64_t i = 0; i < remainingImplicitInductions; ++i) {
+        uint64_t dimension = numOfExplicitInductions + numOfImplicitInductions
+            - remainingImplicitInductions + i;
+
+        leafAccesses.push_back(DimensionAccess::build(
+            mlir::getAffineDimExpr(dimension, getContext())));
       }
 
       accesses.push_back(VariableAccess(
           std::move(path),
           mlir::SymbolRefAttr::get(getVariableAttr()),
-          AccessFunction::build(getContext(), numOfInductions, reverted)));
+          AccessFunction::build(getContext(), numOfInductions, leafAccesses)));
     } else {
       if (auto arrayType = getType().dyn_cast<ArrayType>();
           arrayType &&
