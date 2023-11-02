@@ -231,10 +231,4 @@ namespace marco::modeling
     llvm_unreachable("Not an affine expression");
     return nullptr;
   }
-
-  llvm::raw_ostream& operator<<(
-      llvm::raw_ostream& os, const DimensionAccess& dimensionAccess)
-  {
-    return dimensionAccess.dump(os);
-  }
 }

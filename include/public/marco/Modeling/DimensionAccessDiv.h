@@ -15,51 +15,59 @@ namespace marco::modeling
 
       DimensionAccessDiv(const DimensionAccessDiv& other);
 
-      DimensionAccessDiv(DimensionAccessDiv&& other);
+      DimensionAccessDiv(DimensionAccessDiv&& other) noexcept;
 
       ~DimensionAccessDiv() override;
 
       DimensionAccessDiv& operator=(const DimensionAccessDiv& other);
 
-      DimensionAccessDiv& operator=(DimensionAccessDiv&& other);
+      DimensionAccessDiv& operator=(DimensionAccessDiv&& other) noexcept;
 
       friend void swap(
           DimensionAccessDiv& first, DimensionAccessDiv& second);
 
       static bool classof(const DimensionAccess* obj)
       {
-        return obj->getKind() == DimensionAccess::Div;
+        return obj->getKind() == DimensionAccess::Kind::Div;
       }
 
-      std::unique_ptr<DimensionAccess> clone() const override;
+      [[nodiscard]] std::unique_ptr<DimensionAccess> clone() const override;
 
-      bool operator==(const DimensionAccess& other) const override;
+      [[nodiscard]] bool operator==(
+          const DimensionAccess& other) const override;
 
-      bool operator==(const DimensionAccessDiv& other) const;
+      [[nodiscard]] bool operator==(const DimensionAccessDiv& other) const;
 
-      bool operator!=(const DimensionAccess& other) const override;
+      [[nodiscard]] bool operator!=(
+          const DimensionAccess& other) const override;
 
-      bool operator!=(const DimensionAccessDiv& other) const;
+      [[nodiscard]] bool operator!=(const DimensionAccessDiv& other) const;
 
-      llvm::raw_ostream& dump(llvm::raw_ostream& os) const override;
+      llvm::raw_ostream& dump(
+          llvm::raw_ostream& os,
+          const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds)
+          const override;
 
-      bool isAffine() const override;
+      void collectIndexSets(
+          llvm::SmallVectorImpl<IndexSet*>& indexSets) const override;
 
-      mlir::AffineExpr getAffineExpr() const override;
+      [[nodiscard]] bool isAffine() const override;
 
-      mlir::AffineExpr getAffineExpr(
+      [[nodiscard]] mlir::AffineExpr getAffineExpr() const override;
+
+      [[nodiscard]] mlir::AffineExpr getAffineExpr(
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const override;
 
-      DimensionAccess& getFirst();
+      [[nodiscard]] DimensionAccess& getFirst();
 
-      const DimensionAccess& getFirst() const;
+      [[nodiscard]] const DimensionAccess& getFirst() const;
 
-      DimensionAccess& getSecond();
+      [[nodiscard]] DimensionAccess& getSecond();
 
-      const DimensionAccess& getSecond() const;
+      [[nodiscard]] const DimensionAccess& getSecond() const;
 
-      IndexSet map(
+      [[nodiscard]] IndexSet map(
           const Point& point,
           const FakeDimensionsMap& fakeDimensionsMap) const override;
 

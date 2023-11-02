@@ -1,6 +1,7 @@
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessIndices.h"
+#include "marco/Modeling/DimensionAccessRange.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
@@ -16,6 +17,7 @@ namespace marco::modeling
 
     return llvm::all_of(results, [](const auto& result) {
       return result->template dyn_cast<DimensionAccessConstant>() ||
+          result->template dyn_cast<DimensionAccessRange>() ||
           result->template dyn_cast<DimensionAccessIndices>();
     });
   }

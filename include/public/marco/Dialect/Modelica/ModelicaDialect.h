@@ -20,6 +20,7 @@ namespace mlir::modelica
   using DimensionAccessSub = ::marco::modeling::DimensionAccessSub;
   using DimensionAccessMul = ::marco::modeling::DimensionAccessMul;
   using DimensionAccessDiv = ::marco::modeling::DimensionAccessDiv;
+  using DimensionAccessRange = ::marco::modeling::DimensionAccessRange;
   using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
 
   mlir::Type getMostGenericType(mlir::Value x, mlir::Value y);
@@ -46,7 +47,8 @@ namespace mlir::modelica
 
   std::unique_ptr<DimensionAccess> getDimensionAccess(
       const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      const llvm::DenseMap<mlir::Value, IndexSet>& additionalInductionsIndicesMap,
+      llvm::ArrayRef<IndexSet> additionalInductionsIndices,
+      const llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
       mlir::Value value);
 
   mlir::LogicalResult materializeAffineMap(

@@ -6,22 +6,21 @@ using namespace ::marco::modeling;
 namespace marco::modeling
 {
   DimensionAccessIndices::DimensionAccessIndices(
-      mlir::MLIRContext* context, IndexSet indices)
+      mlir::MLIRContext* context,
+      std::shared_ptr<IndexSet> space,
+      uint64_t dimension)
       : DimensionAccess(DimensionAccess::Kind::Indices, context),
-        resultIndices(std::move(indices))
+        space(space),
+        dimension(dimension)
   {
-    assert(getIndices().rank() == 1);
+    assert(dimension < space->rank());
   }
 
   DimensionAccessIndices::DimensionAccessIndices(
-      const DimensionAccessIndices& other)
-      : DimensionAccess(other),
-        resultIndices(other.resultIndices)
-  {
-  }
+      const DimensionAccessIndices& other) = default;
 
   DimensionAccessIndices::DimensionAccessIndices(
-      DimensionAccessIndices&& other) = default;
+      DimensionAccessIndices&& other) noexcept = default;
 
   DimensionAccessIndices::~DimensionAccessIndices() = default;
 
@@ -34,7 +33,7 @@ namespace marco::modeling
   }
 
   DimensionAccessIndices& DimensionAccessIndices::operator=(
-      DimensionAccessIndices&& other) = default;
+      DimensionAccessIndices&& other) noexcept = default;
 
   void swap(DimensionAccessIndices& first, DimensionAccessIndices& second)
   {
@@ -43,7 +42,8 @@ namespace marco::modeling
     swap(static_cast<DimensionAccess&>(first),
          static_cast<DimensionAccess&>(second));
 
-    swap(first.resultIndices, second.resultIndices);
+    swap(first.space, second.space);
+    swap(first.dimension, second.dimension);
   }
 
   std::unique_ptr<DimensionAccess> DimensionAccessIndices::clone() const
@@ -60,9 +60,10 @@ namespace marco::modeling
     return false;
   }
 
-  bool DimensionAccessIndices::operator==(const DimensionAccessIndices& other) const
+  bool DimensionAccessIndices::operator==(
+      const DimensionAccessIndices& other) const
   {
-    return getIndices() == other.getIndices();
+    return space == other.space && dimension == other.dimension;
   }
 
   bool DimensionAccessIndices::operator!=(const DimensionAccess& other) const
@@ -74,14 +75,25 @@ namespace marco::modeling
     return true;
   }
 
-  bool DimensionAccessIndices::operator!=(const DimensionAccessIndices& other) const
+  bool DimensionAccessIndices::operator!=(
+      const DimensionAccessIndices& other) const
   {
-    return getIndices() != other.getIndices();
+    return !(*this == other);
   }
 
-  llvm::raw_ostream& DimensionAccessIndices::dump(llvm::raw_ostream& os) const
+  llvm::raw_ostream& DimensionAccessIndices::dump(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
   {
-    return os << getIndices();
+    auto it = indexSetsIds.find(space.get());
+    assert(it != indexSetsIds.end());
+    return os << "e" << it->getSecond() << "[" << dimension << "]";
+  }
+
+  void DimensionAccessIndices::collectIndexSets(
+      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  {
+    indexSets.push_back(space.get());
   }
 
   mlir::AffineExpr DimensionAccessIndices::getAffineExpr(
@@ -106,11 +118,11 @@ namespace marco::modeling
 
   IndexSet& DimensionAccessIndices::getIndices()
   {
-    return resultIndices;
+    return *space;
   }
 
   const IndexSet& DimensionAccessIndices::getIndices() const
   {
-    return resultIndices;
+    return *space;
   }
 }

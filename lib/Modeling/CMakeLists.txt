@@ -13,6 +13,7 @@ set(SOURCES
     DimensionAccessDiv.cpp
     DimensionAccessIndices.cpp
     DimensionAccessMul.cpp
+    DimensionAccessRange.cpp
     DimensionAccessSub.cpp
     Dumpable.cpp
     Graph.cpp

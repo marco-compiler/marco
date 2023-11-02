@@ -22,7 +22,8 @@ namespace marco::modeling
   {
   }
 
-  DimensionAccessMul::DimensionAccessMul(DimensionAccessMul&& other) = default;
+  DimensionAccessMul::DimensionAccessMul(
+      DimensionAccessMul&& other) noexcept = default;
 
   DimensionAccessMul::~DimensionAccessMul() = default;
 
@@ -35,7 +36,7 @@ namespace marco::modeling
   }
 
   DimensionAccessMul& DimensionAccessMul::operator=(
-      DimensionAccessMul&& other) = default;
+      DimensionAccessMul&& other) noexcept = default;
 
   void swap(DimensionAccessMul& first, DimensionAccessMul& second)
   {
@@ -81,9 +82,21 @@ namespace marco::modeling
     return getFirst() != other.getFirst() || getSecond() != other.getSecond();
   }
 
-  llvm::raw_ostream& DimensionAccessMul::dump(llvm::raw_ostream& os) const
+  llvm::raw_ostream& DimensionAccessMul::dump(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
   {
-    return os << "(" << getFirst() << " * " << getSecond() << ")";
+    os << "(";
+    getFirst().dump(os, indexSetsIds) << " * ";
+    getSecond().dump(os, indexSetsIds) << ")";
+    return os;
+  }
+
+  void DimensionAccessMul::collectIndexSets(
+      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  {
+    getFirst().collectIndexSets(indexSets);
+    getSecond().collectIndexSets(indexSets);
   }
 
   bool DimensionAccessMul::isAffine() const

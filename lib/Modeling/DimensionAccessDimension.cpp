@@ -13,14 +13,10 @@ namespace marco::modeling
   }
 
   DimensionAccessDimension::DimensionAccessDimension(
-      const DimensionAccessDimension& other)
-      : DimensionAccess(other),
-        dimension(other.dimension)
-  {
-  }
+      const DimensionAccessDimension& other) = default;
 
   DimensionAccessDimension::DimensionAccessDimension(
-      DimensionAccessDimension&& other) = default;
+      DimensionAccessDimension&& other) noexcept = default;
 
   DimensionAccessDimension::~DimensionAccessDimension() = default;
 
@@ -33,7 +29,7 @@ namespace marco::modeling
   }
 
   DimensionAccessDimension& DimensionAccessDimension::operator=(
-      DimensionAccessDimension&& other) = default;
+      DimensionAccessDimension&& other) noexcept = default;
 
   void swap(DimensionAccessDimension& first, DimensionAccessDimension& second)
   {
@@ -59,7 +55,8 @@ namespace marco::modeling
     return false;
   }
 
-  bool DimensionAccessDimension::operator==(const DimensionAccessDimension& other) const
+  bool DimensionAccessDimension::operator==(
+      const DimensionAccessDimension& other) const
   {
     return getDimension() == other.getDimension();
   }
@@ -74,14 +71,21 @@ namespace marco::modeling
   }
 
   llvm::raw_ostream& DimensionAccessDimension::dump(
-      llvm::raw_ostream& os) const
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
   {
     return os << "d" << getDimension();
   }
 
-  bool DimensionAccessDimension::operator!=(const DimensionAccessDimension& other) const
+  bool DimensionAccessDimension::operator!=(
+      const DimensionAccessDimension& other) const
   {
     return getDimension() != other.getDimension();
+  }
+
+  void DimensionAccessDimension::collectIndexSets(
+      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  {
   }
 
   bool DimensionAccessDimension::isAffine() const

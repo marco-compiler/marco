@@ -17,7 +17,7 @@ namespace marco::modeling
   class DimensionAccess
   {
     public:
-      enum Kind
+      enum class Kind
       {
         Constant,
         Dimension,
@@ -25,6 +25,7 @@ namespace marco::modeling
         Sub,
         Mul,
         Div,
+        Range,
         Indices
       };
 
@@ -80,77 +81,84 @@ namespace marco::modeling
 
       friend void swap(DimensionAccess& first, DimensionAccess& second);
 
-      virtual std::unique_ptr<DimensionAccess> clone() const = 0;
+      [[nodiscard]] virtual std::unique_ptr<DimensionAccess> clone() const = 0;
 
       /// @name LLVM-style RTTI methods.
       /// {
 
-      Kind getKind() const
+      [[nodiscard]] Kind getKind() const
       {
         return kind;
       }
 
       template<typename T>
-      bool isa() const
+      [[nodiscard]] bool isa() const
       {
         return llvm::isa<T>(this);
       }
 
       template<typename T>
-      T* cast()
+      [[nodiscard]] T* cast()
       {
         return llvm::cast<T>(this);
       }
 
       template<typename T>
-      const T* cast() const
+      [[nodiscard]] const T* cast() const
       {
         return llvm::cast<T>(this);
       }
 
       template<typename T>
-      T* dyn_cast()
+      [[nodiscard]] T* dyn_cast()
       {
         return llvm::dyn_cast<T>(this);
       }
 
       template<typename T>
-      const T* dyn_cast() const
+      [[nodiscard]] const T* dyn_cast() const
       {
         return llvm::dyn_cast<T>(this);
       }
 
       /// }
 
-      virtual bool operator==(const DimensionAccess& other) const = 0;
+      [[nodiscard]] virtual bool operator==(
+          const DimensionAccess& other) const = 0;
 
-      virtual bool operator!=(const DimensionAccess& other) const = 0;
+      [[nodiscard]] virtual bool operator!=(
+          const DimensionAccess& other) const = 0;
 
-      virtual llvm::raw_ostream& dump(llvm::raw_ostream& os) const = 0;
+      virtual llvm::raw_ostream& dump(
+          llvm::raw_ostream& os,
+          const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const = 0;
 
-      virtual std::unique_ptr<DimensionAccess> operator+(
+      virtual void collectIndexSets(
+          llvm::SmallVectorImpl<IndexSet*>& indexSets) const = 0;
+
+      [[nodiscard]] virtual std::unique_ptr<DimensionAccess> operator+(
           const DimensionAccess& other) const;
 
-      virtual std::unique_ptr<DimensionAccess> operator-(
+      [[nodiscard]] virtual std::unique_ptr<DimensionAccess> operator-(
           const DimensionAccess& other) const;
 
-      virtual std::unique_ptr<DimensionAccess> operator*(
+      [[nodiscard]] virtual std::unique_ptr<DimensionAccess> operator*(
           const DimensionAccess& other) const;
 
-      virtual std::unique_ptr<DimensionAccess> operator/(
+      [[nodiscard]] virtual std::unique_ptr<DimensionAccess> operator/(
           const DimensionAccess& other) const;
 
-      mlir::MLIRContext* getContext() const;
+      [[nodiscard]] mlir::MLIRContext* getContext() const;
 
-      virtual bool isAffine() const;
+      [[nodiscard]] virtual bool isAffine() const;
 
-      virtual mlir::AffineExpr getAffineExpr() const;
+      [[nodiscard]] virtual mlir::AffineExpr getAffineExpr() const;
 
-      virtual mlir::AffineExpr getAffineExpr(
+      [[nodiscard]] virtual mlir::AffineExpr getAffineExpr(
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
-      virtual IndexSet map(
+      [[nodiscard]] virtual IndexSet map(
           const Point& point,
           const FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
@@ -158,9 +166,6 @@ namespace marco::modeling
       Kind kind;
       mlir::MLIRContext* context;
   };
-
-  llvm::raw_ostream& operator<<(
-      llvm::raw_ostream& os, const DimensionAccess& dimensionAccess);
 }
 
 #endif // MARCO_MODELING_DIMENSIONACCESS_H

@@ -146,12 +146,24 @@ namespace marco::modeling
 
     os << ") -> (";
 
+    llvm::SmallVector<IndexSet*> indexSets;
+
+    for (const auto& result : getResults()) {
+      result->collectIndexSets(indexSets);
+    }
+
+    llvm::DenseMap<IndexSet*, uint64_t> indexSetsIds;
+
+    for (size_t i = 0, e = indexSets.size(); i < e; ++i) {
+      indexSetsIds[indexSets[i]] = indexSets.size();
+    }
+
     for (size_t i = 0, e = getNumOfResults(); i < e; ++i) {
       if (i != 0) {
         os << ", ";
       }
 
-      os << *getResults()[i];
+      getResults()[i]->dump(os, indexSetsIds);
     }
 
     os << ")";

@@ -20,7 +20,7 @@ namespace marco::modeling
   }
 
   DimensionAccessConstant::DimensionAccessConstant(
-      DimensionAccessConstant&& other) = default;
+      DimensionAccessConstant&& other) noexcept = default;
 
   DimensionAccessConstant::~DimensionAccessConstant() = default;
 
@@ -33,7 +33,7 @@ namespace marco::modeling
   }
 
   DimensionAccessConstant& DimensionAccessConstant::operator=(
-      DimensionAccessConstant&& other) = default;
+      DimensionAccessConstant&& other) noexcept = default;
 
   void swap(DimensionAccessConstant& first, DimensionAccessConstant& second)
   {
@@ -59,7 +59,8 @@ namespace marco::modeling
     return false;
   }
 
-  bool DimensionAccessConstant::operator==(const DimensionAccessConstant& other) const
+  bool DimensionAccessConstant::operator==(
+      const DimensionAccessConstant& other) const
   {
     return getValue() == other.getValue();
   }
@@ -73,15 +74,22 @@ namespace marco::modeling
     return true;
   }
 
-  bool DimensionAccessConstant::operator!=(const DimensionAccessConstant& other) const
+  bool DimensionAccessConstant::operator!=(
+      const DimensionAccessConstant& other) const
   {
     return getValue() != other.getValue();
   }
 
   llvm::raw_ostream& DimensionAccessConstant::dump(
-      llvm::raw_ostream& os) const
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
   {
     return os << getValue();
+  }
+
+  void DimensionAccessConstant::collectIndexSets(
+      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  {
   }
 
   bool DimensionAccessConstant::isAffine() const

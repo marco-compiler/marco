@@ -69,7 +69,9 @@ def EquationExpressionOpInterface
         InterfaceMethod<
             "Get the element at a given position.",
             "::mlir::LogicalResult", "mapAdditionalInductions",
-            (ins "::llvm::DenseMap<mlir::Value, IndexSet>&":$additionalInductionsIndicesMap), [{}], [{
+            (ins "::llvm::SmallVectorImpl<IndexSet>&":$additionalInductionsIndices,
+                 "::llvm::DenseMap<mlir::Value, ::std::pair<size_t, uint64_t>>&":$additionalInductionsMap),
+            [{}], [{
                 return mlir::success();
             }]>,
         InterfaceMethod<
@@ -78,14 +80,18 @@ def EquationExpressionOpInterface
             (ins "::llvm::SmallVectorImpl<VariableAccess>&":$accesses,
                  "::mlir::SymbolTableCollection&":$symbolTable,
                  "::llvm::DenseMap<::mlir::Value, unsigned int>&":$explicitInductionsPositionMap,
-                 "::llvm::DenseMap<mlir::Value, IndexSet>&":$additionalInductionsIndicesMap,
+                 "::llvm::SmallVectorImpl<IndexSet>&":$additionalInductionsIndices,
+                 "::llvm::DenseMap<mlir::Value, ::std::pair<size_t, uint64_t>>&":$additionalInductionsMap,
                  "::llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>&":$dimensionAccesses,
                  "uint64_t":$numOfImplicitInductions,
                  "EquationPath":$path), [{}], [{
                 auto opInterface = mlir::cast<EquationExpressionOpInterface>($_op.getOperation());
                 uint64_t numOfChildren = opInterface.getNumOfExpressionElements();
 
-                if (mlir::failed(opInterface.mapAdditionalInductions(additionalInductionsIndicesMap))) {
+                size_t initialAdditionalInductionsCount = additionalInductionsIndices.size();
+
+                if (mlir::failed(opInterface.mapAdditionalInductions(
+                        additionalInductionsIndices, additionalInductionsMap))) {
                     return mlir::failure();
                 }
 
@@ -111,7 +117,8 @@ def EquationExpressionOpInterface
                     if (mlir::failed(childInt.getEquationAccesses(
                             accesses, symbolTable,
                             explicitInductionsPositionMap,
-                            additionalInductionsIndicesMap,
+                            additionalInductionsIndices,
+                            additionalInductionsMap,
                             dimensionAccesses, numOfImplicitInductions,
                             path + i))) {
                        return mlir::failure();
@@ -121,6 +128,7 @@ def EquationExpressionOpInterface
                     dimensionAccesses.resize(initialDimensionAccessesCount);
                 }
 
+                additionalInductionsIndices.resize(initialAdditionalInductionsCount);
                 return mlir::success();
              }]>
     ];

@@ -3,13 +3,14 @@
 
 #include "marco/Dialect/Modelica/VariableAccess.h"
 #include "marco/Modeling/DimensionAccess.h"
+#include "marco/Modeling/DimensionAccessAdd.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessDimension.h"
-#include "marco/Modeling/DimensionAccessAdd.h"
-#include "marco/Modeling/DimensionAccessSub.h"
-#include "marco/Modeling/DimensionAccessMul.h"
 #include "marco/Modeling/DimensionAccessDiv.h"
+#include "marco/Modeling/DimensionAccessMul.h"
 #include "marco/Modeling/DimensionAccessIndices.h"
+#include "marco/Modeling/DimensionAccessRange.h"
+#include "marco/Modeling/DimensionAccessSub.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/IRMapping.h"
@@ -27,6 +28,7 @@ namespace mlir::modelica
   using DimensionAccessSub = ::marco::modeling::DimensionAccessSub;
   using DimensionAccessMul = ::marco::modeling::DimensionAccessMul;
   using DimensionAccessDiv = ::marco::modeling::DimensionAccessDiv;
+  using DimensionAccessRange = ::marco::modeling::DimensionAccessRange;
   using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
 }
 

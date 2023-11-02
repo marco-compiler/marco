@@ -1,5 +1,4 @@
 #include "marco/Modeling/DimensionAccessAdd.h"
-#include "marco/Modeling/DimensionAccessIndices.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco::modeling;
@@ -23,7 +22,8 @@ namespace marco::modeling
   {
   }
 
-  DimensionAccessAdd::DimensionAccessAdd(DimensionAccessAdd&& other) = default;
+  DimensionAccessAdd::DimensionAccessAdd(
+      DimensionAccessAdd&& other) noexcept = default;
 
   DimensionAccessAdd::~DimensionAccessAdd() = default;
 
@@ -36,7 +36,7 @@ namespace marco::modeling
   }
 
   DimensionAccessAdd& DimensionAccessAdd::operator=(
-      DimensionAccessAdd&& other) = default;
+      DimensionAccessAdd&& other) noexcept = default;
 
   void swap(DimensionAccessAdd& first, DimensionAccessAdd& second)
   {
@@ -82,9 +82,21 @@ namespace marco::modeling
     return getFirst() != other.getFirst() || getSecond() != other.getSecond();
   }
 
-  llvm::raw_ostream& DimensionAccessAdd::dump(llvm::raw_ostream& os) const
+  llvm::raw_ostream& DimensionAccessAdd::dump(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
   {
-    return os << "(" << getFirst() << " + " << getSecond() << ")";
+    os << "(";
+    getFirst().dump(os, indexSetsIds) << " + ";
+    getSecond().dump(os, indexSetsIds) << ")";
+    return os;
+  }
+
+  void DimensionAccessAdd::collectIndexSets(
+      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  {
+    getFirst().collectIndexSets(indexSets);
+    getSecond().collectIndexSets(indexSets);
   }
 
   bool DimensionAccessAdd::isAffine() const
