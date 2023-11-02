@@ -167,6 +167,13 @@ namespace marco::modeling
     }
 
     os << ")";
+
+    if (!indexSets.empty()) {
+      for (size_t i = 0, e = indexSets.size(); i < e; ++i) {
+        os << ", e" << i << ": " << *indexSets[i];
+      }
+    }
+
     return os;
   }
 
