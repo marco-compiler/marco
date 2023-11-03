@@ -12,29 +12,26 @@ using namespace ::marco::modeling;
 static std::unique_ptr<AccessFunction> build(
     mlir::MLIRContext* context,
     unsigned int numOfDimensions,
-    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
-    DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
+    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
 {
-  if (fakeDimensionsMap.empty()) {
-    if (AccessFunctionEmpty::canBeBuilt(numOfDimensions, results)) {
-      return std::make_unique<AccessFunctionEmpty>(
-          context, numOfDimensions, results);
-    }
+  if (AccessFunctionEmpty::canBeBuilt(numOfDimensions, results)) {
+    return std::make_unique<AccessFunctionEmpty>(
+        context, numOfDimensions, results);
+  }
 
-    if (AccessFunctionConstant::canBeBuilt(results)) {
-      return std::make_unique<AccessFunctionConstant>(
-          context, numOfDimensions, results);
-    }
+  if (AccessFunctionConstant::canBeBuilt(results)) {
+    return std::make_unique<AccessFunctionConstant>(
+        context, numOfDimensions, results);
+  }
 
-    if (AccessFunctionRotoTranslation::canBeBuilt(numOfDimensions, results)) {
-      return std::make_unique<AccessFunctionRotoTranslation>(
-          context, numOfDimensions, results);
-    }
+  if (AccessFunctionRotoTranslation::canBeBuilt(numOfDimensions, results)) {
+    return std::make_unique<AccessFunctionRotoTranslation>(
+        context, numOfDimensions, results);
   }
 
   // Fallback implementation.
   return std::make_unique<AccessFunctionGeneric>(
-      context, numOfDimensions, results, std::move(fakeDimensionsMap));
+      context, numOfDimensions, results);
 }
 
 namespace marco::modeling
@@ -70,12 +67,10 @@ namespace marco::modeling
   {
     assert(affineMap.getNumSymbols() == 0);
     mlir::AffineMap simplifiedAffineMap = mlir::simplifyAffineMap(affineMap);
-    DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
 
     return ::build(
         simplifiedAffineMap.getContext(), simplifiedAffineMap.getNumDims(),
-        convertAffineExpressions(simplifiedAffineMap.getResults()),
-        std::move(fakeDimensionsMap));
+        convertAffineExpressions(simplifiedAffineMap.getResults()));
   }
 
   std::unique_ptr<AccessFunction> AccessFunction::fromExtendedMap(
@@ -95,8 +90,7 @@ namespace marco::modeling
 
     return ::build(
         simplifiedAffineMap.getContext(),
-        simplifiedAffineMap.getNumDims() - numOfFakeDimensions,
-        results, fakeDimensionsMap);
+        simplifiedAffineMap.getNumDims() - numOfFakeDimensions, results);
   }
 
   llvm::SmallVector<std::unique_ptr<DimensionAccess>>

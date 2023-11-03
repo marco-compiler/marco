@@ -67,9 +67,7 @@ namespace marco::modeling
 
       [[nodiscard]] const DimensionAccess& getSecond() const;
 
-      [[nodiscard]] IndexSet map(
-          const Point& point,
-          const FakeDimensionsMap& fakeDimensionsMap) const override;
+      [[nodiscard]] IndexSet map(const Point& point) const override;
 
     private:
       std::unique_ptr<DimensionAccess> first;

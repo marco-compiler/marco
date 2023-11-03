@@ -101,9 +101,7 @@ namespace marco::modeling
         numOfDimensions + numOfFakeDimensions, getContext());
   }
 
-  IndexSet DimensionAccessRange::map(
-      const Point& point,
-      const FakeDimensionsMap& fakeDimensionsMap) const
+  IndexSet DimensionAccessRange::map(const Point& point) const
   {
     return IndexSet{MultidimensionalRange(getRange())};
   }

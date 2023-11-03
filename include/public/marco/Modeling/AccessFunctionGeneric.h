@@ -11,8 +11,7 @@ namespace marco::modeling
       AccessFunctionGeneric(
           mlir::MLIRContext* context,
           uint64_t numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
-          DimensionAccess::FakeDimensionsMap fakeDimensionsMap);
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
       explicit AccessFunctionGeneric(mlir::AffineMap affineMap);
 
@@ -21,8 +20,7 @@ namespace marco::modeling
           Kind kind,
           mlir::MLIRContext* context,
           uint64_t numOfDimensions,
-          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
-          DimensionAccess::FakeDimensionsMap fakeDimensionsMap);
+          llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results);
 
     public:
       AccessFunctionGeneric(const AccessFunctionGeneric& other);
@@ -86,7 +84,6 @@ namespace marco::modeling
     private:
       uint64_t numOfDimensions;
       llvm::SmallVector<std::unique_ptr<DimensionAccess>> results;
-      DimensionAccess::FakeDimensionsMap fakeDimensionsMap;
   };
 }
 

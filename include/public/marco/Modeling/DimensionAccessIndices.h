@@ -57,9 +57,7 @@ namespace marco::modeling
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const override;
 
-      [[nodiscard]] IndexSet map(
-          const Point& point,
-          const FakeDimensionsMap& fakeDimensionsMap) const override;
+      [[nodiscard]] IndexSet map(const Point& point) const override;
 
       [[nodiscard]] IndexSet& getIndices();
 

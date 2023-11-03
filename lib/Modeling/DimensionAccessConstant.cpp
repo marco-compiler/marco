@@ -109,9 +109,7 @@ namespace marco::modeling
     return mlir::getAffineConstantExpr(getValue(), getContext());
   }
 
-  IndexSet DimensionAccessConstant::map(
-      const Point& point,
-      const FakeDimensionsMap& fakeDimensionsMap) const
+  IndexSet DimensionAccessConstant::map(const Point& point) const
   {
     return {Point(getValue())};
   }

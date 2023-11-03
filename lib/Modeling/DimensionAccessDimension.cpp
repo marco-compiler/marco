@@ -106,14 +106,8 @@ namespace marco::modeling
   }
 
   IndexSet DimensionAccessDimension::map(
-      const Point& point,
-      const FakeDimensionsMap& fakeDimensionsMap) const
+      const Point& point) const
   {
-    if (auto it = fakeDimensionsMap.find(getDimension());
-        it != fakeDimensionsMap.end()) {
-      return it->getSecond()->map(point, fakeDimensionsMap);
-    }
-
     return {Point(point[getDimension()])};
   }
 

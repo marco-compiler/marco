@@ -158,9 +158,7 @@ namespace marco::modeling
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
-      [[nodiscard]] virtual IndexSet map(
-          const Point& point,
-          const FakeDimensionsMap& fakeDimensionsMap) const = 0;
+      [[nodiscard]] virtual IndexSet map(const Point& point) const = 0;
 
     private:
       Kind kind;

@@ -109,9 +109,7 @@ namespace marco::modeling
         numOfDimensions + numOfFakeDimensions, getContext());
   }
 
-  IndexSet DimensionAccessIndices::map(
-      const Point& point,
-      const FakeDimensionsMap& fakeDimensionsMap) const
+  IndexSet DimensionAccessIndices::map(const Point& point) const
   {
     return getIndices();
   }

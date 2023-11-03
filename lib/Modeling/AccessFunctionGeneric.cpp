@@ -10,11 +10,9 @@ namespace marco::modeling
   AccessFunctionGeneric::AccessFunctionGeneric(
       mlir::MLIRContext* context,
       uint64_t numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
-      DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunction(AccessFunction::Kind::Generic, context),
-        numOfDimensions(numOfDimensions),
-        fakeDimensionsMap(std::move(fakeDimensionsMap))
+        numOfDimensions(numOfDimensions)
   {
     for (const auto& result : results) {
       this->results.push_back(result->clone());
@@ -25,11 +23,9 @@ namespace marco::modeling
       Kind kind,
       mlir::MLIRContext* context,
       uint64_t numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results,
-      DimensionAccess::FakeDimensionsMap fakeDimensionsMap)
+      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunction(kind, context),
-        numOfDimensions(numOfDimensions),
-        fakeDimensionsMap(std::move(fakeDimensionsMap))
+        numOfDimensions(numOfDimensions)
   {
     for (const auto& result : results) {
       this->results.push_back(result->clone());
@@ -40,15 +36,13 @@ namespace marco::modeling
       : AccessFunctionGeneric(
           affineMap.getContext(),
           affineMap.getNumDims(),
-          convertAffineExpressions(affineMap.getResults()),
-          DimensionAccess::FakeDimensionsMap())
+          convertAffineExpressions(affineMap.getResults()))
   {
   }
 
   AccessFunctionGeneric::AccessFunctionGeneric(const AccessFunctionGeneric& other)
       : AccessFunction(other),
-        numOfDimensions(other.numOfDimensions),
-        fakeDimensionsMap(other.fakeDimensionsMap)
+        numOfDimensions(other.numOfDimensions)
   {
     for (const auto& result : other.results) {
       results.push_back(result->clone());
@@ -85,8 +79,6 @@ namespace marco::modeling
 
     first.results = std::move(second.results);
     second.results = std::move(firstTmp);
-
-    swap(first.fakeDimensionsMap, second.fakeDimensionsMap);
   }
 
   std::unique_ptr<AccessFunction> AccessFunctionGeneric::clone() const
@@ -117,7 +109,7 @@ namespace marco::modeling
       }
     }
 
-    return fakeDimensionsMap == other.fakeDimensionsMap;
+    return true;
   }
 
   bool AccessFunctionGeneric::operator!=(const AccessFunction& other) const
@@ -232,8 +224,7 @@ namespace marco::modeling
     IndexSet mappedIndices;
 
     for (const auto& result : getResults()) {
-      mappedIndices = mappedIndices.append(
-          result->map(point, fakeDimensionsMap));
+      mappedIndices = mappedIndices.append(result->map(point));
     }
 
     return mappedIndices;

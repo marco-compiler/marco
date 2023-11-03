@@ -35,8 +35,7 @@ namespace marco::modeling
       uint64_t numOfDimensions,
       llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
       : AccessFunctionGeneric(
-          Kind::Constant, context, numOfDimensions, results,
-          DimensionAccess::FakeDimensionsMap())
+          Kind::Constant, context, numOfDimensions, results)
   {
     assert(canBeBuilt(results));
   }
