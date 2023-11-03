@@ -12,7 +12,7 @@ namespace marco::modeling
       llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
   {
     if (results.empty()) {
-      return false;
+      return true;
     }
 
     return llvm::all_of(results, [](const auto& result) {
