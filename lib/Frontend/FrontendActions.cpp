@@ -8,6 +8,7 @@
 #include "marco/Dialect/Modeling/ModelingDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
+#include "marco/IO/Command.h"
 #include "marco/Parser/Parser.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
@@ -33,6 +34,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 #include "llvm/TargetParser/Host.h"
 
 using namespace ::marco;
@@ -109,22 +111,6 @@ namespace
 // Utility functions
 //===---------------------------------------------------------------------===//
 
-static bool exec(const char* cmd, std::string& result)
-{
-  std::array<char, 128> buffer;
-  FILE* pipe = popen(cmd, "r");
-
-  if (!pipe) {
-    return false;
-  }
-
-  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-    result += buffer.data();
-  }
-
-  return pclose(pipe)==0;
-}
-
 static llvm::CodeGenOpt::Level mapOptimizationLevelToCodeGenLevel(
     llvm::OptimizationLevel level, bool debug)
 {
@@ -192,16 +178,9 @@ static void generateMachineCodeOrAssemblyImpl(
 
 namespace marco::frontend
 {
-  bool PreprocessingAction::beginSourceFileAction()
+  bool PreprocessingAction::beginSourceFilesAction()
   {
     CompilerInstance& ci = getInstance();
-
-    if (getCurrentInput().getKind().getLanguage() != Language::Modelica) {
-      ci.getDiagnostics().emitError<GenericStringMessage>(
-          "Invalid input type: expecting a Modelica file");
-
-      return false;
-    }
 
     if (ci.getFrontendOptions().omcBypass) {
       const auto& inputs = ci.getFrontendOptions().inputs;
@@ -226,45 +205,94 @@ namespace marco::frontend
       return true;
     }
 
-    llvm::SmallString<256> cmd;
+    // Use OMC to generate the Base Modelica code.
+    auto omcPath = llvm::sys::findProgramByName("omc");
 
-    if (auto path = ci.getFrontendOptions().omcPath; !path.empty()) {
-      llvm::sys::path::append(cmd, path, "omc");
-    } else {
-      llvm::sys::path::append(cmd, "omc");
+    if (!omcPath) {
+      ci.getDiagnostics().emitWarning<GenericStringMessage>(
+          "Can't obtain path to omc executable");
+
+      return false;
     }
 
-    for (const auto& input : ci.getFrontendOptions().inputs) {
-      cmd += " \"" + input.getFile().str() + "\"";
+    Command cmd(*omcPath);
+
+    // Add the input files.
+    for (const InputFile& inputFile : ci.getFrontendOptions().inputs) {
+      if (inputFile.getKind().getLanguage() != Language::Modelica) {
+        ci.getDiagnostics().emitError<GenericStringMessage>(
+            "Invalid input type: flattening can be performed only on Modelica files");
+
+        return false;
+      }
+
+      cmd.appendArg("\"" + inputFile.getFile().str() + "\"");
     }
 
-    if (const auto& modelName = ci.getSimulationOptions().modelName; modelName.empty()) {
-      ci.getDiagnostics().emitWarning<GenericStringMessage>("Model name not specified");
+    // Set the model to be flattened.
+    if (const auto& modelName = ci.getSimulationOptions().modelName;
+        modelName.empty()) {
+      ci.getDiagnostics().emitWarning<GenericStringMessage>(
+          "Model name not specified");
     } else {
-      cmd += " +i=" + ci.getSimulationOptions().modelName;
+      cmd.appendArg("+i=" + ci.getSimulationOptions().modelName);
     }
 
-    if (const auto& args = ci.getFrontendOptions().omcCustomArgs; args.empty()) {
-      cmd += " -f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations";
-    } else {
-      for (const auto& arg : args) {
-        cmd += " " + arg;
+    // Enable the output of base Modelica.
+    cmd.appendArg("-f");
+
+    // Add the extra arguments to OMC.
+    for (const auto& arg : ci.getFrontendOptions().omcCustomArgs) {
+      cmd.appendArg(arg);
+    }
+
+    // Create the file in which OMC will write.
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    std::string omcOutputFileName =
+        ci.getSimulationOptions().modelName + ".bmo";
+
+    if (!ci.createOutputFile(omcOutputFileName, false, false)) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+          "Can't create OMC output file");
+
+      return false;
+    }
+
+    cmd.setStdoutRedirect(omcOutputFileName);
+    int resultCode = cmd.exec();
+
+    if (resultCode == EXIT_SUCCESS) {
+      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(omcOutputFileName);
+      auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
+
+      if (!buffer) {
+        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(omcOutputFileName);
+        llvm::consumeError(buffer.takeError());
+        return false;
+      }
+
+      flattened = (*buffer)->getBuffer().str();
+    }
+
+    llvm::sys::fs::remove(omcOutputFileName);
+    return resultCode == EXIT_SUCCESS;
+  }
+
+  void EmitBaseModelicaAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    // Get the default output stream, if none was specified.
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+                false, ci.getSimulationOptions().modelName, "bmo"))) {
+        return;
       }
     }
 
-    auto result = exec(cmd.c_str(), flattened);
-
-    if (!result) {
-      ci.getDiagnostics().emitFatalError<FlatteningFailureMessage>(flattened);
-    }
-
-    return result;
-  }
-
-  void EmitFlattenedAction::executeAction()
-  {
-    // Print the flattened source on the standard output
-    llvm::outs() << flattened << "\n";
+    *os << flattened;
   }
 
   ASTAction::ASTAction(ASTActionKind action)
@@ -272,9 +300,9 @@ namespace marco::frontend
   {
   }
 
-  bool ASTAction::beginSourceFileAction()
+  bool ASTAction::beginSourceFilesAction()
   {
-    if (!PreprocessingAction::beginSourceFileAction()) {
+    if (!PreprocessingAction::beginSourceFilesAction()) {
       return false;
     }
 
@@ -311,7 +339,7 @@ namespace marco::frontend
     // Get the default output stream, if none was specified.
     if (ci.isOutputStreamNull()) {
       if (!(os = ci.createDefaultOutputFile(
-                false, getCurrentFileOrBufferName(), "json"))) {
+                false, ci.getSimulationOptions().modelName, "ast"))) {
         return;
       }
     }
@@ -392,7 +420,7 @@ namespace marco::frontend
 
   CodeGenAction::~CodeGenAction() = default;
 
-  bool CodeGenAction::beginSourceFileAction()
+  bool CodeGenAction::beginSourceFilesAction()
   {
     if (action == CodeGenActionKind::GenerateLLVMIR) {
       return generateLLVMIR();
@@ -482,12 +510,12 @@ namespace marco::frontend
     mlirContext->loadDialect<mlir::DLTIDialect>();
     mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();
 
-    if (getCurrentInput().getKind().getLanguage() == Language::MLIR) {
+    if (getCurrentInputs()[0].getKind().getLanguage() == Language::MLIR) {
       // If the input is an MLIR file, parse it.
       llvm::SourceMgr sourceMgr;
 
       llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
-          llvm::MemoryBuffer::getFileOrSTDIN(getCurrentInput().getFile());
+          llvm::MemoryBuffer::getFileOrSTDIN(getCurrentInputs()[0].getFile());
 
       sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
 
@@ -511,7 +539,7 @@ namespace marco::frontend
       // If the input is not an MLIR file, then the MLIR module will be
       // obtained starting from the AST.
 
-      if (!ASTAction::beginSourceFileAction()) {
+      if (!ASTAction::beginSourceFilesAction()) {
         return false;
       }
 
@@ -990,12 +1018,12 @@ namespace marco::frontend
     // Create the LLVM context.
     llvmContext = std::make_unique<llvm::LLVMContext>();
 
-    if (getCurrentInput().getKind().getLanguage() == Language::LLVM_IR) {
+    if (getCurrentInputs()[0].getKind().getLanguage() == Language::LLVM_IR) {
       // If the input is an LLVM file, parse it return.
       llvm::SMDiagnostic err;
 
       llvmModule = llvm::parseIRFile(
-          getCurrentInput().getFile(), err, *llvmContext);
+          getCurrentInputs()[0].getFile(), err, *llvmContext);
 
       if (!llvmModule || llvm::verifyModule(*llvmModule, &llvm::errs())) {
         err.print("marco", llvm::errs());
@@ -1157,8 +1185,10 @@ namespace marco::frontend
 
     // Get the default output stream, if none was specified.
     if (ci.isOutputStreamNull()) {
+      auto fileOrBufferNames = getCurrentFilesOrBufferNames();
+
       if (!(os = ci.createDefaultOutputFile(
-          false, getCurrentFileOrBufferName(), "mlir"))) {
+                false, ci.getSimulationOptions().modelName, "mlir"))) {
         return;
       }
     }
@@ -1181,7 +1211,7 @@ namespace marco::frontend
 
     if (ci.isOutputStreamNull()) {
       if (!(os = ci.createDefaultOutputFile(
-          false, getCurrentFileOrBufferName(), "ll"))) {
+                false, ci.getSimulationOptions().modelName, "ll"))) {
         return;
       }
     }
@@ -1205,7 +1235,7 @@ namespace marco::frontend
 
     if (ci.isOutputStreamNull()) {
       if (!(os = ci.createDefaultOutputFile(
-          true, getCurrentFileOrBufferName(), "bc"))) {
+                true, ci.getSimulationOptions().modelName, "bc"))) {
         return;
       }
     }
@@ -1238,7 +1268,7 @@ namespace marco::frontend
 
     if (ci.isOutputStreamNull()) {
       if (!(os = ci.createDefaultOutputFile(
-          false, getCurrentFileOrBufferName(), "s"))) {
+                false, ci.getSimulationOptions().modelName, "s"))) {
         return;
       }
     }
@@ -1264,7 +1294,7 @@ namespace marco::frontend
 
     if (ci.isOutputStreamNull()) {
       if (!(os = ci.createDefaultOutputFile(
-                true, getCurrentFileOrBufferName(), "o"))) {
+                true, ci.getSimulationOptions().modelName, "o"))) {
         return;
       }
     }

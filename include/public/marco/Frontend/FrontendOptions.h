@@ -12,7 +12,11 @@ namespace marco::frontend
     InvalidAction = 0,
 
     InitOnly,
-    EmitFlattened,
+
+    // Emit a .bmo file.
+    EmitBaseModelica,
+
+    // Emit a .ast file.
     EmitAST,
     EmitFinalAST,
 
@@ -22,7 +26,7 @@ namespace marco::frontend
     // Emit a .ll file.
     EmitLLVMIR,
 
-    /// Emit a .bc file
+    // Emit a .bc file
     EmitLLVMBitcode,
 
     // Emit a .s file.

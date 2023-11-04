@@ -110,7 +110,7 @@ namespace marco::frontend
       std::unique_ptr<llvm::raw_pwrite_stream> createOutputFile(
           llvm::StringRef outputPath,
           bool binary,
-          bool useTemporary,
+          bool useTemporary = false,
           bool createMissingDirectories = false);
 
     private:

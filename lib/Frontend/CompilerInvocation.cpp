@@ -120,8 +120,8 @@ static void parseFrontendArgs(
         options.programAction = InitOnly;
         break;
 
-      case options::OPT_emit_modelica_flattened:
-        options.programAction = EmitFlattened;
+      case options::OPT_emit_base_modelica:
+        options.programAction = EmitBaseModelica;
         break;
 
       case options::OPT_emit_final_ast:

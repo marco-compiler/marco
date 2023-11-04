@@ -154,14 +154,12 @@ namespace marco::frontend
       return false;
     }
 
-    for (const InputFile& fif : getFrontendOptions().inputs) {
-      if (act.beginSourceFile(*this, fif)) {
-        if (llvm::Error err = act.execute()) {
-          consumeError(std::move(err));
-        }
-
-        act.endSourceFile();
+    if (act.beginSourceFiles(*this, getFrontendOptions().inputs)) {
+      if (llvm::Error err = act.execute()) {
+        consumeError(std::move(err));
       }
+
+      act.endSourceFiles();
     }
 
     return getDiagnostics().numOfErrors() == 0;

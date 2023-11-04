@@ -15,8 +15,8 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(
     case InitOnly:
       return std::make_unique<InitOnlyAction>();
 
-    case EmitFlattened:
-      return std::make_unique<EmitFlattenedAction>();
+    case EmitBaseModelica:
+      return std::make_unique<EmitBaseModelicaAction>();
 
     case EmitAST:
       return std::make_unique<EmitASTAction>();

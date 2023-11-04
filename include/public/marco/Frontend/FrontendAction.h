@@ -23,43 +23,45 @@ namespace marco::frontend
       /// @name Compiler instance access
       /// @{
 
-      CompilerInstance& getInstance();
+      [[nodiscard]] CompilerInstance& getInstance();
 
-      const CompilerInstance& getInstance() const;
+      [[nodiscard]] const CompilerInstance& getInstance() const;
 
       void setInstance(CompilerInstance* value);
 
       /// }
-      /// @name Current file information
+      /// @name Current files information
       /// {
 
-      const io::InputFile& getCurrentInput() const;
+      [[nodiscard]] llvm::ArrayRef<io::InputFile> getCurrentInputs() const;
 
-      llvm::StringRef getCurrentFile() const;
+      [[nodiscard]] llvm::SmallVector<std::string, 1> getCurrentFiles() const;
 
-      llvm::StringRef getCurrentFileOrBufferName() const;
+      [[nodiscard]] llvm::SmallVector<std::string, 1>
+      getCurrentFilesOrBufferNames() const;
 
-      void setCurrentInput(const io::InputFile& currentIntput);
+      void setCurrentInputs(llvm::ArrayRef<io::InputFile> currentIntputs);
 
       /// }
       /// @name Public action interface
       /// {
 
       /// Prepare the action to execute on the given compiler instance.
-      bool prepareToExecute(CompilerInstance& ci);
+      [[nodiscard]] bool prepareToExecute(CompilerInstance& ci);
 
-      /// Prepare the action for processing the input file.
+      /// Prepare the action for processing the input files.
       ///
       /// This is run after the options and frontend have been initialized,
-      /// but prior to executing any per-file processing.
-      bool beginSourceFile(CompilerInstance &ci, const io::InputFile &input);
+      /// but prior to executing file processing.
+      [[nodiscard]] bool beginSourceFiles(
+          CompilerInstance &ci, llvm::ArrayRef<io::InputFile> input);
 
       /// Run the action.
       llvm::Error execute();
 
-      /// Perform any per-file post processing, deallocate per-file objects,
-      /// and run statistics and output file cleanup code.
-      void endSourceFile();
+      /// Perform post processing, deallocate file objects, and run statistics
+      /// and output file cleanup code.
+      void endSourceFiles();
 
       /// }
 
@@ -76,20 +78,20 @@ namespace marco::frontend
       /// executeAction and endSourceFileAction will not be called.
       virtual bool beginInvocation();
 
-      /// Callback at the start of processing a single input.
+      /// Callback at the start of processing the input files.
       ///
       /// @return true on success; on failure executionAction() and
       /// endSourceFileAction() will not be called.
-      virtual bool beginSourceFileAction();
+      virtual bool beginSourceFilesAction();
 
       /// Callback to run the program action, using the initialized compiler
       /// instance.
       virtual void executeAction() = 0;
 
-      /// Function called at the end of processing a single input.
+      /// Function called at the end of processing the input files.
       /// This is guaranteed to only be called following a successful call to
-      /// beginSourceFileAction (and beginSourceFile).
-      virtual void endSourceFileAction();
+      /// beginSourceFilesAction (and beginSourceFile).
+      virtual void endSourceFilesAction();
 
       /// Callback at the end of processing a single input, to determine
       /// if the output files should be erased or not.
@@ -101,7 +103,7 @@ namespace marco::frontend
 
     private:
       CompilerInstance* instance;
-      io::InputFile currentInput;
+      llvm::SmallVector<io::InputFile, 10> currentInputs;
   };
 }
 

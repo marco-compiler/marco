@@ -37,29 +37,51 @@ namespace marco::frontend
     instance = value;
   }
 
-  const InputFile& FrontendAction::getCurrentInput() const
+  llvm::ArrayRef<InputFile> FrontendAction::getCurrentInputs() const
   {
-    return currentInput;
+    return currentInputs;
   }
 
-  llvm::StringRef FrontendAction::getCurrentFile() const
+  llvm::SmallVector<std::string, 1> FrontendAction::getCurrentFiles() const
   {
-    assert(!currentInput.isEmpty() && "No current file!");
-    return currentInput.getFile();
+    assert(!currentInputs.empty() && "No current files!");
+    llvm::SmallVector<std::string, 1> result;
+
+    for (const auto& currentInput : currentInputs) {
+      assert(!currentInput.isEmpty() && "Empty current file");
+      result.push_back(currentInput.getFile().str());
+    }
+
+    return result;
   }
 
-  llvm::StringRef FrontendAction::getCurrentFileOrBufferName() const
+  llvm::SmallVector<std::string, 1>
+  FrontendAction::getCurrentFilesOrBufferNames() const
   {
-    assert(!currentInput.isEmpty() && "No current file!");
+    assert(!currentInputs.empty() && "No current files!");
+    llvm::SmallVector<std::string, 1> result;
 
-    return currentInput.isFile()
-        ? currentInput.getFile()
-        : currentInput.getBuffer()->getBufferIdentifier();
+    for (const auto& currentInput : currentInputs) {
+      assert(!currentInput.isEmpty() && "Empty current file");
+
+      if (currentInput.isFile()) {
+        result.push_back(currentInput.getFile().str());
+      } else {
+        result.push_back(
+            currentInput.getBuffer()->getBufferIdentifier().str());
+      }
+    }
+
+    return result;
   }
 
-  void FrontendAction::setCurrentInput(const InputFile& input)
+  void FrontendAction::setCurrentInputs(llvm::ArrayRef<InputFile> inputs)
   {
-    this->currentInput = input;
+    currentInputs.clear();
+
+    for (const InputFile& inputFile : inputs) {
+      currentInputs.push_back(inputFile);
+    }
   }
 
   bool FrontendAction::prepareToExecute(CompilerInstance& ci)
@@ -67,19 +89,17 @@ namespace marco::frontend
     return prepareToExecuteAction(ci);
   }
 
-  bool FrontendAction::beginSourceFile(
-      CompilerInstance& ci, const InputFile& realInput)
+  bool FrontendAction::beginSourceFiles(
+      CompilerInstance& ci, llvm::ArrayRef<InputFile> realInputs)
   {
-    InputFile input(realInput);
-    assert(!instance && "Already processing a source file");
-    assert(!input.isEmpty() && "Unexpected empty file name");
+    assert(!instance && "Already processing source files");
 
-    setCurrentInput(input);
+    setCurrentInputs(realInputs);
     setInstance(&ci);
 
     auto failureCleanup = llvm::make_scope_exit([&]() {
       ci.clearOutputFiles(true);
-      setCurrentInput(InputFile());
+      setCurrentInputs(std::nullopt);
       setInstance(nullptr);
     });
 
@@ -88,7 +108,7 @@ namespace marco::frontend
     }
 
     // Initialize the action.
-    if (!beginSourceFileAction()) {
+    if (!beginSourceFilesAction()) {
       return false;
     }
 
@@ -102,19 +122,19 @@ namespace marco::frontend
     return llvm::Error::success();
   }
 
-  void FrontendAction::endSourceFile()
+  void FrontendAction::endSourceFiles()
   {
     CompilerInstance& ci = getInstance();
 
     // Finalize the action.
-    endSourceFileAction();
+    endSourceFilesAction();
 
     // Cleanup the output streams, and erase the output files if instructed by
     // the FrontendAction.
     ci.clearOutputFiles(shouldEraseOutputFiles());
 
     setInstance(nullptr);
-    setCurrentInput(InputFile());
+    setCurrentInputs(std::nullopt);
   }
 
   bool FrontendAction::shouldEraseOutputFiles() const
@@ -132,12 +152,12 @@ namespace marco::frontend
     return true;
   }
 
-  bool FrontendAction::beginSourceFileAction()
+  bool FrontendAction::beginSourceFilesAction()
   {
     return true;
   }
 
-  void FrontendAction::endSourceFileAction()
+  void FrontendAction::endSourceFilesAction()
   {
   }
 }

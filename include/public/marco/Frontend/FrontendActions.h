@@ -3,6 +3,7 @@
 
 #include "marco/AST/AST.h"
 #include "marco/Frontend/FrontendAction.h"
+#include "marco/IO/InputFile.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "llvm/Target/TargetMachine.h"
@@ -42,13 +43,13 @@ namespace marco::frontend
   class PreprocessingAction : public FrontendAction
   {
     public:
-      bool beginSourceFileAction() override;
+      bool beginSourceFilesAction() override;
 
     protected:
       std::string flattened;
   };
 
-  class EmitFlattenedAction : public PreprocessingAction
+  class EmitBaseModelicaAction : public PreprocessingAction
   {
     public:
       void executeAction() override;
@@ -69,7 +70,7 @@ namespace marco::frontend
       explicit ASTAction(ASTActionKind action);
 
     public:
-      bool beginSourceFileAction() override;
+      bool beginSourceFilesAction() override;
 
     private:
       ASTActionKind action;
@@ -104,7 +105,7 @@ namespace marco::frontend
     public:
       ~CodeGenAction() override;
 
-      bool beginSourceFileAction() override;
+      bool beginSourceFilesAction() override;
 
     protected:
       /// Set up the LLVM's TargetMachine.
