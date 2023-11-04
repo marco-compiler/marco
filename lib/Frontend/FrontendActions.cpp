@@ -226,7 +226,7 @@ namespace marco::frontend
         return false;
       }
 
-      cmd.appendArg("\"" + inputFile.getFile().str() + "\"");
+      cmd.appendArg(inputFile.getFile().str());
     }
 
     // Set the model to be flattened.
@@ -275,7 +275,11 @@ namespace marco::frontend
       flattened = (*buffer)->getBuffer().str();
     }
 
-    llvm::sys::fs::remove(omcOutputFileName);
+    if (auto ec = llvm::sys::fs::remove(omcOutputFileName)) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(ec.message());
+      return false;
+    }
+
     return resultCode == EXIT_SUCCESS;
   }
 

@@ -52,7 +52,7 @@ if config.marco_runtime_ida_enabled == "ON":
 # Set the path containing the SUNDIALS libraries.
 config.substitutions.append(("%sundials_lib_dir", config.marco_runtime_sundials_lib_dir))
 
-llvm_config.with_system_environment(["HOME", "INCLUDE", "LIB", "TMP", "TEMP"])
+llvm_config.with_system_environment(["HOME", "INCLUDE", "LIB", "TMP", "TEMP"], append_path=True)
 llvm_config.use_default_substitutions()
 
 # List of directories to exclude from the testsuite.
@@ -78,6 +78,10 @@ tools = [
     "marco",
     "modelica-opt"
 ]
+
+# Search for OMC.
+if FindTool("omc") != None:
+    config.available_features.add("omc")
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
