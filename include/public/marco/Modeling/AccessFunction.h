@@ -23,8 +23,7 @@ namespace marco::modeling
         Empty,
         Constant,
         Generic,
-        RotoTranslation,
-        ZeroResults
+        RotoTranslation
       };
 
       static std::unique_ptr<AccessFunction> build(
