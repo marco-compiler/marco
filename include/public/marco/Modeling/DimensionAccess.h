@@ -4,6 +4,7 @@
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/AffineExpr.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
 
@@ -14,6 +15,8 @@ namespace llvm
 
 namespace marco::modeling
 {
+  class DimensionAccessIndices;
+
   class DimensionAccess
   {
     public:
@@ -131,10 +134,17 @@ namespace marco::modeling
 
       virtual llvm::raw_ostream& dump(
           llvm::raw_ostream& os,
-          const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const = 0;
+          const llvm::DenseMap<
+              const IndexSet*, uint64_t>& iterationSpacesIds) const = 0;
 
-      virtual void collectIndexSets(
-          llvm::SmallVectorImpl<IndexSet*>& indexSets) const = 0;
+      virtual void collectIterationSpaces(
+          llvm::DenseSet<const IndexSet*>& iterationSpaces) const = 0;
+
+      virtual void collectIterationSpaces(
+          llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+          llvm::DenseMap<
+              const IndexSet*,
+              llvm::DenseSet<uint64_t>>& dependentDimensions) const = 0;
 
       [[nodiscard]] virtual std::unique_ptr<DimensionAccess> operator+(
           const DimensionAccess& other) const;
@@ -158,7 +168,10 @@ namespace marco::modeling
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const = 0;
 
-      [[nodiscard]] virtual IndexSet map(const Point& point) const = 0;
+      [[nodiscard]] virtual IndexSet map(
+          const Point& point,
+          llvm::DenseMap<const IndexSet*, Point>& currentIndexSetsPoint)
+          const = 0;
 
     private:
       Kind kind;

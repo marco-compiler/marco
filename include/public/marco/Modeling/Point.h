@@ -25,6 +25,8 @@ namespace marco::modeling
     public:
       using const_iterator = Container::const_iterator;
 
+      Point();
+
       Point(data_type value);
 
       Point(std::initializer_list<data_type> values);

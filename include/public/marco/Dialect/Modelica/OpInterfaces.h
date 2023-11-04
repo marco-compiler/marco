@@ -30,6 +30,42 @@ namespace mlir::modelica
   using DimensionAccessDiv = ::marco::modeling::DimensionAccessDiv;
   using DimensionAccessRange = ::marco::modeling::DimensionAccessRange;
   using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
+
+  class AdditionalInductions
+  {
+    public:
+      using Dependencies = llvm::DenseSet<uint64_t>;
+
+      using IterationSpaceDependencies =
+          llvm::DenseMap<uint64_t, Dependencies>;
+
+      uint64_t addIterationSpace(IndexSet iterationSpace);
+
+      [[nodiscard]] uint64_t getNumOfIterationSpaces() const;
+
+      void addInductionVariable(
+          mlir::Value inductionValue,
+          uint64_t iterationSpace,
+          uint64_t dimension);
+
+      [[nodiscard]] bool hasInductionVariable(mlir::Value induction) const;
+
+      [[nodiscard]] const IndexSet& getInductionSpace(
+          mlir::Value induction) const;
+
+      [[nodiscard]] uint64_t getInductionDimension(mlir::Value induction) const;
+
+      [[nodiscard]] const Dependencies&
+      getInductionDependencies(mlir::Value induction) const;
+
+      void addDimensionDependency(
+          uint64_t iterationSpace, uint64_t dimension, uint64_t dependency);
+
+    private:
+      llvm::SmallVector<IndexSet> iterationSpaces;
+      llvm::DenseMap<mlir::Value, std::pair<uint64_t, uint64_t>> inductions;
+      llvm::DenseMap<uint64_t, IterationSpaceDependencies> dependencies;
+  };
 }
 
 #include "marco/Dialect/Modelica/ModelicaOpInterfaces.h.inc"

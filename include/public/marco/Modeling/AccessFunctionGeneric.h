@@ -70,6 +70,14 @@ namespace marco::modeling
 
       [[nodiscard]] IndexSet map(const Point& point) const override;
 
+      void map(
+          IndexSet& mappedIndices,
+          const Point& point,
+          llvm::ArrayRef<const IndexSet*> iterationSpaces,
+          size_t currentIterationSpace,
+          llvm::DenseMap<const IndexSet*, Point>& currentIterationSpacePoint)
+          const;
+
       [[nodiscard]] IndexSet map(const IndexSet& indices) const override;
 
       [[nodiscard]] llvm::SmallVector<std::unique_ptr<DimensionAccess>, 6>
@@ -80,6 +88,12 @@ namespace marco::modeling
 
       [[nodiscard]] llvm::ArrayRef<std::unique_ptr<DimensionAccess>>
       getResults() const;
+
+      void collectIterationSpaces(
+          llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+          llvm::DenseMap<
+              const IndexSet*,
+              llvm::DenseSet<uint64_t>>& dependendentDimensions) const;
 
     private:
       uint64_t numOfDimensions;

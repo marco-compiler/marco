@@ -801,8 +801,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::SmallVectorImpl<IndexSet>& additionalInductionsIndices,
-      llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
+      AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -813,8 +812,7 @@ namespace mlir::modelica
       mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(
-          explicitInductionsPositionMap, additionalInductionsIndices,
-          additionalInductionsMap, index);
+          explicitInductionsPositionMap, additionalInductions, index);
 
       if (!dimensionAccess) {
         return mlir::failure();
@@ -831,8 +829,8 @@ namespace mlir::modelica
 
     return arrayOp.getEquationAccesses(
         accesses, symbolTable, explicitInductionsPositionMap,
-        additionalInductionsIndices, additionalInductionsMap,
-        dimensionAccesses, numOfImplicitInductions, std::move(path));
+        additionalInductions, dimensionAccesses, numOfImplicitInductions,
+        std::move(path));
   }
 
   mlir::ValueRange LoadOp::derive(
@@ -1114,8 +1112,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::SmallVectorImpl<IndexSet>& additionalInductionsIndices,
-      llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
+      AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -1126,8 +1123,7 @@ namespace mlir::modelica
       mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(
-          explicitInductionsPositionMap, additionalInductionsIndices,
-          additionalInductionsMap, index);
+          explicitInductionsPositionMap, additionalInductions, index);
 
       if (!dimensionAccess) {
         return mlir::failure();
@@ -1144,8 +1140,8 @@ namespace mlir::modelica
 
     return sourceOp.getEquationAccesses(
         accesses, symbolTable, explicitInductionsPositionMap,
-        additionalInductionsIndices, additionalInductionsMap,
-        dimensionAccesses, numOfImplicitInductions, std::move(path));
+        additionalInductions, dimensionAccesses, numOfImplicitInductions,
+        std::move(path));
   }
 
   mlir::ValueRange SubscriptionOp::derive(
@@ -1508,8 +1504,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::SmallVectorImpl<IndexSet>& additionalInductionsIndices,
-      llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
+      AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
       uint64_t numOfImplicitInductions,
       EquationPath path)
@@ -9046,10 +9041,10 @@ namespace mlir::modelica
   }
 
   mlir::LogicalResult ReductionOp::mapAdditionalInductions(
-      llvm::SmallVectorImpl<IndexSet>& additionalInductionsIndices,
-      llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap)
+      AdditionalInductions& additionalInductions)
   {
-    IndexSet iterationSpace;
+    IndexSet indices;
+    llvm::SmallVector<std::pair<mlir::Value, uint64_t>> inductionsMap;
 
     for (const auto& [induction, iterable] :
          llvm::zip(getInductions(), getIterables())) {
@@ -9071,15 +9066,10 @@ namespace mlir::modelica
             rangeAttr.getUpperBound());
 
         Range range(lowerBound, upperBound);
+        indices = indices.append(IndexSet(MultidimensionalRange(range)));
 
-        iterationSpace = iterationSpace.append(
-            IndexSet(MultidimensionalRange(range)));
-
-        uint64_t currentDimension =
-            static_cast<uint64_t>(iterationSpace.rank() - 1);
-
-        additionalInductionsMap[induction] = std::make_pair(
-            additionalInductionsIndices.size(), currentDimension);
+        int64_t currentDimension = static_cast<uint64_t>(indices.rank() - 1);
+        inductionsMap.emplace_back(induction, currentDimension);
 
         continue;
       }
@@ -9094,13 +9084,10 @@ namespace mlir::modelica
             rangeAttr.getUpperBound().convertToDouble());
 
         Range range(lowerBound, upperBound);
-        iterationSpace.append(IndexSet(MultidimensionalRange(range)));
+        indices = indices.append(IndexSet(MultidimensionalRange(range)));
 
-        uint64_t currentDimension =
-            static_cast<uint64_t>(iterationSpace.rank() - 1);
-
-        additionalInductionsMap[induction] = std::make_pair(
-            additionalInductionsIndices.size(), currentDimension);
+        int64_t currentDimension = static_cast<uint64_t>(indices.rank() - 1);
+        inductionsMap.emplace_back(induction, currentDimension);
 
         continue;
       }
@@ -9108,7 +9095,14 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
-    additionalInductionsIndices.push_back(std::move(iterationSpace));
+    uint64_t iterationSpace =
+        additionalInductions.addIterationSpace(std::move(indices));
+
+    for (size_t i = 0, e = inductionsMap.size(); i < e; ++i) {
+      additionalInductions.addInductionVariable(
+          inductionsMap[i].first, iterationSpace, inductionsMap[i].second);
+    }
+
     return mlir::success();
   }
 }
@@ -9794,11 +9788,7 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    llvm::SmallVector<IndexSet> additionalInductionsIndices;
-
-    llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>
-    additionalInductionsMap;
-
+    AdditionalInductions additionalInductions;
     llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> dimensionAccesses;
 
     uint64_t numOfImplicitInductions =
@@ -9808,8 +9798,8 @@ namespace mlir::modelica
             mlir::dyn_cast<EquationExpressionOpInterface>(definingOp)) {
       return expressionInt.getEquationAccesses(
           accesses, symbolTable, explicitInductionsPositionMap,
-          additionalInductionsIndices, additionalInductionsMap,
-          dimensionAccesses, numOfImplicitInductions, std::move(path));
+          additionalInductions, dimensionAccesses, numOfImplicitInductions,
+          std::move(path));
     }
 
     return mlir::failure();

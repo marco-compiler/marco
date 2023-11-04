@@ -1,6 +1,7 @@
 #include "marco/Modeling/AccessFunctionGeneric.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
 #include "marco/Modeling/DimensionAccessDimension.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/raw_os_ostream.h"
 
 using namespace ::marco::modeling;
@@ -138,16 +139,17 @@ namespace marco::modeling
 
     os << ") -> (";
 
-    llvm::SmallVector<IndexSet*> indexSets;
+    llvm::DenseSet<const IndexSet*> iterationSpaces;
 
     for (const auto& result : getResults()) {
-      result->collectIndexSets(indexSets);
+      result->collectIterationSpaces(iterationSpaces);
     }
 
-    llvm::DenseMap<IndexSet*, uint64_t> indexSetsIds;
+    llvm::DenseMap<const IndexSet*, uint64_t> iterationSpacesIds;
+    uint64_t currentIterationSpaceId = 0;
 
-    for (size_t i = 0, e = indexSets.size(); i < e; ++i) {
-      indexSetsIds[indexSets[i]] = indexSets.size();
+    for (const IndexSet* iterationSpace : iterationSpaces) {
+      iterationSpacesIds[iterationSpace] = currentIterationSpaceId++;
     }
 
     for (size_t i = 0, e = getNumOfResults(); i < e; ++i) {
@@ -155,14 +157,15 @@ namespace marco::modeling
         os << ", ";
       }
 
-      getResults()[i]->dump(os, indexSetsIds);
+      getResults()[i]->dump(os, iterationSpacesIds);
     }
 
     os << ")";
 
-    if (!indexSets.empty()) {
-      for (size_t i = 0, e = indexSets.size(); i < e; ++i) {
-        os << ", e" << i << ": " << *indexSets[i];
+    if (!iterationSpacesIds.empty()) {
+      for (const IndexSet* iterationSpace : iterationSpaces) {
+        os << ", e" << iterationSpacesIds[iterationSpace] << ":"
+           << *iterationSpace;
       }
     }
 
@@ -222,12 +225,69 @@ namespace marco::modeling
   IndexSet AccessFunctionGeneric::map(const Point& point) const
   {
     IndexSet mappedIndices;
+    llvm::DenseMap<const IndexSet*, Point> currentIterationSpacePoint;
 
+    // Get the iteration spaces and the dependencies among their dimensions.
+    llvm::SmallVector<const IndexSet*, 10> iterationSpaces;
+
+    llvm::DenseMap<const IndexSet*, llvm::DenseSet<uint64_t>>
+    iterationSpacesDependencies;
+
+    collectIterationSpaces(iterationSpaces, iterationSpacesDependencies);
+
+    // Get the unique iteration spaces.
+    llvm::DenseSet<const IndexSet*> uniqueIterationSpaces(
+        iterationSpaces.begin(), iterationSpaces.end());
+
+    // Determine the iteration spaces with dependencies.
+    llvm::SmallVector<const IndexSet*, 10> iterationSpacesWithDependencies;
+
+    for (const IndexSet* iterationSpace : uniqueIterationSpaces) {
+      if (!iterationSpacesDependencies[iterationSpace].empty()) {
+        iterationSpacesWithDependencies.push_back(iterationSpace);
+      }
+    }
+
+    if (!iterationSpacesWithDependencies.empty()) {
+      map(mappedIndices, point, iterationSpacesWithDependencies, 0,
+          currentIterationSpacePoint);
+    }
+
+    // No dependencies among iteration spaces.
     for (const auto& result : getResults()) {
-      mappedIndices = mappedIndices.append(result->map(point));
+      mappedIndices = mappedIndices.append(
+          result->map(point, currentIterationSpacePoint));
     }
 
     return mappedIndices;
+  }
+
+  void AccessFunctionGeneric::map(
+      IndexSet& mappedIndices,
+      const Point& point,
+      llvm::ArrayRef<const IndexSet*> iterationSpaces,
+      size_t currentIterationSpace,
+      llvm::DenseMap<const IndexSet*, Point>& currentIterationSpacePoint) const
+  {
+    if (currentIterationSpace < iterationSpaces.size()) {
+      const IndexSet* iterationSpace = iterationSpaces[currentIterationSpace];
+
+      for (Point iterationSpacePoint :*iterationSpace) {
+        currentIterationSpacePoint[iterationSpace] = iterationSpacePoint;
+
+        map(mappedIndices, point, iterationSpaces, currentIterationSpace + 1,
+            currentIterationSpacePoint);
+      }
+    }
+
+    IndexSet currentMappedIndices;
+
+    for (const auto& result : getResults()) {
+      currentMappedIndices = currentMappedIndices.append(
+          result->map(point, currentIterationSpacePoint));
+    }
+
+    mappedIndices += currentMappedIndices;
   }
 
   IndexSet AccessFunctionGeneric::map(const IndexSet& indices) const
@@ -270,5 +330,16 @@ namespace marco::modeling
   AccessFunctionGeneric::getResults() const
   {
     return results;
+  }
+
+  void AccessFunctionGeneric::collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+      llvm::DenseMap<
+          const IndexSet*,
+          llvm::DenseSet<uint64_t>>& dependendentDimensions) const
+  {
+    for (const auto& result : getResults()) {
+      result->collectIterationSpaces(iterationSpaces, dependendentDimensions);
+    }
   }
 }

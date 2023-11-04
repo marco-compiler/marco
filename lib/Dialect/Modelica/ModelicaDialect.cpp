@@ -283,8 +283,7 @@ namespace mlir::modelica
 
   std::unique_ptr<DimensionAccess> getDimensionAccess(
       const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::ArrayRef<IndexSet> additionalInductionsIndices,
-      const llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
+      const AdditionalInductions& additionalInductions,
       mlir::Value value)
   {
     if (auto definingOp = value.getDefiningOp()) {
@@ -323,12 +322,10 @@ namespace mlir::modelica
 
       if (auto op = mlir::dyn_cast<AddOp>(definingOp)) {
         auto lhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getLhs());
+            explicitInductionsPositionMap, additionalInductions, op.getLhs());
 
         auto rhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getRhs());
+            explicitInductionsPositionMap, additionalInductions, op.getRhs());
 
         if (!lhs || !rhs) {
           return nullptr;
@@ -339,12 +336,10 @@ namespace mlir::modelica
 
       if (auto op = mlir::dyn_cast<SubOp>(definingOp)) {
         auto lhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getLhs());
+            explicitInductionsPositionMap, additionalInductions, op.getLhs());
 
         auto rhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getRhs());
+            explicitInductionsPositionMap, additionalInductions, op.getRhs());
 
         if (!lhs || !rhs) {
           return nullptr;
@@ -355,12 +350,10 @@ namespace mlir::modelica
 
       if (auto op = mlir::dyn_cast<MulOp>(definingOp)) {
         auto lhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getLhs());
+            explicitInductionsPositionMap, additionalInductions, op.getLhs());
 
         auto rhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getRhs());
+            explicitInductionsPositionMap, additionalInductions, op.getRhs());
 
         if (!lhs || !rhs) {
           return nullptr;
@@ -371,12 +364,10 @@ namespace mlir::modelica
 
       if (auto op = mlir::dyn_cast<DivOp>(definingOp)) {
         auto lhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getLhs());
+            explicitInductionsPositionMap, additionalInductions, op.getLhs());
 
         auto rhs = getDimensionAccess(
-            explicitInductionsPositionMap, additionalInductionsIndices,
-            additionalInductionsMap, op.getRhs());
+            explicitInductionsPositionMap, additionalInductions, op.getRhs());
 
         if (!lhs || !rhs) {
           return nullptr;
@@ -392,13 +383,13 @@ namespace mlir::modelica
           value.getContext(), it->getSecond());
     }
 
-    if (auto it = additionalInductionsMap.find(value);
-        it != additionalInductionsMap.end()) {
+    if (additionalInductions.hasInductionVariable(value)) {
       return std::make_unique<DimensionAccessIndices>(
           value.getContext(),
           std::make_shared<IndexSet>(
-              additionalInductionsIndices[it->getSecond().first]),
-          it->getSecond().second);
+              additionalInductions.getInductionSpace(value)),
+          additionalInductions.getInductionDimension(value),
+          additionalInductions.getInductionDependencies(value));
     }
 
     return nullptr;

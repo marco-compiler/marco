@@ -78,13 +78,22 @@ namespace marco::modeling
 
   llvm::raw_ostream& DimensionAccessRange::dump(
       llvm::raw_ostream& os,
-      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
+      const llvm::DenseMap<
+          const IndexSet*, uint64_t>& iterationSpacesIds) const
   {
     return os << getRange();
   }
 
-  void DimensionAccessRange::collectIndexSets(
-      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  void DimensionAccessRange::collectIterationSpaces(
+      llvm::DenseSet<const IndexSet*>& iterationSpaces) const
+  {
+  }
+
+  void DimensionAccessRange::collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+      llvm::DenseMap<
+          const IndexSet*,
+          llvm::DenseSet<uint64_t>>& dependentDimensions) const
   {
   }
 
@@ -101,7 +110,9 @@ namespace marco::modeling
         numOfDimensions + numOfFakeDimensions, getContext());
   }
 
-  IndexSet DimensionAccessRange::map(const Point& point) const
+  IndexSet DimensionAccessRange::map(
+      const Point& point,
+      llvm::DenseMap<const IndexSet*, Point>& currentIndexSetsPoint) const
   {
     return IndexSet{MultidimensionalRange(getRange())};
   }

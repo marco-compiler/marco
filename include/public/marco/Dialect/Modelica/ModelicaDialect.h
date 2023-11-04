@@ -47,8 +47,7 @@ namespace mlir::modelica
 
   std::unique_ptr<DimensionAccess> getDimensionAccess(
       const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      llvm::ArrayRef<IndexSet> additionalInductionsIndices,
-      const llvm::DenseMap<mlir::Value, std::pair<size_t, uint64_t>>& additionalInductionsMap,
+      const AdditionalInductions& additionalInductions,
       mlir::Value value);
 
   mlir::LogicalResult materializeAffineMap(

@@ -82,13 +82,22 @@ namespace marco::modeling
 
   llvm::raw_ostream& DimensionAccessConstant::dump(
       llvm::raw_ostream& os,
-      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
+      const llvm::DenseMap<
+          const IndexSet*, uint64_t>& iterationSpacesIds) const
   {
     return os << getValue();
   }
 
-  void DimensionAccessConstant::collectIndexSets(
-      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  void DimensionAccessConstant::collectIterationSpaces(
+      llvm::DenseSet<const IndexSet*>& iterationSpaces) const
+  {
+  }
+
+  void DimensionAccessConstant::collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+      llvm::DenseMap<
+          const IndexSet*,
+          llvm::DenseSet<uint64_t>>& dependentDimensions) const
   {
   }
 
@@ -109,7 +118,9 @@ namespace marco::modeling
     return mlir::getAffineConstantExpr(getValue(), getContext());
   }
 
-  IndexSet DimensionAccessConstant::map(const Point& point) const
+  IndexSet DimensionAccessConstant::map(
+      const Point& point,
+      llvm::DenseMap<const IndexSet*, Point>& currentIndexSetsPoint) const
   {
     return {Point(getValue())};
   }

@@ -3,6 +3,10 @@
 
 namespace marco::modeling
 {
+  Point::Point() : Point(0)
+  {
+  }
+
   Point::Point(Point::data_type value)
   {
     values.push_back(std::move(value));

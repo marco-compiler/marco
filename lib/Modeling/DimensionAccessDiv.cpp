@@ -84,19 +84,30 @@ namespace marco::modeling
 
   llvm::raw_ostream& DimensionAccessDiv::dump(
       llvm::raw_ostream& os,
-      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
+      const llvm::DenseMap<
+          const IndexSet*, uint64_t>& iterationSpacesIds) const
   {
     os << "(";
-    getFirst().dump(os, indexSetsIds) << " / ";
-    getSecond().dump(os,indexSetsIds) << ")";
+    getFirst().dump(os, iterationSpacesIds) << " / ";
+    getSecond().dump(os,iterationSpacesIds) << ")";
     return os;
   }
 
-  void DimensionAccessDiv::collectIndexSets(
-      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  void DimensionAccessDiv::collectIterationSpaces(
+      llvm::DenseSet<const IndexSet*>& iterationSpaces) const
   {
-    getFirst().collectIndexSets(indexSets);
-    getSecond().collectIndexSets(indexSets);
+    getFirst().collectIterationSpaces(iterationSpaces);
+    getSecond().collectIterationSpaces(iterationSpaces);
+  }
+
+  void DimensionAccessDiv::collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+      llvm::DenseMap<
+          const IndexSet*,
+          llvm::DenseSet<uint64_t>>& dependentDimensions) const
+  {
+    getFirst().collectIterationSpaces(iterationSpaces, dependentDimensions);
+    getSecond().collectIterationSpaces(iterationSpaces, dependentDimensions);
   }
 
   bool DimensionAccessDiv::isAffine() const
@@ -123,13 +134,15 @@ namespace marco::modeling
     return firstExpr.floorDiv(secondExpr);
   }
 
-  IndexSet DimensionAccessDiv::map(const Point& point) const
+  IndexSet DimensionAccessDiv::map(
+      const Point& point,
+      llvm::DenseMap<const IndexSet*, Point>& currentIndexSetsPoint) const
   {
     const DimensionAccess& lhs = getFirst();
     const DimensionAccess& rhs = getSecond();
 
-    IndexSet mappedLhs = lhs.map(point);
-    IndexSet mappedRhs = rhs.map(point);
+    IndexSet mappedLhs = lhs.map(point, currentIndexSetsPoint);
+    IndexSet mappedRhs = rhs.map(point, currentIndexSetsPoint);
 
     IndexSet result;
     llvm::SmallVector<Point::data_type, 10> coordinates;

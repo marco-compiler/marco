@@ -3,6 +3,7 @@
 
 #include "marco/Modeling/DimensionAccess.h"
 #include "marco/Modeling/IndexSet.h"
+#include "llvm/ADT/DenseSet.h"
 
 namespace marco::modeling
 {
@@ -12,7 +13,8 @@ namespace marco::modeling
       DimensionAccessIndices(
           mlir::MLIRContext* context,
           std::shared_ptr<IndexSet> space,
-          uint64_t dimension);
+          uint64_t dimension,
+          llvm::DenseSet<uint64_t> dimensionDependencies);
 
       DimensionAccessIndices(const DimensionAccessIndices& other);
 
@@ -47,17 +49,26 @@ namespace marco::modeling
 
       llvm::raw_ostream& dump(
           llvm::raw_ostream& os,
-          const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds)
+          const llvm::DenseMap<const IndexSet*, uint64_t>& iterationSpacesIds)
           const override;
 
-      void collectIndexSets(
-          llvm::SmallVectorImpl<IndexSet*>& indexSets) const override;
+      void collectIterationSpaces(
+          llvm::DenseSet<const IndexSet*>& iterationSpaces) const override;
+
+      void collectIterationSpaces(
+          llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+          llvm::DenseMap<
+              const IndexSet*,
+              llvm::DenseSet<uint64_t>>& dependentDimensions) const override;
 
       [[nodiscard]] mlir::AffineExpr getAffineExpr(
           unsigned int numOfDimensions,
           FakeDimensionsMap& fakeDimensionsMap) const override;
 
-      [[nodiscard]] IndexSet map(const Point& point) const override;
+      [[nodiscard]] IndexSet map(
+          const Point& point,
+          llvm::DenseMap<
+              const IndexSet*, Point>& currentIndexSetsPoint) const override;
 
       [[nodiscard]] IndexSet& getIndices();
 
@@ -66,6 +77,7 @@ namespace marco::modeling
     private:
       std::shared_ptr<IndexSet> space;
       uint64_t dimension;
+      llvm::DenseSet<uint64_t> dimensionDependencies;
   };
 }
 

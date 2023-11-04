@@ -8,10 +8,12 @@ namespace marco::modeling
   DimensionAccessIndices::DimensionAccessIndices(
       mlir::MLIRContext* context,
       std::shared_ptr<IndexSet> space,
-      uint64_t dimension)
+      uint64_t dimension,
+      llvm::DenseSet<uint64_t> dimensionDependencies)
       : DimensionAccess(DimensionAccess::Kind::Indices, context),
         space(space),
-        dimension(dimension)
+        dimension(dimension),
+        dimensionDependencies(std::move(dimensionDependencies))
   {
     assert(dimension < space->rank());
   }
@@ -44,6 +46,7 @@ namespace marco::modeling
 
     swap(first.space, second.space);
     swap(first.dimension, second.dimension);
+    swap(first.dimensionDependencies, second.dimensionDependencies);
   }
 
   std::unique_ptr<DimensionAccess> DimensionAccessIndices::clone() const
@@ -83,17 +86,34 @@ namespace marco::modeling
 
   llvm::raw_ostream& DimensionAccessIndices::dump(
       llvm::raw_ostream& os,
-      const llvm::DenseMap<IndexSet*, uint64_t>& indexSetsIds) const
+      const llvm::DenseMap<
+          const IndexSet*, uint64_t>& iterationSpacesIds) const
   {
-    auto it = indexSetsIds.find(space.get());
-    assert(it != indexSetsIds.end());
+    auto it = iterationSpacesIds.find(space.get());
+    assert(it != iterationSpacesIds.end());
     return os << "e" << it->getSecond() << "[" << dimension << "]";
   }
 
-  void DimensionAccessIndices::collectIndexSets(
-      llvm::SmallVectorImpl<IndexSet*>& indexSets) const
+  void DimensionAccessIndices::collectIterationSpaces(
+      llvm::DenseSet<const IndexSet*>& iterationSpaces) const
   {
-    indexSets.push_back(space.get());
+    iterationSpaces.insert(space.get());
+  }
+
+  void DimensionAccessIndices::collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
+      llvm::DenseMap<
+          const IndexSet*,
+          llvm::DenseSet<uint64_t>>& dependentDimensions) const
+  {
+    iterationSpaces.push_back(space.get());
+
+    if (!dimensionDependencies.empty()) {
+      dependentDimensions[space.get()].insert(dimension);
+
+      dependentDimensions[space.get()].insert(
+          dimensionDependencies.begin(), dimensionDependencies.end());
+    }
   }
 
   mlir::AffineExpr DimensionAccessIndices::getAffineExpr(
@@ -109,9 +129,26 @@ namespace marco::modeling
         numOfDimensions + numOfFakeDimensions, getContext());
   }
 
-  IndexSet DimensionAccessIndices::map(const Point& point) const
+  IndexSet DimensionAccessIndices::map(
+      const Point& point,
+      llvm::DenseMap<const IndexSet*, Point>& currentIndexSetsPoint) const
   {
-    return getIndices();
+    IndexSet allIndices = getIndices();
+
+    if (dimensionDependencies.empty()) {
+      IndexSet result;
+
+      for (const MultidimensionalRange& range : llvm::make_range(
+               allIndices.rangesBegin(), allIndices.rangesEnd())) {
+        result += MultidimensionalRange(range[dimension]);
+      }
+
+      return result;
+    }
+
+    auto pointIt = currentIndexSetsPoint.find(space.get());
+    assert(pointIt != currentIndexSetsPoint.end());
+    return {Point(pointIt->getSecond()[dimension])};
   }
 
   IndexSet& DimensionAccessIndices::getIndices()
