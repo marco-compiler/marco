@@ -80,7 +80,7 @@ tools = [
 ]
 
 # Search for OMC.
-if FindTool("omc") != None:
+if lit.util.which("omc") != None:
     config.available_features.add("omc")
 
 llvm_config.add_tool_substitutions(tools, tool_dirs)
