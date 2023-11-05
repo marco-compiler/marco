@@ -64,7 +64,7 @@ namespace marco::frontend
     if (ci->getFrontendOptions().showHelp) {
       getDriverOptTable().printHelp(
           llvm::outs(),
-          "marco -mc1 [options] input-files", "MARCO Modelica frontend",
+          "marco -mc1 [options] file...", "MARCO Modelica frontend",
           llvm::opt::DriverFlag::HelpHidden,
           false,
           llvm::opt::Visibility(clang::driver::options::MC1Option));
