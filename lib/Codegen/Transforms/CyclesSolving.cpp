@@ -87,7 +87,15 @@ void CyclesSolvingPass::runOnOperation()
   ModelOp modelOp = getOperation();
 
   if (mlir::failed(processModelOp(modelOp))) {
-      return signalPassFailure();
+    return signalPassFailure();
+  }
+
+  // Remove the unused equation templates.
+  for (EquationTemplateOp templateOp : llvm::make_early_inc_range(
+           modelOp.getOps<EquationTemplateOp>())) {
+    if (templateOp.use_empty()) {
+      templateOp.erase();
+    }
   }
 
   // Determine the analyses to be preserved.
