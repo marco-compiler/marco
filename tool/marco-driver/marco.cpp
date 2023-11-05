@@ -10,10 +10,16 @@
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/VirtualFileSystem.h"
+#include "llvm/TargetParser/Host.h"
 #include "marco/Frontend/TextDiagnosticPrinter.h"
+
+#define BUG_REPORT_URL "https://github.com/modelica-polimi/marco/issues/"
+
+static const char *BugReportMsg =
+    "PLEASE submit a bug report to " BUG_REPORT_URL
+    " and include the crash backtrace.\n";
 
 extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0);
 
@@ -69,12 +75,14 @@ int main(int argc, const char** argv)
   llvm::InitLLVM x(argc, argv);
   llvm::SmallVector<const char *, 256> args(argv, argv + argc);
 
-  clang::driver::ParsedClangName targetandMode("marco", "--driver-mode=marco");
+  clang::driver::ParsedClangName targetAndMode("marco", "--driver-mode=marco");
   std::string driverPath = getExecutablePath(args[0]);
 
   llvm::BumpPtrAllocator a;
   llvm::StringSaver saver(a);
   ExpandResponseFiles(saver, args);
+
+  llvm::setBugReportMsg(BugReportMsg);
 
   // Check if marco is in the frontend mode
   auto firstArg = std::find_if(args.begin() + 1, args.end(),
@@ -105,7 +113,7 @@ int main(int argc, const char** argv)
   clang::driver::Driver theDriver(driverPath,
                                   llvm::sys::getDefaultTargetTriple(), diags,
                                   "marco LLVM compiler");
-  theDriver.setTargetAndMode(targetandMode);
+  theDriver.setTargetAndMode(targetAndMode);
   std::unique_ptr<clang::driver::Compilation> c(
       theDriver.BuildCompilation(args));
   llvm::SmallVector<std::pair<int, const clang::driver::Command *>, 4>
