@@ -247,27 +247,29 @@ namespace marco::frontend
     }
 
     // Create the file in which OMC will write.
-    std::unique_ptr<llvm::raw_pwrite_stream> os;
+    llvm::SmallVector<char, 128> tmpPath;
+    llvm::sys::path::system_temp_directory(true, tmpPath);
+    llvm::sys::path::append(tmpPath, "marco_omc_%%%%%%.bmo");
 
-    std::string omcOutputFileName =
-        ci.getSimulationOptions().modelName + ".bmo";
+    llvm::Expected<llvm::sys::fs::TempFile> tempFile =
+        llvm::sys::fs::TempFile::create(tmpPath);
 
-    if (!ci.createOutputFile(omcOutputFileName, false, false)) {
+    if (!tempFile) {
       ci.getDiagnostics().emitFatalError<GenericStringMessage>(
           "Can't create OMC output file");
 
       return false;
     }
 
-    cmd.setStdoutRedirect(omcOutputFileName);
+    cmd.setStdoutRedirect(tempFile->TmpName);
     int resultCode = cmd.exec();
 
     if (resultCode == EXIT_SUCCESS) {
-      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(omcOutputFileName);
+      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(tempFile->TmpName);
       auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
 
       if (!buffer) {
-        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(omcOutputFileName);
+        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(tempFile->TmpName);
         llvm::consumeError(buffer.takeError());
         return false;
       }
@@ -275,8 +277,10 @@ namespace marco::frontend
       flattened = (*buffer)->getBuffer().str();
     }
 
-    if (auto ec = llvm::sys::fs::remove(omcOutputFileName)) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>(ec.message());
+    if (auto ec = tempFile->discard()) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+          "Can't erase the temporary OMC output file");
+
       return false;
     }
 
