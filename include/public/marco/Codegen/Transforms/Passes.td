@@ -348,7 +348,7 @@ def CyclesSolvingPass : Pass<"solve-cycles", "ModelOp">
     ];
 
     let options = [
-        Option<"maxIterations", "max-iterations", "int64_t", "",
+        Option<"maxIterations", "max-iterations", "int64_t", "1000",
                "Set the maximum number of iterations">,
         Option<"allowUnsolvedCycles", "allow-unsolved-cycles", "bool", "false",
                "Set whether the pass should fail in case of remaining unsolved cycles">
