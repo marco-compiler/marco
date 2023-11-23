@@ -1905,7 +1905,7 @@ namespace mlir::modelica
 
   void ConstantOp::printExpression(llvm::raw_ostream& os)
   {
-    os << getValue();
+    getValue().print(os, true);
   }
 
   mlir::ValueRange ConstantOp::derive(
