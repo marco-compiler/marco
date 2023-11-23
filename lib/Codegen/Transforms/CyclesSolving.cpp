@@ -387,6 +387,16 @@ mlir::LogicalResult CyclesSolvingPass::getCycles(
     llvm::dbgs() << "Searching cycles among the following equations:\n";
 
     for (MatchedEquationInstanceOp equationOp : equations) {
+      auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
+      llvm::dbgs() << "[writing ";
+
+      if (!matchedAccess) {
+        llvm::dbgs() << "<unknown>";
+      } else {
+        llvm::dbgs() << matchedAccess->getVariable();
+      }
+
+      llvm::dbgs() << "] ";
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     }
@@ -480,24 +490,39 @@ static mlir::LogicalResult solveCycle(
 
   LLVM_DEBUG(llvm::dbgs() << "Cycle index: " << index << "\n");
 
-  LLVM_DEBUG(llvm::dbgs() << "Reading equation:\n"
-                          << readingEquationOp.getTemplate() << "\n"
-                          << readingEquationOp << "\n");
+  LLVM_DEBUG({
+      llvm::dbgs() << "Reading equation:\n";
+      readingEquationOp.printInline(llvm::dbgs());
+
+      llvm::dbgs() << "\n"
+                   << "Read variable: "
+                   << readingEquation.readAccess.getVariable()
+                   << "\n";
+  });
 
   const AccessFunction& readAccessFunction =
       readingEquation.readAccess.getAccessFunction();
 
   for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
-    LLVM_DEBUG(llvm::dbgs() << "Writing equation:\n"
-                            << writingEquationOp.getTemplate() << "\n"
-                            << writingEquationOp << "\n");
+    LLVM_DEBUG({
+        llvm::dbgs() << "Writing equation:\n";
+        writingEquationOp.printInline(llvm::dbgs());
+        llvm::dbgs() << "\n";
+    });
 
     MatchedEquationInstanceOp explicitWritingEquationOp =
         writingEquationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
 
     if (!explicitWritingEquationOp) {
+      LLVM_DEBUG(llvm::dbgs() << "The writing equation can't be made explicit\n");
       return mlir::failure();
     }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Explicit writing equation:\n";
+      explicitWritingEquationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
 
     auto removeExplicitEquation = llvm::make_scope_exit([&]() {
       rewriter.eraseOp(explicitWritingEquationOp);
@@ -553,8 +578,9 @@ static mlir::LogicalResult solveCycle(
   LLVM_DEBUG({
     llvm::dbgs() << "New equations:\n";
 
-    for (MatchedEquationInstanceOp equation : newEquations) {
-      llvm::dbgs() << equation.getTemplate() << "\n" << equation << "\n";
+    for (MatchedEquationInstanceOp equationOp : newEquations) {
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
     }
   });
 
@@ -570,8 +596,15 @@ static mlir::LogicalResult solveCycle(
   LLVM_DEBUG({
     llvm::dbgs() << "Solving cycle composed by the following equations:\n";
 
+    for (size_t i = 0, e = cycle.size(); i < e - 1; ++i) {
+      llvm::dbgs() << cycle[i].writeAccess.getVariable() << " -> ";
+    }
+
+    llvm::dbgs() << cycle.back().writeAccess.getVariable() << "\n";
+
     for (const CyclicEquation& cyclicEquation : cycle) {
       MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+      llvm::dbgs() << "[writing " << cyclicEquation.writeAccess.getVariable() << "] ";
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     }
