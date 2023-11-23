@@ -596,11 +596,11 @@ static mlir::LogicalResult solveCycle(
   LLVM_DEBUG({
     llvm::dbgs() << "Solving cycle composed by the following equations:\n";
 
-    for (size_t i = 0, e = cycle.size(); i < e - 1; ++i) {
-      llvm::dbgs() << cycle[i].writeAccess.getVariable() << " -> ";
+    for (const CyclicEquation& cyclicEquation : cycle) {
+      llvm::dbgs() << cyclicEquation.writeAccess.getVariable() << " -> ";
     }
 
-    llvm::dbgs() << cycle.back().writeAccess.getVariable() << "\n";
+    llvm::dbgs() << cycle.back().readAccess.getVariable() << "\n";
 
     for (const CyclicEquation& cyclicEquation : cycle) {
       MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
@@ -611,6 +611,28 @@ static mlir::LogicalResult solveCycle(
   });
 
   return ::solveCycle(rewriter, symbolTableCollection, cycle, 0, newEquations);
+}
+
+static bool isContainedInBiggerSCC(
+    const Cycle& cycle, llvm::ArrayRef<Cycle> cycles)
+{
+  for (const Cycle& otherCycle : cycles) {
+    if (otherCycle.size() <= cycle.size()) {
+      continue;
+    }
+
+    bool equal = true;
+
+    for (size_t i = 0, e = cycle.size(); i < e && equal; ++i) {
+      equal &= cycle[i].equation == otherCycle[i].equation;
+    }
+
+    if (equal) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 mlir::LogicalResult CyclesSolvingPass::solveCycles(
@@ -655,6 +677,11 @@ mlir::LogicalResult CyclesSolvingPass::solveCycles(
 
     for (const Cycle& cycle : cycles) {
       currentEquations.clear();
+
+      if (isContainedInBiggerSCC(cycle, cycles)) {
+        continue;
+      }
+
       llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
       if (mlir::succeeded(::solveCycle(
