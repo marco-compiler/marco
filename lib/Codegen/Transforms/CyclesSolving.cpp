@@ -661,8 +661,9 @@ mlir::LogicalResult CyclesSolvingPass::solveCycles(
   }
 
   bool atLeastOneChanged;
+  int64_t currentIteration = 0;
 
-  while (!cycles.empty()) {
+  while (!cycles.empty() && currentIteration++ < maxIterations) {
     // Collect all the equation indices leading to cycles.
     llvm::DenseMap<MatchedEquationInstanceOp, IndexSet> cyclicIndices;
 
