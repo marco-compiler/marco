@@ -10752,7 +10752,7 @@ namespace mlir::modelica
     // Compute the replacement value.
     mlir::Value mappedReplacement =
         replacementMapping.lookup(replacementEquation.getValueAtPath(
-            EquationPath(EquationPath::RIGHT, access.getPath()[0])));
+            EquationPath(EquationPath::RIGHT, replacementAccess.getPath()[0])));
 
     // The optional additional subscription indices.
     llvm::SmallVector<mlir::Value, 3> additionalMappedSubscriptions;
