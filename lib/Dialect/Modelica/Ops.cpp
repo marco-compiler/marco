@@ -1900,7 +1900,7 @@ namespace mlir::modelica
 {
   mlir::OpFoldResult ConstantOp::fold(FoldAdaptor adaptor)
   {
-    return getValue();
+    return getValue().cast<mlir::Attribute>();
   }
 
   void ConstantOp::printExpression(llvm::raw_ostream& os)
