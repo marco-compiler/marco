@@ -1905,6 +1905,31 @@ namespace mlir::modelica
 
   void ConstantOp::printExpression(llvm::raw_ostream& os)
   {
+    if (auto boolAttr = getValue().dyn_cast<BooleanAttr>()) {
+      os << (boolAttr.getValue() ? "true" : "false");
+      return;
+    }
+
+    if (auto integerAttr = getValue().dyn_cast<IntegerAttr>()) {
+      os << integerAttr.getValue();
+      return;
+    }
+
+    if (auto realAttr = getValue().dyn_cast<RealAttr>()) {
+      os << realAttr.getValue().convertToDouble();
+      return;
+    }
+
+    if (auto integerAttr = getValue().dyn_cast<mlir::IntegerAttr>()) {
+      os << integerAttr.getValue();
+      return;
+    }
+
+    if (auto floatAttr = getValue().dyn_cast<FloatAttr>()) {
+      os << floatAttr.getValueAsDouble();
+      return;
+    }
+
     getValue().print(os, true);
   }
 
