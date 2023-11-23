@@ -55,6 +55,10 @@ def EquationExpressionOpInterface
 
     let methods = [
         InterfaceMethod<
+            "Print inline representation of the expression.",
+            "void", "printExpression",
+            (ins "::llvm::raw_ostream&":$os)>,
+        InterfaceMethod<
             "Get the number of elements.",
             "uint64_t", "getNumOfExpressionElements",
             (ins), [{}], [{

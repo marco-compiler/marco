@@ -670,6 +670,13 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
 
   while (!processedEquations.empty()) {
     ScheduledEquationInstanceOp equationOp = processedEquations.front();
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Current equation\n";
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
+
     IndexSet equationIndices = equationOp.getIterationSpace();
 
     // Get the accesses of the equation.
@@ -2159,25 +2166,30 @@ mlir::LogicalResult IDASolver::solveICModel(
 
         for (ScheduledEquationInstanceOp equationOp : equationOps) {
           if (idaInstance->hasEquation(equationOp)) {
-            LLVM_DEBUG(llvm::dbgs() << "Equation already handled by IDA\n"
-                                    << equationOp << "\n"
-                                    << equationOp.getTemplate() << "\n");
+            LLVM_DEBUG({
+              llvm::dbgs() << "Equation already handled by IDA\n";
+              equationOp.printInline(llvm::dbgs());
+              llvm::dbgs() << "\n";
+            });
 
             continue;
           }
 
-          LLVM_DEBUG(llvm::dbgs() << "Explicitating equation\n"
-                                  << equationOp << "\n"
-                                  << equationOp.getTemplate() << "\n");
+          LLVM_DEBUG({
+              llvm::dbgs() << "Explicitating equation\n";
+              equationOp.printInline(llvm::dbgs());
+              llvm::dbgs() << "\n";
+          });
 
           auto explicitEquationOp = equationOp.cloneAndExplicitate(
               rewriter, symbolTableCollection);
 
           if (explicitEquationOp) {
-            LLVM_DEBUG(llvm::dbgs() << "Add explicit equation\n"
-                                    << explicitEquationOp << "\n"
-                                    << explicitEquationOp.getTemplate()
-                                    << "\n");
+            LLVM_DEBUG({
+                llvm::dbgs() << "Add explicit equation\n";
+                explicitEquationOp.printInline(llvm::dbgs());
+                llvm::dbgs() << "\n";
+            });
 
             explicitEquations.insert(explicitEquationOp);
             rewriter.eraseOp(equationOp);
@@ -2265,9 +2277,11 @@ mlir::LogicalResult IDASolver::solveICModel(
               modelOp, writtenVariable);
 
       if (idaInstance->hasVariable(writtenVariableOp)) {
-        LLVM_DEBUG(llvm::dbgs() << "Add equation\n"
-                                << equationOp << "\n"
-                                << equationOp.getTemplate() << "\n");
+        LLVM_DEBUG({
+            llvm::dbgs() << "Add equation\n";
+            equationOp.printInline(llvm::dbgs());
+            llvm::dbgs() << "\n";
+        });
 
         idaInstance->addEquation(equationOp);
       }
@@ -2305,9 +2319,11 @@ mlir::LogicalResult IDASolver::addICModelEquation(
     IDAInstance& idaInstance,
     ScheduledEquationInstanceOp equationOp)
 {
-  LLVM_DEBUG(llvm::dbgs() << "Add equation\n"
-                          << equationOp << "\n"
-                          << equationOp.getTemplate() << "\n");
+  LLVM_DEBUG({
+      llvm::dbgs() << "Add equation\n";
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
+  });
 
   idaInstance.addEquation(equationOp);
 
@@ -2384,9 +2400,11 @@ mlir::LogicalResult IDASolver::solveMainModel(
             equationOp.getMatchedAccess(symbolTableCollection);
 
         if (!writeAccess) {
-          LLVM_DEBUG(llvm::dbgs() << "Can't get write access for equation\n"
-                                  << equationOp << "\n"
-                                  << equationOp.getTemplate() << "\n");
+          LLVM_DEBUG({
+              llvm::dbgs() << "Can't get write access for equation\n";
+              equationOp.printInline(llvm::dbgs());
+              llvm::dbgs() << "\n";
+          });
 
           return mlir::failure();
         }
@@ -2398,10 +2416,13 @@ mlir::LogicalResult IDASolver::solveMainModel(
                 modelOp, writtenVariable);
 
         if (idaInstance->hasVariable(writtenVariableOp)) {
-          LLVM_DEBUG(llvm::dbgs() << "Add equation writing to variable "
-                                  << writtenVariableOp.getSymName() << "\n"
-                                  << equationOp << "\n"
-                                  << equationOp.getTemplate() << "\n");
+          LLVM_DEBUG({
+              llvm::dbgs() << "Add equation writing to variable "
+                           << writtenVariableOp.getSymName() << "\n";
+
+              equationOp.printInline(llvm::dbgs());
+              llvm::dbgs() << "\n";
+          });
 
           idaInstance->addEquation(equationOp);
         }
@@ -2426,25 +2447,29 @@ mlir::LogicalResult IDASolver::solveMainModel(
         for (ScheduledEquationInstanceOp equationOp : equationOps) {
           if (idaInstance->hasEquation(equationOp)) {
             // Skip the equation if it is already handled by IDA.
-            LLVM_DEBUG(llvm::dbgs() << "Equation already handled by IDA\n"
-                                    << equationOp << "\n"
-                                    << equationOp.getTemplate() << "\n");
+            LLVM_DEBUG({
+                llvm::dbgs() << "Equation already handled by IDA\n";
+                equationOp.printInline(llvm::dbgs());
+                llvm::dbgs() << "\n";
+            });
 
             continue;
           }
 
-          LLVM_DEBUG(llvm::dbgs() << "Explicitating equation\n"
-                                  << equationOp << "\n"
-                                  << equationOp.getTemplate() << "\n");
+          LLVM_DEBUG({
+              llvm::dbgs() << "Explicitating equation\n";
+              equationOp.printInline(llvm::dbgs());
+              llvm::dbgs() << "\n";
+          });
 
           auto explicitEquationOp =
               equationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
 
           if (explicitEquationOp) {
-            LLVM_DEBUG(llvm::dbgs() << "Add explicit equation\n"
-                                    << explicitEquationOp << "\n"
-                                    << explicitEquationOp.getTemplate()
-                                    << "\n");
+            LLVM_DEBUG({
+                llvm::dbgs() << "Add explicit equation\n";
+                explicitEquationOp.printInline(llvm::dbgs());
+            });
 
             explicitEquations.insert(explicitEquationOp);
             rewriter.eraseOp(equationOp);
@@ -2546,9 +2571,11 @@ mlir::LogicalResult IDASolver::solveMainModel(
               modelOp, writtenVariable);
 
       if (idaInstance->hasVariable(writtenVariableOp)) {
-        LLVM_DEBUG(llvm::dbgs() << "Add equation\n"
-                                << equationOp << "\n"
-                                << equationOp.getTemplate() << "\n");
+        LLVM_DEBUG({
+            llvm::dbgs() << "Add equation\n";
+            equationOp.printInline(llvm::dbgs());
+            llvm::dbgs() << "\n";
+        });
 
         idaInstance->addEquation(equationOp);
       }
@@ -2602,9 +2629,11 @@ mlir::LogicalResult IDASolver::addMainModelEquation(
     IDAInstance& idaInstance,
     ScheduledEquationInstanceOp equationOp)
 {
-  LLVM_DEBUG(llvm::dbgs() << "Add equation\n"
-                          << equationOp << "\n"
-                          << equationOp.getTemplate() << "\n");
+  LLVM_DEBUG({
+      llvm::dbgs() << "Add equation\n";
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
+  });
 
   idaInstance.addEquation(equationOp);
 

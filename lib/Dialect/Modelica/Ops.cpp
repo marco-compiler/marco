@@ -111,6 +111,25 @@ static mlir::Operation* resolveSymbol(
   return result;
 }
 
+static void printExpression(llvm::raw_ostream& os, mlir::Value value)
+{
+  mlir::Operation* op = value.getDefiningOp();
+
+  if (!op) {
+    os << "(" << value << ")";
+    return;
+  }
+
+  auto expressionOp = mlir::dyn_cast<EquationExpressionOpInterface>(op);
+
+  if (!expressionOp) {
+    os << "(" << value << ")";
+    return;
+  }
+
+  expressionOp.printExpression(os);
+}
+
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.cpp.inc"
 
@@ -485,6 +504,17 @@ namespace mlir::modelica
     return {};
   }
 
+  void ArrayFromElementsOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "{";
+
+    llvm::interleaveComma(getValues(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << "}";
+  }
+
   void ArrayFromElementsOp::getEffects(
       mlir::SmallVectorImpl<
           mlir::SideEffects::EffectInstance<
@@ -557,6 +587,21 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  void ArrayBroadcastOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "{";
+
+    for (int64_t i = 0, e = getArrayType().getNumElements(); i < e; ++i) {
+      if (i != 0) {
+        os << ", ";
+      }
+
+      ::printExpression(os, getValue());
+    }
+
+    os << "}";
+  }
+
   mlir::ValueRange ArrayBroadcastOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -604,6 +649,17 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ArrayCastOp
+
+namespace mlir::modelica
+{
+  void ArrayCastOp::printExpression(llvm::raw_ostream& os)
+  {
+    ::printExpression(os, getOperand());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // DimOp
 
 namespace
@@ -645,6 +701,15 @@ namespace mlir::modelica
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {
     patterns.add<DimOpStaticDimensionPattern>(context);
+  }
+
+  void DimOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "dim(";
+    ::printExpression(os, getArray());
+    os << ", ";
+    ::printExpression(os, getDimension());
+    os << ")";
   }
 }
 
@@ -795,6 +860,18 @@ namespace mlir::modelica
         mlir::MemoryEffects::Read::get(),
         getArray(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void LoadOp::printExpression(llvm::raw_ostream& os)
+  {
+    ::printExpression(os, getArray());
+    os << "[";
+
+    llvm::interleaveComma(getIndices(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << "]";
   }
 
   mlir::LogicalResult LoadOp::getEquationAccesses(
@@ -1106,6 +1183,18 @@ namespace mlir::modelica
     patterns.add<
         InferSubscriptionResultTypePattern,
         MergeSubscriptionsPattern>(context);
+  }
+
+  void SubscriptionOp::printExpression(llvm::raw_ostream& os)
+  {
+    ::printExpression(os, getSource());
+    os << "[";
+
+    llvm::interleaveComma(getIndices(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << "]";
   }
 
   mlir::LogicalResult SubscriptionOp::getEquationAccesses(
@@ -1500,6 +1589,11 @@ namespace mlir::modelica
     return mlir::success();
   }
 
+  void VariableGetOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << getVariable();
+  }
+
   mlir::LogicalResult VariableGetOp::getEquationAccesses(
       llvm::SmallVectorImpl<VariableAccess>& accesses,
       mlir::SymbolTableCollection& symbolTable,
@@ -1809,6 +1903,11 @@ namespace mlir::modelica
     return getValue();
   }
 
+  void ConstantOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << getValue();
+  }
+
   mlir::ValueRange ConstantOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -1887,6 +1986,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void NegateOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(- ";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::Value NegateOp::inverse(
@@ -2242,6 +2348,15 @@ namespace mlir::modelica
     }
   }
 
+  void AddOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " + ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
+
   mlir::Value AddOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
@@ -2573,6 +2688,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void AddEWOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " .+ ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 
   mlir::Value AddEWOp::inverse(
@@ -2907,6 +3031,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void SubOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " - ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 
   mlir::Value SubOp::inverse(
@@ -3245,6 +3378,15 @@ namespace mlir::modelica
     }
   }
 
+  void SubEWOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " .- ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
+
   mlir::Value SubEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
@@ -3581,6 +3723,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void MulOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " * ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 
   mlir::Value MulOp::inverse(
@@ -3955,6 +4106,15 @@ namespace mlir::modelica
     }
   }
 
+  void MulEWOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " .* ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
+
   mlir::Value MulEWOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
@@ -4325,6 +4485,15 @@ namespace mlir::modelica
     }
   }
 
+  void DivOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " / ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
+
   mlir::Value DivOp::inverse(
       mlir::OpBuilder& builder,
       unsigned int argumentIndex,
@@ -4686,6 +4855,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void DivEWOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " ./ ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 
   mlir::Value DivEWOp::inverse(
@@ -5059,6 +5237,15 @@ namespace mlir::modelica
     }
   }
 
+  void PowOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getBase());
+    os << " ^ ";
+    ::printExpression(os, getExponent());
+    os << ")";
+  }
+
   mlir::ValueRange PowOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -5208,6 +5395,15 @@ namespace mlir::modelica
     }
   }
 
+  void PowEWOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getBase());
+    os << " .^ ";
+    ::printExpression(os, getExponent());
+    os << ")";
+  }
+
   mlir::ValueRange PowEWOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -5307,6 +5503,15 @@ namespace mlir::modelica
 
     return {};
   }
+
+  void EqOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " == ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -5352,6 +5557,15 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void NotEqOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " != ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 }
 
@@ -5399,6 +5613,15 @@ namespace mlir::modelica
 
     return {};
   }
+
+  void GtOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " > ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -5444,6 +5667,15 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void GteOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " >= ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 }
 
@@ -5491,6 +5723,15 @@ namespace mlir::modelica
 
     return {};
   }
+
+  void LtOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " < ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -5536,6 +5777,15 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void LteOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " <= ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 }
 
@@ -5596,6 +5846,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void NotOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "!(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 }
 
@@ -5687,6 +5944,15 @@ namespace mlir::modelica
           mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  void AndOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " && ";
+    ::printExpression(os, getRhs());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -5776,6 +6042,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void OrOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "(";
+    ::printExpression(os, getLhs());
+    os << " || ";
+    ::printExpression(os, getRhs());
+    os << ")";
   }
 }
 
@@ -5871,6 +6146,24 @@ namespace mlir::modelica
       printer << "(" << resultTypes << ")";
     }
   }
+
+  void SelectOp::printExpression(llvm::raw_ostream& os)
+  {
+    ::printExpression(os, getCondition());
+    os << " ? (";
+
+    llvm::interleaveComma(getTrueValues(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ") : (";
+
+    llvm::interleaveComma(getFalseValues(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -5930,6 +6223,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void AbsOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "abs(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange AbsOp::getArgs()
@@ -6022,6 +6322,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void AcosOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "acos(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange AcosOp::getArgs()
@@ -6160,6 +6467,13 @@ namespace mlir::modelica
     }
   }
 
+  void AsinOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "asin(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange AsinOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -6294,6 +6608,13 @@ namespace mlir::modelica
     }
   }
 
+  void AtanOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "atan(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange AtanOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -6406,6 +6727,15 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void Atan2Op::printExpression(llvm::raw_ostream& os)
+  {
+    os << "atan2(";
+    ::printExpression(os, getY());
+    os << ", ";
+    ::printExpression(os, getX());
+    os << ")";
   }
 
   mlir::ValueRange Atan2Op::getArgs()
@@ -6556,6 +6886,13 @@ namespace mlir::modelica
     }
   }
 
+  void CeilOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "ceil(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange CeilOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -6646,6 +6983,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void CosOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "cos(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange CosOp::getArgs()
@@ -6773,6 +7117,13 @@ namespace mlir::modelica
     }
   }
 
+  void CoshOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "cosh(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange CoshOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -6863,6 +7214,13 @@ namespace mlir::modelica
         getResult(),
         mlir::SideEffects::DefaultResource::get());
   }
+
+  void DiagonalOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "diagonal(";
+    ::printExpression(os, getValues());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -6908,6 +7266,15 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void DivTruncOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "div(";
+    ::printExpression(os, getX());
+    os << ", ";
+    ::printExpression(os, getY());
+    os << ")";
   }
 }
 
@@ -6966,6 +7333,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void ExpOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "exp(";
+    ::printExpression(os, getExponent());
+    os << ")";
   }
 
   mlir::ValueRange ExpOp::getArgs()
@@ -7052,6 +7426,13 @@ namespace mlir::modelica
         getResult(),
         mlir::SideEffects::DefaultResource::get());
   }
+
+  void FillOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "fill(";
+    ::printExpression(os, getValue());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7109,6 +7490,13 @@ namespace mlir::modelica
     }
   }
 
+  void FloorOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "floor(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange FloorOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -7163,6 +7551,13 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void IdentityOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "identity(";
+    ::printExpression(os, getSize());
+    os << ")";
   }
 }
 
@@ -7221,6 +7616,13 @@ namespace mlir::modelica
     }
   }
 
+  void IntegerOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "integer(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange IntegerOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -7275,6 +7677,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void LinspaceOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "linspace(";
+    ::printExpression(os, getBegin());
+    os << ", ";
+    ::printExpression(os, getEnd());
+    os << ", ";
+    ::printExpression(os, getAmount());
+    os << ")";
   }
 }
 
@@ -7333,6 +7746,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void LogOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "log(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange LogOp::getArgs()
@@ -7455,6 +7875,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void Log10Op::printExpression(llvm::raw_ostream& os)
+  {
+    os << "log10(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange Log10Op::getArgs()
@@ -7684,6 +8111,19 @@ namespace mlir::modelica
           mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  void MaxOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "max(";
+    ::printExpression(os, getFirst());
+
+    if (mlir::Value second = getSecond()) {
+      os << ", ";
+      ::printExpression(os, second);
+    }
+
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7840,6 +8280,19 @@ namespace mlir::modelica
           mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  void MinOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "min(";
+    ::printExpression(os, getFirst());
+
+    if (mlir::Value second = getSecond()) {
+      os << ", ";
+      ::printExpression(os, second);
+    }
+
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7898,6 +8351,28 @@ namespace mlir::modelica
 
     return {};
   }
+
+  void ModOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "mod(";
+    ::printExpression(os, getX());
+    os << ", ";
+    ::printExpression(os, getY());
+    os << ")";
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// NDimsOp
+
+namespace mlir::modelica
+{
+  void NDimsOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "ndims(";
+    ::printExpression(os, getArray());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7920,6 +8395,17 @@ namespace mlir::modelica
         getResult(),
         mlir::SideEffects::DefaultResource::get());
   }
+
+  void OnesOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "ones(";
+
+    llvm::interleaveComma(getSizes(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7936,6 +8422,13 @@ namespace mlir::modelica
         mlir::MemoryEffects::Read::get(),
         getArray(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void ProductOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "product(";
+    ::printExpression(os, getArray());
+    os << ")";
   }
 }
 
@@ -7982,6 +8475,15 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void RemOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "rem(";
+    ::printExpression(os, getX());
+    os << ", ";
+    ::printExpression(os, getY());
+    os << ")";
   }
 }
 
@@ -8052,6 +8554,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void SignOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "sign(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange SignOp::getArgs()
@@ -8142,6 +8651,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void SinOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "sin(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange SinOp::getArgs()
@@ -8262,6 +8778,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void SinhOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "sinh(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange SinhOp::getArgs()
@@ -8437,6 +8960,19 @@ namespace mlir::modelica
           mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  void SizeOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "size(";
+    ::printExpression(os, getArray());
+
+    if (mlir::Value dimension = getDimension()) {
+      os << ", ";
+      ::printExpression(os, dimension);
+    }
+
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -8469,6 +9005,13 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void SqrtOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "sqrt(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange SqrtOp::getArgs()
@@ -8584,6 +9127,13 @@ namespace mlir::modelica
         getArray(),
         mlir::SideEffects::DefaultResource::get());
   }
+
+  void SumOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "sum(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -8610,6 +9160,13 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void SymmetricOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "symmetric(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 }
 
@@ -8668,6 +9225,13 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  void TanOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "tan(";
+    ::printExpression(os, getOperand());
+    os << ")";
   }
 
   mlir::ValueRange TanOp::getArgs()
@@ -8799,6 +9363,13 @@ namespace mlir::modelica
     }
   }
 
+  void TanhOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "tanh(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+
   mlir::ValueRange TanhOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -8898,6 +9469,13 @@ namespace mlir::modelica
           mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  void TransposeOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "transpose(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -8919,6 +9497,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  void ZerosOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "zeros(";
+
+    llvm::interleaveComma(getSizes(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ")";
   }
 }
 
@@ -9026,6 +9615,37 @@ namespace mlir::modelica
     }
 
     return builder.createBlock(&getExpressionRegion(), {}, argTypes, argLocs);
+  }
+
+  void ReductionOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << getAction();
+    os << "(";
+
+    auto terminator = mlir::cast<YieldOp>(getBody()->getTerminator());
+
+    llvm::interleaveComma(terminator.getValues(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << " for ";
+    auto iterables = getIterables();
+
+    for (size_t i = 0, e = iterables.size(); i < e; ++i) {
+      if (i != 0) {
+        os << ", ";
+      }
+
+      os << "i" << i;
+    }
+
+    os << " in ";
+
+    llvm::interleaveComma(iterables, os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ")";
   }
 
   uint64_t ReductionOp::getNumOfExpressionElements()
@@ -9345,6 +9965,30 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// DerOp
+
+namespace mlir::modelica
+{
+  void DerOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "der(";
+    ::printExpression(os, getOperand());
+    os << ")";
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// TimeOp
+
+namespace mlir::modelica
+{
+  void TimeOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << "time";
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // BindingEquationOp
 
 namespace mlir::modelica
@@ -9548,6 +10192,20 @@ namespace mlir::modelica
         numOfInductions, builder.getUnknownLoc());
 
     return builder.createBlock(&getBodyRegion(), {}, argTypes, argLocs);
+  }
+
+  void EquationTemplateOp::printInline(
+      llvm::raw_ostream& os, uint64_t viewElementIndex)
+  {
+    mlir::Value lhs = getValueAtPath(
+        EquationPath(EquationPath::LEFT, viewElementIndex));
+
+    mlir::Value rhs = getValueAtPath(
+        EquationPath(EquationPath::RIGHT, viewElementIndex));
+
+    ::printExpression(os, lhs);
+    os << " = ";
+    ::printExpression(os, rhs);
   }
 
   mlir::ValueRange EquationTemplateOp::getInductionVariables()
@@ -11380,6 +12038,11 @@ namespace mlir::modelica
     return result;
   }
 
+  void EquationInstanceOp::printInline(llvm::raw_ostream& os)
+  {
+    getTemplate().printInline(os, getViewElementIndex().value_or(0));
+  }
+
   mlir::ValueRange EquationInstanceOp::getInductionVariables()
   {
     return getTemplate().getInductionVariables();
@@ -11570,6 +12233,11 @@ namespace mlir::modelica
   uint64_t MatchedEquationInstanceOp::getViewElementIndex()
   {
     return getPath().getValue()[0];
+  }
+
+  void MatchedEquationInstanceOp::printInline(llvm::raw_ostream& os)
+  {
+    getTemplate().printInline(os, getViewElementIndex());
   }
 
   mlir::ValueRange MatchedEquationInstanceOp::getInductionVariables()
@@ -11928,6 +12596,11 @@ namespace mlir::modelica
   uint64_t ScheduledEquationInstanceOp::getViewElementIndex()
   {
     return getPath().getValue()[0];
+  }
+
+  void ScheduledEquationInstanceOp::printInline(llvm::raw_ostream& os)
+  {
+    getTemplate().printInline(os, getViewElementIndex());
   }
 
   mlir::ValueRange ScheduledEquationInstanceOp::getInductionVariables()
@@ -13079,6 +13752,17 @@ namespace mlir::modelica
     }
   }
 
+  void CallOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << getCallee() << "(";
+
+    llvm::interleaveComma(getArgs(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp);
+    });
+
+    os << ")";
+  }
+
   unsigned int CallOp::getArgExpectedRank(
       unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
@@ -13569,6 +14253,11 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  void CastOp::printExpression(llvm::raw_ostream& os)
+  {
+    ::printExpression(os, getValue());
   }
 
   mlir::ValueRange CastOp::derive(

@@ -387,7 +387,8 @@ mlir::LogicalResult CyclesSolvingPass::getCycles(
     llvm::dbgs() << "Searching cycles among the following equations:\n";
 
     for (MatchedEquationInstanceOp equationOp : equations) {
-      llvm::dbgs() << equationOp.getTemplate() << "\n" << equationOp << "\n";
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
     }
   });
 
@@ -571,7 +572,8 @@ static mlir::LogicalResult solveCycle(
 
     for (const CyclicEquation& cyclicEquation : cycle) {
       MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
-      llvm::dbgs() << equationOp.getTemplate() << "\n" << equationOp << "\n";
+      equationOp.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
     }
   });
 
