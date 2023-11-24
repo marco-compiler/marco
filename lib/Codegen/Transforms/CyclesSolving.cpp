@@ -616,19 +616,30 @@ static mlir::LogicalResult solveCycle(
 static bool isContainedInBiggerSCC(
     const Cycle& cycle, llvm::ArrayRef<Cycle> cycles)
 {
+  llvm::DenseSet<MatchedEquationInstanceOp> involvedEquations;
+
+  for (size_t i = 1, e = cycle.size(); i < e; ++i) {
+    involvedEquations.insert(cycle[i].equation);
+  }
+
   for (const Cycle& otherCycle : cycles) {
     if (otherCycle.size() <= cycle.size()) {
       continue;
     }
 
-    bool equal = true;
+    llvm::DenseSet<MatchedEquationInstanceOp> otherInvolvedEquations;
 
-    for (size_t i = 0, e = cycle.size(); i < e && equal; ++i) {
-      equal &= cycle[i].equation == otherCycle[i].equation;
+    for (size_t i = 1, e = otherCycle.size(); i < e; ++i) {
+      otherInvolvedEquations.insert(otherCycle[i].equation);
     }
 
-    if (equal) {
-      return true;
+    if (llvm::all_of(involvedEquations,
+                     [&](MatchedEquationInstanceOp equation) {
+                       return otherInvolvedEquations.contains(equation);
+                     })) {
+      if (involvedEquations != otherInvolvedEquations) {
+        return true;
+      }
     }
   }
 
@@ -680,6 +691,23 @@ mlir::LogicalResult CyclesSolvingPass::solveCycles(
       currentEquations.clear();
 
       if (isContainedInBiggerSCC(cycle, cycles)) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "The following cycle is skipped for being part of a bigger SCC\n";
+
+          for (const CyclicEquation& cyclicEquation : cycle) {
+            llvm::dbgs() << cyclicEquation.writeAccess.getVariable() << " -> ";
+          }
+
+          llvm::dbgs() << cycle.back().readAccess.getVariable() << "\n";
+
+          for (const CyclicEquation& cyclicEquation : cycle) {
+            MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+            llvm::dbgs() << "[writing " << cyclicEquation.writeAccess.getVariable() << "] ";
+            equationOp.printInline(llvm::dbgs());
+            llvm::dbgs() << "\n";
+          }
+        });
+
         continue;
       }
 
