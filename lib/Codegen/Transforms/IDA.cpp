@@ -1521,8 +1521,21 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   llvm::DenseSet<mlir::Operation*> toBeCloned;
   std::stack<mlir::Operation*> toBeClonedVisitStack;
 
-  toBeClonedVisitStack.push(
+  auto equationSidesOp = mlir::cast<EquationSidesOp>(
       equationOp.getTemplate().getBody()->getTerminator());
+
+  uint64_t viewElementIndex = equationOp.getViewElementIndex();
+
+  mlir::Value lhs = equationSidesOp.getLhsValues()[viewElementIndex];
+  mlir::Value rhs = equationSidesOp.getRhsValues()[viewElementIndex];
+
+  if (mlir::Operation* lhsOp = lhs.getDefiningOp()) {
+    toBeClonedVisitStack.push(lhsOp);
+  }
+
+  if (mlir::Operation* rhsOp = rhs.getDefiningOp()) {
+    toBeClonedVisitStack.push(rhsOp);
+  }
 
   while (!toBeClonedVisitStack.empty()) {
     mlir::Operation* op = toBeClonedVisitStack.top();
@@ -1550,40 +1563,37 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
           globalGetOp.getLoc(), variableOp);
 
       mapping.map(globalGetOp.getResult(), getOp.getResult());
-    } else if (mlir::isa<EquationSideOp>(op)) {
+    } else if (mlir::isa<EquationSideOp, EquationSidesOp>(op)) {
       continue;
-    } else if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
-      uint64_t viewElementIndex = equationOp.getViewElementIndex();
-
-      mlir::Value lhs = mapping.lookup(
-          equationSidesOp.getLhsValues()[viewElementIndex]);
-
-      mlir::Value rhs = mapping.lookup(
-          equationSidesOp.getRhsValues()[viewElementIndex]);
-
-      if (lhs.getType().isa<ArrayType>()) {
-        assert(lhs.getType().cast<ArrayType>().getRank() ==
-               static_cast<int64_t>(implicitInductions.size()));
-
-        lhs = rewriter.create<LoadOp>(lhs.getLoc(), lhs, implicitInductions);
-      }
-
-      if (rhs.getType().isa<ArrayType>()) {
-        assert(rhs.getType().cast<ArrayType>().getRank() ==
-               static_cast<int64_t>(implicitInductions.size()));
-
-        rhs = rewriter.create<LoadOp>(rhs.getLoc(), rhs, implicitInductions);
-      }
-
-      auto result = rewriter.create<SubOp>(
-          loc, RealType::get(rewriter.getContext()), rhs, lhs);
-
-      rewriter.create<VariableSetOp>(
-          loc, outputVariableOp.getSymName(), result);
     } else {
       rewriter.clone(op, mapping);
     }
   }
+
+  mlir::Value mappedLhs = mapping.lookup(lhs);
+  mlir::Value mappedRhs = mapping.lookup(rhs);
+
+  if (mappedLhs.getType().isa<ArrayType>()) {
+    assert(mappedLhs.getType().cast<ArrayType>().getRank() ==
+           static_cast<int64_t>(implicitInductions.size()));
+
+    mappedLhs = rewriter.create<LoadOp>(
+        mappedLhs.getLoc(), mappedLhs, implicitInductions);
+  }
+
+  if (mappedRhs.getType().isa<ArrayType>()) {
+    assert(mappedRhs.getType().cast<ArrayType>().getRank() ==
+           static_cast<int64_t>(implicitInductions.size()));
+
+    mappedRhs = rewriter.create<LoadOp>(
+        mappedRhs.getLoc(), mappedRhs, implicitInductions);
+  }
+
+  auto result = rewriter.create<SubOp>(
+      loc, RealType::get(rewriter.getContext()), mappedRhs, mappedLhs);
+
+  rewriter.create<VariableSetOp>(
+      loc, outputVariableOp.getSymName(), result);
 
   // Create the derivative template function.
   ForwardAD forwardAD;
@@ -2146,7 +2156,7 @@ mlir::LogicalResult IDASolver::solveICModel(
       ScheduledEquationInstanceOp, RawFunctionOp> equationFunctions;
 
   if (reducedSystem) {
-    LLVM_DEBUG(llvm::dbgs() << "Reduced system feature enabled");
+    LLVM_DEBUG(llvm::dbgs() << "Reduced system feature enabled\n");
 
     // Determine which equations can be processed by just making them explicit
     // with respect to the variable they match.
