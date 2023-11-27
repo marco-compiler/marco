@@ -258,4 +258,42 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
     let constructor = "mlir::createSimulationToFuncConversionPass()";
 }
 
+//===---------------------------------------------------------------------===//
+// Modelica to SBG
+//===---------------------------------------------------------------------===//
+
+def ModelicaToSBGInsertionPass : Pass<"convert-modelica-to-sbg", "::mlir::modelica::ModelOp"> {
+    let summary = "Modelica: insertion to SBG dialect";
+
+    let description = [{
+        Get equations and variables in a modelica model, and add a mapping to
+        the SBG representation to do the SBGMatching pass.
+    }];
+
+    let dependentDialects = [
+        "mlir::sbg::SBGDialect"
+    ];
+
+    let constructor = "mlir::createModelicaToSBGInsertionPass()";
+}
+
+//===---------------------------------------------------------------------===//
+// SBG to Modelica
+//===---------------------------------------------------------------------===//
+
+def SBGToModelicaConversionPass : Pass<"convert-sbg-to-modelica", "::mlir::modelica::ModelOp"> {
+    let summary = "SBG: conversion to Modelica dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::createSBGToModelicaConversionPass()";
+}
+
+
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

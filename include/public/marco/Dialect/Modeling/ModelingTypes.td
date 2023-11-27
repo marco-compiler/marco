@@ -8,7 +8,7 @@ include "mlir/IR/AttrTypeBase.td"
 // Modeling type definitions
 //===---------------------------------------------------------------------===//
 
-// Base class for Modelica dialect types.
+// Base class for Modeling dialect types.
 class Modeling_Type<
     string name,
     list<Trait> traits = [],

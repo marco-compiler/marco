@@ -1,6 +1,7 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/SBG/SBGDialect.h"
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
@@ -20,6 +21,7 @@ int main(int argc, char* argv[])
 	registry.insert<mlir::modelica::ModelicaDialect>();
   registry.insert<mlir::ida::IDADialect>();
   registry.insert<mlir::simulation::SimulationDialect>();
+  registry.insert<mlir::sbg::SBGDialect>();
 
   // Register the extensions.
   mlir::func::registerAllExtensions(registry);
