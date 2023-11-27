@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
@@ -363,6 +365,7 @@ mlir::LogicalResult MatchingPass::match(
   using MatchingGraph =
       ::marco::modeling::MatchingGraph<::VariableBridge*, ::EquationBridge*>;
 
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
@@ -428,6 +431,7 @@ mlir::LogicalResult MatchingPass::match(
       return mlir::failure();
     }
   }
+
 
   // Apply the full matching algorithm for the equations and variables that
   // are still unmatched.
@@ -504,6 +508,8 @@ mlir::LogicalResult MatchingPass::match(
   for (EquationInstanceOp equation : toBeErased) {
     rewriter.eraseOp(equation);
   }
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
   return mlir::success();
 }

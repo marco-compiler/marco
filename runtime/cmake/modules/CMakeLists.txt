@@ -17,8 +17,7 @@ configure_package_config_file(
     PATH_VARS
         TARGETS_PATH
         INCLUDE_PATH
-        LIB_PATH
-        SUNDIALS_LIBRARY_DIR)
+        LIB_PATH)
 
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/MARCORuntimeConfig.cmake"

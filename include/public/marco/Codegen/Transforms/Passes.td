@@ -541,4 +541,20 @@ def DivOpDistributionPass : Pass<"distribute-div", "mlir::ModuleOp">
     let constructor = "mlir::modelica::createDivOpDistributionPass()";
 }
 
+def SBGMatchingPass
+    : Pass<"sbg-match", "::mlir::modelica::ModelOp">
+{
+    let summary = "SBG matching";
+
+    let description = [{
+        Apply the SBG matching algorithm.
+    }];
+
+    let dependentDialects = [
+        "mlir::sbg::SBGDialect",
+    ];
+
+    let constructor = "mlir::sbg::createSBGMatchingPass()";
+}
+
 #endif // MARCO_CODEGEN_TRANSFORMS_PASSES_TD

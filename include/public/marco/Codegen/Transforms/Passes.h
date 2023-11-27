@@ -24,6 +24,7 @@
 #include "marco/Codegen/Transforms/RangeBoundariesInference.h"
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
 #include "marco/Codegen/Transforms/RecordInlining.h"
+#include "marco/Codegen/Transforms/SBGMatching.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
 #include "marco/Codegen/Transforms/SolverPassBase.h"
 #include "marco/Codegen/Transforms/VariablesPromotion.h"

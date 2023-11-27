@@ -26,7 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 project(marco LANGUAGES C CXX)
 
 # Disable exceptions and RTTI
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 
 # Set the default build type if none was specified
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -174,6 +174,44 @@ include_directories(${MARCO_INCLUDE_DIRS})
 
 # Set the RPATH to include the paths to external libraries
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# SBG stuff (ugh, Boost)
+include(FetchContent)
+
+FetchContent_Declare(SBG
+		GIT_REPOSITORY https://github.com/CIFASIS/sb-graph.git
+		GIT_TAG origin/marco-template)
+
+FetchContent_Populate(SBG)
+
+message("${sbg_SOURCE_DIR}")
+include_directories(${sbg_SOURCE_DIR})
+
+add_library(sbg-util
+		${sbg_SOURCE_DIR}/util/debug.cpp
+		${sbg_SOURCE_DIR}/util/defs.cpp
+		${sbg_SOURCE_DIR}/util/logger.cpp)
+
+add_library(sbg
+		${sbg_SOURCE_DIR}/sbg/interval.cpp
+		${sbg_SOURCE_DIR}/sbg/multidim_inter.cpp
+		${sbg_SOURCE_DIR}/sbg/unord_pw_mdinter.cpp
+		${sbg_SOURCE_DIR}/sbg/ord_pw_mdinter.cpp
+		${sbg_SOURCE_DIR}/sbg/lexp.cpp
+		${sbg_SOURCE_DIR}/sbg/multidim_lexp.cpp
+		${sbg_SOURCE_DIR}/sbg/map.cpp
+		${sbg_SOURCE_DIR}/sbg/pw_map.cpp
+		${sbg_SOURCE_DIR}/sbg/sbg.cpp
+		${sbg_SOURCE_DIR}/sbg/info.cpp
+		${sbg_SOURCE_DIR}/sbg/sbg_algorithms.cpp)
+
+find_package(Boost 1.81 REQUIRED)
+
+add_library(boost INTERFACE)
+include_directories(${Boost_INCLUDE_DIRS})
+target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
+target_compile_features(boost INTERFACE cxx_std_17)
+
 
 #-------------------------------------------------------------------------------
 # Directory setup

@@ -1,0 +1,7 @@
+#ifndef MARCO_DIALECTS_SBG_SBGINTERFACES_TD
+#define MARCO_DIALECTS_SBG_SBGINTERFACES_TD
+
+include "marco/Dialect/SBG/SBGDialect.td"
+include "mlir/IR/OpBase.td"
+
+#endif // MARCO_DIALECTS_SBG_SBGINTERFACES_TD
