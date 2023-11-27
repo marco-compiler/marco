@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/EquationTemplatesCreation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <stack>
 
@@ -10,6 +11,78 @@ namespace mlir::modelica
 }
 
 using namespace ::mlir::modelica;
+
+static mlir::Value collectSubscriptions(
+    mlir::Value value,
+    llvm::SmallVectorImpl<llvm::SmallVector<mlir::Value, 3>>& subscriptions)
+{
+  llvm::SmallVector<llvm::SmallVector<mlir::Value, 3>, 6> reverted;
+  mlir::Operation* definingOp = value.getDefiningOp();
+
+  auto isValidOp = [](mlir::Operation* op) {
+    if (!op) {
+      return false;
+    }
+
+    return mlir::isa<LoadOp, SubscriptionOp>(op);
+  };
+
+  mlir::Value result = value;
+
+  while (isValidOp(definingOp)) {
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
+      for (mlir::Value subscription : loadOp.getIndices()) {
+        auto& currentSubscriptions = reverted.emplace_back();
+        currentSubscriptions.push_back(subscription);
+      }
+
+      result = loadOp.getArray();
+      definingOp = result.getDefiningOp();
+      continue;
+    }
+
+    if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
+      for (mlir::Value subscription : subscriptionOp.getIndices()) {
+        auto& currentSubscriptions = reverted.emplace_back();
+        currentSubscriptions.push_back(subscription);
+      }
+
+      result = subscriptionOp.getSource();
+      definingOp = result.getDefiningOp();
+      continue;
+    }
+
+    llvm_unreachable("Unexpected operation kind");
+  }
+
+  for (auto it = reverted.rbegin(), endIt = reverted.rend();
+       it != endIt; ++it) {
+    subscriptions.push_back(*it);
+  }
+
+  return result;
+}
+
+static void reduceSlicedAndFixedSubscriptions(
+    llvm::ArrayRef<mlir::Value> subscriptions,
+    llvm::SmallVectorImpl<mlir::Value>& reducedSubscriptions)
+{
+  if (subscriptions.empty()) {
+    return;
+  }
+
+  reducedSubscriptions.push_back(subscriptions[0]);
+
+  for (size_t i = 1, e = subscriptions.size(); i < e; ++i) {
+    if (subscriptions[i].getType().isa<IterableTypeInterface>()) {
+      reducedSubscriptions.push_back(subscriptions[i]);
+    } else {
+      if (!reducedSubscriptions.empty()) {
+        reducedSubscriptions.pop_back();
+      }
+    }
+  }
+}
 
 static std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank,
@@ -57,6 +130,133 @@ static std::vector<MultidimensionalRange> getRangesCombinations(
 
 namespace
 {
+  class EquationOpSlicingPattern : public mlir::OpRewritePattern<EquationOp>
+  {
+    public:
+      using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          EquationOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        EquationSidesOp equationSidesOp =
+            mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
+
+        auto lhsValues = equationSidesOp.getLhsValues();
+        auto rhsValues = equationSidesOp.getRhsValues();
+
+        assert(lhsValues.size() == rhsValues.size());
+        size_t numOfElements = lhsValues.size();
+
+        for (size_t i = 0; i < numOfElements; ++i) {
+          llvm::SmallVector<
+              llvm::SmallVector<mlir::Value, 3>, 6> lhsSubscriptions;
+
+          llvm::SmallVector<
+              llvm::SmallVector<mlir::Value, 3>, 6> rhsSubscriptions;
+
+          mlir::Value lhsRoot =
+              collectSubscriptions(lhsValues[i], lhsSubscriptions);
+
+          mlir::Value rhsRoot =
+              collectSubscriptions(rhsValues[i], rhsSubscriptions);
+
+          llvm::SmallVector<mlir::Value, 6> lhsReducedSubscriptions;
+          llvm::SmallVector<mlir::Value, 6> rhsReducedSubscriptions;
+
+          /*
+          reduceSlicedAndFixedSubscriptions(
+              lhsSubscriptions, lhsReducedSubscriptions);
+
+          reduceSlicedAndFixedSubscriptions(
+              rhsSubscriptions, rhsReducedSubscriptions);
+              */
+
+          // Check that we can handle the slicing subscriptions.
+          for (mlir::Value subscription : lhsReducedSubscriptions) {
+            if (!subscription.getType().isa<RangeType>()) {
+              return mlir::failure();
+            }
+          }
+
+          for (mlir::Value subscription : rhsReducedSubscriptions) {
+            if (!subscription.getType().isa<RangeType>()) {
+              return mlir::failure();
+            }
+          }
+
+          assert(lhsReducedSubscriptions.size() ==
+                 rhsReducedSubscriptions.size());
+
+          size_t numOfSlicingSubscriptions = lhsReducedSubscriptions.size();
+          llvm::SmallVector<mlir::Value, 6> additionalInductions;
+
+          for (size_t j = 0; j < numOfSlicingSubscriptions; ++j) {
+            assert(lhsValues[i].getType().cast<ArrayType>().getShape() ==
+                   rhsValues[i].getType().cast<ArrayType>().getShape());
+
+            auto elementShape =
+                lhsValues[i].getType().cast<ArrayType>().getShape();
+
+            auto forEquationOp = rewriter.create<ForEquationOp>(
+                loc, 0, elementShape[j], 1);
+
+            rewriter.setInsertionPointToStart(forEquationOp.bodyBlock());
+
+            additionalInductions.push_back(
+                forEquationOp.getBodyRegion().getArgument(0));
+          }
+
+          // Clone the equation into the for loop.
+          mlir::IRMapping mapping;
+
+          auto clonedEquationOp = mlir::cast<EquationOp>(
+              rewriter.clone(*op.getOperation(), mapping));
+
+          // Restrict the equalities to just one result.
+          if (mlir::failed(restrictEqualities(
+                  rewriter, clonedEquationOp, lhsRoot, rhsRoot,
+                  additionalInductions))) {
+            return mlir::failure();
+          }
+        }
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+    private:
+      mlir::LogicalResult restrictEqualities(
+        mlir::PatternRewriter& rewriter,
+        EquationOp equationOp,
+        mlir::Value lhsRoot,
+        mlir::Value rhsRoot,
+        llvm::ArrayRef<mlir::Value> additionalInductions) const
+      {
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+        auto equationSidesOp = mlir::cast<EquationSidesOp>(
+            equationOp.getBody()->getTerminator());
+
+        auto oldLhs = equationSidesOp.getLhs();
+        auto oldRhs = equationSidesOp.getRhs();
+
+        rewriter.setInsertionPoint(equationSidesOp);
+
+        mlir::Value lhs = lhsRoot;
+        mlir::Value rhs = rhsRoot;
+
+        auto newLhsOp = rewriter.create<EquationSideOp>(oldLhs.getLoc(), lhs);
+        auto newRhsOp = rewriter.create<EquationSideOp>(oldRhs.getLoc(), rhs);
+
+        rewriter.replaceOp(oldLhs.getDefiningOp(), newLhsOp);
+        rewriter.replaceOp(oldRhs.getDefiningOp(), newRhsOp);
+
+        return mlir::success();
+      }
+  };
+
   class EquationOpPattern : public mlir::OpRewritePattern<EquationOp>
   {
     public:
@@ -377,6 +577,11 @@ namespace
         ::EquationTemplatesCreationPassBase;
 
       void runOnOperation() override;
+
+    private:
+      mlir::LogicalResult explicitateSliceEqualities(ModelOp modelOp);
+
+      mlir::LogicalResult createTemplates(ModelOp modelOp);
   };
 }
 
@@ -384,16 +589,79 @@ void EquationTemplatesCreationPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
 
+  /*
+  if (mlir::failed(explicitateSliceEqualities(modelOp))) {
+      return signalPassFailure();
+  }
+  */
+
+  if (mlir::failed(createTemplates(modelOp))) {
+      return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult
+EquationTemplatesCreationPass::explicitateSliceEqualities(ModelOp modelOp)
+{
+  mlir::ConversionTarget target(getContext());
+
+  target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
+    EquationSidesOp equationSidesOp =
+        mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
+
+    auto lhsValues = equationSidesOp.getLhsValues();
+    auto rhsValues = equationSidesOp.getRhsValues();
+
+    assert(lhsValues.size() == rhsValues.size());
+    size_t numOfElements = lhsValues.size();
+
+    for (size_t i = 0; i < numOfElements; ++i) {
+      llvm::SmallVector<llvm::SmallVector<mlir::Value, 3>, 6> lhsSubscriptions;
+      llvm::SmallVector<llvm::SmallVector<mlir::Value, 3>, 6> rhsSubscriptions;
+
+      collectSubscriptions(lhsValues[i], lhsSubscriptions);
+      collectSubscriptions(rhsValues[i], rhsSubscriptions);
+
+      llvm::SmallVector<mlir::Value, 6> lhsReducedSubscriptions;
+      llvm::SmallVector<mlir::Value, 6> rhsReducedSubscriptions;
+
+      /*
+      reduceSlicedAndFixedSubscriptions(
+          lhsSubscriptions, lhsReducedSubscriptions);
+
+      reduceSlicedAndFixedSubscriptions(
+          rhsSubscriptions, rhsReducedSubscriptions);
+          */
+
+      if (!lhsReducedSubscriptions.empty() ||
+          !rhsReducedSubscriptions.empty()) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.insert<EquationOpSlicingPattern>(&getContext());
+
+  return applyPartialConversion(modelOp, target, std::move(patterns));
+}
+
+mlir::LogicalResult
+EquationTemplatesCreationPass::createTemplates(ModelOp modelOp)
+{
   mlir::RewritePatternSet patterns(&getContext());
   patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
   mlir::GreedyRewriteConfig config;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
-  if (mlir::failed(applyPatternsAndFoldGreedily(
-          modelOp, std::move(patterns), config))) {
-    return signalPassFailure();
-  }
+  return applyPatternsAndFoldGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::modelica
