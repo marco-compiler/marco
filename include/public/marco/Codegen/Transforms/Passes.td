@@ -461,10 +461,10 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
 
 def IDAPass : Pass<"ida", "mlir::ModuleOp">
 {
-    let summary = "TODO";
+    let summary = "Solve the model with IDA";
 
     let description = [{
-        // TODO
+        Apply the BDF integration algorithm by using the IDA external solver.
     }];
 
     let dependentDialects = [
@@ -490,7 +490,9 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
         Option<"reducedDerivatives", "reduced-derivatives", "bool", "true",
                "Determine the derivatives that are always equal to zero">,
         Option<"jacobianOneSweep", "jacobian-one-sweep", "bool", "true",
-               "Enable one-sweep computation of derivatives with respect to state and derivative variables">
+               "Enable one-sweep computation of derivatives with respect to state and derivative variables">,
+        Option<"debugInformation", "debug-information", "bool", "false",
+               "Insert the information for runtime debugging">
     ];
 
     let constructor = "mlir::modelica::createIDAPass()";
