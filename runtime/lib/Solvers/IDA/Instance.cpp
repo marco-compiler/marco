@@ -704,7 +704,7 @@ namespace marco::runtime::ida
     if (getOptions().debug) {
       std::cerr << "Setting jacobian function for equation " << equation
                 << " and variable " << variable << ". Address: "
-                << reinterpret_cast<void*>(residualFunction) << std::endl;
+                << reinterpret_cast<void*>(jacobianFunction) << std::endl;
     }
 
     if (jacobianFunctions.size() <= equation) {
