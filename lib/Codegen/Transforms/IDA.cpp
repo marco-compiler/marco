@@ -1979,13 +1979,16 @@ mlir::LogicalResult IDAInstance::getWritesMap(
 
 namespace
 {
-  class IDASolver : public mlir::modelica::impl::ModelSolver
+  class IDAPass : public mlir::modelica::impl::IDAPassBase<IDAPass>,
+                  public mlir::modelica::impl::ModelSolver
   {
     public:
-      IDASolver(
-          bool reducedSystem,
-          bool reducedDerivatives,
-          bool jacobianOneSweep);
+      using IDAPassBase::IDAPassBase;
+
+      void runOnOperation() override;
+
+    private:
+      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
     protected:
       mlir::LogicalResult solveICModel(
@@ -2113,25 +2116,54 @@ namespace
           mlir::ModuleOp moduleOp,
           mlir::Location loc,
           IDAInstance* idaInstance) const;
-
-    private:
-      bool reducedSystem;
-      bool reducedDerivatives;
-      bool jacobianOneSweep;
   };
 }
 
-IDASolver::IDASolver(
-    bool reducedSystem,
-    bool reducedDerivatives,
-    bool jacobianOneSweep)
-    : reducedSystem(reducedSystem),
-      reducedDerivatives(reducedDerivatives),
-      jacobianOneSweep(jacobianOneSweep)
+void IDAPass::runOnOperation()
 {
+  mlir::ModuleOp moduleOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+    modelOps.push_back(modelOp);
+  }
+
+  auto expectedVariablesFilter =
+      marco::VariableFilter::fromString(variablesFilter);
+
+  std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
+
+  if (!expectedVariablesFilter) {
+    getOperation().emitWarning()
+        << "Invalid variable filter string. No filtering will take place";
+
+    variablesFilterInstance = std::make_unique<marco::VariableFilter>();
+  } else {
+    variablesFilterInstance = std::make_unique<marco::VariableFilter>(
+        std::move(*expectedVariablesFilter));
+  }
+
+  for (ModelOp modelOp : modelOps) {
+    if (mlir::failed(convert(
+            modelOp, getDerivativesMap(modelOp), *variablesFilterInstance,
+            processICModel, processMainModel))) {
+      return signalPassFailure();
+    }
+  }
 }
 
-mlir::LogicalResult IDASolver::solveICModel(
+DerivativesMap& IDAPass::getDerivativesMap(ModelOp modelOp)
+{
+  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
+  analysis.initialize();
+  return analysis;
+}
+
+mlir::LogicalResult IDAPass::solveICModel(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -2323,7 +2355,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::addICModelEquation(
+mlir::LogicalResult IDAPass::addICModelEquation(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     IDAInstance& idaInstance,
@@ -2355,7 +2387,7 @@ mlir::LogicalResult IDASolver::addICModelEquation(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::solveMainModel(
+mlir::LogicalResult IDAPass::solveMainModel(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -2632,7 +2664,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::addMainModelEquation(
+mlir::LogicalResult IDAPass::addMainModelEquation(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     const DerivativesMap& derivativesMap,
@@ -2677,7 +2709,7 @@ mlir::LogicalResult IDASolver::addMainModelEquation(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createInitICSolversFunction(
+mlir::LogicalResult IDAPass::createInitICSolversFunction(
     mlir::IRRewriter& rewriter,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -2712,7 +2744,7 @@ mlir::LogicalResult IDASolver::createInitICSolversFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createDeinitICSolversFunction(
+mlir::LogicalResult IDAPass::createDeinitICSolversFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -2737,7 +2769,7 @@ mlir::LogicalResult IDASolver::createDeinitICSolversFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createInitMainSolversFunction(
+mlir::LogicalResult IDAPass::createInitMainSolversFunction(
     mlir::IRRewriter& rewriter,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -2772,7 +2804,7 @@ mlir::LogicalResult IDASolver::createInitMainSolversFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createDeinitMainSolversFunction(
+mlir::LogicalResult IDAPass::createDeinitMainSolversFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -2796,7 +2828,7 @@ mlir::LogicalResult IDASolver::createDeinitMainSolversFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createSolveICModelFunction(
+mlir::LogicalResult IDAPass::createSolveICModelFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -2846,7 +2878,7 @@ mlir::LogicalResult IDASolver::createSolveICModelFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createCalcICFunction(
+mlir::LogicalResult IDAPass::createCalcICFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -2870,7 +2902,7 @@ mlir::LogicalResult IDASolver::createCalcICFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
+mlir::LogicalResult IDAPass::createUpdateIDAVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -2894,7 +2926,7 @@ mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
+mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -2938,7 +2970,7 @@ mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDASolver::createGetIDATimeFunction(
+mlir::LogicalResult IDAPass::createGetIDATimeFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -2957,66 +2989,6 @@ mlir::LogicalResult IDASolver::createGetIDATimeFunction(
   mlir::Value time = idaInstance->getCurrentTime(builder, loc);
   builder.create<mlir::simulation::ReturnOp>(loc, time);
   return mlir::success();
-}
-
-namespace
-{
-  class IDAPass : public mlir::modelica::impl::IDAPassBase<IDAPass>
-  {
-    public:
-      using IDAPassBase::IDAPassBase;
-
-      void runOnOperation() override;
-
-    private:
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
-  };
-}
-
-void IDAPass::runOnOperation()
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  llvm::SmallVector<ModelOp, 1> modelOps;
-
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
-    modelOps.push_back(modelOp);
-  }
-
-  IDASolver solver(reducedSystem, reducedDerivatives, jacobianOneSweep);
-
-  auto expectedVariablesFilter =
-      marco::VariableFilter::fromString(variablesFilter);
-
-  std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
-
-  if (!expectedVariablesFilter) {
-      getOperation().emitWarning()
-          << "Invalid variable filter string. No filtering will take place";
-
-      variablesFilterInstance = std::make_unique<marco::VariableFilter>();
-  } else {
-      variablesFilterInstance = std::make_unique<marco::VariableFilter>(
-          std::move(*expectedVariablesFilter));
-  }
-
-  for (ModelOp modelOp : modelOps) {
-    if (mlir::failed(solver.convert(
-            modelOp, getDerivativesMap(modelOp), *variablesFilterInstance,
-            processICModel, processMainModel))) {
-      return signalPassFailure();
-    }
-  }
-}
-
-DerivativesMap& IDAPass::getDerivativesMap(ModelOp modelOp)
-{
-  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 namespace mlir::modelica
