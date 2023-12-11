@@ -64,6 +64,11 @@ cd ..
 
 cd $SUITESPARSE || fail "Error extracting $SUITESPARSE.tar.gz"
 
+cd SuiteSparse_config/build
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake --build . --target install || fail "AMD install failed"
+cd ../..
+
 cd AMD/build
 cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 cmake --build . --target install || fail "AMD install failed"
@@ -82,11 +87,6 @@ cd ../..
 cd KLU/build
 cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 cmake --build . --target install || fail "KLU install failed"
-cd ../..
-
-cd SuiteSparse_config/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-cmake --build . --target install || fail "SuiteSparse_config install failed"
 cd ../..
 
 cd ..
@@ -121,4 +121,3 @@ cd "$ORIGINAL_DIR" || fail "Can't go back to the original directory"
 
 # Remove the temporary directory
 rm -r "$TEMP_DIR"
-
