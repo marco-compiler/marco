@@ -204,14 +204,15 @@ def IDA_AddEquationOp : IDA_Op<"add_equation", []>
         SymbolNameAttr:$instance,
         MultidimensionalRangeAttr:$equationRanges,
         IDAVariable:$writtenVariable,
-        SymbolNameAttr:$writeAccessFunction);
+        SymbolNameAttr:$writeAccessFunction,
+        OptionalAttr<StrAttr>:$stringRepresentation);
 
     let results = (outs IDAEquation:$equation);
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$idaInstance, "MultidimensionalRangeAttr":$equationRanges, "Value":$writtenVariable, "llvm::StringRef":$writeAccessFunction), [{
             auto resultType = ida::EquationType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, equationRanges, writtenVariable, writeAccessFunction);
+            build($_builder, $_state, resultType, idaInstance, equationRanges, writtenVariable, writeAccessFunction, nullptr);
         }]>
     ];
 
@@ -250,20 +251,21 @@ def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable", []>
         SymbolNameAttr:$instance,
         I64ArrayAttr:$dimensions,
         SymbolRefAttr:$getter,
-        SymbolRefAttr:$setter);
+        SymbolRefAttr:$setter,
+        OptionalAttr<StrAttr>:$name);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$idaInstance, "ArrayAttr":$dimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, dimensions, getter, setter);
+            build($_builder, $_state, resultType, idaInstance, dimensions, getter, setter, nullptr);
         }]>,
         OpBuilder<(ins "llvm::StringRef":$idaInstance, "ArrayAttr":$dimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
             auto getterAttr = SymbolRefAttr::get($_builder.getContext(), getter);
             auto setterAttr = SymbolRefAttr::get($_builder.getContext(), setter);
-            build($_builder, $_state, resultType, idaInstance, dimensions, getterAttr, setterAttr);
+            build($_builder, $_state, resultType, idaInstance, dimensions, getterAttr, setterAttr, nullptr);
         }]>
     ];
 
@@ -312,14 +314,15 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable", []>
         SymbolRefAttr:$stateGetter,
         SymbolRefAttr:$stateSetter,
         SymbolRefAttr:$derivativeGetter,
-        SymbolRefAttr:$derivativeSetter);
+        SymbolRefAttr:$derivativeSetter,
+        OptionalAttr<StrAttr>:$name);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$idaInstance, "ArrayAttr":$dimensions, "SymbolRefAttr":$stateGetter, "SymbolRefAttr":$stateSetter, "SymbolRefAttr":$derivativeGetter, "SymbolRefAttr":$derivativeSetter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, dimensions, stateGetter, stateSetter, derivativeGetter, derivativeSetter);
+            build($_builder, $_state, resultType, idaInstance, dimensions, stateGetter, stateSetter, derivativeGetter, derivativeSetter, nullptr);
         }]>,
         OpBuilder<(ins "llvm::StringRef":$idaInstance, "ArrayAttr":$dimensions, "StringRef":$stateGetter, "StringRef":$stateSetter, "StringRef":$derivativeGetter, "StringRef":$derivativeSetter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
@@ -327,7 +330,7 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable", []>
             auto stateSetterAttr = SymbolRefAttr::get($_builder.getContext(), stateSetter);
             auto derivativeGetterAttr = SymbolRefAttr::get($_builder.getContext(), derivativeGetter);
             auto derivativeSetterAttr = SymbolRefAttr::get($_builder.getContext(), derivativeSetter);
-            build($_builder, $_state, resultType, idaInstance, dimensions, stateGetterAttr, stateSetterAttr, derivativeGetterAttr, derivativeSetterAttr);
+            build($_builder, $_state, resultType, idaInstance, dimensions, stateGetterAttr, stateSetterAttr, derivativeGetterAttr, derivativeSetterAttr, nullptr);
         }]>
     ];
 
