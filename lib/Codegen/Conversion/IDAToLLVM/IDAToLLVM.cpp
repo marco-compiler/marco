@@ -327,6 +327,52 @@ namespace
         return getFunctionAddress(builder, loc, functionType, name);
       }
 
+      mlir::Value createGlobalString(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::ModuleOp moduleOp,
+          mlir::StringRef name,
+          mlir::StringRef value) const
+      {
+        mlir::LLVM::GlobalOp global;
+
+        {
+          // Create the global at the entry of the module.
+          mlir::OpBuilder::InsertionGuard insertGuard(builder);
+          builder.setInsertionPointToStart(moduleOp.getBody());
+
+          auto type = mlir::LLVM::LLVMArrayType::get(
+              mlir::IntegerType::get(
+                  builder.getContext(), 8), value.size() + 1);
+
+          global = builder.create<mlir::LLVM::GlobalOp>(
+              loc, type, true, mlir::LLVM::Linkage::Internal, name,
+              builder.getStringAttr(llvm::StringRef(
+                  value.data(), value.size() + 1)));
+
+          symbolTableCollection->getSymbolTable(moduleOp).insert(global);
+        }
+
+        // Get the pointer to the first character of the global string.
+        mlir::Value globalPtr =
+            builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+        mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
+            loc,
+            mlir::IntegerType::get(builder.getContext(), 64),
+            builder.getIntegerAttr(builder.getIndexType(), 0));
+
+        mlir::Value ptr = builder.create<mlir::LLVM::GEPOp>(
+            loc,
+            mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8)),
+            globalPtr, llvm::ArrayRef({cst0, cst0}));
+
+        ptr = builder.create<mlir::LLVM::BitcastOp>(
+            loc, this->getVoidPtrType(), ptr);
+
+        return ptr;
+      }
+
     protected:
       mlir::SymbolTableCollection* symbolTableCollection;
   };
@@ -536,8 +582,8 @@ namespace
 
       RuntimeFunctionsMangling mangling;
 
-      llvm::SmallVector<mlir::Value, 5> args;
-      llvm::SmallVector<std::string, 5> mangledArgsTypes;
+      llvm::SmallVector<mlir::Value, 6> args;
+      llvm::SmallVector<std::string, 6> mangledArgsTypes;
 
       // IDA instance.
       args.push_back(getInstance(rewriter, loc, adaptor.getInstance()));
@@ -575,6 +621,17 @@ namespace
 
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
+      // String representation.
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      if (auto stringRepr = op.getStringRepresentation()) {
+        args.push_back(createGlobalString(
+            rewriter, loc, moduleOp, "eqStr", *stringRepr));
+      } else {
+        args.push_back(
+            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+      }
+
       // Create the call to the runtime library.
       auto resultType =
           getTypeConverter()->convertType(op.getResult().getType());
@@ -608,8 +665,8 @@ namespace
 
       RuntimeFunctionsMangling mangling;
 
-      llvm::SmallVector<mlir::Value, 6> args;
-      llvm::SmallVector<std::string, 6> mangledArgsTypes;
+      llvm::SmallVector<mlir::Value, 7> args;
+      llvm::SmallVector<std::string, 7> mangledArgsTypes;
 
       // IDA instance.
       args.push_back(getInstance(rewriter, loc, adaptor.getInstance()));
@@ -650,6 +707,17 @@ namespace
 
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
+      // Name of the variable.
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      if (auto name = op.getName()) {
+        args.push_back(createGlobalString(
+            rewriter, loc, moduleOp, "varName", *name));
+      } else {
+        args.push_back(
+            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+      }
+
       // Create the call to the runtime library.
       auto resultType =
           getTypeConverter()->convertType(op.getResult().getType());
@@ -683,8 +751,8 @@ namespace
 
       RuntimeFunctionsMangling mangling;
 
-      llvm::SmallVector<mlir::Value, 6> args;
-      llvm::SmallVector<std::string, 6> mangledArgsTypes;
+      llvm::SmallVector<mlir::Value, 7> args;
+      llvm::SmallVector<std::string, 7> mangledArgsTypes;
 
       // IDA instance.
       args.push_back(getInstance(rewriter, loc, adaptor.getInstance()));
@@ -740,6 +808,17 @@ namespace
           rewriter, loc, derivativeSetterName.getRootReference().getValue()));
 
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Name of the variable.
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      if (auto name = op.getName()) {
+        args.push_back(createGlobalString(
+            rewriter, loc, moduleOp, "varName", *name));
+      } else {
+        args.push_back(
+            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+      }
 
       // Create the call to the runtime library.
       auto resultType =

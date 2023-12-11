@@ -18,25 +18,4 @@ namespace marco::runtime
   };
 }
 
-//===---------------------------------------------------------------------===//
-// Functions defined inside the module of the compiled model
-//===---------------------------------------------------------------------===//
-
-extern "C"
-{
-  void* initICSolvers();
-  void* deinitICSolvers();
-
-  void solveICModel();
-
-  void initMainSolvers();
-  void deinitMainSolvers();
-
-  void calcIC();
-
-  void updateIDAVariables();
-  void updateNonIDAVariables();
-  double getIDATime();
-}
-
 #endif // MARCO_RUNTIME_DRIVERS_IDA_DRIVER_H

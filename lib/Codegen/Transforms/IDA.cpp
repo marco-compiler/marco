@@ -30,7 +30,8 @@ namespace
         const DerivativesMap& derivativesMap,
         bool reducedSystem,
         bool reducedDerivatives,
-        bool jacobianOneSweep);
+        bool jacobianOneSweep,
+        bool debugInformation);
 
       void setStartTime(double time);
 
@@ -216,6 +217,7 @@ namespace
       bool reducedSystem;
       bool reducedDerivatives;
       bool jacobianOneSweep;
+      bool debugInformation;
 
       std::optional<double> startTime;
       std::optional<double> endTime;
@@ -261,13 +263,15 @@ IDAInstance::IDAInstance(
     const DerivativesMap& derivativesMap,
     bool reducedSystem,
     bool reducedDerivatives,
-    bool jacobianOneSweep)
+    bool jacobianOneSweep,
+    bool debugInformation)
     : identifier(identifier.str()),
       symbolTableCollection(&symbolTableCollection),
       derivativesMap(&derivativesMap),
       reducedSystem(reducedSystem),
       reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep),
+      debugInformation(debugInformation),
       startTime(std::nullopt),
       endTime(std::nullopt)
 {
@@ -494,7 +498,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
     auto getter = createGetterFn(globalVariableOp);
     auto setter = createSetterFn(globalVariableOp);
 
-    mlir::Value idaVariable =
+    auto addVariableOp =
         builder.create<mlir::ida::AddAlgebraicVariableOp>(
             loc,
             identifier,
@@ -502,7 +506,11 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
             getter.getSymName(),
             setter.getSymName());
 
-    idaAlgebraicVariables.push_back(idaVariable);
+    if (debugInformation) {
+      addVariableOp.setNameAttr(variableOp.getSymNameAttr());
+    }
+
+    idaAlgebraicVariables.push_back(addVariableOp);
   }
 
   // State variables.
@@ -533,7 +541,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
     auto derivativeGetter = createGetterFn(derivativeGlobalVariableOp);
     auto derivativeSetter = createSetterFn(derivativeGlobalVariableOp);
 
-    mlir::Value idaVariable =
+    auto addVariableOp =
         builder.create<mlir::ida::AddStateVariableOp>(
             loc,
             identifier,
@@ -543,7 +551,11 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
             derivativeGetter.getSymName(),
             derivativeSetter.getSymName());
 
-    idaStateVariables.push_back(idaVariable);
+    if (debugInformation) {
+      addVariableOp.setNameAttr(variableOp.getSymNameAttr());
+    }
+
+    idaStateVariables.push_back(addVariableOp);
   }
 
   return mlir::success();
@@ -945,6 +957,15 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
               rewriter.getContext(), range),
           variablesMapping[writtenVar],
           accessFunctionOp.getSymName());
+
+      if (debugInformation) {
+        std::string stringRepresentation;
+        llvm::raw_string_ostream stringOstream(stringRepresentation);
+        equationOp.printInline(stringOstream);
+
+        idaEquation.setStringRepresentationAttr(
+            rewriter.getStringAttr(stringRepresentation));
+      }
 
       if (reducedDerivatives) {
         // Inform IDA about the accesses performed by the equation.
@@ -2177,7 +2198,7 @@ mlir::LogicalResult IDAPass::solveICModel(
 
   auto idaInstance = std::make_unique<IDAInstance>(
       "ida_ic", symbolTableCollection, derivativesMap,
-      reducedSystem, reducedDerivatives, jacobianOneSweep);
+      reducedSystem, reducedDerivatives, jacobianOneSweep, debugInformation);
 
   // Set the start and end times.
   idaInstance->setStartTime(0);
@@ -2401,7 +2422,7 @@ mlir::LogicalResult IDAPass::solveMainModel(
 
   auto idaInstance = std::make_unique<IDAInstance>(
       "ida_main", symbolTableCollection, derivativesMap,
-      reducedSystem, reducedDerivatives, jacobianOneSweep);
+      reducedSystem, reducedDerivatives, jacobianOneSweep, debugInformation);
 
   // Map from explicit equations to their algorithmically equivalent function.
   llvm::DenseMap<

@@ -461,26 +461,17 @@ namespace marco::runtime::ida
       uint64_t rank,
       const uint64_t* dimensions,
       VariableGetter getterFunction,
-      VariableSetter setterFunction)
+      VariableSetter setterFunction,
+      const char* name)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding algebraic variable" << std::endl;
-      std::cerr << "  - Rank: " << rank << std::endl;
-      std::cerr << "  - Dimensions: [";
+      std::cerr << "Adding algebraic variable";
 
-      for (uint64_t i = 0; i < rank; ++i) {
-        if (i != 0) {
-          std::cerr << ",";
-        }
-
-        std::cerr << dimensions[i];
+      if (name != nullptr) {
+        std::cerr << " \"" << name << "\"";
       }
 
-      std::cerr << "]" << std::endl;
-      std::cerr << "  - Getter function address: "
-                << reinterpret_cast<void*>(getterFunction) << std::endl;
-      std::cerr << "  - Setter function address: "
-                << reinterpret_cast<void*>(setterFunction) << std::endl;
+      std::cerr << std::endl;
     }
 
     // Add variable offset and dimensions.
@@ -507,22 +498,7 @@ namespace marco::runtime::ida
     Variable id = getNumOfArrayVariables() - 1;
 
     if (getOptions().debug) {
-      std::cerr << "Algebraic variable added with ID " << id << std::endl;
-    }
-
-    return id;
-  }
-
-  Variable IDAInstance::addStateVariable(
-      uint64_t rank,
-      const uint64_t* dimensions,
-      VariableGetter stateGetterFunction,
-      VariableSetter stateSetterFunction,
-      VariableGetter derivativeGetterFunction,
-      VariableSetter derivativeSetterFunction)
-  {
-    if (getOptions().debug) {
-      std::cerr << "Adding state variable" << std::endl;
+      std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << rank << std::endl;
       std::cerr << "  - Dimensions: [";
 
@@ -535,16 +511,32 @@ namespace marco::runtime::ida
       }
 
       std::cerr << "]" << std::endl;
-      std::cerr << "  - State variable getter function address: "
-                << reinterpret_cast<void*>(stateGetterFunction) << std::endl;
-      std::cerr << "  - State variable setter function address: "
-                << reinterpret_cast<void*>(stateSetterFunction) << std::endl;
-      std::cerr << "  - Derivative variable getter function address: "
-                << reinterpret_cast<void*>(derivativeGetterFunction)
-                << std::endl;
-      std::cerr << "  - Derivative variable setter function address: "
-                << reinterpret_cast<void*>(derivativeSetterFunction)
-                << std::endl;
+      std::cerr << "  - Getter function address: "
+                << reinterpret_cast<void*>(getterFunction) << std::endl;
+      std::cerr << "  - Setter function address: "
+                << reinterpret_cast<void*>(setterFunction) << std::endl;
+    }
+
+    return id;
+  }
+
+  Variable IDAInstance::addStateVariable(
+      uint64_t rank,
+      const uint64_t* dimensions,
+      VariableGetter stateGetterFunction,
+      VariableSetter stateSetterFunction,
+      VariableGetter derivativeGetterFunction,
+      VariableSetter derivativeSetterFunction,
+      const char* name)
+  {
+    if (getOptions().debug) {
+      std::cerr << "Adding state variable";
+
+      if (name != nullptr) {
+        std::cerr << " \"" << name << "\"";
+      }
+
+      std::cerr << std::endl;
     }
 
     assert(variableOffsets.size() == getNumOfArrayVariables() + 1);
@@ -577,7 +569,29 @@ namespace marco::runtime::ida
     stateVariablesMapping[id] = derivativeVariablesGetters.size() - 1;
 
     if (getOptions().debug) {
-      std::cerr << "State variable added with ID " << id << std::endl;
+      std::cerr << "  - ID: " << id << std::endl;
+      std::cerr << "  - Rank: " << rank << std::endl;
+      std::cerr << "  - Dimensions: [";
+
+      for (uint64_t i = 0; i < rank; ++i) {
+        if (i != 0) {
+          std::cerr << ",";
+        }
+
+        std::cerr << dimensions[i];
+      }
+
+      std::cerr << "]" << std::endl;
+      std::cerr << "  - State variable getter function address: "
+                << reinterpret_cast<void*>(stateGetterFunction) << std::endl;
+      std::cerr << "  - State variable setter function address: "
+                << reinterpret_cast<void*>(stateSetterFunction) << std::endl;
+      std::cerr << "  - Derivative variable getter function address: "
+                << reinterpret_cast<void*>(derivativeGetterFunction)
+                << std::endl;
+      std::cerr << "  - Derivative variable setter function address: "
+                << reinterpret_cast<void*>(derivativeSetterFunction)
+                << std::endl;
     }
 
     return id;
@@ -587,25 +601,17 @@ namespace marco::runtime::ida
       const int64_t* ranges,
       uint64_t equationRank,
       Variable writtenVariable,
-      AccessFunction writeAccess)
+      AccessFunction writeAccess,
+      const char* stringRepresentation)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding equation" << std::endl;
-      std::cerr << "  - Rank: " << equationRank << std::endl;
-      std::cerr << "  - Ranges: [";
+      std::cerr << "Adding equation";
 
-      for (uint64_t i = 0; i < equationRank; ++i) {
-        if (i != 0) {
-          std::cerr << ",";
-        }
-
-        std::cerr << "[" << ranges[i * 2] << "," << (ranges[i * 2 + 1] - 1) << "]";
+      if (stringRepresentation != nullptr) {
+        std::cerr << " \"" << stringRepresentation << "\"";
       }
 
-      std::cerr << "]" << std::endl;
-      std::cerr << "  - Written variable ID: " << writtenVariable << std::endl;
-      std::cerr << "  - Write access function address: "
-                << reinterpret_cast<void*>(writeAccess) << std::endl;
+      std::cerr << std::endl;
     }
 
     // Add the start and end dimensions of the current equation.
@@ -626,7 +632,22 @@ namespace marco::runtime::ida
     Equation id = getNumOfVectorizedEquations() - 1;
 
     if (getOptions().debug) {
-      std::cerr << "Equation added with ID " << id << std::endl;
+      std::cerr << "  - ID: " << id << std::endl;
+      std::cerr << "  - Rank: " << equationRank << std::endl;
+      std::cerr << "  - Ranges: [";
+
+      for (uint64_t i = 0; i < equationRank; ++i) {
+        if (i != 0) {
+          std::cerr << ",";
+        }
+
+        std::cerr << "[" << ranges[i * 2] << "," << (ranges[i * 2 + 1] - 1) << "]";
+      }
+
+      std::cerr << "]" << std::endl;
+      std::cerr << "  - Written variable ID: " << writtenVariable << std::endl;
+      std::cerr << "  - Write access function address: "
+                << reinterpret_cast<void*>(writeAccess) << std::endl;
     }
 
     return id;
@@ -2577,15 +2598,17 @@ static uint64_t idaAddAlgebraicVariable_i64(
     uint64_t rank,
     uint64_t* dimensions,
     void* getter,
-    void* setter)
+    void* setter,
+    void* name)
 {
   return static_cast<IDAInstance*>(instance)->addAlgebraicVariable(
       rank, dimensions,
       reinterpret_cast<VariableGetter>(getter),
-      reinterpret_cast<VariableSetter>(setter));
+      reinterpret_cast<VariableSetter>(setter),
+      static_cast<const char*>(name));
 }
 
-RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void))
+RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
 //===---------------------------------------------------------------------===//
 // idaAddStateVariable
@@ -2597,17 +2620,19 @@ static uint64_t idaAddStateVariable_i64(
     void* stateGetter,
     void* stateSetter,
     void* derivativeGetter,
-    void* derivativeSetter)
+    void* derivativeSetter,
+    void* name)
 {
   return static_cast<IDAInstance*>(instance)->addStateVariable(
       rank, dimensions,
       reinterpret_cast<VariableGetter>(stateGetter),
       reinterpret_cast<VariableSetter>(stateSetter),
       reinterpret_cast<VariableGetter>(derivativeGetter),
-      reinterpret_cast<VariableSetter>(derivativeSetter));
+      reinterpret_cast<VariableSetter>(derivativeSetter),
+      static_cast<const char*>(name));
 }
 
-RUNTIME_FUNC_DEF(idaAddStateVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void), PTR(void))
+RUNTIME_FUNC_DEF(idaAddStateVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void), PTR(void), PTR(void))
 
 //===---------------------------------------------------------------------===//
 // idaAddVariableAccess
@@ -2633,14 +2658,16 @@ static uint64_t idaAddEquation_i64(
     int64_t* ranges,
     uint64_t rank,
     uint64_t writtenVariable,
-    void* writeAccessFunction)
+    void* writeAccessFunction,
+    void* stringRepresentation)
 {
   return static_cast<IDAInstance*>(instance)->addEquation(
       ranges, rank, writtenVariable,
-      reinterpret_cast<AccessFunction>(writeAccessFunction));
+      reinterpret_cast<AccessFunction>(writeAccessFunction),
+      static_cast<const char*>(stringRepresentation));
 }
 
-RUNTIME_FUNC_DEF(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void))
+RUNTIME_FUNC_DEF(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
 
 //===---------------------------------------------------------------------===//
 // idaSetResidual

@@ -163,7 +163,8 @@ namespace marco::runtime::ida
           uint64_t rank,
           const uint64_t* dimensions,
           VariableGetter getterFunction,
-          VariableSetter setterFunction);
+          VariableSetter setterFunction,
+          const char* name);
 
       Variable addStateVariable(
           uint64_t rank,
@@ -171,14 +172,16 @@ namespace marco::runtime::ida
           VariableGetter stateGetterFunction,
           VariableSetter stateSetterFunction,
           VariableGetter derivativeGetterFunction,
-          VariableSetter derivativeSetterFunction);
+          VariableSetter derivativeSetterFunction,
+          const char* name);
 
       /// Add the information about an equation that is handled by IDA.
       Equation addEquation(
           const int64_t* ranges,
           uint64_t rank,
           Variable writtenVariable,
-          AccessFunction writeAccessFunction);
+          AccessFunction writeAccessFunction,
+          const char* stringRepresentation);
 
       void addVariableAccess(
           Equation equation,
@@ -350,6 +353,9 @@ namespace marco::runtime::ida
           Equation& equation,
           std::vector<int64_t>& equationIndices) const;
 
+      /// }
+      /// @name Debug functions
+      /// {
       void printVariablesVector(N_Vector variables) const;
 
       void printDerivativesVector(N_Vector derivatives) const;
@@ -493,13 +499,13 @@ RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 
 RUNTIME_FUNC_DECL(idaGetCurrentTime, double, PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddAlgebraicVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void))
+RUNTIME_FUNC_DECL(idaAddAlgebraicVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddStateVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void), PTR(void))
+RUNTIME_FUNC_DECL(idaAddStateVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void), PTR(void), PTR(void))
 
 RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void))
+RUNTIME_FUNC_DECL(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
 
 RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), uint64_t, PTR(void))
 
