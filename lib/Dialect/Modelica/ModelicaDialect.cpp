@@ -103,6 +103,10 @@ namespace
   };
 }
 
+//===----------------------------------------------------------------------===//
+// Zero-materializable interface models
+//===----------------------------------------------------------------------===//
+
 namespace
 {
   struct ZeroMaterializableBuiltinIndexModel
@@ -136,6 +140,47 @@ namespace
         mlir::Type type, mlir::OpBuilder& builder, mlir::Location loc)
     {
       return builder.create<ConstantOp>(loc, builder.getFloatAttr(type, 0));
+    }
+  };
+}
+
+//===----------------------------------------------------------------------===//
+// One-materializable interface models
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  struct OneMaterializableBuiltinIndexModel
+      : public OneMaterializableType::ExternalModel<
+            OneMaterializableBuiltinIndexModel, mlir::IndexType>
+  {
+    static mlir::Value materializeOneValuedConstant(
+        mlir::Type type, mlir::OpBuilder& builder, mlir::Location loc)
+    {
+      return builder.create<ConstantOp>(loc, builder.getIndexAttr(1));
+    }
+  };
+
+  struct OneMaterializableBuiltinIntegerModel
+      : public OneMaterializableType::ExternalModel<
+            OneMaterializableBuiltinIntegerModel, mlir::IntegerType>
+  {
+    static mlir::Value materializeOneValuedConstant(
+        mlir::Type type, mlir::OpBuilder& builder, mlir::Location loc)
+    {
+      return builder.create<ConstantOp>(loc, builder.getIntegerAttr(type, 1));
+    }
+  };
+
+  template<typename FloatType>
+  struct OneMaterializableBuiltinFloatModel
+      : public OneMaterializableType::ExternalModel<
+            OneMaterializableBuiltinFloatModel<FloatType>, FloatType>
+  {
+    static mlir::Value materializeOneValuedConstant(
+        mlir::Type type, mlir::OpBuilder& builder, mlir::Location loc)
+    {
+      return builder.create<ConstantOp>(loc, builder.getFloatAttr(type, 1));
     }
   };
 }
@@ -191,6 +236,28 @@ namespace mlir::modelica
 
     mlir::Float128Type::attachInterface<
         ZeroMaterializableBuiltinFloatModel<Float128Type>>(*getContext());
+
+    // Add the one-materialization interface to built-in types.
+    mlir::IndexType::attachInterface<
+        OneMaterializableBuiltinIndexModel>(*getContext());
+
+    mlir::IntegerType::attachInterface<
+        OneMaterializableBuiltinIntegerModel>(*getContext());
+
+    mlir::Float16Type::attachInterface<
+        OneMaterializableBuiltinFloatModel<Float16Type>>(*getContext());
+
+    mlir::Float32Type::attachInterface<
+        OneMaterializableBuiltinFloatModel<Float32Type>>(*getContext());
+
+    mlir::Float64Type::attachInterface<
+        OneMaterializableBuiltinFloatModel<Float64Type>>(*getContext());
+
+    mlir::Float80Type::attachInterface<
+        OneMaterializableBuiltinFloatModel<Float80Type>>(*getContext());
+
+    mlir::Float128Type::attachInterface<
+        OneMaterializableBuiltinFloatModel<Float128Type>>(*getContext());
   }
 
   Operation* ModelicaDialect::materializeConstant(
