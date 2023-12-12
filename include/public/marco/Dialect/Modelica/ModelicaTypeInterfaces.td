@@ -36,6 +36,21 @@ def ZeroMaterializableType : Modelica_TypeInterface<"ZeroMaterializableType">
     ];
 }
 
+def OneMaterializableType : Modelica_TypeInterface<"OneMaterializableType">
+{
+    let description = [{
+        Interface for a type for which a one-valued constant can be
+        materialized.
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "Materialize a one-valued constant of this type.",
+            "mlir::Value", "materializeOneValuedConstant",
+            (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc)>
+    ];
+}
+
 def IterableTypeInterface : Modelica_TypeInterface<"IterableTypeInterface">
 {
     let description = [{
