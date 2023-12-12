@@ -176,7 +176,7 @@ def ExplicitStartValueInsertionPass
     let summary = "Add the missing start values.";
 
     let description = [{
-        Convert the start values for variables that do not have one.
+        Create the start values for variables that do not have one.
     }];
 
     let dependentDialects = [
