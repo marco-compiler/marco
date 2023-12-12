@@ -570,7 +570,7 @@ namespace mlir::modelica
 
   bool VariableType::isValidElementType(mlir::Type type)
   {
-    return type.isIndex() ||
+    return type.isIntOrIndexOrFloat() ||
         type.isa<BooleanType, IntegerType, RealType, RecordType>();
   }
 
