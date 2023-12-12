@@ -24,41 +24,59 @@ namespace
         ModelOp modelOp = getOperation();
         mlir::OpBuilder builder(modelOp);
 
+        // Collect the variables.
+        llvm::SmallVector<VariableOp> variableOps;
+        modelOp.collectVariables(variableOps);
+
+        // Collect the existing 'start' operations.
         llvm::StringMap<StartOp> startOps;
 
         for (StartOp startOp : modelOp.getOps<StartOp>()) {
           startOps[startOp.getVariable()] = startOp;
         }
 
-        for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+        // Create the missing 'start' operations.
+        for (VariableOp variableOp : variableOps) {
           VariableType variableType = variableOp.getVariableType();
 
-          if (variableType.getElementType().isa<RecordType>()) {
+          if (startOps.contains(variableOp.getSymName())) {
+            // The variable already has a start value.
             continue;
           }
 
-          if (startOps.find(variableOp.getSymName()) == startOps.end()) {
-            builder.setInsertionPointToEnd(modelOp.getBody());
+          auto zeroMaterializableType =
+              variableType.getElementType().dyn_cast<ZeroMaterializableType>();
 
-            auto startOp = builder.create<StartOp>(
-                variableOp.getLoc(), variableOp.getSymName(), false, false);
-
-            assert(startOp.getBodyRegion().empty());
-            mlir::Block* bodyBlock = builder.createBlock(&startOp.getBodyRegion());
-            builder.setInsertionPointToStart(bodyBlock);
-
-            mlir::Value zero = builder.create<ConstantOp>(
-                variableOp.getLoc(), getZeroAttr(variableType.getElementType()));
-
-            mlir::Value result = zero;
-
-            if (!variableType.isScalar()) {
-              result = builder.create<ArrayBroadcastOp>(
-                  variableOp.getLoc(), variableType.toArrayType(), zero);
-            }
-
-            builder.create<YieldOp>(variableOp.getLoc(), result);
+          if (!zeroMaterializableType) {
+            // Proceed only if a zero-valued constant can be materialized.
+            continue;
           }
+
+          // Append the new operation at the end of the model.
+          builder.setInsertionPointToEnd(modelOp.getBody());
+
+          auto startOp = builder.create<StartOp>(
+              variableOp.getLoc(), variableOp.getSymName(), false, false);
+
+          assert(startOp.getBodyRegion().empty());
+
+          mlir::Block* bodyBlock =
+              builder.createBlock(&startOp.getBodyRegion());
+
+          builder.setInsertionPointToStart(bodyBlock);
+
+          mlir::Value zero =
+              zeroMaterializableType.materializeZeroValuedConstant(
+                  builder, variableOp.getLoc());
+
+          mlir::Value result = zero;
+
+          if (!variableType.isScalar()) {
+            result = builder.create<ArrayBroadcastOp>(
+                variableOp.getLoc(), variableType.toArrayType(), zero);
+          }
+
+          builder.create<YieldOp>(variableOp.getLoc(), result);
         }
       }
   };
