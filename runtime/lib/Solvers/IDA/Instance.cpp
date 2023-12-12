@@ -1644,7 +1644,7 @@ namespace marco::runtime::ida
       N_Vector derivativeVariablesVector)
   {
     if (getOptions().debug) {
-      std::cerr << "Copying variable from MARCO" << std::endl;
+      std::cerr << "Copying variables from MARCO" << std::endl;
     }
 
     IDA_PROFILER_COPY_VARS_FROM_MARCO_START;
@@ -1708,7 +1708,7 @@ namespace marco::runtime::ida
       N_Vector derivativeVariablesVector)
   {
     if (getOptions().debug) {
-      std::cerr << "Copying variable into MARCO" << std::endl;
+      std::cerr << "Copying variables into MARCO" << std::endl;
     }
 
     IDA_PROFILER_COPY_VARS_INTO_MARCO_START;
