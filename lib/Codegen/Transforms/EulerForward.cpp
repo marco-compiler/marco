@@ -16,8 +16,18 @@ using namespace ::mlir::modelica;
 
 namespace
 {
-  class EulerForwardSolver : public mlir::modelica::impl::ModelSolver
+  class EulerForwardPass
+      : public mlir::modelica::impl::EulerForwardPassBase<EulerForwardPass>,
+        public mlir::modelica::impl::ModelSolver
   {
+    public:
+      using EulerForwardPassBase::EulerForwardPassBase;
+
+      void runOnOperation() override;
+
+    private:
+      DerivativesMap& getDerivativesMap(ModelOp modelOp);
+
     protected:
       mlir::LogicalResult solveICModel(
           mlir::IRRewriter& rewriter,
@@ -65,7 +75,51 @@ namespace
   };
 }
 
-mlir::LogicalResult EulerForwardSolver::solveICModel(
+void EulerForwardPass::runOnOperation()
+{
+  mlir::ModuleOp moduleOp = getOperation();
+  llvm::SmallVector<ModelOp> modelOps;
+
+  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+    modelOps.push_back(modelOp);
+  }
+
+  auto expectedVariablesFilter =
+      marco::VariableFilter::fromString(variablesFilter);
+
+  std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
+
+  if (!expectedVariablesFilter) {
+    getOperation().emitWarning()
+        << "Invalid variable filter string. No filtering will take place";
+
+    variablesFilterInstance = std::make_unique<marco::VariableFilter>();
+  } else {
+    variablesFilterInstance = std::make_unique<marco::VariableFilter>(
+        std::move(*expectedVariablesFilter));
+  }
+
+  for (ModelOp modelOp : modelOps) {
+    if (mlir::failed(convert(
+            modelOp, getDerivativesMap(modelOp), *variablesFilterInstance,
+            processICModel, processMainModel))) {
+      return signalPassFailure();
+    }
+  }
+}
+
+DerivativesMap& EulerForwardPass::getDerivativesMap(ModelOp modelOp)
+{
+  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
+  analysis.initialize();
+  return analysis;
+}
+
+mlir::LogicalResult EulerForwardPass::solveICModel(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -129,7 +183,7 @@ mlir::LogicalResult EulerForwardSolver::solveICModel(
   return mlir::success();
 }
 
-mlir::LogicalResult EulerForwardSolver::solveMainModel(
+mlir::LogicalResult EulerForwardPass::solveMainModel(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -195,7 +249,7 @@ mlir::LogicalResult EulerForwardSolver::solveMainModel(
   return mlir::success();
 }
 
-mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
+mlir::LogicalResult EulerForwardPass::createCalcICFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -233,7 +287,7 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
+mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -304,7 +358,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
+mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
@@ -412,67 +466,6 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
   builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
 
   return mlir::success();
-}
-
-namespace
-{
-  class EulerForwardPass
-      : public mlir::modelica::impl::EulerForwardPassBase<EulerForwardPass>
-  {
-    public:
-      using EulerForwardPassBase::EulerForwardPassBase;
-
-      void runOnOperation() override;
-
-    private:
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
-  };
-}
-
-void EulerForwardPass::runOnOperation()
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  llvm::SmallVector<ModelOp> modelOps;
-
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
-      modelOps.push_back(modelOp);
-  }
-
-  EulerForwardSolver solver;
-
-  auto expectedVariablesFilter =
-      marco::VariableFilter::fromString(variablesFilter);
-
-  std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
-
-  if (!expectedVariablesFilter) {
-      getOperation().emitWarning()
-          << "Invalid variable filter string. No filtering will take place";
-
-      variablesFilterInstance = std::make_unique<marco::VariableFilter>();
-  } else {
-      variablesFilterInstance = std::make_unique<marco::VariableFilter>(
-          std::move(*expectedVariablesFilter));
-  }
-
-  for (ModelOp modelOp : modelOps) {
-      if (mlir::failed(solver.convert(
-              modelOp, getDerivativesMap(modelOp), *variablesFilterInstance,
-              processICModel, processMainModel))) {
-        return signalPassFailure();
-      }
-  }
-}
-
-DerivativesMap& EulerForwardPass::getDerivativesMap(ModelOp modelOp)
-{
-  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-      return *analysis;
-  }
-
-  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 namespace mlir::modelica
