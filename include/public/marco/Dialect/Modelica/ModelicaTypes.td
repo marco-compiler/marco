@@ -20,7 +20,10 @@ class Modelica_Type<
     let mnemonic = ?;
 }
 
-def BooleanType : Modelica_Type<"Boolean", [ElementaryType]>
+def BooleanType : Modelica_Type<"Boolean",
+    [ElementaryType,
+    DeclareTypeInterfaceMethods<ZeroMaterializableType>,
+    DeclareTypeInterfaceMethods<OneMaterializableType>]>
 {
     let summary = "Boolean type";
     let mnemonic = "bool";
@@ -30,7 +33,10 @@ def BooleanType : Modelica_Type<"Boolean", [ElementaryType]>
     }];
 }
 
-def IntegerType : Modelica_Type<"Integer", [ElementaryType]>
+def IntegerType : Modelica_Type<"Integer",
+    [ElementaryType,
+    DeclareTypeInterfaceMethods<ZeroMaterializableType>,
+    DeclareTypeInterfaceMethods<OneMaterializableType>]>
 {
     let summary = "Integer type";
     let mnemonic = "int";
@@ -40,7 +46,10 @@ def IntegerType : Modelica_Type<"Integer", [ElementaryType]>
     }];
 }
 
-def RealType : Modelica_Type<"Real", [ElementaryType]>
+def RealType : Modelica_Type<"Real",
+    [ElementaryType,
+    DeclareTypeInterfaceMethods<ZeroMaterializableType>,
+    DeclareTypeInterfaceMethods<OneMaterializableType>]>
 {
     let summary = "Real type";
     let mnemonic = "real";

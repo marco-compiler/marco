@@ -213,7 +213,67 @@ namespace mlir::modelica
 
     llvm_unreachable("Unexpected 'Modelica' type kind");
   }
+}
 
+//===-------------------------------------------------------------------===//
+// BooleanType
+//===-------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  mlir::Value BooleanType::materializeZeroValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, BooleanAttr::get(*this, false));
+  }
+
+  mlir::Value BooleanType::materializeOneValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, RealAttr::get(*this, true));
+  }
+}
+
+//===-------------------------------------------------------------------===//
+// IntegerType
+//===-------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  mlir::Value IntegerType::materializeZeroValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, IntegerAttr::get(*this, 0));
+  }
+
+  mlir::Value IntegerType::materializeOneValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, IntegerAttr::get(*this, 1));
+  }
+}
+
+//===-------------------------------------------------------------------===//
+// RealType
+//===-------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  mlir::Value RealType::materializeZeroValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, RealAttr::get(*this, 0));
+  }
+
+  mlir::Value RealType::materializeOneValuedConstant(
+      mlir::OpBuilder& builder, mlir::Location loc) const
+  {
+    return builder.create<ConstantOp>(loc, RealAttr::get(*this, 1));
+  }
+}
+
+namespace mlir::modelica
+{
   //===-------------------------------------------------------------------===//
   // BaseArrayType
   //===-------------------------------------------------------------------===//
