@@ -14,6 +14,13 @@ class Modelica_TypeInterface<string name>
     let cppNamespace = "::mlir::modelica";
 }
 
+def ElementaryType : Modelica_TypeInterface<"ElementaryType">
+{
+    let description = [{
+        Interface for an elementary type.
+    }];
+}
+
 def IterableTypeInterface : Modelica_TypeInterface<"IterableTypeInterface">
 {
     let description = [{

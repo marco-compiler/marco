@@ -123,6 +123,15 @@ namespace mlir::modelica
         //ModelicaOpAsmDialectInterface,
         ModelicaFoldInterface,
         ModelicaInlinerInterface>();
+
+    // Mark the built-in types as elementary.
+    mlir::IndexType::attachInterface<ElementaryType>(*getContext());
+    mlir::IntegerType::attachInterface<ElementaryType>(*getContext());
+    mlir::Float16Type::attachInterface<ElementaryType>(*getContext());
+    mlir::Float32Type::attachInterface<ElementaryType>(*getContext());
+    mlir::Float64Type::attachInterface<ElementaryType>(*getContext());
+    mlir::Float80Type::attachInterface<ElementaryType>(*getContext());
+    mlir::Float128Type::attachInterface<ElementaryType>(*getContext());
   }
 
   Operation* ModelicaDialect::materializeConstant(
