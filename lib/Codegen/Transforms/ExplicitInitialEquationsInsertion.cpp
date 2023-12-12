@@ -51,7 +51,9 @@ void ExplicitInitialEquationsInsertionPass::runOnOperation()
   mlir::SymbolTableCollection symbolTableCollection;
 
   for (EquationInstanceOp equationOp : equationOps) {
-    cloneEquationAsInitialEquation(builder, equationOp);
+    if (!equationOp.getInitial()) {
+      cloneEquationAsInitialEquation(builder, equationOp);
+    }
   }
 
   for (StartOp startOp : startOps) {
