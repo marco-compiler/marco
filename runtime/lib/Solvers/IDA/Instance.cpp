@@ -1105,8 +1105,20 @@ namespace marco::runtime::ida
       return false;
     }
 
-    // TODO IDAGetConsistentIC
+    auto getConsistentIcRetVal =
+        IDAGetConsistentIC(idaMemory, variablesVector, derivativesVector);
 
+    if (getConsistentIcRetVal != IDA_SUCCESS) {
+      if (getConsistentIcRetVal == IDA_ILL_INPUT) {
+        std::cerr << "IDAGetConsistentIC - Called before the first IDASolve" << std::endl;
+      } else if (getConsistentIcRetVal == IDA_MEM_NULL) {
+        std::cerr << "IDAGetConsistentIC - The ida_mem pointer is NULL" << std::endl;
+      }
+
+      return false;
+    }
+
+    copyVariablesIntoMARCO(variablesVector, derivativesVector);
     return true;
   }
 
