@@ -3207,7 +3207,12 @@ def Modelica_StartOp : Modelica_Op<"start",
         The operation describes how to compute the initial value of a variable.
     }];
 
-    let arguments = (ins SymbolNameAttr:$variable, BoolAttr:$fixed, BoolAttr:$each);
+    let arguments = (ins
+        SymbolNameAttr:$variable,
+        BoolAttr:$fixed,
+        BoolAttr:$each,
+        DefaultValuedAttr<BoolAttr, "false">:$implicit);
+
     let results = (outs);
 
     let regions = (region

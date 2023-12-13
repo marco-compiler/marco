@@ -678,7 +678,7 @@ static mlir::LogicalResult createStartOp(
 
   // TODO handle object orientation
   auto startOp = builder.create<StartOp>(
-      loc, variable.getRootReference().getValue(), false, false);
+      loc, variable.getRootReference().getValue(), false, false, true);
 
   assert(startOp.getBodyRegion().empty());
   mlir::Block* bodyBlock = builder.createBlock(&startOp.getBodyRegion());

@@ -56,7 +56,7 @@ namespace
           builder.setInsertionPointToEnd(modelOp.getBody());
 
           auto startOp = builder.create<StartOp>(
-              variableOp.getLoc(), variableOp.getSymName(), false, false);
+              variableOp.getLoc(), variableOp.getSymName(), false, false, true);
 
           assert(startOp.getBodyRegion().empty());
 
