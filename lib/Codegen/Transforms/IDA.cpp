@@ -27,7 +27,7 @@ namespace
       IDAInstance(
         llvm::StringRef identifier,
         mlir::SymbolTableCollection& symbolTableCollection,
-        const DerivativesMap& derivativesMap,
+        const DerivativesMap* derivativesMap,
         bool reducedSystem,
         bool reducedDerivatives,
         bool jacobianOneSweep,
@@ -199,6 +199,12 @@ namespace
 
       std::string getIDAFunctionName(llvm::StringRef name) const;
 
+      std::optional<mlir::SymbolRefAttr>
+      getDerivative(mlir::SymbolRefAttr variable) const;
+
+      std::optional<mlir::SymbolRefAttr>
+      getDerivedVariable(mlir::SymbolRefAttr derivative) const;
+
       mlir::LogicalResult getWritesMap(
           ModelOp modelOp,
           llvm::ArrayRef<SCCOp> SCCs,
@@ -260,14 +266,14 @@ namespace
 IDAInstance::IDAInstance(
     llvm::StringRef identifier,
     mlir::SymbolTableCollection& symbolTableCollection,
-    const DerivativesMap& derivativesMap,
+    const DerivativesMap* derivativesMap,
     bool reducedSystem,
     bool reducedDerivatives,
     bool jacobianOneSweep,
     bool debugInformation)
     : identifier(identifier.str()),
       symbolTableCollection(&symbolTableCollection),
-      derivativesMap(&derivativesMap),
+      derivativesMap(derivativesMap),
       reducedSystem(reducedSystem),
       reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep),
@@ -521,9 +527,8 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
     assert(stateGlobalVariableOp && "Global variable not found");
     auto arrayType = variableOp.getVariableType().toArrayType();
 
-    std::optional<mlir::SymbolRefAttr> derivativeName =
-        derivativesMap->getDerivative(
-            mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()));
+    std::optional<mlir::SymbolRefAttr> derivativeName = getDerivative(
+        mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()));
 
     if (!derivativeName) {
       return mlir::failure();
@@ -1025,7 +1030,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
            llvm::zip(stateVariables, idaStateVariables)) {
         if (reducedDerivatives &&
             !accessedVariables.contains(variable)) {
-          auto derivative = derivativesMap->getDerivative(
+          auto derivative = getDerivative(
               mlir::SymbolRefAttr::get(variable.getSymNameAttr()));
 
           if (!derivative) {
@@ -1078,16 +1083,16 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
   assert(idaEquation.getType().isa<mlir::ida::EquationType>());
 
   auto getIDAVariable = [&](VariableOp variableOp) -> mlir::Value {
-    if (auto stateVariable = derivativesMap->getDerivedVariable(
-            mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+    if (auto stateVariable = getDerivedVariable(mlir::SymbolRefAttr::get(
+            variableOp.getSymNameAttr()))) {
       auto stateVariableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
           modelOp, *stateVariable);
 
       return idaStateVariables[stateVariablesLookup[stateVariableOp]];
     }
 
-    if (auto derivativeVariable = derivativesMap->getDerivative(
-            mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+    if (auto derivativeVariable = getDerivative(mlir::SymbolRefAttr::get(
+            variableOp.getSymNameAttr()))) {
       auto derivativeVariableOp =
           symbolTableCollection->lookupSymbolIn<VariableOp>(
               modelOp, *derivativeVariable);
@@ -1351,8 +1356,7 @@ mlir::LogicalResult IDAInstance::getIndependentVariablesForAD(
 
     result.insert(variableOp);
 
-    if (auto derivative =
-            derivativesMap->getDerivative(access.getVariable())) {
+    if (auto derivative = getDerivative(access.getVariable())) {
       auto derivativeVariableOp =
           symbolTableCollection->lookupSymbolIn<VariableOp>(
               modelOp, *derivative);
@@ -1360,8 +1364,7 @@ mlir::LogicalResult IDAInstance::getIndependentVariablesForAD(
       result.insert(derivativeVariableOp);
     }
 
-    if (auto state =
-            derivativesMap->getDerivedVariable(access.getVariable())) {
+    if (auto state = getDerivedVariable(access.getVariable())) {
       auto stateVariableOp =
           symbolTableCollection->lookupSymbolIn<VariableOp>(modelOp, *state);
 
@@ -1812,8 +1815,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     // Set the seed of the derivative to alpha.
     std::optional<size_t> alphaSeedPosition = std::nullopt;
 
-    if (auto derivative = derivativesMap->getDerivative(
-            mlir::SymbolRefAttr::get(independentVariable.getSymNameAttr()))) {
+    if (auto derivative = getDerivative(mlir::SymbolRefAttr::get(
+            independentVariable.getSymNameAttr()))) {
       auto derVariableOp =
           symbolTableCollection->lookupSymbolIn<VariableOp>(modelOp, *derivative);
 
@@ -1884,8 +1887,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     setSeed(builder, loc, varSeeds[oneSeedPosition],
             jacobianFunction.getVariableIndices(), zero);
 
-    if (auto derivative = derivativesMap->getDerivative(
-            mlir::SymbolRefAttr::get(independentVariable.getSymNameAttr()))) {
+    if (auto derivative = getDerivative(mlir::SymbolRefAttr::get(
+            independentVariable.getSymNameAttr()))) {
       auto globalDerivativeOp =
           symbolTableCollection->lookupSymbolIn<VariableOp>(moduleOp, *derivative);
 
@@ -1955,6 +1958,26 @@ std::string IDAInstance::getIDAFunctionName(llvm::StringRef name) const
   return identifier + "_" + name.str();
 }
 
+std::optional<mlir::SymbolRefAttr>
+IDAInstance::getDerivative(mlir::SymbolRefAttr variable) const
+{
+  if (!derivativesMap) {
+    return std::nullopt;
+  }
+
+  return derivativesMap->getDerivative(variable);
+}
+
+std::optional<mlir::SymbolRefAttr>
+IDAInstance::getDerivedVariable(mlir::SymbolRefAttr derivative) const
+{
+  if (!derivativesMap) {
+    return std::nullopt;
+  }
+
+  return derivativesMap->getDerivedVariable(derivative);
+}
+
 mlir::LogicalResult IDAInstance::getWritesMap(
     ModelOp modelOp,
     llvm::ArrayRef<SCCOp> SCCs,
@@ -2017,7 +2040,6 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
-          const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
           llvm::ArrayRef<SCCOp> SCCs) override;
 
@@ -2189,7 +2211,6 @@ mlir::LogicalResult IDAPass::solveICModel(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     llvm::ArrayRef<VariableOp> variableOps,
-    const DerivativesMap& derivativesMap,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
     llvm::ArrayRef<SCCOp> SCCs)
 {
@@ -2197,7 +2218,7 @@ mlir::LogicalResult IDAPass::solveICModel(
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "ida_ic", symbolTableCollection, derivativesMap,
+      "ida_ic", symbolTableCollection, nullptr,
       reducedSystem, reducedDerivatives, jacobianOneSweep, debugInformation);
 
   // Set the start and end times.
@@ -2421,7 +2442,7 @@ mlir::LogicalResult IDAPass::solveMainModel(
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "ida_main", symbolTableCollection, derivativesMap,
+      "ida_main", symbolTableCollection, &derivativesMap,
       reducedSystem, reducedDerivatives, jacobianOneSweep, debugInformation);
 
   // Map from explicit equations to their algorithmically equivalent function.

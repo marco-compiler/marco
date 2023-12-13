@@ -34,7 +34,6 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
-          const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
           llvm::ArrayRef<SCCOp> SCCs) override;
 
@@ -124,7 +123,6 @@ mlir::LogicalResult EulerForwardPass::solveICModel(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     llvm::ArrayRef<VariableOp> variableOps,
-    const DerivativesMap& derivativesMap,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
     llvm::ArrayRef<SCCOp> SCCs)
 {

@@ -467,9 +467,8 @@ namespace mlir::modelica::impl
 
     if (processICModel) {
       if (mlir::failed(solveICModel(
-              rewriter, symbolTableCollection, modelOp,
-              variableOps, derivativesMap, localToGlobalVariablesMap,
-              initialSCCs))) {
+              rewriter, symbolTableCollection, modelOp, variableOps,
+              localToGlobalVariablesMap, initialSCCs))) {
         return mlir::failure();
       }
     }
@@ -1193,7 +1192,6 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::modelica::ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
-          const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
           llvm::ArrayRef<SCCOp> SCCs) override
       {

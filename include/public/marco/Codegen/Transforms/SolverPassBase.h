@@ -129,7 +129,6 @@ namespace mlir::modelica::impl
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::modelica::ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
-          const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
           llvm::ArrayRef<SCCOp> SCCs) = 0;
 
