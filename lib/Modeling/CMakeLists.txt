@@ -5,6 +5,7 @@ set(SOURCES
     AccessFunctionEmpty.cpp
     AccessFunctionGeneric.cpp
     AccessFunctionRotoTranslation.cpp
+    ArrayVariablesDependencyGraph.cpp
     Dependency.cpp
     DimensionAccess.cpp
     DimensionAccessAdd.cpp
@@ -28,7 +29,11 @@ set(SOURCES
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
-    Scheduling.cpp)
+    SCC.cpp
+    SCCsDependencyGraph.cpp
+    ScalarVariablesDependencyGraph.cpp
+    Scheduling.cpp
+    SingleEntryWeaklyConnectedDigraph.cpp)
 
 marco_add_library(modeling
     ${SOURCES}

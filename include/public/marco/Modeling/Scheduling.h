@@ -2,7 +2,9 @@
 #define MARCO_MODELING_SCHEDULING_H
 
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
-#include "marco/Modeling/Dependency.h"
+#include "marco/Modeling/ArrayVariablesDependencyGraph.h"
+#include "marco/Modeling/ScalarVariablesDependencyGraph.h"
+#include "marco/Modeling/SCCsDependencyGraph.h"
 #include <numeric>
 
 namespace marco::modeling
@@ -317,7 +319,7 @@ namespace marco::modeling
         VectorDependencyGraph vectorDependencyGraph(getContext());
         vectorDependencyGraph.addEquations(equationViews);
 
-        SCCDependencyGraph<SCC> sccDependencyGraph;
+        SCCsDependencyGraph<SCC> sccDependencyGraph;
         sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
 
         auto scheduledSCCs = sccDependencyGraph.postOrder();

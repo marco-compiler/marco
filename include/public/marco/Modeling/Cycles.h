@@ -2,18 +2,12 @@
 #define MARCO_MODELING_CYCLES_H
 
 #include "marco/Diagnostic/TreeOStream.h"
-#include "marco/Modeling/AccessFunction.h"
-#include "marco/Modeling/Dependency.h"
+#include "marco/Modeling/ArrayVariablesDependencyGraph.h"
 #include "marco/Modeling/Dumpable.h"
-#include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
-#include "marco/Modeling/MultidimensionalRange.h"
-#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Threading.h"
-#include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SCCIterator.h"
 #include <list>
-#include <stack>
 
 namespace marco::modeling
 {
@@ -260,7 +254,8 @@ namespace marco::modeling
   class CyclesFinder
   {
     public:
-      using DependencyGraph = ArrayVariablesDependencyGraph<VariableProperty, EquationProperty>;
+      using DependencyGraph = ArrayVariablesDependencyGraph<
+          VariableProperty, EquationProperty>;
 
       using Variable = typename DependencyGraph::Variable;
       using Equation = typename DependencyGraph::Equation;
