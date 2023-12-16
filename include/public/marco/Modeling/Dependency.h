@@ -941,24 +941,28 @@ namespace marco::modeling
         llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
 
         for (const auto& scc : SCCs) {
-          auto sccDescriptor = graph.addVertex(scc);
+          SCCDescriptor sccDescriptor = graph.addVertex(scc);
 
-          for (const auto& element : SCCTraits::getElements(&graph[sccDescriptor])) {
-            parentSCC.try_emplace(element, sccDescriptor);
+          for (const auto& element :
+               SCCTraits::getElements(&graph[sccDescriptor])) {
+            parentSCC[element] = sccDescriptor;
           }
         }
 
-        // Connect the SCCs
-        for (const auto& sccDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
-          const auto& scc = graph[sccDescriptor];
+        // Connect the SCCs.
+        for (const auto& sccDescriptor : llvm::make_range(
+                 graph.verticesBegin(), graph.verticesEnd())) {
+          const SCC& scc = graph[sccDescriptor];
 
           // The set of SCCs that have already been connected to the current
-          // SCC. This allows to avoid duplicate edges.
+          // SCC. This allows to avoid duplicated edges.
           llvm::DenseSet<SCCDescriptor> connectedSCCs;
 
-          for (const auto& equationDescriptor : scc) {
-            for (const auto& destination : SCCTraits::getDependencies(&scc, equationDescriptor)) {
-              auto destinationSCC = parentSCC.find(destination)->second;
+          for (const auto& source : SCCTraits::getElements(&scc)) {
+            for (const auto& destination :
+                 SCCTraits::getDependencies(&scc, source)) {
+              SCCDescriptor destinationSCC =
+                  parentSCC.find(destination)->second;
 
               if (!connectedSCCs.contains(destinationSCC)) {
                 graph.addEdge(sccDescriptor, destinationSCC);
