@@ -274,7 +274,7 @@ namespace marco::modeling
   {
     private:
       using EquationTraits =
-        typename dependency::EquationTraits<EquationProperty>;
+          typename dependency::EquationTraits<EquationProperty>;
 
       using EquationView = internal::scheduling::EquationView<
           VariableProperty, EquationProperty>;
@@ -285,6 +285,10 @@ namespace marco::modeling
       using Equation = typename VectorDependencyGraph::Equation;
 
       using SCC = typename VectorDependencyGraph::SCC;
+      using SCCsGraph = SCCsDependencyGraph<SCC>;
+      using SCCDescriptor = typename SCCsGraph::SCCDescriptor;
+      using IndependentSCCs = std::vector<SCCDescriptor>;
+
       using ScalarDependencyGraph =
           ScalarVariablesDependencyGraph<VariableProperty, EquationView>;
 
@@ -297,8 +301,12 @@ namespace marco::modeling
       using Schedule = scheduling::Schedule<ScheduledSCC>;
       using DirectionPossibility = internal::scheduling::DirectionPossibility;
 
+    private:
+      static const int64_t kUnlimitedGroupElements = -1;
+      mlir::MLIRContext* context;
+
     public:
-      Scheduler(mlir::MLIRContext* context)
+      explicit Scheduler(mlir::MLIRContext* context)
         : context(context)
       {
       }
@@ -319,13 +327,14 @@ namespace marco::modeling
         VectorDependencyGraph vectorDependencyGraph(getContext());
         vectorDependencyGraph.addEquations(equationViews);
 
-        SCCsDependencyGraph<SCC> sccDependencyGraph;
-        sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
+        SCCsGraph SCCsDependencyGraph;
+        auto SCCs = vectorDependencyGraph.getSCCs();
+        SCCsDependencyGraph.addSCCs(SCCs);
 
-        auto scheduledSCCs = sccDependencyGraph.postOrder();
+        auto scheduledSCCs = SCCsDependencyGraph.reversePostOrder();
 
-        for (const auto& sccDescriptor : scheduledSCCs) {
-          const SCC& scc = sccDependencyGraph[sccDescriptor];
+        for (SCCDescriptor sccDescriptor : scheduledSCCs) {
+          const SCC& scc = SCCsDependencyGraph[sccDescriptor];
 
           if (scc.size() == 1) {
             llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
@@ -334,9 +343,7 @@ namespace marco::modeling
             bool isSchedulableAsRange = llvm::all_of(
                 directionPossibilities,
                 [](DirectionPossibility direction) {
-                  return direction == DirectionPossibility::Any ||
-                      direction == DirectionPossibility::Forward ||
-                      direction == DirectionPossibility::Backward;
+                  return direction == DirectionPossibility::Any || direction == DirectionPossibility::Forward || direction == DirectionPossibility::Backward;
                 });
 
             if (isSchedulableAsRange) {
@@ -376,7 +383,7 @@ namespace marco::modeling
               scalarDependencyGraph.addEquations(scalarEquationViews);
 
               for (const auto& equationDescriptor :
-                   scalarDependencyGraph.postOrder()) {
+                   scalarDependencyGraph.reversePostOrder()) {
                 const auto& scalarEquation =
                     scalarDependencyGraph[equationDescriptor];
 
@@ -393,7 +400,7 @@ namespace marco::modeling
               }
             }
           } else {
-            // A strong connected component can be scheduled with respect to
+            // A strongly connected component can be scheduled with respect to
             // other SCCs, but the equations composing it are cyclic and thus
             // can't be scheduled.
             std::vector<ScheduledEquation> SCC;
@@ -657,9 +664,6 @@ namespace marco::modeling
         assert(lhs == rhs);
         return lhs;
       }
-
-    private:
-      mlir::MLIRContext* context;
   };
 }
 

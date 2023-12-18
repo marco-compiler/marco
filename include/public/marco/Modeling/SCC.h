@@ -21,8 +21,8 @@ namespace marco::modeling
       // static std::vector<ElementRef> getElements(const SCC* scc);
       //    return the elements composing the SCC.
       //
-      // static std::vector<ElementRef> getDependencies(const Impl* SCC, ElementRef element);
-      //    return the dependencies of an element, which may belong to other SCCs.
+      // static std::vector<ElementRef> getDependentElements(const SCC* scc, ElementRef element);
+      //    return the elements (which may belong to other SCCs) depending on a given one.
     };
   }
 
@@ -139,7 +139,7 @@ namespace marco::modeling
           return result;
         }
 
-        static std::vector<ElementRef> getDependencies(
+        static std::vector<ElementRef> getDependentElements(
             const Impl* SCC, ElementRef element)
         {
           std::vector<ElementRef> result;

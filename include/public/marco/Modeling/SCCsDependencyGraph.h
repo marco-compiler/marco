@@ -61,7 +61,7 @@ namespace marco::modeling
 
           for (const auto& source : SCCTraits::getElements(&scc)) {
             for (const auto& destination :
-                 SCCTraits::getDependencies(&scc, source)) {
+                 SCCTraits::getDependentElements(&scc, source)) {
               SCCDescriptor destinationSCC =
                   parentSCC.find(destination)->second;
 
@@ -74,8 +74,8 @@ namespace marco::modeling
         }
       }
 
-      /// Perform a post-order visit of the dependency graph
-      /// and get the ordered SCC descriptors.
+      /// Perform a post-order visit of the dependency graph and get the
+      /// ordered SCC descriptors.
       std::vector<SCCDescriptor> postOrder() const
       {
         std::vector<SCCDescriptor> result;
@@ -90,6 +90,40 @@ namespace marco::modeling
 
         return result;
       }
+
+      /// Perform a reverse post-order visit of the dependency graph
+      /// and get the ordered SCC descriptors.
+      std::vector<SCCDescriptor> reversePostOrder() const
+      {
+        auto result = postOrder();
+        std::reverse(result.begin(), result.end());
+        return result;
+      }
+
+      /// @name Forwarded methods
+      /// {
+
+      auto SCCsBegin() const
+      {
+        return graph.verticesBegin();
+      }
+
+      auto SCCsEnd() const
+      {
+        return graph.verticesEnd();
+      }
+
+      auto dependentSCCsBegin(SCCDescriptor scc) const
+      {
+        return graph.linkedVerticesBegin(std::move(scc));
+      }
+
+      auto dependentSCCsEnd(SCCDescriptor scc) const
+      {
+        return graph.linkedVerticesEnd(std::move(scc));
+      }
+
+      /// }
 
     private:
       Graph graph;

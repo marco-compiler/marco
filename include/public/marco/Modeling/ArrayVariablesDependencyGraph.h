@@ -66,7 +66,8 @@ namespace marco::modeling
         // Now that the writes are known, we can explore the reads in order to
         // determine the dependencies among the equations. An equation e1
         // depends on another equation e2 if e1 reads (a part) of a variable
-        // that is written by e2.
+        // that is written by e2. In this case, an arc from e2 to e1 is
+        // inserted (meaning that e2 must be computed before e1).
         std::mutex graphMutex;
 
         auto mapFn = [&](EquationDescriptor equationDescriptor) {
@@ -76,6 +77,7 @@ namespace marco::modeling
           for (const Access& read : reads) {
             IndexSet readIndices = read.getAccessFunction().map(
                 equation.getIterationRanges());
+
             auto writeInfos = writesMap.equal_range(read.getVariable());
 
             for (const auto& [variableId, writeInfo] :
@@ -85,7 +87,7 @@ namespace marco::modeling
 
               if (writtenIndices.overlaps(readIndices)) {
                 std::lock_guard<std::mutex> lockGuard(graphMutex);
-                graph.addEdge(equationDescriptor, writeInfo.getEquation());
+                graph.addEdge(writeInfo.getEquation(), equationDescriptor);
               }
             }
           }

@@ -202,6 +202,10 @@ namespace
       /// variables.
       llvm::SmallVector<VariableOp> postOrder() const;
 
+      /// Perform a reverse post-order visit of the graph and get the ordered
+      /// variables.
+      llvm::SmallVector<VariableOp> reversePostOrder() const;
+
     protected:
       virtual std::set<llvm::StringRef> getDependencies(
           VariableOp variable) = 0;
@@ -361,6 +365,14 @@ namespace
       }
     }
 
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
+
+  llvm::SmallVector<VariableOp> VariablesDependencyGraph::reversePostOrder() const
+  {
+    auto result = postOrder();
+    std::reverse(result.begin(), result.end());
     return result;
   }
 
@@ -635,7 +647,7 @@ namespace
 
         llvm::StringMap<RawVariableOp> rawVariables;
 
-        for (VariableOp variable : dynamicDimensionsGraph.postOrder()) {
+        for (VariableOp variable : dynamicDimensionsGraph.reversePostOrder()) {
           rawVariables[variable.getSymName()] = createVariable(
               rewriter, variable, exitBlock, lastBlockBeforeExitBlock);
         }
@@ -654,7 +666,7 @@ namespace
 
         defaultValuesGraph.discoverDependencies();
 
-        for (VariableOp variable : defaultValuesGraph.postOrder()) {
+        for (VariableOp variable : defaultValuesGraph.reversePostOrder()) {
           auto defaultOpIt = defaultOps.find(variable.getSymName());
 
           if (defaultOpIt != defaultOps.end()) {
@@ -1307,7 +1319,7 @@ namespace
             defaultValuesGraph.addVariables(inputVariables);
             defaultValuesGraph.discoverDependencies();
 
-            orderings.set(functionOp, defaultValuesGraph.postOrder());
+            orderings.set(functionOp, defaultValuesGraph.reversePostOrder());
           }
 
           // Search for nested functions.

@@ -384,6 +384,7 @@ namespace
           Node node(this, variable.getOperation());
           nodes.push_back(node);
           nodesByName[variable.getSymName()] = node;
+          arcs[node.variable] = {};
         }
       }
 
@@ -401,12 +402,11 @@ namespace
 
           // Connect the current node to the other nodes to which it depends.
           mlir::Operation* variable = node.variable;
-          auto& children = arcs[variable];
-
           auto variableOp = mlir::cast<VariableOp>(variable);
 
           for (llvm::StringRef dependency : getDependencies(variableOp)) {
-            children.insert(nodesByName[dependency]);
+            auto& children = arcs[nodesByName[dependency].variable];
+            children.insert(node);
           }
         }
       }
@@ -466,6 +466,10 @@ namespace
       /// Perform a post-order visit of the graph and get the ordered
       /// variables.
       llvm::SmallVector<VariableOp> postOrder() const;
+
+      /// Perform a reverse post-order visit of the graph and get the ordered
+      /// variables.
+      llvm::SmallVector<VariableOp> reversePostOrder() const;
 
     protected:
       virtual std::set<llvm::StringRef> getDependencies(
@@ -617,6 +621,13 @@ namespace
       }
     }
 
+    return result;
+  }
+
+  llvm::SmallVector<VariableOp> VariablesDependencyGraph::reversePostOrder() const
+  {
+    auto result = postOrder();
+    std::reverse(result.begin(), result.end());
     return result;
   }
 
@@ -887,7 +898,7 @@ void FunctionInliningPass::collectGraphNodes(
       defaultValuesGraph.addVariables(inputVariables);
       defaultValuesGraph.discoverDependencies();
 
-      orderings.set(functionOp, defaultValuesGraph.postOrder());
+      orderings.set(functionOp, defaultValuesGraph.reversePostOrder());
     }
   }
 

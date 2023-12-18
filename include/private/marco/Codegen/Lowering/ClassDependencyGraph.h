@@ -89,6 +89,9 @@ namespace marco::codegen::lowering
       /// Perform a post-order visit of the nodes of the graph.
       llvm::SmallVector<ClassPath> postOrder() const;
 
+      /// Perform a reverse post-order visit of the nodes of the graph.
+      llvm::SmallVector<ClassPath> reversePostOrder() const;
+
     protected:
       virtual std::set<ClassPath> getDependencies(
         const ClassPath& classPath) = 0;

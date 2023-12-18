@@ -129,4 +129,11 @@ namespace marco::codegen::lowering
 
     return result;
   }
+
+  llvm::SmallVector<ClassPath> ClassDependencyGraph::reversePostOrder() const
+  {
+    auto result = postOrder();
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
 }

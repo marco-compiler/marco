@@ -138,7 +138,7 @@ namespace marco::modeling
 
               if (writtenIndexes == readIndexes) {
                 std::lock_guard<std::mutex> lockGuard(graphMutex);
-                graph.addEdge(equationDescriptor, writeInfo.getEquation());
+                graph.addEdge(writeInfo.getEquation(), equationDescriptor);
               }
             }
           }
@@ -156,12 +156,21 @@ namespace marco::modeling
 
         for (ScalarEquationDescriptor equation :
              llvm::post_order_ext(&graph, set)) {
-          // Ignore the entry node
+          // Ignore the entry node.
           if (equation != graph.getEntryNode()) {
             result.push_back(equation);
           }
         }
 
+        return result;
+      }
+
+      /// Perform a reverse post-order visit of the dependency graph and get
+      /// the ordered scalar equation descriptors.
+      std::vector<ScalarEquationDescriptor> reversePostOrder() const
+      {
+        auto result = postOrder();
+        std::reverse(result.begin(), result.end());
         return result;
       }
 
