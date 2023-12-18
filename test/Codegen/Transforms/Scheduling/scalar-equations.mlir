@@ -13,6 +13,7 @@ modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>
     modelica.variable @y : !modelica.variable<!modelica.int>
 
+    // x = y
     %t0 = modelica.equation_template inductions = [] attributes {id = "t0"} {
         %0 = modelica.variable_get @x : !modelica.int
         %1 = modelica.variable_get @y : !modelica.int
@@ -23,6 +24,7 @@ modelica.model @Test {
 
     modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0]>} : !modelica.equation
 
+    // y = 0
     %t1 = modelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.int
         %1 = modelica.constant #modelica.int<0>

@@ -125,6 +125,49 @@ namespace marco::modeling
 
       /// }
 
+      /*
+      std::vector<std::vector<SCCDescriptor>> getPaths() const
+      {
+        std::vector<std::vector<SCCDescriptor>> result;
+        std::stack<std::vector<SCCDescriptor>> paths;
+
+        SCCDescriptor entryNode = graph.getEntryNode();
+
+        for (SCCDescriptor root : llvm::make_range(
+                 graph.linkedVerticesBegin(entryNode),
+                 graph.linkedVerticesEnd(entryNode))) {
+          std::vector<SCCDescriptor> newPath;
+          newPath.push_back(root);
+          paths.push(std::move(newPath));
+        }
+
+        while (!paths.empty()) {
+          llvm::SmallVector<std::vector<SCCDescriptor>> newPaths;
+          auto& top = paths.top();
+
+          for (SCCDescriptor child : llvm::make_range(
+                   graph.linkedVerticesBegin(top.back()),
+                   graph.linkedVerticesEnd(top.back()))) {
+            auto newPath = newPaths.emplace_back(top);
+            newPath.push_back(child);
+          }
+
+          if (newPaths.empty()) {
+            result.push_back(std::move(top));
+            paths.pop();
+          } else {
+            paths.pop();
+
+            for (auto& newPath : newPaths) {
+              paths.push(std::move(newPath));
+            }
+          }
+        }
+
+        return result;
+      }
+       */
+
     private:
       Graph graph;
   };
