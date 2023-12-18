@@ -14,9 +14,6 @@ namespace mlir::modelica
 
 using namespace ::mlir::modelica;
 
-using WritesMap = std::multimap<
-    VariableOp, std::pair<IndexSet, MatchedEquationInstanceOp>>;
-
 namespace
 {
   class VariablesPromotionPass
@@ -41,14 +38,6 @@ namespace
       getVariableAccessAnalysis(
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
-
-      /// Get the writes map of a model, that is the knowledge of which
-      /// equation writes into a variable and in which indices.
-      mlir::LogicalResult getWritesMap(
-          WritesMap& result,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          llvm::ArrayRef<MatchedEquationInstanceOp> equations) const;
   };
 }
 
@@ -334,19 +323,20 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
   // scalar variables.
-  WritesMap initialConditionsWritesMap;
+  WritesMap<MatchedEquationInstanceOp> initialConditionsWritesMap;
 
-  if (mlir::failed(getWritesMap(
-          initialConditionsWritesMap, symbolTableCollection, modelOp,
-          initialEquations))) {
+  if (mlir::failed(modelOp.getWritesMap(
+          initialConditionsWritesMap,
+          initialEquations,
+          symbolTableCollection))) {
     return mlir::failure();
   }
 
   // Get the writes map of the 'main' model.
-  WritesMap mainWritesMap;
+  WritesMap<MatchedEquationInstanceOp> mainWritesMap;
 
-  if (mlir::failed(getWritesMap(
-          mainWritesMap, symbolTableCollection, modelOp, mainEquations))) {
+  if (mlir::failed(modelOp.getWritesMap(
+          mainWritesMap, mainEquations, symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -713,54 +703,6 @@ VariablesPromotionPass::getVariableAccessAnalysis(
   }
 
   return std::reference_wrapper(analysis);
-}
-
-mlir::LogicalResult VariablesPromotionPass::getWritesMap(
-    WritesMap& result,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations) const
-{
-  for (MatchedEquationInstanceOp equationOp : equations) {
-    IndexSet equationIndices = equationOp.getIterationSpace();
-    llvm::SmallVector<VariableAccess> accesses;
-
-    if (mlir::failed(equationOp.getAccesses(
-            accesses, symbolTableCollection))) {
-      return mlir::failure();
-    }
-
-    llvm::SmallVector<VariableAccess> writeAccesses;
-
-    if (mlir::failed(equationOp.getWriteAccesses(
-            writeAccesses, symbolTableCollection, accesses))) {
-      return mlir::failure();
-    }
-
-    std::optional<VariableAccess> matchedAccess =
-        equationOp.getMatchedAccess(symbolTableCollection);
-
-    if (!matchedAccess) {
-      return mlir::failure();
-    }
-
-    auto writtenVariableOp =
-        symbolTableCollection.lookupSymbolIn<VariableOp>(
-            modelOp, matchedAccess->getVariable());
-
-    IndexSet writtenVariableIndices;
-
-    for (const VariableAccess& writeAccess : writeAccesses) {
-      const AccessFunction& accessFunction = writeAccess.getAccessFunction();
-      writtenVariableIndices += accessFunction.map(equationIndices);
-    }
-
-    result.emplace(
-        writtenVariableOp,
-        std::make_pair(std::move(writtenVariableIndices), equationOp));
-  }
-
-  return mlir::success();
 }
 
 namespace mlir::modelica

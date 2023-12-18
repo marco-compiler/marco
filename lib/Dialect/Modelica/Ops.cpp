@@ -9898,6 +9898,117 @@ namespace mlir::modelica
       }
     }
   }
+
+  mlir::LogicalResult ModelOp::getWritesMap(
+      WritesMap<MatchedEquationInstanceOp>& writesMap,
+      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    for (MatchedEquationInstanceOp equationOp : equations) {
+      IndexSet equationIndices = equationOp.getIterationSpace();
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(equationOp.getAccesses(
+              accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      std::optional<VariableAccess> matchedAccess =
+          equationOp.getMatchedAccess(symbolTableCollection);
+
+      if (!matchedAccess) {
+        return mlir::failure();
+      }
+
+      auto writtenVariableOp =
+          symbolTableCollection.lookupSymbolIn<VariableOp>(
+              getOperation(), matchedAccess->getVariable());
+
+      IndexSet writtenVariableIndices;
+
+      for (const VariableAccess& writeAccess : writeAccesses) {
+        const AccessFunction& accessFunction = writeAccess.getAccessFunction();
+        writtenVariableIndices += accessFunction.map(equationIndices);
+      }
+
+      writesMap.emplace(
+          writtenVariableOp,
+          std::make_pair(std::move(writtenVariableIndices), equationOp));
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelOp::getWritesMap(
+      WritesMap<ScheduledEquationInstanceOp>& writesMap,
+      llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    for (ScheduledEquationInstanceOp equationOp : equations) {
+      IndexSet equationIndices = equationOp.getIterationSpace();
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(equationOp.getAccesses(
+              accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      std::optional<VariableAccess> matchedAccess =
+          equationOp.getMatchedAccess(symbolTableCollection);
+
+      if (!matchedAccess) {
+        return mlir::failure();
+      }
+
+      auto writtenVariableOp =
+          symbolTableCollection.lookupSymbolIn<VariableOp>(
+              getOperation(), matchedAccess->getVariable());
+
+      IndexSet writtenVariableIndices;
+
+      for (const VariableAccess& writeAccess : writeAccesses) {
+        const AccessFunction& accessFunction = writeAccess.getAccessFunction();
+        writtenVariableIndices += accessFunction.map(equationIndices);
+      }
+
+      writesMap.emplace(
+          writtenVariableOp,
+          std::make_pair(std::move(writtenVariableIndices), equationOp));
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelOp::getWritesMap(
+      WritesMap<ScheduledEquationInstanceOp>& writesMap,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::SmallVector<ScheduledEquationInstanceOp> equations;
+
+    for (SCCOp scc : SCCs) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        equations.push_back(equation);
+      }
+    }
+
+    return getWritesMap(writesMap, equations, symbolTableCollection);
+  }
 }
 
 //===---------------------------------------------------------------------===//

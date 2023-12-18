@@ -3107,6 +3107,21 @@ def Modelica_ModelOp : Modelica_Op<"model",
         void collectAlgorithms(
             llvm::SmallVectorImpl<AlgorithmOp>& initialAlgorithms,
             llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
+
+        mlir::LogicalResult getWritesMap(
+            WritesMap<MatchedEquationInstanceOp>& writesMap,
+            llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+            mlir::SymbolTableCollection& symbolTableCollection);
+
+        mlir::LogicalResult getWritesMap(
+            WritesMap<ScheduledEquationInstanceOp>& writesMap,
+            llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
+            mlir::SymbolTableCollection& symbolTableCollection);
+
+        mlir::LogicalResult getWritesMap(
+            WritesMap<ScheduledEquationInstanceOp>& writesMap,
+            llvm::ArrayRef<SCCOp> SCCs,
+            mlir::SymbolTableCollection& symbolTableCollection);
     }];
 }
 
