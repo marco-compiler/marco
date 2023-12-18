@@ -317,7 +317,9 @@ namespace marco::modeling
         return context;
       }
 
-      Schedule schedule(llvm::ArrayRef<EquationProperty> equations) const
+      Schedule schedule(
+          llvm::ArrayRef<EquationProperty> equations,
+          int64_t maxGroupElements = kUnlimitedGroupElements) const
       {
         std::vector<ScheduledSCC> result;
 
@@ -331,90 +333,95 @@ namespace marco::modeling
         auto SCCs = vectorDependencyGraph.getSCCs();
         SCCsDependencyGraph.addSCCs(SCCs);
 
-        auto scheduledSCCs = SCCsDependencyGraph.reversePostOrder();
+        auto scheduledSCCGroups =
+            sortSCCs(SCCsDependencyGraph, maxGroupElements);
 
-        for (SCCDescriptor sccDescriptor : scheduledSCCs) {
-          const SCC& scc = SCCsDependencyGraph[sccDescriptor];
+        for (const IndependentSCCs& sccGroup : scheduledSCCGroups) {
+          for (SCCDescriptor sccDescriptor : sccGroup) {
+            const SCC& scc = SCCsDependencyGraph[sccDescriptor];
 
-          if (scc.size() == 1) {
-            llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
-            getSchedulingDirections(scc, directionPossibilities);
+            if (scc.size() == 1) {
+              llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
+              getSchedulingDirections(scc, directionPossibilities);
 
-            bool isSchedulableAsRange = llvm::all_of(
-                directionPossibilities,
-                [](DirectionPossibility direction) {
-                  return direction == DirectionPossibility::Any || direction == DirectionPossibility::Forward || direction == DirectionPossibility::Backward;
-                });
+              bool isSchedulableAsRange = llvm::all_of(
+                  directionPossibilities,
+                  [](DirectionPossibility direction) {
+                    return direction == DirectionPossibility::Any ||
+                        direction == DirectionPossibility::Forward ||
+                        direction == DirectionPossibility::Backward;
+                  });
 
-            if (isSchedulableAsRange) {
-              const auto& equation = scc[0];
+              if (isSchedulableAsRange) {
+                const auto& equation = scc[0];
 
-              llvm::SmallVector<scheduling::Direction> directions;
+                llvm::SmallVector<scheduling::Direction> directions;
 
-              for (DirectionPossibility direction : directionPossibilities) {
-                if (direction == DirectionPossibility::Any ||
-                    direction == DirectionPossibility::Forward) {
-                  directions.push_back(scheduling::Direction::Forward);
-                } else if (direction == DirectionPossibility::Backward) {
-                  directions.push_back(scheduling::Direction::Backward);
-                } else {
-                  directions.push_back(scheduling::Direction::Unknown);
+                for (DirectionPossibility direction : directionPossibilities) {
+                  if (direction == DirectionPossibility::Any ||
+                      direction == DirectionPossibility::Forward) {
+                    directions.push_back(scheduling::Direction::Forward);
+                  } else if (direction == DirectionPossibility::Backward) {
+                    directions.push_back(scheduling::Direction::Backward);
+                  } else {
+                    directions.push_back(scheduling::Direction::Unknown);
+                  }
                 }
-              }
-
-              ScheduledEquation scheduledEquation(
-                  *equation.getProperty(),
-                  equation.getIterationRanges(),
-                  directions);
-
-              result.emplace_back(std::move(scheduledEquation), false);
-              continue;
-            } else {
-              // Mixed accesses detected. Scheduling is possible only on the
-              // scalar equations.
-              std::vector<EquationView> scalarEquationViews;
-
-              for (const auto& equationDescriptor : scc) {
-                scalarEquationViews.push_back(
-                    scc.getGraph()[equationDescriptor].getProperty());
-              }
-
-              ScalarDependencyGraph scalarDependencyGraph(getContext());
-              scalarDependencyGraph.addEquations(scalarEquationViews);
-
-              for (const auto& equationDescriptor :
-                   scalarDependencyGraph.reversePostOrder()) {
-                const auto& scalarEquation =
-                    scalarDependencyGraph[equationDescriptor];
-
-                llvm::SmallVector<scheduling::Direction> directions(
-                    scalarEquation.getProperty().getNumOfIterationVars(),
-                    scheduling::Direction::Forward);
 
                 ScheduledEquation scheduledEquation(
-                    *scalarEquation.getProperty(),
-                    IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
+                    *equation.getProperty(),
+                    equation.getIterationRanges(),
                     directions);
 
                 result.emplace_back(std::move(scheduledEquation), false);
+                continue;
+              } else {
+                // Mixed accesses detected. Scheduling is possible only on the
+                // scalar equations.
+                std::vector<EquationView> scalarEquationViews;
+
+                for (const auto& equationDescriptor : scc) {
+                  scalarEquationViews.push_back(
+                      scc.getGraph()[equationDescriptor].getProperty());
+                }
+
+                ScalarDependencyGraph scalarDependencyGraph(getContext());
+                scalarDependencyGraph.addEquations(scalarEquationViews);
+
+                for (const auto& equationDescriptor :
+                     scalarDependencyGraph.reversePostOrder()) {
+                  const auto& scalarEquation =
+                      scalarDependencyGraph[equationDescriptor];
+
+                  llvm::SmallVector<scheduling::Direction> directions(
+                      scalarEquation.getProperty().getNumOfIterationVars(),
+                      scheduling::Direction::Forward);
+
+                  ScheduledEquation scheduledEquation(
+                      *scalarEquation.getProperty(),
+                      IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
+                      directions);
+
+                  result.emplace_back(std::move(scheduledEquation), false);
+                }
               }
+            } else {
+              // A strongly connected component can be scheduled with respect to
+              // other SCCs, but the equations composing it are cyclic and thus
+              // can't be scheduled.
+              std::vector<ScheduledEquation> SCC;
+
+              for (const auto& equationDescriptor : scc) {
+                const auto& equation = scc[equationDescriptor];
+
+                SCC.push_back(ScheduledEquation(
+                    *equation.getProperty(),
+                    equation.getIterationRanges(),
+                    scheduling::Direction::Unknown));
+              }
+
+              result.emplace_back(std::move(SCC), true);
             }
-          } else {
-            // A strongly connected component can be scheduled with respect to
-            // other SCCs, but the equations composing it are cyclic and thus
-            // can't be scheduled.
-            std::vector<ScheduledEquation> SCC;
-
-            for (const auto& equationDescriptor : scc) {
-              const auto& equation = scc[equationDescriptor];
-
-              SCC.push_back(ScheduledEquation(
-                  *equation.getProperty(),
-                  equation.getIterationRanges(),
-                  scheduling::Direction::Unknown));
-            }
-
-            result.emplace_back(std::move(SCC), true);
           }
         }
 
@@ -422,6 +429,83 @@ namespace marco::modeling
       }
 
     private:
+      std::vector<IndependentSCCs> sortSCCs(
+          const SCCsGraph& dependencyGraph,
+          int64_t maxGroupElements) const
+      {
+        // Compute the in-degree of each node.
+        llvm::DenseMap<SCCDescriptor, size_t> inDegrees;
+
+        for (SCCDescriptor scc : llvm::make_range(
+                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
+          inDegrees[scc] = 0;
+        }
+
+        for (SCCDescriptor node : llvm::make_range(
+                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
+          for (SCCDescriptor child : llvm::make_range(
+                   dependencyGraph.dependentSCCsBegin(node),
+                   dependencyGraph.dependentSCCsEnd(node))) {
+            if (node == child) {
+              // Ignore self-loops.
+              continue;
+            }
+
+            inDegrees[child]++;
+          }
+        }
+
+        // Compute the sets of independent SCCs.
+        std::vector<IndependentSCCs> result;
+        std::set<SCCDescriptor> nodes;
+        std::set<SCCDescriptor> newNodes;
+
+        for (SCCDescriptor scc : llvm::make_range(
+                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
+          if (inDegrees[scc] == 0) {
+            nodes.insert(scc);
+          }
+        }
+
+        while (!nodes.empty()) {
+          std::vector<SCCDescriptor> independentSCCs;
+
+          for (SCCDescriptor node : nodes) {
+            if (inDegrees[node] == 0 &&
+                (maxGroupElements == kUnlimitedGroupElements ||
+                 independentSCCs.size() < maxGroupElements)) {
+              independentSCCs.push_back(node);
+
+              for (SCCDescriptor child : llvm::make_range(
+                       dependencyGraph.dependentSCCsBegin(node),
+                       dependencyGraph.dependentSCCsEnd(node))) {
+                if (node == child) {
+                  // Ignore self-loops.
+                  continue;
+                }
+
+                assert(inDegrees[child] > 0);
+                inDegrees[child]--;
+                newNodes.insert(child);
+
+                // Avoid visiting again the node at the next iteration.
+                newNodes.erase(node);
+              }
+            } else {
+              newNodes.insert(node);
+            }
+          }
+
+          assert(!independentSCCs.empty());
+          result.push_back(std::move(independentSCCs));
+
+          nodes = std::move(newNodes);
+          newNodes.clear();
+        }
+
+        return result;
+      }
+
       /// Split the equation indices so that the accesses to the written
       /// variable either are the same of the written indices, or do not
       /// overlap at all.
