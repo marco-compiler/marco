@@ -202,6 +202,12 @@ namespace
     {
     }
 
+    // Forbid copies to avoid dangling pointers by design.
+    VariableBridge(const VariableBridge& other) = delete;
+    VariableBridge(VariableBridge&& other) = delete;
+    VariableBridge& operator=(const VariableBridge& other) = delete;
+    VariableBridge& operator==(const VariableBridge& other) = delete;
+
     mlir::SymbolRefAttr name;
     IndexSet indices;
   };
@@ -219,6 +225,12 @@ namespace
           variablesMap(&variablesMap)
     {
     }
+
+    // Forbid copies to avoid dangling pointers by design.
+    EquationBridge(const EquationBridge& other) = delete;
+    EquationBridge(EquationBridge&& other) = delete;
+    EquationBridge& operator=(const EquationBridge& other) = delete;
+    EquationBridge& operator==(const EquationBridge& other) = delete;
 
     EquationInstanceOp op;
     mlir::SymbolTableCollection* symbolTable;
