@@ -3,6 +3,9 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Modeling/Scheduling.h"
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "scheduling"
 
 namespace mlir::modelica
 {
@@ -66,10 +69,13 @@ namespace
 void SchedulingPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
+  LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
   if (mlir::failed(processModelOp(modelOp))) {
     return signalPassFailure();
   }
+
+  LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
