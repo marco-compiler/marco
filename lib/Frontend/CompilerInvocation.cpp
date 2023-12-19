@@ -124,10 +124,6 @@ static void parseFrontendArgs(
         options.programAction = EmitBaseModelica;
         break;
 
-      case options::OPT_emit_final_ast:
-        options.programAction = EmitFinalAST;
-        break;
-
       case options::OPT_emit_mlir:
         options.programAction = EmitMLIR;
         break;
@@ -295,11 +291,6 @@ static void parseCodegenArgs(
   }
 
   // Cross-compilation options
-
-  options.generateMain = args.hasFlag(
-      options::OPT_generate_main,
-      options::OPT_no_generate_main,
-      options.generateMain);
 
   if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target)) {
     llvm::StringRef value = arg->getValue();

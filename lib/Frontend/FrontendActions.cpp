@@ -383,7 +383,6 @@ namespace marco::frontend
     printOption(os, "Read-only variables propagation", codegenOptions.readOnlyVariablesPropagation);
     printOption(os, "CSE", codegenOptions.cse);
     printOption(os, "OpenMP", codegenOptions.omp);
-    printOption(os, "Main function generation", codegenOptions.generateMain);
     printOption(os, "Target triple", codegenOptions.target);
     printOption(os, "Target cpu", codegenOptions.cpu);
     os << "\n";

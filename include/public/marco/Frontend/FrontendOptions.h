@@ -18,7 +18,6 @@ namespace marco::frontend
 
     // Emit a .ast file.
     EmitAST,
-    EmitFinalAST,
 
     // Emit a .mlir file.
     EmitMLIR,
