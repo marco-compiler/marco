@@ -85,6 +85,7 @@ namespace
 void CyclesSolvingPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
+  LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
   if (mlir::failed(processModelOp(modelOp))) {
     return signalPassFailure();
@@ -97,6 +98,8 @@ void CyclesSolvingPass::runOnOperation()
       templateOp.erase();
     }
   }
+
+  LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
