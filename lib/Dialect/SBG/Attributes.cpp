@@ -33,6 +33,30 @@ namespace mlir::sbg
 
 namespace mlir
 {
+  //TODO
+  FailureOr<MDNat> FieldParser<MDNat>::parse(AsmParser& parser)
+  {
+    return sbg::MDNat(0);
+  }
+
+  AsmPrinter& operator<<(AsmPrinter& printer, const MDNat& n)
+  {
+    auto sz = n.size();
+
+    if (sz == 1) {
+      printer << n[0];
+    }
+    else if (sz > 0) {
+      printer << "(";
+      for (unsigned int j = 0; j < sz - 1; ++j)
+        printer << n[j] << ", ";
+      printer << n[sz-1];
+      printer << ")";
+    }
+
+    return printer;
+  }
+
   FailureOr<Rational> FieldParser<Rational>::parse(AsmParser& parser)
   {
     uint64_t num, den;
@@ -52,7 +76,7 @@ namespace mlir
 
   AsmPrinter& operator<<(AsmPrinter& printer, const Rational& r)
   {
-    uint64_t num = r.numerator(), den = r.denominator();
+    int64_t num = r.numerator(), den = r.denominator();
 
     if (num == 0){
       printer << "0";

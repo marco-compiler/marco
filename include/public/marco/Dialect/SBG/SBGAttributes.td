@@ -19,9 +19,27 @@ class SBG_Attr<string name, list<Trait> traits = []>
 // SBG attribute definitions
 //===---------------------------------------------------------------------===//
 
+class MDNaturalParameter<string desc>
+    : AttrOrTypeParameter<
+        "SBG::Util::MD_NAT", desc, "const SBG::Util::MD_NAT&"
+    >;
+
+def SBG_MDNatAttr : SBG_Attr<"MDNat">
+{
+    let summary = "MDNat";
+
+    let description = [{
+        Attribute representing a multi-dimensional natural.
+    }];
+
+    let mnemonic = "MDNat";
+    let parameters = (ins MDNaturalParameter<"MDNat">:$value);
+    let assemblyFormat = "$value";
+}
+
 class RationalParameter<string desc>
     : AttrOrTypeParameter<
-      "SBG::Util::RATIONAL", desc, "const SBG::Util::RATIONAL &"
+      "SBG::Util::RATIONAL", desc, "const SBG::Util::RATIONAL&"
     >;
 
 def SBG_RationalAttr : SBG_Attr<"Rational">

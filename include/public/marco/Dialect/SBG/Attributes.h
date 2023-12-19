@@ -2,6 +2,7 @@
 #define MARCO_DIALECTS_SBG_ATTRIBUTES_H
 
 #include "sbg/pw_map.hpp"
+#include "marco/Dialect/Modelica/EquationPath.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/DialectImplementation.h"
@@ -12,6 +13,7 @@
 #include "marco/Dialect/SBG/SBGAttributes.h.inc"
 
 namespace mlir::sbg {
+  using MDNat = ::SBG::Util::MD_NAT;
   using Rational = ::SBG::Util::RATIONAL;
   using Interval = ::SBG::LIB::Interval;
   using MDI = ::SBG::LIB::MultiDimInter;
@@ -23,10 +25,21 @@ namespace mlir::sbg {
   using Map = ::SBG::LIB::BaseMap;
   using OrdDomPWMap = ::SBG::LIB::CanonPWMap;
   using PWMap = ::SBG::LIB::BasePWMap;
+  using EqPath = ::mlir::modelica::EquationPath;
 }
 
 namespace mlir
 {
+  template<>
+  struct FieldParser<sbg::MDNat>
+  {
+    static FailureOr<sbg::MDNat>
+    parse(AsmParser& parser);
+  };
+
+  AsmPrinter& operator<<(
+    AsmPrinter&printer, const sbg::MDNat& n);
+
   template<>
   struct FieldParser<sbg::Rational>
   {
@@ -146,6 +159,16 @@ namespace mlir
 
   AsmPrinter& operator<<(
       AsmPrinter& printer, const sbg::PWMap& m);
+
+  template<>
+  struct FieldParser<sbg::EqPath>
+  {
+    static FailureOr<sbg::EqPath>
+    parse(AsmParser& parser);
+  };
+
+  AsmPrinter& operator<<(
+      AsmPrinter& printer, const sbg::EqPath& eq_path);
 }
 
 #endif // MARCO_DIALECTS_SBG_ATTRIBUTES_H

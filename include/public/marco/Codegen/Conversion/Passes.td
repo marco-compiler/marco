@@ -285,7 +285,8 @@ def SBGToModelicaConversionPass : Pass<"convert-sbg-to-modelica", "::mlir::model
     let summary = "SBG: conversion to Modelica dialect";
 
     let description = [{
-        // TODO
+        Takes a ModelOp as input, and inserts NodeOp and EdgeOp from the SBG
+        dialect to represent all needed information to apply the SBG algotithm.
     }];
 
     let dependentDialects = [

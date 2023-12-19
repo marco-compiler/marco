@@ -193,6 +193,7 @@ add_library(sbg-util
 		${sbg_SOURCE_DIR}/util/logger.cpp)
 
 add_library(sbg
+		${sbg_SOURCE_DIR}/util/logger.cpp
 		${sbg_SOURCE_DIR}/sbg/interval.cpp
 		${sbg_SOURCE_DIR}/sbg/multidim_inter.cpp
 		${sbg_SOURCE_DIR}/sbg/unord_pw_mdinter.cpp
