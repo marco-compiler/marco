@@ -80,14 +80,10 @@ void SchedulingPass::runOnOperation()
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
 
-  llvm::DenseSet<EquationTemplateOp> templateOps;
-
-  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
-    templateOps.insert(equationOp.getTemplate());
-  }
-
-  for (EquationTemplateOp templateOp : templateOps) {
-    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+  for (ScheduledEquationInstanceOp equation :
+       modelOp.getOps<ScheduledEquationInstanceOp>()) {
+    if (auto analysis = getCachedVariableAccessAnalysis(
+            equation.getTemplate())) {
       analysis->get().preserve();
     }
   }
