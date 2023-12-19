@@ -82,14 +82,10 @@ void MatchingPass::runOnOperation()
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
 
-  llvm::DenseSet<EquationTemplateOp> templateOps;
-
-  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
-    templateOps.insert(equationOp.getTemplate());
-  }
-
-  for (EquationTemplateOp templateOp : templateOps) {
-    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
+  for (MatchedEquationInstanceOp equation :
+       modelOp.getOps<MatchedEquationInstanceOp>()) {
+    if (auto analysis = getCachedVariableAccessAnalysis(
+            equation.getTemplate())) {
       analysis->get().preserve();
     }
   }
