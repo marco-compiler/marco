@@ -3,6 +3,9 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Modeling/Matching.h"
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "matching"
 
 namespace mlir::modelica
 {
@@ -68,10 +71,13 @@ namespace
 void MatchingPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
+  LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
   if (mlir::failed(processModelOp(modelOp))) {
     return signalPassFailure();
   }
+
+  LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
