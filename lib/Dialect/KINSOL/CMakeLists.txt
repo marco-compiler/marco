@@ -18,4 +18,5 @@ add_mlir_dialect_library(MLIRKINSOL
     MLIRCallInterfaces
     MLIRControlFlowInterfaces
     MLIRFunctionInterfaces
-    MLIRSideEffectInterfaces)
+    MLIRSideEffectInterfaces
+    MLIRSUNDIALS)

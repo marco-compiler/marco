@@ -3,9 +3,9 @@
 
 include "mlir/IR/OpBase.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // KINSOL dialect
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def KINSOL_Dialect : Dialect
 {
@@ -18,6 +18,10 @@ def KINSOL_Dialect : Dialect
 
     let cppNamespace = "::mlir::kinsol";
     let useDefaultTypePrinterParser = 1;
+
+    let dependentDialects = [
+        "sundials::SUNDIALSDialect"
+    ];
 }
 
 #endif // MARCO_DIALECTS_KINSOL_KINSOLDIALECT_TD

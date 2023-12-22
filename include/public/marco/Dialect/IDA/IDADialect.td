@@ -3,9 +3,9 @@
 
 include "mlir/IR/OpBase.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // IDA dialect
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def IDA_Dialect : Dialect {
     let name = "ida";
@@ -17,6 +17,10 @@ def IDA_Dialect : Dialect {
 
     let cppNamespace = "::mlir::ida";
     let useDefaultTypePrinterParser = 1;
+
+    let dependentDialects = [
+        "sundials::SUNDIALSDialect"
+    ];
 }
 
 #endif // MARCO_DIALECTS_IDA_IDADIALECT_TD
