@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
   std::string CommandLineOptions::getTitle() const
   {

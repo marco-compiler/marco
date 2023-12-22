@@ -5,7 +5,7 @@
 
 #include "marco/Runtime/CLI/CLI.h"
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
   class CommandLineOptions : public cli::Category
   {

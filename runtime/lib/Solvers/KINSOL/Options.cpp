@@ -2,7 +2,7 @@
 
 #ifdef SUNDIALS_ENABLE
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
   Options& getOptions()
   {

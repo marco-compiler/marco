@@ -5,7 +5,7 @@
 #include "marco/Runtime/Solvers/IDA/Options.h"
 #include <iostream>
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
   std::string CommandLineOptions::getTitle() const
   {

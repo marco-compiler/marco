@@ -4,311 +4,73 @@
 #include "marco/Runtime/Solvers/KINSOL/Options.h"
 #include "marco/Runtime/Solvers/KINSOL/Profiler.h"
 #include "marco/Runtime/Support/MemoryManagement.h"
+#include "kinsol/kinsol.h"
+#include <atomic>
 #include <cassert>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <set>
 
-using namespace marco::runtime::kinsol;
-
-//===----------------------------------------------------------------------===//
-// Utilities
-//===----------------------------------------------------------------------===//
-
-namespace marco::runtime::kinsol
-{
-  VariableDimensions::VariableDimensions(size_t rank)
-  {
-    dimensions.resize(rank, 0);
-  }
-
-  size_t VariableDimensions::rank() const
-  {
-    return dimensions.size();
-  }
-
-  size_t& VariableDimensions::operator[](size_t index)
-  {
-    return dimensions[index];
-  }
-
-  const size_t& VariableDimensions::operator[](size_t index) const
-  {
-    return dimensions[index];
-  }
-
-  VariableDimensions::const_iterator VariableDimensions::begin() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return dimensions.begin();
-  }
-
-  VariableDimensions::const_iterator VariableDimensions::end() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return dimensions.end();
-  }
-
-  VariableIndicesIterator VariableDimensions::indicesBegin() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return VariableIndicesIterator::begin(*this);
-  }
-
-  VariableIndicesIterator VariableDimensions::indicesEnd() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return VariableIndicesIterator::end(*this);
-  }
-
-  bool VariableDimensions::isValid() const
-  {
-    return std::none_of(dimensions.begin(), dimensions.end(), [](const auto& dimension) {
-      return dimension == 0;
-    });
-  }
-
-  VariableIndicesIterator::~VariableIndicesIterator()
-  {
-    delete indices;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::begin(const VariableDimensions& dimensions)
-  {
-    VariableIndicesIterator result(dimensions);
-
-    for (size_t i = 0; i < dimensions.rank(); ++i) {
-      result.indices[i] = 0;
-    }
-
-    return result;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::end(const VariableDimensions& dimensions)
-  {
-    VariableIndicesIterator result(dimensions);
-
-    for (size_t i = 0; i < dimensions.rank(); ++i) {
-      result.indices[i] = dimensions[i];
-    }
-
-    return result;
-  }
-
-  bool VariableIndicesIterator::operator==(const VariableIndicesIterator& it) const
-  {
-    if (dimensions != it.dimensions) {
-      return false;
-    }
-
-    for (size_t i = 0; i < dimensions->rank(); ++i) {
-      if (indices[i] != it.indices[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool VariableIndicesIterator::operator!=(const VariableIndicesIterator& it) const
-  {
-    if (dimensions != it.dimensions) {
-      return true;
-    }
-
-    for (size_t i = 0; i < dimensions->rank(); ++i) {
-      if (indices[i] != it.indices[i]) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  VariableIndicesIterator& VariableIndicesIterator::operator++()
-  {
-    fetchNext();
-    return *this;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::operator++(int)
-  {
-    auto temp = *this;
-    fetchNext();
-    return temp;
-  }
-
-  size_t* VariableIndicesIterator::operator*() const
-  {
-    return indices;
-  }
-
-  VariableIndicesIterator::VariableIndicesIterator(const VariableDimensions& dimensions) : dimensions(&dimensions)
-  {
-    indices = new size_t[dimensions.rank()];
-  }
-
-  void VariableIndicesIterator::fetchNext()
-  {
-    size_t rank = dimensions->rank();
-    size_t posFromLast = 0;
-
-    assert(std::none_of(dimensions->begin(), dimensions->end(), [](const auto& dimension) {
-      return dimension == 0;
-    }));
-
-    while (posFromLast < rank && ++indices[rank - posFromLast - 1] == (*dimensions)[rank - posFromLast - 1]) {
-      ++posFromLast;
-    }
-
-    if (posFromLast != rank) {
-      for (size_t i = 0; i < posFromLast; ++i) {
-        indices[rank - i - 1] = 0;
-      }
-    }
-  }
-}
-
-/// Check if SUNDIALS function returned NULL pointer (no memory allocated).
-static bool checkAllocation(void* retval, const char* funcname)
-{
-  if (retval == nullptr) {
-    std::cerr << "SUNDIALS_ERROR: " << funcname;
-    std::cerr << "() failed - returned NULL pointer" << std::endl;
-    return false;
-  }
-
-  return true;
-}
-
-/// Given an array of indexes and the dimension of an equation, increase the
-/// indexes within the induction bounds of the equation. Return false if the
-/// indexes exceed the equation bounds, which means the computation has finished,
-/// true otherwise.
-static bool updateIndexes(size_t* indexes, const EqDimension& dimension)
-{
-  for (size_t i = 0, e = dimension.size(); i < e; ++i) {
-    size_t pos = e - i - 1;
-    ++indexes[pos];
-
-    if ((size_t) indexes[pos] == dimension[pos].second) {
-      indexes[pos] = dimension[pos].first;
-    } else {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/// Given an array of indexes, the dimension of a variable and the type of
-/// access, return the index needed to access the flattened multidimensional
-/// variable.
-static size_t computeOffset(
-    const size_t* indexes, const VariableDimensions& dimensions, const Access& accesses)
-{
-  assert(accesses.size() == dimensions.rank());
-  size_t offset = 0;
-
-  for (size_t i = 0; i < accesses.size(); ++i) {
-    int64_t induction = accesses[i].first;
-    size_t accessOffset = induction != -1 ? indexes[induction] : 0;
-    accessOffset += accesses[i].second;
-
-    offset = offset * dimensions[i] + accessOffset;
-  }
-
-  return offset;
-}
-
-
-/// Given the dimension of a variable and the already flattened accesses, return
-/// the index of the flattened multidimensional variable.
-static size_t computeOffset(const VariableDimensions& dimensions, const std::vector<size_t>& accesses)
-{
-	assert(accesses.size() == dimensions.rank());
-
-	size_t offset = 0;
-
-	for (size_t i = 0; i < accesses.size(); ++i) {
-		offset = offset * dimensions[i] + accesses[i];
-	}
-
-	return offset;
-}
+using namespace marco::runtime::sundials;
+using namespace marco::runtime::sundials::kinsol;
 
 //===---------------------------------------------------------------------===//
 // Solver
 //===---------------------------------------------------------------------===//
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
-  KINSOLInstance::KINSOLInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber)
-      : initialized(false),
-        marcoBitWidth(marcoBitWidth),
-        scalarEquationsNumber(scalarEquationsNumber)
+  KINSOLInstance::KINSOLInstance()
   {
-    SUNContext_Create(nullptr, &ctx);
-
+    // Initially there is no variable in the instance.
     variableOffsets.push_back(0);
 
-    // Create and initialize the required N-vectors for the variables.
-    variablesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(variablesVector), "N_VNew_Serial"));
-
-    derivativesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(derivativesVector), "N_VNew_Serial"));
-
-    idVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(idVector), "N_VNew_Serial"));
-
-    tolerancesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
-
-    variableScaleVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(variableScaleVector), "N_VNew_Serial"));
-
-    residualScaleVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-    assert(checkAllocation(static_cast<void*>(residualScaleVector), "N_VNew_Serial"));
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Instance created" << std::endl;
+    }
   }
 
   KINSOLInstance::~KINSOLInstance()
   {
-    assert(initialized && "The KINSOL instance has not been initialized yet");
+    if (getNumOfScalarEquations() != 0) {
+      N_VDestroy(variablesVector);
+      N_VDestroy(tolerancesVector);
 
-    for (auto* variable : parameters) {
-      heapFree(variable);
+      KINFree(&kinsolMemory);
+      SUNLinSolFree(linearSolver);
+      SUNMatDestroy(sparseMatrix);
     }
 
-    for (auto* variable : variables) {
-      heapFree(variable);
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Instance destroyed" << std::endl;
     }
-
-    for (auto* derivative : derivatives) {
-      heapFree(derivative);
-    }
-
-    delete simulationData;
-
-    KINFree(&kinsolMemory);
-    SUNLinSolFree(linearSolver);
-    SUNMatDestroy(sparseMatrix);
-    N_VDestroy(variablesVector);
-    N_VDestroy(derivativesVector);
-    N_VDestroy(idVector);
-    N_VDestroy(tolerancesVector);
   }
 
-  int64_t KINSOLInstance::addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
+  Variable KINSOLInstance::addVariable(
+      uint64_t rank,
+      const uint64_t* dimensions,
+      VariableGetter getterFunction,
+      VariableSetter setterFunction,
+      const char* name)
   {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Adding algebraic variable";
+
+      if (name != nullptr) {
+        std::cerr << " \"" << name << "\"";
+      }
+
+      std::cerr << std::endl;
+    }
 
     // Add variable offset and dimensions.
-    VariableDimensions varDimension(rank);
-    int64_t flatSize = 1;
+    assert(variableOffsets.size() == variablesDimensions.size() + 1);
 
-    for (int64_t i = 0; i < rank; ++i) {
+    VariableDimensions varDimension(rank);
+    uint64_t flatSize = 1;
+
+    for (uint64_t i = 0; i < rank; ++i) {
       flatSize *= dimensions[i];
       varDimension[i] = dimensions[i];
     }
@@ -318,197 +80,377 @@ namespace marco::runtime::kinsol
     size_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
-    // Initialize derivativeValues, idValues and absoluteTolerances
-    auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
-    auto* idValues = N_VGetArrayPointer(idVector);
-    auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
-
-    realtype absTol = std::min(getOptions().algebraicTolerance, getOptions().absoluteTolerance);
-
-    for (int64_t i = 0; i < flatSize; ++i) {
-      derivativeValues[offset + i] = 0;
-      idValues[offset + i] = 0;
-      toleranceValues[offset + i] = absTol;
-    }
-
-    variables.push_back(variable);
-    variablesGetters.push_back(getter);
-    variablesSetters.push_back(setter);
+    // Store the getter and setter functions.
+    variableGetters.push_back(getterFunction);
+    variableSetters.push_back(setterFunction);
 
     // Return the index of the variable.
-    return variablesDimensions.size() - 1;
-  }
+    Variable id = getNumOfArrayVariables() - 1;
 
-  int64_t KINSOLInstance::addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
-  {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+    if (getOptions().debug) {
+      std::cerr << "  - ID: " << id << std::endl;
+      std::cerr << "  - Rank: " << rank << std::endl;
+      std::cerr << "  - Dimensions: [";
 
-    // Add variable offset and dimensions
-    VariableDimensions variableDimensions(rank);
-    int64_t flatSize = 1;
+      for (uint64_t i = 0; i < rank; ++i) {
+        if (i != 0) {
+          std::cerr << ",";
+        }
 
-    for (int64_t i = 0; i < rank; ++i) {
-      flatSize *= dimensions[i];
-      variableDimensions[i] = dimensions[i];
+        std::cerr << dimensions[i];
+      }
+
+      std::cerr << "]" << std::endl;
+      std::cerr << "  - Getter function address: "
+                << reinterpret_cast<void*>(getterFunction) << std::endl;
+      std::cerr << "  - Setter function address: "
+                << reinterpret_cast<void*>(setterFunction) << std::endl;
     }
 
-    variablesDimensions.push_back(variableDimensions);
+    return id;
+  }
 
-    // Each scalar state variable has a scalar derivative
-    derivativesDimensions.push_back(variableDimensions);
+  Equation KINSOLInstance::addEquation(
+      const int64_t* ranges,
+      uint64_t equationRank,
+      Variable writtenVariable,
+      AccessFunction writeAccess,
+      const char* stringRepresentation)
+  {
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Adding equation";
 
-    // Store the position to the start of the flattened array
-    size_t offset = variableOffsets.back();
-    variableOffsets.push_back(offset + flatSize);
+      if (stringRepresentation != nullptr) {
+        std::cerr << " \"" << stringRepresentation << "\"";
+      }
 
-    // Initialize the derivatives, the id values and the absolute tolerances
-    auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
-    auto* idValues = N_VGetArrayPointer(idVector);
-    auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
-
-    for (int64_t i = 0; i < flatSize; ++i) {
-      derivativeValues[offset + i] = 0;
-      idValues[offset + i] = 1;
-      toleranceValues[offset + i] = getOptions().absoluteTolerance;
+      std::cerr << std::endl;
     }
-
-    variables.push_back(variable);
-    variablesGetters.push_back(getter);
-    variablesSetters.push_back(setter);
-
-    derivatives.push_back(nullptr);
-    derivativesGetters.push_back(nullptr);
-    derivativesSetters.push_back(nullptr);
-
-    // Return the index of the variable
-    return variablesDimensions.size() - 1;
-  }
-
-  void KINSOLInstance::setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter)
-  {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
-
-    assert((size_t) stateVariable < derivatives.size());
-    assert((size_t) stateVariable < derivativesGetters.size());
-    assert((size_t) stateVariable < derivativesSetters.size());
-
-    derivatives[stateVariable] = derivative;
-    derivativesGetters[stateVariable] = getter;
-    derivativesSetters[stateVariable] = setter;
-  }
-
-  int64_t KINSOLInstance::addEquation(int64_t* ranges, int64_t rank)
-  {
-    assert(!initialized && "The KINSOL instance has already been initialized");
 
     // Add the start and end dimensions of the current equation.
-    EqDimension eqDimension = {};
+    MultidimensionalRange eqRanges = {};
 
-    size_t numElements = rank * 2;
-
-    for (size_t i = 0; i < numElements; i += 2) {
-      eqDimension.push_back({ranges[i], ranges[i + 1]});
+    for (size_t i = 0, e = equationRank * 2; i < e; i += 2) {
+      int64_t begin = ranges[i];
+      int64_t end = ranges[i + 1];
+      eqRanges.push_back({ begin, end });
     }
 
-    equationDimensions.push_back(eqDimension);
+    equationRanges.push_back(eqRanges);
+
+    // Add the write access.
+    writeAccesses.emplace_back(writtenVariable, writeAccess);
 
     // Return the index of the equation.
-    return equationDimensions.size() - 1;
+    Equation id = getNumOfVectorizedEquations() - 1;
+
+    if (getOptions().debug) {
+      std::cerr << "  - ID: " << id << std::endl;
+      std::cerr << "  - Rank: " << equationRank << std::endl;
+      std::cerr << "  - Ranges: [";
+
+      for (uint64_t i = 0; i < equationRank; ++i) {
+        if (i != 0) {
+          std::cerr << ",";
+        }
+
+        std::cerr << "[" << ranges[i * 2] << "," << (ranges[i * 2 + 1] - 1) << "]";
+      }
+
+      std::cerr << "]" << std::endl;
+      std::cerr << "  - Written variable ID: " << writtenVariable << std::endl;
+      std::cerr << "  - Write access function address: "
+                << reinterpret_cast<void*>(writeAccess) << std::endl;
+    }
+
+    return id;
   }
 
-  void KINSOLInstance::addVariableAccess(int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank)
+  void KINSOLInstance::addVariableAccess(
+      Equation equation,
+      Variable variable,
+      AccessFunction accessFunction)
   {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-
-    assert(equationIndex >= 0);
-    assert((size_t) equationIndex < equationDimensions.size());
-    assert(variableIndex >= 0);
-    assert((size_t) variableIndex < variablesDimensions.size());
-
-    if (variableAccesses.size() <= (size_t) equationIndex) {
-      variableAccesses.resize(equationIndex + 1);
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Adding access information" << std::endl;
+      std::cerr << "  - Equation: " << equation << std::endl;
+      std::cerr << "  - Variable: " << variable << std::endl;
+      std::cerr << "  - Access function address: "
+                << reinterpret_cast<void*>(accessFunction) << std::endl;
     }
 
-    auto& varAccessList = variableAccesses[equationIndex];
-    varAccessList.push_back({variableIndex, {}});
+    assert(equation < getNumOfVectorizedEquations());
+    assert(variable < getNumOfArrayVariables());
 
-    size_t numElements = rank * 2;
+    precomputedAccesses = true;
 
-    for (size_t i = 0; i < numElements; i += 2) {
-      varAccessList.back().second.push_back({access[i], access[i + 1]});
+    if (variableAccesses.size() <= (size_t) equation) {
+      variableAccesses.resize(equation + 1);
     }
+
+    auto& varAccessList = variableAccesses[equation];
+    varAccessList.emplace_back(variable, accessFunction);
   }
 
-  void KINSOLInstance::addResidualFunction(int64_t equationIndex, void* residualFunction)
+  void KINSOLInstance::setResidualFunction(
+      Equation equation,
+      ResidualFunction residualFunction)
   {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-
-    assert(equationIndex >= 0);
-
-    if (residuals.size() <= (size_t) equationIndex) {
-      residuals.resize(equationIndex + 1);
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Setting residual function for equation " << equation
+                << ". Address: " << reinterpret_cast<void*>(residualFunction)
+                << std::endl;
     }
 
-    residuals[equationIndex] = residualFunction;
+    if (residualFunctions.size() <= equation) {
+      residualFunctions.resize(equation + 1, nullptr);
+    }
+
+    residualFunctions[equation] = residualFunction;
   }
 
-  void KINSOLInstance::addJacobianFunction(int64_t equationIndex, int64_t variableIndex, void* jacobianFunction)
+  void KINSOLInstance::addJacobianFunction(
+      Equation equation,
+      Variable variable,
+      JacobianFunction jacobianFunction)
   {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-
-    assert(equationIndex >= 0);
-    assert(variableIndex >= 0);
-
-    if (jacobians.size() <= (size_t) equationIndex) {
-      jacobians.resize(equationIndex + 1);
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Setting jacobian function for equation " << equation
+                << " and variable " << variable << ". Address: "
+                << reinterpret_cast<void*>(jacobianFunction) << std::endl;
     }
 
-    if (jacobians[equationIndex].size() <= (size_t) variableIndex) {
-      jacobians[equationIndex].resize(variableIndex + 1);
+    if (jacobianFunctions.size() <= equation) {
+      jacobianFunctions.resize(equation + 1, {});
     }
 
-    jacobians[equationIndex][variableIndex] = jacobianFunction;
+    if (jacobianFunctions[equation].size() <= variable) {
+      jacobianFunctions[equation].resize(variable + 1, nullptr);
+    }
+
+    jacobianFunctions[equation][variable] = jacobianFunction;
   }
 
   bool KINSOLInstance::initialize()
   {
-    assert(!initialized && "The KINSOL instance has already been initialized");
-    initialized = true;
+    assert(!initialized && "KINSOL instance has already been initialized");
+
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Performing initialization" << std::endl;
+    }
+
+    // Compute the number of scalar variables.
+    scalarVariablesNumber = 0;
+
+    for (Variable var = 0, e = getNumOfArrayVariables(); var < e; ++var) {
+      scalarVariablesNumber += getVariableFlatSize(var);
+    }
+
+    // Compute the number of scalar equations.
+    scalarEquationsNumber = 0;
+
+    for (Equation eq = 0, e = getNumOfVectorizedEquations(); eq < e; ++eq) {
+      scalarEquationsNumber += getEquationFlatSize(eq);
+    }
+
+    assert(getNumOfScalarVariables() == getNumOfScalarEquations() &&
+           "Unbalanced system");
 
     if (scalarEquationsNumber == 0) {
-      // KINSOL has nothing to solve
+      // KINSOL has nothing to solve.
+      initialized = true;
       return true;
     }
 
-    simulationData = new void*[variables.size() + derivatives.size()];
-
-    for (size_t i = 0; i < variables.size(); ++i) {
-      simulationData[i] = variables[i];
+    // Create the SUNDIALS context.
+    if (SUNContext_Create(nullptr, &ctx) != 0) {
+      return false;
     }
 
-    for (size_t i = 0; i < derivatives.size(); ++i) {
-      simulationData[i + variables.size()] = derivatives[i];
+    // Create and initialize the variables vector.
+    variablesVector = N_VNew_Serial(
+        static_cast<sunindextype>(scalarVariablesNumber), ctx);
+
+    assert(checkAllocation(
+        static_cast<void*>(variablesVector), "N_VNew_Serial"));
+
+    for (uint64_t i = 0; i < scalarVariablesNumber; ++i) {
+      N_VGetArrayPointer(variablesVector)[i] = 0;
     }
 
-    copyVariablesFromMARCO(variablesVector);
-    copyDerivativesFromMARCO(derivativesVector);
+    // Create and initialize the tolerances vector.
+    tolerancesVector = N_VNew_Serial(
+        static_cast<sunindextype>(scalarVariablesNumber), ctx);
 
-    auto* variableScaleValues = N_VGetArrayPointer(variableScaleVector);
-    for(int i = 0; i < scalarEquationsNumber; ++i) {
-      variableScaleValues[i] = 1.0;
+    assert(checkAllocation(
+        static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
+
+    for (Variable var = 0; var < getNumOfArrayVariables(); ++var) {
+      uint64_t arrayOffset = variableOffsets[var];
+      uint64_t flatSize = getVariableFlatSize(var);
+
+      for (uint64_t scalarOffset = 0; scalarOffset < flatSize; ++scalarOffset) {
+        uint64_t offset = arrayOffset + scalarOffset;
+
+        N_VGetArrayPointer(tolerancesVector)[offset] = std::min(
+            getOptions().maxAlgebraicAbsoluteTolerance,
+            getOptions().absoluteTolerance);
+      }
     }
 
-    auto* residualScaleValues = N_VGetArrayPointer(residualScaleVector);
-    for(int i = 0; i < scalarEquationsNumber; ++i) {
-      residualScaleValues[i] = 1.0;
+    variableScaleVector = N_VNew_Serial(
+        static_cast<sunindextype>(scalarVariablesNumber), ctx);
+
+    residualScaleVector = N_VNew_Serial(
+        static_cast<sunindextype>(scalarVariablesNumber), ctx);
+
+    for (uint64_t i = 0; i < scalarVariablesNumber; ++i) {
+      N_VGetArrayPointer(variableScaleVector)[i] = 1;
+      N_VGetArrayPointer(residualScaleVector)[i] = 1;
+    }
+
+    // Determine the order in which the equations must be processed when
+    // computing residuals and jacobians.
+    assert(getNumOfVectorizedEquations() == writeAccesses.size());
+    equationsProcessingOrder.resize(getNumOfVectorizedEquations());
+
+    for (size_t i = 0, e = getNumOfVectorizedEquations(); i < e; ++i) {
+      equationsProcessingOrder[i] = i;
+    }
+
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Equations processing order: [";
+
+      for (size_t i = 0, e = equationsProcessingOrder.size(); i < e; ++i) {
+        if (i != 0) {
+          std::cerr << ", ";
+        }
+
+        std::cerr << equationsProcessingOrder[i];
+      }
+
+      std::cerr << "]" << std::endl;
+    }
+
+    // Check that all the residual functions have been set.
+    assert(residualFunctions.size() == getNumOfVectorizedEquations());
+
+    assert(std::all_of(
+        residualFunctions.begin(), residualFunctions.end(),
+        [](const ResidualFunction& function) {
+          return function != nullptr;
+        }));
+
+    // Check if the KINSOL instance is not informed about the accesses that all
+    // the jacobian functions have been set.
+    assert(precomputedAccesses ||
+           jacobianFunctions.size() == getNumOfVectorizedEquations());
+
+    assert(precomputedAccesses ||
+           std::all_of(
+               jacobianFunctions.begin(), jacobianFunctions.end(),
+               [&](std::vector<JacobianFunction> functions) {
+                 if (functions.size() != variableGetters.size()) {
+                   return false;
+                 }
+
+                 return std::all_of(
+                     functions.begin(), functions.end(),
+                     [](const JacobianFunction& function) {
+                       return function != nullptr;
+                     });
+               }));
+
+    // Check that all the getters and setters have been set.
+    assert(std::none_of(
+               variableGetters.begin(), variableGetters.end(),
+               [](VariableGetter getter) {
+                 return getter == nullptr;
+               }) && "Not all the variable getters have been set");
+
+    assert(std::none_of(
+               variableSetters.begin(), variableSetters.end(),
+               [](VariableSetter setter) {
+                 return setter == nullptr;
+               }) && "Not all the variable setters have been set");
+
+    // Reserve the space for data of the jacobian matrix.
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Reserving space for the data of the Jacobian matrix"
+                << std::endl;
+    }
+
+    jacobianMatrixData.resize(scalarEquationsNumber);
+
+    for (Equation eq : equationsProcessingOrder) {
+      uint64_t equationRank = getEquationRank(eq);
+
+      std::vector<int64_t> equationIndices;
+      getEquationBeginIndices(eq, equationIndices);
+
+      Variable writtenVariable = getWrittenVariable(eq);
+
+      uint64_t writtenVariableRank = getVariableRank(writtenVariable);
+      uint64_t writtenVariableArrayOffset = variableOffsets[writtenVariable];
+
+      do {
+        std::vector<uint64_t> writtenVariableIndices;
+        writtenVariableIndices.resize(writtenVariableRank, 0);
+
+        AccessFunction writeAccessFunction = getWriteAccessFunction(eq);
+
+        writeAccessFunction(
+            equationIndices.data(),
+            writtenVariableIndices.data());
+
+        if (getOptions().debug) {
+          std::cerr << "    Variable indices: ";
+          printIndices(writtenVariableIndices);
+          std::cerr << std::endl;
+        }
+
+        uint64_t equationScalarVariableOffset = getVariableFlatIndex(
+            variablesDimensions[writtenVariable],
+            writtenVariableIndices);
+
+        uint64_t scalarEquationIndex =
+            writtenVariableArrayOffset + equationScalarVariableOffset;
+
+        // Compute the column indexes that may be non-zeros.
+        std::vector<JacobianColumn> jacobianColumns =
+            computeJacobianColumns(eq, equationIndices.data());
+
+        jacobianMatrixData[scalarEquationIndex].resize(jacobianColumns.size());
+
+        if (getOptions().debug) {
+          std::cerr << "  - Equation " << eq << std::endl;
+          std::cerr << "    Equation indices: ";
+          printIndices(equationIndices);
+          std::cerr << std::endl;
+
+          std::cerr << "    Variable indices: ";
+          printIndices(writtenVariableIndices);
+          std::cerr << std::endl;
+
+          std::cerr << "    Scalar equation index: " << scalarEquationIndex
+                    << std::endl;
+
+          std::cerr << "    Number of possibly non-zero columns: "
+                    << jacobianColumns.size() << std::endl;
+        }
+      } while (advanceEquationIndices(equationIndices, equationRanges[eq]));
     }
 
     // Compute the total amount of non-zero values in the Jacobian Matrix.
     computeNNZ();
 
-    // Create and initialize KINSOL memory.
+    // Compute the equation chunks for each thread.
+    computeThreadChunks();
+
+    // Initialize the values of the variables living inside KINSOL.
+    copyVariablesFromMARCO(variablesVector);
+
+    // Create and initialize the memory for KINSOL.
     kinsolMemory = KINCreate(ctx);
 
     if (!checkAllocation(kinsolMemory, "KINCreate")) {
@@ -521,13 +463,14 @@ namespace marco::runtime::kinsol
 
     // Create sparse SUNMatrix for use in linear solver.
     sparseMatrix = SUNSparseMatrix(
-        scalarEquationsNumber,
-        scalarEquationsNumber,
-        nonZeroValuesNumber,
+        static_cast<sunindextype>(scalarEquationsNumber),
+        static_cast<sunindextype>(scalarEquationsNumber),
+        static_cast<sunindextype>(nonZeroValuesNumber),
         CSR_MAT,
         ctx);
 
-    if (!checkAllocation(static_cast<void*>(sparseMatrix), "SUNSparseMatrix")) {
+    if (!checkAllocation(
+            static_cast<void*>(sparseMatrix), "SUNSparseMatrix")) {
       return false;
     }
 
@@ -547,109 +490,106 @@ namespace marco::runtime::kinsol
       return false;
     }
 
-    if (!kinsolFNTolerance()) {
-      return false;
+    initialized = true;
+
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Initialization completed" << std::endl;
     }
 
     return true;
   }
 
-  bool KINSOLInstance::step()
+  bool KINSOLInstance::solve()
   {
-    assert(initialized && "The KINSOL instance has not been initialized yet");
+    if (!initialized) {
+      if (!initialize()) {
+        return false;
+      }
+    }
 
-    if (scalarEquationsNumber == 0) {
+    if (getNumOfScalarEquations() == 0) {
+      // KINSOL has nothing to solve.
       return true;
     }
 
-    KINSOL_PROFILER_STEP_START;
-
-    // Execute one step
     auto solveRetVal = KINSol(
-        kinsolMemory,
-        variablesVector,
-        KIN_LINESEARCH,
-        variableScaleVector,
-        residualScaleVector);
-
-    KINSOL_PROFILER_STEP_STOP;
+        kinsolMemory, variablesVector, KIN_LINESEARCH,
+        variableScaleVector, residualScaleVector);
 
     if (solveRetVal != KIN_SUCCESS) {
-      if (solveRetVal == KIN_INITIAL_GUESS_OK) {
-        std::cerr << "KINSol - The guess u satisfied the system F(u) = 0" << std::endl;
-      } else if (solveRetVal == KIN_STEP_LT_STPTOL) {
-        std::cerr << "KINSol - KINSOL stopped based on scaled step length" << std::endl;
-      } else if (solveRetVal == KIN_MEM_NULL) {
-        std::cerr << "KINSol - The kinsol_mem pointer is NULL" << std::endl;
-      } else if (solveRetVal == KIN_ILL_INPUT) {
-        std::cerr << "KINSol - One of the inputs to KINSol was illegal, or some other input to the solver was either illegal or missing" << std::endl;
-      } else if (solveRetVal == KIN_NO_MALLOC) {
-        std::cerr << "KINSol - The KINSOL memory was not allocated by a call to KINCreate()" << std::endl;
-      } else if (solveRetVal == KIN_MEM_FAIL) {
-        std::cerr << "KINSol - A memory allocation failed" << std::endl;
-      } else if (solveRetVal == KIN_LINESEARCH_NONCONV) {
-        std::cerr << "KINSol - The line search algorithm was unable to find an iterate sufficiently distinct from the current iterate" << std::endl;
-      } else if (solveRetVal == KIN_MAXITER_REACHED) {
-        std::cerr << "KINSol - The maximum number of nonlinear iterations has been reached" << std::endl;
-      } else if (solveRetVal == KIN_MXNEWT_5X_EXCEEDED) {
-        std::cerr << "KINSol - Five consecutive steps have been taken that satisfy the inequality" << std::endl;
-      } else if (solveRetVal == KIN_LINESEARCH_BCFAIL) {
-        std::cerr << "KINSol - The line search algorithm was unable to satisfy the beta-condition for MXNBCF+1 iterations" << std::endl;
-      } else if (solveRetVal == KIN_LINSOLV_NO_RECOVERY) {
-        std::cerr << "KINSol - The user-supplied routine psolve encountered a recoverable error, but the preconditioner is already current" << std::endl;
-      } else if (solveRetVal == KIN_LSETUP_FAIL) {
-        std::cerr << "KINSol - The linear solverâ€™s setup function failed in an unrecoverable manner" << std::endl;
-      } else if (solveRetVal == KIN_LSOLVE_FAIL) {
-        std::cerr << "KINSol - The linear solverâ€™s solve function failed in an unrecoverable manner" << std::endl;
-      } else if (solveRetVal == KIN_SYSFUNC_FAIL) {
-        std::cerr << "KINSol - The system function failed in an unrecoverable manner" << std::endl;
-      } else if (solveRetVal == KIN_FIRST_SYSFUNC_ERR) {
-        std::cerr << "KINSol - The system function failed recoverably at the first call" << std::endl;
-      } else if (solveRetVal == KIN_REPTD_SYSFUNC_ERR) {
-        std::cerr << "KINSol - The system function had repeated recoverable errors. No recovery is possible." << std::endl;
-      }
-
+      // TODO handle errors
       return false;
     }
 
     copyVariablesIntoMARCO(variablesVector);
-    copyDerivativesIntoMARCO(derivativesVector);
 
     return true;
   }
 
-  int KINSOLInstance::residualFunction(N_Vector variables, N_Vector residuals, void* userData)
+  int KINSOLInstance::residualFunction(
+      N_Vector variables,
+      N_Vector residuals,
+      void* userData)
   {
+    KINSOL_PROFILER_RESIDUALS_CALL_COUNTER_INCREMENT;
+
     realtype* rval = N_VGetArrayPointer(residuals);
     auto* instance = static_cast<KINSOLInstance*>(userData);
 
+    // Copy the values of the variables and derivatives provided by KINSOL into
+    // the variables owned by MARCO, so that the residual functions operate on
+    // the current iteration values.
     instance->copyVariablesIntoMARCO(variables);
 
-    // For every vector equation
-    for (size_t eq = 0; eq < instance->equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t equationIndices[instance->equationDimensions[eq].size()];
+    // For every vectorized equation, set the residual values of the variables
+    // it writes into.
+    KINSOL_PROFILER_RESIDUALS_START;
 
-      for (size_t i = 0; i < instance->equationDimensions[eq].size(); ++i) {
-        equationIndices[i] = instance->equationDimensions[eq][i].first;
-      }
+    instance->equationsParallelIteration(
+        [&](Equation eq, const std::vector<int64_t>& equationIndices) {
+          uint64_t equationRank = instance->getEquationRank(eq);
+          assert(equationIndices.size() == equationRank);
 
-      // For every scalar equation in the vector equation
-      do {
-        // Compute the i-th residual function
-        if (instance->marcoBitWidth == 32) {
-          auto residualFunction = reinterpret_cast<ResidualFunction<float>>(instance->residuals[eq]);
-          auto residualFunctionResult = residualFunction(0.0, instance->simulationData, equationIndices);
-          *rval++ = residualFunctionResult;
-        } else {
-          auto residualFunction = reinterpret_cast<ResidualFunction<double>>(instance->residuals[eq]);
-          auto residualFunctionResult = residualFunction(0.0, instance->simulationData, equationIndices);
-          *rval++ = residualFunctionResult;
-        }
-      } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
+          Variable writtenVariable = instance->getWrittenVariable(eq);
+
+          uint64_t writtenVariableArrayOffset =
+              instance->variableOffsets[writtenVariable];
+
+          uint64_t writtenVariableRank =
+              instance->getVariableRank(writtenVariable);
+
+          std::vector<uint64_t> writtenVariableIndices(writtenVariableRank, 0);
+
+          AccessFunction writeAccessFunction =
+              instance->getWriteAccessFunction(eq);
+
+          writeAccessFunction(
+              equationIndices.data(),
+              writtenVariableIndices.data());
+
+          uint64_t writtenVariableScalarOffset = getVariableFlatIndex(
+              instance->variablesDimensions[writtenVariable],
+              writtenVariableIndices);
+
+          uint64_t offset =
+              writtenVariableArrayOffset + writtenVariableScalarOffset;
+
+          auto residualFn = instance->residualFunctions[eq];
+          auto* eqIndicesPtr = equationIndices.data();
+
+          auto residualFunctionResult = residualFn(eqIndicesPtr);
+          *(rval + offset) = residualFunctionResult;
+        });
+
+    KINSOL_PROFILER_RESIDUALS_STOP;
+
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Residuals function called" << std::endl;
+      std::cerr << "Variables:" << std::endl;
+      instance->printVariablesVector(variables);
+      std::cerr << "Residuals vector:" << std::endl;
+      instance->printResidualsVector(residuals);
     }
-
-    assert(rval == N_VGetArrayPointer(residuals) + instance->scalarEquationsNumber);
 
     return KIN_SUCCESS;
   }
@@ -660,296 +600,507 @@ namespace marco::runtime::kinsol
       void* userData,
       N_Vector tempv1, N_Vector tempv2)
   {
-    sunindextype* rowptrs = SUNSparseMatrix_IndexPointers(jacobianMatrix);
-    sunindextype* colvals = SUNSparseMatrix_IndexValues(jacobianMatrix);
-    realtype* jacobian = SUNSparseMatrix_Data(jacobianMatrix);
+    KINSOL_PROFILER_PARTIAL_DERIVATIVES_CALL_COUNTER_INCREMENT;
 
+    realtype* jacobian = SUNSparseMatrix_Data(jacobianMatrix);
     auto* instance = static_cast<KINSOLInstance*>(userData);
 
+    // Copy the values of the variables and derivatives provided by KINSOL into
+    // the variables owned by MARCO, so that the jacobian functions operate on
+    // the current iteration values.
     instance->copyVariablesIntoMARCO(variables);
 
-    sunindextype nnzElements = 0;
-    *rowptrs++ = nnzElements;
+    // For every vectorized equation, compute its row within the Jacobian
+    // matrix.
+    KINSOL_PROFILER_PARTIAL_DERIVATIVES_START;
 
-    // For every vector equation
-    for (size_t eq = 0; eq < instance->equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t equationIndices[instance->equationDimensions[eq].size()];
+    instance->equationsParallelIteration(
+        [&](Equation eq, const std::vector<int64_t>& equationIndices) {
+          uint64_t equationRank = instance->getEquationRank(eq);
+          Variable writtenVariable = instance->getWrittenVariable(eq);
 
-      for (size_t i = 0; i < instance->equationDimensions[eq].size(); ++i) {
-        equationIndices[i] = instance->equationDimensions[eq][i].first;
-      }
+          uint64_t writtenVariableArrayOffset =
+              instance->variableOffsets[writtenVariable];
 
-      // For every scalar equation in the vector equation
-      do {
-        // Compute the column indexes that may be non-zeros
-        std::set<DerivativeVariable> columnIndexesSet = instance->computeIndexSet(eq, equationIndices);
+          uint64_t writtenVariableRank =
+              instance->getVariableRank(writtenVariable);
 
-        nnzElements += columnIndexesSet.size();
-        *rowptrs++ = nnzElements;
+          std::vector<uint64_t> writtenVariableIndices;
+          writtenVariableIndices.resize(writtenVariableRank, 0);
 
-        // For every variable with respect to which every equation must be
-        // partially differentiated
-        for (DerivativeVariable var: columnIndexesSet) {
-          // Compute the i-th Jacobian value
-          size_t* variableIndices = &var.second[0];
+          AccessFunction writeAccessFunction =
+              instance->getWriteAccessFunction(eq);
 
-          if (instance->marcoBitWidth == 32) {
-            auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(instance->jacobians[eq][var.first]);
-            auto jacobianFunctionResult = jacobianFunction(0.0, instance->simulationData, equationIndices, variableIndices, 0.0);
-            *jacobian++ = jacobianFunctionResult;
-          } else {
-            auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(instance->jacobians[eq][var.first]);
-            auto jacobianFunctionResult = jacobianFunction(0.0, instance->simulationData, equationIndices, variableIndices, 0.0);
-            *jacobian++ = jacobianFunctionResult;
+          writeAccessFunction(
+              equationIndices.data(),
+              writtenVariableIndices.data());
+
+          uint64_t writtenVariableScalarOffset = getVariableFlatIndex(
+              instance->variablesDimensions[writtenVariable],
+              writtenVariableIndices);
+
+          uint64_t scalarEquationIndex =
+              writtenVariableArrayOffset + writtenVariableScalarOffset;
+
+          assert(scalarEquationIndex < instance->getNumOfScalarEquations());
+
+          // Compute the column indexes that may be non-zeros.
+          std::vector<JacobianColumn> jacobianColumns =
+              instance->computeJacobianColumns(eq, equationIndices.data());
+
+          // For every scalar variable with respect to which the equation must be
+          // partially differentiated.
+          for (size_t i = 0, e = jacobianColumns.size(); i < e; ++i) {
+            const JacobianColumn& column = jacobianColumns[i];
+            Variable variable = column.first;
+            const auto& variableIndices = column.second;
+
+            uint64_t variableArrayOffset = instance->variableOffsets[variable];
+
+            uint64_t variableScalarOffset = getVariableFlatIndex(
+                instance->variablesDimensions[variable],
+                column.second);
+
+            assert(instance->jacobianFunctions[eq][variable] != nullptr);
+
+            auto jacobianFunctionResult =
+                instance->jacobianFunctions[eq][variable](
+                    equationIndices.data(),
+                    variableIndices.data());
+
+            instance->jacobianMatrixData[scalarEquationIndex][i].second =
+                jacobianFunctionResult;
+
+            auto index = static_cast<sunindextype>(
+                variableArrayOffset + variableScalarOffset);
+
+            instance->jacobianMatrixData[scalarEquationIndex][i].first =
+                index;
           }
+        });
 
-          *colvals++ = instance->variableOffsets[var.first] + computeOffset(instance->variablesDimensions[var.first], var.second);
-        }
-      } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
+    sunindextype* rowPtrs = SUNSparseMatrix_IndexPointers(jacobianMatrix);
+    sunindextype* columnIndices = SUNSparseMatrix_IndexValues(jacobianMatrix);
+
+    sunindextype offset = 0;
+    *rowPtrs++ = offset;
+
+    for (const auto& row : instance->jacobianMatrixData) {
+      offset += static_cast<sunindextype>(row.size());
+      *rowPtrs++ = offset;
+
+      for (const auto& column : row) {
+        *columnIndices++ = column.first;
+        *jacobian++ = column.second;
+      }
     }
 
-    assert(rowptrs == SUNSparseMatrix_IndexPointers(jacobianMatrix) + instance->scalarEquationsNumber + 1);
-    assert(colvals == SUNSparseMatrix_IndexValues(jacobianMatrix) + instance->nonZeroValuesNumber);
+    assert(rowPtrs == SUNSparseMatrix_IndexPointers(jacobianMatrix) + instance->getNumOfScalarEquations() + 1);
+    assert(columnIndices == SUNSparseMatrix_IndexValues(jacobianMatrix) + instance->nonZeroValuesNumber);
     assert(jacobian == SUNSparseMatrix_Data(jacobianMatrix) + instance->nonZeroValuesNumber);
+
+    KINSOL_PROFILER_PARTIAL_DERIVATIVES_STOP;
+
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Jacobian matrix function called" << std::endl;
+      std::cerr << "Variables:" << std::endl;
+      instance->printVariablesVector(variables);
+      std::cerr << "Residuals vector:" << std::endl;
+      instance->printResidualsVector(residuals);
+      std::cerr << "Jacobian matrix:" << std::endl;
+      instance->printJacobianMatrix(jacobianMatrix);
+    }
 
     return KIN_SUCCESS;
   }
 
-  /// Compute the column indexes of the current row of the Jacobian Matrix given
-  /// the current vector equation and an array of indexes.
-  std::set<DerivativeVariable> KINSOLInstance::computeIndexSet(size_t eq, size_t* eqIndexes) const
+  uint64_t KINSOLInstance::getNumOfArrayVariables() const
   {
-    std::set<DerivativeVariable> columnIndexesSet;
-
-    for (auto& access : variableAccesses[eq]) {
-      size_t variableIndex = access.first;
-      Access variableAccess = access.second;
-      assert(variableAccess.size() == variablesDimensions[variableIndex].rank());
-
-      DerivativeVariable newEntry = {variableIndex, {}};
-
-      for (size_t i = 0; i < variableAccess.size(); ++i) {
-        int64_t induction = variableAccess[i].first;
-        size_t index = induction != -1 ? eqIndexes[induction] : 0;
-        index += variableAccess[i].second;
-        newEntry.second.push_back(index);
-      }
-
-      columnIndexesSet.insert(newEntry);
-    }
-
-    return columnIndexesSet;
+    return variablesDimensions.size();
   }
 
-  /// Compute the number of non-zero values in the Jacobian Matrix. Also compute
-  /// the column indexes of all non-zero values in the Jacobian Matrix. This avoids
-  /// the recomputation of such indexes during the Jacobian evaluation.
+  uint64_t KINSOLInstance::getNumOfScalarVariables() const
+  {
+    return scalarVariablesNumber;
+  }
+
+  uint64_t KINSOLInstance::getVariableFlatSize(Variable variable) const
+  {
+    uint64_t result = 1;
+
+    for (uint64_t dimension : variablesDimensions[variable]) {
+      result *= dimension;
+    }
+
+    return result;
+  }
+
+  uint64_t KINSOLInstance::getNumOfVectorizedEquations() const
+  {
+    return equationRanges.size();
+  }
+
+  uint64_t KINSOLInstance::getNumOfScalarEquations() const
+  {
+    return scalarEquationsNumber;
+  }
+
+  uint64_t KINSOLInstance::getEquationRank(Equation equation) const
+  {
+    return equationRanges[equation].size();
+  }
+
+  uint64_t KINSOLInstance::getEquationFlatSize(Equation equation) const
+  {
+    assert(equation < getNumOfVectorizedEquations());
+    uint64_t result = 1;
+
+    for (const Range& range : equationRanges[equation]) {
+      result *= range.end - range.begin;
+    }
+
+    return result;
+  }
+
+  Variable KINSOLInstance::getWrittenVariable(Equation equation) const
+  {
+    return writeAccesses[equation].first;
+  }
+
+  AccessFunction KINSOLInstance::getWriteAccessFunction(Equation equation) const
+  {
+    return writeAccesses[equation].second;
+  }
+
+  uint64_t KINSOLInstance::getVariableRank(Variable variable) const
+  {
+    return variablesDimensions[variable].rank();
+  }
+
+  /// Determine which of the columns of the current Jacobian row has to be
+  /// populated, and with respect to which variable the partial derivative has
+  /// to be performed. The row is determined by the indices of the equation.
+  std::vector<JacobianColumn> KINSOLInstance::computeJacobianColumns(
+      Equation eq, const int64_t* equationIndices) const
+  {
+    std::set<JacobianColumn> uniqueColumns;
+
+    if (precomputedAccesses) {
+      for (const auto& access : variableAccesses[eq]) {
+        Variable variable = access.first;
+        AccessFunction accessFunction = access.second;
+
+        uint64_t equationRank = getEquationRank(eq);
+        uint64_t variableRank = getVariableRank(variable);
+
+        std::vector<uint64_t> variableIndices;
+        variableIndices.resize(variableRank, 0);
+        accessFunction(equationIndices, variableIndices.data());
+
+        assert([&]() -> bool {
+          for (uint64_t i = 0; i < variableRank; ++i) {
+            if (variableIndices[i] >= variablesDimensions[variable][i]) {
+              return false;
+            }
+          }
+
+          return true;
+        }() && "Access out of bounds");
+
+        uniqueColumns.insert({variable, variableIndices});
+      }
+    } else {
+      for (size_t variableIndex = 0, e = getNumOfArrayVariables();
+           variableIndex < e; ++variableIndex) {
+        const auto& dimensions = variablesDimensions[variableIndex];
+
+        for (auto indices = dimensions.indicesBegin(),
+                  end = dimensions.indicesEnd();
+             indices != end; ++indices) {
+          JacobianColumn column(variableIndex, {});
+
+          for (size_t dim = 0; dim < dimensions.rank(); ++dim) {
+            column.second.push_back((*indices)[dim]);
+          }
+
+          uniqueColumns.insert(std::move(column));
+        }
+      }
+    }
+
+    std::vector<JacobianColumn> orderedColumns;
+
+    for (const JacobianColumn& column : uniqueColumns) {
+      orderedColumns.push_back(column);
+    }
+
+    std::sort(orderedColumns.begin(), orderedColumns.end(),
+              [](const JacobianColumn& first, const JacobianColumn& second) {
+                if (first.first != second.first) {
+                  return first.first < second.first;
+                }
+
+                assert(first.second.size() == second.second.size());
+
+                for (size_t i = 0, e = first.second.size(); i < e; ++i) {
+                  if (first.second[i] < second.second[i]) {
+                    return true;
+                  }
+                }
+
+                return false;
+              });
+
+    return orderedColumns;
+  }
+
+  /// Compute the number of non-zero values in the Jacobian Matrix. Also
+  /// compute the column indexes of all non-zero values in the Jacobian Matrix.
+  /// This allows to avoid the recomputation of such indexes during the
+  /// Jacobian evaluation.
   void KINSOLInstance::computeNNZ()
   {
     nonZeroValuesNumber = 0;
+    std::vector<int64_t> equationIndices;
 
-    for (size_t eq = 0; eq < equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t indexes[equationDimensions[eq].size()];
+    for (size_t eq = 0; eq < getNumOfVectorizedEquations(); ++eq) {
+      // Initialize the multidimensional interval of the vector equation.
+      uint64_t equationRank = equationRanges[eq].size();
+      equationIndices.resize(equationRank);
 
-      for (size_t i = 0; i < equationDimensions[eq].size(); ++i) {
-        indexes[i] = equationDimensions[eq][i].first;
+      for (size_t i = 0; i < equationRank; ++i) {
+        const auto& iterationRange = equationRanges[eq][i];
+        int64_t beginIndex = iterationRange.begin;
+        equationIndices[i] = beginIndex;
       }
 
-      // For every scalar equation in the vector equation
+      // For every scalar equation in the vector equation.
       do {
         // Compute the column indexes that may be non-zeros
-        nonZeroValuesNumber += computeIndexSet(eq, indexes).size();
-      } while (updateIndexes(indexes, equationDimensions[eq]));
+        nonZeroValuesNumber +=
+            computeJacobianColumns(eq, equationIndices.data()).size();
+
+      } while (advanceEquationIndices(equationIndices, equationRanges[eq]));
     }
   }
 
-  void KINSOLInstance::copyVariablesFromMARCO(N_Vector values)
+  void KINSOLInstance::computeThreadChunks()
   {
-    assert(variables.size() == variablesDimensions.size());
-    assert(variables.size() == variablesGetters.size());
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
 
-    auto* valuesPtr = N_VGetArrayPointer(values);
+    int64_t chunksFactor = getOptions().equationsChunksFactor;
+    int64_t numOfChunks = numOfThreads * chunksFactor;
 
-    for (size_t i = 0; i < variables.size(); ++i) {
-      auto* descriptor = variables[i];
-      const auto& dimensions = variablesDimensions[i];
-      assert(variablesGetters[i] != nullptr);
+    uint64_t numOfVectorizedEquations = getNumOfVectorizedEquations();
+    uint64_t numOfScalarEquations = getNumOfScalarEquations();
 
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(variablesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
+    size_t chunkSize =
+        (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
+
+    // The number of vectorized equations whose indices have been completely
+    // assigned.
+    uint64_t processedEquations = 0;
+
+    while (processedEquations < numOfVectorizedEquations) {
+      Equation equation = equationsProcessingOrder[processedEquations];
+      uint64_t equationFlatSize = getEquationFlatSize(equation);
+      uint64_t equationFlatIndex = 0;
+
+      // Divide the ranges into chunks.
+      while (equationFlatIndex < equationFlatSize) {
+        uint64_t beginFlatIndex = equationFlatIndex;
+
+        uint64_t endFlatIndex = std::min(
+            beginFlatIndex + static_cast<uint64_t>(chunkSize),
+            equationFlatSize);
+
+        std::vector<int64_t> beginIndices;
+        std::vector<int64_t> endIndices;
+
+        getEquationIndicesFromFlatIndex(
+            beginFlatIndex, beginIndices, equationRanges[equation]);
+
+        if (endFlatIndex == equationFlatSize) {
+          getEquationEndIndices(equation, endIndices);
         } else {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(variablesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
+          getEquationIndicesFromFlatIndex(
+              endFlatIndex, endIndices, equationRanges[equation]);
         }
 
-        ++valuesPtr;
+        threadEquationsChunks.emplace_back(
+            equation, std::move(beginIndices), std::move(endIndices));
+
+        // Move to the next chunk.
+        equationFlatIndex = endFlatIndex;
       }
+
+      // Move to the next vectorized equation.
+      ++processedEquations;
     }
   }
 
-  void KINSOLInstance::copyDerivativesFromMARCO(N_Vector values)
+  void KINSOLInstance::copyVariablesFromMARCO(N_Vector variables)
   {
-    assert(derivatives.size() == derivativesDimensions.size());
-    assert(derivatives.size() == derivativesGetters.size());
-
-    auto* valuesPtr = N_VGetArrayPointer(values);
-
-    for (size_t i = 0; i < derivatives.size(); ++i) {
-      auto* descriptor = derivatives[i];
-      const auto& dimensions = derivativesDimensions[i];
-      assert(derivativesGetters[i] != nullptr);
-
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(derivativesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
-        } else {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(derivativesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
-        }
-
-        ++valuesPtr;
-      }
-    }
-  }
-
-  void KINSOLInstance::copyVariablesIntoMARCO(N_Vector values)
-  {
-    assert(variables.size() == variablesDimensions.size());
-    assert(variables.size() == variablesSetters.size());
-
-    auto* valuesPtr = N_VGetArrayPointer(values);
-
-    for (size_t i = 0; i < variables.size(); ++i) {
-      auto* descriptor = variables[i];
-      const auto& dimensions = variablesDimensions[i];
-      assert(variablesSetters[i] != nullptr);
-
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(variablesSetters[i]);
-          auto value = static_cast<float>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
-        } else {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(variablesSetters[i]);
-          auto value = static_cast<double>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
-        }
-
-        ++valuesPtr;
-      }
-    }
-  }
-
-  void KINSOLInstance::copyDerivativesIntoMARCO(N_Vector values)
-  {
-    assert(derivatives.size() == derivativesDimensions.size());
-    assert(derivatives.size() == derivativesSetters.size());
-
-    auto* valuesPtr = N_VGetArrayPointer(values);
-
-    for (size_t i = 0; i < derivatives.size(); ++i) {
-      auto* descriptor = derivatives[i];
-      const auto& dimensions = derivativesDimensions[i];
-      assert(variablesSetters[i] != nullptr);
-
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(derivativesSetters[i]);
-          auto value = static_cast<float>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
-        } else {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(derivativesSetters[i]);
-          auto value = static_cast<double>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
-        }
-
-        ++valuesPtr;
-      }
-    }
-  }
-
-  void KINSOLInstance::printStatistics() const
-  {
-    if (scalarEquationsNumber == 0) {
-      return;
+    if (getOptions().debug) {
+      std::cerr << "[KINSOL] Copying variables from MARCO" << std::endl;
     }
 
-    if (getOptions().printJacobian) {
-      printIncidenceMatrix();
-    }
+    KINSOL_PROFILER_COPY_VARS_FROM_MARCO_START;
 
-    long nje, nni, nli;
+    realtype* varsPtr = N_VGetArrayPointer(variables);
+    uint64_t numOfArrayVariables = getNumOfArrayVariables();
 
-    KINGetNumJacEvals(kinsolMemory, &nje);
-    KINGetNumNonlinSolvIters(kinsolMemory, &nni);
-    KINGetNumLinIters(kinsolMemory, &nli);
+    for (Variable var = 0; var < numOfArrayVariables; ++var) {
+      uint64_t variableArrayOffset = variableOffsets[var];
+      const auto& dimensions = variablesDimensions[var];
 
-    std::cerr << std::endl << "Final Run Statistics:" << std::endl;
+      std::vector<uint64_t> varIndices;
+      getVariableBeginIndices(var, varIndices);
 
-    std::cerr << "Number of vector equations       = ";
-    std::cerr << equationDimensions.size() << std::endl;
-    std::cerr << "Number of scalar equations       = ";
-    std::cerr << scalarEquationsNumber << std::endl;
-    std::cerr << "Number of non-zero values        = ";
-    std::cerr << nonZeroValuesNumber << std::endl;
-
-    std::cerr << "Number of Jacobian evaluations   = " << nje << std::endl;
-
-    std::cerr << "Number of nonlinear iterations   = " << nni << std::endl;
-    std::cerr << "Number of linear iterations      = " << nli << std::endl;
-  }
-
-  void KINSOLInstance::printIncidenceMatrix() const
-  {
-    std::cerr << std::endl;
-
-    // For every vector equation
-    for (size_t eq = 0; eq < equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t indexes[equationDimensions[eq].size()];
-
-      for (size_t i = 0; i < equationDimensions[eq].size(); ++i) {
-        indexes[i] = equationDimensions[eq][i].first;
-      }
-
-      // For every scalar equation in the vector equation
       do {
-        std::cerr << "│";
+        uint64_t variableScalarOffset =
+            getVariableFlatIndex(dimensions, varIndices.data());
 
-        // Get the column indexes that may be non-zeros.
-        std::set<size_t> columnIndexesSet;
+        uint64_t offset = variableArrayOffset + variableScalarOffset;
 
-        for (auto& access : variableAccesses[eq]) {
-          const VariableDimensions& dimensions = variablesDimensions[access.first];
-          sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
-          columnIndexesSet.insert(variableOffsets[access.first] + varOffset);
+        // Get the variable.
+        auto getterFn = variableGetters[var];
+        auto value = static_cast<realtype>(getterFn(varIndices.data()));
+        varsPtr[offset] = value;
+
+        if (getOptions().debug) {
+          std::cerr << "Got var " << var << " ";
+          printIndices(varIndices);
+          std::cerr << " with value " << std::fixed << std::setprecision(9)
+                    << value << std::endl;
+        }
+      } while (advanceVariableIndices(varIndices, variablesDimensions[var]));
+    }
+
+    KINSOL_PROFILER_COPY_VARS_FROM_MARCO_STOP;
+  }
+
+  void KINSOLInstance::copyVariablesIntoMARCO(N_Vector variables)
+  {
+    if (getOptions().debug) {
+      std::cerr << "[IDA] Copying variables into MARCO" << std::endl;
+    }
+
+    KINSOL_PROFILER_COPY_VARS_INTO_MARCO_START;
+
+    realtype* varsPtr = N_VGetArrayPointer(variables);
+    uint64_t numOfArrayVariables = getNumOfArrayVariables();
+
+    for (Variable var = 0; var < numOfArrayVariables; ++var) {
+      uint64_t variableArrayOffset = variableOffsets[var];
+      const auto& dimensions = variablesDimensions[var];
+
+      std::vector<uint64_t> varIndices;
+      getVariableBeginIndices(var, varIndices);
+
+      do {
+        uint64_t variableScalarOffset =
+            getVariableFlatIndex(dimensions, varIndices.data());
+
+        uint64_t offset = variableArrayOffset + variableScalarOffset;
+
+        // Set the variable.
+        auto setterFn = variableSetters[var];
+        auto value = static_cast<double>(varsPtr[offset]);
+
+        if (getOptions().debug) {
+          std::cerr << "Setting var " << var << " ";
+          printIndices(varIndices);
+          std::cerr << " to " << value << std::endl;
         }
 
-        for (int64_t i = 0; i < scalarEquationsNumber; ++i) {
-          if (columnIndexesSet.find(i) != columnIndexesSet.end()) {
-            std::cerr << "*";
-          } else {
-            std::cerr << " ";
-          }
+        setterFn(value, varIndices.data());
 
-          if (i < scalarEquationsNumber - 1) {
-            std::cerr << " ";
-          }
+        assert([&]() -> bool {
+          auto getterFn = variableGetters[var];
+          return getterFn(varIndices.data()) == value;
+        }() && "Variable value not set correctly");
+      } while (advanceVariableIndices(varIndices, variablesDimensions[var]));
+    }
+
+    KINSOL_PROFILER_COPY_VARS_INTO_MARCO_STOP;
+  }
+
+  void KINSOLInstance::equationsParallelIteration(
+      std::function<void(
+          Equation equation,
+          const std::vector<int64_t>& equationIndices)> processFn)
+  {
+    // Shard the work among multiple threads.
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
+    std::atomic_size_t chunkIndex = 0;
+
+    for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
+      threadPool.async([&]() {
+        size_t assignedChunk;
+
+        while ((assignedChunk = chunkIndex++) < threadEquationsChunks.size()) {
+          const ThreadEquationsChunk& chunk =
+              threadEquationsChunks[assignedChunk];
+
+          Equation equation = std::get<0>(chunk);
+          std::vector<int64_t> equationIndices = std::get<1>(chunk);
+
+          do {
+            processFn(equation, equationIndices);
+          } while (advanceEquationIndicesUntil(
+              equationIndices, equationRanges[equation], std::get<2>(chunk)));
         }
+      });
+    }
 
-        std::cerr << "│" << std::endl;
-      } while (updateIndexes(indexes, equationDimensions[eq]));
+    threadPool.wait();
+  }
+
+  void KINSOLInstance::getVariableBeginIndices(
+      Variable variable, std::vector<uint64_t>& indices) const
+  {
+    uint64_t variableRank = getVariableRank(variable);
+    indices.resize(variableRank);
+
+    for (uint64_t i = 0; i < variableRank; ++i) {
+      indices[i] = 0;
     }
   }
+
+  void KINSOLInstance::getVariableEndIndices(
+      Variable variable, std::vector<uint64_t>& indices) const
+  {
+    uint64_t variableRank = getVariableRank(variable);
+    indices.resize(variableRank);
+
+    for (uint64_t i = 0; i < variableRank; ++i) {
+      indices[i] = variablesDimensions[variable][i];
+    }
+  }
+
+  void KINSOLInstance::getEquationBeginIndices(
+      Equation equation, std::vector<int64_t>& indices) const
+  {
+    uint64_t equationRank = getEquationRank(equation);
+    indices.resize(equationRank);
+
+    for (uint64_t i = 0; i < equationRank; ++i) {
+      indices[i] = equationRanges[equation][i].begin;
+    }
+  }
+
+  void KINSOLInstance::getEquationEndIndices(
+      Equation equation, std::vector<int64_t>& indices) const
+  {
+    uint64_t equationRank = getEquationRank(equation);
+    indices.resize(equationRank);
+
+    for (uint64_t i = 0; i < equationRank; ++i) {
+      indices[i] = equationRanges[equation][i].end;
+    }
+  }
+
 
   bool KINSOLInstance::kinsolInit()
   {
@@ -1064,124 +1215,126 @@ namespace marco::runtime::kinsol
   }
 }
 
-//===----------------------------------------------------------------------===//
-// Allocation, initialization, usage and deletion
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
+// Exported functions
+//===---------------------------------------------------------------------===//
 
-/// Instantiate and initialize the struct of data needed by KINSOL, given the total
-/// number of scalar equations.
+//===---------------------------------------------------------------------===//
+// kinsolCreate
 
-static void* kinsolCreate_pvoid(int64_t scalarEquationsNumber, int64_t bitWidth)
+static void* kinsolCreate_pvoid()
 {
-  auto* instance = new KINSOLInstance(bitWidth, scalarEquationsNumber);
+  auto* instance = new KINSOLInstance();
   return static_cast<void*>(instance);
 }
 
-RUNTIME_FUNC_DEF(kinsolCreate, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DEF(kinsolCreate, PTR(void))
 
-static void kinsolInit_void(void* userData)
+//===---------------------------------------------------------------------===//
+// kinsolSolve
+
+static void kinsolSolve_void(void* instance)
 {
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  [[maybe_unused]] bool result = instance->initialize();
-  assert(result && "Can't initialize the KINSOL instance");
+  [[maybe_unused]] bool result = static_cast<KINSOLInstance*>(instance)->solve();
+  assert(result && "KINSOL solve failed");
 }
 
-RUNTIME_FUNC_DEF(kinsolInit, void, PTR(void))
+RUNTIME_FUNC_DEF(kinsolSolve, void, PTR(void))
 
-static void kinsolStep_void(void* userData)
+//===---------------------------------------------------------------------===//
+// kinsolFree
+
+static void kinsolFree_void(void* instance)
 {
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  [[maybe_unused]] bool result = instance->step();
-  assert(result && "KINSOL step failed");
-}
-
-RUNTIME_FUNC_DEF(kinsolStep, void, PTR(void))
-
-static void kinsolFree_void(void* userData)
-{
-  auto* data = static_cast<KINSOLInstance*>(userData);
-  delete data;
+  delete static_cast<KINSOLInstance*>(instance);
 }
 
 RUNTIME_FUNC_DEF(kinsolFree, void, PTR(void))
 
-//===----------------------------------------------------------------------===//
-// Equation setters
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
+// kinsolAddVariable
 
-static int64_t kinsolAddEquation_i64(void* userData, int64_t* ranges, int64_t rank)
+static uint64_t kinsolAddVariable_i64(
+    void* instance,
+    uint64_t rank,
+    uint64_t* dimensions,
+    void* getter,
+    void* setter,
+    void* name)
 {
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  return instance->addEquation(ranges, rank);
+  return static_cast<KINSOLInstance*>(instance)->addVariable(
+      rank, dimensions,
+      reinterpret_cast<VariableGetter>(getter),
+      reinterpret_cast<VariableSetter>(setter),
+      static_cast<const char*>(name));
 }
 
-RUNTIME_FUNC_DEF(kinsolAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
+RUNTIME_FUNC_DEF(kinsolAddVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
-static void kinsolAddResidual_void(void* userData, int64_t equationIndex, void* residualFunction)
-{
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  instance->addResidualFunction(equationIndex, residualFunction);
-}
+//===---------------------------------------------------------------------===//
+// idaAddVariableAccess
 
-RUNTIME_FUNC_DEF(kinsolAddResidual, void, PTR(void), int64_t, PTR(void))
-
-static void kinsolAddJacobian_void(void* userData, int64_t equationIndex, int64_t variableIndex, void* jacobianFunction)
-{
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  instance->addJacobianFunction(equationIndex, variableIndex, jacobianFunction);
-}
-
-RUNTIME_FUNC_DEF(kinsolAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
-
-//===----------------------------------------------------------------------===//
-// Variable setters
-//===----------------------------------------------------------------------===//
-
-static int64_t kinsolAddAlgebraicVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
-{
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  return instance->addAlgebraicVariable(variable, dimensions, rank, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(kinsolAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-static int64_t kinsolAddStateVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
-{
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  return instance->addStateVariable(variable, dimensions, rank, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(kinsolAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-static void kinsolSetDerivative_void(void* userData, int64_t stateVariable, void* derivative, void* getter, void* setter)
-{
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  instance->setDerivative(stateVariable, derivative, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(kinsolSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
-
-/// Add a variable access to the var-th variable, where ind is the induction
-/// variable and off is the access offset.
 static void kinsolAddVariableAccess_void(
-    void* userData, int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank)
+    void* instance,
+    uint64_t equationIndex,
+    uint64_t variableIndex,
+    void* accessFunction)
 {
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  instance->addVariableAccess(equationIndex, variableIndex, access, rank);
+  static_cast<KINSOLInstance*>(instance)->addVariableAccess(
+      equationIndex, variableIndex,
+      reinterpret_cast<AccessFunction>(accessFunction));
 }
 
-RUNTIME_FUNC_DEF(kinsolAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
+RUNTIME_FUNC_DEF(kinsolAddVariableAccess, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
-//===----------------------------------------------------------------------===//
-// Statistics
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
+// kinsolAddEquation
 
-static void kinsolPrintStatistics_void(void* userData)
+static uint64_t kinsolAddEquation_i64(
+    void* instance,
+    int64_t* ranges,
+    uint64_t rank,
+    uint64_t writtenVariable,
+    void* writeAccessFunction,
+    void* stringRepresentation)
 {
-  auto* instance = static_cast<KINSOLInstance*>(userData);
-  instance->printStatistics();
+  return static_cast<KINSOLInstance*>(instance)->addEquation(
+      ranges, rank, writtenVariable,
+      reinterpret_cast<AccessFunction>(writeAccessFunction),
+      static_cast<const char*>(stringRepresentation));
 }
 
-RUNTIME_FUNC_DEF(kinsolPrintStatistics, void, PTR(void))
+RUNTIME_FUNC_DEF(kinsolAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
+
+//===---------------------------------------------------------------------===//
+// kinsolSetResidual
+
+static void kinsolSetResidual_void(
+    void* instance,
+    uint64_t equationIndex,
+    void* residualFunction)
+{
+  static_cast<KINSOLInstance*>(instance)->setResidualFunction(
+      equationIndex,
+      reinterpret_cast<ResidualFunction>(residualFunction));
+}
+
+RUNTIME_FUNC_DEF(kinsolSetResidual, void, PTR(void), uint64_t, PTR(void))
+
+//===---------------------------------------------------------------------===//
+// kinsolAddJacobian
+
+static void kinsolAddJacobian_void(
+    void* instance,
+    uint64_t equationIndex,
+    uint64_t variableIndex,
+    void* jacobianFunction)
+{
+  static_cast<KINSOLInstance*>(instance)->addJacobianFunction(
+      equationIndex, variableIndex,
+      reinterpret_cast<JacobianFunction>(jacobianFunction));
+}
+
+RUNTIME_FUNC_DEF(kinsolAddJacobian, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
 #endif // SUNDIALS_ENABLE

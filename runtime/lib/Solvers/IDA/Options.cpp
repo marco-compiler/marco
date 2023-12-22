@@ -2,7 +2,7 @@
 
 #ifdef SUNDIALS_ENABLE
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
   Options& getOptions()
   {

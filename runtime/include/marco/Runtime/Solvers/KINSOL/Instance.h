@@ -3,7 +3,7 @@
 
 #ifdef SUNDIALS_ENABLE
 
-#include "marco/Runtime/Support/Mangling.h"
+#include "marco/Runtime/Solvers/SUNDIALS/Instance.h"
 #include "kinsol/kinsol.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"
@@ -13,201 +13,139 @@
 #include <set>
 #include <vector>
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
-  using Access = std::vector<std::pair<sunindextype, sunindextype>>;
-  using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
-
-  using DerivativeVariable = std::pair<size_t, std::vector<size_t>>;
-
-  class VariableIndicesIterator;
-
-  /// The list of dimensions of an array variable.
-  class VariableDimensions
-  {
-    private:
-      using Container = std::vector<size_t>;
-
-    public:
-      using iterator = typename Container::iterator;
-      using const_iterator = typename Container::const_iterator;
-
-      VariableDimensions(size_t rank);
-
-      size_t rank() const;
-
-      size_t& operator[](size_t index);
-      const size_t& operator[](size_t index) const;
-
-      /// @name Dimensions iterators
-      /// {
-
-      const_iterator begin() const;
-      const_iterator end() const;
-
-      /// }
-      /// @name Indices iterators
-      /// {
-
-      VariableIndicesIterator indicesBegin() const;
-      VariableIndicesIterator indicesEnd() const;
-
-      /// }
-
-    private:
-      /// Check that all the dimensions have been correctly initialized.
-      [[maybe_unused]] bool isValid() const;
-
-    private:
-      Container dimensions;
-  };
-
-  /// This class is used to iterate on all the possible combination of indices of a variable.
-  class VariableIndicesIterator
-  {
-    public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = size_t*;
-      using difference_type = std::ptrdiff_t;
-      using pointer = size_t**;
-      using reference = size_t*&;
-
-      ~VariableIndicesIterator();
-
-      static VariableIndicesIterator begin(const VariableDimensions& dimensions);
-
-      static VariableIndicesIterator end(const VariableDimensions& dimensions);
-
-      bool operator==(const VariableIndicesIterator& it) const;
-
-      bool operator!=(const VariableIndicesIterator& it) const;
-
-      VariableIndicesIterator& operator++();
-      VariableIndicesIterator operator++(int);
-
-      size_t* operator*() const;
-
-    private:
-      VariableIndicesIterator(const VariableDimensions& dimensions);
-
-      void fetchNext();
-
-    private:
-      size_t* indices;
-      const VariableDimensions* dimensions;
-  };
-
-  using EqDimension = std::vector<std::pair<size_t, size_t>>;
-
-  /// Signature of variable getter functions.
-  /// The 1st argument is an opaque pointer to the variable descriptor.
-  /// The 2nd argument is a pointer to the indices list.
-  /// The result is the scalar value.
-  template<typename FloatType>
-  using VariableGetterFunction = FloatType(*)(void*, size_t*);
-
-  /// Signature of variable setter functions.
-  /// The 1st argument is an opaque pointer to the variable descriptor.
-  /// The 2nd argument is the value to be set.
-  /// The 3rd argument is a pointer to the indices list.
-  template<typename FloatType>
-  using VariableSetterFunction = void(*)(void*, FloatType, size_t*);
-
   /// Signature of residual functions.
-  /// The 1st argument is the current time.
-  /// The 2nd argument is an opaque pointer to the simulation data.
-  /// The 3rd argument is a pointer to the list of equation indices.
+  /// The 1st argument is a pointer to the list of equation indices.
   /// The result is the residual value.
-  template<typename FloatType>
-  using ResidualFunction = FloatType(*)(FloatType, void*, size_t*);
+  using ResidualFunction = double(*)(const int64_t*);
 
   /// Signature of Jacobian functions.
-  /// The 1st argument is the current time.
-  /// The 2nd argument is an opaque pointer to the simulation data.
-  /// The 3rd argument is a pointer to the list of equation indices.
-  /// The 4th argument is a pointer to the list of variable indices.
-  /// The 5th argument is the 'alpha' value.
+  /// The 1st argument is a pointer to the list of equation indices.
+  /// The 2nd argument is a pointer to the list of variable indices.
   /// The result is the Jacobian value.
-  template<typename FloatType>
-  using JacobianFunction = FloatType(*)(FloatType, void*, size_t*, size_t*, FloatType);
+  using JacobianFunction = double(*)(const int64_t*, const uint64_t*);
 
   class KINSOLInstance
   {
     public:
-      KINSOLInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber);
+      KINSOLInstance();
 
       ~KINSOLInstance();
 
-      /// Add and initialize a new variable given its array.
-      int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+      Variable addVariable(
+          uint64_t rank,
+          const uint64_t* dimensions,
+          VariableGetter getterFunction,
+          VariableSetter setterFunction,
+          const char* name);
 
-      int64_t addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+      /// Add the information about an equation that is handled by KINSOL.
+      Equation addEquation(
+          const int64_t* ranges,
+          uint64_t rank,
+          Variable writtenVariable,
+          AccessFunction writeAccessFunction,
+          const char* stringRepresentation);
 
-      void setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter);
+      void addVariableAccess(
+          Equation equation,
+          Variable variableIndex,
+          AccessFunction accessFunction);
 
-      /// Add the dimension of an equation to the KINSOL user data.
-      int64_t addEquation(int64_t* ranges, int64_t rank);
+      /// Add the function pointer that computes the residual value of an
+      /// equation.
+      void setResidualFunction(
+          Equation equationIndex,
+          ResidualFunction residualFunction);
 
-      void addVariableAccess(int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank);
+      /// Add the function pointer that computes a partial derivative of an
+      /// equation.
+      void addJacobianFunction(
+          Equation equationIndex,
+          Variable variableIndex,
+          JacobianFunction jacobianFunction);
 
-      /// Add the function pointer that computes the index-th residual function to the
-      /// KINSOL user data.
-      void addResidualFunction(int64_t equationIndex, void* residualFunction);
-
-      /// Add the function pointer that computes the index-th jacobian row to the user
-      /// data.
-      void addJacobianFunction(int64_t equationIndex, int64_t variableIndex, void* jacobianFunction);
-
-      /// Instantiate and initialize all the classes needed by KINSOL in order to solve
-      /// the given system of equations. It also sets optional simulation parameters
-      /// for KINSOL. It must be called before the first usage of kinsolStep() and after a
-      /// call to kinsolAllocData(). It may fail in case of malformed model.
+      /// Instantiate and initialize all the classes needed by KINSOL in order to
+      /// solve the given system of equations. It also sets optional simulation
+      /// parameters for KINSOL.
       bool initialize();
 
-      /// Invoke KINSOL to perform one step of the computation. If a time step is given,
-      /// the output will show the variables in an equidistant time grid based on the
-      /// step time parameter. Otherwise, the output will show the variables at every
-      /// step of the computation. Returns true if the computation was successful,
-      /// false otherwise.
-      bool step();
-
-      /// Prints statistics regarding the computation of the system.
-      void printStatistics() const;
+      bool solve();
 
       /// KINSOLResFn user-defined residual function, passed to KINSOL through KINSOLInit.
       /// It contains how to compute the Residual Function of the system, starting
       /// from the provided UserData struct, iterating through every equation.
       static int residualFunction(
-          N_Vector variables, N_Vector residuals,
+          N_Vector variables, N_Vector residuals, void* userData);
+
+      static int residualFunction(
+          realtype time,
+          N_Vector variables,
+          N_Vector residuals,
           void* userData);
 
-      /// KINSOLLsJacFn user-defined Jacobian approximation function, passed to KINSOL
-      /// through KINSOLSetJacFn. It contains how to compute the Jacobian Matrix of
-      /// the system, starting from the provided UserData struct, iterating through
-      /// every equation and variable. The matrix is represented in CSR format.
       static int jacobianMatrix(
-          N_Vector variables, N_Vector residuals,
+          N_Vector variables,
+          N_Vector residuals,
           SUNMatrix jacobianMatrix,
           void* userData,
-          N_Vector tempv1, N_Vector tempv2);
+          N_Vector tempv1,
+          N_Vector tempv2);
 
     private:
-      std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes) const;
+      [[nodiscard]] uint64_t getNumOfArrayVariables() const;
+
+      [[nodiscard]] uint64_t getNumOfScalarVariables() const;
+
+      [[nodiscard]] uint64_t getVariableFlatSize(Variable variable) const;
+
+      [[nodiscard]] uint64_t getNumOfVectorizedEquations() const;
+
+      [[nodiscard]] uint64_t getNumOfScalarEquations() const;
+
+      [[nodiscard]] uint64_t getEquationRank(Equation equation) const;
+
+      [[nodiscard]] uint64_t getEquationFlatSize(Equation equation) const;
+
+      [[nodiscard]] Variable getWrittenVariable(Equation equation) const;
+
+      [[nodiscard]] AccessFunction getWriteAccessFunction(Equation equation) const;
+
+      [[nodiscard]] uint64_t getVariableRank(Variable variable) const;
+
+      std::vector<JacobianColumn> computeJacobianColumns(
+          Equation eq, const int64_t* equationIndices) const;
 
       void computeNNZ();
 
-      void copyVariablesFromMARCO(N_Vector values);
+      void computeThreadChunks();
 
-      void copyDerivativesFromMARCO(N_Vector values);
+      void copyVariablesFromMARCO(N_Vector variables);
 
-      void copyVariablesIntoMARCO(N_Vector values);
+      void copyVariablesIntoMARCO(N_Vector variables);
 
-      void copyDerivativesIntoMARCO(N_Vector values);
+      void equationsParallelIteration(
+          std::function<void(
+              Equation equation,
+              const std::vector<int64_t>& equationIndices)> processFn);
 
-      /// Prints the Jacobian incidence matrix of the system.
-      void printIncidenceMatrix() const;
+      void getVariableBeginIndices(
+          Variable variable, std::vector<uint64_t>& indices) const;
+
+      void getVariableEndIndices(
+          Variable variable, std::vector<uint64_t>& indices) const;
+
+      void getEquationBeginIndices(
+          Equation equation, std::vector<int64_t>& indices) const;
+
+      void getEquationEndIndices(
+          Equation equation, std::vector<int64_t>& indices) const;
 
     private:
+      /// @name Forwarded methods
+      /// {
+
       bool kinsolInit();
       bool kinsolFNTolerance();
       bool kinsolSSTolerance();
@@ -215,111 +153,147 @@ namespace marco::runtime::kinsol
       bool kinsolSetUserData();
       bool kinsolSetJacobianFunction();
 
+      /// }
+      /// @name Utility functions
+      /// {
+
+      /// Get the scalar equation writing to a certain scalar variable.
+      /// Warning: extremely slow, to be used only for debug purposes.
+      void getWritingEquation(
+          Variable variable,
+          const std::vector<uint64_t>& variableIndices,
+          Equation& equation,
+          std::vector<int64_t>& equationIndices) const;
+
+      /// }
+      /// @name Debug functions
+      /// {
+      void printVariablesVector(N_Vector variables) const;
+
+      void printDerivativesVector(N_Vector derivatives) const;
+
+      void printResidualsVector(N_Vector residuals) const;
+
+      void printJacobianMatrix(SUNMatrix jacobianMatrix) const;
+
+      /// }
+
     private:
-      SUNContext ctx;
-      bool initialized;
+      // SUNDIALS context.
+      SUNContext ctx{nullptr};
 
-      int64_t marcoBitWidth;
+      // Whether the instance has been inizialized or not.
+      bool initialized{false};
 
-      // Model size
-      int64_t scalarEquationsNumber;
-      int64_t nonZeroValuesNumber;
+      // Model size.
+      uint64_t scalarVariablesNumber{0};
+      uint64_t scalarEquationsNumber{0};
+      uint64_t nonZeroValuesNumber{0};
 
-      // Equations data
-      std::vector<EqDimension> equationDimensions;
-      std::vector<void*> residuals;
-      std::vector<std::vector<void*>> jacobians;
+      // The iteration ranges of the vectorized equations.
+      std::vector<MultidimensionalRange> equationRanges;
+
+      // The array variables written by the equations.
+      // The i-th position contains the information about the variable written
+      // by the i-th equation: the first element is the index of the IDA
+      // variable, while the second represents the ranges of the scalar
+      // variable.
+      std::vector<std::pair<Variable, AccessFunction>> writeAccesses;
+
+      // The order in which the equations must be processed when computing
+      // residuals and partial derivatives.
+      std::vector<Equation> equationsProcessingOrder;
+
+      // The residual functions associated with the equations.
+      // The i-th position contains the pointer to the residual function of the
+      // i-th equation.
+      std::vector<ResidualFunction> residualFunctions;
+
+      // The jacobian functions associated with the equations.
+      // The i-th position contains the list of partial derivative functions of
+      // the i-th equation. The j-th function represents the function to
+      // compute the derivative with respect to the j-th variable.
+      std::vector<std::vector<JacobianFunction>> jacobianFunctions;
+
+      // Whether the IDA instance is informed about the accesses to the
+      // variables.
+      bool precomputedAccesses{false};
+
       std::vector<VarAccessList> variableAccesses;
 
-      // The offset of each array variable inside the flattened variables vector
-      std::vector<sunindextype> variableOffsets;
+      // The offset of each array variable inside the flattened variables
+      // vector.
+      std::vector<uint64_t> variableOffsets;
 
-      // The dimensions list of each array variable
+      // The dimensions list of each array variable.
       std::vector<VariableDimensions> variablesDimensions;
-      std::vector<VariableDimensions> derivativesDimensions;
 
-      // Variables vectors and values
+      // Variables vectors and values.
       N_Vector variablesVector;
-      N_Vector derivativesVector;
-
-      // The vector stores whether each scalar variable is an algebraic or a state one.
-      // 0 = algebraic
-      // 1 = state
-      N_Vector idVector;
 
       // The tolerance for each scalar variable.
       N_Vector tolerancesVector;
 
-      // The scale for each scalar variable
       N_Vector variableScaleVector;
-
-      // The scale for each residual
       N_Vector residualScaleVector;
 
-      // KINSOL classes
+      // KINSOL classes.
       void* kinsolMemory;
+
       SUNMatrix sparseMatrix;
+
+      // Support structure for the computation of the jacobian matrix.
+      // The outer vector has a number of elements equal to the scalar number
+      // of equations. Each of them represents a row of the matrix and consists
+      // in a vector of paired elements. The first element of each pair
+      // represents the index of the column (that is, the independent scalar
+      // variable for the partial derivative) while the second one is the
+      // value of the partial derivative.
+      std::vector<std::vector<std::pair<sunindextype, double>>> jacobianMatrixData;
+
       SUNLinearSolver linearSolver;
 
-      std::vector<void*> parameters;
-      std::vector<void*> variables;
-      std::vector<void*> derivatives;
+      std::vector<VariableGetter> variableGetters;
+      std::vector<VariableSetter> variableSetters;
 
-      std::vector<void*> variablesGetters;
-      std::vector<void*> derivativesGetters;
+      // Thread pool.
+      ThreadPool threadPool;
 
-      std::vector<void*> variablesSetters;
-      std::vector<void*> derivativesSetters;
+      // A chunk of equations to be processed by a thread.
+      // A chunk is composed of:
+      //   - the identifier (position) of the equation.
+      //   - the begin indices (included)
+      //   - the end indices (exluded)
+      using ThreadEquationsChunk = std::tuple<
+          Equation, std::vector<int64_t>, std::vector<int64_t>>;
 
-      void** simulationData;
+      // The list of chunks the threads will process. Each thread elaborates
+      // one chunk at a time.
+      // The information is computed only once during the initialization to
+      // save time during the actual simulation.
+      std::vector<ThreadEquationsChunk> threadEquationsChunks;
   };
 }
 
-//===----------------------------------------------------------------------===//
-// Allocation, initialization, usage and deletion
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
+// Exported functions
+//===---------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(kinsolCreate, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(kinsolInit, void, PTR(void))
+RUNTIME_FUNC_DECL(kinsolCreate, PTR(void))
 
 RUNTIME_FUNC_DECL(kinsolStep, void, PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolPrintStatistics, void, PTR(void))
-
 RUNTIME_FUNC_DECL(kinsolFree, void, PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolSetStartTime, void, PTR(void), double)
-RUNTIME_FUNC_DECL(kinsolSetEndTime, void, PTR(void), double)
-RUNTIME_FUNC_DECL(kinsolSetTimeStep, void, PTR(void), double)
+RUNTIME_FUNC_DECL(idaAddVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
-//===----------------------------------------------------------------------===//
-// Equation setters
-//===----------------------------------------------------------------------===//
+RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
+RUNTIME_FUNC_DECL(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolAddResidual, void, PTR(void), int64_t, PTR(void))
+RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), uint64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
-
-//===----------------------------------------------------------------------===//
-// Variable setters
-//===----------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(kinsolAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-RUNTIME_FUNC_DECL(kinsolAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-RUNTIME_FUNC_DECL(kinsolSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
-
-RUNTIME_FUNC_DECL(kinsolAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
-
-//===----------------------------------------------------------------------===//
-// Getters
-//===----------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(kinsolGetCurrentTime, float, PTR(void))
-RUNTIME_FUNC_DECL(kinsolGetCurrentTime, double, PTR(void))
+RUNTIME_FUNC_DECL(idaAddJacobian, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
 #endif // SUNDIALS_ENABLE
 

@@ -5,7 +5,7 @@
 
 #include "ida/ida.h"
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
   struct Options
   {

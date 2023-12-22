@@ -3,10 +3,7 @@
 
 #ifdef SUNDIALS_ENABLE
 
-#include "marco/Runtime/Support/Mangling.h"
-#include "marco/Runtime/Modeling/MultidimensionalRange.h"
-#include "marco/Runtime/Multithreading/ThreadPool.h"
-#include "marco/Runtime/Support/Mangling.h"
+#include "marco/Runtime/Solvers/SUNDIALS/Instance.h"
 #include "ida/ida.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"
@@ -17,112 +14,13 @@
 #include <set>
 #include <vector>
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
-  class VariableIndicesIterator;
-
   enum class VariableKind
   {
     ALGEBRAIC,
     STATE
   };
-
-  /// The list of dimensions of an array variable.
-  class VariableDimensions
-  {
-    private:
-      using Container = std::vector<uint64_t>;
-
-    public:
-      using iterator = typename Container::iterator;
-      using const_iterator = typename Container::const_iterator;
-
-      VariableDimensions(size_t rank);
-
-      size_t rank() const;
-
-      uint64_t& operator[](size_t index);
-      const uint64_t& operator[](size_t index) const;
-
-      /// @name Dimensions iterators
-      /// {
-
-      const_iterator begin() const;
-      const_iterator end() const;
-
-      /// }
-      /// @name Indices iterators
-      /// {
-
-      VariableIndicesIterator indicesBegin() const;
-      VariableIndicesIterator indicesEnd() const;
-
-      /// }
-
-    private:
-      /// Check that all the dimensions have been correctly initialized.
-      [[maybe_unused]] bool isValid() const;
-
-    private:
-      Container dimensions;
-  };
-
-  /// This class is used to iterate on all the possible combination of indices
-  /// of a variable.
-  class VariableIndicesIterator
-  {
-    public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = const uint64_t*;
-      using difference_type = std::ptrdiff_t;
-      using pointer = const uint64_t**;
-      using reference = const uint64_t*&;
-
-      ~VariableIndicesIterator();
-
-      static VariableIndicesIterator begin(
-          const VariableDimensions& dimensions);
-
-      static VariableIndicesIterator end(
-          const VariableDimensions& dimensions);
-
-      bool operator==(const VariableIndicesIterator& it) const;
-
-      bool operator!=(const VariableIndicesIterator& it) const;
-
-      VariableIndicesIterator& operator++();
-      VariableIndicesIterator operator++(int);
-
-      const uint64_t* operator*() const;
-
-    private:
-      VariableIndicesIterator(const VariableDimensions& dimensions);
-
-      void fetchNext();
-
-    private:
-      uint64_t* indices;
-      const VariableDimensions* dimensions;
-  };
-
-  using Equation = uint64_t;
-  using Variable = uint64_t;
-
-  /// Signature of variable getter functions.
-  /// The 1st argument is a pointer to the indices list.
-  /// The result is the scalar value.
-  using VariableGetter = double(*)(const uint64_t*);
-
-  /// Signature of variable setter functions.
-  /// The 1st argument is the value to be set.
-  /// The 2nd argument is a pointer to the indices list.
-  using VariableSetter = void(*)(double, const uint64_t*);
-
-  /// Signature of the access functions.
-  /// The 1st argument is the rank of the equation.
-  /// The 2nd argument is a pointer to the list of equation indices.
-  /// The 3rd argument is a pointer to the list of results.
-  using AccessFunction = void(*)(const int64_t*, uint64_t*);
 
   /// Signature of residual functions.
   /// The 1st argument is the current time.
@@ -139,14 +37,6 @@ namespace marco::runtime::ida
   using JacobianFunction = double(*)(
       double, const int64_t*, const uint64_t*, double);
 
-  /// A column of the Jacobian matrix.
-  /// The first element represents the array variable with respect to which the
-  /// partial derivative has to be computed. The second element represents the
-  /// indices of the scalar variable.
-  using JacobianColumn = std::pair<Variable, std::vector<uint64_t>>;
-
-  using VarAccessList = std::vector<std::pair<Variable, AccessFunction>>;
-
   class IDAInstance
   {
     public:
@@ -158,7 +48,6 @@ namespace marco::runtime::ida
       void setEndTime(double time);
       void setTimeStep(double time);
 
-      /// Add and initialize a new variable given its array.
       Variable addAlgebraicVariable(
           uint64_t rank,
           const uint64_t* dimensions,
@@ -188,14 +77,14 @@ namespace marco::runtime::ida
           Variable variableIndex,
           AccessFunction accessFunction);
 
-      /// Add the function pointer that computes the index-th residual function
-      /// to the IDA user data.
+      /// Add the function pointer that computes the residual value of an
+      /// equation.
       void setResidualFunction(
           Equation equationIndex,
           ResidualFunction residualFunction);
 
-      /// Add the function pointer that computes the index-th Jacobian row to
-      /// the user data.
+      /// Add the function pointer that computes a partial derivative of an
+      /// equation.
       void addJacobianFunction(
           Equation equationIndex,
           Variable variableIndex,
@@ -253,27 +142,27 @@ namespace marco::runtime::ida
           N_Vector tempv3);
 
     private:
-      uint64_t getNumOfArrayVariables() const;
+      [[nodiscard]] uint64_t getNumOfArrayVariables() const;
 
-      uint64_t getNumOfScalarVariables() const;
+      [[nodiscard]] uint64_t getNumOfScalarVariables() const;
 
-      VariableKind getVariableKind(Variable variable) const;
+      [[nodiscard]] VariableKind getVariableKind(Variable variable) const;
 
-      uint64_t getVariableFlatSize(Variable variable) const;
+      [[nodiscard]] uint64_t getVariableFlatSize(Variable variable) const;
 
-      uint64_t getNumOfVectorizedEquations() const;
+      [[nodiscard]] uint64_t getNumOfVectorizedEquations() const;
 
-      uint64_t getNumOfScalarEquations() const;
+      [[nodiscard]] uint64_t getNumOfScalarEquations() const;
 
-      uint64_t getEquationRank(Equation equation) const;
+      [[nodiscard]] uint64_t getEquationRank(Equation equation) const;
 
-      uint64_t getEquationFlatSize(Equation equation) const;
+      [[nodiscard]] uint64_t getEquationFlatSize(Equation equation) const;
 
-      Variable getWrittenVariable(Equation equation) const;
+      [[nodiscard]] Variable getWrittenVariable(Equation equation) const;
 
-      AccessFunction getWriteAccessFunction(Equation equation) const;
+      [[nodiscard]] AccessFunction getWriteAccessFunction(Equation equation) const;
 
-      uint64_t getVariableRank(Variable variable) const;
+      [[nodiscard]] uint64_t getVariableRank(Variable variable) const;
 
       std::vector<JacobianColumn> computeJacobianColumns(
           Equation eq, const int64_t* equationIndices) const;
@@ -367,16 +256,16 @@ namespace marco::runtime::ida
       /// }
 
     private:
-      // Sundials context.
-      SUNContext ctx = nullptr;
+      // SUNDIALS context.
+      SUNContext ctx{nullptr};
 
       // Whether the instance has been inizialized or not.
-      bool initialized = false;
+      bool initialized{false};
 
       // Model size.
-      uint64_t scalarVariablesNumber = 0;
-      uint64_t scalarEquationsNumber = 0;
-      uint64_t nonZeroValuesNumber = 0;
+      uint64_t scalarVariablesNumber{0};
+      uint64_t scalarEquationsNumber{0};
+      uint64_t nonZeroValuesNumber{0};
 
       // The iteration ranges of the vectorized equations.
       std::vector<MultidimensionalRange> equationRanges;
@@ -405,7 +294,7 @@ namespace marco::runtime::ida
 
       // Whether the IDA instance is informed about the accesses to the
       // variables.
-      bool precomputedAccesses = false;
+      bool precomputedAccesses{false};
 
       std::vector<VarAccessList> variableAccesses;
 

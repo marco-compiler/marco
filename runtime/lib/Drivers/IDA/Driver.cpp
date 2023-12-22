@@ -59,14 +59,14 @@ namespace marco::runtime
 #ifdef CLI_ENABLE
   std::unique_ptr<cli::Category> IDA::getCLIOptions()
   {
-    return std::make_unique<ida::CommandLineOptions>();
+    return std::make_unique<sundials::ida::CommandLineOptions>();
   }
 #endif // CLI_ENABLE
 
   int IDA::run()
   {
     // Set the start time.
-    setTime(ida::getOptions().startTime);
+    setTime(sundials::ida::getOptions().startTime);
 
     getSimulation()->getPrinter()->simulationBegin();
 
@@ -97,8 +97,8 @@ namespace marco::runtime
 
       // Print the values.
       getSimulation()->getPrinter()->printValues();
-    } while (std::abs(getTime() - ida::getOptions().endTime) >=
-             ida::getOptions().timeStep);
+    } while (std::abs(getTime() - sundials::ida::getOptions().endTime) >=
+             sundials::ida::getOptions().timeStep);
 
     // Deinitialize the simulation.
     deinitMainSolvers();

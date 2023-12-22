@@ -13,390 +13,14 @@
 #include <set>
 
 using namespace ::marco::runtime;
-using namespace ::marco::runtime::ida;
-
-//===---------------------------------------------------------------------===//
-// Utilities
-//===---------------------------------------------------------------------===//
-
-static void printIndices(const std::vector<int64_t>& indices)
-{
-  std::cerr << "[";
-
-  for (size_t i = 0, e = indices.size(); i < e; ++i) {
-    if (i != 0) {
-      std::cerr << ", ";
-    }
-
-    std::cerr << indices[i];
-  }
-
-  std::cerr << "]";
-}
-
-static void printIndices(const std::vector<uint64_t>& indices)
-{
-  std::cerr << "[";
-
-  for (size_t i = 0, e = indices.size(); i < e; ++i) {
-    if (i != 0) {
-      std::cerr << ", ";
-    }
-
-    std::cerr << indices[i];
-  }
-
-  std::cerr << "]";
-}
-
-namespace marco::runtime::ida
-{
-  VariableDimensions::VariableDimensions(size_t rank)
-  {
-    dimensions.resize(rank, 0);
-  }
-
-  size_t VariableDimensions::rank() const
-  {
-    return dimensions.size();
-  }
-
-  uint64_t& VariableDimensions::operator[](size_t index)
-  {
-    return dimensions[index];
-  }
-
-  const uint64_t& VariableDimensions::operator[](size_t index) const
-  {
-    return dimensions[index];
-  }
-
-  VariableDimensions::const_iterator VariableDimensions::begin() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return dimensions.begin();
-  }
-
-  VariableDimensions::const_iterator VariableDimensions::end() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return dimensions.end();
-  }
-
-  VariableIndicesIterator VariableDimensions::indicesBegin() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return VariableIndicesIterator::begin(*this);
-  }
-
-  VariableIndicesIterator VariableDimensions::indicesEnd() const
-  {
-    assert(isValid() && "Variable dimensions have not been initialized");
-    return VariableIndicesIterator::end(*this);
-  }
-
-  bool VariableDimensions::isValid() const
-  {
-    return std::none_of(
-        dimensions.begin(), dimensions.end(), [](const auto& dimension) {
-          return dimension == 0;
-        });
-  }
-
-  VariableIndicesIterator::~VariableIndicesIterator()
-  {
-    delete[] indices;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::begin(
-      const VariableDimensions& dimensions)
-  {
-    VariableIndicesIterator result(dimensions);
-
-    for (size_t i = 0; i < dimensions.rank(); ++i) {
-      result.indices[i] = 0;
-    }
-
-    return result;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::end(
-      const VariableDimensions& dimensions)
-  {
-    VariableIndicesIterator result(dimensions);
-
-    for (size_t i = 0; i < dimensions.rank(); ++i) {
-      result.indices[i] = dimensions[i];
-    }
-
-    return result;
-  }
-
-  bool VariableIndicesIterator::operator==(
-      const VariableIndicesIterator& it) const
-  {
-    if (dimensions != it.dimensions) {
-      return false;
-    }
-
-    for (size_t i = 0; i < dimensions->rank(); ++i) {
-      if (indices[i] != it.indices[i]) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool VariableIndicesIterator::operator!=(
-      const VariableIndicesIterator& it) const
-  {
-    if (dimensions != it.dimensions) {
-      return true;
-    }
-
-    for (size_t i = 0; i < dimensions->rank(); ++i) {
-      if (indices[i] != it.indices[i]) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  VariableIndicesIterator& VariableIndicesIterator::operator++()
-  {
-    fetchNext();
-    return *this;
-  }
-
-  VariableIndicesIterator VariableIndicesIterator::operator++(int)
-  {
-    auto temp = *this;
-    fetchNext();
-    return temp;
-  }
-
-  const uint64_t* VariableIndicesIterator::operator*() const
-  {
-    return indices;
-  }
-
-  VariableIndicesIterator::VariableIndicesIterator(
-      const VariableDimensions& dimensions)
-      : dimensions(&dimensions)
-  {
-    indices = new uint64_t[dimensions.rank()];
-  }
-
-  void VariableIndicesIterator::fetchNext()
-  {
-    size_t rank = dimensions->rank();
-    size_t posFromLast = 0;
-
-    assert(std::none_of(
-        dimensions->begin(), dimensions->end(),
-        [](const auto& dimension) {
-          return dimension == 0;
-        }));
-
-    while (posFromLast < rank && ++indices[rank - posFromLast - 1] ==
-               (*dimensions)[rank - posFromLast - 1]) {
-      ++posFromLast;
-    }
-
-    if (posFromLast != rank) {
-      for (size_t i = 0; i < posFromLast; ++i) {
-        indices[rank - i - 1] = 0;
-      }
-    }
-  }
-}
-
-/// Check if SUNDIALS function returned NULL pointer (no memory allocated).
-static bool checkAllocation(void* retval, const char* functionName)
-{
-  if (retval == nullptr) {
-    std::cerr << "SUNDIALS_ERROR: " << functionName;
-    std::cerr << "() failed - returned NULL pointer" << std::endl;
-    return false;
-  }
-
-  return true;
-}
-
-static bool advanceVariableIndices(
-    uint64_t* indices, const VariableDimensions& dimensions)
-{
-  for (size_t i = 0, e = dimensions.rank(); i < e; ++i) {
-    size_t pos = e - i - 1;
-    ++indices[pos];
-
-    if (indices[pos] == dimensions[pos]) {
-      indices[pos] = 0;
-    } else {
-      return true;
-    }
-  }
-
-  for (size_t i = 0, e = dimensions.rank(); i < e; ++i) {
-    indices[i] = dimensions[i];
-  }
-
-  return false;
-}
-
-static bool advanceVariableIndices(
-    std::vector<uint64_t>& indices, const VariableDimensions& dimensions)
-{
-  return advanceVariableIndices(indices.data(), dimensions);
-}
-
-static bool advanceVariableIndicesUntil(
-    std::vector<uint64_t>& indices,
-    const VariableDimensions& dimensions,
-    const std::vector<uint64_t>& end)
-{
-  assert(indices.size() == end.size());
-
-  if (!advanceVariableIndices(indices, dimensions)) {
-    return false;
-  }
-
-  return indices != end;
-}
-
-/// Given an array of indices and the dimensions of an equation, increase the
-/// indices within the induction bounds of the equation. Return false if the
-/// indices exceed the equation bounds, which means the computation has
-/// finished, true otherwise.
-static bool advanceEquationIndices(
-    int64_t* indices, const MultidimensionalRange& ranges)
-{
-  for (size_t i = 0, e = ranges.size(); i < e; ++i) {
-    size_t pos = e - i - 1;
-    ++indices[pos];
-
-    if (indices[pos] == ranges[pos].end) {
-      indices[pos] = ranges[pos].begin;
-    } else {
-      return true;
-    }
-  }
-
-  for (size_t i = 0, e = ranges.size(); i < e; ++i) {
-    indices[i] = ranges[i].end;
-  }
-
-  return false;
-}
-
-static bool advanceEquationIndices(
-    std::vector<int64_t>& indices, const MultidimensionalRange& ranges)
-{
-  return advanceEquationIndices(indices.data(), ranges);
-}
-
-static bool advanceEquationIndicesUntil(
-    std::vector<int64_t>& indices,
-    const MultidimensionalRange& ranges,
-    const std::vector<int64_t>& end)
-{
-  assert(indices.size() == end.size());
-
-  if (!advanceEquationIndices(indices, ranges)) {
-    return false;
-  }
-
-  return indices != end;
-}
-
-/// Get the flat index corresponding to a multidimensional access.
-/// Example:
-///   x[d1][d2][d3]
-///   x[i][j][k] -> x[i * d2 * d3 + j * d3 + k]
-static uint64_t getVariableFlatIndex(
-    const VariableDimensions& dimensions,
-    const uint64_t* indices)
-{
-  uint64_t offset = indices[0];
-
-  for (size_t i = 1, e = dimensions.rank(); i < e; ++i) {
-    offset = offset * dimensions[i] + indices[i];
-  }
-
-  return offset;
-}
-
-static uint64_t getVariableFlatIndex(
-    const VariableDimensions& dimensions,
-    const std::vector<uint64_t>& indices)
-{
-  assert(indices.size() == dimensions.rank());
-  return getVariableFlatIndex(dimensions, indices.data());
-}
-
-static uint64_t getEquationFlatIndex(
-    const std::vector<int64_t>& indices,
-    const MultidimensionalRange& ranges)
-{
-  assert(indices[0] >= ranges[0].begin);
-  uint64_t offset = indices[0] - ranges[0].begin;
-
-  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-    assert(ranges[i].end > ranges[i].begin);
-    offset = offset * (ranges[i].end - ranges[i].begin) +
-        (indices[i] - ranges[i].begin);
-  }
-
-  assert(offset >= 0);
-  return offset;
-}
-
-static void getEquationIndicesFromFlatIndex(
-    uint64_t flatIndex,
-    std::vector<int64_t>& result,
-    const MultidimensionalRange& ranges)
-{
-  result.resize(ranges.size());
-  uint64_t size = 1;
-
-  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-    assert(ranges[i].end > ranges[i].begin);
-    size *= ranges[i].end - ranges[i].begin;
-  }
-
-  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-    result[i - 1] =
-        static_cast<int64_t>(flatIndex / size) + ranges[i - 1].begin;
-
-    flatIndex %= size;
-    assert(ranges[i].end > ranges[i].begin);
-    size /= ranges[i].end - ranges[i].begin;
-  }
-
-  result[ranges.size() - 1] =
-      static_cast<int64_t>(flatIndex) + ranges.back().begin;
-
-  assert(size == 1);
-
-  assert(([&]() -> bool {
-           for (size_t i = 0, e = result.size(); i < e; ++i) {
-             if (result[i] < ranges[i].begin ||
-                 result[i] >= ranges[i].end) {
-               return false;
-             }
-           }
-
-           return true;
-         }()) && "Wrong index unflattening result");
-}
+using namespace ::marco::runtime::sundials;
+using namespace ::marco::runtime::sundials::ida;
 
 //===---------------------------------------------------------------------===//
 // Solver
 //===---------------------------------------------------------------------===//
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
   IDAInstance::IDAInstance()
       : startTime(getOptions().startTime),
@@ -407,7 +31,7 @@ namespace marco::runtime::ida
     variableOffsets.push_back(0);
 
     if (getOptions().debug) {
-      std::cerr << "Instance created" << std::endl;
+      std::cerr << "[IDA] Instance created" << std::endl;
     }
   }
 
@@ -425,7 +49,7 @@ namespace marco::runtime::ida
     }
 
     if (getOptions().debug) {
-      std::cerr << "Instance destroyed" << std::endl;
+      std::cerr << "[IDA] Instance destroyed" << std::endl;
     }
   }
 
@@ -434,7 +58,7 @@ namespace marco::runtime::ida
     startTime = time;
 
     if (getOptions().debug) {
-      std::cerr << "Start time set to " << startTime << std::endl;
+      std::cerr << "[IDA] Start time set to " << startTime << std::endl;
     }
   }
 
@@ -443,7 +67,7 @@ namespace marco::runtime::ida
     endTime = time;
 
     if (getOptions().debug) {
-      std::cerr << "End time set to " << endTime << std::endl;
+      std::cerr << "[IDA] End time set to " << endTime << std::endl;
     }
   }
 
@@ -453,7 +77,7 @@ namespace marco::runtime::ida
     timeStep = step;
 
     if (getOptions().debug) {
-      std::cerr << "Time step set to " << timeStep << std::endl;
+      std::cerr << "[IDA] Time step set to " << timeStep << std::endl;
     }
   }
 
@@ -465,7 +89,7 @@ namespace marco::runtime::ida
       const char* name)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding algebraic variable";
+      std::cerr << "[IDA] Adding algebraic variable";
 
       if (name != nullptr) {
         std::cerr << " \"" << name << "\"";
@@ -530,7 +154,7 @@ namespace marco::runtime::ida
       const char* name)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding state variable";
+      std::cerr << "[IDA] Adding state variable";
 
       if (name != nullptr) {
         std::cerr << " \"" << name << "\"";
@@ -605,7 +229,7 @@ namespace marco::runtime::ida
       const char* stringRepresentation)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding equation";
+      std::cerr << "[IDA] Adding equation";
 
       if (stringRepresentation != nullptr) {
         std::cerr << " \"" << stringRepresentation << "\"";
@@ -659,7 +283,7 @@ namespace marco::runtime::ida
       AccessFunction accessFunction)
   {
     if (getOptions().debug) {
-      std::cerr << "Adding access information" << std::endl;
+      std::cerr << "[IDA] Adding access information" << std::endl;
       std::cerr << "  - Equation: " << equation << std::endl;
       std::cerr << "  - Variable: " << variable << std::endl;
       std::cerr << "  - Access function address: "
@@ -684,7 +308,7 @@ namespace marco::runtime::ida
       ResidualFunction residualFunction)
   {
     if (getOptions().debug) {
-      std::cerr << "Setting residual function for equation " << equation
+      std::cerr << "[IDA] Setting residual function for equation " << equation
                 << ". Address: " << reinterpret_cast<void*>(residualFunction)
                 << std::endl;
     }
@@ -702,7 +326,7 @@ namespace marco::runtime::ida
       JacobianFunction jacobianFunction)
   {
     if (getOptions().debug) {
-      std::cerr << "Setting jacobian function for equation " << equation
+      std::cerr << "[IDA] Setting jacobian function for equation " << equation
                 << " and variable " << variable << ". Address: "
                 << reinterpret_cast<void*>(jacobianFunction) << std::endl;
     }
@@ -723,7 +347,7 @@ namespace marco::runtime::ida
     assert(!initialized && "The IDA instance has already been initialized");
 
     if (getOptions().debug) {
-      std::cerr << "Performing initialization" << std::endl;
+      std::cerr << "[IDA] Performing initialization" << std::endl;
     }
 
     currentTime = startTime;
@@ -836,7 +460,7 @@ namespace marco::runtime::ida
     }
 
     if (getOptions().debug) {
-      std::cerr << "Equations processing order: [";
+      std::cerr << "[IDA] Equations processing order: [";
 
       for (size_t i = 0, e = equationsProcessingOrder.size(); i < e; ++i) {
         if (i != 0) {
@@ -910,7 +534,7 @@ namespace marco::runtime::ida
 
     // Reserve the space for data of the jacobian matrix.
     if (getOptions().debug) {
-      std::cerr << "Reserving space for the data of the Jacobian matrix"
+      std::cerr << "[IDA] Reserving space for the data of the Jacobian matrix"
                 << std::endl;
     }
 
@@ -1047,7 +671,7 @@ namespace marco::runtime::ida
     initialized = true;
 
     if (getOptions().debug) {
-      std::cerr << "Initialization completed" << std::endl;
+      std::cerr << "[IDA] Initialization completed" << std::endl;
     }
 
     return true;
@@ -1268,7 +892,7 @@ namespace marco::runtime::ida
     IDA_PROFILER_RESIDUALS_STOP;
 
     if (getOptions().debug) {
-      std::cerr << "Residuals function called" << std::endl;
+      std::cerr << "[IDA] Residuals function called" << std::endl;
       std::cerr << "Variables:" << std::endl;
       instance->printVariablesVector(variables);
       std::cerr << "Derivatives:" << std::endl;
@@ -1391,7 +1015,7 @@ namespace marco::runtime::ida
     IDA_PROFILER_PARTIAL_DERIVATIVES_STOP;
 
     if (getOptions().debug) {
-      std::cerr << "Jacobian matrix function called" << std::endl;
+      std::cerr << "[IDA] Jacobian matrix function called" << std::endl;
       std::cerr << "Time: " << time << std::endl;
       std::cerr << "Alpha: " << alpha << std::endl;
       std::cerr << "Variables:" << std::endl;
@@ -1644,7 +1268,7 @@ namespace marco::runtime::ida
       N_Vector derivativeVariablesVector)
   {
     if (getOptions().debug) {
-      std::cerr << "Copying variables from MARCO" << std::endl;
+      std::cerr << "[IDA] Copying variables from MARCO" << std::endl;
     }
 
     IDA_PROFILER_COPY_VARS_FROM_MARCO_START;
@@ -1708,7 +1332,7 @@ namespace marco::runtime::ida
       N_Vector derivativeVariablesVector)
   {
     if (getOptions().debug) {
-      std::cerr << "Copying variables into MARCO" << std::endl;
+      std::cerr << "[IDA] Copying variables into MARCO" << std::endl;
     }
 
     IDA_PROFILER_COPY_VARS_INTO_MARCO_START;

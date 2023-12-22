@@ -5,10 +5,12 @@
 
 #include "kinsol/kinsol.h"
 
-namespace marco::runtime::kinsol
+namespace marco::runtime::sundials::kinsol
 {
   struct Options
   {
+    bool debug = false;
+
     // Relative tolerance is intended as the difference between the values
     // computed through the n-th and the (n+1)-th order BDF method, divided by
     // the absolute value given by the (n+1)-th order BDF method.
@@ -34,6 +36,9 @@ namespace marco::runtime::kinsol
     // It is also highly suggested setting the parameter lower than 10^-3 in
     // order to avoid inaccurate results. KINSOL defaults to 10^-6.
     realtype absoluteTolerance = 1e-06;
+
+    // Arbitrary initial guess made in the 20/12/2021 Modelica Call
+    realtype maxAlgebraicAbsoluteTolerance = 1e-06;
 
     realtype fnormtol = 0.000001;
     realtype scsteptol = 0.000001;
@@ -89,6 +94,12 @@ namespace marco::runtime::kinsol
 
     // Whether to turn on or off the linesearch algorithm.
     booleantype lineSearchOff = SUNFALSE;
+
+    // The factor multiplying the threads count when computing the total number
+    // of equations chunks.
+    // In other words, it is the amount of chunks each thread would process in
+    // a perfectly balanced scenario.
+    int64_t equationsChunksFactor = 10;
   };
 
   Options& getOptions();

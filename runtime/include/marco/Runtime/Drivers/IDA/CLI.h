@@ -5,7 +5,7 @@
 
 #include "marco/Runtime/CLI/CLI.h"
 
-namespace marco::runtime::ida
+namespace marco::runtime::sundials::ida
 {
   class CommandLineOptions : public cli::Category
   {
