@@ -1,6 +1,8 @@
 set(SOURCES
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
+    Solvers/IDAInstance.cpp
+    Solvers/KINSOLInstance.cpp
     AccessReplacementTest.cpp
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
