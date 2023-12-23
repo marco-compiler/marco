@@ -410,6 +410,34 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> AllocOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  std::optional<mlir::Value> AllocOp::buildClone(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return std::nullopt;
+  }
+
+  mlir::HoistingKind AllocOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
+  std::optional<mlir::Operation*> AllocOp::buildPromotedAlloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    mlir::Operation* definingOp = alloc.getDefiningOp();
+
+    return builder.create<AllocaOp>(
+        definingOp->getLoc(),
+        mlir::cast<ArrayType>(definingOp->getResultTypes()[0]),
+        definingOp->getOperands(), definingOp->getAttrs());
+  }
+
   mlir::ValueRange AllocOp::derive(
       mlir::OpBuilder& builder,
       const llvm::DenseMap<
@@ -584,6 +612,11 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  mlir::HoistingKind ArrayBroadcastOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void ArrayBroadcastOp::printExpression(llvm::raw_ostream& os)

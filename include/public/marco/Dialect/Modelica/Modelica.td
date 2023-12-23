@@ -13,6 +13,7 @@ include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/Dialect/Bufferization/IR/AllocationOpInterface.td"
 
 //===---------------------------------------------------------------------===//
 // Type constraints
@@ -447,6 +448,9 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
 
 def Modelica_AllocOp : Modelica_Op<"alloc",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface,
+        ["buildDealloc", "buildClone", "getHoistingKind",
+        "buildPromotedAlloc"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Allocate an array on the heap.";
@@ -541,6 +545,7 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
 
 def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface, ["getHoistingKind"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
