@@ -10,7 +10,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <stack>
 
 namespace marco::modeling::internal
 {
@@ -966,13 +965,11 @@ namespace marco::modeling::internal
           newVertices.try_emplace(vertex, subGraph.addVertex(getVertexPropertyFromDescriptor(vertex)));
 
           // Depth-first search
-          std::stack<VertexDescriptor> stack;
-          stack.push(vertex);
+          llvm::SmallVector<VertexDescriptor> stack;
+          stack.push_back(vertex);
 
           while (!stack.empty()) {
-            VertexDescriptor currentVertex = stack.top();
-            stack.pop();
-
+            VertexDescriptor currentVertex = stack.pop_back_val();
             VertexDescriptor mappedCurrentVertex = newVertices.find(currentVertex)->second;
 
             for (EdgeDescriptor edgeDescriptor : getOutgoingEdges(currentVertex)) {
@@ -982,7 +979,7 @@ namespace marco::modeling::internal
                 const VertexDescriptor& mappedChild = newVertices.find(child)->second;
                 subGraph.addEdge(mappedCurrentVertex, mappedChild, getEdgePropertyFromDescriptor(edgeDescriptor));
               } else {
-                stack.push(child);
+                stack.push_back(child);
                 visited.insert(child);
                 VertexDescriptor mappedChild = subGraph.addVertex(getVertexPropertyFromDescriptor(child));
                 newVertices.try_emplace(child, mappedChild);

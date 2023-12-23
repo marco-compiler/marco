@@ -6,7 +6,6 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 #include <set>
-#include <stack>
 
 namespace mlir::modelica
 {
@@ -288,21 +287,20 @@ static bool canBeInlined(FunctionOp functionOp)
 
   // Check that operations inside the algorithm section have no regions with
   // side effects.
-  std::stack<mlir::Operation*> nestedOps;
+  llvm::SmallVector<mlir::Operation*> nestedOps;
 
   for (AlgorithmOp algorithmOp : functionOp.getOps<AlgorithmOp>()) {
     for (auto& nestedOp : algorithmOp.getOps()) {
       for (auto& nestedRegion : nestedOp.getRegions()) {
         for (auto& nestedRegionOp : nestedRegion.getOps()) {
-          nestedOps.push(&nestedRegionOp);
+          nestedOps.push_back(&nestedRegionOp);
         }
       }
     }
   }
 
   while (!nestedOps.empty()) {
-    mlir::Operation* nestedOp = nestedOps.top();
-    nestedOps.pop();
+    mlir::Operation* nestedOp = nestedOps.pop_back_val();
 
     if (mlir::isa<VariableSetOp, ComponentSetOp>(nestedOp)) {
       return false;
@@ -310,7 +308,7 @@ static bool canBeInlined(FunctionOp functionOp)
 
     for (auto& nestedRegion : nestedOp->getRegions()) {
       for (auto& nestedRegionOp : nestedRegion.getOps()) {
-        nestedOps.push(&nestedRegionOp);
+        nestedOps.push_back(&nestedRegionOp);
       }
     }
   }
@@ -762,8 +760,6 @@ class FunctionInliner : public mlir::OpRewritePattern<CallOp>
       }));
 
       // Clone the function body.
-      std::stack<mlir::Operation*> originalOps;
-
       for (AlgorithmOp algorithmOp : callee.getOps<AlgorithmOp>()) {
         for (auto& originalOp : algorithmOp.getOps()) {
           cloneBodyOp(rewriter, mapping, varMapping, &originalOp);

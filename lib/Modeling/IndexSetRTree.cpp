@@ -5,7 +5,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include <queue>
 #include <set>
-#include <stack>
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::impl;
@@ -455,7 +454,7 @@ namespace marco::modeling::impl
       void fetchNextLeaf();
 
     private:
-      std::stack<const Node*> nodes;
+      llvm::SmallVector<const Node*> nodes;
       const Node* node;
       size_t valueIndex;
   };
@@ -466,19 +465,18 @@ namespace marco::modeling::impl
         valueIndex(0)
   {
     if (root != nullptr) {
-      nodes.push(root);
+      nodes.push_back(root);
 
-      while (!nodes.top()->isLeaf()) {
-        auto current = nodes.top();
-        nodes.pop();
+      while (!nodes.back()->isLeaf()) {
+        auto current = nodes.pop_back_val();
         const auto& children = current->children;
 
         for (size_t i = 0, e = children.size(); i < e; ++i) {
-          nodes.push(children[e - i - 1].get());
+          nodes.push_back(children[e - i - 1].get());
         }
       }
 
-      node = nodes.top();
+      node = nodes.back();
     }
   }
 
@@ -550,22 +548,21 @@ namespace marco::modeling::impl
 
   void RTreeIndexSet::RangeIterator::fetchNextLeaf()
   {
-    nodes.pop();
+    nodes.pop_back();
 
-    while (!nodes.empty() && !nodes.top()->isLeaf()) {
-      auto current = nodes.top();
-      nodes.pop();
+    while (!nodes.empty() && !nodes.back()->isLeaf()) {
+      auto current = nodes.pop_back_val();
       const auto& children = current->children;
 
       for (size_t i = 0, e = children.size(); i < e; ++i) {
-        nodes.push(children[e - i - 1].get());
+        nodes.push_back(children[e - i - 1].get());
       }
     }
 
     if (nodes.empty()) {
       node = nullptr;
     } else {
-      node = nodes.top();
+      node = nodes.back();
     }
   }
 }
@@ -793,15 +790,14 @@ namespace marco::modeling::impl
           while (node != nullptr &&
                  !node->isRoot() &&
                  node->fanOut() < minElements) {
-            std::stack<Node*> nodes;
-            nodes.push(node);
+            llvm::SmallVector<Node*> nodes;
+            nodes.push_back(node);
 
             while (!nodes.empty()) {
-              auto current = nodes.top();
-              nodes.pop();
+              auto current = nodes.pop_back_val();
 
               for (auto& child : current->children) {
-                nodes.push(child.get());
+                nodes.push_back(child.get());
               }
 
               for (auto& value : current->values) {
@@ -946,15 +942,14 @@ namespace marco::modeling::impl
     std::unique_ptr<Node> oldRoot = std::move(root);
     root = nullptr;
 
-    std::stack<const Node*> nodes;
-    nodes.push(oldRoot.get());
+    llvm::SmallVector<const Node*> nodes;
+    nodes.push_back(oldRoot.get());
 
     while (!nodes.empty()) {
-      auto node = nodes.top();
-      nodes.pop();
+      auto node = nodes.pop_back_val();
 
       for (const auto& child : node->children) {
-        nodes.push(child.get());
+        nodes.push_back(child.get());
       }
 
       for (const auto& value : node->values) {
@@ -1057,19 +1052,18 @@ namespace marco::modeling::impl
       changesDetected = false;
       const MultidimensionalRange& range = remainingRanges.front();
 
-      std::stack<const Node*> nodes;
+      llvm::SmallVector<const Node*> nodes;
 
       if (root->getBoundary().overlaps(range)) {
-        nodes.push(root.get());
+        nodes.push_back(root.get());
       }
 
       while (!nodes.empty() && !changesDetected) {
-        auto node = nodes.top();
-        nodes.pop();
+        auto node = nodes.pop_back_val();
 
         for (const auto& child : node->children) {
           if (child->getBoundary().overlaps(range)) {
-            nodes.push(child.get());
+            nodes.push_back(child.get());
           }
         }
 
@@ -1121,14 +1115,13 @@ namespace marco::modeling::impl
     using OverlappingNode =
         std::pair<const Node*, std::vector<const Node*>>;
 
-    std::stack<OverlappingNode> overlappingNodes;
+    llvm::SmallVector<OverlappingNode> overlappingNodes;
 
-    overlappingNodes.emplace(
+    overlappingNodes.emplace_back(
         rhsRoot, std::vector<const Node*>({ lhsRoot }));
 
     while (!overlappingNodes.empty()) {
-      OverlappingNode overlappingNode = overlappingNodes.top();
-      overlappingNodes.pop();
+      OverlappingNode overlappingNode = overlappingNodes.pop_back_val();
 
       const Node* rhs = overlappingNode.first;
       const auto& lhsNodes = overlappingNode.second;
@@ -1151,7 +1144,7 @@ namespace marco::modeling::impl
             }
           }
 
-          overlappingNodes.emplace(rhs, newLhsNodes);
+          overlappingNodes.emplace_back(rhs, newLhsNodes);
         } else {
           for (const MultidimensionalRange& value : rhs->values) {
             llvm::SmallVector<MultidimensionalRange, 3> remainingRanges;
@@ -1203,7 +1196,7 @@ namespace marco::modeling::impl
             return false;
           }
 
-          overlappingNodes.emplace(child.get(), childOverlappingNodes);
+          overlappingNodes.emplace_back(child.get(), childOverlappingNodes);
         }
       }
     }
@@ -1227,19 +1220,18 @@ namespace marco::modeling::impl
       return false;
     }
 
-    std::stack<const Node*> nodes;
+    llvm::SmallVector<const Node*> nodes;
 
     if (root->getBoundary().overlaps(other)) {
-      nodes.push(root.get());
+      nodes.push_back(root.get());
     }
 
     while (!nodes.empty()) {
-      auto node = nodes.top();
-      nodes.pop();
+      auto node = nodes.pop_back_val();
 
       for (const auto& child : node->children) {
         if (child->getBoundary().overlaps(other)) {
-          nodes.push(child.get());
+          nodes.push_back(child.get());
         }
       }
 
@@ -1273,18 +1265,17 @@ namespace marco::modeling::impl
     using OverlappingNode =
         std::pair<const Node*, const Node*>;
 
-    std::stack<OverlappingNode> overlappingNodes;
+    llvm::SmallVector<OverlappingNode> overlappingNodes;
 
     const Node* lhsRoot = getRoot();
     const Node* rhsRoot = other.getRoot();
 
     if (lhsRoot->getBoundary().overlaps(rhsRoot->getBoundary())) {
-      overlappingNodes.emplace(lhsRoot, rhsRoot);
+      overlappingNodes.emplace_back(lhsRoot, rhsRoot);
     }
 
     while (!overlappingNodes.empty()) {
-      OverlappingNode overlappingNode = overlappingNodes.top();
-      overlappingNodes.pop();
+      OverlappingNode overlappingNode = overlappingNodes.pop_back_val();
 
       const Node* lhs = overlappingNode.first;
       const Node* rhs = overlappingNode.second;
@@ -1301,14 +1292,14 @@ namespace marco::modeling::impl
         } else {
           for (const auto& child : rhs->children) {
             if (child->getBoundary().overlaps(lhs->getBoundary())) {
-              overlappingNodes.emplace(lhs, child.get());
+              overlappingNodes.emplace_back(lhs, child.get());
             }
           }
         }
       } else {
         for (const auto& child : lhs->children) {
           if (child->getBoundary().overlaps(rhs->getBoundary())) {
-            overlappingNodes.emplace(child.get(), rhs);
+            overlappingNodes.emplace_back(child.get(), rhs);
           }
         }
       }
@@ -1335,21 +1326,20 @@ namespace marco::modeling::impl
       return result;
     }
 
-    std::stack<const Node*> nodes;
+    llvm::SmallVector<const Node*> nodes;
 
     if (root->getBoundary().overlaps(other)) {
-      nodes.push(root.get());
+      nodes.push_back(root.get());
     } else {
       return result;
     }
 
     while (!nodes.empty()) {
-      const Node* node = nodes.top();
-      nodes.pop();
+      const Node* node = nodes.pop_back_val();
 
       for (const auto& child : node->children) {
         if (child->getBoundary().overlaps(other)) {
-          nodes.push(child.get());
+          nodes.push_back(child.get());
         }
       }
 
@@ -1809,22 +1799,21 @@ namespace marco::modeling
 /// Check that all the children of a node has the correct parent set.
 static bool checkParentRelationships(const impl::RTreeIndexSet& indexSet)
 {
-  std::stack<const impl::RTreeIndexSet::Node*> nodes;
+  llvm::SmallVector<const impl::RTreeIndexSet::Node*> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
-    nodes.push(root);
+    nodes.push_back(root);
   }
 
   while (!nodes.empty()) {
-    auto node = nodes.top();
-    nodes.pop();
+    auto node = nodes.pop_back_val();
 
     for (const auto& child : node->children) {
       if (child->parent != node) {
         return false;
       }
 
-      nodes.push(child.get());
+      nodes.push_back(child.get());
     }
   }
 
@@ -1834,15 +1823,14 @@ static bool checkParentRelationships(const impl::RTreeIndexSet& indexSet)
 /// Check the correctness of the MBR of all the nodes.
 static bool checkMBRsInvariant(const impl::RTreeIndexSet& indexSet)
 {
-  std::stack<const impl::RTreeIndexSet::Node*> nodes;
+  llvm::SmallVector<const impl::RTreeIndexSet::Node*> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
-    nodes.push(root);
+    nodes.push_back(root);
   }
 
   while (!nodes.empty()) {
-    auto node = nodes.top();
-    nodes.pop();
+    auto node = nodes.pop_back_val();
 
     if (node->isLeaf()) {
       if (node->getBoundary() != getMBR(llvm::ArrayRef(node->values))) {
@@ -1855,7 +1843,7 @@ static bool checkMBRsInvariant(const impl::RTreeIndexSet& indexSet)
     }
 
     for (const auto& child : node->children) {
-      nodes.push(child.get());
+      nodes.push_back(child.get());
     }
   }
 
@@ -1866,17 +1854,16 @@ static bool checkMBRsInvariant(const impl::RTreeIndexSet& indexSet)
 /// amount of out edges (apart the root node).
 static bool checkFanOutInvariant(const impl::RTreeIndexSet& indexSet)
 {
-  std::stack<const impl::RTreeIndexSet::Node*> nodes;
+  llvm::SmallVector<const impl::RTreeIndexSet::Node*> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
     for (const auto& child : root->children) {
-      nodes.push(child.get());
+      nodes.push_back(child.get());
     }
   }
 
   while (!nodes.empty()) {
-    auto node = nodes.top();
-    nodes.pop();
+    auto node = nodes.pop_back_val();
 
     if (size_t size = node->fanOut();
         size < indexSet.minElements || size > indexSet.maxElements) {
@@ -1884,7 +1871,7 @@ static bool checkFanOutInvariant(const impl::RTreeIndexSet& indexSet)
     }
 
     for (const auto& child : node->children) {
-      nodes.push(child.get());
+      nodes.push_back(child.get());
     }
   }
 

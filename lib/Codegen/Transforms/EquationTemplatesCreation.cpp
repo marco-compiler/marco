@@ -2,7 +2,6 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include <stack>
 
 namespace mlir::modelica
 {
@@ -314,17 +313,16 @@ namespace
       void getForEquationOps(
           EquationOp op, llvm::SmallVectorImpl<ForEquationOp>& result) const
       {
-        std::stack<ForEquationOp> loopsStack;
+        llvm::SmallVector<ForEquationOp> loopsStack;
         auto parentLoop = op->template getParentOfType<ForEquationOp>();
 
         while (parentLoop) {
-          loopsStack.push(parentLoop);
+          loopsStack.push_back(parentLoop);
           parentLoop = parentLoop->template getParentOfType<ForEquationOp>();
         }
 
         while (!loopsStack.empty()) {
-          result.push_back(loopsStack.top());
-          loopsStack.pop();
+          result.push_back(loopsStack.pop_back_val());
         }
       }
 

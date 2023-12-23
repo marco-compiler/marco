@@ -14,7 +14,6 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 #include <set>
-#include <stack>
 
 namespace mlir
 {
@@ -1289,15 +1288,14 @@ namespace
         // Compute the order of computation for the default values of input
         // variables.
         DefaultOpComputationOrderings orderings;
-        std::stack<ClassInterface> classes;
+        llvm::SmallVector<ClassInterface> classes;
 
         for (ClassInterface cls : moduleOp.getOps<ClassInterface>()) {
-          classes.push(cls);
+          classes.push_back(cls);
         }
 
         while (!classes.empty()) {
-          ClassInterface cls = classes.top();
-          classes.pop();
+          ClassInterface cls = classes.pop_back_val();
 
           if (auto functionOp =
                   mlir::dyn_cast<FunctionOp>(cls.getOperation())) {
@@ -1325,7 +1323,7 @@ namespace
           // Search for nested functions.
           for (mlir::Region& region : cls->getRegions()) {
             for (ClassInterface nestedCls : region.getOps<ClassInterface>()) {
-              classes.push(nestedCls);
+              classes.push_back(nestedCls);
             }
           }
         }

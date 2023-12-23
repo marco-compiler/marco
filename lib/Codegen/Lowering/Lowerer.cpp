@@ -1,7 +1,6 @@
 #include "marco/Codegen/Lowering/Lowerer.h"
 #include "marco/Codegen/Lowering/ClassDependencyGraph.h"
 #include "mlir/IR/BuiltinOps.h"
-#include <stack>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -56,23 +55,23 @@ namespace marco::codegen::lowering
 
   mlir::Operation* Lowerer::getClass(const ast::Class& cls)
   {
-    std::stack<const ast::Class*> classes;
+    llvm::SmallVector<const ast::Class*> classes;
     const ast::ASTNode* current = &cls;
 
     while (current != nullptr && !current->isa<ast::Root>()) {
-      classes.push(current->cast<ast::Class>());
+      classes.push_back(current->cast<ast::Class>());
       current = current->getParentOfType<ast::Class>();
     }
 
     mlir::Operation* result = getRoot();
 
     while (!classes.empty() && result != nullptr) {
-      const ast::Class* node = classes.top();
+      const ast::Class* node = classes.back();
 
       result = getSymbolTable().lookupSymbolIn(
           result, builder().getStringAttr(node->getName()));
 
-      classes.pop();
+      classes.pop_back();
     }
 
     assert(result != nullptr && "Class not found");

@@ -1291,7 +1291,7 @@ namespace mlir::modelica
     // Determine the operations to be cloned by starting from the terminator and
     // walking through the dependencies.
     llvm::DenseSet<mlir::Operation*> toBeCloned;
-    std::stack<mlir::Operation*> toBeClonedVisitStack;
+    llvm::SmallVector<mlir::Operation*> toBeClonedVisitStack;
 
     auto equationSidesOp = mlir::cast<EquationSidesOp>(
         equationOp.getTemplate().getBody()->getTerminator());
@@ -1302,22 +1302,20 @@ namespace mlir::modelica
     mlir::Value rhs = equationSidesOp.getRhsValues()[viewElementIndex];
 
     if (mlir::Operation* lhsOp = lhs.getDefiningOp()) {
-      toBeClonedVisitStack.push(lhsOp);
+      toBeClonedVisitStack.push_back(lhsOp);
     }
 
     if (mlir::Operation* rhsOp = rhs.getDefiningOp()) {
-      toBeClonedVisitStack.push(rhsOp);
+      toBeClonedVisitStack.push_back(rhsOp);
     }
 
     while (!toBeClonedVisitStack.empty()) {
-      mlir::Operation* op = toBeClonedVisitStack.top();
-      toBeClonedVisitStack.pop();
-
+      mlir::Operation* op = toBeClonedVisitStack.pop_back_val();
       toBeCloned.insert(op);
 
       for (mlir::Value operand : op->getOperands()) {
         if (auto operandOp = operand.getDefiningOp()) {
-          toBeClonedVisitStack.push(operandOp);
+          toBeClonedVisitStack.push_back(operandOp);
         }
       }
     }

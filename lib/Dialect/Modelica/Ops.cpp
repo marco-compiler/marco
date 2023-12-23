@@ -9,7 +9,6 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
-#include <stack>
 
 using namespace ::mlir::modelica;
 
@@ -732,24 +731,23 @@ namespace
         return mlir::failure();
       }
 
-      std::stack<SubscriptionOp> subscriptionOps;
+      llvm::SmallVector<SubscriptionOp> subscriptionOps;
 
       while (subscriptionOp) {
-        subscriptionOps.push(subscriptionOp);
+        subscriptionOps.push_back(subscriptionOp);
 
         subscriptionOp =
             subscriptionOp.getSource().getDefiningOp<SubscriptionOp>();
       }
 
       assert(!subscriptionOps.empty());
-      mlir::Value source = subscriptionOps.top().getSource();
+      mlir::Value source = subscriptionOps.back().getSource();
       llvm::SmallVector<mlir::Value, 3> indices;
 
       while (!subscriptionOps.empty()) {
-        SubscriptionOp current = subscriptionOps.top();
+        SubscriptionOp current = subscriptionOps.pop_back_val();
         indices.append(current.getIndices().begin(),
                        current.getIndices().end());
-        subscriptionOps.pop();
       }
 
       indices.append(op.getIndices().begin(), op.getIndices().end());
@@ -1112,24 +1110,23 @@ namespace
         return mlir::failure();
       }
 
-      std::stack<SubscriptionOp> subscriptionOps;
+      llvm::SmallVector<SubscriptionOp> subscriptionOps;
 
       while (subscriptionOp) {
-        subscriptionOps.push(subscriptionOp);
+        subscriptionOps.push_back(subscriptionOp);
 
         subscriptionOp =
             subscriptionOp.getSource().getDefiningOp<SubscriptionOp>();
       }
 
       assert(!subscriptionOps.empty());
-      mlir::Value source = subscriptionOps.top().getSource();
+      mlir::Value source = subscriptionOps.back().getSource();
       llvm::SmallVector<mlir::Value, 3> indices;
 
       while (!subscriptionOps.empty()) {
-        SubscriptionOp current = subscriptionOps.top();
+        SubscriptionOp current = subscriptionOps.pop_back_val();
         indices.append(current.getIndices().begin(),
                        current.getIndices().end());
-        subscriptionOps.pop();
       }
 
       indices.append(op.getIndices().begin(), op.getIndices().end());
@@ -11382,23 +11379,21 @@ namespace mlir::modelica
       mlir::Block* block)
   {
     mlir::OperationFolder helper(value.getContext());
-    std::stack<mlir::Operation*> visitStack;
+    llvm::SmallVector<mlir::Operation*> visitStack;
     llvm::SmallVector<mlir::Operation*, 3> ops;
     llvm::DenseSet<mlir::Operation*> processed;
 
     if (auto definingOp = value.getDefiningOp()) {
-      visitStack.push(definingOp);
+      visitStack.push_back(definingOp);
     }
 
     while (!visitStack.empty()) {
-      auto op = visitStack.top();
-      visitStack.pop();
-
+      auto op = visitStack.pop_back_val();
       ops.push_back(op);
 
       for (const auto& operand : op->getOperands()) {
         if (auto definingOp = operand.getDefiningOp()) {
-          visitStack.push(definingOp);
+          visitStack.push_back(definingOp);
         }
       }
     }

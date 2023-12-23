@@ -1,7 +1,6 @@
 #include "marco/Codegen/Transforms/ModelAlgorithmConversion.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include <stack>
 
 namespace mlir::modelica
 {
@@ -278,8 +277,8 @@ namespace
         bool read = false;
         bool write = false;
 
-        std::stack<mlir::Value> aliases;
-        aliases.push(array);
+        llvm::SmallVector<mlir::Value> aliases;
+        aliases.push_back(array);
 
         auto shouldStopEarly = [&read, &write]() {
           // Stop early if both a read and write have been found.
@@ -291,19 +290,15 @@ namespace
             mlir::MemoryEffects::Effect>> effects;
 
         while (!aliases.empty() && !shouldStopEarly()) {
-          mlir::Value alias = aliases.top();
-          aliases.pop();
-
-          std::stack<mlir::Operation*> ops;
+          mlir::Value alias = aliases.pop_back_val();
+          llvm::SmallVector<mlir::Operation*> ops;
 
           for (const auto& user : alias.getUsers()) {
-            ops.push(user);
+            ops.push_back(user);
           }
 
           while (!ops.empty() && !shouldStopEarly()) {
-            mlir::Operation* op = ops.top();
-            ops.pop();
-
+            mlir::Operation* op = ops.pop_back_val();
             effects.clear();
 
             if (auto memoryInterface =
@@ -323,7 +318,7 @@ namespace
                     mlir::dyn_cast<mlir::ViewLikeOpInterface>(op)) {
               if (viewInterface.getViewSource() == alias) {
                 for (const auto& result : viewInterface->getResults()) {
-                  aliases.push(result);
+                  aliases.push_back(result);
                 }
               }
             }

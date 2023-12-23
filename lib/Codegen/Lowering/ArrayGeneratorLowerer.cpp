@@ -1,5 +1,4 @@
 #include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
-#include <stack>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -25,12 +24,11 @@ namespace marco::codegen::lowering
 
   void ArrayGeneratorLowerer::computeShape(const ast::ArrayGenerator& array, llvm::SmallVectorImpl<int64_t>& outShape)
   {
-    std::stack<const ast::ArrayGenerator*> nestedArrays;
-    nestedArrays.push(&array);
+    llvm::SmallVector<const ast::ArrayGenerator*> nestedArrays;
+    nestedArrays.push_back(&array);
 
     while (!nestedArrays.empty()) {
-      const ast::ArrayGenerator* current = nestedArrays.top();
-      nestedArrays.pop();
+      const ast::ArrayGenerator* current = nestedArrays.pop_back_val();
 
       if (auto constant = current->dyn_cast<ast::ArrayConstant>()) {
         size_t numOfChildren = constant->size();
@@ -41,7 +39,7 @@ namespace marco::codegen::lowering
           const ast::Expression* child = (*constant)[0];
 
           if (auto arrayChild = child->dyn_cast<ast::ArrayGenerator>()) {
-            nestedArrays.push(arrayChild);
+            nestedArrays.push_back(arrayChild);
           }
         }
 
@@ -66,7 +64,7 @@ namespace marco::codegen::lowering
         }
 
         if (auto arrayChild = forGen->getValue()->dyn_cast<ast::ArrayGenerator>()) {
-          nestedArrays.push(arrayChild);
+          nestedArrays.push_back(arrayChild);
         }
       }
     }
@@ -74,18 +72,17 @@ namespace marco::codegen::lowering
 
   void ArrayGeneratorLowerer::lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues)
   {
-    std::stack<const ast::Expression*> s1;
-    std::stack<const ast::Expression*> s2;
+    llvm::SmallVector<const ast::Expression*> s1;
+    llvm::SmallVector<const ast::Expression*> s2;
 
-    s1.push(&array);
+    s1.push_back(&array);
 
     while (!s1.empty()) {
-      const ast::Expression* node = s1.top();
-      s1.pop();
+      const ast::Expression* node = s1.pop_back_val();
 
       if (auto arrayNode = node->dyn_cast<ast::ArrayConstant>()) {
         for (size_t i = 0, e = arrayNode->size(); i < e; ++i) {
-          s1.push((*arrayNode)[i]);
+          s1.push_back((*arrayNode)[i]);
         }
       } else if (auto arrayNode = node->dyn_cast<ast::ArrayForGenerator>()) {
         // TODO: extend broadcast to arrays and avoid duplicating elements here
@@ -97,17 +94,15 @@ namespace marco::codegen::lowering
           n = n * end;
         }
         for (unsigned i = 0; i < n; i++) {
-          s1.push(arrayNode->getValue());
+          s1.push_back(arrayNode->getValue());
         }
       } else {
-        s2.push(node);
+        s2.push_back(node);
       }
     }
 
     while (!s2.empty()) {
-      const ast::Expression* node = s2.top();
-      s2.pop();
-
+      const ast::Expression* node = s2.pop_back_val();
       mlir::Location nodeLoc = loc(node->getLocation());
       outValues.push_back(lower(*node)[0].get(nodeLoc));
     }
