@@ -4,7 +4,6 @@
 #include "marco/Dialect/Modeling/Types.h"
 #include "mlir/IR/DialectImplementation.h"
 
-using namespace ::mlir;
 using namespace ::mlir::modeling;
 
 #include "marco/Dialect/Modeling/ModelingDialect.cpp.inc"
@@ -15,9 +14,9 @@ using namespace ::mlir::modeling;
 
 namespace
 {
-  struct ModelingOpAsmDialectInterface : public OpAsmDialectInterface
+  struct ModelingOpAsmDialectInterface : public mlir::OpAsmDialectInterface
   {
-    ModelingOpAsmDialectInterface(Dialect *dialect)
+    explicit ModelingOpAsmDialectInterface(mlir::Dialect* dialect)
         : OpAsmDialectInterface(dialect)
     {
     }
@@ -49,6 +48,11 @@ namespace mlir::modeling
     addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/Modeling/Modeling.cpp.inc"
+        >();
+
+    addTypes<
+#define GET_TYPEDEF_LIST
+#include "marco/Dialect/Modeling/ModelingTypes.cpp.inc"
         >();
 
     addInterfaces<

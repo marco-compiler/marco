@@ -1,6 +1,5 @@
 #include "marco/Dialect/Modeling/Attributes.h"
 #include "marco/Dialect/Modeling/ModelingDialect.h"
-#include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::modeling;

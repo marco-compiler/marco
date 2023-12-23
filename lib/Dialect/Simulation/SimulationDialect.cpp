@@ -1,24 +1,20 @@
 #include "marco/Dialect/Simulation/SimulationDialect.h"
-#include "marco/Dialect/Simulation/Ops.h"
-#include "marco/Dialect/Simulation/Attributes.h"
-#include "marco/Dialect/Simulation/Types.h"
-#include "mlir/IR/DialectImplementation.h"
 
-using namespace ::mlir;
 using namespace ::mlir::simulation;
 
 #include "marco/Dialect/Simulation/SimulationDialect.cpp.inc"
 
 namespace
 {
-  struct SimulationOpAsmDialectInterface : public OpAsmDialectInterface
+  struct SimulationOpAsmDialectInterface : public mlir::OpAsmDialectInterface
   {
-    SimulationOpAsmDialectInterface(Dialect *dialect)
+    explicit SimulationOpAsmDialectInterface(mlir::Dialect* dialect)
         : OpAsmDialectInterface(dialect)
     {
     }
 
-    AliasResult getAlias(Attribute attr, raw_ostream &os) const override
+    AliasResult getAlias(
+        mlir::Attribute attr, llvm::raw_ostream& os) const override
     {
       if (attr.isa<MultidimensionalRangeAttr>()) {
         os << "range";
@@ -38,7 +34,7 @@ namespace
       return AliasResult::NoAlias;
     }
 
-    AliasResult getAlias(Type type, raw_ostream &os) const final
+    AliasResult getAlias(mlir::Type type, llvm::raw_ostream& os) const final
     {
       return AliasResult::NoAlias;
     }
@@ -58,6 +54,11 @@ namespace mlir::simulation
     addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/Simulation/Simulation.cpp.inc"
+        >();
+
+    addTypes<
+#define GET_TYPEDEF_LIST
+#include "marco/Dialect/Simulation/SimulationTypes.cpp.inc"
         >();
 
     addInterface<SimulationOpAsmDialectInterface>();

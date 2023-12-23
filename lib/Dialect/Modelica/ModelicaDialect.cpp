@@ -1,23 +1,22 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/IR/DialectImplementation.h"
 #include "mlir/Interfaces/FoldInterfaces.h"
 #include "mlir/Transforms/InliningUtils.h"
 
-using namespace ::mlir;
 using namespace ::mlir::modelica;
 
 #include "marco/Dialect/Modelica/ModelicaDialect.cpp.inc"
 
 namespace
 {
-  struct ModelicaOpAsmDialectInterface : public OpAsmDialectInterface
+  struct ModelicaOpAsmDialectInterface : public mlir::OpAsmDialectInterface
   {
-    ModelicaOpAsmDialectInterface(Dialect *dialect)
+    explicit ModelicaOpAsmDialectInterface(mlir::Dialect* dialect)
         : OpAsmDialectInterface(dialect)
     {
     }
 
-    AliasResult getAlias(Attribute attr, raw_ostream &os) const override
+    AliasResult getAlias(
+        mlir::Attribute attr, llvm::raw_ostream& os) const override
     {
       if (attr.isa<EquationPathAttr>()) {
         os << "equation_path";
@@ -27,7 +26,7 @@ namespace
       return AliasResult::NoAlias;
     }
 
-    AliasResult getAlias(Type type, raw_ostream &os) const final
+    AliasResult getAlias(mlir::Type type, llvm::raw_ostream& os) const final
     {
       return AliasResult::NoAlias;
     }
@@ -37,7 +36,7 @@ namespace
   {
     using DialectFoldInterface::DialectFoldInterface;
 
-    bool shouldMaterializeInto(Region *region) const final
+    bool shouldMaterializeInto(mlir::Region* region) const final
     {
       return mlir::isa<
           AlgorithmOp,
@@ -51,7 +50,8 @@ namespace
     }
   };
 
-  /// This class defines the interface for handling inlining with Modelica operations.
+  /// This class defines the interface for handling inlining with Modelica
+  /// operations.
   struct ModelicaInlinerInterface : public mlir::DialectInlinerInterface
   {
     using mlir::DialectInlinerInterface::DialectInlinerInterface;
@@ -91,7 +91,7 @@ namespace
         llvm::ArrayRef<mlir::Value> valuesToReplace) const final
     {
       // Only "modelica.raw_return" needs to be handled here.
-      auto returnOp = cast<RawReturnOp>(op);
+      auto returnOp = mlir::cast<RawReturnOp>(op);
 
       // Replace the values directly with the return operands.
       assert(returnOp.getNumOperands() == valuesToReplace.size());
@@ -103,9 +103,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Zero-materializable interface models
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -144,9 +144,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // One-materializable interface models
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -187,9 +187,9 @@ namespace
 
 namespace mlir::modelica
 {
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // Modelica dialect
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   void ModelicaDialect::initialize()
   {
@@ -266,7 +266,8 @@ namespace mlir::modelica
       mlir::Type type,
       mlir::Location loc)
   {
-    return builder.create<ConstantOp>(loc, type, value.cast<mlir::TypedAttr>());
+    return builder.create<ConstantOp>(
+        loc, type, value.cast<mlir::TypedAttr>());
   }
 }
 
@@ -417,7 +418,8 @@ namespace mlir::modelica
   }
 
   std::unique_ptr<DimensionAccess> getDimensionAccess(
-      const llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      const llvm::DenseMap<
+          mlir::Value, unsigned int>& explicitInductionsPositionMap,
       const AdditionalInductions& additionalInductions,
       mlir::Value value)
   {

@@ -1,6 +1,5 @@
 #include "marco/Dialect/Simulation/Attributes.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
-#include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::simulation;
@@ -27,11 +26,11 @@ namespace mlir::simulation
   }
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Attributes
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // VariableAttr
 
 namespace mlir::simulation
