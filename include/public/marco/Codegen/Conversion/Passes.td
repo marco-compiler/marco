@@ -4,6 +4,29 @@
 include "mlir/Pass/PassBase.td"
 
 //===---------------------------------------------------------------------===//
+// SUNDIALS to Func
+//===---------------------------------------------------------------------===//
+
+def SUNDIALSToFuncConversionPass
+    : Pass<"convert-sundials-to-func", "mlir::ModuleOp">
+{
+    let summary = "SUNDIALS: conversion to Func dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let constructor = "mlir::createSUNDIALSToFuncConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // IDA to Func
 //===---------------------------------------------------------------------===//
 
