@@ -206,61 +206,6 @@ namespace marco::modeling
         Container equations;
         bool cycle;
     };
-
-    template<typename ScheduledSCC>
-    class Schedule
-    {
-      private:
-        using Container = std::vector<ScheduledSCC>;
-
-      public:
-        using const_iterator = typename Container::const_iterator;
-
-        Schedule(llvm::ArrayRef<ScheduledSCC> scheduledSCCs)
-          : scheduledSCCs(scheduledSCCs.begin(), scheduledSCCs.end())
-        {
-        }
-
-        /// Get whether any of the scheduled SCCs has a cycle among its
-        /// equations.
-        bool hasCycles() const
-        {
-          return llvm::none_of(scheduledSCCs, [](const auto& scheduledSCC) {
-            return scheduledSCC.hasCycle();
-          });
-        }
-
-        /// Get the number of SCCs.
-        size_t size() const
-        {
-          return scheduledSCCs.size();
-        }
-
-        const ScheduledSCC& operator[](size_t index) const
-        {
-          assert(index < scheduledSCCs.size());
-          return scheduledSCCs[index];
-        }
-
-        /// }
-        /// @name Iterators
-        /// {
-
-        const_iterator begin() const
-        {
-          return scheduledSCCs.begin();
-        }
-
-        const_iterator end() const
-        {
-          return scheduledSCCs.end();
-        }
-
-        /// }
-
-      private:
-        Container scheduledSCCs;
-    };
   }
 
   /// The scheduler allows to sort the equations in such a way that each scalar
@@ -298,7 +243,8 @@ namespace marco::modeling
       using ScheduledSCC =
           scheduling::ScheduledSCC<ScheduledEquation>;
 
-      using Schedule = scheduling::Schedule<ScheduledSCC>;
+      using ScheduledSCCsGroup = llvm::SmallVector<ScheduledSCC>;
+      using Schedule = llvm::SmallVector<ScheduledSCCsGroup>;
       using DirectionPossibility = internal::scheduling::DirectionPossibility;
 
     private:
@@ -321,7 +267,7 @@ namespace marco::modeling
           llvm::ArrayRef<EquationProperty> equations,
           int64_t maxGroupElements = kUnlimitedGroupElements) const
       {
-        std::vector<ScheduledSCC> result;
+        Schedule result;
 
         llvm::SmallVector<EquationView> equationViews;
         splitEquationIndices(equations, equationViews);
@@ -337,6 +283,8 @@ namespace marco::modeling
             sortSCCs(SCCsDependencyGraph, maxGroupElements);
 
         for (const IndependentSCCs& sccGroup : scheduledSCCGroups) {
+          auto& scheduledGroup = result.emplace_back();
+
           for (SCCDescriptor sccDescriptor : sccGroup) {
             const SCC& scc = SCCsDependencyGraph[sccDescriptor];
 
@@ -373,7 +321,9 @@ namespace marco::modeling
                     equation.getIterationRanges(),
                     directions);
 
-                result.emplace_back(std::move(scheduledEquation), false);
+                scheduledGroup.emplace_back(
+                    std::move(scheduledEquation), false);
+
                 continue;
               } else {
                 // Mixed accesses detected. Scheduling is possible only on the
@@ -402,7 +352,8 @@ namespace marco::modeling
                       IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
                       directions);
 
-                  result.emplace_back(std::move(scheduledEquation), false);
+                  scheduledGroup.emplace_back(
+                      std::move(scheduledEquation), false);
                 }
               }
             } else {
@@ -420,12 +371,12 @@ namespace marco::modeling
                     scheduling::Direction::Unknown));
               }
 
-              result.emplace_back(std::move(SCC), true);
+              scheduledGroup.emplace_back(std::move(SCC), true);
             }
           }
         }
 
-        return Schedule(std::move(result));
+        return result;
       }
 
     private:

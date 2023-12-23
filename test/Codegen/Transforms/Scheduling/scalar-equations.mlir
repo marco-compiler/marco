@@ -2,11 +2,15 @@
 
 // CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [] attributes {id = "t0"}
 // CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
-// CHECK:       modelica.scc {
-// CHECK-NEXT:      modelica.scheduled_equation_instance %[[t1]] {iteration_directions = [], path = #modelica<equation_path [L, 0]>}
+// CHECK:       modelica.scc_group {
+// CHECK-NEXT:      modelica.scc {
+// CHECK-NEXT:          modelica.scheduled_equation_instance %[[t1]] {iteration_directions = [], path = #modelica<equation_path [L, 0]>}
+// CHECK-NEXT:      }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  modelica.scc {
-// CHECK-NEXT:      modelica.scheduled_equation_instance %[[t0]] {iteration_directions = [], path = #modelica<equation_path [L, 0]>}
+// CHECK-NEXT:  modelica.scc_group {
+// CHECK-NEXT:      modelica.scc {
+// CHECK-NEXT:          modelica.scheduled_equation_instance %[[t0]] {iteration_directions = [], path = #modelica<equation_path [L, 0]>}
+// CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
 modelica.model @Test {

@@ -431,95 +431,104 @@ mlir::LogicalResult SchedulingPass::schedule(
   }
 
   // Compute the schedule.
-  auto scheduledBlocks = scheduler.schedule(equationPtrs);
+  auto sccGroups = scheduler.schedule(equationPtrs);
 
   // Keep track of the old instances to be erased.
   llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
 
-  for (const auto& scheduledBlock : llvm::enumerate(scheduledBlocks)) {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    bool hasCycle = scheduledBlock.value().hasCycle();
+  // Create the operations to represent the scheduled equations.
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
 
-    if (hasCycle) {
-      // If the SCC contains a cycle, then all the equations must be declared
-      // inside it.
-      rewriter.setInsertionPointToEnd(modelOp.getBody());
+  for (const auto& sccGroup : sccGroups) {
+    rewriter.setInsertionPointToEnd(modelOp.getBody());
 
-      auto sccOp = rewriter.create<SCCOp>(
-          modelOp.getLoc(), initialEquations, true);
+    // Create the group of independent SCCs.
+    auto sccGroupOp = rewriter.create<SCCGroupOp>(
+        modelOp.getLoc(), initialEquations);
 
-      mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
-      rewriter.setInsertionPointToStart(sccBody);
-    }
+    assert(sccGroupOp.getBodyRegion().empty());
 
-    for (const auto& scheduledEquation : scheduledBlock.value()) {
-      MatchedEquationInstanceOp matchedEquation =
-          scheduledEquation.getEquation()->op;
+    mlir::Block* sccGroupBody =
+        rewriter.createBlock(&sccGroupOp.getBodyRegion());
 
-      size_t numOfExplicitInductions =
-          matchedEquation.getInductionVariables().size();
+    for (const auto& scc : sccGroup) {
+      bool hasCycle = scc.hasCycle();
 
-      size_t numOfImplicitInductions =
-          matchedEquation.getNumOfImplicitInductionVariables();
-
-      bool isScalarEquation = numOfExplicitInductions == 0;
-
-      // Determine the iteration directions.
-      llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
-
-      for (marco::modeling::scheduling::Direction direction :
-           scheduledEquation.getIterationDirections()) {
-        iterationDirections.push_back(
-            EquationScheduleDirectionAttr::get(&getContext(), direction));
+      if (hasCycle) {
+        // If the SCC contains a cycle, then all the equations must be declared
+        // inside it.
+        rewriter.setInsertionPointToEnd(sccGroupBody);
+        auto sccOp = rewriter.create<SCCOp>(modelOp.getLoc(), true);
+        mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
+        rewriter.setInsertionPointToStart(sccBody);
       }
 
-      // Create an equation for each range of scheduled indices.
-      const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
+      for (const auto& scheduledEquation : scc) {
+        MatchedEquationInstanceOp matchedEquation =
+            scheduledEquation.getEquation()->op;
 
-      for (const MultidimensionalRange& scheduledRange :
-           llvm::make_range(scheduledIndices.rangesBegin(),
-                            scheduledIndices.rangesEnd())) {
-        if (!hasCycle) {
-          // If the SCC doesn't have a cycle, then each equation has to be
-          // declared in a dedicated SCC operation.
-          rewriter.setInsertionPointToEnd(modelOp.getBody());
+        size_t numOfExplicitInductions =
+            matchedEquation.getInductionVariables().size();
 
-          auto sccOp = rewriter.create<SCCOp>(
-              modelOp.getLoc(), initialEquations, false);
+        size_t numOfImplicitInductions =
+            matchedEquation.getNumOfImplicitInductionVariables();
 
-          mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
-          rewriter.setInsertionPointToStart(sccBody);
+        bool isScalarEquation = numOfExplicitInductions == 0;
+
+        // Determine the iteration directions.
+        llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
+
+        for (marco::modeling::scheduling::Direction direction :
+             scheduledEquation.getIterationDirections()) {
+          iterationDirections.push_back(
+              EquationScheduleDirectionAttr::get(&getContext(), direction));
         }
 
-        // Create the operation for the scheduled equation.
-        auto scheduledEquationOp =
-            rewriter.create<ScheduledEquationInstanceOp>(
-                matchedEquation.getLoc(),
-                matchedEquation.getTemplate(),
-                matchedEquation.getPath(),
-                rewriter.getArrayAttr(
-                    llvm::ArrayRef(iterationDirections).take_front(
-                        numOfExplicitInductions + numOfImplicitInductions)));
+        // Create an equation for each range of scheduled indices.
+        const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
 
-        if (!isScalarEquation) {
-          MultidimensionalRange explicitRange =
-              scheduledRange.takeFirstDimensions(numOfExplicitInductions);
+        for (const MultidimensionalRange& scheduledRange :
+             llvm::make_range(scheduledIndices.rangesBegin(),
+                              scheduledIndices.rangesEnd())) {
+          if (!hasCycle) {
+            // If the SCC doesn't have a cycle, then each equation has to be
+            // declared in a dedicated SCC operation.
+            rewriter.setInsertionPointToEnd(sccGroupBody);
+            auto sccOp = rewriter.create<SCCOp>(modelOp.getLoc(),  false);
+            mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
+            rewriter.setInsertionPointToStart(sccBody);
+          }
 
-          scheduledEquationOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
+          // Create the operation for the scheduled equation.
+          auto scheduledEquationOp =
+              rewriter.create<ScheduledEquationInstanceOp>(
+                  matchedEquation.getLoc(),
+                  matchedEquation.getTemplate(),
+                  matchedEquation.getPath(),
+                  rewriter.getArrayAttr(
+                      llvm::ArrayRef(iterationDirections).take_front(
+                          numOfExplicitInductions + numOfImplicitInductions)));
+
+          if (!isScalarEquation) {
+            MultidimensionalRange explicitRange =
+                scheduledRange.takeFirstDimensions(numOfExplicitInductions);
+
+            scheduledEquationOp.setIndicesAttr(
+                MultidimensionalRangeAttr::get(&getContext(), explicitRange));
+          }
+
+          if (numOfImplicitInductions > 0) {
+            MultidimensionalRange implicitRange =
+                scheduledRange.takeLastDimensions(numOfImplicitInductions);
+
+            scheduledEquationOp.setImplicitIndicesAttr(
+                MultidimensionalRangeAttr::get(&getContext(), implicitRange));
+          }
         }
 
-        if (numOfImplicitInductions > 0) {
-          MultidimensionalRange implicitRange =
-              scheduledRange.takeLastDimensions(numOfImplicitInductions);
-
-          scheduledEquationOp.setImplicitIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), implicitRange));
-        }
+        // Mark the old instance as obsolete.
+        toBeErased.insert(matchedEquation);
       }
-
-      // Mark the old instance as obsolete.
-      toBeErased.insert(matchedEquation);
     }
   }
 

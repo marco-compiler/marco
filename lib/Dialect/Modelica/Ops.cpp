@@ -9870,15 +9870,15 @@ namespace mlir::modelica
     }
   }
 
-  void ModelOp::collectSCCs(
-      llvm::SmallVectorImpl<SCCOp>& initialSCCs,
-      llvm::SmallVectorImpl<SCCOp>& SCCs)
+  void ModelOp::collectSCCGroups(
+      llvm::SmallVectorImpl<SCCGroupOp>& initialSCCGroups,
+      llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups)
   {
-    for (SCCOp op : getOps<SCCOp>()) {
+    for (SCCGroupOp op : getOps<SCCGroupOp>()) {
       if (op.getInitial()) {
-        initialSCCs.push_back(op);
+        initialSCCGroups.push_back(op);
       } else {
-        SCCs.push_back(op);
+        SCCGroups.push_back(op);
       }
     }
   }
@@ -12629,6 +12629,24 @@ namespace mlir::modelica
 
     rewriter.eraseOp(temporaryClonedOp);
     return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SCCGroupOp
+
+namespace mlir::modelica
+{
+  mlir::RegionKind SCCGroupOp::getRegionKind(unsigned index)
+  {
+    return mlir::RegionKind::Graph;
+  }
+
+  void SCCGroupOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  {
+    for (SCCOp scc : getOps<SCCOp>()) {
+      SCCs.push_back(scc);
+    }
   }
 }
 

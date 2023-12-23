@@ -51,7 +51,7 @@ namespace mlir::modelica
         ModelOp modelOp,
         llvm::ArrayRef<VariableOp> variableOps,
         const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-        llvm::ArrayRef<SCCOp> SCCs);
+        llvm::ArrayRef<SCCGroupOp> sccGroups);
 
     mlir::LogicalResult performCalcIC(
         mlir::OpBuilder& builder,
@@ -104,7 +104,7 @@ namespace mlir::modelica
         ModelOp modelOp,
         llvm::ArrayRef<VariableOp> variableOps,
         const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-        llvm::ArrayRef<SCCOp> SCCs,
+        llvm::ArrayRef<SCCGroupOp> sccGroups,
         llvm::DenseMap<
             mlir::AffineMap,
             mlir::sundials::AccessFunctionOp>& accessFunctionsMap);
@@ -193,9 +193,9 @@ namespace mlir::modelica
 
     mlir::LogicalResult getWritesMap(
         ModelOp modelOp,
-        llvm::ArrayRef<SCCOp> SCCs,
+        llvm::ArrayRef<SCCGroupOp> sccGroups,
         std::multimap<VariableOp, std::pair<
-                                      IndexSet, ScheduledEquationInstanceOp>>& writesMap) const;
+            IndexSet, ScheduledEquationInstanceOp>>& writesMap) const;
 
     private:
     /// Instance identifier.

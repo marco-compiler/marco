@@ -24,8 +24,10 @@ modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x,
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.scc {
-        modelica.scheduled_equation_instance %t0 {iteration_directions = [], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+    modelica.scc_group {
+        modelica.scc {
+            modelica.scheduled_equation_instance %t0 {iteration_directions = [], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+        }
     }
 }
 
@@ -57,8 +59,10 @@ modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x,
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.scc {
-        modelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, iteration_directions = [#modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+    modelica.scc_group {
+        modelica.scc {
+            modelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, iteration_directions = [#modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+        }
     }
 }
 
@@ -88,8 +92,10 @@ modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x,
         modelica.equation_sides %2, %3 : tuple<!modelica.array<2x!modelica.real>>, tuple<!modelica.array<2x!modelica.real>>
     }
 
-    modelica.scc {
-        modelica.scheduled_equation_instance %t0 {implicit_indices = #modeling<multidim_range [0,1]>, iteration_directions = [#modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+    modelica.scc_group {
+        modelica.scc {
+            modelica.scheduled_equation_instance %t0 {implicit_indices = #modeling<multidim_range [0,1]>, iteration_directions = [#modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+        }
     }
 }
 
@@ -124,7 +130,9 @@ modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x,
         modelica.equation_sides %4, %5 : tuple<!modelica.array<3x!modelica.real>>, tuple<!modelica.array<3x!modelica.real>>
     }
 
-    modelica.scc {
-        modelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, implicit_indices = #modeling<multidim_range [0,2]>, iteration_directions = [#modelica<equation_schedule_direction forward>, #modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+    modelica.scc_group {
+        modelica.scc {
+            modelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, implicit_indices = #modeling<multidim_range [0,2]>, iteration_directions = [#modelica<equation_schedule_direction forward>, #modelica<equation_schedule_direction forward>], path = #modelica<equation_path [R, 0]>} : !modelica.equation
+        }
     }
 }

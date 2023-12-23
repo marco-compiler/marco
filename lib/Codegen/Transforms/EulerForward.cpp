@@ -5,6 +5,9 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "euler-forward"
 
 namespace mlir::modelica
 {
@@ -35,7 +38,7 @@ namespace
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) override;
 
       mlir::LogicalResult solveMainModel(
           mlir::IRRewriter& rewriter,
@@ -44,14 +47,14 @@ namespace
           llvm::ArrayRef<VariableOp> variableOps,
           const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) override;
 
     private:
       mlir::LogicalResult createCalcICFunction(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           mlir::Location loc,
-          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::ArrayRef<SCCGroupOp> sccGroups,
           const llvm::DenseMap<
               ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions);
 
@@ -59,7 +62,7 @@ namespace
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           mlir::Location loc,
-          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::ArrayRef<SCCGroupOp> sccGroups,
           const llvm::DenseMap<
               ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions);
 
@@ -124,57 +127,120 @@ mlir::LogicalResult EulerForwardPass::solveICModel(
     ModelOp modelOp,
     llvm::ArrayRef<VariableOp> variableOps,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs)
+    llvm::ArrayRef<SCCGroupOp> sccGroups)
 {
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-  llvm::DenseSet<ScheduledEquationInstanceOp> explicitEquations;
 
-  for (SCCOp scc : SCCs) {
-    if (scc.getCycle()) {
-      return mlir::failure();
+  // The list of strongly connected components with cyclic dependencies.
+  llvm::SmallVector<SCCOp> cycles;
+
+  // Determine which equations can be processed by just making them explicit
+  // with respect to the variable they match.
+  llvm::DenseSet<ScheduledEquationInstanceOp> explicitableEquations;
+
+  // Map between the original equations and their explicit version (if
+  // computable) w.r.t. the matched variables.
+  llvm::DenseMap<
+      ScheduledEquationInstanceOp,
+      ScheduledEquationInstanceOp> explicitEquationsMap;
+
+  // The list of equations which could not be made explicit.
+  llvm::DenseSet<ScheduledEquationInstanceOp> implicitEquations;
+
+  // The list of equations that can be handled internally.
+  llvm::DenseSet<ScheduledEquationInstanceOp> internalEquations;
+
+  // The list of equations that are handled by external solvers.
+  llvm::DenseSet<ScheduledEquationInstanceOp> externalEquations;
+
+  auto isExternalEquationFn = [&](ScheduledEquationInstanceOp equationOp) {
+    for (SCCOp scc : cycles) {
+      for (ScheduledEquationInstanceOp sccEquation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        if (sccEquation == equationOp) {
+          return true;
+        }
+      }
     }
 
-    llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
-    scc.collectEquations(equationOps);
+    return implicitEquations.contains(equationOp);
+  };
 
-    for (ScheduledEquationInstanceOp equationOp : equationOps) {
-      auto explicitEquationOp = equationOp.cloneAndExplicitate(
-          rewriter, symbolTableCollection);
+  // Categorize the equations.
+  LLVM_DEBUG(llvm::dbgs() << "Identifying the explicitable equations\n");
 
-      if (!explicitEquationOp) {
-        equationOp.cloneAndExplicitate(
-            rewriter, symbolTableCollection);
-
-        return mlir::failure();
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      if (scc.getCycle()) {
+        cycles.push_back(scc);
+        continue;
       }
 
-      rewriter.eraseOp(equationOp);
-      explicitEquations.insert(explicitEquationOp);
+      // The content of an SCC may be modified, so we need to freeze the
+      // initial list of equations.
+      llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
+      scc.collectEquations(equationOps);
+
+      for (ScheduledEquationInstanceOp equationOp : equationOps) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "Explicitating equation\n";
+          equationOp.printInline(llvm::dbgs());
+          llvm::dbgs() << "\n";
+        });
+
+        auto explicitEquationOp = equationOp.cloneAndExplicitate(
+            rewriter, symbolTableCollection);
+
+        if (explicitEquationOp) {
+          LLVM_DEBUG({
+            llvm::dbgs() << "Explicit equation\n";
+            explicitEquationOp.printInline(llvm::dbgs());
+            llvm::dbgs() << "\n";
+          });
+
+          explicitableEquations.insert(equationOp);
+          explicitEquationsMap[equationOp] = explicitEquationOp;
+        } else {
+          LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
+          implicitEquations.insert(equationOp);
+          continue;
+        }
+      }
     }
   }
 
-  // Convert the explicit equations into functions.
-  llvm::DenseMap<ScheduledEquationInstanceOp, RawFunctionOp> equationFunctions;
+  // Determine the equations that can be handled internally.
+  for (ScheduledEquationInstanceOp equationOp : explicitableEquations) {
+    if (!isExternalEquationFn(equationOp)) {
+      internalEquations.insert(equationOp);
+    }
+  }
+
+  // Map from explicit equations to their algorithmically equivalent function.
+  llvm::DenseMap<
+      ScheduledEquationInstanceOp, RawFunctionOp> equationFunctions;
+
+  // Create the functions for the equations managed internally.
   size_t equationFunctionsCounter = 0;
 
-  for (ScheduledEquationInstanceOp equationOp : explicitEquations) {
+  for (ScheduledEquationInstanceOp equationOp : internalEquations) {
+    ScheduledEquationInstanceOp explicitEquationOp =
+        explicitEquationsMap[equationOp];
+
     RawFunctionOp templateFunction = createEquationTemplateFunction(
         rewriter, moduleOp, symbolTableCollection,
-        equationOp.getTemplate(),
-        equationOp.getViewElementIndex(),
-        equationOp.getIterationDirections(),
-        "initial_equation_" + std::to_string(equationFunctionsCounter++),
+        explicitEquationOp.getTemplate(),
+        explicitEquationOp.getViewElementIndex(),
+        explicitEquationOp.getIterationDirections(),
+        "initial_equation_" +
+            std::to_string(equationFunctionsCounter++),
         localToGlobalVariablesMap);
-
-    if (!templateFunction) {
-      return mlir::failure();
-    }
 
     equationFunctions[equationOp] = templateFunction;
   }
 
   if (mlir::failed(createCalcICFunction(
-          rewriter, moduleOp, modelOp.getLoc(), SCCs, equationFunctions))) {
+          rewriter, moduleOp, modelOp.getLoc(), sccGroups, equationFunctions))) {
       return mlir::failure();
   }
 
@@ -188,7 +254,7 @@ mlir::LogicalResult EulerForwardPass::solveMainModel(
     llvm::ArrayRef<VariableOp> variableOps,
     const DerivativesMap& derivativesMap,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs)
+    llvm::ArrayRef<SCCGroupOp> sccGroups)
 {
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
   llvm::DenseSet<ScheduledEquationInstanceOp> explicitEquations;
@@ -196,45 +262,48 @@ mlir::LogicalResult EulerForwardPass::solveMainModel(
   llvm::DenseMap<ScheduledEquationInstanceOp, RawFunctionOp> equationFunctions;
   size_t equationFunctionsCounter = 0;
 
-  for (SCCOp scc : SCCs) {
-    if (scc.getCycle()) {
-      return mlir::failure();
-    }
-
-    llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
-    scc.collectEquations(equationOps);
-
-    for (ScheduledEquationInstanceOp equationOp : equationOps) {
-      auto explicitEquationOp = equationOp.cloneAndExplicitate(
-          rewriter, symbolTableCollection);
-
-      if (!explicitEquationOp) {
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      if (scc.getCycle()) {
         return mlir::failure();
       }
 
-      rewriter.eraseOp(equationOp);
-      explicitEquations.insert(explicitEquationOp);
-    }
+      llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
+      scc.collectEquations(equationOps);
 
-    for (ScheduledEquationInstanceOp equationOp : explicitEquations) {
-      RawFunctionOp templateFunction = createEquationTemplateFunction(
-          rewriter, moduleOp, symbolTableCollection,
-          equationOp.getTemplate(),
-          equationOp.getViewElementIndex(),
-          equationOp.getIterationDirections(),
-          "equation_" + std::to_string(equationFunctionsCounter++),
-          localToGlobalVariablesMap);
+      for (ScheduledEquationInstanceOp equationOp : equationOps) {
+        auto explicitEquationOp = equationOp.cloneAndExplicitate(
+            rewriter, symbolTableCollection);
 
-      if (!templateFunction) {
-        return mlir::failure();
+        if (!explicitEquationOp) {
+          return mlir::failure();
+        }
+
+        rewriter.eraseOp(equationOp);
+        explicitEquations.insert(explicitEquationOp);
       }
 
-      equationFunctions[equationOp] = templateFunction;
+      for (ScheduledEquationInstanceOp equationOp : explicitEquations) {
+        RawFunctionOp templateFunction = createEquationTemplateFunction(
+            rewriter, moduleOp, symbolTableCollection,
+            equationOp.getTemplate(),
+            equationOp.getViewElementIndex(),
+            equationOp.getIterationDirections(),
+            "equation_" + std::to_string(equationFunctionsCounter++),
+            localToGlobalVariablesMap);
+
+        if (!templateFunction) {
+          return mlir::failure();
+        }
+
+        equationFunctions[equationOp] = templateFunction;
+      }
     }
   }
 
   if (mlir::failed(createUpdateNonStateVariablesFunction(
-          rewriter, moduleOp, modelOp.getLoc(), SCCs, equationFunctions))) {
+          rewriter, moduleOp, modelOp.getLoc(), sccGroups,
+          equationFunctions))) {
     return mlir::failure();
   }
 
@@ -251,7 +320,7 @@ mlir::LogicalResult EulerForwardPass::createCalcICFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
-    llvm::ArrayRef<SCCOp> SCCs,
+    llvm::ArrayRef<SCCGroupOp> sccGroups,
     const llvm::DenseMap<
         ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions)
 {
@@ -266,14 +335,23 @@ mlir::LogicalResult EulerForwardPass::createCalcICFunction(
   builder.setInsertionPointToStart(entryBlock);
 
   // Call the equation functions.
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      RawFunctionOp equationRawFunction = equationFunctions.lookup(equation);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        auto rawFunctionIt = equationFunctions.find(equation);
 
-      if (mlir::failed(callEquationFunction(
-              builder, loc, equation, equationRawFunction))) {
-        return mlir::failure();
+        if (rawFunctionIt == equationFunctions.end()) {
+          // Equation not handled internally.
+          continue;
+        }
+
+        RawFunctionOp equationRawFunction = rawFunctionIt->getSecond();
+
+        if (mlir::failed(callEquationFunction(
+                builder, loc, equation, equationRawFunction))) {
+          return mlir::failure();
+        }
       }
     }
   }
@@ -289,7 +367,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::Location loc,
-    llvm::ArrayRef<SCCOp> SCCs,
+    llvm::ArrayRef<SCCGroupOp> sccGroups,
     const llvm::DenseMap<
         ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions)
 {
@@ -304,48 +382,50 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   builder.setInsertionPointToStart(entryBlock);
 
   // Cal the equation functions.
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      RawFunctionOp equationRawFunction = equationFunctions.lookup(equation);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        RawFunctionOp equationRawFunction = equationFunctions.lookup(equation);
 
-      llvm::SmallVector<mlir::Value, 3> args;
+        llvm::SmallVector<mlir::Value, 3> args;
 
-      // Explicit indices.
-      if (auto indices = equation.getIndices()) {
-        for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
-          // Begin index.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
+        // Explicit indices.
+        if (auto indices = equation.getIndices()) {
+          for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
+            // Begin index.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
 
-          // End index.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
+            // End index.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
 
-          // Step.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(1)));
+            // Step.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(1)));
+          }
         }
-      }
 
-      // Implicit indices.
-      if (auto indices = equation.getImplicitIndices()) {
-        for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
-          // Begin index.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
+        // Implicit indices.
+        if (auto indices = equation.getImplicitIndices()) {
+          for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
+            // Begin index.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(indices->getValue()[i].getBegin())));
 
-          // End index.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
+            // End index.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(indices->getValue()[i].getEnd())));
 
-          // Step.
-          args.push_back(builder.create<mlir::arith::ConstantOp>(
-              loc, builder.getIndexAttr(1)));
+            // Step.
+            args.push_back(builder.create<mlir::arith::ConstantOp>(
+                loc, builder.getIndexAttr(1)));
+          }
         }
-      }
 
-      builder.create<CallOp>(loc, equationRawFunction, args);
+        builder.create<CallOp>(loc, equationRawFunction, args);
+      }
     }
   }
 

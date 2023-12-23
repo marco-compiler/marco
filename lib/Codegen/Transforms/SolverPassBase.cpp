@@ -405,9 +405,9 @@ namespace mlir::modelica::impl
     }
 
     // Collect the SCCs once for faster processing.
-    llvm::SmallVector<SCCOp> initialSCCs;
-    llvm::SmallVector<SCCOp> SCCs;
-    modelOp.collectSCCs(initialSCCs, SCCs);
+    llvm::SmallVector<SCCGroupOp> initialSCCs;
+    llvm::SmallVector<SCCGroupOp> SCCs;
+    modelOp.collectSCCGroups(initialSCCs, SCCs);
 
     // Create the common functions.
     if (mlir::failed(createModelNameOp(
@@ -1193,7 +1193,7 @@ namespace
           mlir::modelica::ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override
+          llvm::ArrayRef<SCCGroupOp> SCCGroups) override
       {
         // Do nothing.
         return mlir::success();
@@ -1206,7 +1206,7 @@ namespace
           llvm::ArrayRef<VariableOp> variableOps,
           const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override
+          llvm::ArrayRef<SCCGroupOp> SCCGroups) override
       {
         // Do nothing.
         return mlir::success();

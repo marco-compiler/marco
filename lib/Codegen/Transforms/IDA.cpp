@@ -38,7 +38,7 @@ namespace
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) override;
 
       mlir::LogicalResult solveMainModel(
           mlir::IRRewriter& rewriter,
@@ -47,7 +47,7 @@ namespace
           llvm::ArrayRef<VariableOp> variableOps,
           const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) override;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) override;
 
     private:
       /// Add an equation to the IDA instance together with its written
@@ -78,7 +78,7 @@ namespace
           IDAInstance* idaInstance,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) const;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) const;
 
       /// Create the function that deallocates the external solvers used during
       /// the IC computation.
@@ -99,7 +99,7 @@ namespace
           IDAInstance* idaInstance,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) const;
+          llvm::ArrayRef<SCCGroupOp> sccGroups) const;
 
       /// Create the function that deallocates the external solvers used during
       /// the simulation.
@@ -117,7 +117,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::Location loc,
           IDAInstance* idaInstance,
-          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::ArrayRef<SCCGroupOp> sccGroups,
           const llvm::DenseMap<
               ScheduledEquationInstanceOp,
               RawFunctionOp>& equationFunctions) const;
@@ -146,7 +146,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::Location loc,
           IDAInstance* idaInstance,
-          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::ArrayRef<SCCGroupOp> sccGroups,
           const llvm::DenseMap<
               ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions) const;
 
@@ -209,7 +209,7 @@ mlir::LogicalResult IDAPass::solveICModel(
     ModelOp modelOp,
     llvm::ArrayRef<VariableOp> variableOps,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs)
+    llvm::ArrayRef<SCCGroupOp> sccGroups)
 {
   LLVM_DEBUG(llvm::dbgs() << "Solving the 'initial conditions' model\n");
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
@@ -267,38 +267,40 @@ mlir::LogicalResult IDAPass::solveICModel(
     // Categorize the equations.
     LLVM_DEBUG(llvm::dbgs() << "Identifying the explicitable equations\n");
 
-    for (SCCOp scc : SCCs) {
-      if (scc.getCycle()) {
-        cycles.push_back(scc);
-      } else {
-        // The content of an SCC may be modified, so we need to freeze the
-        // initial list of equations.
-        llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
-        scc.collectEquations(equationOps);
+    for (SCCGroupOp sccGroup : sccGroups) {
+      for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+        if (scc.getCycle()) {
+          cycles.push_back(scc);
+        } else {
+          // The content of an SCC may be modified, so we need to freeze the
+          // initial list of equations.
+          llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
+          scc.collectEquations(equationOps);
 
-        for (ScheduledEquationInstanceOp equationOp : equationOps) {
-          LLVM_DEBUG({
+          for (ScheduledEquationInstanceOp equationOp : equationOps) {
+            LLVM_DEBUG({
               llvm::dbgs() << "Explicitating equation\n";
               equationOp.printInline(llvm::dbgs());
               llvm::dbgs() << "\n";
-          });
+            });
 
-          auto explicitEquationOp = equationOp.cloneAndExplicitate(
-              rewriter, symbolTableCollection);
+            auto explicitEquationOp = equationOp.cloneAndExplicitate(
+                rewriter, symbolTableCollection);
 
-          if (explicitEquationOp) {
-            LLVM_DEBUG({
+            if (explicitEquationOp) {
+              LLVM_DEBUG({
                 llvm::dbgs() << "Explicit equation\n";
                 explicitEquationOp.printInline(llvm::dbgs());
                 llvm::dbgs() << "\n";
-            });
+              });
 
-            explicitableEquations.insert(equationOp);
-            explicitEquationsMap[equationOp] = explicitEquationOp;
-          } else {
-            LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
-            implicitEquations.insert(equationOp);
-            continue;
+              explicitableEquations.insert(equationOp);
+              explicitEquationsMap[equationOp] = explicitEquationOp;
+            } else {
+              LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
+              implicitEquations.insert(equationOp);
+              continue;
+            }
           }
         }
       }
@@ -374,30 +376,32 @@ mlir::LogicalResult IDAPass::solveICModel(
   // equations according to which runtime solver manages such variables.
   LLVM_DEBUG(llvm::dbgs() << "Add the equations writing to IDA variables\n");
 
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equationOp :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      std::optional<VariableAccess> writeAccess =
-          equationOp.getMatchedAccess(symbolTableCollection);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equationOp :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        std::optional<VariableAccess> writeAccess =
+            equationOp.getMatchedAccess(symbolTableCollection);
 
-      if (!writeAccess) {
-        return mlir::failure();
-      }
+        if (!writeAccess) {
+          return mlir::failure();
+        }
 
-      auto writtenVariable = writeAccess->getVariable();
+        auto writtenVariable = writeAccess->getVariable();
 
-      auto writtenVariableOp =
-          symbolTableCollection.lookupSymbolIn<VariableOp>(
-              modelOp, writtenVariable);
+        auto writtenVariableOp =
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, writtenVariable);
 
-      if (idaInstance->hasVariable(writtenVariableOp)) {
-        LLVM_DEBUG({
+        if (idaInstance->hasVariable(writtenVariableOp)) {
+          LLVM_DEBUG({
             llvm::dbgs() << "Add equation\n";
             equationOp.printInline(llvm::dbgs());
             llvm::dbgs() << "\n";
-        });
+          });
 
-        idaInstance->addEquation(equationOp);
+          idaInstance->addEquation(equationOp);
+        }
       }
     }
   }
@@ -409,7 +413,7 @@ mlir::LogicalResult IDAPass::solveICModel(
 
   if (mlir::failed(createInitICSolversFunction(
           rewriter, moduleOp, symbolTableCollection, modelOp.getLoc(), modelOp,
-          idaInstance.get(), variableOps, localToGlobalVariablesMap, SCCs))) {
+          idaInstance.get(), variableOps, localToGlobalVariablesMap, sccGroups))) {
     return mlir::failure();
   }
 
@@ -420,7 +424,7 @@ mlir::LogicalResult IDAPass::solveICModel(
 
   if (mlir::failed(createSolveICModelFunction(
           rewriter, moduleOp, symbolTableCollection, modelOp.getLoc(),
-          idaInstance.get(), SCCs, equationFunctions))) {
+          idaInstance.get(), sccGroups, equationFunctions))) {
     return mlir::failure();
   }
 
@@ -466,7 +470,7 @@ mlir::LogicalResult IDAPass::solveMainModel(
     llvm::ArrayRef<VariableOp> variableOps,
     const DerivativesMap& derivativesMap,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs)
+    llvm::ArrayRef<SCCGroupOp> sccGroups)
 {
   LLVM_DEBUG(llvm::dbgs() << "Solving the 'main' model\n");
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
@@ -507,38 +511,40 @@ mlir::LogicalResult IDAPass::solveMainModel(
     }
 
     // Add the equations writing to variables handled by IDA.
-    for (SCCOp scc : SCCs) {
-      for (ScheduledEquationInstanceOp equationOp :
-           scc.getOps<ScheduledEquationInstanceOp>()) {
-        std::optional<VariableAccess> writeAccess =
-            equationOp.getMatchedAccess(symbolTableCollection);
+    for (SCCGroupOp sccGroup : sccGroups) {
+      for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+        for (ScheduledEquationInstanceOp equationOp :
+             scc.getOps<ScheduledEquationInstanceOp>()) {
+          std::optional<VariableAccess> writeAccess =
+              equationOp.getMatchedAccess(symbolTableCollection);
 
-        if (!writeAccess) {
-          LLVM_DEBUG({
+          if (!writeAccess) {
+            LLVM_DEBUG({
               llvm::dbgs() << "Can't get write access for equation\n";
               equationOp.printInline(llvm::dbgs());
               llvm::dbgs() << "\n";
-          });
+            });
 
-          return mlir::failure();
-        }
+            return mlir::failure();
+          }
 
-        auto writtenVariable = writeAccess->getVariable();
+          auto writtenVariable = writeAccess->getVariable();
 
-        auto writtenVariableOp =
-            symbolTableCollection.lookupSymbolIn<VariableOp>(
-                modelOp, writtenVariable);
+          auto writtenVariableOp =
+              symbolTableCollection.lookupSymbolIn<VariableOp>(
+                  modelOp, writtenVariable);
 
-        if (idaInstance->hasVariable(writtenVariableOp)) {
-          LLVM_DEBUG({
+          if (idaInstance->hasVariable(writtenVariableOp)) {
+            LLVM_DEBUG({
               llvm::dbgs() << "Add equation writing to variable "
                            << writtenVariableOp.getSymName() << "\n";
 
               equationOp.printInline(llvm::dbgs());
               llvm::dbgs() << "\n";
-          });
+            });
 
-          idaInstance->addEquation(equationOp);
+            idaInstance->addEquation(equationOp);
+          }
         }
       }
     }
@@ -549,48 +555,50 @@ mlir::LogicalResult IDAPass::solveMainModel(
     llvm::SmallVector<SCCOp> cycles;
     llvm::SmallVector<ScheduledEquationInstanceOp> implicitEquations;
 
-    for (SCCOp scc : SCCs) {
-      if (scc.getCycle()) {
-        cycles.push_back(scc);
-      } else {
-        // The content of an SCC may be modified, so we need to freeze the
-        // initial list of equations.
-        llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
-        scc.collectEquations(equationOps);
+    for (SCCGroupOp sccGroup : sccGroups) {
+      for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+        if (scc.getCycle()) {
+          cycles.push_back(scc);
+        } else {
+          // The content of an SCC may be modified, so we need to freeze the
+          // initial list of equations.
+          llvm::SmallVector<ScheduledEquationInstanceOp> equationOps;
+          scc.collectEquations(equationOps);
 
-        for (ScheduledEquationInstanceOp equationOp : equationOps) {
-          if (idaInstance->hasEquation(equationOp)) {
-            // Skip the equation if it is already handled by IDA.
-            LLVM_DEBUG({
+          for (ScheduledEquationInstanceOp equationOp : equationOps) {
+            if (idaInstance->hasEquation(equationOp)) {
+              // Skip the equation if it is already handled by IDA.
+              LLVM_DEBUG({
                 llvm::dbgs() << "Equation already handled by IDA\n";
                 equationOp.printInline(llvm::dbgs());
                 llvm::dbgs() << "\n";
-            });
+              });
 
-            continue;
-          }
+              continue;
+            }
 
-          LLVM_DEBUG({
+            LLVM_DEBUG({
               llvm::dbgs() << "Explicitating equation\n";
               equationOp.printInline(llvm::dbgs());
               llvm::dbgs() << "\n";
-          });
-
-          auto explicitEquationOp =
-              equationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
-
-          if (explicitEquationOp) {
-            LLVM_DEBUG({
-                llvm::dbgs() << "Add explicit equation\n";
-                explicitEquationOp.printInline(llvm::dbgs());
             });
 
-            explicitEquations.insert(explicitEquationOp);
-            rewriter.eraseOp(equationOp);
-          } else {
-            LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
-            implicitEquations.push_back(equationOp);
-            continue;
+            auto explicitEquationOp =
+                equationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
+
+            if (explicitEquationOp) {
+              LLVM_DEBUG({
+                llvm::dbgs() << "Add explicit equation\n";
+                explicitEquationOp.printInline(llvm::dbgs());
+              });
+
+              explicitEquations.insert(explicitEquationOp);
+              rewriter.eraseOp(equationOp);
+            } else {
+              LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
+              implicitEquations.push_back(equationOp);
+              continue;
+            }
           }
         }
       }
@@ -668,30 +676,32 @@ mlir::LogicalResult IDAPass::solveMainModel(
   // equations according to which runtime solver manages such variables.
   LLVM_DEBUG(llvm::dbgs() << "Add the equations writing to IDA variables\n");
 
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equationOp :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      std::optional<VariableAccess> writeAccess =
-          equationOp.getMatchedAccess(symbolTableCollection);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equationOp :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        std::optional<VariableAccess> writeAccess =
+            equationOp.getMatchedAccess(symbolTableCollection);
 
-      if (!writeAccess) {
-        return mlir::failure();
-      }
+        if (!writeAccess) {
+          return mlir::failure();
+        }
 
-      auto writtenVariable = writeAccess->getVariable();
+        auto writtenVariable = writeAccess->getVariable();
 
-      auto writtenVariableOp =
-          symbolTableCollection.lookupSymbolIn<VariableOp>(
-              modelOp, writtenVariable);
+        auto writtenVariableOp =
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, writtenVariable);
 
-      if (idaInstance->hasVariable(writtenVariableOp)) {
-        LLVM_DEBUG({
+        if (idaInstance->hasVariable(writtenVariableOp)) {
+          LLVM_DEBUG({
             llvm::dbgs() << "Add equation\n";
             equationOp.printInline(llvm::dbgs());
             llvm::dbgs() << "\n";
-        });
+          });
 
-        idaInstance->addEquation(equationOp);
+          idaInstance->addEquation(equationOp);
+        }
       }
     }
   }
@@ -703,7 +713,7 @@ mlir::LogicalResult IDAPass::solveMainModel(
 
   if (mlir::failed(createInitMainSolversFunction(
           rewriter, moduleOp, symbolTableCollection, modelOp.getLoc(), modelOp,
-          idaInstance.get(), variableOps, localToGlobalVariablesMap, SCCs))) {
+          idaInstance.get(), variableOps, localToGlobalVariablesMap, sccGroups))) {
     return mlir::failure();
   }
 
@@ -724,7 +734,7 @@ mlir::LogicalResult IDAPass::solveMainModel(
 
   if (mlir::failed(createUpdateNonIDAVariablesFunction(
           rewriter, moduleOp, symbolTableCollection, modelOp.getLoc(),
-          idaInstance.get(), SCCs, equationFunctions))) {
+          idaInstance.get(), sccGroups, equationFunctions))) {
     return mlir::failure();
   }
 
@@ -790,7 +800,7 @@ mlir::LogicalResult IDAPass::createInitICSolversFunction(
     IDAInstance* idaInstance,
     llvm::ArrayRef<VariableOp> variableOps,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs) const
+    llvm::ArrayRef<SCCGroupOp> sccGroups) const
 {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
@@ -808,7 +818,7 @@ mlir::LogicalResult IDAPass::createInitICSolversFunction(
 
   if (mlir::failed(idaInstance->configure(
           rewriter, loc, moduleOp, modelOp, variableOps,
-          localToGlobalVariablesMap, SCCs))) {
+          localToGlobalVariablesMap, sccGroups))) {
     return mlir::failure();
   }
 
@@ -850,7 +860,7 @@ mlir::LogicalResult IDAPass::createInitMainSolversFunction(
     IDAInstance* idaInstance,
     llvm::ArrayRef<VariableOp> variableOps,
     const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-    llvm::ArrayRef<SCCOp> SCCs) const
+    llvm::ArrayRef<SCCGroupOp> sccGroups) const
 {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
@@ -868,7 +878,7 @@ mlir::LogicalResult IDAPass::createInitMainSolversFunction(
 
   if (mlir::failed(idaInstance->configure(
           rewriter, loc, moduleOp, modelOp, variableOps,
-          localToGlobalVariablesMap, SCCs))) {
+          localToGlobalVariablesMap, sccGroups))) {
     return mlir::failure();
   }
 
@@ -906,7 +916,7 @@ mlir::LogicalResult IDAPass::createSolveICModelFunction(
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::Location loc,
     IDAInstance* idaInstance,
-    llvm::ArrayRef<SCCOp> SCCs,
+    llvm::ArrayRef<SCCGroupOp> sccGroups,
     const llvm::DenseMap<
         ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions) const
 {
@@ -926,21 +936,23 @@ mlir::LogicalResult IDAPass::createSolveICModelFunction(
   }
 
   // Call the equation functions for the equations managed internally.
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      auto rawFunctionIt = equationFunctions.find(equation);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        auto rawFunctionIt = equationFunctions.find(equation);
 
-      if (rawFunctionIt == equationFunctions.end()) {
-        // Equation not handled internally.
-        continue;
-      }
+        if (rawFunctionIt == equationFunctions.end()) {
+          // Equation not handled internally.
+          continue;
+        }
 
-      RawFunctionOp equationRawFunction = rawFunctionIt->getSecond();
+        RawFunctionOp equationRawFunction = rawFunctionIt->getSecond();
 
-      if (mlir::failed(callEquationFunction(
-              builder, loc, equation, equationRawFunction))) {
-        return mlir::failure();
+        if (mlir::failed(callEquationFunction(
+                builder, loc, equation, equationRawFunction))) {
+          return mlir::failure();
+        }
       }
     }
   }
@@ -1004,7 +1016,7 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::Location loc,
     IDAInstance* idaInstance,
-    llvm::ArrayRef<SCCOp> SCCs,
+    llvm::ArrayRef<SCCGroupOp> sccGroups,
     const llvm::DenseMap<
         ScheduledEquationInstanceOp, RawFunctionOp>& equationFunctions) const
 {
@@ -1019,21 +1031,23 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
   builder.setInsertionPointToStart(entryBlock);
 
   // Call the equation functions for the equations managed internally.
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      auto rawFunctionIt = equationFunctions.find(equation);
+  for (SCCGroupOp sccGroup : sccGroups) {
+    for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        auto rawFunctionIt = equationFunctions.find(equation);
 
-      if (rawFunctionIt == equationFunctions.end()) {
-        // Equation not handled internally.
-        continue;
-      }
+        if (rawFunctionIt == equationFunctions.end()) {
+          // Equation not handled internally.
+          continue;
+        }
 
-      RawFunctionOp equationRawFunction = rawFunctionIt->getSecond();
+        RawFunctionOp equationRawFunction = rawFunctionIt->getSecond();
 
-      if (mlir::failed(callEquationFunction(
-              builder, loc, equation, equationRawFunction))) {
-        return mlir::failure();
+        if (mlir::failed(callEquationFunction(
+                builder, loc, equation, equationRawFunction))) {
+          return mlir::failure();
+        }
       }
     }
   }

@@ -130,7 +130,7 @@ namespace mlir::modelica::impl
           mlir::modelica::ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) = 0;
+          llvm::ArrayRef<SCCGroupOp> SCCGroups) = 0;
 
       /// Convert the main scheduled model into the algorithmic functions that
       /// compose the simulation.
@@ -141,7 +141,7 @@ namespace mlir::modelica::impl
           llvm::ArrayRef<VariableOp> variableOps,
           const DerivativesMap& derivativesMap,
           const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-          llvm::ArrayRef<SCCOp> SCCs) = 0;
+          llvm::ArrayRef<SCCGroupOp> SCCGroups) = 0;
 
       /// Count how many instances do exist of each equation template.
       void getEquationTemplatesUsageCount(

@@ -3098,10 +3098,10 @@ def Modelica_ModelOp : Modelica_Op<"model",
             llvm::SmallVectorImpl<MatchedEquationInstanceOp>& initialEquations,
             llvm::SmallVectorImpl<MatchedEquationInstanceOp>& equations);
 
-        /// Collect all the initial and non-initial SCCs of a model.
-        void collectSCCs(
-            llvm::SmallVectorImpl<SCCOp>& initialEquations,
-            llvm::SmallVectorImpl<SCCOp>& equations);
+        /// Collect all the initial and non-initial SCC groups of a model.
+        void collectSCCGroups(
+            llvm::SmallVectorImpl<SCCGroupOp>& initialSCCGroups,
+            llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups);
 
         /// Collect all the initial and non-initial algorithms of a model.
         void collectAlgorithms(
@@ -3767,13 +3767,35 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
     }];
 }
 
-def Modelica_SCCOp : Modelica_Op<"scc",
+def Modelica_SCCGroupOp : Modelica_Op<"scc_group",
     [ParentOneOf<["ModelOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     NoTerminator]>
 {
     let arguments = (ins
-        DefaultValuedAttr<BoolAttr, "false">:$initial,
+        DefaultValuedAttr<BoolAttr, "false">:$initial);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = [{
+        $bodyRegion attr-dict
+    }];
+
+    let extraClassDeclaration = [{
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+    }];
+}
+
+def Modelica_SCCOp : Modelica_Op<"scc",
+    [ParentOneOf<["SCCGroupOp"]>,
+    DeclareOpInterfaceMethods<RegionKindInterface>,
+    NoTerminator]>
+{
+    let arguments = (ins
         DefaultValuedAttr<BoolAttr, "false">:$cycle);
 
     let results = (outs);

@@ -154,7 +154,7 @@ namespace mlir::modelica
       ModelOp modelOp,
       llvm::ArrayRef<VariableOp> variableOps,
       const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      llvm::ArrayRef<SCCOp> SCCs)
+      llvm::ArrayRef<SCCGroupOp> sccGroups)
   {
     llvm::DenseMap<
         mlir::AffineMap,
@@ -183,7 +183,7 @@ namespace mlir::modelica
     // Add the equations to IDA.
     if (mlir::failed(addEquationsToIDA(
             rewriter, loc, moduleOp, modelOp, variableOps,
-            localToGlobalVariablesMap, SCCs, accessFunctionsMap))) {
+            localToGlobalVariablesMap, sccGroups, accessFunctionsMap))) {
       return mlir::failure();
     }
 
@@ -406,7 +406,7 @@ namespace mlir::modelica
       ModelOp modelOp,
       llvm::ArrayRef<VariableOp> variableOps,
       const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      llvm::ArrayRef<SCCOp> SCCs,
+      llvm::ArrayRef<SCCGroupOp> sccGroups,
       llvm::DenseMap<
           mlir::AffineMap,
           mlir::sundials::AccessFunctionOp>& accessFunctionsMap)
@@ -420,7 +420,7 @@ namespace mlir::modelica
     std::multimap<
         VariableOp, std::pair<IndexSet, ScheduledEquationInstanceOp>> writesMap;
 
-    if (mlir::failed(getWritesMap(modelOp, SCCs, writesMap))) {
+    if (mlir::failed(getWritesMap(modelOp, sccGroups, writesMap))) {
       return mlir::failure();
     }
 
@@ -1726,40 +1726,43 @@ namespace mlir::modelica
 
   mlir::LogicalResult IDAInstance::getWritesMap(
       ModelOp modelOp,
-      llvm::ArrayRef<SCCOp> SCCs,
+      llvm::ArrayRef<SCCGroupOp> sccGroups,
       std::multimap<
           VariableOp,
           std::pair<IndexSet, ScheduledEquationInstanceOp>>& writesMap) const
   {
-    for (SCCOp scc : SCCs) {
-      for (ScheduledEquationInstanceOp equationOp :
-           scc.getOps<ScheduledEquationInstanceOp>()) {
-        std::optional<VariableAccess> writeAccess =
-            equationOp.getMatchedAccess(*symbolTableCollection);
+    for (SCCGroupOp sccGroup : sccGroups) {
+      for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
+        for (ScheduledEquationInstanceOp equationOp :
+             scc.getOps<ScheduledEquationInstanceOp>()) {
+          std::optional<VariableAccess> writeAccess =
+              equationOp.getMatchedAccess(*symbolTableCollection);
 
-        if (!writeAccess) {
-          return mlir::failure();
-        }
+          if (!writeAccess) {
+            return mlir::failure();
+          }
 
-        auto writtenVariableOp =
-            symbolTableCollection->lookupSymbolIn<VariableOp>(
-                modelOp, writeAccess->getVariable());
+          auto writtenVariableOp =
+              symbolTableCollection->lookupSymbolIn<VariableOp>(
+                  modelOp, writeAccess->getVariable());
 
-        const AccessFunction& accessFunction = writeAccess->getAccessFunction();
+          const AccessFunction& accessFunction =
+              writeAccess->getAccessFunction();
 
-        if (auto equationIndices = equationOp.getIterationSpace();
-            !equationIndices.empty()) {
-          IndexSet variableIndices = accessFunction.map(equationIndices);
+          if (auto equationIndices = equationOp.getIterationSpace();
+              !equationIndices.empty()) {
+            IndexSet variableIndices = accessFunction.map(equationIndices);
 
-          writesMap.emplace(
-              writtenVariableOp,
-              std::make_pair(std::move(variableIndices), equationOp));
-        } else {
-          IndexSet variableIndices = accessFunction.map(IndexSet());
+            writesMap.emplace(
+                writtenVariableOp,
+                std::make_pair(std::move(variableIndices), equationOp));
+          } else {
+            IndexSet variableIndices = accessFunction.map(IndexSet());
 
-          writesMap.emplace(
-              writtenVariableOp,
-              std::make_pair(std::move(variableIndices), equationOp));
+            writesMap.emplace(
+                writtenVariableOp,
+                std::make_pair(std::move(variableIndices), equationOp));
+          }
         }
       }
     }
