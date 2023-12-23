@@ -18,7 +18,6 @@ namespace mlir::modelica
 
 using namespace ::mlir::modelica;
 
-
 namespace
 {
   class IDAPass : public mlir::modelica::impl::IDAPassBase<IDAPass>,
@@ -230,15 +229,46 @@ mlir::LogicalResult IDAPass::solveICModel(
   if (reducedSystem) {
     LLVM_DEBUG(llvm::dbgs() << "Reduced system feature enabled\n");
 
+    // The list of strongly connected components with cyclic dependencies.
+    llvm::SmallVector<SCCOp> cycles;
+
     // Determine which equations can be processed by just making them explicit
     // with respect to the variable they match.
-    llvm::DenseSet<ScheduledEquationInstanceOp> explicitEquations;
-    llvm::SmallVector<SCCOp> cycles;
-    llvm::SmallVector<ScheduledEquationInstanceOp> implicitEquations;
+    llvm::DenseSet<ScheduledEquationInstanceOp> explicitableEquations;
+
+    // Map between the original equations and their explicit version (if
+    // computable) w.r.t. the matched variables.
+    llvm::DenseMap<
+        ScheduledEquationInstanceOp,
+        ScheduledEquationInstanceOp> explicitEquationsMap;
+
+    // The list of equations which could not be made explicit.
+    llvm::DenseSet<ScheduledEquationInstanceOp> implicitEquations;
+
+    // The list of equations that can be handled internally.
+    llvm::DenseSet<ScheduledEquationInstanceOp> internalEquations;
+
+    // The list of equations that are handled by IDA.
+    llvm::DenseSet<ScheduledEquationInstanceOp> externalEquations;
+
+    auto isExternalEquationFn = [&](ScheduledEquationInstanceOp equationOp) {
+      for (SCCOp scc : cycles) {
+        for (ScheduledEquationInstanceOp sccEquation :
+             scc.getOps<ScheduledEquationInstanceOp>()) {
+          if (sccEquation == equationOp) {
+            return true;
+          }
+        }
+      }
+
+      return implicitEquations.contains(equationOp);
+    };
+
+    // Categorize the equations.
+    LLVM_DEBUG(llvm::dbgs() << "Identifying the explicitable equations\n");
 
     for (SCCOp scc : SCCs) {
       if (scc.getCycle()) {
-        // Skip the equation if it is already handled by IDA.
         cycles.push_back(scc);
       } else {
         // The content of an SCC may be modified, so we need to freeze the
@@ -247,16 +277,6 @@ mlir::LogicalResult IDAPass::solveICModel(
         scc.collectEquations(equationOps);
 
         for (ScheduledEquationInstanceOp equationOp : equationOps) {
-          if (idaInstance->hasEquation(equationOp)) {
-            LLVM_DEBUG({
-              llvm::dbgs() << "Equation already handled by IDA\n";
-              equationOp.printInline(llvm::dbgs());
-              llvm::dbgs() << "\n";
-            });
-
-            continue;
-          }
-
           LLVM_DEBUG({
               llvm::dbgs() << "Explicitating equation\n";
               equationOp.printInline(llvm::dbgs());
@@ -268,44 +288,26 @@ mlir::LogicalResult IDAPass::solveICModel(
 
           if (explicitEquationOp) {
             LLVM_DEBUG({
-                llvm::dbgs() << "Add explicit equation\n";
+                llvm::dbgs() << "Explicit equation\n";
                 explicitEquationOp.printInline(llvm::dbgs());
                 llvm::dbgs() << "\n";
             });
 
-            explicitEquations.insert(explicitEquationOp);
-            rewriter.eraseOp(equationOp);
+            explicitableEquations.insert(equationOp);
+            explicitEquationsMap[equationOp] = explicitEquationOp;
           } else {
             LLVM_DEBUG(llvm::dbgs() << "Implicit equation found\n");
-            implicitEquations.push_back(equationOp);
+            implicitEquations.insert(equationOp);
             continue;
           }
         }
       }
     }
 
-    size_t equationFunctionsCounter = 0;
-
-    for (ScheduledEquationInstanceOp equationOp : explicitEquations) {
-      RawFunctionOp templateFunction = createEquationTemplateFunction(
-          rewriter, moduleOp, symbolTableCollection,
-          equationOp.getTemplate(),
-          equationOp.getViewElementIndex(),
-          equationOp.getIterationDirections(),
-          "initial_equation_" +
-              std::to_string(equationFunctionsCounter++),
-          localToGlobalVariablesMap);
-
-      equationFunctions[equationOp] = templateFunction;
-    }
-
-    // Add the implicit equations to the set of equations managed by IDA,
-    // together with their written variables.
-
-    for (ScheduledEquationInstanceOp equationOp : implicitEquations) {
-      if (mlir::failed(addICModelEquation(
-              symbolTableCollection, modelOp, *idaInstance, equationOp))) {
-        return mlir::failure();
+    // Determine the equations that can be handled internally.
+    for (ScheduledEquationInstanceOp equationOp : explicitableEquations) {
+      if (!isExternalEquationFn(equationOp)) {
+        internalEquations.insert(equationOp);
       }
     }
 
@@ -321,6 +323,36 @@ mlir::LogicalResult IDAPass::solveICModel(
           return mlir::failure();
         }
       }
+    }
+
+    // Add the implicit equations to the set of equations managed by IDA,
+    // together with their written variables.
+    LLVM_DEBUG(llvm::dbgs() << "Add the implicit equations\n");
+
+    for (ScheduledEquationInstanceOp equationOp : implicitEquations) {
+      if (mlir::failed(addICModelEquation(
+              symbolTableCollection, modelOp, *idaInstance, equationOp))) {
+        return mlir::failure();
+      }
+    }
+
+    // Create the functions for the equations managed internally.
+    size_t equationFunctionsCounter = 0;
+
+    for (ScheduledEquationInstanceOp equationOp : internalEquations) {
+      ScheduledEquationInstanceOp explicitEquationOp =
+          explicitEquationsMap[equationOp];
+
+      RawFunctionOp templateFunction = createEquationTemplateFunction(
+          rewriter, moduleOp, symbolTableCollection,
+          explicitEquationOp.getTemplate(),
+          explicitEquationOp.getViewElementIndex(),
+          explicitEquationOp.getIterationDirections(),
+          "initial_equation_" +
+              std::to_string(equationFunctionsCounter++),
+          localToGlobalVariablesMap);
+
+      equationFunctions[equationOp] = templateFunction;
     }
   } else {
     LLVM_DEBUG(llvm::dbgs() << "Reduced system feature disabled");
