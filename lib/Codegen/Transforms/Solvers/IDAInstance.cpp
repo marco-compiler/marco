@@ -158,7 +158,7 @@ namespace mlir::modelica
   {
     llvm::DenseMap<
         mlir::AffineMap,
-        mlir::ida::AccessFunctionOp> accessFunctionsMap;
+        mlir::sundials::AccessFunctionOp> accessFunctionsMap;
 
     if (startTime.has_value()) {
       rewriter.create<mlir::ida::SetStartTimeOp>(
@@ -221,7 +221,8 @@ namespace mlir::modelica
     };
 
     auto createGetterFn =
-        [&](GlobalVariableOp globalVariableOp) -> mlir::ida::VariableGetterOp {
+        [&](GlobalVariableOp globalVariableOp)
+        -> mlir::sundials::VariableGetterOp {
       std::string getterName = getIDAFunctionName(
           "getter_" + std::to_string(getterFunctionCounter++));
 
@@ -230,7 +231,8 @@ namespace mlir::modelica
     };
 
     auto createSetterFn =
-        [&](GlobalVariableOp globalVariableOp) -> mlir::ida::VariableSetterOp {
+        [&](GlobalVariableOp globalVariableOp)
+        -> mlir::sundials::VariableSetterOp {
       std::string setterName = getIDAFunctionName(
           "setter_" + std::to_string(setterFunctionCounter++));
 
@@ -312,7 +314,7 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  mlir::ida::VariableGetterOp IDAInstance::createGetterFunction(
+  mlir::sundials::VariableGetterOp IDAInstance::createGetterFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
@@ -326,7 +328,7 @@ namespace mlir::modelica
     assert(variableType.isa<ArrayType>());
     auto variableArrayType = variableType.cast<ArrayType>();
 
-    auto getterOp = builder.create<mlir::ida::VariableGetterOp>(
+    auto getterOp = builder.create<mlir::sundials::VariableGetterOp>(
         loc,
         functionName,
         variableArrayType.getRank());
@@ -350,11 +352,11 @@ namespace mlir::modelica
       result = builder.create<CastOp>(loc, requestedResultType, result);
     }
 
-    builder.create<mlir::ida::ReturnOp>(loc, result);
+    builder.create<mlir::sundials::ReturnOp>(loc, result);
     return getterOp;
   }
 
-  mlir::ida::VariableSetterOp IDAInstance::createSetterFunction(
+  mlir::sundials::VariableSetterOp IDAInstance::createSetterFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
@@ -368,7 +370,7 @@ namespace mlir::modelica
     assert(variableType.isa<ArrayType>());
     auto variableArrayType = variableType.cast<ArrayType>();
 
-    auto setterOp = builder.create<mlir::ida::VariableSetterOp>(
+    auto setterOp = builder.create<mlir::sundials::VariableSetterOp>(
         loc,
         functionName,
         variableArrayType.getRank());
@@ -393,7 +395,7 @@ namespace mlir::modelica
     }
 
     builder.create<StoreOp>(loc, value, globalVariable, receivedIndices);
-    builder.create<mlir::ida::ReturnOp>(loc);
+    builder.create<mlir::sundials::ReturnOp>(loc);
     return setterOp;
   }
 
@@ -407,7 +409,7 @@ namespace mlir::modelica
       llvm::ArrayRef<SCCOp> SCCs,
       llvm::DenseMap<
           mlir::AffineMap,
-          mlir::ida::AccessFunctionOp>& accessFunctionsMap)
+          mlir::sundials::AccessFunctionOp>& accessFunctionsMap)
   {
     // Substitute the accesses to non-IDA variables with the equations writing
     // in such variables.
@@ -822,7 +824,7 @@ namespace mlir::modelica
       mlir::Value idaEquation,
       llvm::DenseMap<
           mlir::AffineMap,
-          mlir::ida::AccessFunctionOp>& accessFunctionsMap,
+          mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
       size_t& accessFunctionsCounter)
   {
     auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
@@ -895,7 +897,7 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  mlir::ida::AccessFunctionOp IDAInstance::getOrCreateAccessFunction(
+  mlir::sundials::AccessFunctionOp IDAInstance::getOrCreateAccessFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
@@ -903,7 +905,7 @@ namespace mlir::modelica
       llvm::StringRef functionNamePrefix,
       llvm::DenseMap<
           mlir::AffineMap,
-          mlir::ida::AccessFunctionOp>& accessFunctionsMap,
+          mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
       size_t& accessFunctionsCounter)
   {
     auto it = accessFunctionsMap.find(access);
@@ -927,7 +929,7 @@ namespace mlir::modelica
     return it->getSecond();
   }
 
-  mlir::ida::AccessFunctionOp IDAInstance::createAccessFunction(
+  mlir::sundials::AccessFunctionOp IDAInstance::createAccessFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
@@ -955,7 +957,7 @@ namespace mlir::modelica
         expressions, builder.getContext());
 
     // Create the operation for the access function.
-    auto accessFunctionOp = builder.create<mlir::ida::AccessFunctionOp>(
+    auto accessFunctionOp = builder.create<mlir::sundials::AccessFunctionOp>(
         loc,
         functionName,
         extendedAccess.getNumDims(),
@@ -975,7 +977,7 @@ namespace mlir::modelica
       return nullptr;
     }
 
-    builder.create<mlir::ida::ReturnOp>(loc, results);
+    builder.create<mlir::sundials::ReturnOp>(loc, results);
     return accessFunctionOp;
   }
 

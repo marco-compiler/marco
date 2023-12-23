@@ -751,6 +751,7 @@ namespace marco::frontend
     pm.addPass(createMLIRModelicaToFuncConversionPass());
     pm.addPass(createMLIRModelicaToMemRefConversionPass());
 
+    pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
     pm.addPass(createMLIRIDAToFuncConversionPass());
 
     if (ci.getCodeGenOptions().omp) {

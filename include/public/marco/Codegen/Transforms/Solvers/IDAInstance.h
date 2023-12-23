@@ -83,14 +83,14 @@ namespace mlir::modelica
         llvm::ArrayRef<VariableOp> variableOps,
         const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap);
 
-    mlir::ida::VariableGetterOp createGetterFunction(
+    mlir::sundials::VariableGetterOp createGetterFunction(
         mlir::OpBuilder& builder,
         mlir::Location loc,
         mlir::ModuleOp moduleOp,
         GlobalVariableOp variable,
         llvm::StringRef functionName);
 
-    mlir::ida::VariableSetterOp createSetterFunction(
+    mlir::sundials::VariableSetterOp createSetterFunction(
         mlir::OpBuilder& builder,
         mlir::Location loc,
         mlir::ModuleOp moduleOp,
@@ -107,7 +107,7 @@ namespace mlir::modelica
         llvm::ArrayRef<SCCOp> SCCs,
         llvm::DenseMap<
             mlir::AffineMap,
-            mlir::ida::AccessFunctionOp>& accessFunctionsMap);
+            mlir::sundials::AccessFunctionOp>& accessFunctionsMap);
 
     mlir::LogicalResult addVariableAccessesInfoToIDA(
         mlir::OpBuilder& builder,
@@ -117,10 +117,10 @@ namespace mlir::modelica
         mlir::Value idaEquation,
         llvm::DenseMap<
             mlir::AffineMap,
-            mlir::ida::AccessFunctionOp>& accessFunctionsMap,
+            mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
         size_t& accessFunctionsCounter);
 
-    mlir::ida::AccessFunctionOp getOrCreateAccessFunction(
+    mlir::sundials::AccessFunctionOp getOrCreateAccessFunction(
         mlir::OpBuilder& builder,
         mlir::Location loc,
         mlir::ModuleOp moduleOp,
@@ -128,10 +128,10 @@ namespace mlir::modelica
         llvm::StringRef functionNamePrefix,
         llvm::DenseMap<
             mlir::AffineMap,
-            mlir::ida::AccessFunctionOp>& accessFunctionsMap,
+            mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
         size_t& accessFunctionsCounter);
 
-    mlir::ida::AccessFunctionOp createAccessFunction(
+    mlir::sundials::AccessFunctionOp createAccessFunction(
         mlir::OpBuilder& builder,
         mlir::Location loc,
         mlir::ModuleOp moduleOp,
