@@ -531,6 +531,11 @@ namespace mlir::modelica
     return {};
   }
 
+  mlir::HoistingKind ArrayFromElementsOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void ArrayFromElementsOp::printExpression(llvm::raw_ostream& os)
   {
     os << "{";

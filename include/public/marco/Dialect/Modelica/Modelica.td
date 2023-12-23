@@ -496,6 +496,7 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
 
 def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface, ["getHoistingKind"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
