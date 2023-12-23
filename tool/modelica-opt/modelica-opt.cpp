@@ -31,6 +31,7 @@ int main(int argc, char* argv[])
   // Register some useful MLIR built-in transformations.
   mlir::registerCanonicalizerPass();
   mlir::registerCSEPass();
+  mlir::registerLoopInvariantCodeMotionPass();
   mlir::registerArithToLLVMConversionPass();
   mlir::registerConvertFuncToLLVMPass();
   mlir::registerFinalizeMemRefToLLVMConversionPass();
@@ -40,6 +41,7 @@ int main(int argc, char* argv[])
   mlir::registerConvertVectorToSCFPass();
   mlir::registerConvertVectorToLLVMPass();
   mlir::registerReconcileUnrealizedCastsPass();
+  mlir::bufferization::registerBufferLoopHoistingPass();
 
 	auto result = mlir::MlirOptMain(
       argc, argv, "Modelica optimizer driver\n", registry);
