@@ -13934,6 +13934,11 @@ namespace mlir::modelica
     }
   }
 
+  mlir::HoistingKind CallOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void CallOp::printExpression(llvm::raw_ostream& os)
   {
     os << getCallee() << "(";

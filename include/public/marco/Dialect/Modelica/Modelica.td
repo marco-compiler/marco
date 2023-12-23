@@ -4401,6 +4401,7 @@ def Modelica_CallOp : Modelica_Op<"call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface, ["getHoistingKind"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<InvertibleOpInterface>]>
