@@ -142,9 +142,6 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
       std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
-      std::unique_ptr<mlir::Pass> createMLIRCyclesSolvingPass();
-
-      std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAPass();
 
       /// }
@@ -156,6 +153,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRModelicaToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToMemRefConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRModelicaToSimulationConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToVectorConversionPass();
 
       std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();

@@ -4,13 +4,15 @@
 
 // CHECK-LABEL: @Test
 // CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
-// CHECK-NEXT:      %[[lhsValue:.*]] = modelica.variable_get @x
-// CHECK-NEXT:      %[[rhsValue:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[lhs:.*]] = modelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK-DAG:       %[[lhsValue:.*]] = modelica.variable_get @x
+// CHECK-DAG:       %[[rhsValue:.*]] = modelica.constant #modelica.int<0>
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[lhsValue]]
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {view_element_index = 0 : i64}
+// CHECK:       modelica.main_model {
+// CHECK-NEXT:      modelica.equation_instance %[[t0]]
+// CHECK-NEXT:  }
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>

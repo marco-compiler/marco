@@ -1,8 +1,8 @@
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "marco/Modeling/DependencyGraph.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
-#include "marco/Modeling/Cycles.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco::modeling;
 using ::marco::modeling::IndexSet;

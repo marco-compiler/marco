@@ -23,15 +23,6 @@
 #define GET_OP_FWD_DEFINES
 #include "marco/Dialect/Modelica/Modelica.h.inc"
 
-namespace mlir::modelica
-{
-  // Map between variables and the equations writing to them.
-  // The indices are referred to the written indices of the variable
-  // (and not to the indices of the equation).
-  template<typename Equation>
-  using WritesMap = std::multimap<VariableOp, std::pair<IndexSet, Equation>>;
-}
-
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.h.inc"
 

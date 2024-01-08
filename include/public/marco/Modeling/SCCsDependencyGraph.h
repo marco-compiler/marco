@@ -9,40 +9,50 @@
 
 namespace marco::modeling
 {
-  template<typename SCC>
+  template<typename SCCProperty>
   class SCCsDependencyGraph
   {
     public:
       using Graph =
-          internal::dependency::SingleEntryWeaklyConnectedDigraph<SCC>;
+          internal::dependency::SingleEntryWeaklyConnectedDigraph<SCCProperty>;
 
       using SCCDescriptor = typename Graph::VertexDescriptor;
-      using SCCTraits = typename ::marco::modeling::dependency::SCCTraits<SCC>;
+
+      using SCCTraits =
+          typename ::marco::modeling::dependency::SCCTraits<SCCProperty>;
+
       using ElementRef = typename SCCTraits::ElementRef;
 
+    private:
+      // Keep track of the parent-children relationships.
+      llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
+
+      Graph graph;
+
+    public:
       /// @name Forwarded methods
       /// {
 
-      SCC& operator[](SCCDescriptor descriptor)
+      SCCProperty& operator[](SCCDescriptor descriptor)
       {
         return graph[descriptor];
       }
 
-      const SCC& operator[](SCCDescriptor descriptor) const
+      const SCCProperty& operator[](SCCDescriptor descriptor) const
       {
         return graph[descriptor];
       }
 
       /// }
 
-      void addSCCs(llvm::ArrayRef<SCC> SCCs)
+      void addSCCs(llvm::ArrayRef<SCCProperty> SCCs)
       {
-        // Internalize the SCCs and keep track of the parent-children
-        // relationships.
-        llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
+        // Internalize the SCCs.
+        llvm::SmallVector<SCCDescriptor> sccDescriptors;
 
         for (const auto& scc : SCCs) {
           SCCDescriptor sccDescriptor = graph.addVertex(scc);
+          sccDescriptors.push_back(sccDescriptor);
 
           for (const auto& element :
                SCCTraits::getElements(&graph[sccDescriptor])) {
@@ -51,9 +61,8 @@ namespace marco::modeling
         }
 
         // Connect the SCCs.
-        for (const auto& sccDescriptor : llvm::make_range(
-                 graph.verticesBegin(), graph.verticesEnd())) {
-          const SCC& scc = graph[sccDescriptor];
+        for (SCCDescriptor sccDescriptor : sccDescriptors) {
+          const SCCProperty& scc = graph[sccDescriptor];
 
           // The set of SCCs that have already been connected to the current
           // SCC. This allows to avoid duplicated edges.
@@ -61,13 +70,12 @@ namespace marco::modeling
 
           for (const auto& source : SCCTraits::getElements(&scc)) {
             for (const auto& destination :
-                 SCCTraits::getDependentElements(&scc, source)) {
-              SCCDescriptor destinationSCC =
-                  parentSCC.find(destination)->second;
+                 SCCTraits::getDependencies(&scc, source)) {
+              SCCDescriptor sourceSCC = parentSCC.find(destination)->second;
 
-              if (!connectedSCCs.contains(destinationSCC)) {
-                graph.addEdge(sccDescriptor, destinationSCC);
-                connectedSCCs.insert(destinationSCC);
+              if (!connectedSCCs.contains(sourceSCC)) {
+                graph.addEdge(sourceSCC, sccDescriptor);
+                connectedSCCs.insert(sourceSCC);
               }
             }
           }
@@ -167,9 +175,6 @@ namespace marco::modeling
         return result;
       }
        */
-
-    private:
-      Graph graph;
   };
 }
 

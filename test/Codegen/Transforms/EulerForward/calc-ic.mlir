@@ -3,7 +3,7 @@
 // Empty model.
 
 // CHECK:       simulation.function @calcIC() {
-// CHECK-NEXT:      simulation.return
+// CHECK:           simulation.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

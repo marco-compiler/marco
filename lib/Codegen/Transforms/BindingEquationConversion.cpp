@@ -12,6 +12,20 @@ using namespace ::mlir::modelica;
 
 namespace
 {
+  class BindingEquationConversionPass
+      : public mlir::modelica::impl::BindingEquationConversionPassBase<
+            BindingEquationConversionPass>
+  {
+    public:
+      using BindingEquationConversionPassBase<BindingEquationConversionPass>
+          ::BindingEquationConversionPassBase;
+
+      void runOnOperation() override;
+  };
+}
+
+namespace
+{
   class BindingEquationOpPattern
       : public mlir::OpRewritePattern<BindingEquationOp>
   {
@@ -25,7 +39,7 @@ namespace
       }
 
     protected:
-      mlir::SymbolTable& getSymbolTable() const
+      [[nodiscard]] mlir::SymbolTable& getSymbolTable() const
       {
         assert(symbolTable != nullptr);
         return *symbolTable;
@@ -50,24 +64,33 @@ namespace
         mlir::PatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
+      auto modelOp = op->getParentOfType<ModelOp>();
 
-      auto yieldOp = mlir::cast<YieldOp>(
-          op.getBodyRegion().back().getTerminator());
+      auto variableOp = getSymbolTable().lookup<VariableOp>(op.getVariable());
+      int64_t variableRank = variableOp.getVariableType().getRank();
 
+      // Create the equation template.
+      auto templateOp = rewriter.create<EquationTemplateOp>(loc);
+      mlir::Block* templateBody = templateOp.createBody(variableRank);
+      rewriter.setInsertionPointToStart(templateBody);
+
+      rewriter.mergeBlocks(&op.getBodyRegion().front(), templateBody);
+
+      auto yieldOp = mlir::cast<YieldOp>(templateBody->getTerminator());
       assert(yieldOp.getValues().size() == 1);
       mlir::Value expression = yieldOp.getValues()[0];
 
-      auto variableOp = getSymbolTable().lookup<VariableOp>(op.getVariable());
-
-      // Create the equation template.
-      auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
-
-      rewriter.setInsertionPointToStart(&op.getBodyRegion().front());
+      rewriter.setInsertionPointToStart(templateBody);
 
       mlir::Value lhsValue = rewriter.create<VariableGetOp>(loc, variableOp);
       mlir::Value rhsValue = expression;
 
       rewriter.setInsertionPointAfter(yieldOp);
+
+      if (auto inductions = templateOp.getInductionVariables(); !inductions.empty()) {
+        lhsValue = rewriter.create<LoadOp>(lhsValue.getLoc(), lhsValue, inductions);
+        rhsValue = rewriter.create<LoadOp>(rhsValue.getLoc(), rhsValue, inductions);
+      }
 
       mlir::Value lhsTuple = rewriter.create<EquationSideOp>(loc, lhsValue);
       mlir::Value rhsTuple = rewriter.create<EquationSideOp>(loc, rhsValue);
@@ -75,34 +98,26 @@ namespace
 
       rewriter.eraseOp(yieldOp);
 
-      rewriter.inlineRegionBefore(
-          op.getBodyRegion(),
-          equationTemplateOp.getBodyRegion(),
-          equationTemplateOp.getBodyRegion().end());
-
       rewriter.eraseOp(op);
 
-      // Create the equation instance.
-      rewriter.setInsertionPointAfter(equationTemplateOp);
+      // Create the container for the equations.
+      rewriter.setInsertionPointAfter(templateOp);
 
-      if (auto implicitIndices =
-              equationTemplateOp.computeImplicitIterationSpace(0)) {
+      auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
+      rewriter.createBlock(&mainModelOp.getBodyRegion());
+      rewriter.setInsertionPointToStart(mainModelOp.getBody());
+
+      if (auto indices = variableOp.getIndices(); !indices.empty()) {
         for (const MultidimensionalRange& range : llvm::make_range(
-                 implicitIndices->rangesBegin(),
-                 implicitIndices->rangesEnd())) {
-          auto equationInstanceOp = rewriter.create<EquationInstanceOp>(
-              loc, equationTemplateOp, false);
+                 indices.rangesBegin(), indices.rangesEnd())) {
+          auto instanceOp =
+              rewriter.create<EquationInstanceOp>(loc, templateOp);
 
-          equationInstanceOp.setViewElementIndex(0);
-
-          equationInstanceOp.setImplicitIndicesAttr(
-              MultidimensionalRangeAttr::get(getContext(), range));
+          instanceOp.setIndicesAttr(
+              MultidimensionalRangeAttr::get(rewriter.getContext(), range));
         }
       } else {
-        auto equationInstanceOp = rewriter.create<EquationInstanceOp>(
-            loc, equationTemplateOp, false);
-
-        equationInstanceOp.setViewElementIndex(0);
+        rewriter.create<EquationInstanceOp>(loc, templateOp);
       }
     }
   };
@@ -134,40 +149,28 @@ namespace
   };
 }
 
-namespace
+void BindingEquationConversionPass::runOnOperation()
 {
-  class BindingEquationConversionPass
-      : public mlir::modelica::impl::BindingEquationConversionPassBase<
-            BindingEquationConversionPass>
-  {
-    public:
-      using BindingEquationConversionPassBase
-        ::BindingEquationConversionPassBase;
+  ModelOp modelOp = getOperation();
+  mlir::SymbolTable symbolTable(modelOp);
 
-      void runOnOperation() override
-      {
-        ModelOp modelOp = getOperation();
-        mlir::SymbolTable symbolTable(modelOp);
+  mlir::ConversionTarget target(getContext());
+  target.addIllegalOp<BindingEquationOp>();
 
-        mlir::ConversionTarget target(getContext());
-        target.addIllegalOp<BindingEquationOp>();
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
 
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
+  mlir::RewritePatternSet patterns(&getContext());
 
-        mlir::RewritePatternSet patterns(&getContext());
+  patterns.insert<
+      BindingEquationOpToEquationOpPattern,
+      BindingEquationOpToStartOpPattern>(&getContext(), symbolTable);
 
-        patterns.insert<
-            BindingEquationOpToEquationOpPattern,
-            BindingEquationOpToStartOpPattern>(&getContext(), symbolTable);
-
-        if (mlir::failed(applyPartialConversion(
-                modelOp, target, std::move(patterns)))) {
-          return signalPassFailure();
-        }
-      }
-  };
+  if (mlir::failed(applyPartialConversion(
+          modelOp, target, std::move(patterns)))) {
+    return signalPassFailure();
+  }
 }
 
 namespace mlir::modelica

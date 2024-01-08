@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,1.000000
 
 model InlineIf
-	Real x(each start = 0, fixed = false);
+	Real x(start = 0, fixed = false);
 equation
    x = if time > 0.5 then 1 else 0;
 end InlineIf;

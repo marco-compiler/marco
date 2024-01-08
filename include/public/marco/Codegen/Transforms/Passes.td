@@ -96,8 +96,28 @@ def EquationAccessSplitPass
         "mlir::modelica::ModelicaDialect",
     ];
 
+    let constructor = "mlir::modelica::createEquationAccessSplitPass()";
+}
+
+def EquationSidesSplitPass
+    : Pass<"split-equation-sides", "ModelOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor = "mlir::modelica::createEquationSidesSplitPass()";
+}
+
+def EquationInductionsExplicitationPass
+    : Pass<"explicitate-equation-inductions", "ModelOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
     let constructor =
-        "mlir::modelica::createEquationAccessSplitPass()";
+        "mlir::modelica::createEquationInductionsExplicitationPass()";
 }
 
 def EquationTemplatesCreationPass
@@ -114,25 +134,7 @@ def EquationTemplatesCreationPass
         "mlir::modelica::ModelicaDialect",
     ];
 
-    let constructor =
-        "mlir::modelica::createEquationTemplatesCreationPass()";
-}
-
-def EquationViewsComputationPass
-    : Pass<"compute-equation-views", "ModelOp">
-{
-    let summary = "Compute the equation views.";
-
-    let description = [{
-        Compute the equation views.
-    }];
-
-    let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
-    ];
-
-    let constructor =
-        "mlir::modelica::createEquationViewsComputationPass()";
+    let constructor = "mlir::modelica::createEquationTemplatesCreationPass()";
 }
 
 def ExplicitCastInsertionPass
@@ -284,10 +286,6 @@ def MatchingPass : Pass<"match", "ModelOp">
     ];
 
     let options = [
-        Option<"processICModel", "process-ic-model", "bool", "true",
-               "Process the 'initial conditions' model">,
-        Option<"processMainModel", "process-main-model", "bool", "true",
-               "Process the 'main' model">,
         Option<"enableSimplificationAlgorithm",
                 "enable-simplification-algorithm", "bool", "true",
                "Enable the usage of the simplification algorithm">
@@ -335,7 +333,18 @@ def ReadOnlyVariablesPropagationPass
     let constructor = "mlir::modelica::createReadOnlyVariablesPropagationPass()";
 }
 
-def CyclesSolvingPass : Pass<"solve-cycles", "ModelOp">
+def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
+{
+    let summary = "Compute the SCCs of a model";
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::modelica::createSCCDetectionPass()";
+}
+
+def SCCSolvingPass : Pass<"solve-scc", "ModelOp">
 {
     let summary = "Solve the cycles of matched model by substitution";
 
@@ -349,17 +358,15 @@ def CyclesSolvingPass : Pass<"solve-cycles", "ModelOp">
 
     let options = [
         Option<"maxIterations", "max-iterations", "int64_t", "1000",
-               "Set the maximum number of iterations">,
-        Option<"allowUnsolvedCycles", "allow-unsolved-cycles", "bool", "false",
-               "Set whether the pass should fail in case of remaining unsolved cycles">
+               "Set the maximum number of iterations">
     ];
 
-    let constructor = "mlir::modelica::createCyclesSolvingPass()";
+    let constructor = "mlir::modelica::createSCCSolvingPass()";
 }
 
-def SchedulingPass : Pass<"schedule", "ModelOp">
+def SchedulingPass : Pass<"schedule", "ScheduleOp">
 {
-    let summary = "Perform the scheduling process on a matched model";
+    let summary = "Perform the scheduling process";
 
     let description = [{
         // TODO
@@ -369,46 +376,41 @@ def SchedulingPass : Pass<"schedule", "ModelOp">
         "mlir::modelica::ModelicaDialect"
     ];
 
-    let options = [
-        Option<"processICModel", "process-ic-model", "bool", "true",
-               "Process the 'initial conditions' model">,
-        Option<"processMainModel", "process-main-model", "bool", "true",
-               "Process the 'main' model">
-    ];
-
     let constructor = "mlir::modelica::createSchedulingPass()";
 }
 
-def ModelConversionTestPass : Pass<"test-model-conversion", "mlir::ModuleOp">
+def EquationExplicitationPass
+    : Pass<"equation-explicitation", "mlir::ModuleOp">
 {
-    let summary = "TODO";
+    let summary = "Convert the explicitable equations into functions";
+
+    let description = [{
+        Convert the explicitable equations into functions.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithDialect",
+        "mlir::scf::SCFDialect"
+    ];
+
+    let constructor = "mlir::modelica::createEquationExplicitationPass()";
+}
+
+def EquationFunctionLoopHoistingPass
+    : Pass<"equation-function-loop-hoist", "EquationFunctionOp">
+{
+    let summary = "Hoist operation out of loops inside equation functions";
 
     let description = [{
         // TODO
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
-        "mlir::simulation::SimulationDialect"
+        "mlir::modelica::ModelicaDialect"
     ];
 
-    let options = [
-        Option<"bitWidth", "bitWidth", "unsigned int", "64",
-               "Specify the bit-width for the simulation data">,
-        Option<"dataLayout", "dataLayout", "std::string", "",
-               "Specify the data layout">,
-        Option<"model", "model", "std::string", "",
-               "Set the model from which generate the simulation">,
-        Option<"processICModel", "process-ic-model", "bool", "true",
-               "Enable the processing of the 'initial conditions' model">,
-        Option<"processMainModel", "process-main-model", "bool", "true",
-               "Enable the processing of the 'main' model">,
-        Option<"variablesFilter", "simulation-variables-filter",
-               "std::string", "",
-               "Set a print filter for the variables of the simulation">,
-    ];
-
-    let constructor = "mlir::modelica::createModelConversionTestPass()";
+    let constructor = "mlir::modelica::createEquationFunctionLoopHoistingPass()";
 }
 
 def EquationExplicitationTestPass
@@ -428,6 +430,16 @@ def EquationExplicitationTestPass
     let constructor = "mlir::modelica::createEquationExplicitationTestPass()";
 }
 
+def SimulationVariablesInsertionPass
+    : Pass<"insert-simulation-variables", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor = "mlir::modelica::createSimulationVariablesInsertionPass()";
+}
+
 def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
 {
     let summary = "TODO";
@@ -444,16 +456,6 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
         "mlir::func::FuncDialect",
         "mlir::LLVM::LLVMDialect",
         "mlir::scf::SCFDialect"
-    ];
-
-    let options = [
-        Option<"processICModel", "process-ic-model", "bool", "true",
-               "Enable the processing of the 'initial conditions' model">,
-        Option<"processMainModel", "process-main-model", "bool", "true",
-               "Enable the processing of the 'main' model">,
-        Option<"variablesFilter", "simulation-variables-filter",
-               "std::string", "",
-               "Set a print filter for the variables of the simulation">
     ];
 
     let constructor = "mlir::modelica::createEulerForwardPass()";
@@ -479,12 +481,6 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
     ];
 
     let options = [
-        Option<"processICModel", "process-ic-model", "bool", "true",
-               "Enable the processing of the 'initial conditions' model">,
-        Option<"processMainModel", "process-main-model", "bool", "true",
-               "Enable the processing of the 'main' model">,
-        Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
-               "Set a print filter for the variables of the simulation">,
         Option<"reducedSystem", "reduced-system", "bool", "true",
                "Compute a reduced system for IDA">,
         Option<"reducedDerivatives", "reduced-derivatives", "bool", "true",
@@ -541,6 +537,15 @@ def DivOpDistributionPass : Pass<"distribute-div", "mlir::ModuleOp">
     ];
 
     let constructor = "mlir::modelica::createDivOpDistributionPass()";
+}
+
+def ModelDebugCanonicalizationPass : Pass<"canonicalize-model-for-debug", "ModelOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::modelica::createModelDebugCanonicalizationPass()";
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_PASSES_TD

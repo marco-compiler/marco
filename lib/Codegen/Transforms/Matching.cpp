@@ -2,7 +2,9 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
+#include "marco/Codegen/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/Matching.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "matching"
@@ -14,26 +16,7 @@ namespace mlir::modelica
 }
 
 using namespace ::mlir::modelica;
-
-/// Convert the dimensions of a variable into an IndexSet.
-/// Scalar variables are masked as 1-D arrays with just one element.
-static IndexSet getVariableIndices(
-    ModelOp root,
-    mlir::SymbolRefAttr variable,
-    mlir::SymbolTableCollection& symbolTable)
-{
-  auto variableOp = symbolTable.lookupSymbolIn<VariableOp>(
-      root.getOperation(), variable.getRootReference());
-
-  IndexSet indices = variableOp.getIndices();
-
-  if (indices.empty()) {
-    // Scalar variable.
-    indices += MultidimensionalRange(Range(0, 1));
-  }
-
-  return indices;
-}
+using namespace ::mlir::modelica::bridge;
 
 namespace
 {
@@ -64,7 +47,10 @@ namespace
           ModelOp modelOp,
           llvm::ArrayRef<EquationInstanceOp> equations,
           mlir::SymbolTableCollection& symbolTable,
-          llvm::function_ref<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn);
+          llvm::function_ref<
+                  std::optional<IndexSet>(VariableOp)> matchableIndicesFn);
+
+      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
   };
 }
 
@@ -77,18 +63,14 @@ void MatchingPass::runOnOperation()
     return signalPassFailure();
   }
 
+  if (mlir::failed(cleanModelOp(modelOp))) {
+    return signalPassFailure();
+  }
+
   LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
-
-  for (MatchedEquationInstanceOp equation :
-       modelOp.getOps<MatchedEquationInstanceOp>()) {
-    if (auto analysis = getCachedVariableAccessAnalysis(
-            equation.getTemplate())) {
-      analysis->get().preserve();
-    }
-  }
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
@@ -104,8 +86,9 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
 
   // Collect the equations.
   llvm::SmallVector<EquationInstanceOp> initialEquations;
-  llvm::SmallVector<EquationInstanceOp> equations;
-  modelOp.collectEquations(initialEquations, equations);
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
+  modelOp.collectInitialEquations(initialEquations);
+  modelOp.collectMainEquations(mainEquations);
 
   // The symbol table collection to be used for caching.
   mlir::SymbolTableCollection symbolTableCollection;
@@ -114,10 +97,11 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
   auto& derivativesMap = getDerivativesMap();
 
   // Perform the matching on the 'initial conditions' model.
-  if (processICModel && !initialEquations.empty()) {
-    auto matchableIndicesFn = [&](mlir::SymbolRefAttr variable) -> IndexSet {
-      return getVariableIndices(modelOp, variable, symbolTableCollection);
-    };
+  if (!initialEquations.empty()) {
+    auto matchableIndicesFn =
+        [&](VariableOp variable) -> std::optional<IndexSet> {
+          return variable.getIndices();
+        };
 
     if (mlir::failed(match(rewriter, modelOp, initialEquations,
                            symbolTableCollection, matchableIndicesFn))) {
@@ -127,34 +111,39 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
   }
 
   // Perform the matching on the 'main' model.
-  if (processMainModel && !equations.empty()) {
-    auto matchableIndicesFn = [&](mlir::SymbolRefAttr variable) -> IndexSet {
-      assert(variable.getNestedReferences().empty());
+  if (!mainEquations.empty()) {
+    auto matchableIndicesFn =
+        [&](VariableOp variable) -> std::optional<IndexSet> {
+          if (variable.isReadOnly()) {
+            // Read-only variables are handled by initial equations.
+            return std::nullopt;
+          }
 
-      auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-          modelOp, variable.getRootReference());
+          IndexSet variableIndices = variable.getIndices();
 
-      if (variableOp.isReadOnly()) {
-        // Read-only variables are handled by initial equations.
-        return {};
-      }
+          mlir::SymbolRefAttr variableName =
+              mlir::SymbolRefAttr::get(variable.getSymNameAttr());
 
-      IndexSet variableIndices =
-          getVariableIndices(modelOp, variable, symbolTableCollection);
+          if (auto derivedIndices =
+                  derivativesMap.getDerivedIndices(variableName)) {
+            if (variable.getVariableType().isScalar()) {
+              return std::nullopt;
+            }
 
-      if (auto derivedIndices = derivativesMap.getDerivedIndices(variable)) {
-        if (variableOp.getVariableType().isScalar()) {
-          return {};
-        }
+            IndexSet result = variableIndices - derivedIndices->get();
 
-        return variableIndices - derivedIndices->get();
-      }
+            if (result.empty()) {
+              return std::nullopt;
+            }
 
-      return variableIndices;
-    };
+            return result;
+          }
 
-    if (mlir::failed(match(rewriter, modelOp, equations, symbolTableCollection,
-                           matchableIndicesFn))) {
+          return variableIndices;
+        };
+
+    if (mlir::failed(match(rewriter, modelOp, mainEquations,
+                           symbolTableCollection, matchableIndicesFn))) {
       modelOp.emitError() << "Matching failed for the 'main' model";
       return mlir::failure();
     }
@@ -194,188 +183,15 @@ MatchingPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-namespace
-{
-  struct VariableBridge
-  {
-    VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
-        : name(name),
-          indices(std::move(indices))
-    {
-    }
-
-    // Forbid copies to avoid dangling pointers by design.
-    VariableBridge(const VariableBridge& other) = delete;
-    VariableBridge(VariableBridge&& other) = delete;
-    VariableBridge& operator=(const VariableBridge& other) = delete;
-    VariableBridge& operator==(const VariableBridge& other) = delete;
-
-    mlir::SymbolRefAttr name;
-    IndexSet indices;
-  };
-
-  struct EquationBridge
-  {
-    EquationBridge(
-        EquationInstanceOp op,
-        mlir::SymbolTableCollection& symbolTable,
-        VariableAccessAnalysis& accessAnalysis,
-        llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>& variablesMap)
-        : op(op),
-          symbolTable(&symbolTable),
-          accessAnalysis(&accessAnalysis),
-          variablesMap(&variablesMap)
-    {
-    }
-
-    // Forbid copies to avoid dangling pointers by design.
-    EquationBridge(const EquationBridge& other) = delete;
-    EquationBridge(EquationBridge&& other) = delete;
-    EquationBridge& operator=(const EquationBridge& other) = delete;
-    EquationBridge& operator==(const EquationBridge& other) = delete;
-
-    EquationInstanceOp op;
-    mlir::SymbolTableCollection* symbolTable;
-    VariableAccessAnalysis* accessAnalysis;
-    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>* variablesMap;
-  };
-}
-
-namespace marco::modeling::matching
-{
-  template<>
-  struct VariableTraits<::VariableBridge*>
-  {
-    using Variable = ::VariableBridge*;
-    using Id = ::VariableBridge*;
-
-    static Id getId(const Variable* variable)
-    {
-      return *variable;
-    }
-
-    static size_t getRank(const Variable* variable)
-    {
-      size_t rank = (*variable)->indices.rank();
-
-      if (rank == 0) {
-        return 1;
-      }
-
-      return rank;
-    }
-
-    static IndexSet getIndices(const Variable* variable)
-    {
-      const IndexSet& result = (*variable)->indices;
-
-      if (result.empty()) {
-        return {Point(0)};
-      }
-
-      return result;
-    }
-  };
-
-  template<>
-  struct EquationTraits<::EquationBridge*>
-  {
-    using Equation = ::EquationBridge*;
-    using Id = mlir::Operation*;
-
-    static Id getId(const Equation* equation)
-    {
-      return (*equation)->op.getOperation();
-    }
-
-    static size_t getNumOfIterationVars(const Equation* equation)
-    {
-      auto numOfExplicitInductions = static_cast<uint64_t>(
-          (*equation)->op.getInductionVariables().size());
-
-      uint64_t numOfImplicitInductions =
-          (*equation)->op.getNumOfImplicitInductionVariables();
-
-      uint64_t result = numOfExplicitInductions + numOfImplicitInductions;
-
-      if (result == 0) {
-        // Scalar equation.
-        return 1;
-      }
-
-      return static_cast<size_t>(result);
-    }
-
-    static IndexSet getIterationRanges(const Equation* equation)
-    {
-      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
-
-      if (iterationSpace.empty()) {
-        // Scalar equation.
-        iterationSpace += MultidimensionalRange(Range(0, 1));
-      }
-
-      return iterationSpace;
-    }
-
-    using VariableType = ::VariableBridge*;
-    using AccessProperty = EquationPath;
-
-    static std::vector<Access<VariableType, AccessProperty>>
-    getAccesses(const Equation* equation)
-    {
-      std::vector<Access<VariableType, AccessProperty>> accesses;
-
-      auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-          (*equation)->op, *(*equation)->symbolTable);
-
-      if (cachedAccesses) {
-        for (auto& access : *cachedAccesses) {
-          auto accessFunction = getAccessFunction(
-              (*equation)->op.getContext(), access);
-
-          auto variableIt =
-              (*(*equation)->variablesMap).find(access.getVariable());
-
-          if (variableIt != (*(*equation)->variablesMap).end()) {
-            accesses.emplace_back(
-                variableIt->getSecond(),
-                std::move(accessFunction),
-                access.getPath());
-          }
-        }
-      }
-
-      return accesses;
-    }
-
-    static std::unique_ptr<AccessFunction> getAccessFunction(
-        mlir::MLIRContext* context,
-        const VariableAccess& access)
-    {
-      const AccessFunction& accessFunction = access.getAccessFunction();
-
-      if (accessFunction.getNumOfResults() == 0) {
-        // Access to scalar variable.
-        return AccessFunction::build(mlir::AffineMap::get(
-            accessFunction.getNumOfDims(), 0,
-            mlir::getAffineConstantExpr(0, context)));
-      }
-
-      return accessFunction.clone();
-    }
-  };
-}
-
 mlir::LogicalResult MatchingPass::match(
     mlir::IRRewriter& rewriter,
     ModelOp modelOp,
     llvm::ArrayRef<EquationInstanceOp> equations,
     mlir::SymbolTableCollection& symbolTableCollection,
-    llvm::function_ref<IndexSet(mlir::SymbolRefAttr)> matchableIndicesFn)
+    llvm::function_ref<std::optional<IndexSet>(VariableOp)> matchableIndicesFn)
 {
   using MatchingGraph =
-      ::marco::modeling::MatchingGraph<::VariableBridge*, ::EquationBridge*>;
+      ::marco::modeling::MatchingGraph<VariableBridge*, EquationBridge*>;
 
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
@@ -386,12 +202,14 @@ mlir::LogicalResult MatchingPass::match(
   MatchingGraph matchingGraph(&getContext());
 
   for (VariableOp variableOp : modelOp.getVariables()) {
-    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
-    IndexSet indices = matchableIndicesFn(symbolRefAttr);
+    std::optional<IndexSet> indices = matchableIndicesFn(variableOp);
 
-    if (!indices.empty()) {
-      auto& bridge = variableBridges.emplace_back(
-          std::make_unique<VariableBridge>(symbolRefAttr, std::move(indices)));
+    if (indices) {
+      auto symbolRefAttr = mlir::SymbolRefAttr::get(
+          variableOp.getSymNameAttr());
+
+      auto& bridge = variableBridges.emplace_back(VariableBridge::build(
+          symbolRefAttr, std::move(*indices)));
 
       variablesMap[symbolRefAttr] = bridge.get();
       matchingGraph.addVariable(bridge.get());
@@ -407,9 +225,8 @@ mlir::LogicalResult MatchingPass::match(
       return mlir::failure();
     }
 
-    auto& bridge = equationBridges.emplace_back(
-        std::make_unique<EquationBridge>(
-            equation, symbolTableCollection, *accessAnalysis, variablesMap));
+    auto& bridge = equationBridges.emplace_back(EquationBridge::build(
+        equation, symbolTableCollection, *accessAnalysis, variablesMap));
 
     matchingGraph.addEquation(bridge.get());
   }
@@ -474,13 +291,8 @@ mlir::LogicalResult MatchingPass::match(
     const EquationPath& matchedPath = solution.getAccess();
     EquationBridge* equation = solution.getEquation();
 
-    size_t numOfExplicitInductions =
-        equation->op.getInductionVariables().size();
-
-    size_t numOfImplicitInductions =
-        equation->op.getNumOfImplicitInductionVariables();
-
-    bool isScalarEquation = numOfExplicitInductions == 0;
+    size_t numOfInductions = equation->op.getInductionVariables().size();
+    bool isScalarEquation = numOfInductions == 0;
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(equation->op);
@@ -489,24 +301,15 @@ mlir::LogicalResult MatchingPass::match(
          llvm::make_range(matchedEquationIndices.rangesBegin(),
                           matchedEquationIndices.rangesEnd())) {
       auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
-          equation->op.getLoc(),
-          equation->op.getTemplate(), equation->op.getInitial(),
+          equation->op.getLoc(), equation->op.getTemplate(),
           EquationPathAttr::get(&getContext(), matchedPath));
 
       if (!isScalarEquation) {
         MultidimensionalRange explicitRange =
-            matchedEquationRange.takeFirstDimensions(numOfExplicitInductions);
+            matchedEquationRange.takeFirstDimensions(numOfInductions);
 
         matchedEquationOp.setIndicesAttr(
             MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-      }
-
-      if (numOfImplicitInductions > 0) {
-        MultidimensionalRange implicitRange =
-            matchedEquationRange.takeLastDimensions(numOfImplicitInductions);
-
-        matchedEquationOp.setImplicitIndicesAttr(
-            MultidimensionalRangeAttr::get(&getContext(), implicitRange));
       }
     }
 
@@ -520,6 +323,13 @@ mlir::LogicalResult MatchingPass::match(
   }
 
   return mlir::success();
+}
+
+mlir::LogicalResult MatchingPass::cleanModelOp(ModelOp modelOp)
+{
+  mlir::RewritePatternSet patterns(&getContext());
+  ModelOp::getCleaningPatterns(patterns, &getContext());
+  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
 namespace mlir::modelica

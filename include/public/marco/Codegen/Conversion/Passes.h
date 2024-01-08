@@ -8,6 +8,7 @@
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
+#include "marco/Codegen/Conversion/ModelicaToSimulation/ModelicaToSimulation.h"
 #include "marco/Codegen/Conversion/ModelicaToVector/ModelicaToVector.h"
 #include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
 #include "marco/Codegen/Conversion/SUNDIALSToFunc/SUNDIALSToFunc.h"

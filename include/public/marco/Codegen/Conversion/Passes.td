@@ -261,6 +261,27 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
 }
 
 //===---------------------------------------------------------------------===//
+// Modelica to Simulation
+//===---------------------------------------------------------------------===//
+
+def ModelicaToSimulationConversionPass : Pass<"convert-modelica-to-simulation", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to Simulation dialect";
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::simulation::SimulationDialect"
+    ];
+
+    let options = [
+        Option<"variablesFilter", "variables-filter",
+               "std::string", "",
+               "Set a print filter for the variables of the simulation">,
+    ];
+
+    let constructor = "mlir::createModelicaToSimulationConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // Simulation to Func
 //===---------------------------------------------------------------------===//
 

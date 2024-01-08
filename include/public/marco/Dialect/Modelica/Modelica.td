@@ -615,7 +615,7 @@ def Modelica_FreeOp : Modelica_Op<"free",
 
 def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
     [ViewLikeOpInterface,
-    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression", "getEquationAccesses"]>]>
 {
     let summary = "Cast operation for array types.";
 
@@ -663,7 +663,7 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
 
 def Modelica_DimOp : Modelica_Op<"dim",
     [NoMemoryEffect,
-    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression", "getNumOfExpressionElements", "getExpressionElement"]>]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -1004,7 +1004,6 @@ def Modelica_VariableOp : Modelica_Op<"variable",
         size_t getNumOfFixedDimensions();
 
         /// Get the indices of the variable, if the variable is an array.
-        /// Returns None in case of scalar variables.
         IndexSet getIndices();
     }];
 }
@@ -1175,6 +1174,85 @@ def Modelica_GlobalVariableGetOp : Modelica_Op<"global_variable_get",
 
     let builders = [
         OpBuilder<(ins "GlobalVariableOp":$globalVariableOp)>
+    ];
+}
+
+def Modelica_SimulationVariableOp : Modelica_Op<"simulation_variable",
+    [Symbol,
+    ParentOneOf<["mlir::ModuleOp"]>]>
+{
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttr:$type
+    );
+
+    let results = (outs);
+
+    let assemblyFormat = "$sym_name attr-dict `:` $type";
+
+    let extraClassDeclaration = [{
+        VariableType getVariableType() {
+            return getType().cast<VariableType>();
+        }
+
+        bool isInput() {
+            return getVariableType().isInput();
+        }
+
+        bool isOutput() {
+            return getVariableType().isOutput();
+        }
+
+        bool isReadOnly() {
+            return getVariableType().isReadOnly();
+        }
+
+        bool isDiscrete() {
+            return getVariableType().isDiscrete();
+        }
+
+        bool isParameter() {
+            return getVariableType().isParameter();
+        }
+
+        bool isConstant() {
+            return getVariableType().isConstant();
+        }
+
+        /// Get the indices of the variable, if the variable is an array.
+        IndexSet getIndices();
+    }];
+}
+
+def Modelica_SimulationVariableGetOp : Modelica_Op<"simulation_variable_get",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression", "getEquationAccesses"]>,
+    NoMemoryEffect]>
+{
+    let arguments = (ins SymbolNameAttr:$variable);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $variable attr-dict `:` type($result)
+    }];
+
+    let builders = [
+        OpBuilder<(ins "SimulationVariableOp":$variableOp)>
+    ];
+}
+
+def Modelica_SimulationVariableSetOp : Modelica_Op<"simulation_variable_set",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+{
+    let arguments = (ins SymbolNameAttr:$variable, AnyType:$value);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $variable `,` $value attr-dict `:` type($value)
+    }];
+
+    let builders = [
+        OpBuilder<(ins "SimulationVariableOp":$variableOp, "mlir::Value":$value)>
     ];
 }
 
@@ -3081,10 +3159,15 @@ def Modelica_ModelOp : Modelica_Op<"model",
     );
 
     let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
+    let hasCanonicalizer = 1;
 
     let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
 
     let extraClassDeclaration = [{
+        static void getCleaningPatterns(
+            mlir::RewritePatternSet& patterns,
+            mlir::MLIRContext* context);
+
         auto getVariables()
         {
             return getOps<VariableOp>();
@@ -3093,16 +3176,29 @@ def Modelica_ModelOp : Modelica_Op<"model",
         /// Collect all the variables.
         void collectVariables(llvm::SmallVectorImpl<VariableOp>& variables);
 
-        /// Collect all the initial and non-initial equations of a model.
-        void collectEquations(
-            llvm::SmallVectorImpl<EquationInstanceOp>& initialEquations,
-            llvm::SmallVectorImpl<EquationInstanceOp>& equations);
+        /// Collect all the initial equations of a model.
+        template<typename Equation>
+        void collectInitialEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            for (InitialModelOp initialModelOp : getOps<InitialModelOp>()) {
+                initialModelOp.collectEquations(equations);
+            }
+        }
 
-        /// Collect all the initial and non-initial matched equations of a
-        /// model.
-        void collectEquations(
-            llvm::SmallVectorImpl<MatchedEquationInstanceOp>& initialEquations,
-            llvm::SmallVectorImpl<MatchedEquationInstanceOp>& equations);
+        /// Collect all the non-initial equations of a model.
+        template<typename Equation>
+        void collectMainEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            for (MainModelOp mainModelOp : getOps<MainModelOp>()) {
+                mainModelOp.collectEquations(equations);
+            }
+        }
+
+        /// Collect all the initial SCCs of a model.
+        void collectInitialSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+
+        /// Collect all the non-initial SCCs of a model.
+        void collectMainSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
 
         /// Collect all the initial and non-initial SCC groups of a model.
         void collectSCCGroups(
@@ -3113,21 +3209,6 @@ def Modelica_ModelOp : Modelica_Op<"model",
         void collectAlgorithms(
             llvm::SmallVectorImpl<AlgorithmOp>& initialAlgorithms,
             llvm::SmallVectorImpl<AlgorithmOp>& algorithms);
-
-        mlir::LogicalResult getWritesMap(
-            WritesMap<MatchedEquationInstanceOp>& writesMap,
-            llvm::ArrayRef<MatchedEquationInstanceOp> equations,
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-        mlir::LogicalResult getWritesMap(
-            WritesMap<ScheduledEquationInstanceOp>& writesMap,
-            llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-        mlir::LogicalResult getWritesMap(
-            WritesMap<ScheduledEquationInstanceOp>& writesMap,
-            llvm::ArrayRef<SCCOp> SCCs,
-            mlir::SymbolTableCollection& symbolTableCollection);
     }];
 }
 
@@ -3390,7 +3471,7 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
 
 def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
     [IsolatedFromAbove,
-    ParentOneOf<["ModelOp"]>,
+    ParentOneOf<["ModelOp", "ScheduleOp"]>,
     SingleBlock,
     NoMemoryEffect]>
 {
@@ -3408,6 +3489,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
     );
 
     let hasCustomAssemblyFormat = 1;
+    let hasCanonicalizer = 1;
 
     let builders = [
         OpBuilder<(ins), [{
@@ -3421,28 +3503,15 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             // Create the body block of the operation.
             mlir::Block* createBody(unsigned int numOfInductions);
 
-            void printInline(llvm::raw_ostream& os, uint64_t viewElementIndex);
+            void printInline(llvm::raw_ostream& os);
 
             /// Get the induction variables.
             mlir::ValueRange getInductionVariables();
 
-            /// Get the implicit number of induction variables that is given by
-            /// types of the variables involved in the equality.
-            uint64_t getNumOfImplicitInductionVariables(
-                uint64_t viewElementIndex);
-
-            /// Get the indices implicitly required to iterate over the results
-            /// of each equation side.
-            /// No iteration space is returned if the equality involves scalar
-            /// variables.
-            std::optional<IndexSet> computeImplicitIterationSpace(
-                uint64_t viewElementIndex);
-
             /// Get the accesses to variables performed by the equation.
             mlir::LogicalResult getAccesses(
                 llvm::SmallVectorImpl<VariableAccess>& result,
-                mlir::SymbolTableCollection& symbolTable,
-                uint64_t elementIndex);
+                mlir::SymbolTableCollection& symbolTable);
 
             /// Get the write accesses.
             mlir::LogicalResult getWriteAccesses(
@@ -3468,8 +3537,7 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
 
             IndexSet applyAccessFunction(
                 const AccessFunction& accessFunction,
-                std::optional<MultidimensionalRange> explicitEquationIndices,
-                std::optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> equationIndices,
                 const EquationPath& path);
 
             mlir::LogicalResult cloneWithReplacedAccess(
@@ -3489,15 +3557,13 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
             mlir::LogicalResult explicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> explicitEquationIndices,
-                std::optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> equationIndices,
                 const EquationPath& path);
 
             EquationTemplateOp cloneAndExplicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> explicitEquationIndices,
-                std::optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> equationIndices,
                 const EquationPath& path);
 
         private:
@@ -3558,15 +3624,13 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
 
             mlir::LogicalResult explicitateLeaf(
                 mlir::RewriterBase& rewriter,
-                uint64_t viewElementIndex,
                 size_t argumentIndex,
                 EquationPath::EquationSide side);
 
             mlir::LogicalResult groupLeftHandSide(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> explicitEquationIndices,
-                std::optional<MultidimensionalRange> implicitEquationIndices,
+                std::optional<MultidimensionalRange> equationRanges,
                 const VariableAccess& requestedAccess);
 
             bool checkAccessEquivalence(
@@ -3595,15 +3659,142 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
     }];
 }
 
+def Modelica_EquationFunctionOp : Modelica_Op<"equation_function",
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    FunctionOpInterface,
+    CallableOpInterface]>
+{
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<StrAttr>:$sym_visibility,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
+
+    let regions = (region AnyRegion:$body);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins
+            "llvm::StringRef":$name,
+            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
+    ];
+
+    let extraClassDeclaration = [{
+        /// @name CallableOpInterface methods
+        /// {
+
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
+
+        /// Returns the argument types of this function.
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
+            return getFunctionType().getInputs();
+        }
+
+        /// Returns the result types of this function.
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name SymbolOpInterface methods
+        /// {
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        /// }
+    }];
+}
+
+def Modelica_InitialModelOp : Modelica_Op<"initial_model",
+    [ParentOneOf<["ModelOp"]>,
+    SingleBlock,
+    NoTerminator]>
+{
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        template<typename Equation>
+        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            walk([&](Equation equation) {
+                equations.push_back(equation);
+            });
+        }
+
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+    }];
+}
+
+def Modelica_MainModelOp : Modelica_Op<"main_model",
+    [ParentOneOf<["ModelOp"]>,
+    SingleBlock,
+    NoTerminator]>
+{
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+    let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        template<typename Equation>
+        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            walk([&](Equation equation) {
+                equations.push_back(equation);
+            });
+        }
+
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+    }];
+}
+
 def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
-    [ParentOneOf<["ModelOp"]>]>
+    [ParentOneOf<["InitialModelOp", "MainModelOp"]>,
+    EquationInterface]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
-        DefaultValuedAttr<BoolAttr, "false">:$initial,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        OptionalAttr<MultidimensionalRangeAttr>:$implicit_indices,
-        OptionalAttr<I64Attr>:$view_element_index);
+        OptionalAttr<MultidimensionalRangeAttr>:$indices);
 
     let results = (outs);
 
@@ -3614,8 +3805,7 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
     let hasVerifier = 1;
 
     let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate,
-                       "bool":$initial)>,
+        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>,
     ];
 
     let extraClassDeclaration = [{
@@ -3642,17 +3832,6 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
         /// Get the indices visited by the induction variables.
         /// An empty iteration space is returned if there is no iteration
         /// variable.
-        IndexSet getExplicitIterationSpace();
-
-        /// Get the number of implicit induction variables.
-        uint64_t getNumOfImplicitInductionVariables();
-
-        /// Get the indices implicitly required to iterate over the results
-        /// of each equation side.
-        /// An empty iteration space is returned if the equality involves
-        /// scalar variables.
-        IndexSet getImplicitIterationSpace();
-
         IndexSet getIterationSpace();
 
         mlir::LogicalResult cloneWithReplacedAccess(
@@ -3667,13 +3846,12 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
 }
 
 def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance",
-    [ParentOneOf<["ModelOp"]>]>
+    [ParentOneOf<["InitialModelOp", "MainModelOp", "SCCOp"]>,
+    EquationInterface]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
-        DefaultValuedAttr<BoolAttr, "false">:$initial,
         OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        OptionalAttr<MultidimensionalRangeAttr>:$implicit_indices,
         EquationPathAttr:$path);
 
     let results = (outs);
@@ -3686,15 +3864,12 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
 
     let builders = [
         OpBuilder<(ins "EquationTemplateOp":$equationTemplate,
-                       "bool":$initial,
                        "EquationPathAttr":$path)>
     ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.
         EquationTemplateOp getTemplate();
-
-        uint64_t getViewElementIndex();
 
         /// @name Forwarded methods.
         /// {
@@ -3716,17 +3891,6 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
         /// Get the indices visited by the induction variables.
         /// An empty iteration space is returned if there is no iteration
         /// variable.
-        IndexSet getExplicitIterationSpace();
-
-        /// Get the number of implicit induction variables.
-        uint64_t getNumOfImplicitInductionVariables();
-
-        /// Get the indices implicitly required to iterate over the results
-        /// of each equation side.
-        /// An empty iteration space is returned if the equality involves
-        /// scalar variables.
-        IndexSet getImplicitIterationSpace();
-
         IndexSet getIterationSpace();
 
         std::optional<VariableAccess> getMatchedAccess(
@@ -3774,12 +3938,12 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
 }
 
 def Modelica_SCCGroupOp : Modelica_Op<"scc_group",
-    [ParentOneOf<["ModelOp"]>,
+    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
+    SingleBlock,
     NoTerminator]>
 {
-    let arguments = (ins
-        DefaultValuedAttr<BoolAttr, "false">:$initial);
+    let arguments = (ins);
 
     let results = (outs);
 
@@ -3797,8 +3961,9 @@ def Modelica_SCCGroupOp : Modelica_Op<"scc_group",
 }
 
 def Modelica_SCCOp : Modelica_Op<"scc",
-    [ParentOneOf<["SCCGroupOp"]>,
+    [ParentOneOf<["InitialModelOp", "MainModelOp", "ScheduleOp", "SCCGroupOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
+    SingleBlock,
     NoTerminator]>
 {
     let arguments = (ins
@@ -3810,13 +3975,17 @@ def Modelica_SCCOp : Modelica_Op<"scc",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = [{
-        $bodyRegion attr-dict
-    }];
+    let assemblyFormat = "$bodyRegion attr-dict";
+    let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
-        void collectEquations(
-            llvm::SmallVectorImpl<ScheduledEquationInstanceOp>& equations);
+        template<typename Equation>
+        void collectEquations(llvm::SmallVectorImpl<Equation>& equations)
+        {
+            walk([&](Equation equation) {
+                equations.push_back(equation);
+            });
+        }
     }];
 }
 
@@ -3826,7 +3995,6 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
     let arguments = (ins
         ModelicaEquation:$base,
         OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        OptionalAttr<MultidimensionalRangeAttr>:$implicit_indices,
         EquationPathAttr:$path,
         TypedArrayAttrBase<
             EquationScheduleDirectionAttr,
@@ -3850,8 +4018,6 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
         /// Get the equation template.
         EquationTemplateOp getTemplate();
 
-        uint64_t getViewElementIndex();
-
         /// @name Forwarded methods.
         /// {
 
@@ -3872,17 +4038,6 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
         /// Get the indices visited by the induction variables.
         /// An empty iteration space is returned if there is no iteration
         /// variable.
-        IndexSet getExplicitIterationSpace();
-
-        /// Get the number of implicit induction variables.
-        uint64_t getNumOfImplicitInductionVariables();
-
-        /// Get the indices implicitly required to iterate over the results
-        /// of each equation side.
-        /// An empty iteration space is returned if the equality involves
-        /// scalar variables.
-        IndexSet getImplicitIterationSpace();
-
         IndexSet getIterationSpace();
 
         std::optional<VariableAccess> getMatchedAccess(
@@ -4441,6 +4596,9 @@ def Modelica_CallOp : Modelica_Op<"call",
             CArg<"mlir::ValueRange", "{}">:$args,
             CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins
+            "EquationFunctionOp":$callee,
+            CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins
             "RawFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,
         OpBuilder<(ins
@@ -4494,6 +4652,38 @@ def Modelica_CallOp : Modelica_Op<"call",
         mlir::Operation* getFunction(
             mlir::ModuleOp moduleOp, mlir::SymbolTableCollection& symbolTable);
     }];
+}
+
+def Modelica_ScheduleOp : Modelica_Op<"schedule",
+    [ParentOneOf<["mlir::ModuleOp"]>,
+    Symbol,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
+{
+    let arguments = (ins SymbolNameAttr:$sym_name);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$sym_name $bodyRegion attr-dict";
+
+    let extraClassDeclaration = [{
+        /// Collect the SCC groups.
+        void collectSCCGroups(llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups);
+
+        /// Collect the SCCs.
+        void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+    }];
+}
+
+def Modelica_RunScheduleOp : Modelica_Op<"run_schedule", []>
+{
+    let arguments = (ins SymbolRefAttr:$schedule);
+    let results = (outs);
+    let assemblyFormat = "$schedule attr-dict";
 }
 
 //===---------------------------------------------------------------------===//
@@ -4745,7 +4935,7 @@ def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
     ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp",
                  "VariableOp", "StartOp", "DefaultOp", "BindingEquationOp",
-                 "ReductionOp"]>]>
+                 "ReductionOp", "EquationFunctionOp"]>]>
 {
     let summary = "Yield values to the parent operation.";
 

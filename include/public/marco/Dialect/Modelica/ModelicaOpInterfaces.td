@@ -45,6 +45,10 @@ def VectorizableOpInterface : Modelica_OpInterface<"VectorizableOpInterface">
     ];
 }
 
+def EquationInterface : Modelica_OpInterface<"EquationInterface">
+{
+}
+
 def EquationExpressionOpInterface
     : Modelica_OpInterface<"EquationExpressionOpInterface">
 {
@@ -67,8 +71,8 @@ def EquationExpressionOpInterface
         InterfaceMethod<
             "Get the element at a given position.",
             "::mlir::Value", "getExpressionElement",
-            (ins "uint64_t":$element), [{}], [{
-                return $_op.getOperation()->getOperand(element);
+            (ins "uint64_t":$position), [{}], [{
+                return $_op.getOperation()->getOperand(position);
             }]>,
         InterfaceMethod<
             "Get the element at a given position.",
@@ -85,7 +89,6 @@ def EquationExpressionOpInterface
                  "::llvm::DenseMap<::mlir::Value, unsigned int>&":$explicitInductionsPositionMap,
                  "AdditionalInductions&":$additionalInductions,
                  "::llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>&":$dimensionAccesses,
-                 "uint64_t":$numOfImplicitInductions,
                  "EquationPath":$path), [{}], [{
                 auto opInterface = mlir::cast<EquationExpressionOpInterface>($_op.getOperation());
                 uint64_t numOfChildren = opInterface.getNumOfExpressionElements();
@@ -94,36 +97,32 @@ def EquationExpressionOpInterface
                     return mlir::failure();
                 }
 
-                for (uint64_t i = 0; i < numOfChildren; ++i) {
-                    size_t initialDimensionAccessesCount = dimensionAccesses.size();
-                    mlir::Value child = opInterface.getExpressionElement(i);
+                llvm::SmallVector<std::unique_ptr<DimensionAccess>> childDimensionAccesses;
 
+                for (uint64_t i = 0; i < numOfChildren; ++i) {
+                    childDimensionAccesses.clear();
+                    mlir::Value child = opInterface.getExpressionElement(i);
                     auto childOp = child.getDefiningOp();
 
                     if (!childOp) {
                         continue;
                     }
 
-                    auto childInt =
+                    auto childExpressionInt =
                         mlir::dyn_cast<EquationExpressionOpInterface>(childOp);
 
-                    if (!childInt) {
+                    if (!childExpressionInt) {
                         return mlir::failure();
                     }
 
-                    dimensionAccesses.clear();
-
-                    if (mlir::failed(childInt.getEquationAccesses(
+                    if (mlir::failed(childExpressionInt.getEquationAccesses(
                             accesses, symbolTable,
                             explicitInductionsPositionMap,
                             additionalInductions,
-                            dimensionAccesses, numOfImplicitInductions,
+                            childDimensionAccesses,
                             path + i))) {
                        return mlir::failure();
                     }
-
-                    assert(dimensionAccesses.size() >= initialDimensionAccessesCount);
-                    dimensionAccesses.resize(initialDimensionAccessesCount);
                 }
 
                 return mlir::success();

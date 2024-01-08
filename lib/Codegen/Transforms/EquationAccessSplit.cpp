@@ -19,7 +19,8 @@ namespace
         public VariableAccessAnalysis::AnalysisProvider
   {
     public:
-      using EquationAccessSplitPassBase::EquationAccessSplitPassBase;
+      using EquationAccessSplitPassBase<EquationAccessSplitPass>
+          ::EquationAccessSplitPassBase;
 
       void runOnOperation() override;
 
@@ -52,11 +53,8 @@ namespace
           return mlir::failure();
         }
 
-        auto numOfExplicitInductions = static_cast<uint64_t>(
+        auto numOfInductions = static_cast<uint64_t>(
             op.getInductionVariables().size());
-
-        uint64_t numOfImplicitInductions =
-            op.getNumOfImplicitInductionVariables();
 
         std::optional<VariableAccess> matchedAccess =
             op.getMatchedAccess(*symbolTableCollection);
@@ -148,16 +146,10 @@ namespace
             auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
                 rewriter.clone(*op.getOperation()));
 
-            if (numOfExplicitInductions > 0) {
+            if (numOfInductions > 0) {
               clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
                   getContext(),
-                  range.takeFirstDimensions(numOfExplicitInductions)));
-            }
-
-            if (numOfImplicitInductions > 0) {
-              clonedOp.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
-                  getContext(),
-                  range.takeLastDimensions(numOfImplicitInductions)));
+                  range.takeFirstDimensions(numOfInductions)));
             }
           }
         }
@@ -189,18 +181,6 @@ void EquationAccessSplitPass::runOnOperation()
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
-
-  llvm::DenseSet<EquationTemplateOp> templateOps;
-
-  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
-    templateOps.insert(equationOp.getTemplate());
-  }
-
-  for (EquationTemplateOp templateOp : templateOps) {
-    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
-      analysis->get().preserve();
-    }
-  }
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

@@ -8,14 +8,16 @@
 // CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
 // CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
 // CHECK-DAG:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:           %[[res:.*]] = modelica.call @Test_algorithm_0(%[[x]]) : (!modelica.int) -> !modelica.int
+// CHECK-DAG:       %[[res:.*]] = modelica.call @Test_algorithm_0(%[[x]]) : (!modelica.int) -> !modelica.int
 // CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[y]]
 // CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
 // CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]]
+// CHECK:       modelica.main_model {
+// CHECK-NEXT:      modelica.equation_instance %[[t0]]
+// CHECK-NEXT:  }
 
-// CHECK:       @Test_algorithm_0
+// CHECK:       modelica.function @Test_algorithm_0
 // CHECK-DAG:   modelica.variable @x : !modelica.variable<!modelica.int, input>
 // CHECK-DAG:   modelica.variable @y : !modelica.variable<!modelica.int, output>
 // CHECK:       modelica.default @y {

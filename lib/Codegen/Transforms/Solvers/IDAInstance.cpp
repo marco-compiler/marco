@@ -100,13 +100,13 @@ namespace mlir::modelica
         derivativeVariablesLookup.end();
   }
 
-  bool IDAInstance::hasEquation(ScheduledEquationInstanceOp equation) const
+  bool IDAInstance::hasEquation(MatchedEquationInstanceOp equation) const
   {
     assert(equation != nullptr);
     return llvm::find(equations, equation) != equations.end();
   }
 
-  void IDAInstance::addEquation(ScheduledEquationInstanceOp equation)
+  void IDAInstance::addEquation(MatchedEquationInstanceOp equation)
   {
     assert(equation != nullptr);
     equations.insert(equation);
@@ -153,8 +153,7 @@ namespace mlir::modelica
       mlir::ModuleOp moduleOp,
       ModelOp modelOp,
       llvm::ArrayRef<VariableOp> variableOps,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      llvm::ArrayRef<SCCGroupOp> sccGroups)
+      llvm::ArrayRef<SCCOp> allSCCs)
   {
     llvm::DenseMap<
         mlir::AffineMap,
@@ -176,14 +175,14 @@ namespace mlir::modelica
 
     // Add the variables to IDA.
     if (mlir::failed(addVariablesToIDA(
-            rewriter, loc, moduleOp, variableOps, localToGlobalVariablesMap))) {
+            rewriter, loc, moduleOp, variableOps))) {
       return mlir::failure();
     }
 
     // Add the equations to IDA.
     if (mlir::failed(addEquationsToIDA(
-            rewriter, loc, moduleOp, modelOp, variableOps,
-            localToGlobalVariablesMap, sccGroups, accessFunctionsMap))) {
+            rewriter, loc, moduleOp, modelOp, variableOps, allSCCs,
+            accessFunctionsMap))) {
       return mlir::failure();
     }
 
@@ -194,8 +193,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
-      llvm::ArrayRef<VariableOp> variableOps,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap)
+      llvm::ArrayRef<VariableOp> variableOps)
   {
     // Counters used to generate unique names for the getter and setter
     // functions.
@@ -221,36 +219,37 @@ namespace mlir::modelica
     };
 
     auto createGetterFn =
-        [&](GlobalVariableOp globalVariableOp)
+        [&](SimulationVariableOp simulationVariableOp)
         -> mlir::sundials::VariableGetterOp {
       std::string getterName = getIDAFunctionName(
           "getter_" + std::to_string(getterFunctionCounter++));
 
       return createGetterFunction(
-          builder, loc, moduleOp, globalVariableOp, getterName);
+          builder, loc, moduleOp, simulationVariableOp, getterName);
     };
 
     auto createSetterFn =
-        [&](GlobalVariableOp globalVariableOp)
+        [&](SimulationVariableOp simulationVariableOp)
         -> mlir::sundials::VariableSetterOp {
       std::string setterName = getIDAFunctionName(
           "setter_" + std::to_string(setterFunctionCounter++));
 
       return createSetterFunction(
-          builder, loc, moduleOp, globalVariableOp, setterName);
+          builder, loc, moduleOp, simulationVariableOp, setterName);
     };
 
     // Algebraic variables.
     for (VariableOp variableOp : algebraicVariables) {
-      auto globalVariableOp =
-          localToGlobalVariablesMap.lookup(variableOp.getSymName());
+      auto simulationVariableOp =
+          symbolTableCollection->lookupSymbolIn<SimulationVariableOp>(
+              moduleOp, variableOp.getSymNameAttr());
 
-      assert(globalVariableOp && "Global variable not found");
+      assert(simulationVariableOp && "Simulation variable not found");
       auto arrayType = variableOp.getVariableType().toArrayType();
 
       std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
-      auto getter = createGetterFn(globalVariableOp);
-      auto setter = createSetterFn(globalVariableOp);
+      auto getter = createGetterFn(simulationVariableOp);
+      auto setter = createSetterFn(simulationVariableOp);
 
       auto addVariableOp =
           builder.create<mlir::ida::AddAlgebraicVariableOp>(
@@ -269,10 +268,13 @@ namespace mlir::modelica
 
     // State variables.
     for (VariableOp variableOp : stateVariables) {
-      auto stateGlobalVariableOp =
-          localToGlobalVariablesMap.lookup(variableOp.getSymName());
+      auto stateSimulationVariableOp =
+          symbolTableCollection->lookupSymbolIn<SimulationVariableOp>(
+              moduleOp, variableOp.getSymNameAttr());
 
-      assert(stateGlobalVariableOp && "Global variable not found");
+      assert(stateSimulationVariableOp &&
+             "Simulation state variable not found");
+
       auto arrayType = variableOp.getVariableType().toArrayType();
 
       std::optional<mlir::SymbolRefAttr> derivativeName = getDerivative(
@@ -283,16 +285,19 @@ namespace mlir::modelica
       }
 
       assert(derivativeName->getNestedReferences().empty());
-      auto derivativeGlobalVariableOp = localToGlobalVariablesMap.lookup(
-          derivativeName->getRootReference().getValue());
 
-      assert(derivativeGlobalVariableOp && "No global variable not found");
+      auto derivativeSimulationVariableOp =
+          symbolTableCollection->lookupSymbolIn<SimulationVariableOp>(
+              moduleOp, *derivativeName);
+
+      assert(derivativeSimulationVariableOp &&
+             "Derivative simulation variable not found");
 
       std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
-      auto stateGetter = createGetterFn(stateGlobalVariableOp);
-      auto stateSetter = createSetterFn(stateGlobalVariableOp);
-      auto derivativeGetter = createGetterFn(derivativeGlobalVariableOp);
-      auto derivativeSetter = createSetterFn(derivativeGlobalVariableOp);
+      auto stateGetter = createGetterFn(stateSimulationVariableOp);
+      auto stateSetter = createSetterFn(stateSimulationVariableOp);
+      auto derivativeGetter = createGetterFn(derivativeSimulationVariableOp);
+      auto derivativeSetter = createSetterFn(derivativeSimulationVariableOp);
 
       auto addVariableOp =
           builder.create<mlir::ida::AddStateVariableOp>(
@@ -318,34 +323,31 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
-      GlobalVariableOp variable,
+      SimulationVariableOp variable,
       llvm::StringRef functionName)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    auto variableType = variable.getType();
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
+    auto variableType = variable.getVariableType();
 
     auto getterOp = builder.create<mlir::sundials::VariableGetterOp>(
-        loc,
-        functionName,
-        variableArrayType.getRank());
+        loc, functionName, variableType.getRank());
 
     symbolTableCollection->getSymbolTable(moduleOp).insert(getterOp);
 
     mlir::Block* entryBlock = getterOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    auto receivedIndices = getterOp.getVariableIndices().take_front(
-        variableArrayType.getRank());
+    auto receivedIndices =
+        getterOp.getVariableIndices().take_front(variableType.getRank());
 
-    mlir::Value globalVariable =
-        builder.create<GlobalVariableGetOp>(loc, variable);
+    mlir::Value result =
+        builder.create<SimulationVariableGetOp>(loc, variable);
 
-    mlir::Value result = builder.create<LoadOp>(
-        loc, globalVariable, receivedIndices);
+    if (!receivedIndices.empty()) {
+      result = builder.create<LoadOp>(loc, result, receivedIndices);
+    }
 
     if (auto requestedResultType = getterOp.getFunctionType().getResult(0);
         result.getType() != requestedResultType) {
@@ -360,41 +362,43 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp moduleOp,
-      GlobalVariableOp variable,
+      SimulationVariableOp variable,
       llvm::StringRef functionName)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(moduleOp.getBody());
 
-    auto variableType = variable.getType();
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
+    auto variableType = variable.getVariableType();
 
     auto setterOp = builder.create<mlir::sundials::VariableSetterOp>(
-        loc,
-        functionName,
-        variableArrayType.getRank());
+        loc, functionName, variableType.getRank());
 
     symbolTableCollection->getSymbolTable(moduleOp).insert(setterOp);
 
     mlir::Block* entryBlock = setterOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    auto receivedIndices = setterOp.getVariableIndices().take_front(
-        variableArrayType.getRank());
-
-    mlir::Value globalVariable =
-        builder.create<GlobalVariableGetOp>(loc, variable);
+    auto receivedIndices =
+        setterOp.getVariableIndices().take_front(variableType.getRank());
 
     mlir::Value value = setterOp.getValue();
 
-    if (auto requestedValueType = variableArrayType.getElementType();
+    if (auto requestedValueType = variableType.getElementType();
         value.getType() != requestedValueType) {
       value = builder.create<CastOp>(
           loc, requestedValueType, setterOp.getValue());
     }
 
-    builder.create<StoreOp>(loc, value, globalVariable, receivedIndices);
+    if (variableType.isScalar()) {
+      assert(receivedIndices.empty());
+      builder.create<SimulationVariableSetOp>(loc, variable, value);
+    } else {
+      mlir::Value array =
+          builder.create<SimulationVariableGetOp>(loc, variable);
+
+      builder.create<StoreOp>(loc, value, array, receivedIndices);
+    }
+
     builder.create<mlir::sundials::ReturnOp>(loc);
     return setterOp;
   }
@@ -405,36 +409,35 @@ namespace mlir::modelica
       mlir::ModuleOp moduleOp,
       ModelOp modelOp,
       llvm::ArrayRef<VariableOp> variableOps,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      llvm::ArrayRef<SCCGroupOp> sccGroups,
+      llvm::ArrayRef<SCCOp> allSCCs,
       llvm::DenseMap<
           mlir::AffineMap,
           mlir::sundials::AccessFunctionOp>& accessFunctionsMap)
   {
     // Substitute the accesses to non-IDA variables with the equations writing
     // in such variables.
-    llvm::SmallVector<ScheduledEquationInstanceOp> independentEquations;
+    llvm::SmallVector<MatchedEquationInstanceOp> independentEquations;
 
     // First create the writes map, that is the knowledge of which equation
     // writes into a variable and in which indices.
-    std::multimap<
-        VariableOp, std::pair<IndexSet, ScheduledEquationInstanceOp>> writesMap;
+    WritesMap<VariableOp, MatchedEquationInstanceOp> writesMap;
 
-    if (mlir::failed(getWritesMap(modelOp, sccGroups, writesMap))) {
+    if (mlir::failed(getWritesMap(
+            writesMap, modelOp, allSCCs, *symbolTableCollection))) {
       return mlir::failure();
     }
 
     // The equations we are operating on.
-    std::queue<ScheduledEquationInstanceOp> processedEquations;
+    std::queue<MatchedEquationInstanceOp> processedEquations;
 
-    for (ScheduledEquationInstanceOp equation : equations) {
+    for (MatchedEquationInstanceOp equation : equations) {
       processedEquations.push(equation);
     }
 
     LLVM_DEBUG(llvm::dbgs() << "Replacing the non-IDA variables\n");
 
     while (!processedEquations.empty()) {
-      ScheduledEquationInstanceOp equationOp = processedEquations.front();
+      MatchedEquationInstanceOp equationOp = processedEquations.front();
 
       LLVM_DEBUG({
         llvm::dbgs() << "Current equation\n";
@@ -475,23 +478,26 @@ namespace mlir::modelica
         }
 
         const AccessFunction& accessFunction = access.getAccessFunction();
-        std::optional<IndexSet> readVariableIndices = std::nullopt;
+        std::optional<IndexSet> accessedVariableIndices = std::nullopt;
 
         if (!equationIndices.empty()) {
-          readVariableIndices = accessFunction.map(equationIndices);
+          accessedVariableIndices = accessFunction.map(equationIndices);
         }
 
-        auto readVariableName = access.getVariable();
-        assert(readVariableName.getNestedReferences().empty());
+        auto accessedVariableName = access.getVariable();
+        assert(accessedVariableName.getNestedReferences().empty());
 
-        auto readVariableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
-            modelOp, readVariableName.getRootReference());
+        auto accessedVariableOp =
+            symbolTableCollection->lookupSymbolIn<VariableOp>(
+                modelOp, accessedVariableName.getRootReference());
+
+        accessedVariableOp.dump();
 
         auto writingEquations =
-            llvm::make_range(writesMap.equal_range(readVariableOp));
+            llvm::make_range(writesMap.equal_range(accessedVariableOp));
 
         for (const auto& entry : writingEquations) {
-          ScheduledEquationInstanceOp writingEquationOp = entry.second.second;
+          MatchedEquationInstanceOp writingEquationOp = entry.second.second;
 
           if (hasEquation(writingEquationOp)) {
             // Ignore the equation if it is already managed by IDA.
@@ -501,11 +507,12 @@ namespace mlir::modelica
           const IndexSet& writtenVariableIndices = entry.second.first;
           bool overlaps = false;
 
-          if (!readVariableIndices && writtenVariableIndices.empty()) {
+          if (!accessedVariableIndices && writtenVariableIndices.empty()) {
             // Scalar replacement.
             overlaps = true;
-          } else if (readVariableIndices &&
-                     readVariableIndices->overlaps(writtenVariableIndices)) {
+          } else if (accessedVariableIndices &&
+                     accessedVariableIndices->overlaps(
+                         writtenVariableIndices)) {
             // Vectorized replacement.
             overlaps = true;
           }
@@ -527,7 +534,7 @@ namespace mlir::modelica
             rewriter.eraseOp(explicitWritingEquationOp);
           });
 
-          llvm::SmallVector<ScheduledEquationInstanceOp> newEquations;
+          llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
           auto writeAccess =
               explicitWritingEquationOp.getMatchedAccess(*symbolTableCollection);
@@ -561,7 +568,7 @@ namespace mlir::modelica
             return mlir::failure();
           }
 
-          for (ScheduledEquationInstanceOp newEquation : newEquations) {
+          for (MatchedEquationInstanceOp newEquation : newEquations) {
             processedEquations.push(newEquation);
           }
         }
@@ -633,7 +640,7 @@ namespace mlir::modelica
       variablesMapping[variable] = idaVariable;
     }
 
-    for (ScheduledEquationInstanceOp equationOp : independentEquations) {
+    for (MatchedEquationInstanceOp equationOp : independentEquations) {
       // Keep track of the accessed variables in order to reduce the amount of
       // generated partial derivatives.
       llvm::SmallVector<VariableAccess> accesses;
@@ -684,8 +691,8 @@ namespace mlir::modelica
       llvm::DenseMap<VariableOp, size_t> independentVariablesPos;
 
       if (mlir::failed(createPartialDerTemplateFunction(
-              rewriter, moduleOp, variableOps, localToGlobalVariablesMap,
-              equationOp, independentVariables, independentVariablesPos,
+              rewriter, moduleOp, variableOps, equationOp,
+              independentVariables, independentVariablesPos,
               partialDerTemplateName))) {
         return mlir::failure();
       }
@@ -734,8 +741,8 @@ namespace mlir::modelica
             "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
         if (mlir::failed(createResidualFunction(
-                rewriter, moduleOp, equationOp, localToGlobalVariablesMap,
-                idaEquation, residualFunctionName))) {
+                rewriter, moduleOp, equationOp, idaEquation,
+                residualFunctionName))) {
           return mlir::failure();
         }
 
@@ -762,8 +769,8 @@ namespace mlir::modelica
 
           if (mlir::failed(createJacobianFunction(
                   rewriter, moduleOp, modelOp, equationOp,
-                  localToGlobalVariablesMap, jacobianFunctionName,
-                  independentVariables, independentVariablesPos, variable,
+                  jacobianFunctionName, independentVariables,
+                  independentVariablesPos, variable,
                   partialDerTemplateName))) {
             return mlir::failure();
           }
@@ -801,8 +808,8 @@ namespace mlir::modelica
 
           if (mlir::failed(createJacobianFunction(
                   rewriter, moduleOp, modelOp, equationOp,
-                  localToGlobalVariablesMap, jacobianFunctionName,
-                  independentVariables, independentVariablesPos, variable,
+                  jacobianFunctionName, independentVariables,
+                  independentVariablesPos, variable,
                   partialDerTemplateName))) {
             return mlir::failure();
           }
@@ -820,7 +827,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::Location loc,
       ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
+      MatchedEquationInstanceOp equationOp,
       mlir::Value idaEquation,
       llvm::DenseMap<
           mlir::AffineMap,
@@ -984,8 +991,7 @@ namespace mlir::modelica
   mlir::LogicalResult IDAInstance::createResidualFunction(
       mlir::OpBuilder& builder,
       mlir::ModuleOp moduleOp,
-      ScheduledEquationInstanceOp equationOp,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+      MatchedEquationInstanceOp equationOp,
       mlir::Value idaEquation,
       llvm::StringRef residualFunctionName)
   {
@@ -994,8 +1000,7 @@ namespace mlir::modelica
 
     mlir::Location loc = equationOp.getLoc();
 
-    size_t numOfInductionVariables = equationOp.getInductionVariables().size() +
-        equationOp.getNumOfImplicitInductionVariables();
+    size_t numOfInductionVariables = equationOp.getInductionVariables().size();
 
     auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
         loc,
@@ -1038,13 +1043,8 @@ namespace mlir::modelica
       } else if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Compute the difference between the right-hand side and the left-hand
         // side of the equation.
-        uint64_t viewElementIndex = equationOp.getViewElementIndex();
-
-        mlir::Value lhs = mapping.lookup(
-            equationSidesOp.getLhsValues()[viewElementIndex]);
-
-        mlir::Value rhs = mapping.lookup(
-            equationSidesOp.getRhsValues()[viewElementIndex]);
+        mlir::Value lhs = mapping.lookup(equationSidesOp.getLhsValues()[0]);
+        mlir::Value rhs = mapping.lookup(equationSidesOp.getRhsValues()[0]);
 
         if (lhs.getType().isa<ArrayType>()) {
           assert(lhs.getType().cast<ArrayType>().getRank() ==
@@ -1066,18 +1066,14 @@ namespace mlir::modelica
         builder.create<mlir::ida::ReturnOp>(difference.getLoc(), difference);
       } else if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
         // Replace the local variables with the global ones.
-        auto globalVariableOp =
-            localToGlobalVariablesMap.lookup(variableGetOp.getVariable());
+        auto simulationVariableOp =
+            symbolTableCollection->lookupSymbolIn<SimulationVariableOp>(
+                moduleOp, variableGetOp.getVariableAttr());
 
-        mlir::Value globalVariable = builder.create<GlobalVariableGetOp>(
-            variableGetOp.getLoc(), globalVariableOp);
+        auto getOp = builder.create<SimulationVariableGetOp>(
+            variableGetOp.getLoc(), simulationVariableOp);
 
-        if (globalVariable.getType().cast<ArrayType>().isScalar()) {
-          globalVariable = builder.create<LoadOp>(
-              globalVariable.getLoc(), globalVariable, std::nullopt);
-        }
-
-        mapping.map(variableGetOp.getResult(), globalVariable);
+        mapping.map(variableGetOp.getResult(), getOp.getResult());
       } else {
         builder.clone(op, mapping);
       }
@@ -1089,7 +1085,7 @@ namespace mlir::modelica
   mlir::LogicalResult IDAInstance::getIndependentVariablesForAD(
       llvm::DenseSet<VariableOp>& result,
       ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp)
+      MatchedEquationInstanceOp equationOp)
   {
     llvm::SmallVector<VariableAccess> accesses;
 
@@ -1127,8 +1123,7 @@ namespace mlir::modelica
       mlir::IRRewriter& rewriter,
       mlir::ModuleOp moduleOp,
       llvm::ArrayRef<VariableOp> variableOps,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      ScheduledEquationInstanceOp equationOp,
+      MatchedEquationInstanceOp equationOp,
       const llvm::DenseSet<VariableOp>& independentVariables,
       llvm::DenseMap<VariableOp, size_t>& independentVariablesPos,
       llvm::StringRef templateName)
@@ -1136,7 +1131,7 @@ namespace mlir::modelica
     mlir::Location loc = equationOp.getLoc();
 
     auto partialDerTemplate = createPartialDerTemplateFromEquation(
-        rewriter, moduleOp, variableOps, localToGlobalVariablesMap, equationOp,
+        rewriter, moduleOp, variableOps, equationOp,
         independentVariables, independentVariablesPos, templateName);
 
     // Add the time to the input variables (and signature).
@@ -1176,8 +1171,7 @@ namespace mlir::modelica
       mlir::IRRewriter& rewriter,
       mlir::ModuleOp moduleOp,
       llvm::ArrayRef<VariableOp> variableOps,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
-      ScheduledEquationInstanceOp equationOp,
+      MatchedEquationInstanceOp equationOp,
       const llvm::DenseSet<VariableOp>& independentVariables,
       llvm::DenseMap<VariableOp, size_t>& independentVariablesPos,
       llvm::StringRef templateName)
@@ -1218,15 +1212,9 @@ namespace mlir::modelica
     // Create the induction variables.
     llvm::SmallVector<VariableOp, 3> inductionVariablesOps;
 
-    size_t numOfExplicitInductions = equationOp.getInductionVariables().size();
+    size_t numOfInductions = equationOp.getInductionVariables().size();
 
-    size_t numOfImplicitInductions =
-        static_cast<size_t>(equationOp.getNumOfImplicitInductionVariables());
-
-    size_t totalAmountOfInductions =
-        numOfExplicitInductions + numOfImplicitInductions;
-
-    for (size_t i = 0; i < totalAmountOfInductions; ++i) {
+    for (size_t i = 0; i < numOfInductions; ++i) {
       std::string variableName = "ind" + std::to_string(i);
 
       auto variableType = VariableType::wrap(
@@ -1245,7 +1233,8 @@ namespace mlir::modelica
     std::string outVariableName = "out";
     size_t outVariableNameCounter = 0;
 
-    while (localToGlobalVariablesMap.count(outVariableName) != 0) {
+    while (symbolTableCollection->lookupSymbolIn(
+        functionOp, rewriter.getStringAttr(outVariableName))) {
       outVariableName = "out_" + std::to_string(outVariableNameCounter++);
     }
 
@@ -1277,17 +1266,6 @@ namespace mlir::modelica
       mapping.map(originalInductions[i], mappedInduction);
     }
 
-    llvm::SmallVector<mlir::Value, 3> implicitInductions;
-
-    for (size_t i = 0; i < numOfImplicitInductions; ++i) {
-      mlir::Value mappedInduction = rewriter.create<VariableGetOp>(
-          inductionVariablesOps[numOfExplicitInductions + i].getLoc(),
-          inductionVariablesOps[numOfExplicitInductions + i].getVariableType().unwrap(),
-          inductionVariablesOps[numOfExplicitInductions + i].getSymName());
-
-      implicitInductions.push_back(mappedInduction);
-    }
-
     // Determine the operations to be cloned by starting from the terminator and
     // walking through the dependencies.
     llvm::DenseSet<mlir::Operation*> toBeCloned;
@@ -1296,10 +1274,8 @@ namespace mlir::modelica
     auto equationSidesOp = mlir::cast<EquationSidesOp>(
         equationOp.getTemplate().getBody()->getTerminator());
 
-    uint64_t viewElementIndex = equationOp.getViewElementIndex();
-
-    mlir::Value lhs = equationSidesOp.getLhsValues()[viewElementIndex];
-    mlir::Value rhs = equationSidesOp.getRhsValues()[viewElementIndex];
+    mlir::Value lhs = equationSidesOp.getLhsValues()[0];
+    mlir::Value rhs = equationSidesOp.getRhsValues()[0];
 
     if (mlir::Operation* lhsOp = lhs.getDefiningOp()) {
       toBeClonedVisitStack.push_back(lhsOp);
@@ -1343,22 +1319,6 @@ namespace mlir::modelica
     mlir::Value mappedLhs = mapping.lookup(lhs);
     mlir::Value mappedRhs = mapping.lookup(rhs);
 
-    if (mappedLhs.getType().isa<ArrayType>()) {
-      assert(mappedLhs.getType().cast<ArrayType>().getRank() ==
-             static_cast<int64_t>(implicitInductions.size()));
-
-      mappedLhs = rewriter.create<LoadOp>(
-          mappedLhs.getLoc(), mappedLhs, implicitInductions);
-    }
-
-    if (mappedRhs.getType().isa<ArrayType>()) {
-      assert(mappedRhs.getType().cast<ArrayType>().getRank() ==
-             static_cast<int64_t>(implicitInductions.size()));
-
-      mappedRhs = rewriter.create<LoadOp>(
-          mappedRhs.getLoc(), mappedRhs, implicitInductions);
-    }
-
     auto result = rewriter.create<SubOp>(
         loc, RealType::get(rewriter.getContext()), mappedRhs, mappedLhs);
 
@@ -1392,15 +1352,13 @@ namespace mlir::modelica
 
     for (VariableGetOp getOp : variableGetOps) {
       rewriter.setInsertionPoint(getOp);
-      assert(localToGlobalVariablesMap.count(getOp.getVariable()) != 0);
 
-      mlir::Value globalVariable = rewriter.create<GlobalVariableGetOp>(
-          getOp.getLoc(), localToGlobalVariablesMap.lookup(getOp.getVariable()));
+      auto simulationVariableOp =
+          symbolTableCollection->lookupSymbolIn<SimulationVariableOp>(
+              moduleOp, getOp.getVariableAttr());
 
-      if (globalVariable.getType().cast<ArrayType>().isScalar()) {
-        globalVariable = rewriter.create<LoadOp>(
-            globalVariable.getLoc(), globalVariable, std::nullopt);
-      }
+      mlir::Value globalVariable = rewriter.create<SimulationVariableGetOp>(
+          getOp.getLoc(), simulationVariableOp);
 
       rewriter.replaceOp(getOp, globalVariable);
     }
@@ -1455,8 +1413,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::ModuleOp moduleOp,
       ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
-      const llvm::StringMap<GlobalVariableOp>& localToGlobalVariablesMap,
+      MatchedEquationInstanceOp equationOp,
       llvm::StringRef jacobianFunctionName,
       const llvm::DenseSet<VariableOp>& independentVariables,
       const llvm::DenseMap<VariableOp, size_t>& independentVariablesPos,
@@ -1469,9 +1426,7 @@ namespace mlir::modelica
     mlir::Location loc = equationOp.getLoc();
 
     size_t numOfIndependentVars = independentVariables.size();
-
-    size_t numOfInductions = equationOp.getInductionVariables().size() +
-        equationOp.getNumOfImplicitInductionVariables();
+    size_t numOfInductions = equationOp.getInductionVariables().size();
 
     // Create the function.
     auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
@@ -1724,49 +1679,49 @@ namespace mlir::modelica
     return derivativesMap->getDerivedVariable(derivative);
   }
 
+  /*
   mlir::LogicalResult IDAInstance::getWritesMap(
       ModelOp modelOp,
-      llvm::ArrayRef<SCCGroupOp> sccGroups,
+      llvm::ArrayRef<SCCOp> SCCs,
       std::multimap<
           VariableOp,
-          std::pair<IndexSet, ScheduledEquationInstanceOp>>& writesMap) const
+          std::pair<IndexSet, MatchedEquationInstanceOp>>& writesMap) const
   {
-    for (SCCGroupOp sccGroup : sccGroups) {
-      for (SCCOp scc : sccGroup.getOps<SCCOp>()) {
-        for (ScheduledEquationInstanceOp equationOp :
-             scc.getOps<ScheduledEquationInstanceOp>()) {
-          std::optional<VariableAccess> writeAccess =
-              equationOp.getMatchedAccess(*symbolTableCollection);
+    for (SCCOp scc : SCCs) {
+      for (MatchedEquationInstanceOp equationOp :
+           scc.getOps<MatchedEquationInstanceOp>()) {
+        std::optional<VariableAccess> writeAccess =
+            equationOp.getMatchedAccess(*symbolTableCollection);
 
-          if (!writeAccess) {
-            return mlir::failure();
-          }
+        if (!writeAccess) {
+          return mlir::failure();
+        }
 
-          auto writtenVariableOp =
-              symbolTableCollection->lookupSymbolIn<VariableOp>(
-                  modelOp, writeAccess->getVariable());
+        auto writtenVariableOp =
+            symbolTableCollection->lookupSymbolIn<VariableOp>(
+                modelOp, writeAccess->getVariable());
 
-          const AccessFunction& accessFunction =
-              writeAccess->getAccessFunction();
+        const AccessFunction& accessFunction =
+            writeAccess->getAccessFunction();
 
-          if (auto equationIndices = equationOp.getIterationSpace();
-              !equationIndices.empty()) {
-            IndexSet variableIndices = accessFunction.map(equationIndices);
+        if (auto equationIndices = equationOp.getIterationSpace();
+            !equationIndices.empty()) {
+          IndexSet variableIndices = accessFunction.map(equationIndices);
 
-            writesMap.emplace(
-                writtenVariableOp,
-                std::make_pair(std::move(variableIndices), equationOp));
-          } else {
-            IndexSet variableIndices = accessFunction.map(IndexSet());
+          writesMap.emplace(
+              writtenVariableOp,
+              std::make_pair(std::move(variableIndices), equationOp));
+        } else {
+          IndexSet variableIndices = accessFunction.map(IndexSet());
 
-            writesMap.emplace(
-                writtenVariableOp,
-                std::make_pair(std::move(variableIndices), equationOp));
-          }
+          writesMap.emplace(
+              writtenVariableOp,
+              std::make_pair(std::move(variableIndices), equationOp));
         }
       }
     }
 
     return mlir::success();
   }
+   */
 }

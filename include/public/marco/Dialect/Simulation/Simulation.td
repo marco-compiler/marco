@@ -414,6 +414,38 @@ def Simulation_YieldOp : Simulation_Op<"yield",
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
+def Simulation_InitICSolversOp : Simulation_Op<"init_ic_solvers",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins);
+    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Simulation_DeinitICSolversOp : Simulation_Op<"deinit_ic_solvers",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins);
+    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Simulation_InitMainSolversOp : Simulation_Op<"init_main_solvers",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins);
+    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Simulation_DeinitMainSolversOp : Simulation_Op<"deinit_main_solvers",
+    [HasParent<"mlir::ModuleOp">]>
+{
+    let arguments = (ins);
+    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
 def Simulation_FunctionOp : Simulation_Op<"function",
     [AutomaticAllocationScope,
     IsolatedFromAbove,

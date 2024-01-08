@@ -16,169 +16,145 @@ namespace
             ExplicitInitialEquationsInsertionPass>
   {
     public:
-      using ExplicitInitialEquationsInsertionPassBase
+      using ExplicitInitialEquationsInsertionPassBase<
+          ExplicitInitialEquationsInsertionPass>
           ::ExplicitInitialEquationsInsertionPassBase;
 
       void runOnOperation() override;
 
-      void cloneEquationAsInitialEquation(
-          mlir::OpBuilder& builder,
-          EquationInstanceOp equationOp);
+      void cloneEquationsAsInitialEquations(
+          mlir::OpBuilder& builder, ModelOp modelOp);
 
-      void createInitialEquationsFromStartOp(
-          mlir::OpBuilder& builder,
-          mlir::SymbolTableCollection& symbolTable,
-          StartOp startOp);
+      void createInitialEquationsFromStartOps(
+          mlir::OpBuilder& builder, ModelOp modelOp);
   };
 }
 
 void ExplicitInitialEquationsInsertionPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
+  mlir::OpBuilder builder(modelOp);
+  cloneEquationsAsInitialEquations(builder, modelOp);
+  createInitialEquationsFromStartOps(builder, modelOp);
+}
 
-  llvm::SmallVector<EquationInstanceOp> equationOps;
-  llvm::SmallVector<StartOp> startOps;
+void ExplicitInitialEquationsInsertionPass::cloneEquationsAsInitialEquations(
+    mlir::OpBuilder& builder, ModelOp modelOp)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
 
-  for (auto& op : modelOp.getOps()) {
-    if (auto equationOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
-      equationOps.push_back(equationOp);
-    } else if (auto startOp = mlir::dyn_cast<StartOp>(op)) {
-      startOps.push_back(startOp);
+  for (MainModelOp mainModelOp : modelOp.getOps<MainModelOp>()) {
+    builder.setInsertionPoint(mainModelOp);
+
+    auto initialModelOp = builder.create<InitialModelOp>(modelOp.getLoc());
+    builder.createBlock(&initialModelOp.getBodyRegion());
+    builder.setInsertionPointToStart(initialModelOp.getBody());
+
+    for (auto& childOp : mainModelOp.getOps()) {
+      if (mlir::isa<EquationInterface>(childOp)) {
+        builder.clone(childOp);
+      }
     }
   }
+}
 
-  mlir::OpBuilder builder(modelOp);
+void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
+    mlir::OpBuilder& builder,
+    ModelOp modelOp)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
   mlir::SymbolTableCollection symbolTableCollection;
+  llvm::SmallVector<StartOp> startOps;
 
-  for (EquationInstanceOp equationOp : equationOps) {
-    if (!equationOp.getInitial()) {
-      cloneEquationAsInitialEquation(builder, equationOp);
-    }
+  for (StartOp startOp : modelOp.getOps<StartOp>()) {
+    startOps.push_back(startOp);
   }
 
   for (StartOp startOp : startOps) {
-    createInitialEquationsFromStartOp(builder, symbolTableCollection, startOp);
-  }
-}
-
-void ExplicitInitialEquationsInsertionPass::cloneEquationAsInitialEquation(
-    mlir::OpBuilder& builder,
-    EquationInstanceOp equationOp)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointAfter(equationOp);
-
-  auto clonedOp = builder.cloneWithoutRegions(equationOp);
-  clonedOp.setInitial(true);
-}
-
-void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOp(
-    mlir::OpBuilder& builder,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    StartOp startOp)
-{
-  if (!startOp.getFixed()) {
-    return;
-  }
-
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointAfter(startOp);
-
-  // Create the equation template.
-  mlir::Location loc = startOp.getLoc();
-
-  auto variable = symbolTableCollection.lookupSymbolIn<VariableOp>(
-      getOperation(), startOp.getVariableAttr());
-
-  auto variableType = variable.getVariableType();
-  unsigned int expressionRank = 0;
-
-  auto yieldOp =  mlir::cast<YieldOp>(
-      startOp.getBodyRegion().back().getTerminator());
-
-  mlir::Value expressionValue = yieldOp.getValues()[0];
-
-  if (auto expressionArrayType =
-          expressionValue.getType().dyn_cast<ArrayType>()) {
-    expressionRank = expressionArrayType.getRank();
-  }
-
-  auto variableRank = variableType.getRank();
-  assert(expressionRank == 0 || expressionRank == variableRank);
-
-  auto equationTemplateOp =
-      builder.create<EquationTemplateOp>(startOp.getLoc());
-
-  builder.setInsertionPointToStart(
-      equationTemplateOp.createBody(variableRank - expressionRank));
-
-  auto inductionVariables = equationTemplateOp.getInductionVariables();
-
-  // Left-hand side.
-  mlir::Value lhsValue = builder.create<VariableGetOp>(
-      startOp.getLoc(), variableType.unwrap(), startOp.getVariable());
-
-  if (!inductionVariables.empty()) {
-    if (inductionVariables.size() ==
-        static_cast<size_t>(variableType.getRank())) {
-      lhsValue = builder.create<LoadOp>(loc, lhsValue, inductionVariables);
-    } else {
-      lhsValue = builder.create<SubscriptionOp>(
-          loc, lhsValue, inductionVariables);
+    if (!startOp.getFixed()) {
+      continue;
     }
-  }
 
-  // Clone the operations.
-  mlir::IRMapping mapping;
+    builder.setInsertionPointAfter(startOp);
 
-  for (auto& op : startOp.getOps()) {
-    if (!mlir::isa<YieldOp>(op)) {
-      builder.clone(op, mapping);
+    // Create the equation template.
+    mlir::Location loc = startOp.getLoc();
+
+    auto variable = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        getOperation(), startOp.getVariableAttr());
+
+    VariableType variableType = variable.getVariableType();
+    int64_t expressionRank = 0;
+
+    auto yieldOp =  mlir::cast<YieldOp>(
+        startOp.getBodyRegion().back().getTerminator());
+
+    mlir::Value expressionValue = yieldOp.getValues()[0];
+
+    if (auto expressionArrayType =
+            expressionValue.getType().dyn_cast<ArrayType>()) {
+      expressionRank = expressionArrayType.getRank();
     }
-  }
 
-  // Right-hand side.
-  mlir::Value rhsValue = mapping.lookup(yieldOp.getValues()[0]);
+    int64_t variableRank = variableType.getRank();
+    assert(variableRank >= expressionRank);
 
-  // Create the assignment.
-  mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhsValue);
-  mlir::Value rhsTuple = builder.create<EquationSideOp>(loc, rhsValue);
-  builder.create<EquationSidesOp>(loc, lhsTuple, rhsTuple);
+    auto templateOp = builder.create<EquationTemplateOp>(startOp.getLoc());
+    mlir::Block* templateBody = templateOp.createBody(variableRank);
+    builder.setInsertionPointToStart(templateBody);
 
-  // Create the equation instance.
-  builder.setInsertionPointAfter(equationTemplateOp);
+    auto inductions = templateOp.getInductionVariables();
 
-  if (variableRank == expressionRank) {
-    if (auto implicitIndices =
-            equationTemplateOp.computeImplicitIterationSpace(0)) {
-      for (const MultidimensionalRange& range : llvm::make_range(
-               implicitIndices->rangesBegin(), implicitIndices->rangesEnd())) {
-        auto equationInstanceOp = builder.create<EquationInstanceOp>(
-            loc, equationTemplateOp, true);
+    mlir::Value lhs = builder.create<VariableGetOp>(
+        startOp.getLoc(), variableType.unwrap(), startOp.getVariable());
 
-        equationInstanceOp.setViewElementIndex(0);
+    if (!inductions.empty()) {
+      lhs = builder.create<LoadOp>(lhs.getLoc(), lhs, inductions);
+    }
 
-        equationInstanceOp.setImplicitIndicesAttr(
-            MultidimensionalRangeAttr::get(&getContext(), range));
+    // Clone the operations.
+    mlir::IRMapping mapping;
+
+    for (auto& op : startOp.getOps()) {
+      if (!mlir::isa<YieldOp>(op)) {
+        builder.clone(op, mapping);
       }
+    }
+
+    // Right-hand side.
+    mlir::Value rhs = mapping.lookup(expressionValue);
+    builder.setInsertionPointToEnd(templateBody);
+
+    if (expressionRank != 0) {
+      rhs = builder.create<LoadOp>(
+          rhs.getLoc(), rhs, inductions.take_back(expressionRank));
+    }
+
+    // Create the assignment.
+    mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhs);
+    mlir::Value rhsTuple = builder.create<EquationSideOp>(loc, rhs);
+    builder.create<EquationSidesOp>(loc, lhsTuple, rhsTuple);
+
+    // Create the equation instance.
+    builder.setInsertionPointAfter(templateOp);
+
+    auto initialModelOp = builder.create<InitialModelOp>(modelOp.getLoc());
+    builder.createBlock(&initialModelOp.getBodyRegion());
+    builder.setInsertionPointToStart(initialModelOp.getBody());
+
+    if (variableType.isScalar()) {
+      builder.create<EquationInstanceOp>(loc, templateOp);
     } else {
-      auto equationInstanceOp = builder.create<EquationInstanceOp>(
-          loc, equationTemplateOp, true);
+      IndexSet indices = variable.getIndices();
 
-      equationInstanceOp.setViewElementIndex(0);
+      for (const MultidimensionalRange& range : llvm::make_range(
+               indices.rangesBegin(), indices.rangesEnd())) {
+        auto instanceOp = builder.create<EquationInstanceOp>(loc, templateOp);
+
+        instanceOp.setIndicesAttr(
+            MultidimensionalRangeAttr::get(builder.getContext(), range));
+      }
     }
-  } else {
-    llvm::SmallVector<Range, 3> ranges;
-
-    for (unsigned int i = 0; i < variableRank - expressionRank; ++i) {
-      ranges.push_back(Range(0, variableType.getShape()[i]));
-    }
-
-    auto instanceOp =
-        builder.create<EquationInstanceOp>(loc, equationTemplateOp, true);
-
-    instanceOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-        builder.getContext(), MultidimensionalRange(ranges)));
   }
 }
 

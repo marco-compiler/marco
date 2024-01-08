@@ -19,7 +19,7 @@ namespace mlir::modelica
       class IRListener : public mlir::RewriterBase::Listener
       {
         public:
-          IRListener(AnalysisProvider& provider);
+          explicit IRListener(AnalysisProvider& provider);
 
           void notifyOperationRemoved(mlir::Operation* op) override;
 
@@ -27,18 +27,13 @@ namespace mlir::modelica
           AnalysisProvider* provider;
       };
 
-      VariableAccessAnalysis(EquationTemplateOp op);
+      explicit VariableAccessAnalysis(EquationTemplateOp op);
 
       mlir::LogicalResult initialize(
           mlir::SymbolTableCollection& symbolTableCollection);
 
-      /// Mark the analysis as to be preserved at the end of the pass.
-      void preserve();
-
       /// Invalidate the analysis.
       void invalidate();
-
-      bool isInvalidated(const mlir::detail::PreservedAnalyses& pa) const;
 
       /// Get the accesses of an equation.
       /// Returns std::nullopt if the accesses can't be computed.
@@ -69,9 +64,7 @@ namespace mlir::modelica
       bool preserved{false};
 
       /// The list of all the accesses performed by the equation.
-      llvm::DenseMap<
-          uint64_t,
-          llvm::SmallVector<VariableAccess, 10>> accesses;
+      llvm::SmallVector<VariableAccess, 10> accesses;
   };
 }
 

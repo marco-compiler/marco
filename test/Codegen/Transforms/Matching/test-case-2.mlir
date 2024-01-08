@@ -8,7 +8,8 @@
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<4x!modelica.real>
 
-    // CHECK: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+    // x[i] = 0
+    // CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
     %t0 = modelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = modelica.variable_get @x : !modelica.array<4x!modelica.real>
         %1 = modelica.load %0[%i0] : !modelica.array<4x!modelica.real>
@@ -18,10 +19,8 @@ modelica.model @Test {
         modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,1]>, path = #modelica<equation_path [L, 0]>}
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>} : !modelica.equation
-
-    // CHECK: %[[t1:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
+    // x[i] = 0
+    // CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
     %t1 = modelica.equation_template inductions = [%i0] attributes {id = "t1"} {
         %0 = modelica.variable_get @x : !modelica.array<4x!modelica.real>
         %1 = modelica.load %0[%i0] : !modelica.array<4x!modelica.real>
@@ -31,6 +30,10 @@ modelica.model @Test {
         modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.matched_equation_instance %1 {indices = #modeling<multidim_range [2,3]>, path = #modelica<equation_path [L, 0]>}
-    modelica.equation_instance %t1 {indices = #modeling<multidim_range [2,3]>} : !modelica.equation
+    modelica.main_model {
+        // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,1]>, path = #modelica<equation_path [L, 0]>}
+        // CHECK-DAG: modelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [2,3]>, path = #modelica<equation_path [L, 0]>}
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>} : !modelica.equation
+        modelica.equation_instance %t1 {indices = #modeling<multidim_range [2,3]>} : !modelica.equation
+    }
 }

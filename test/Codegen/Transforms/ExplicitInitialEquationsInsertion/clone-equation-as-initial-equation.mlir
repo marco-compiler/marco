@@ -1,8 +1,10 @@
 // RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
-// CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [] attributes {id = "t0"}
-// CHECK-DAG: modelica.equation_instance %[[t0]]
-// CHECK-DAG: modelica.equation_instance %[[t0]] {initial = true}
+// CHECK: %[[t0:.*]] = modelica.equation_template inductions = [] attributes {id = "t0"}
+// CHECK: modelica.initial_model
+// CHECK-NEXT: modelica.equation_instance %[[t0]]
+// CHECK: modelica.main_model
+// CHECK-NEXT: modelica.equation_instance %[[t0]]
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>
@@ -15,5 +17,7 @@ modelica.model @Test {
         modelica.equation_sides %lhs, %rhs : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }

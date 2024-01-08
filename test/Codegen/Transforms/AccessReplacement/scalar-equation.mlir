@@ -11,7 +11,6 @@ modelica.model @Test {
     // CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[value]]
     // CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
     // CHECK-NEXT:  }
-    // CHECK-NEXT:  modelica.equation_instance %[[t0]] {id = "eq0"}
 
     // x = y
     %t0 = modelica.equation_template inductions = [] attributes {id = "t0"} {
@@ -22,8 +21,6 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 {id = "eq0", replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
-
     // y = 0
     %t1 = modelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.real
@@ -33,5 +30,10 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 {id = "eq1"} : !modelica.equation
+    modelica.main_model {
+        // CHECK: modelica.equation_instance %[[t0]] {id = "eq0"}
+        modelica.equation_instance %t0 {id = "eq0", replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
+
+        modelica.equation_instance %t1 {id = "eq1"} : !modelica.equation
+    }
 }

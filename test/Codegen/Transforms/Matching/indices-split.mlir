@@ -1,16 +1,16 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
 // i = 1 to 2
-// x[i - 1] = y[i - 1];
-
-// x[1] = 3;
-// y[0] = 1;
+//   x[i - 1] = y[i - 1]
+// x[1] = 3
+// y[0] = 1
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<2x!modelica.int>
     modelica.variable @y : !modelica.variable<2x!modelica.int>
 
-    // CHECK: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+    // x[i - 1] = y[i - 1]
+    // CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
     %t0 = modelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = modelica.constant 1 : index
         %1 = modelica.sub %i0, %0 : (index, index) -> index
@@ -23,11 +23,8 @@ modelica.model @Test {
         modelica.equation_sides %6, %7 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [1,1]>, path = #modelica<equation_path [L, 0]>}
-    // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2]>, path = #modelica<equation_path [R, 0]>}
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>} : !modelica.equation
-
-    // CHECK: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
+    // x[1] = 3
+    // CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
     %t1 = modelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.int>
         %1 = modelica.constant 1 : index
@@ -38,10 +35,8 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t1]] {path = #modelica<equation_path [L, 0]>}
-    modelica.equation_instance %t1 : !modelica.equation
-
-    // CHECK: %[[t2:.*]] = modelica.equation_template inductions = [] attributes {id = "t2"}
+    // y[0] = 1
+    // CHECK-DAG: %[[t2:.*]] = modelica.equation_template inductions = [] attributes {id = "t2"}
     %t2 = modelica.equation_template inductions = [] attributes {id = "t2"} {
         %0 = modelica.variable_get @y : !modelica.array<2x!modelica.int>
         %1 = modelica.constant 0 : index
@@ -52,6 +47,13 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t2]] {path = #modelica<equation_path [L, 0]>}
-    modelica.equation_instance %t2 : !modelica.equation
+    modelica.main_model {
+        // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [1,1]>, path = #modelica<equation_path [L, 0]>}
+        // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2]>, path = #modelica<equation_path [R, 0]>}
+        // CHECK-DAG: modelica.matched_equation_instance %[[t1]] {path = #modelica<equation_path [L, 0]>}
+        // CHECK-DAG: modelica.matched_equation_instance %[[t2]] {path = #modelica<equation_path [L, 0]>}
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>} : !modelica.equation
+        modelica.equation_instance %t1 : !modelica.equation
+        modelica.equation_instance %t2 : !modelica.equation
+    }
 }

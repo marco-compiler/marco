@@ -1,6 +1,7 @@
 #ifndef MARCO_MODELING_SCC_H
 #define MARCO_MODELING_SCC_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <vector>
 
@@ -15,14 +16,13 @@ namespace marco::modeling
       //
       // typedef ElementRef : the type of the elements composing the SCC, which should be cheap to copy.
       //
-      // static bool hasCycle(const SCC* scc);
-      //    return whether the SCC contains any cycle.
-      //
       // static std::vector<ElementRef> getElements(const SCC* scc);
       //    return the elements composing the SCC.
       //
-      // static std::vector<ElementRef> getDependentElements(const SCC* scc, ElementRef element);
-      //    return the elements (which may belong to other SCCs) depending on a given one.
+      // static std::vector<ElementRef> getDependencies(const SCC* scc, ElementRef element);
+      //    return the elements (which may belong to other SCCs) on which a given one depends on.
+
+      using Error = typename SCC::UnknownSCCTypeError;
     };
   }
 
@@ -34,19 +34,24 @@ namespace marco::modeling
     class SCC
     {
       public:
-        using EquationDescriptor = typename Graph::VertexDescriptor;
+        using ElementDescriptor = typename Graph::VertexDescriptor;
 
       private:
-        using Equation = typename Graph::VertexProperty;
-        using Container = std::vector<EquationDescriptor>;
+        using Property = typename Graph::VertexProperty;
+        using Container = llvm::SmallVector<ElementDescriptor>;
 
       public:
         using iterator = typename Container::iterator;
         using const_iterator = typename Container::const_iterator;
 
+      private:
+        const Graph* graph;
+        Container equations;
+
+      public:
         template<typename It>
-        SCC(const Graph& graph, bool cycle, It equationsBegin, It equationsEnd)
-            : graph(&graph), cycle(cycle), equations(equationsBegin, equationsEnd)
+        SCC(const Graph& graph, It equationsBegin, It equationsEnd)
+            : graph(&graph), equations(equationsBegin, equationsEnd)
         {
         }
 
@@ -56,20 +61,13 @@ namespace marco::modeling
           return *graph;
         }
 
-        /// Get whether the SCC present a cycle.
-        /// Note that only SCCs with just one element may not have cycles.
-        bool hasCycle() const
-        {
-          return cycle;
-        }
-
         /// Get the number of equations composing the SCC.
-        size_t size() const
+        [[nodiscard]] size_t size() const
         {
           return equations.size();
         }
 
-        const Equation& operator[](size_t index) const
+        const Property& operator[](size_t index) const
         {
           assert(index < equations.size());
           return (*this)[equations[index]];
@@ -78,7 +76,7 @@ namespace marco::modeling
         /// @name Forwarded methods
         /// {
 
-        const Equation& operator[](EquationDescriptor descriptor) const
+        const Property& operator[](ElementDescriptor descriptor) const
         {
           return (*graph)[descriptor];
         }
@@ -108,11 +106,6 @@ namespace marco::modeling
         }
 
       /// }
-
-      private:
-        const Graph* graph;
-        bool cycle;
-        Container equations;
     };
   }
 
@@ -126,12 +119,7 @@ namespace marco::modeling
         using Impl = internal::dependency::SCC<Graph>;
 
       public:
-        using ElementRef = typename Impl::EquationDescriptor;
-
-        static bool hasCycle(const Impl* SCC)
-        {
-          return SCC->hasCycle();
-        }
+        using ElementRef = typename Impl::ElementDescriptor;
 
         static std::vector<ElementRef> getElements(const Impl* SCC)
         {
@@ -139,18 +127,21 @@ namespace marco::modeling
           return result;
         }
 
-        static std::vector<ElementRef> getDependentElements(
+        static std::vector<ElementRef> getDependencies(
             const Impl* SCC, ElementRef element)
         {
           std::vector<ElementRef> result;
           const auto& graph = SCC->getGraph();
 
-          auto edges = llvm::make_range(
-              graph.outgoingEdgesBegin(element),
-              graph.outgoingEdgesEnd(element));
-
-          for (const auto& edge : edges) {
-            result.push_back(edge.to);
+          for (ElementRef otherElement : llvm::make_range(
+                   graph.verticesBegin(), graph.verticesEnd())) {
+            for (ElementRef connectedElement : llvm::make_range(
+                     graph.linkedVerticesBegin(otherElement),
+                     graph.linkedVerticesEnd(otherElement))) {
+              if (connectedElement == element) {
+                result.push_back(connectedElement);
+              }
+            }
           }
 
           return result;

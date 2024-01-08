@@ -22,7 +22,12 @@ modelica.model @Test {
 // CHECK:           simulation.return
 // CHECK-NEXT:  }
 
-modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x, @der_x>]} {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @der_x : !modelica.variable<!modelica.real>
+module {
+    modelica.simulation_variable @x : !modelica.variable<!modelica.real>
+    modelica.simulation_variable @der_x : !modelica.variable<!modelica.real>
+
+    modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x, @der_x>]} {
+        modelica.variable @x : !modelica.variable<!modelica.real>
+        modelica.variable @der_x : !modelica.variable<!modelica.real>
+    }
 }

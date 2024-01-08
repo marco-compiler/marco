@@ -615,4 +615,118 @@ namespace mlir::modelica
 
     return nullptr;
   }
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    for (MatchedEquationInstanceOp equationOp : equations) {
+      IndexSet equationIndices = equationOp.getIterationSpace();
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(equationOp.getAccesses(
+              accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      std::optional<VariableAccess> matchedAccess =
+          equationOp.getMatchedAccess(symbolTableCollection);
+
+      if (!matchedAccess) {
+        return mlir::failure();
+      }
+
+      auto writtenVariableOp =
+          symbolTableCollection.lookupSymbolIn<VariableOp>(
+              modelOp, matchedAccess->getVariable());
+
+      IndexSet writtenVariableIndices;
+
+      for (const VariableAccess& writeAccess : writeAccesses) {
+        const AccessFunction& accessFunction = writeAccess.getAccessFunction();
+        writtenVariableIndices += accessFunction.map(equationIndices);
+      }
+
+      writesMap.emplace(
+          writtenVariableOp,
+          std::make_pair(std::move(writtenVariableIndices), equationOp));
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::SmallVector<MatchedEquationInstanceOp> equations;
+
+    for (SCCOp scc : SCCs) {
+      scc.collectEquations(equations);
+    }
+
+    return getWritesMap(writesMap, modelOp, equations, symbolTableCollection);
+  }
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
+      mlir::ModuleOp moduleOp,
+      ScheduleOp scheduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    for (SCCOp scc : scheduleOp.getOps<SCCOp>()) {
+      for (MatchedEquationInstanceOp equation :
+           scc.getOps<MatchedEquationInstanceOp>()) {
+        IndexSet equationIndices = equation.getIterationSpace();
+        llvm::SmallVector<VariableAccess> accesses;
+
+        if (mlir::failed(equation.getAccesses(
+                accesses, symbolTableCollection))) {
+          return mlir::failure();
+        }
+
+        llvm::SmallVector<VariableAccess> writeAccesses;
+
+        if (mlir::failed(equation.getWriteAccesses(
+                writeAccesses, symbolTableCollection, accesses))) {
+          return mlir::failure();
+        }
+
+        std::optional<VariableAccess> matchedAccess =
+            equation.getMatchedAccess(symbolTableCollection);
+
+        if (!matchedAccess) {
+          return mlir::failure();
+        }
+
+        auto writtenVariableOp =
+            symbolTableCollection.lookupSymbolIn<SimulationVariableOp>(
+                moduleOp, matchedAccess->getVariable());
+
+        IndexSet writtenVariableIndices;
+
+        for (const VariableAccess& writeAccess : writeAccesses) {
+          const AccessFunction& accessFunction = writeAccess.getAccessFunction();
+          writtenVariableIndices += accessFunction.map(equationIndices);
+        }
+
+        writesMap.emplace(
+            writtenVariableOp,
+            std::make_pair(std::move(writtenVariableIndices), equation));
+      }
+    }
+
+    return mlir::success();
+  }
 }

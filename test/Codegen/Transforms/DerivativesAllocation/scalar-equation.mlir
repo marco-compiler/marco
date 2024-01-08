@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --allocate-derivatives --canonicalize | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --allocate-derivatives | FileCheck %s
 
 // Scalar variable.
 
@@ -20,7 +20,9 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }
 
 // -----
@@ -47,7 +49,9 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }
 
 // -----
@@ -71,7 +75,9 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }
 
 // -----
@@ -101,8 +107,6 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
-
     %t1 = modelica.equation_template inductions = [] attributes {id = "eq1"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
         %1 = modelica.constant 1 : index
@@ -114,7 +118,10 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+        modelica.equation_instance %t1 : !modelica.equation
+    }
 }
 
 // -----
@@ -127,14 +134,16 @@ modelica.model @Test {
 // CHECK:       modelica.equation_template inductions = [] attributes {id = "eq0"} {
 // CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
 // CHECK-DAG:       %[[index:.*]] = modelica.constant 0 : index
-// CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x]][%[[index]]]
+// CHECK-DAG:       %[[der_x_subscription:.*]] = modelica.subscription %[[der_x]][%[[index]]]
+// CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x_subscription]][]
 // CHECK:           %[[lhs:.*]] = modelica.equation_side %[[der_x_load]]
 // CHECK:           modelica.equation_sides %[[lhs]], %{{.*}}
 // CHECK-NEXT:  }
 // CHECK:       modelica.equation_template inductions = [] attributes {id = "eq1"} {
 // CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
 // CHECK-DAG:       %[[index:.*]] = modelica.constant 1 : index
-// CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x]][%[[index]]]
+// CHECK-DAG:       %[[der_x_subscription:.*]] = modelica.subscription %[[der_x]][%[[index]]]
+// CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x_subscription]][]
 // CHECK:           %[[lhs:.*]] = modelica.equation_side %[[der_x_load]]
 // CHECK:           modelica.equation_sides %[[lhs]], %{{.*}}
 // CHECK-NEXT:  }
@@ -153,8 +162,6 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
-
     %t1 = modelica.equation_template inductions = [] attributes {id = "eq1"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
         %1 = modelica.constant 1 : index
@@ -166,7 +173,10 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+        modelica.equation_instance %t1 : !modelica.equation
+    }
 }
 
 // -----
@@ -194,8 +204,6 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
-
     %t1 = modelica.equation_template inductions = [] attributes {id = "eq1"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
         %1 = modelica.constant 1 : index
@@ -207,7 +215,10 @@ modelica.model @Test {
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+        modelica.equation_instance %t1 : !modelica.equation
+    }
 }
 
 // -----
@@ -239,7 +250,9 @@ modelica.model @Test {
         modelica.equation_sides %7, %8 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }
 
 // -----
@@ -274,5 +287,7 @@ modelica.model @Test {
         modelica.equation_sides %7, %8 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 : !modelica.equation
+    }
 }

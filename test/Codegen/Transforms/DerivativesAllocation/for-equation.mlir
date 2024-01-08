@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --allocate-derivatives --canonicalize | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --allocate-derivatives | FileCheck %s
 
 // Check variable declaration and derivatives map.
 
@@ -21,7 +21,9 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    }
 }
 
 // -----
@@ -31,11 +33,12 @@ modelica.model @Test {
 // CHECK-LABEL: @Test
 // CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]] attributes {id = "t0"} {
 // CHECK:           %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:           %[[load:.*]] = modelica.load %[[der_x]][%[[i0]], %[[i1]]]
+// CHECK:           %[[subscription:.*]] = modelica.subscription %[[der_x]][%[[i0]], %[[i1]]]
+// CHECK:           %[[load:.*]] = modelica.load %[[subscription]][]
 // CHECK:           %[[lhs:.*]] = modelica.equation_side %[[load]]
 // CHECK:           modelica.equation_sides %[[lhs]], %{{.*}}
 // CHECK-NEXT:  }
-// CHECK-NEXT:  modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][12,14]>}
+// CHECK:       modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][12,14]>}
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<10x20x!modelica.real>
@@ -50,7 +53,9 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    }
 }
 
 // -----
@@ -77,7 +82,9 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    }
 }
 
 // -----
@@ -111,5 +118,7 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    modelica.main_model {
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    }
 }

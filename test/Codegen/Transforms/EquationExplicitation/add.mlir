@@ -27,7 +27,9 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0, 0]>} : !modelica.equation
+    modelica.main_model {
+        modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0, 0]>} : !modelica.equation
+    }
 }
 
 // -----
@@ -59,5 +61,7 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0, 1]>} : !modelica.equation
+    modelica.main_model {
+        modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0, 1]>} : !modelica.equation
+    }
 }

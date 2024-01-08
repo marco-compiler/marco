@@ -247,6 +247,62 @@ namespace
 
 namespace
 {
+  struct EquationFunctionOpLowering
+      : public ModelicaOpConversionPattern<EquationFunctionOp>
+  {
+    using ModelicaOpConversionPattern<EquationFunctionOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        EquationFunctionOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Type> argsTypes;
+      llvm::SmallVector<mlir::Type> resultsTypes;
+
+      for (mlir::Type argType : op.getFunctionType().getInputs()) {
+        argsTypes.push_back(getTypeConverter()->convertType(argType));
+      }
+
+      for (mlir::Type resultType : op.getFunctionType().getResults()) {
+        resultsTypes.push_back(getTypeConverter()->convertType(resultType));
+      }
+
+      auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
+      auto funcOp = rewriter.create<mlir::func::FuncOp>(
+          op.getLoc(), op.getSymName(), functionType);
+
+      rewriter.inlineRegionBefore(
+          op.getBody(), funcOp.getFunctionBody(), funcOp.end());
+
+      if (mlir::failed(rewriter.convertRegionTypes(
+              &funcOp.getFunctionBody(), *typeConverter))) {
+        return mlir::failure();
+      }
+
+      auto yieldOp = mlir::cast<YieldOp>(
+          funcOp.getBody().back().getTerminator());
+
+      rewriter.setInsertionPoint(yieldOp);
+      llvm::SmallVector<mlir::Value> mappedResults;
+
+      for (mlir::Value result : yieldOp.getValues()) {
+        mappedResults.push_back(
+            getTypeConverter()->materializeTargetConversion(
+                rewriter, result.getLoc(),
+                getTypeConverter()->convertType(result.getType()), result));
+      }
+
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          yieldOp, mappedResults);
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+  };
+
   struct RawFunctionOpLowering
       : public ModelicaOpConversionPattern<RawFunctionOp>
   {
@@ -3319,6 +3375,7 @@ static void populateModelicaToFuncPatterns(
     mlir::TypeConverter& typeConverter)
 {
   patterns.insert<
+      EquationFunctionOpLowering,
       RawFunctionOpLowering,
       RawReturnOpLowering,
       CallOpLowering>(typeConverter, context);
@@ -3335,6 +3392,12 @@ namespace
 
       void runOnOperation() override
       {
+        if (mlir::failed(convertSchedules())) {
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in converting the schedules");
+          return signalPassFailure();
+        }
+
         if (mlir::failed(eraseObjectOrientation())) {
           mlir::emitError(getOperation().getLoc(),
                           "Error in erasing object-orientation");
@@ -3361,6 +3424,8 @@ namespace
       }
 
     private:
+      mlir::LogicalResult convertSchedules();
+
       mlir::LogicalResult eraseObjectOrientation()
       {
         auto moduleOp = getOperation();
@@ -3465,7 +3530,12 @@ namespace
         target.addLegalDialect<mlir::memref::MemRefDialect>();
 
         target.addLegalDialect<ModelicaDialect>();
-        target.addIllegalOp<RawFunctionOp, RawReturnOp, CallOp>();
+
+        target.addIllegalOp<
+            EquationFunctionOp,
+            RawFunctionOp,
+            RawReturnOp,
+            CallOp>();
 
         mlir::modelica::TypeConverter typeConverter(bitWidth);
         mlir::RewritePatternSet patterns(&getContext());
@@ -3505,6 +3575,111 @@ namespace
         return applyPartialConversion(module, target, std::move(patterns));
       }
     };
+}
+
+namespace
+{
+  class ScheduleOpPattern : public mlir::OpRewritePattern<ScheduleOp>
+  {
+    private:
+      mlir::SymbolTableCollection* symbolTableCollection;
+
+    public:
+      ScheduleOpPattern(
+          mlir::MLIRContext* context,
+          mlir::SymbolTableCollection& symbolTableCollection)
+          : mlir::OpRewritePattern<ScheduleOp>(context),
+            symbolTableCollection(&symbolTableCollection)
+      {
+      }
+
+      mlir::LogicalResult matchAndRewrite(
+          ScheduleOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+        auto scheduleFuncOp = rewriter.create<mlir::func::FuncOp>(
+            loc, op.getSymName(),
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        mlir::Block* entryBlock = scheduleFuncOp.addEntryBlock();
+        rewriter.setInsertionPointToStart(entryBlock);
+        size_t sccGroupCounter = 0;
+
+        for (SCCGroupOp sccGroup : op.getOps<SCCGroupOp>()) {
+          mlir::func::FuncOp sccGroupFunc = createSCCGroupFunction(
+              rewriter, moduleOp, sccGroup,
+              op.getSymName().str() +
+                  "_scc_group_" +
+                  std::to_string(sccGroupCounter++));
+
+          if (!sccGroupFunc) {
+            return mlir::failure();
+          }
+
+          rewriter.create<mlir::func::CallOp>(sccGroup.getLoc(), sccGroupFunc);
+        }
+
+        rewriter.create<mlir::func::ReturnOp>(scheduleFuncOp.getLoc());
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+    private:
+      mlir::func::FuncOp createSCCGroupFunction(
+          mlir::PatternRewriter& rewriter,
+          mlir::ModuleOp moduleOp,
+          SCCGroupOp sccGroup,
+          llvm::StringRef functionName) const
+      {
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        auto sccGroupFunc = rewriter.create<mlir::func::FuncOp>(
+            sccGroup.getLoc(), functionName,
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        mlir::Block* entryBlock = sccGroupFunc.addEntryBlock();
+        rewriter.setInsertionPointToStart(entryBlock);
+        rewriter.mergeBlocks(sccGroup.getBody(), entryBlock);
+        rewriter.create<mlir::func::ReturnOp>(sccGroupFunc.getLoc());
+        return sccGroupFunc;
+      }
+  };
+
+  class RunScheduleOpPattern : public mlir::OpRewritePattern<RunScheduleOp>
+  {
+    public:
+      using mlir::OpRewritePattern<RunScheduleOp>::OpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RunScheduleOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+            op, op.getSchedule(), std::nullopt);
+
+        return mlir::success();
+      }
+  };
+}
+
+mlir::LogicalResult ModelicaToFuncConversionPass::convertSchedules()
+{
+  mlir::ConversionTarget target(getContext());
+  target.addIllegalOp<ScheduleOp, RunScheduleOp>();
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  patterns.insert<RunScheduleOpPattern>(&getContext());
+  patterns.insert<ScheduleOpPattern>(&getContext(), symbolTableCollection);
+
+  return applyPartialConversion(getOperation(), target, std::move(patterns));
 }
 
 namespace mlir

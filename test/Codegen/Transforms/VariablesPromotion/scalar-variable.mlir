@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --promote-variables-to-parameters | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --promote-variables-to-parameters --canonicalize | FileCheck %s
 
 // Promotable SCC.
 
@@ -6,8 +6,10 @@
 // CHECK-DAG: modelica.variable @y : !modelica.variable<!modelica.int, parameter>
 // CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [] attributes {id = "t0"}
 // CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
-// CHECK-DAG: modelica.matched_equation_instance %[[t0]] {initial = true, path = #modelica<equation_path [L, 0]>}
-// CHECK-DAG: modelica.matched_equation_instance %[[t1]] {initial = true, path = #modelica<equation_path [L, 0]>}
+// CHECK: modelica.initial_model
+// CHECK-DAG: modelica.matched_equation_instance %[[t0]] {path = #modelica<equation_path [L, 0]>}
+// CHECK-DAG: modelica.matched_equation_instance %[[t1]] {path = #modelica<equation_path [L, 0]>}
+// CHECK-NOT: modelica.main_model
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.int>
@@ -21,8 +23,6 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0]>} : !modelica.equation
-
     %t1 = modelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.int
         %1 = modelica.variable_get @x : !modelica.int
@@ -31,5 +31,8 @@ modelica.model @Test {
         modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
     }
 
-    modelica.matched_equation_instance %t1 {path = #modelica<equation_path [L, 0]>} : !modelica.equation
+    modelica.main_model {
+        modelica.matched_equation_instance %t0 {path = #modelica<equation_path [L, 0]>} : !modelica.equation
+        modelica.matched_equation_instance %t1 {path = #modelica<equation_path [L, 0]>} : !modelica.equation
+    }
 }

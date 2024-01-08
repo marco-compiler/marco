@@ -673,7 +673,6 @@ namespace marco::frontend
     // simplifications for the model solving process.
     pm.addPass(mlir::modelica::createFunctionInliningPass());
 
-    // Unpack the records.
     pm.addPass(mlir::modelica::createRecordInliningPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
@@ -681,12 +680,20 @@ namespace marco::frontend
     pm.addPass(mlir::modelica::createRangeBoundariesInferencePass());
     pm.addPass(mlir::createCanonicalizerPass());
 
+    // Make the equations having only one element on its left and right-hand
+    // sides.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createEquationSidesSplitPass());
+
+    // Add additional inductions in case of equalities between arrays.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createEquationInductionsExplicitationPass());
+
+    // TODO: fold access functions operating on ranges
+
     // Lift the equations.
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createEquationTemplatesCreationPass());
-
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationViewsComputationPass());
 
     // Handle the derivatives.
     pm.addNestedPass<mlir::modelica::ModelOp>(
@@ -712,20 +719,36 @@ namespace marco::frontend
         mlir::modelica::createEquationAccessSplitPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createVariablesPromotionPass());
-
-    pm.addNestedPass<mlir::modelica::ModelOp>(createMLIRCyclesSolvingPass());
+        mlir::modelica::createSCCDetectionPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSchedulingPass());
+        mlir::modelica::createVariablesPromotionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createSCCSolvingPass());
 
     // Apply the selected solver.
+    pm.addPass(mlir::modelica::createSimulationVariablesInsertionPass());
+
     pm.addPass(
         llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
             ci.getSimulationOptions().solver)
-            .Case("euler-forward", createMLIREulerForwardPass())
+            .Case("euler-forward", mlir::modelica::createEulerForwardPass())
             .Case("ida", createMLIRIDAPass())
-            .Default(createMLIREulerForwardPass()));
+            .Default(mlir::modelica::createEulerForwardPass()));
+
+    // Schedule the internal equations.
+    pm.addNestedPass<mlir::modelica::ScheduleOp>(
+        mlir::modelica::createSchedulingPass());
+
+    // Create the functions for the equations.
+    pm.addPass(mlir::modelica::createEquationExplicitationPass());
+
+    // Lift loop-independent code from loops of equations.
+    pm.addNestedPass<mlir::modelica::EquationFunctionOp>(
+        mlir::modelica::createEquationFunctionLoopHoistingPass());
+
+    pm.addPass(createMLIRModelicaToSimulationConversionPass());
 
     pm.addPass(createMLIRFunctionScalarizationPass());
     pm.addPass(mlir::modelica::createExplicitCastInsertionPass());
@@ -835,32 +858,11 @@ namespace marco::frontend
     return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
   }
 
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRCyclesSolvingPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::CyclesSolvingPassOptions options;
-    options.allowUnsolvedCycles = ci.getSimulationOptions().solver == "ida";
-
-    return mlir::modelica::createCyclesSolvingPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::modelica::EulerForwardPassOptions options;
-    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
-
-    return mlir::modelica::createEulerForwardPass(options);
-  }
-
   std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRIDAPass()
   {
     CompilerInstance& ci = getInstance();
 
     mlir::modelica::IDAPassOptions options;
-    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
     options.reducedSystem = ci.getSimulationOptions().IDAReducedSystem;
     options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
     options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
@@ -934,6 +936,17 @@ namespace marco::frontend
     options.dataLayout = getDataLayout().getStringRepresentation();
 
     return mlir::createModelicaToMemRefConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToSimulationConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToSimulationConversionPassOptions options;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+
+    return mlir::createModelicaToSimulationConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>

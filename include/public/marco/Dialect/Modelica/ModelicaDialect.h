@@ -62,6 +62,30 @@ namespace mlir::modelica
       mlir::Location loc,
       mlir::AffineExpr expression,
       mlir::ValueRange dimensions);
+
+  // Map between variables and the equations writing to them.
+  // The indices are referred to the written indices of the variable
+  // (and not to the indices of the equation).
+  template<typename Variable, typename Equation>
+  using WritesMap = std::multimap<Variable, std::pair<IndexSet, Equation>>;
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
+      mlir::ModuleOp moduleOp,
+      ScheduleOp scheduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection);
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_H

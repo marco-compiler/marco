@@ -1,17 +1,25 @@
 set(SOURCES
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
+    Modeling/Bridge.cpp
+    Modeling/EquationBridge.cpp
+    Modeling/MatchedEquationBridge.cpp
+    Modeling/SCCBridge.cpp
+    Modeling/VariableBridge.cpp
+    Solvers/Common.cpp
     Solvers/IDAInstance.cpp
     Solvers/KINSOLInstance.cpp
     AccessReplacementTest.cpp
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
-    CyclesSolving.cpp
     DerivativesAllocation.cpp
     EquationAccessSplit.cpp
+    EquationExplicitation.cpp
     EquationExplicitationTest.cpp
+    EquationFunctionLoopHoisting.cpp
+    EquationInductionsExplicitation.cpp
+    EquationSidesSplit.cpp
     EquationTemplatesCreation.cpp
-    EquationViewsComputation.cpp
     EulerForward.cpp
     ExplicitCastInsertion.cpp
     ExplicitInitialEquationsInsertion.cpp
@@ -21,12 +29,15 @@ set(SOURCES
     IDA.cpp
     Matching.cpp
     ModelAlgorithmConversion.cpp
+    ModelDebugCanonicalization.cpp
     OpDistribution.cpp
     RangeBoundariesInference.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp
+    SCCDetection.cpp
+    SCCSolving.cpp
     Scheduling.cpp
-    SolverPassBase.cpp
+    SimulationVariablesInsertion.cpp
     VariablesPromotion.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

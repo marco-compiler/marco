@@ -1,4 +1,4 @@
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+ #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/Modelica/Ops.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/IR/Builders.h"
@@ -694,6 +694,40 @@ namespace mlir::modelica
   {
     ::printExpression(os, getOperand());
   }
+
+  mlir::LogicalResult ArrayCastOp::getEquationAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      AdditionalInductions& additionalInductions,
+      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+      EquationPath path)
+  {
+    mlir::Value source = getSource();
+    auto childOp = source.getDefiningOp();
+
+    if (!childOp) {
+      return mlir::success();
+    }
+
+    auto expressionInt =
+        mlir::dyn_cast<EquationExpressionOpInterface>(childOp);
+
+    if (!expressionInt) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(expressionInt.getEquationAccesses(
+            accesses, symbolTable,
+            explicitInductionsPositionMap,
+            additionalInductions,
+            dimensionAccesses,
+            path + 0))) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -747,6 +781,17 @@ namespace mlir::modelica
     os << ", ";
     ::printExpression(os, getDimension());
     os << ")";
+  }
+
+  uint64_t DimOp::getNumOfExpressionElements()
+  {
+    return 1;
+  }
+
+  mlir::Value DimOp::getExpressionElement(uint64_t position)
+  {
+    assert(position == 0);
+    return getDimension();
   }
 }
 
@@ -916,7 +961,6 @@ namespace mlir::modelica
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
       AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
-      uint64_t numOfImplicitInductions,
       EquationPath path)
   {
     auto indices = getIndices();
@@ -942,7 +986,7 @@ namespace mlir::modelica
 
     return arrayOp.getEquationAccesses(
         accesses, symbolTable, explicitInductionsPositionMap,
-        additionalInductions, dimensionAccesses, numOfImplicitInductions,
+        additionalInductions, dimensionAccesses,
         std::move(path));
   }
 
@@ -1238,7 +1282,6 @@ namespace mlir::modelica
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
       AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
-      uint64_t numOfImplicitInductions,
       EquationPath path)
   {
     auto indices = getIndices();
@@ -1264,7 +1307,7 @@ namespace mlir::modelica
 
     return sourceOp.getEquationAccesses(
         accesses, symbolTable, explicitInductionsPositionMap,
-        additionalInductions, dimensionAccesses, numOfImplicitInductions,
+        additionalInductions, dimensionAccesses,
         std::move(path));
   }
 
@@ -1635,10 +1678,9 @@ namespace mlir::modelica
       llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
       AdditionalInductions& additionalInductions,
       llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
-      uint64_t numOfImplicitInductions,
       EquationPath path)
   {
-    // Revert the dimension accesses.
+    // Reverse the dimension accesses.
     llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> reverted;
 
     for (size_t i = 0, e = dimensionAccesses.size(); i < e; ++i) {
@@ -1646,75 +1688,27 @@ namespace mlir::modelica
     }
 
     // Finalize the accesses.
-    auto numOfExplicitInductions =
+    auto numOfInductions =
         static_cast<uint64_t>(explicitInductionsPositionMap.size());
 
-    uint64_t numOfInductions =
-        numOfExplicitInductions + numOfImplicitInductions;
+    if (auto arrayType = getType().dyn_cast<ArrayType>();
+        arrayType &&
+        arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
+      // Access to each scalar variable.
+      for (int64_t i = static_cast<int64_t>(reverted.size()),
+                   rank = arrayType.getRank(); i < rank; ++i) {
+        int64_t dimension = arrayType.getDimSize(i);
+        assert(dimension != ArrayType::kDynamic);
 
-    if (path.size() == 1) {
-      // Add the implicit inductions if we are at a leaf of the equation.
-      uint64_t remainingImplicitInductions = numOfImplicitInductions;
-
-      llvm::SmallVector<std::unique_ptr<DimensionAccess>> leafAccesses;
-
-      for (const auto& access : reverted) {
-        if (auto rangeAccess = access->dyn_cast<DimensionAccessRange>()) {
-          int64_t beginValue = rangeAccess->getRange().getBegin();
-
-          mlir::AffineExpr implicitDimensionAccess = mlir::getAffineDimExpr(
-              numOfImplicitInductions - remainingImplicitInductions,
-              getContext());
-
-          if (beginValue != 0) {
-            implicitDimensionAccess = implicitDimensionAccess +
-                mlir::getAffineConstantExpr(beginValue, getContext());
-
-            implicitDimensionAccess = implicitDimensionAccess -
-                mlir::getAffineConstantExpr(1, getContext());
-          }
-
-          leafAccesses.push_back(
-              DimensionAccess::build(implicitDimensionAccess));
-
-          --remainingImplicitInductions;
-        } else {
-          leafAccesses.push_back(access->clone());
-        }
+        reverted.push_back(std::make_unique<DimensionAccessRange>(
+            getContext(), Range(0, dimension)));
       }
-
-      for (uint64_t i = 0; i < remainingImplicitInductions; ++i) {
-        uint64_t dimension = numOfExplicitInductions + numOfImplicitInductions
-            - remainingImplicitInductions + i;
-
-        leafAccesses.push_back(DimensionAccess::build(
-            mlir::getAffineDimExpr(dimension, getContext())));
-      }
-
-      accesses.push_back(VariableAccess(
-          std::move(path),
-          mlir::SymbolRefAttr::get(getVariableAttr()),
-          AccessFunction::build(getContext(), numOfInductions, leafAccesses)));
-    } else {
-      if (auto arrayType = getType().dyn_cast<ArrayType>();
-          arrayType &&
-          arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
-        // Access to each scalar variable.
-        for (int64_t i = static_cast<int64_t>(reverted.size()),
-                     rank = arrayType.getRank(); i < rank; ++i) {
-          int64_t dimension = arrayType.getDimSize(i);
-          assert(dimension != ArrayType::kDynamic);
-
-          reverted.push_back(std::make_unique<DimensionAccessRange>(
-              getContext(), Range(0, dimension)));
-        }
-      }
-
-      accesses.push_back(VariableAccess(
-          std::move(path),
-          mlir::SymbolRefAttr::get(getVariableAttr()),
-          AccessFunction::build(getContext(), numOfInductions, reverted)));
     }
+
+    accesses.push_back(VariableAccess(
+        std::move(path),
+        mlir::SymbolRefAttr::get(getVariableAttr()),
+        AccessFunction::build(getContext(), numOfInductions, reverted)));
 
     return mlir::success();
   }
@@ -1879,7 +1873,6 @@ namespace mlir::modelica
   }
 }
 
-
 //===---------------------------------------------------------------------===//
 // GlobalVariableGetOp
 
@@ -1920,6 +1913,136 @@ namespace mlir::modelica
           << "result type does not match the global variable type";
     }
 
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SimulationVariableOp
+
+namespace mlir::modelica
+{
+  IndexSet SimulationVariableOp::getIndices()
+  {
+    VariableType variableType = getVariableType();
+
+    if (variableType.isScalar()) {
+      return {};
+    }
+
+    llvm::SmallVector<Range> ranges;
+
+    for (int64_t dimension : variableType.getShape()) {
+      ranges.push_back(Range(0, dimension));
+    }
+
+    return IndexSet(MultidimensionalRange(ranges));
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SimulationVariableGetOp
+
+namespace mlir::modelica
+{
+  void SimulationVariableGetOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      SimulationVariableOp variableOp)
+  {
+    auto variableType = variableOp.getVariableType();
+    auto variableName = variableOp.getSymName();
+    build(builder, state, variableType.unwrap(), variableName);
+  }
+
+  mlir::LogicalResult SimulationVariableGetOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation* symbol =
+        symbolTableCollection.lookupSymbolIn(moduleOp, getVariableAttr());
+
+    if (!symbol) {
+      return emitOpError(
+          "simulation variable " + getVariable() + " has not been declared");
+    }
+
+    auto simulationVariableOp = mlir::dyn_cast<SimulationVariableOp>(symbol);
+
+    if (!simulationVariableOp) {
+      return emitOpError() << "symbol " << getVariable()
+                           << " is not a simulation variable";
+    }
+
+    return mlir::success();
+  }
+
+  void SimulationVariableGetOp::printExpression(llvm::raw_ostream& os)
+  {
+    os << getVariable();
+  }
+
+  mlir::LogicalResult SimulationVariableGetOp::getEquationAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+      AdditionalInductions& additionalInductions,
+      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+      EquationPath path)
+  {
+    // Reverse the dimension accesses.
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> reverted;
+
+    for (size_t i = 0, e = dimensionAccesses.size(); i < e; ++i) {
+      reverted.push_back(dimensionAccesses[e - i - 1]->clone());
+    }
+
+    // Finalize the accesses.
+    auto numOfInductions =
+        static_cast<uint64_t>(explicitInductionsPositionMap.size());
+
+    if (auto arrayType = getType().dyn_cast<ArrayType>();
+        arrayType &&
+        arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
+      // Access to each scalar variable.
+      for (int64_t i = static_cast<int64_t>(reverted.size()),
+                   rank = arrayType.getRank(); i < rank; ++i) {
+        int64_t dimension = arrayType.getDimSize(i);
+        assert(dimension != ArrayType::kDynamic);
+
+        reverted.push_back(std::make_unique<DimensionAccessRange>(
+            getContext(), Range(0, dimension)));
+      }
+    }
+
+    accesses.push_back(VariableAccess(
+        std::move(path),
+        mlir::SymbolRefAttr::get(getVariableAttr()),
+        AccessFunction::build(getContext(), numOfInductions, reverted)));
+
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// SimulationVariableSetOp
+
+namespace mlir::modelica
+{
+  void SimulationVariableSetOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      SimulationVariableOp variableOp,
+      mlir::Value value)
+  {
+    auto variableName = variableOp.getSymName();
+    build(builder, state, variableName, value);
+  }
+
+  mlir::LogicalResult SimulationVariableSetOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
     return mlir::success();
   }
 }
@@ -9859,6 +9982,67 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ModelOp
 
+namespace
+{
+  struct InitialModelMergePattern
+      : public mlir::OpRewritePattern<ModelOp>
+  {
+    using mlir::OpRewritePattern<ModelOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ModelOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<InitialModelOp> initialModelOps;
+
+      for (InitialModelOp initialModelOp : op.getOps<InitialModelOp>()) {
+        initialModelOps.push_back(initialModelOp);
+      }
+
+      if (initialModelOps.size() <= 1) {
+        return mlir::failure();
+      }
+
+      for (size_t i = 1, e = initialModelOps.size(); i < e; ++i) {
+        rewriter.mergeBlocks(initialModelOps[i].getBody(),
+                             initialModelOps[0].getBody());
+
+        rewriter.eraseOp(initialModelOps[i]);
+      }
+
+      return mlir::success();
+    }
+  };
+
+  struct MainModelMergePattern
+      : public mlir::OpRewritePattern<ModelOp>
+  {
+    using mlir::OpRewritePattern<ModelOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ModelOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<MainModelOp> mainModelOps;
+
+      for (MainModelOp mainModelOp : op.getOps<MainModelOp>()) {
+        mainModelOps.push_back(mainModelOp);
+      }
+
+      if (mainModelOps.size() <= 1) {
+        return mlir::failure();
+      }
+
+      for (size_t i = 1, e = mainModelOps.size(); i < e; ++i) {
+        rewriter.mergeBlocks(mainModelOps[i].getBody(),
+                             mainModelOps[0].getBody());
+
+        rewriter.eraseOp(mainModelOps[i]);
+      }
+
+      return mlir::success();
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   void ModelOp::build(
@@ -9869,11 +10053,27 @@ namespace mlir::modelica
     build(builder, state, name, builder.getArrayAttr({}));
   }
 
+  void ModelOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<InitialModelMergePattern, MainModelMergePattern>(context);
+  }
+
   mlir::RegionKind ModelOp::getRegionKind(unsigned index)
   {
     return mlir::RegionKind::Graph;
   }
 
+  void ModelOp::getCleaningPatterns(
+      mlir::RewritePatternSet& patterns,
+      mlir::MLIRContext* context)
+  {
+    getCanonicalizationPatterns(patterns, context);
+    EquationTemplateOp::getCanonicalizationPatterns(patterns, context);
+    InitialModelOp::getCanonicalizationPatterns(patterns, context);
+    MainModelOp::getCanonicalizationPatterns(patterns, context);
+    SCCOp::getCanonicalizationPatterns(patterns, context);
+  }
 
   void ModelOp::collectVariables(llvm::SmallVectorImpl<VariableOp>& variables)
   {
@@ -9882,29 +10082,17 @@ namespace mlir::modelica
     }
   }
 
-  void ModelOp::collectEquations(
-      llvm::SmallVectorImpl<EquationInstanceOp>& initialEquations,
-      llvm::SmallVectorImpl<EquationInstanceOp>& equations)
+  void ModelOp::collectInitialSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
-    for (EquationInstanceOp op : getOps<EquationInstanceOp>()) {
-      if (op.getInitial()) {
-        initialEquations.push_back(op);
-      } else {
-        equations.push_back(op);
-      }
+    for (InitialModelOp initialModelOp : getOps<InitialModelOp>()) {
+      initialModelOp.collectSCCs(SCCs);
     }
   }
 
-  void ModelOp::collectEquations(
-      llvm::SmallVectorImpl<MatchedEquationInstanceOp>& initialEquations,
-      llvm::SmallVectorImpl<MatchedEquationInstanceOp>& equations)
+  void ModelOp::collectMainSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
-    for (MatchedEquationInstanceOp op : getOps<MatchedEquationInstanceOp>()) {
-      if (op.getInitial()) {
-        initialEquations.push_back(op);
-      } else {
-        equations.push_back(op);
-      }
+    for (MainModelOp mainModelOp : getOps<MainModelOp>()) {
+      mainModelOp.collectSCCs(SCCs);
     }
   }
 
@@ -9913,11 +10101,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups)
   {
     for (SCCGroupOp op : getOps<SCCGroupOp>()) {
-      if (op.getInitial()) {
-        initialSCCGroups.push_back(op);
-      } else {
-        SCCGroups.push_back(op);
-      }
+      SCCGroups.push_back(op);
     }
   }
 
@@ -9932,117 +10116,6 @@ namespace mlir::modelica
         algorithms.push_back(op);
       }
     }
-  }
-
-  mlir::LogicalResult ModelOp::getWritesMap(
-      WritesMap<MatchedEquationInstanceOp>& writesMap,
-      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
-      mlir::SymbolTableCollection& symbolTableCollection)
-  {
-    for (MatchedEquationInstanceOp equationOp : equations) {
-      IndexSet equationIndices = equationOp.getIterationSpace();
-      llvm::SmallVector<VariableAccess> accesses;
-
-      if (mlir::failed(equationOp.getAccesses(
-              accesses, symbolTableCollection))) {
-        return mlir::failure();
-      }
-
-      llvm::SmallVector<VariableAccess> writeAccesses;
-
-      if (mlir::failed(equationOp.getWriteAccesses(
-              writeAccesses, symbolTableCollection, accesses))) {
-        return mlir::failure();
-      }
-
-      std::optional<VariableAccess> matchedAccess =
-          equationOp.getMatchedAccess(symbolTableCollection);
-
-      if (!matchedAccess) {
-        return mlir::failure();
-      }
-
-      auto writtenVariableOp =
-          symbolTableCollection.lookupSymbolIn<VariableOp>(
-              getOperation(), matchedAccess->getVariable());
-
-      IndexSet writtenVariableIndices;
-
-      for (const VariableAccess& writeAccess : writeAccesses) {
-        const AccessFunction& accessFunction = writeAccess.getAccessFunction();
-        writtenVariableIndices += accessFunction.map(equationIndices);
-      }
-
-      writesMap.emplace(
-          writtenVariableOp,
-          std::make_pair(std::move(writtenVariableIndices), equationOp));
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult ModelOp::getWritesMap(
-      WritesMap<ScheduledEquationInstanceOp>& writesMap,
-      llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
-      mlir::SymbolTableCollection& symbolTableCollection)
-  {
-    for (ScheduledEquationInstanceOp equationOp : equations) {
-      IndexSet equationIndices = equationOp.getIterationSpace();
-      llvm::SmallVector<VariableAccess> accesses;
-
-      if (mlir::failed(equationOp.getAccesses(
-              accesses, symbolTableCollection))) {
-        return mlir::failure();
-      }
-
-      llvm::SmallVector<VariableAccess> writeAccesses;
-
-      if (mlir::failed(equationOp.getWriteAccesses(
-              writeAccesses, symbolTableCollection, accesses))) {
-        return mlir::failure();
-      }
-
-      std::optional<VariableAccess> matchedAccess =
-          equationOp.getMatchedAccess(symbolTableCollection);
-
-      if (!matchedAccess) {
-        return mlir::failure();
-      }
-
-      auto writtenVariableOp =
-          symbolTableCollection.lookupSymbolIn<VariableOp>(
-              getOperation(), matchedAccess->getVariable());
-
-      IndexSet writtenVariableIndices;
-
-      for (const VariableAccess& writeAccess : writeAccesses) {
-        const AccessFunction& accessFunction = writeAccess.getAccessFunction();
-        writtenVariableIndices += accessFunction.map(equationIndices);
-      }
-
-      writesMap.emplace(
-          writtenVariableOp,
-          std::make_pair(std::move(writtenVariableIndices), equationOp));
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult ModelOp::getWritesMap(
-      WritesMap<ScheduledEquationInstanceOp>& writesMap,
-      llvm::ArrayRef<SCCOp> SCCs,
-      mlir::SymbolTableCollection& symbolTableCollection)
-  {
-    llvm::SmallVector<ScheduledEquationInstanceOp> equations;
-
-    for (SCCOp scc : SCCs) {
-      for (ScheduledEquationInstanceOp equation :
-           scc.getOps<ScheduledEquationInstanceOp>()) {
-        equations.push_back(equation);
-      }
-    }
-
-    return getWritesMap(writesMap, equations, symbolTableCollection);
   }
 }
 
@@ -10301,6 +10374,26 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EquationTemplateOp
 
+namespace
+{
+  struct UnusedEquationTemplatePattern
+      : public mlir::OpRewritePattern<EquationTemplateOp>
+  {
+    using mlir::OpRewritePattern<EquationTemplateOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        EquationTemplateOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      if (op->use_empty()) {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+  };
+}
+
 namespace mlir::modelica
 {
   mlir::ParseResult EquationTemplateOp::parse(
@@ -10352,6 +10445,12 @@ namespace mlir::modelica
     printer.printRegion(getBodyRegion(), false);
   }
 
+  void EquationTemplateOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<UnusedEquationTemplatePattern>(context);
+  }
+
   mlir::Block* EquationTemplateOp::createBody(unsigned int numOfInductions)
   {
     mlir::OpBuilder builder(getContext());
@@ -10365,14 +10464,10 @@ namespace mlir::modelica
     return builder.createBlock(&getBodyRegion(), {}, argTypes, argLocs);
   }
 
-  void EquationTemplateOp::printInline(
-      llvm::raw_ostream& os, uint64_t viewElementIndex)
+  void EquationTemplateOp::printInline(llvm::raw_ostream& os)
   {
-    mlir::Value lhs = getValueAtPath(
-        EquationPath(EquationPath::LEFT, viewElementIndex));
-
-    mlir::Value rhs = getValueAtPath(
-        EquationPath(EquationPath::RIGHT, viewElementIndex));
+    mlir::Value lhs = getValueAtPath(EquationPath(EquationPath::LEFT, 0));
+    mlir::Value rhs = getValueAtPath(EquationPath(EquationPath::RIGHT, 0));
 
     ::printExpression(os, lhs);
     os << " = ";
@@ -10382,69 +10477,6 @@ namespace mlir::modelica
   mlir::ValueRange EquationTemplateOp::getInductionVariables()
   {
     return getBodyRegion().getArguments();
-  }
-
-  uint64_t EquationTemplateOp::getNumOfImplicitInductionVariables(
-      uint64_t viewElementIndex)
-  {
-    // Checking lhs or rhs is the same.
-    mlir::Value lhs = getValueAtPath(
-        EquationPath(EquationPath::LEFT, viewElementIndex));
-
-    size_t implicitIterationVariables = 0;
-
-    if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
-      implicitIterationVariables = arrayType.getRank();
-    }
-
-    return implicitIterationVariables;
-  }
-
-  std::optional<mlir::modeling::IndexSet>
-  EquationTemplateOp::computeImplicitIterationSpace(uint64_t viewElementIndex)
-  {
-    mlir::Value lhs = getValueAtPath(
-        EquationPath(EquationPath::LEFT, viewElementIndex));
-
-    mlir::Value rhs = getValueAtPath(
-        EquationPath(EquationPath::RIGHT, viewElementIndex));
-
-    auto lhsArrayType = lhs.getType().dyn_cast<ArrayType>();
-    auto rhsArrayType = rhs.getType().dyn_cast<ArrayType>();
-
-    llvm::SmallVector<int64_t> shape;
-
-    if (lhsArrayType && rhsArrayType) {
-      assert(lhsArrayType.getRank() == rhsArrayType.getRank());
-
-      for (int64_t i = 0, rank = lhsArrayType.getRank(); i < rank; ++i) {
-        int64_t lhsDim = lhsArrayType.getDimSize(i);
-
-        if (lhsDim == ArrayType::kDynamic) {
-          int64_t rhsDim = rhsArrayType.getDimSize(i);
-          assert(rhsDim != ArrayType::kDynamic);
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(lhsDim);
-        }
-      }
-    }
-
-    if (shape.empty()) {
-      return std::nullopt;
-    }
-
-    if (!lhsArrayType) {
-      return std::nullopt;
-    }
-
-    llvm::SmallVector<Range, 3> ranges;
-
-    for (int64_t dimension : shape) {
-      ranges.push_back(mlir::modeling::Range(0, dimension));
-    }
-
-    return IndexSet(MultidimensionalRange(ranges));
   }
 
   llvm::DenseMap<mlir::Value, unsigned int>
@@ -10463,8 +10495,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult EquationTemplateOp::getAccesses(
       llvm::SmallVectorImpl<VariableAccess>& result,
-      mlir::SymbolTableCollection& symbolTable,
-      uint64_t elementIndex)
+      mlir::SymbolTableCollection& symbolTable)
   {
     auto equationSidesOp =
         mlir::cast<EquationSidesOp>(getBody()->getTerminator());
@@ -10475,16 +10506,16 @@ namespace mlir::modelica
     // Search the accesses starting from the left-hand side of the equation.
     if (mlir::failed(searchAccesses(
             result, symbolTable, inductionsPositionMap,
-            equationSidesOp.getLhsValues()[elementIndex],
-            EquationPath(EquationPath::LEFT, elementIndex)))) {
+            equationSidesOp.getLhsValues()[0],
+            EquationPath(EquationPath::LEFT, 0)))) {
       return mlir::failure();
     }
 
     // Search the accesses starting from the right-hand side of the equation.
     if (mlir::failed(searchAccesses(
             result, symbolTable, inductionsPositionMap,
-            equationSidesOp.getRhsValues()[elementIndex],
-            EquationPath(EquationPath::RIGHT, elementIndex)))) {
+            equationSidesOp.getRhsValues()[0],
+            EquationPath(EquationPath::RIGHT, 0)))) {
       return mlir::failure();
     }
 
@@ -10620,14 +10651,11 @@ namespace mlir::modelica
     AdditionalInductions additionalInductions;
     llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> dimensionAccesses;
 
-    uint64_t numOfImplicitInductions =
-        getNumOfImplicitInductionVariables(path[0]);
-
     if (auto expressionInt =
             mlir::dyn_cast<EquationExpressionOpInterface>(definingOp)) {
       return expressionInt.getEquationAccesses(
           accesses, symbolTable, explicitInductionsPositionMap,
-          additionalInductions, dimensionAccesses, numOfImplicitInductions,
+          additionalInductions, dimensionAccesses,
           std::move(path));
     }
 
@@ -11042,21 +11070,13 @@ namespace mlir::modelica
 
   IndexSet EquationTemplateOp::applyAccessFunction(
       const AccessFunction& accessFunction,
-      std::optional<MultidimensionalRange> explicitEquationIndices,
-      std::optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> equationIndices,
       const EquationPath& path)
   {
     IndexSet result;
 
-    if (explicitEquationIndices) {
-      result = accessFunction.map(IndexSet(*explicitEquationIndices));
-    }
-
-    if (path.size() == 1) {
-      // Leaf of the equation. Add the implicit inductions.
-      if (implicitEquationIndices) {
-        result.append(IndexSet(*implicitEquationIndices));
-      }
+    if (equationIndices) {
+      result = accessFunction.map(IndexSet(*equationIndices));
     }
 
     return result;
@@ -11065,8 +11085,7 @@ namespace mlir::modelica
   mlir::LogicalResult EquationTemplateOp::explicitate(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      std::optional<MultidimensionalRange> explicitEquationIndices,
-      std::optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> equationIndices,
       const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -11084,13 +11103,12 @@ namespace mlir::modelica
 
     IndexSet requestedIndices = applyAccessFunction(
         requestedAccessFunction,
-        explicitEquationIndices,
-        implicitEquationIndices,
+        equationIndices,
         path);
 
     llvm::SmallVector<VariableAccess, 10> accesses;
 
-    if (mlir::failed(getAccesses(accesses, symbolTableCollection, path[0]))) {
+    if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
       return mlir::failure();
     }
 
@@ -11105,8 +11123,7 @@ namespace mlir::modelica
 
       IndexSet currentIndices = applyAccessFunction(
           currentAccessFunction,
-          explicitEquationIndices,
-          implicitEquationIndices,
+          equationIndices,
           access.getPath());
 
       if (requestedIndices != currentIndices &&
@@ -11142,7 +11159,7 @@ namespace mlir::modelica
     if (filteredAccesses.size() == 1) {
       for (size_t i = 1, e = path.size(); i < e; ++i) {
         if (mlir::failed(explicitateLeaf(
-                rewriter, path[0], path[i], path.getEquationSide()))) {
+                rewriter, path[i], path.getEquationSide()))) {
           return mlir::failure();
         }
       }
@@ -11163,8 +11180,7 @@ namespace mlir::modelica
       // extract the common multiplying factor.
 
       if (mlir::failed(groupLeftHandSide(
-              rewriter, symbolTableCollection,
-              explicitEquationIndices, implicitEquationIndices,
+              rewriter, symbolTableCollection, equationIndices,
               *requestedAccess))) {
         return mlir::failure();
       }
@@ -11176,8 +11192,7 @@ namespace mlir::modelica
   EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      std::optional<MultidimensionalRange> explicitEquationIndices,
-      std::optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> equationIndices,
       const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -11191,11 +11206,7 @@ namespace mlir::modelica
     });
 
     if (mlir::failed(clonedOp.explicitate(
-            rewriter,
-            symbolTableCollection,
-            explicitEquationIndices,
-            implicitEquationIndices,
-            path))) {
+            rewriter, symbolTableCollection, equationIndices, path))) {
       return nullptr;
     }
 
@@ -11205,7 +11216,6 @@ namespace mlir::modelica
 
   mlir::LogicalResult EquationTemplateOp::explicitateLeaf(
       mlir::RewriterBase& rewriter,
-      uint64_t viewElementIndex,
       size_t argumentIndex,
       EquationPath::EquationSide side)
   {
@@ -11214,17 +11224,14 @@ namespace mlir::modelica
     auto equationSidesOp =
         mlir::cast<EquationSidesOp>(getBody()->getTerminator());
 
-    mlir::ValueRange oldLhsValues = equationSidesOp.getLhsValues();
-    mlir::ValueRange oldRhsValues = equationSidesOp.getRhsValues();
-
-    assert(viewElementIndex < oldLhsValues.size());
-    assert(viewElementIndex < oldRhsValues.size());
+    mlir::Value oldLhsValue = equationSidesOp.getLhsValues()[0];
+    mlir::Value oldRhsValue = equationSidesOp.getRhsValues()[0];
 
     mlir::Value toExplicitate = side == EquationPath::LEFT
-        ? oldLhsValues[viewElementIndex] : oldRhsValues[viewElementIndex];
+        ? oldLhsValue : oldRhsValue;
 
     mlir::Value otherExp = side == EquationPath::RIGHT
-        ? oldLhsValues[viewElementIndex] : oldRhsValues[viewElementIndex];
+        ? oldLhsValue : oldRhsValue;
 
     mlir::Operation* op = toExplicitate.getDefiningOp();
     auto invertibleOp = mlir::dyn_cast<InvertibleOpInterface>(op);
@@ -11250,28 +11257,16 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Value, 1> newLhsValues;
     llvm::SmallVector<mlir::Value, 1> newRhsValues;
 
-    for (size_t i = 0, e = oldLhsValues.size(); i < e; ++i) {
-      if (i == viewElementIndex) {
-        if (side == EquationPath::LEFT) {
-          newLhsValues.push_back(op->getOperand(argumentIndex));
-        } else {
-          newLhsValues.push_back(invertedOpResult);
-        }
-      } else {
-        newLhsValues.push_back(oldLhsValues[i]);
-      }
+    if (side == EquationPath::LEFT) {
+      newLhsValues.push_back(op->getOperand(argumentIndex));
+    } else {
+      newLhsValues.push_back(invertedOpResult);
     }
 
-    for (size_t i = 0, e = oldRhsValues.size(); i < e; ++i) {
-      if (i == viewElementIndex) {
-        if (side == EquationPath::LEFT) {
-          newRhsValues.push_back(invertedOpResult);
-        } else {
-          newRhsValues.push_back(op->getOperand(argumentIndex));
-        }
-      } else {
-        newRhsValues.push_back(oldRhsValues[i]);
-      }
+    if (side == EquationPath::LEFT) {
+      newRhsValues.push_back(invertedOpResult);
+    } else {
+      newRhsValues.push_back(op->getOperand(argumentIndex));
     }
 
     // Create the new terminator.
@@ -11505,7 +11500,7 @@ namespace mlir::modelica
           return op.getVariable() == variable;
         }
 
-        if (auto op = mlir::dyn_cast<GlobalVariableGetOp>(definingOp)) {
+        if (auto op = mlir::dyn_cast<SimulationVariableGetOp>(definingOp)) {
           return op.getVariable() == variable;
         }
 
@@ -11704,8 +11699,7 @@ namespace mlir::modelica
   mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
       mlir::RewriterBase& rewriter,
       mlir::SymbolTableCollection& symbolTableCollection,
-      std::optional<MultidimensionalRange> explicitEquationIndices,
-      std::optional<MultidimensionalRange> implicitEquationIndices,
+      std::optional<MultidimensionalRange> equationRanges,
       const VariableAccess& requestedAccess)
   {
     mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -11714,16 +11708,8 @@ namespace mlir::modelica
 
     IndexSet equationIndices;
 
-    if (explicitEquationIndices) {
-      MultidimensionalRange extendedIndices = *explicitEquationIndices;
-
-      if (implicitEquationIndices) {
-        extendedIndices = extendedIndices.append(*implicitEquationIndices);
-      }
-
-      equationIndices += extendedIndices;
-    } else if (implicitEquationIndices) {
-      equationIndices += *implicitEquationIndices;
+    if (equationRanges) {
+      equationIndices += *equationRanges;
     }
 
     auto requestedValue = getValueAtPath(requestedAccess.getPath());
@@ -11737,8 +11723,7 @@ namespace mlir::modelica
 
     llvm::SmallVector<VariableAccess> accesses;
 
-    if (mlir::failed(getAccesses(
-            accesses, symbolTableCollection, viewElementIndex))) {
+    if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
       return mlir::failure();
     }
 
@@ -12162,6 +12147,143 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// EquationFunctionOp
+
+mlir::ParseResult EquationFunctionOp::parse(
+    mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  auto buildFuncType =
+      [](mlir::Builder& builder,
+         llvm::ArrayRef<mlir::Type> argTypes,
+         llvm::ArrayRef<mlir::Type> results,
+         mlir::function_interface_impl::VariadicFlag,
+         std::string&) {
+        return builder.getFunctionType(argTypes, results);
+      };
+
+  return mlir::function_interface_impl::parseFunctionOp(
+      parser, result, false,
+      getFunctionTypeAttrName(result.name), buildFuncType,
+      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
+}
+
+void EquationFunctionOp::print(OpAsmPrinter& printer)
+{
+  mlir::function_interface_impl::printFunctionOp(
+      printer, *this, false, getFunctionTypeAttrName(),
+      getArgAttrsAttrName(), getResAttrsAttrName());
+}
+
+void EquationFunctionOp::build(
+    mlir::OpBuilder& builder,
+    mlir::OperationState& state,
+    llvm::StringRef name,
+    llvm::ArrayRef<mlir::NamedAttribute> attrs,
+    llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+{
+  state.addAttribute(
+      mlir::SymbolTable::getSymbolAttrName(),
+      builder.getStringAttr(name));
+
+  auto functionType = builder.getFunctionType(std::nullopt, std::nullopt);
+
+  state.addAttribute(
+      getFunctionTypeAttrName(state.name),
+      mlir::TypeAttr::get(functionType));
+
+  state.attributes.append(attrs.begin(), attrs.end());
+  state.addRegion();
+
+  if (argAttrs.empty()) {
+    return;
+  }
+
+  assert(functionType.getNumInputs() == argAttrs.size());
+
+  function_interface_impl::addArgAndResultAttrs(
+      builder, state, argAttrs, std::nullopt,
+      getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
+}
+
+//===---------------------------------------------------------------------===//
+// InitialModelOp
+
+namespace
+{
+  struct EmptyInitialModelPattern
+      : public mlir::OpRewritePattern<InitialModelOp>
+  {
+    using mlir::OpRewritePattern<InitialModelOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        InitialModelOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      if (op.getBody()->empty()) {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+  };
+}
+
+namespace mlir::modelica
+{
+  void InitialModelOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<EmptyInitialModelPattern>(context);
+  }
+
+  void InitialModelOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  {
+    for (SCCOp scc : getOps<SCCOp>()) {
+      SCCs.push_back(scc);
+    }
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// MainModelOp
+
+namespace
+{
+  struct EmptyMainModelPattern
+      : public mlir::OpRewritePattern<MainModelOp>
+  {
+    using mlir::OpRewritePattern<MainModelOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        MainModelOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      if (op.getBody()->empty()) {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+  };
+}
+
+namespace mlir::modelica
+{
+  void MainModelOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<EmptyMainModelPattern>(context);
+  }
+
+  void MainModelOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  {
+    for (SCCOp scc : getOps<SCCOp>()) {
+      SCCs.push_back(scc);
+    }
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // EquationInstanceOp
 
 namespace mlir::modelica
@@ -12169,11 +12291,9 @@ namespace mlir::modelica
   void EquationInstanceOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      EquationTemplateOp equationTemplate,
-      bool initial)
+      EquationTemplateOp equationTemplate)
   {
-    build(builder, state, equationTemplate.getResult(), initial,
-          nullptr, nullptr, nullptr);
+    build(builder, state, equationTemplate.getResult(), nullptr);
   }
 
   mlir::LogicalResult EquationInstanceOp::verify()
@@ -12209,7 +12329,7 @@ namespace mlir::modelica
 
   void EquationInstanceOp::printInline(llvm::raw_ostream& os)
   {
-    getTemplate().printInline(os, getViewElementIndex().value_or(0));
+    getTemplate().printInline(os);
   }
 
   mlir::ValueRange EquationInstanceOp::getInductionVariables()
@@ -12217,7 +12337,7 @@ namespace mlir::modelica
     return getTemplate().getInductionVariables();
   }
 
-  IndexSet EquationInstanceOp::getExplicitIterationSpace()
+  IndexSet EquationInstanceOp::getIterationSpace()
   {
     if (auto indices = getIndices()) {
       return IndexSet(indices->getValue());
@@ -12226,42 +12346,11 @@ namespace mlir::modelica
     return {};
   }
 
-  uint64_t EquationInstanceOp::getNumOfImplicitInductionVariables()
-  {
-    if (auto implicitIndices = getImplicitIndices()) {
-      return static_cast<uint64_t>(implicitIndices->getValue().rank());
-    }
-
-    return 0;
-  }
-
-  IndexSet EquationInstanceOp::getImplicitIterationSpace()
-  {
-    if (auto indices = getImplicitIndices()) {
-      return IndexSet(indices->getValue());
-    }
-
-    return {};
-  }
-
-  IndexSet EquationInstanceOp::getIterationSpace()
-  {
-    IndexSet explicitIterationSpace = getExplicitIterationSpace();
-    IndexSet implicitIterationSpace = getImplicitIterationSpace();
-
-    if (explicitIterationSpace.empty()) {
-      return implicitIterationSpace;
-    }
-
-    return explicitIterationSpace.append(implicitIterationSpace);
-  }
-
   mlir::LogicalResult EquationInstanceOp::getAccesses(
       llvm::SmallVectorImpl<VariableAccess>& result,
       mlir::SymbolTableCollection& symbolTable)
   {
-    return getTemplate().getAccesses(
-        result, symbolTable, getViewElementIndex().value_or(0));
+    return getTemplate().getAccesses(result, symbolTable);
   }
 
   std::optional<VariableAccess> EquationInstanceOp::getAccessAtPath(
@@ -12300,7 +12389,6 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -12319,16 +12407,6 @@ namespace mlir::modelica
             clonedOp.setIndicesAttr(
                 MultidimensionalRangeAttr::get(
                     rewriter.getContext(), std::move(explicitRange)));
-          }
-
-          if (auto implicitIndices = getImplicitIndices()) {
-            MultidimensionalRange implicitRange =
-                assignedIndicesRange.takeLastDimensions(
-                    implicitIndices->getValue().rank());
-
-            clonedOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    rewriter.getContext(), std::move(implicitRange)));
           }
 
           results.push_back(clonedOp);
@@ -12350,11 +12428,9 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
       EquationTemplateOp equationTemplate,
-      bool initial,
       EquationPathAttr path)
   {
-    build(builder, state, equationTemplate.getResult(), initial, nullptr,
-          nullptr, path);
+    build(builder, state, equationTemplate.getResult(), nullptr, path);
   }
 
   mlir::LogicalResult MatchedEquationInstanceOp::verify()
@@ -12378,17 +12454,6 @@ namespace mlir::modelica
           << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
     }
 
-    // Check the indices for the implicit inductions.
-    uint64_t numOfImplicitInductions = getNumOfImplicitInductionVariables();
-
-    if (size_t implicitIndicesRank = indicesRank(getImplicitIndices());
-        numOfImplicitInductions !=
-        static_cast<uint64_t>(implicitIndicesRank)) {
-      return emitOpError()
-          << "Unexpected rank of iteration indices (expected "
-          << numOfImplicitInductions << ", got " << implicitIndicesRank << ")";
-    }
-
     return mlir::success();
   }
 
@@ -12399,14 +12464,9 @@ namespace mlir::modelica
     return result;
   }
 
-  uint64_t MatchedEquationInstanceOp::getViewElementIndex()
-  {
-    return getPath().getValue()[0];
-  }
-
   void MatchedEquationInstanceOp::printInline(llvm::raw_ostream& os)
   {
-    getTemplate().printInline(os, getViewElementIndex());
+    getTemplate().printInline(os);
   }
 
   mlir::ValueRange MatchedEquationInstanceOp::getInductionVariables()
@@ -12414,43 +12474,13 @@ namespace mlir::modelica
     return getTemplate().getInductionVariables();
   }
 
-  IndexSet MatchedEquationInstanceOp::getExplicitIterationSpace()
+  IndexSet MatchedEquationInstanceOp::getIterationSpace()
   {
     if (auto indices = getIndices()) {
       return IndexSet(indices->getValue());
     }
 
     return {};
-  }
-
-  uint64_t MatchedEquationInstanceOp::getNumOfImplicitInductionVariables()
-  {
-    if (auto implicitIndices = getImplicitIndices()) {
-      return static_cast<uint64_t>(implicitIndices->getValue().rank());
-    }
-
-    return 0;
-  }
-
-  IndexSet MatchedEquationInstanceOp::getImplicitIterationSpace()
-  {
-    if (auto indices = getImplicitIndices()) {
-      return IndexSet(indices->getValue());
-    }
-
-    return {};
-  }
-
-  IndexSet MatchedEquationInstanceOp::getIterationSpace()
-  {
-    IndexSet explicitIterationSpace = getExplicitIterationSpace();
-    IndexSet implicitIterationSpace = getImplicitIterationSpace();
-
-    if (explicitIterationSpace.empty()) {
-      return implicitIterationSpace;
-    }
-
-    return explicitIterationSpace.append(implicitIterationSpace);
   }
 
   std::optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
@@ -12463,8 +12493,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& result,
       mlir::SymbolTableCollection& symbolTable)
   {
-    return getTemplate().getAccesses(
-        result, symbolTable, getViewElementIndex());
+    return getTemplate().getAccesses(result, symbolTable);
   }
 
   mlir::LogicalResult MatchedEquationInstanceOp::getWriteAccesses(
@@ -12531,25 +12560,18 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     std::optional<MultidimensionalRange> indices = std::nullopt;
-    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
     }
 
-    if (auto implicitIndicesAttr = getImplicitIndices()) {
-      implicitIndices = implicitIndicesAttr->getValue();
-    }
-
     if (mlir::failed(getTemplate().explicitate(
-            rewriter, symbolTableCollection,
-            indices, implicitIndices, getPath().getValue()))) {
+            rewriter, symbolTableCollection, indices, getPath().getValue()))) {
       return mlir::failure();
     }
 
     setPathAttr(EquationPathAttr::get(
-        getContext(),
-        EquationPath(EquationPath::LEFT, getViewElementIndex())));
+        getContext(), EquationPath(EquationPath::LEFT, 0)));
 
     return mlir::success();
   }
@@ -12559,20 +12581,13 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     std::optional<MultidimensionalRange> indices = std::nullopt;
-    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
     }
 
-    if (auto implicitIndicesAttr = getImplicitIndices()) {
-      implicitIndices = implicitIndicesAttr->getValue();
-    }
-
     EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-        rewriter, symbolTableCollection,
-        indices, implicitIndices,
-        getPath().getValue());
+        rewriter, symbolTableCollection, indices, getPath().getValue());
 
     if (!clonedTemplate) {
       return nullptr;
@@ -12582,19 +12597,14 @@ namespace mlir::modelica
     rewriter.setInsertionPointAfter(getOperation());
 
     auto result = rewriter.create<MatchedEquationInstanceOp>(
-        getLoc(), clonedTemplate, getInitial(),
+        getLoc(), clonedTemplate,
         EquationPathAttr::get(
             getContext(),
-            EquationPath(EquationPath::LEFT, getViewElementIndex())));
+            EquationPath(EquationPath::LEFT, 0)));
 
     if (indices) {
       result.setIndicesAttr(MultidimensionalRangeAttr::get(
           getContext(), *indices));
-    }
-
-    if (implicitIndices) {
-      result.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
-          getContext(), *implicitIndices));
     }
 
     return result;
@@ -12629,7 +12639,6 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -12648,16 +12657,6 @@ namespace mlir::modelica
             clonedOp.setIndicesAttr(
                 MultidimensionalRangeAttr::get(
                     rewriter.getContext(), std::move(explicitRange)));
-          }
-
-          if (auto implicitIndices = getImplicitIndices()) {
-            MultidimensionalRange implicitRange =
-                assignedIndicesRange.takeLastDimensions(
-                    implicitIndices->getValue().rank());
-
-            clonedOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    rewriter.getContext(), std::move(implicitRange)));
           }
 
           results.push_back(clonedOp);
@@ -12691,20 +12690,37 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SCCOp
 
+namespace
+{
+  struct EmptySCCPattern
+      : public mlir::OpRewritePattern<SCCOp>
+  {
+    using mlir::OpRewritePattern<SCCOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        SCCOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      if (op.getBody()->empty()) {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+  };
+}
+
 namespace mlir::modelica
 {
+  void SCCOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<EmptySCCPattern>(context);
+  }
+
   mlir::RegionKind SCCOp::getRegionKind(unsigned index)
   {
     return mlir::RegionKind::Graph;
-  }
-
-  void SCCOp::collectEquations(
-      llvm::SmallVectorImpl<ScheduledEquationInstanceOp>& equations)
-  {
-    for (ScheduledEquationInstanceOp equationOp
-         : getOps<ScheduledEquationInstanceOp>()) {
-      equations.push_back(equationOp);
-    }
   }
 }
 
@@ -12720,13 +12736,13 @@ namespace mlir::modelica
       EquationPathAttr path,
       mlir::ArrayAttr iterationDirections)
   {
-    build(builder, state, equationTemplate.getResult(), nullptr,
-          nullptr, path, iterationDirections);
+    build(builder, state, equationTemplate.getResult(), nullptr, path,
+          iterationDirections);
   }
 
   mlir::LogicalResult ScheduledEquationInstanceOp::verify()
   {
-    auto indicesRank =
+    auto indicesRankFn =
         [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
       if (!ranges) {
         return 0;
@@ -12736,37 +12752,21 @@ namespace mlir::modelica
     };
 
     // Check the indices for the explicit inductions.
-    size_t numOfExplicitInductions = getInductionVariables().size();
+    size_t numOfInductions = getInductionVariables().size();
 
-    if (size_t explicitIndicesRank = indicesRank(getIndices());
-        numOfExplicitInductions != explicitIndicesRank) {
+    if (size_t indicesRank = indicesRankFn(getIndices());
+        numOfInductions != indicesRank) {
       return emitOpError()
           << "Unexpected rank of iteration indices (expected "
-          << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
-    }
-
-    // Check the indices for the implicit inductions.
-    uint64_t numOfImplicitInductions = getNumOfImplicitInductionVariables();
-
-    if (size_t implicitIndicesRank = indicesRank(getImplicitIndices());
-        numOfImplicitInductions !=
-        static_cast<uint64_t>(implicitIndicesRank)) {
-      return emitOpError()
-          << "Unexpected rank of iteration indices (expected "
-          << numOfImplicitInductions << ", got " << implicitIndicesRank << ")";
+          << numOfInductions << ", got " << indicesRank << ")";
     }
 
     // Check the iteration directions.
-    uint64_t totalNumberOfInductions =
-        static_cast<uint64_t>(numOfExplicitInductions) +
-        numOfImplicitInductions;
-
     if (size_t numOfIterationDirections = getIterationDirections().size();
-        totalNumberOfInductions !=
-        static_cast<uint64_t>(numOfIterationDirections)) {
+        numOfInductions != numOfIterationDirections) {
       return emitOpError()
           << "Unexpected number of iteration directions (expected "
-          << totalNumberOfInductions << ", got " << numOfIterationDirections
+          << numOfInductions << ", got " << numOfIterationDirections
           << ")";
     }
 
@@ -12780,14 +12780,9 @@ namespace mlir::modelica
     return result;
   }
 
-  uint64_t ScheduledEquationInstanceOp::getViewElementIndex()
-  {
-    return getPath().getValue()[0];
-  }
-
   void ScheduledEquationInstanceOp::printInline(llvm::raw_ostream& os)
   {
-    getTemplate().printInline(os, getViewElementIndex());
+    getTemplate().printInline(os);
   }
 
   mlir::ValueRange ScheduledEquationInstanceOp::getInductionVariables()
@@ -12799,8 +12794,7 @@ namespace mlir::modelica
       llvm::SmallVectorImpl<VariableAccess>& result,
       mlir::SymbolTableCollection& symbolTable)
   {
-    return getTemplate().getAccesses(
-        result, symbolTable, getViewElementIndex());
+    return getTemplate().getAccesses(result, symbolTable);
   }
 
   std::optional<VariableAccess> ScheduledEquationInstanceOp::getAccessAtPath(
@@ -12810,43 +12804,13 @@ namespace mlir::modelica
     return getTemplate().getAccessAtPath(symbolTable, path);
   }
 
-  IndexSet ScheduledEquationInstanceOp::getExplicitIterationSpace()
+  IndexSet ScheduledEquationInstanceOp::getIterationSpace()
   {
     if (auto indices = getIndices()) {
       return IndexSet(indices->getValue());
     }
 
     return {};
-  }
-
-  uint64_t ScheduledEquationInstanceOp::getNumOfImplicitInductionVariables()
-  {
-    if (auto implicitIndices = getImplicitIndices()) {
-      return static_cast<uint64_t>(implicitIndices->getValue().rank());
-    }
-
-    return 0;
-  }
-
-  IndexSet ScheduledEquationInstanceOp::getImplicitIterationSpace()
-  {
-    if (auto indices = getImplicitIndices()) {
-      return IndexSet(indices->getValue());
-    }
-
-    return {};
-  }
-
-  IndexSet ScheduledEquationInstanceOp::getIterationSpace()
-  {
-    IndexSet explicitIterationSpace = getExplicitIterationSpace();
-    IndexSet implicitIterationSpace = getImplicitIterationSpace();
-
-    if (explicitIterationSpace.empty()) {
-      return implicitIterationSpace;
-    }
-
-    return explicitIterationSpace.append(implicitIterationSpace);
   }
 
   std::optional<VariableAccess> ScheduledEquationInstanceOp::getMatchedAccess(
@@ -12912,25 +12876,18 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     std::optional<MultidimensionalRange> indices = std::nullopt;
-    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
     }
 
-    if (auto implicitIndicesAttr = getImplicitIndices()) {
-      implicitIndices = implicitIndicesAttr->getValue();
-    }
-
     if (mlir::failed(getTemplate().explicitate(
-            rewriter, symbolTableCollection,
-            indices, implicitIndices, getPath().getValue()))) {
+            rewriter, symbolTableCollection, indices, getPath().getValue()))) {
       return mlir::failure();
     }
 
     setPathAttr(EquationPathAttr::get(
-        getContext(),
-        EquationPath(EquationPath::LEFT, getViewElementIndex())));
+        getContext(), EquationPath(EquationPath::LEFT, 0)));
 
     return mlir::success();
   }
@@ -12940,20 +12897,13 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     std::optional<MultidimensionalRange> indices = std::nullopt;
-    std::optional<MultidimensionalRange> implicitIndices = std::nullopt;
 
     if (auto indicesAttr = getIndices()) {
       indices = indicesAttr->getValue();
     }
 
-    if (auto implicitIndicesAttr = getImplicitIndices()) {
-      implicitIndices = implicitIndicesAttr->getValue();
-    }
-
     EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-        rewriter, symbolTableCollection,
-        indices, implicitIndices,
-        getPath().getValue());
+        rewriter, symbolTableCollection, indices, getPath().getValue());
 
     if (!clonedTemplate) {
       return nullptr;
@@ -12966,17 +12916,12 @@ namespace mlir::modelica
         getLoc(), clonedTemplate,
         EquationPathAttr::get(
             getContext(),
-            EquationPath(EquationPath::LEFT, getViewElementIndex())),
+            EquationPath(EquationPath::LEFT, 0)),
         getIterationDirections());
 
     if (indices) {
       result.setIndicesAttr(MultidimensionalRangeAttr::get(
           getContext(), *indices));
-    }
-
-    if (implicitIndices) {
-      result.setImplicitIndicesAttr(MultidimensionalRangeAttr::get(
-          getContext(), *implicitIndices));
     }
 
     return result;
@@ -13011,7 +12956,6 @@ namespace mlir::modelica
 
         clonedOp.setOperand(equationTemplateOp.getResult());
         clonedOp.removeIndicesAttr();
-        clonedOp.removeImplicitIndicesAttr();
         results.push_back(clonedOp);
       } else {
         for (const MultidimensionalRange& assignedIndicesRange :
@@ -13030,16 +12974,6 @@ namespace mlir::modelica
             clonedOp.setIndicesAttr(
                 MultidimensionalRangeAttr::get(
                     rewriter.getContext(), std::move(explicitRange)));
-          }
-
-          if (auto implicitIndices = getImplicitIndices()) {
-            MultidimensionalRange implicitRange =
-                assignedIndicesRange.takeLastDimensions(
-                    implicitIndices->getValue().rank());
-
-            clonedOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    rewriter.getContext(), std::move(implicitRange)));
           }
 
           results.push_back(clonedOp);
@@ -13749,6 +13683,16 @@ namespace mlir::modelica
   void CallOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
+      EquationFunctionOp callee,
+      mlir::ValueRange args)
+  {
+    mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
+    build(builder, state, symbol, callee.getResultTypes(), args);
+  }
+
+  void CallOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
       RawFunctionOp callee,
       mlir::ValueRange args)
   {
@@ -13874,6 +13818,32 @@ namespace mlir::modelica
             << expectedResults << ", got " << actualResults << ")";
 
         return mlir::failure();
+      }
+
+      return mlir::success();
+    }
+
+    if (auto equationFunctionOp = mlir::dyn_cast<EquationFunctionOp>(callee)) {
+      mlir::FunctionType functionType = equationFunctionOp.getFunctionType();
+
+      unsigned int expectedInputs = functionType.getNumInputs();
+      unsigned int actualInputs = getNumOperands();
+
+      if (expectedInputs != actualInputs) {
+        return emitOpError()
+            << "incorrect number of operands for callee (expected "
+            << expectedInputs << ", got "
+            << actualInputs << ")";
+      }
+
+      unsigned int expectedResults = functionType.getNumResults();
+      unsigned int actualResults = getNumResults();
+
+      if (expectedResults != actualResults) {
+        return emitOpError()
+            << "incorrect number of results for callee (expected "
+            << expectedResults << ", got "
+            << actualResults << ")";
       }
 
       return mlir::success();
@@ -14107,6 +14077,27 @@ namespace mlir::modelica
     }
 
     return result;
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// ScheduleOp
+
+namespace mlir::modelica
+{
+  void ScheduleOp::collectSCCGroups(
+      llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups)
+  {
+    for (SCCGroupOp sccGroup : getOps<SCCGroupOp>()) {
+      SCCGroups.push_back(sccGroup);
+    }
+  }
+
+  void ScheduleOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  {
+    for (SCCOp scc : getOps<SCCOp>()) {
+      SCCs.push_back(scc);
+    }
   }
 }
 

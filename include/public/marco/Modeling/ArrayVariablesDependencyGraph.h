@@ -30,12 +30,18 @@ namespace marco::modeling
 
       using SCC = internal::dependency::SCC<Graph>;
 
+    private:
+      mlir::MLIRContext* context;
+      Graph graph;
+      WritesMap writesMap;
+
+    public:
       explicit ArrayVariablesDependencyGraph(mlir::MLIRContext* context)
           : context(context)
       {
       }
 
-      mlir::MLIRContext* getContext() const
+      [[nodiscard]] mlir::MLIRContext* getContext() const
       {
         assert(context != nullptr);
         return context;
@@ -44,14 +50,34 @@ namespace marco::modeling
       /// @name Forwarded methods
       /// {
 
-      Equation& operator[](EquationDescriptor descriptor)
+      Equation& getEquation(EquationDescriptor descriptor)
       {
         return graph[descriptor];
       }
 
-      const Equation& operator[](EquationDescriptor descriptor) const
+      const Equation& getEquation(EquationDescriptor descriptor) const
       {
         return graph[descriptor];
+      }
+
+      EquationProperty& operator[](EquationDescriptor descriptor)
+      {
+        return getEquation(descriptor).getProperty();
+      }
+
+      const EquationProperty& operator[](EquationDescriptor descriptor) const
+      {
+        return getEquation(descriptor).getProperty();
+      }
+
+      auto equationsBegin() const
+      {
+        return graph.verticesBegin();
+      }
+
+      auto equationsEnd() const
+      {
+        return graph.verticesEnd();
       }
 
       /// }
@@ -111,8 +137,7 @@ namespace marco::modeling
 
           // Ignore the entry node
           if (equations.size() > 1 || equations[0] != graph.getEntryNode()) {
-            result.emplace_back(graph, scc.hasCycle(),
-                                equations.begin(), equations.end());
+            result.emplace_back(graph, equations.begin(), equations.end());
           }
         }
 
@@ -188,11 +213,6 @@ namespace marco::modeling
         mlir::parallelForEach(getContext(), equations, mapFn);
         return vertices;
       }
-
-    private:
-      mlir::MLIRContext* context;
-      Graph graph;
-      WritesMap writesMap;
   };
 }
 

@@ -8,7 +8,9 @@
 // CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[zero]]
 // CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, view_element_index = 0 : i64}
+// CHECK:       modelica.main_model {
+// CHECK-NEXT:      modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
+// CHECK-NEXT:  }
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x!modelica.int>

@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --split-overlapping-accesses --canonicalize | FileCheck %s
 
 // CHECK: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}, %{{.*}}] attributes {id = "t0"}
+// CHECK: modelica.main_model
 // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,1][0,7]>, path = #modelica<equation_path [L, 0]>}
 // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2][0,1]>, path = #modelica<equation_path [L, 0]>}
 // CHECK-DAG: modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2][2,2]>, path = #modelica<equation_path [L, 0]>}
@@ -25,5 +26,7 @@ modelica.model @Test {
         modelica.equation_sides %8, %9 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,6][0,7]>, path = #modelica<equation_path [L, 0]>} : !modelica.equation
+    modelica.main_model {
+        modelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,6][0,7]>, path = #modelica<equation_path [L, 0]>} : !modelica.equation
+    }
 }

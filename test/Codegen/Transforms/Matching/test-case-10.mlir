@@ -9,7 +9,8 @@ modelica.model @Test {
     modelica.variable @x : !modelica.variable<2x!modelica.real>
     modelica.variable @y : !modelica.variable<2x!modelica.real>
 
-    // CHECK: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+    // x[i] - y[i] = 0
+    // CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
     %t0 = modelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
         %1 = modelica.variable_get @y : !modelica.array<2x!modelica.real>
@@ -22,10 +23,8 @@ modelica.model @Test {
         modelica.equation_sides %6, %7 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t0]]
-    modelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>} : !modelica.equation
-
-    // CHECK: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
+    // x[0] + x[1] = 2
+    // CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [] attributes {id = "t1"}
     %t1 = modelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
         %1 = modelica.constant 0 : index
@@ -39,10 +38,8 @@ modelica.model @Test {
         modelica.equation_sides %7, %8 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t1]]
-    modelica.equation_instance %t1 : !modelica.equation
-
-    // CHECK: %[[t2:.*]] = modelica.equation_template inductions = [] attributes {id = "t2"}
+    // y[0] + y[1] = 3
+    // CHECK-DAG: %[[t2:.*]] = modelica.equation_template inductions = [] attributes {id = "t2"}
     %t2 = modelica.equation_template inductions = [] attributes {id = "t2"} {
         %0 = modelica.variable_get @y : !modelica.array<2x!modelica.real>
         %1 = modelica.constant 0 : index
@@ -56,6 +53,12 @@ modelica.model @Test {
         modelica.equation_sides %7, %8 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.matched_equation_instance %[[t2]]
-    modelica.equation_instance %t2 : !modelica.equation
+    modelica.main_model {
+        // CHECK-DAG: modelica.matched_equation_instance %[[t0]]
+        // CHECK-DAG: modelica.matched_equation_instance %[[t1]]
+        // CHECK-DAG: modelica.matched_equation_instance %[[t2]]
+        modelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>} : !modelica.equation
+        modelica.equation_instance %t1 : !modelica.equation
+        modelica.equation_instance %t2 : !modelica.equation
+    }
 }

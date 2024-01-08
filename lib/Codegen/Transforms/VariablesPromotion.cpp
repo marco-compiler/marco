@@ -3,6 +3,7 @@
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Modeling/Dependency.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -22,7 +23,8 @@ namespace
         public VariableAccessAnalysis::AnalysisProvider
   {
     public:
-      using VariablesPromotionPassBase::VariablesPromotionPassBase;
+      using VariablesPromotionPassBase<VariablesPromotionPass>
+          ::VariablesPromotionPassBase;
 
       void runOnOperation() override;
 
@@ -31,6 +33,8 @@ namespace
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
+
+      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 
       DerivativesMap& getDerivativesMap();
 
@@ -49,20 +53,12 @@ void VariablesPromotionPass::runOnOperation()
     return signalPassFailure();
   }
 
+  if (mlir::failed(cleanModelOp(modelOp))) {
+    return signalPassFailure();
+  }
+
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
-
-  llvm::DenseSet<EquationTemplateOp> templateOps;
-
-  for (auto equationOp : modelOp.getOps<MatchedEquationInstanceOp>()) {
-    templateOps.insert(equationOp.getTemplate());
-  }
-
-  for (EquationTemplateOp templateOp : templateOps) {
-    if (auto analysis = getCachedVariableAccessAnalysis(templateOp)) {
-      analysis->get().preserve();
-    }
-  }
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
@@ -179,20 +175,15 @@ namespace marco::modeling::dependency
 
     static size_t getNumOfIterationVars(const Equation* equation)
     {
-      auto numOfExplicitInductions = static_cast<uint64_t>(
+      auto numOfInductions = static_cast<uint64_t>(
           (*equation)->op.getInductionVariables().size());
 
-      uint64_t numOfImplicitInductions =
-          (*equation)->op.getNumOfImplicitInductionVariables();
-
-      size_t result = numOfExplicitInductions + numOfImplicitInductions;
-
-      if (result == 0) {
+      if (numOfInductions == 0) {
         // Scalar equation.
         return 1;
       }
 
-      return static_cast<size_t>(result);
+      return static_cast<size_t>(numOfInductions);
     }
 
     static IndexSet getIterationRanges(const Equation* equation)
@@ -330,25 +321,27 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   // Collect the equations.
   llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
   llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
-  modelOp.collectEquations(initialEquations, mainEquations);
+  modelOp.collectInitialEquations(initialEquations);
+  modelOp.collectMainEquations(mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
   // scalar variables.
-  WritesMap<MatchedEquationInstanceOp> initialConditionsWritesMap;
+  WritesMap<VariableOp, MatchedEquationInstanceOp> initialConditionsWritesMap;
 
-  if (mlir::failed(modelOp.getWritesMap(
+  if (mlir::failed(getWritesMap(
           initialConditionsWritesMap,
+          modelOp,
           initialEquations,
           symbolTableCollection))) {
     return mlir::failure();
   }
 
   // Get the writes map of the 'main' model.
-  WritesMap<MatchedEquationInstanceOp> mainWritesMap;
+  WritesMap<VariableOp, MatchedEquationInstanceOp> mainWritesMap;
 
-  if (mlir::failed(modelOp.getWritesMap(
-          mainWritesMap, mainEquations, symbolTableCollection))) {
+  if (mlir::failed(getWritesMap(
+          mainWritesMap, modelOp, mainEquations, symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -636,6 +629,14 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       }
 
       if (shouldCreateInitialEquations) {
+        rewriter.setInsertionPoint(equationOp->getParentOfType<MainModelOp>());
+
+        auto initialModelOp =
+            rewriter.create<InitialModelOp>(modelOp.getLoc());
+
+        rewriter.createBlock(&initialModelOp.getBodyRegion());
+        rewriter.setInsertionPointToStart(initialModelOp.getBody());
+
         if (!writingEquationIndices.empty()) {
           // Get the indices of the equation that actually writes the scalar
           // variables of interest.
@@ -645,37 +646,20 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
           writingEquationIndices =
               writingEquationIndices.getCanonicalRepresentation();
 
-          rewriter.setInsertionPoint(equationOp);
-
-          uint64_t numOfImplicitInductions =
-              equationOp.getNumOfImplicitInductionVariables();
-
           for (const MultidimensionalRange& range : llvm::make_range(
                    writingEquationIndices.rangesBegin(),
                    writingEquationIndices.rangesEnd())) {
             auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
                 rewriter.clone(*equationOp.getOperation()));
 
-            clonedEquationOp.setInitial(true);
-
-            if (range.rank() > numOfImplicitInductions) {
-              clonedEquationOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-                  rewriter.getContext(),
-                  range.dropLastDimensions(numOfImplicitInductions)));
-            }
-
-            if (numOfImplicitInductions != 0) {
-              clonedEquationOp.setImplicitIndicesAttr(
-                  MultidimensionalRangeAttr::get(
-                      rewriter.getContext(),
-                      range.takeLastDimensions(numOfImplicitInductions)));
-            }
+            clonedEquationOp.setIndicesAttr(
+                MultidimensionalRangeAttr::get(rewriter.getContext(),range));
           }
 
           rewriter.eraseOp(equationOp);
         } else {
-          // Scalar equation.
-          equationOp.setInitial(true);
+          rewriter.clone(*equationOp.getOperation());
+          rewriter.eraseOp(equationOp);
         }
       } else {
         rewriter.eraseOp(equationOp);
@@ -684,6 +668,13 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   }
 
   return mlir::success();
+}
+
+mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp)
+{
+  mlir::RewritePatternSet patterns(&getContext());
+  ModelOp::getCleaningPatterns(patterns, &getContext());
+  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
 DerivativesMap& VariablesPromotionPass::getDerivativesMap()

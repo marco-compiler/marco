@@ -28,9 +28,6 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2][0,2]>}
-    modelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2][0,2]>, replace_indices = #modeling<index_set {[0,2][0,2]}>, replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
-
     // y[j][i] = z[i][j]
     %t1 = modelica.equation_template inductions = [%i0, %i1] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.array<50x50x!modelica.real>
@@ -42,7 +39,12 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 {id = "eq1", indices = #modeling<multidim_range [0,2][0,2]>} : !modelica.equation
+    modelica.main_model {
+        // CHECK: modelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2][0,2]>}
+        modelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2][0,2]>, replace_indices = #modeling<index_set {[0,2][0,2]}>, replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
+
+        modelica.equation_instance %t1 {id = "eq1", indices = #modeling<multidim_range [0,2][0,2]>} : !modelica.equation
+    }
 }
 
 // -----
@@ -75,9 +77,6 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    // CHECK: modelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2][0,2][0,2]>}
-    modelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2][0,2][0,2]>, replace_indices = #modeling<index_set {[0,2][0,2][0,2]}>, replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
-
     // y[z][i][j] = z[i][j][z]
     %t1 = modelica.equation_template inductions = [%i0, %i1, %i2] attributes {id = "t1"} {
         %0 = modelica.variable_get @y : !modelica.array<50x50x50x!modelica.real>
@@ -89,5 +88,10 @@ modelica.model @Test {
         modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
     }
 
-    modelica.equation_instance %t1 {id = "eq1", indices = #modeling<multidim_range [0,2][0,2][0,2]>} : !modelica.equation
+    modelica.main_model {
+        // CHECK: modelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2][0,2][0,2]>}
+        modelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2][0,2][0,2]>, replace_indices = #modeling<index_set {[0,2][0,2][0,2]}>, replace_destination_path = #modelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #modelica<equation_path [L, 0]>} : !modelica.equation
+
+        modelica.equation_instance %t1 {id = "eq1", indices = #modeling<multidim_range [0,2][0,2][0,2]>} : !modelica.equation
+    }
 }

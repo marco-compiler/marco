@@ -3,15 +3,19 @@
 // Binding equation for an array variable.
 
 // CHECK-LABEL: @Test
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
-// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x
-// CHECK-NEXT:      %[[el:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[el]]
-// CHECK-NEXT:      %[[lhs:.*]] = modelica.equation_side %[[x]]
-// CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[array]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [%[[i0:.*]]] {
+// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
+// CHECK-DAG:       %[[el:.*]] = modelica.constant #modelica.int<0>
+// CHECK-DAG:       %[[array:.*]] = modelica.array_broadcast %[[el]]
+// CHECK-DAG:       %[[x_load:.*]] = modelica.load %[[x]][%[[i0]]]
+// CHECK-DAG:       %[[array_load:.*]] = modelica.load %[[array]][%[[i0]]]
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x_load]]
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[array_load]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {implicit_indices = #modeling<multidim_range [0,2]>, view_element_index = 0 : i64}
+// CHECK:       modelica.main_model {
+// CHECK-NEXT:      modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
+// CHECK-NEXT:  }
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x!modelica.int>

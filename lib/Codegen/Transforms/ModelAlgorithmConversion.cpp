@@ -156,41 +156,87 @@ namespace
             algorithmOp.getBodyRegion(),
             algorithmOp.getBodyRegion().end());
 
-        // Create the equation containing the call to the function.
+        // Create the equation templates.
+        llvm::SmallVector<EquationTemplateOp> templateOps;
+
+        for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {
+          VariableOp outputVariable = outputVariables[i];
+          VariableType variableType = outputVariable.getVariableType();
+          int64_t rank = variableType.getRank();
+
+          rewriter.setInsertionPointToEnd(modelOp.getBody());
+
+          auto templateOp = rewriter.create<EquationTemplateOp>(loc);
+          templateOps.push_back(templateOp);
+          mlir::Block* templateBody = templateOp.createBody(rank);
+          rewriter.setInsertionPointToStart(templateBody);
+
+          llvm::SmallVector<mlir::Value> inputVariableGetOps;
+
+          for (VariableOp variable : inputVariables) {
+            inputVariableGetOps.push_back(
+                rewriter.create<VariableGetOp>(loc, variable));
+          }
+
+          auto callOp = rewriter.create<CallOp>(
+              loc, functionOp, inputVariableGetOps);
+
+          mlir::Value lhs =
+              rewriter.create<VariableGetOp>(loc, outputVariables[i]);
+
+          mlir::Value rhs = callOp.getResult(i);
+
+          if (auto inductions = templateOp.getInductionVariables();
+                  !inductions.empty()) {
+            lhs = rewriter.create<LoadOp>(
+                lhs.getLoc(), lhs, templateOp.getInductionVariables());
+
+            rhs = rewriter.create<LoadOp>(
+                rhs.getLoc(), rhs, templateOp.getInductionVariables());
+          }
+
+          mlir::Value lhsOp = rewriter.create<EquationSideOp>(loc, lhs);
+          mlir::Value rhsOp = rewriter.create<EquationSideOp>(loc, rhs);
+          rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
+        }
+
+        // Create the equation instances.
         rewriter.setInsertionPointToEnd(modelOp.getBody());
 
-        mlir::Region* equationRegion =
-            createEquation(rewriter, loc, op, outputVariables);
+        if (op.getInitial()) {
+          auto initialModelOp = rewriter.create<InitialModelOp>(loc);
 
-        rewriter.setInsertionPointToStart(&equationRegion->front());
+          mlir::Block* bodyBlock =
+              rewriter.createBlock(&initialModelOp.getBodyRegion());
 
-        llvm::SmallVector<mlir::Value> inputVariableGetOps;
-        llvm::SmallVector<mlir::Value> outputVariableGetOps;
+          rewriter.setInsertionPointToStart(bodyBlock);
+        } else {
+          auto mainModelOp = rewriter.create<MainModelOp>(loc);
 
-        for (VariableOp inputVariable : inputVariables) {
-          inputVariableGetOps.push_back(rewriter.create<VariableGetOp>(
-              loc,
-              inputVariable.getVariableType().unwrap(),
-              inputVariable.getSymName()));
+          mlir::Block* bodyBlock =
+              rewriter.createBlock(&mainModelOp.getBodyRegion());
+
+          rewriter.setInsertionPointToStart(bodyBlock);
         }
 
-        for (VariableOp outputVariable : outputVariables) {
-          outputVariableGetOps.push_back(rewriter.create<VariableGetOp>(
-              loc,
-              outputVariable.getVariableType().unwrap(),
-              outputVariable.getSymName()));
+        for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {
+          EquationTemplateOp templateOp = templateOps[i];
+          IndexSet variableIndices = outputVariables[i].getIndices();
+
+          if (variableIndices.empty()) {
+            rewriter.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
+          } else {
+            for (const MultidimensionalRange& range : llvm::make_range(
+                     variableIndices.rangesBegin(),
+                     variableIndices.rangesEnd())) {
+              auto instanceOp = rewriter.create<EquationInstanceOp>(
+                  templateOp.getLoc(), templateOp);
+
+              instanceOp.setIndicesAttr(MultidimensionalRangeAttr::get(
+                  rewriter.getContext(), range));
+            }
+          }
         }
-
-        auto callOp = rewriter.create<CallOp>(
-            loc, functionOp, inputVariableGetOps);
-
-        mlir::Value lhs = rewriter.create<EquationSideOp>(
-            loc, outputVariableGetOps);
-
-        mlir::Value rhs = rewriter.create<EquationSideOp>(
-            loc, callOp.getResults());
-
-        rewriter.create<EquationSidesOp>(loc, lhs, rhs);
 
         // Erase the algorithm.
         rewriter.eraseOp(op);
@@ -224,47 +270,6 @@ namespace
 
         llvm_unreachable("StartOp not found");
         return nullptr;
-      }
-
-      mlir::Region* createEquation(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          AlgorithmOp algorithmOp,
-          llvm::ArrayRef<VariableOp> outputVariables) const
-      {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-
-        // Create the equation template.
-        auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
-        assert(equationTemplateOp.getBodyRegion().empty());
-        builder.createBlock(&equationTemplateOp.getBodyRegion());
-
-        // Create the equation instance.
-        builder.setInsertionPointAfter(equationTemplateOp);
-
-        for (uint64_t i = 0, e = outputVariables.size(); i < e; ++i) {
-          auto equationInstanceOp = builder.create<EquationInstanceOp>(
-              loc, equationTemplateOp, algorithmOp.getInitial());
-
-          equationInstanceOp.setViewElementIndex(i);
-
-          VariableOp variableOp = outputVariables[i];
-          VariableType variableType = variableOp.getVariableType();
-
-          if (!variableType.isScalar()) {
-            llvm::SmallVector<Range> ranges;
-
-            for (int64_t dimension : variableType.getShape()) {
-              ranges.push_back(Range(0, dimension));
-            }
-
-            equationInstanceOp.setImplicitIndicesAttr(
-                MultidimensionalRangeAttr::get(
-                    builder.getContext(), MultidimensionalRange(ranges)));
-          }
-        }
-
-        return &equationTemplateOp.getBodyRegion();
       }
 
       /// Determine if an array is read or written.

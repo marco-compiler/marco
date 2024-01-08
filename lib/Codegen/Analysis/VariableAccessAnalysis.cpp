@@ -30,17 +30,6 @@ namespace mlir::modelica
     valid = false;
   }
 
-  void VariableAccessAnalysis::preserve()
-  {
-    preserved = true;
-  }
-
-  bool VariableAccessAnalysis::isInvalidated(
-      const mlir::detail::PreservedAnalyses& pa) const
-  {
-    return !initialized || !valid || !preserved;
-  }
-
   std::optional<llvm::ArrayRef<VariableAccess>>
   VariableAccessAnalysis::getAccesses(
       EquationInstanceOp instanceOp,
@@ -54,13 +43,7 @@ namespace mlir::modelica
       }
     }
 
-    uint64_t elementIndex = instanceOp.getViewElementIndex().value_or(0);
-
-    if (auto it = accesses.find(elementIndex); it != accesses.end()) {
-      return {it->getSecond()};
-    }
-
-    return std::nullopt;
+    return accesses;
   }
 
   std::optional<llvm::ArrayRef<VariableAccess>>
@@ -76,13 +59,7 @@ namespace mlir::modelica
       }
     }
 
-    uint64_t elementIndex = instanceOp.getViewElementIndex();
-
-    if (auto it = accesses.find(elementIndex); it != accesses.end()) {
-      return {it->getSecond()};
-    }
-
-    return std::nullopt;
+    return accesses;
   }
 
   std::optional<llvm::ArrayRef<VariableAccess>>
@@ -98,13 +75,7 @@ namespace mlir::modelica
       }
     }
 
-    uint64_t elementIndex = instanceOp.getViewElementIndex();
-
-    if (auto it = accesses.find(elementIndex); it != accesses.end()) {
-      return {it->getSecond()};
-    }
-
-    return std::nullopt;
+    return accesses;
   }
 
   mlir::LogicalResult VariableAccessAnalysis::loadAccesses(
@@ -121,10 +92,10 @@ namespace mlir::modelica
     size_t numOfSideElements = equationSidesOp.getLhsValues().size();
 
     for (size_t i = 0; i < numOfSideElements; ++i) {
-      accesses[i].clear();
+      accesses.clear();
 
       if (mlir::failed(equationTemplate.getAccesses(
-              accesses[i], symbolTableCollection, i))) {
+              accesses, symbolTableCollection))) {
         return mlir::failure();
       }
     }

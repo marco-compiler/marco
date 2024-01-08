@@ -25,7 +25,8 @@ namespace
       : public impl::DerivativesAllocationPassBase<DerivativesAllocationPass>
   {
     public:
-      using DerivativesAllocationPassBase::DerivativesAllocationPassBase;
+      using DerivativesAllocationPassBase<DerivativesAllocationPass>
+          ::DerivativesAllocationPassBase;
 
       void runOnOperation() override;
 
@@ -99,19 +100,14 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
 {
   mlir::SymbolTableCollection symbolTableCollection;
 
-  llvm::DenseSet<EquationInstanceOp> equationInstanceOps;
-  llvm::DenseSet<AlgorithmOp> algorithmOps;
+  llvm::SmallVector<EquationInstanceOp> equationInstanceOps;
+  llvm::SmallVector<AlgorithmOp> algorithmOps;
 
-  for (auto& op : modelOp.getOps()) {
-    if (auto equationInstanceOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
-      equationInstanceOps.insert(equationInstanceOp);
-      continue;
-    }
+  modelOp.collectInitialEquations(equationInstanceOps);
+  modelOp.collectMainEquations(equationInstanceOps);
 
-    if (auto algorithmOp = mlir::dyn_cast<AlgorithmOp>(op)) {
-      algorithmOps.insert(algorithmOp);
-      continue;
-    }
+  for (AlgorithmOp algorithmOp : modelOp.getOps<AlgorithmOp>()) {
+    algorithmOps.push_back(algorithmOp);
   }
 
   // Collect the derived indices.
@@ -676,7 +672,6 @@ static mlir::LogicalResult createStartOp(
 
   mlir::Location loc = variableOp.getLoc();
 
-  // TODO handle object orientation
   auto startOp = builder.create<StartOp>(
       loc, variable.getRootReference().getValue(), false, false, true);
 
@@ -698,7 +693,7 @@ static mlir::LogicalResult createStartOp(
   return mlir::success();
 }
 
-static mlir::LogicalResult createInitialEquations(
+static mlir::LogicalResult createMainEquations(
     mlir::OpBuilder& builder,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -732,10 +727,14 @@ static mlir::LogicalResult createInitialEquations(
 
   builder.setInsertionPointAfter(equationTemplateOp);
 
+  auto mainModelOp = builder.create<MainModelOp>(modelOp.getLoc());
+  builder.createBlock(&mainModelOp.getBodyRegion());
+  builder.setInsertionPointToStart(mainModelOp.getBody());
+
   for (const MultidimensionalRange& range :
        llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
     auto instanceOp = builder.create<EquationInstanceOp>(
-        loc, equationTemplateOp, false);
+        loc, equationTemplateOp);
 
     instanceOp.setIndicesAttr(
         MultidimensionalRangeAttr::get(builder.getContext(), range));
@@ -786,7 +785,7 @@ DerivativesAllocationPass::createStartOpsAndDummyEquations(
       }
 
       if (!nonDerivedIndices.empty()) {
-        if (mlir::failed(createInitialEquations(
+        if (mlir::failed(createMainEquations(
                 builder, symbolTableCollection, modelOp,
                 *derivativeName,
                 nonDerivedIndices.getCanonicalRepresentation()))) {
