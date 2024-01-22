@@ -8,8 +8,6 @@ module {
     modelica.model @Test {
         modelica.variable @x : !modelica.variable<!modelica.real>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<!modelica.real>
 }
 
 // -----
@@ -23,6 +21,4 @@ module {
     modelica.model @Test {
         modelica.variable @x : !modelica.variable<3x2x!modelica.real>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<3x2x!modelica.real>
 }

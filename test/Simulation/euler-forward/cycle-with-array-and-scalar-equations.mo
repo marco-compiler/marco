@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=ArrayAndScalarEquations --solver=euler-forward -o %basename_t -L %runtime_lib_dir %s
+// RUN: marco --omc-bypass --model=ArrayAndScalarEquations --solver=euler-forward -o %basename_t -L %runtime_lib_dir %s -L %sundials_lib_dir
 // RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1]","x[2]","x[3]","x[4]","y"

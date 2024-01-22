@@ -4,6 +4,7 @@
 #include "marco/Runtime/Drivers/IDA/CLI.h"
 #include "marco/Runtime/Solvers/IDA/Options.h"
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
+#include "marco/Runtime/Simulation/Options.h"
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Simulation/Runtime.h"
 
@@ -15,21 +16,6 @@ extern "C"
 {
   /// @name Simulation functions.
   /// {
-
-  /// Initialize the solvers to be used for 'initial conditions' model.
-  void* initICSolvers();
-
-  /// Deinitialize the solver used for the 'initial conditions' model.
-  void* deinitICSolvers();
-
-  /// Solve the model for the initial conditions.
-  void solveICModel();
-
-  /// Initialize the solvers to be used for 'main' model.
-  void initMainSolvers();
-
-  /// Deinitialize the solver used for the 'main' model.
-  void deinitMainSolvers();
 
   /// Compute the initial values of the variables.
   void calcIC();
@@ -65,21 +51,7 @@ namespace marco::runtime
 
   int IDA::run()
   {
-    // Set the start time.
-    setTime(sundials::ida::getOptions().startTime);
-
-    getSimulation()->getPrinter()->simulationBegin();
-
-    // Process the "initial conditions model".
-    initICSolvers();
-    solveICModel();
-    deinitICSolvers();
-
-    // Print the initial values.
-    getSimulation()->getPrinter()->printValues();
-
-    // Process the "main model".
-    initMainSolvers();
+    // Run the dynamic model.
     calcIC();
 
     do {
@@ -97,14 +69,10 @@ namespace marco::runtime
 
       // Print the values.
       getSimulation()->getPrinter()->printValues();
-    } while (std::abs(getTime() - sundials::ida::getOptions().endTime) >=
+    } while (std::abs(getTime() - simulation::getOptions().endTime) >=
              sundials::ida::getOptions().timeStep);
 
-    // Deinitialize the simulation.
-    deinitMainSolvers();
-    getSimulation()->getPrinter()->simulationEnd();
-
-    return 0;
+    return EXIT_SUCCESS;
   }
 }
 

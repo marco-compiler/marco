@@ -161,14 +161,12 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
 
   if (initial) {
     auto initialModelOp = rewriter.create<InitialModelOp>(modelOp.getLoc());
-
-    rewriter.setInsertionPointToStart(
-        rewriter.createBlock(&initialModelOp.getBodyRegion()));
+    rewriter.createBlock(&initialModelOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(initialModelOp.getBody());
   } else {
     auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
-
-    rewriter.setInsertionPointToStart(
-        rewriter.createBlock(&mainModelOp.getBodyRegion()));
+    rewriter.createBlock(&mainModelOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mainModelOp.getBody());
   }
 
   for (const DependencyGraph::SCC& scc : SCCs) {

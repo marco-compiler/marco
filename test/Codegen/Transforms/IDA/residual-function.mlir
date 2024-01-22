@@ -3,16 +3,13 @@
 // Scalar equation.
 
 // CHECK:       ida.residual_function @ida_main_residualFunction_0(%[[time:.*]]: f64) -> f64 {
-// CHECK-DAG:       %[[x:.*]] = modelica.simulation_variable_get @x : !modelica.real
-// CHECK-DAG:       %[[der_x:.*]] = modelica.simulation_variable_get @der_x : !modelica.real
+// CHECK-DAG:       %[[x:.*]] = modelica.qualified_variable_get @Test::@x : !modelica.real
+// CHECK-DAG:       %[[der_x:.*]] = modelica.qualified_variable_get @Test::@der_x : !modelica.real
 // CHECK-DAG:       %[[result:.*]] = modelica.sub %[[der_x]], %[[x]]
 // CHECK-DAG:       ida.return %[[result]] : f64
 // CHECK-NEXT:  }
 
 module {
-    modelica.simulation_variable @x : !modelica.variable<!modelica.real>
-    modelica.simulation_variable @der_x : !modelica.variable<!modelica.real>
-
     modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x, @der_x>]} {
         modelica.variable @x : !modelica.variable<!modelica.real>
         modelica.variable @der_x : !modelica.variable<!modelica.real>
@@ -39,8 +36,8 @@ module {
 // Vectorized equation with explicit indices.
 
 // CHECK:       ida.residual_function @ida_main_residualFunction_0(%[[time:.*]]: f64, %[[index:.*]]: index) -> f64 {
-// CHECK-DAG:       %[[x:.*]] = modelica.simulation_variable_get @x : !modelica.array<2x!modelica.real>
-// CHECK-DAG:       %[[der_x:.*]] = modelica.simulation_variable_get @der_x : !modelica.array<2x!modelica.real>
+// CHECK-DAG:       %[[x:.*]] = modelica.qualified_variable_get @Test::@x : !modelica.array<2x!modelica.real>
+// CHECK-DAG:       %[[der_x:.*]] = modelica.qualified_variable_get @Test::@der_x : !modelica.array<2x!modelica.real>
 // CHECK-DAG:       %[[x_load:.*]] = modelica.load %[[x]][%[[index]]]
 // CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x]][%[[index]]]
 // CHECK-DAG:       %[[result:.*]] = modelica.sub %[[der_x_load]], %[[x_load]]
@@ -48,9 +45,6 @@ module {
 // CHECK-NEXT:  }
 
 module {
-    modelica.simulation_variable @x : !modelica.variable<2x!modelica.real>
-    modelica.simulation_variable @der_x : !modelica.variable<2x!modelica.real>
-
     modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x, @der_x>]} {
         modelica.variable @x : !modelica.variable<2x!modelica.real>
         modelica.variable @der_x : !modelica.variable<2x!modelica.real>

@@ -10,6 +10,18 @@ include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 
+//===---------------------------------------------------------------------===//
+// Type constraints
+//===---------------------------------------------------------------------===//
+
+// Scheduler instance type.
+def SchedulerInstance : Type<CPred<"$_self.isa<::mlir::ida::SchedulerType>()">,
+                             "scheduler", "::mlir::simulation::SchedulerType">;
+
+//===---------------------------------------------------------------------===//
+// Attribute constraints
+//===---------------------------------------------------------------------===//
+
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
     : Attr<CPred<"$_self.isa<::mlir::simulation::MultidimensionalRangeAttr>()">,
@@ -36,6 +48,103 @@ def IndexSetAttr
 
 class Simulation_Op<string mnemonic, list<Trait> traits = []> :
     Op<Simulation_Dialect, mnemonic, traits>;
+
+def Simulation_SchedulerOp : Simulation_Op<"scheduler",
+    [Symbol,
+    HasParent<"mlir::ModuleOp">]>
+{
+    let summary = "Declare an instance of a scheduler.";
+
+    let description = [{
+        Declare an instance of a scheduler.
+    }];
+
+    let arguments = (ins SymbolNameAttr:$sym_name);
+    let results = (outs);
+    let assemblyFormat = "$sym_name attr-dict";
+}
+
+def Simulation_SchedulerCreateOp : Simulation_Op<"scheduler_create", []>
+{
+    let summary = "Create a scheduler instance.";
+
+    let description = [{
+        The operation create a new scheduler instance.
+
+        Example:
+
+        ```mlir
+        simulation.scheduler_create @scheduler
+        ```
+    }];
+
+    let arguments = (ins SymbolNameAttr:$scheduler);
+    let results = (outs);
+    let assemblyFormat = "$scheduler attr-dict";
+}
+
+def Simulation_SchedulerDestroyOp : Simulation_Op<"scheduler_destroy", []>
+{
+    let summary = "Destroy a scheduler instance.";
+
+    let description = [{
+        The operation destroys a scheduler instance.
+
+        Example:
+
+        ```mlir
+        simulation.scheduler_destroy @scheduler
+        ```
+    }];
+
+    let arguments = (ins SymbolNameAttr:$scheduler);
+    let results = (outs);
+    let assemblyFormat = "$scheduler attr-dict";
+}
+
+def Simulation_SchedulerAddEquationOp : Simulation_Op<"scheduler_add_equation", []>
+{
+    let summary = "Add an equation to a scheduler.";
+
+    let description = [{
+        The operation is intended to inform a scheduler about an equation it
+        has to execute.
+
+        Example:
+
+        ```mlir
+        simulation.scheduler_add_equation @scheduler {ranges : #modeling<multidim_range [0,7][0,13]>}
+        ```
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$scheduler,
+        FlatSymbolRefAttr:$function,
+        OptionalAttr<MultidimensionalRangeAttr>:$ranges,
+        DefaultValuedAttr<BoolAttr, "false">:$independentIndices);
+
+    let results = (outs);
+    let assemblyFormat = "$scheduler attr-dict";
+}
+
+def Simulation_SchedulerRunOp : Simulation_Op<"scheduler_run", []>
+{
+    let summary = "Run the equations owned by a scheduler.";
+
+    let description = [{
+        The operation runs the equations owned by a scheduler.
+
+        Example:
+
+        ```mlir
+        simulation.run @scheduler
+        ```
+    }];
+
+    let arguments = (ins SymbolNameAttr:$scheduler);
+    let results = (outs);
+    let assemblyFormat = "$scheduler attr-dict";
+}
 
 def Simulation_VariableOp : Simulation_Op<"variable",
     [HasParent<"mlir::ModuleOp">, Symbol]>
@@ -414,36 +523,123 @@ def Simulation_YieldOp : Simulation_Op<"yield",
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
-def Simulation_InitICSolversOp : Simulation_Op<"init_ic_solvers",
-    [HasParent<"mlir::ModuleOp">]>
+def Simulation_ICModelBeginOp : Simulation_Op<"ic_model_begin",
+    [HasParent<"mlir::ModuleOp">,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
 {
     let arguments = (ins);
-    let regions = (region AnyRegion:$bodyRegion);
+    let regions = (region SizedRegion<1>:$bodyRegion);
     let assemblyFormat = "$bodyRegion attr-dict";
 }
 
-def Simulation_DeinitICSolversOp : Simulation_Op<"deinit_ic_solvers",
-    [HasParent<"mlir::ModuleOp">]>
+def Simulation_ICModelEndOp : Simulation_Op<"ic_model_end",
+    [HasParent<"mlir::ModuleOp">,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
 {
     let arguments = (ins);
-    let regions = (region AnyRegion:$bodyRegion);
+    let regions = (region SizedRegion<1>:$bodyRegion);
     let assemblyFormat = "$bodyRegion attr-dict";
 }
 
-def Simulation_InitMainSolversOp : Simulation_Op<"init_main_solvers",
-    [HasParent<"mlir::ModuleOp">]>
+def Simulation_DynamicModelBeginOp : Simulation_Op<"dynamic_model_begin",
+    [HasParent<"mlir::ModuleOp">,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
 {
     let arguments = (ins);
-    let regions = (region AnyRegion:$bodyRegion);
+    let regions = (region SizedRegion<1>:$bodyRegion);
     let assemblyFormat = "$bodyRegion attr-dict";
 }
 
-def Simulation_DeinitMainSolversOp : Simulation_Op<"deinit_main_solvers",
-    [HasParent<"mlir::ModuleOp">]>
+def Simulation_DynamicModelEndOp : Simulation_Op<"dynamic_model_end",
+    [HasParent<"mlir::ModuleOp">,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
 {
     let arguments = (ins);
-    let regions = (region AnyRegion:$bodyRegion);
+    let regions = (region SizedRegion<1>:$bodyRegion);
     let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Simulation_EquationFunctionOp : Simulation_Op<"equation_function",
+    [HasParent<"mlir::ModuleOp">,
+    IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    FunctionOpInterface,
+    CallableOpInterface]>
+{
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<StrAttr>:$sym_visibility,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
+
+    let regions = (region AnyRegion:$body);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins
+            "llvm::StringRef":$name,
+            "uint64_t":$numOfInductions,
+            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
+    ];
+
+    let extraClassDeclaration = [{
+        /// @name CallableOpInterface methods
+        /// {
+
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion()
+        {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
+
+        /// Returns the argument types of this function.
+        llvm::ArrayRef<mlir::Type> getArgumentTypes()
+        {
+            return getFunctionType().getInputs();
+        }
+
+        /// Returns the result types of this function.
+        llvm::ArrayRef<mlir::Type> getResultTypes()
+        {
+            return getFunctionType().getResults();
+        }
+
+        /// }
+        /// @name SymbolOpInterface methods
+        /// {
+
+        bool isDeclaration()
+        {
+            return isExternal();
+        }
+
+        /// }
+    }];
 }
 
 def Simulation_FunctionOp : Simulation_Op<"function",
@@ -537,7 +733,7 @@ def Simulation_FunctionOp : Simulation_Op<"function",
 
 def Simulation_ReturnOp : Simulation_Op<"return",
     [Terminator,
-    ParentOneOf<["FunctionOp", "VariableGetterOp"]>]>
+    ParentOneOf<["FunctionOp", "VariableGetterOp", "EquationFunctionOp"]>]>
 {
     let summary = "Function return operation.";
 

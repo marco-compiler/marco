@@ -1,12 +1,8 @@
 #include "marco/Codegen/Transforms/Scheduling.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/Scheduling.h"
-#include "llvm/Support/Debug.h"
-
-#define DEBUG_TYPE "scheduling"
 
 namespace mlir::modelica
 {
@@ -23,43 +19,180 @@ namespace
       : public mlir::modelica::impl::SchedulingPassBase<SchedulingPass>
   {
     public:
-      using SchedulingPassBase::SchedulingPassBase;
+      using SchedulingPassBase<SchedulingPass>::SchedulingPassBase;
 
       void runOnOperation() override;
 
     private:
-      mlir::LogicalResult processScheduleOp(ScheduleOp scheduleOp);
-
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
+
+      mlir::LogicalResult processScheduleOp(
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          ScheduleOp scheduleOp);
+
+      mlir::LogicalResult processInitialModel(
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          ScheduleOp scheduleOp,
+          llvm::ArrayRef<InitialModelOp> initialModelOps);
+
+      mlir::LogicalResult processMainModel(
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          ScheduleOp scheduleOp,
+          llvm::ArrayRef<MainModelOp> mainModelOps);
+
+      mlir::LogicalResult processSCCs(
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          ScheduleOp scheduleOp,
+          llvm::ArrayRef<SCCOp> SCCs,
+          llvm::function_ref<mlir::Block*(
+              mlir::OpBuilder&, mlir::Location)> createContainerFn);
   };
 }
 
 void SchedulingPass::runOnOperation()
 {
-  ScheduleOp scheduleOp = getOperation();
+  ModelOp modelOp = getOperation();
+  mlir::SymbolTableCollection symbolTableCollection;
 
-  if (mlir::failed(processScheduleOp(scheduleOp))) {
-    return signalPassFailure();
+  for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
+    if (mlir::failed(processScheduleOp(
+            symbolTableCollection, modelOp, scheduleOp))) {
+      return signalPassFailure();
+    }
   }
 }
 
-mlir::LogicalResult SchedulingPass::processScheduleOp(ScheduleOp scheduleOp)
+mlir::LogicalResult SchedulingPass::processScheduleOp(
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    ScheduleOp scheduleOp)
 {
-  mlir::SymbolTableCollection symbolTableCollection;
+  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<MainModelOp> mainModelOps;
 
+  for (auto& op : scheduleOp.getOps()) {
+    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
+      initialModelOps.push_back(initialModelOp);
+      continue;
+    }
+
+    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
+      mainModelOps.push_back(mainModelOp);
+      continue;
+    }
+  }
+
+  if (mlir::failed(processInitialModel(
+          symbolTableCollection, modelOp, scheduleOp, initialModelOps))) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(processMainModel(
+          symbolTableCollection, modelOp, scheduleOp, mainModelOps))) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult SchedulingPass::processInitialModel(
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    ScheduleOp scheduleOp,
+    llvm::ArrayRef<InitialModelOp> initialModelOps)
+{
   // Collect the SCCs.
   llvm::SmallVector<SCCOp> SCCs;
-  scheduleOp.collectSCCs(SCCs);
 
+  for (InitialModelOp initialModelOp : initialModelOps) {
+    initialModelOp.collectSCCs(SCCs);
+  }
+
+  if (SCCs.empty()) {
+    return mlir::success();
+  }
+
+  auto createContainerFn =
+      [](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto initialModelOp = builder.create<InitialModelOp>(loc);
+    builder.createBlock(&initialModelOp.getBodyRegion());
+    return initialModelOp.getBody();
+  };
+
+  if (mlir::failed(processSCCs(
+          symbolTableCollection, modelOp, scheduleOp, SCCs,
+          createContainerFn))) {
+    return mlir::failure();
+  }
+
+  // Erase the old equations containers.
+  for (InitialModelOp initialModelOp : initialModelOps) {
+    initialModelOp.erase();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult SchedulingPass::processMainModel(
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    ScheduleOp scheduleOp,
+    llvm::ArrayRef<MainModelOp> mainModelOps)
+{
+  // Collect the SCCs.
+  llvm::SmallVector<SCCOp> SCCs;
+
+  for (MainModelOp mainModelOp : mainModelOps) {
+    mainModelOp.collectSCCs(SCCs);
+  }
+
+  if (SCCs.empty()) {
+    return mlir::success();
+  }
+
+  auto createContainerFn =
+      [](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto mainModelOp = builder.create<MainModelOp>(loc);
+    builder.createBlock(&mainModelOp.getBodyRegion());
+    return mainModelOp.getBody();
+  };
+
+  if (mlir::failed(processSCCs(
+          symbolTableCollection, modelOp, scheduleOp, SCCs,
+          createContainerFn))) {
+    return mlir::failure();
+  }
+
+  // Erase the old equations containers.
+  for (MainModelOp mainModelOp : mainModelOps) {
+    mainModelOp.erase();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult SchedulingPass::processSCCs(
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    ScheduleOp scheduleOp,
+    llvm::ArrayRef<SCCOp> SCCs,
+    llvm::function_ref<mlir::Block*(
+        mlir::OpBuilder&, mlir::Location)> createContainerFn)
+{
   // Compute the writes map.
-  auto moduleOp = scheduleOp->getParentOfType<mlir::ModuleOp>();
-  WritesMap<SimulationVariableOp, MatchedEquationInstanceOp> writesMap;
+  WritesMap<VariableOp, MatchedEquationInstanceOp> writesMap;
 
   if (mlir::failed(getWritesMap(
-          writesMap, moduleOp, scheduleOp, symbolTableCollection))) {
+          writesMap, modelOp, SCCs, symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -80,8 +213,7 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(ScheduleOp scheduleOp)
       MatchedEquationInstanceOp, MatchedEquationBridge*> equationsMap;
 
   // Collect the variables.
-  for (SimulationVariableOp variable :
-       moduleOp.getOps<SimulationVariableOp>()) {
+  for (VariableOp variable : modelOp.getOps<VariableOp>()) {
     auto& bridge = variableBridges.emplace_back(
         VariableBridge::build(variable));
 
@@ -90,7 +222,7 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(ScheduleOp scheduleOp)
   }
 
   // Collect the SCCs and the equations.
-  for (SCCOp scc : scheduleOp.getOps<SCCOp>()) {
+  for (SCCOp scc : SCCs) {
     llvm::SmallVector<MatchedEquationInstanceOp> equations;
     scc.collectEquations(equations);
 
@@ -121,91 +253,78 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(ScheduleOp scheduleOp)
   }
 
   // Compute the schedule.
-  auto sccGroups = scheduler.schedule(sccBridgePtrs);
+  auto scheduledSCCs = scheduler.schedule(sccBridgePtrs);
 
-  // Write the schedule and erase the old SCCs.
-  mlir::IRRewriter rewriter(&getContext());
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  // Create the scheduled equations.
+  mlir::OpBuilder builder(&getContext());
+  builder.setInsertionPointToEnd(scheduleOp.getBody());
 
-  for (const auto& sccGroup : sccGroups) {
-    rewriter.setInsertionPointToEnd(scheduleOp.getBody());
+  mlir::Block* containerBody = createContainerFn(builder, modelOp.getLoc());
+  builder.setInsertionPointToStart(containerBody);
 
-    // Create the group of independent SCCs.
-    auto sccGroupOp = rewriter.create<SCCGroupOp>(scheduleOp.getLoc());
-    assert(sccGroupOp.getBodyRegion().empty());
+  for (const auto& scc : scheduledSCCs) {
+    bool hasCycle = scc.size() > 1;
 
-    mlir::Block* sccGroupBody =
-        rewriter.createBlock(&sccGroupOp.getBodyRegion());
+    if (hasCycle) {
+      // If the SCC contains a cycle, then all the equations must be declared
+      // inside it.
+      builder.setInsertionPointToEnd(containerBody);
+      auto sccOp = builder.create<SCCOp>(scheduleOp.getLoc());
+      mlir::Block* sccBody = builder.createBlock(&sccOp.getBodyRegion());
+      builder.setInsertionPointToStart(sccBody);
+    }
 
-    for (const auto& scc : sccGroup) {
-      bool hasCycle = scc.size() > 1;
+    for (const auto& scheduledEquation : scc) {
+      MatchedEquationInstanceOp matchedEquation =
+          scheduledEquation.getEquation()->op;
 
-      if (hasCycle) {
-        // If the SCC contains a cycle, then all the equations must be declared
-        // inside it.
-        rewriter.setInsertionPointToEnd(sccGroupBody);
-        auto sccOp = rewriter.create<SCCOp>(scheduleOp.getLoc());
-        mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
-        rewriter.setInsertionPointToStart(sccBody);
+      size_t numOfInductions =
+          matchedEquation.getInductionVariables().size();
+
+      bool isScalarEquation = numOfInductions == 0;
+
+      // Determine the iteration directions.
+      llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
+
+      for (marco::modeling::scheduling::Direction direction :
+           scheduledEquation.getIterationDirections()) {
+        iterationDirections.push_back(
+            EquationScheduleDirectionAttr::get(&getContext(), direction));
       }
 
-      for (const auto& scheduledEquation : scc) {
-        MatchedEquationInstanceOp matchedEquation =
-            scheduledEquation.getEquation()->op;
+      // Create an equation for each range of scheduled indices.
+      const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
 
-        size_t numOfInductions =
-            matchedEquation.getInductionVariables().size();
-
-        bool isScalarEquation = numOfInductions == 0;
-
-        // Determine the iteration directions.
-        llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
-
-        for (marco::modeling::scheduling::Direction direction :
-             scheduledEquation.getIterationDirections()) {
-          iterationDirections.push_back(
-              EquationScheduleDirectionAttr::get(&getContext(), direction));
+      for (const MultidimensionalRange& scheduledRange :
+           llvm::make_range(scheduledIndices.rangesBegin(),
+                            scheduledIndices.rangesEnd())) {
+        if (!hasCycle) {
+          // If the SCC doesn't have a cycle, then each equation has to be
+          // declared in a dedicated SCC operation.
+          builder.setInsertionPointToEnd(containerBody);
+          auto sccOp = builder.create<SCCOp>(scheduleOp.getLoc());
+          mlir::Block* sccBody = builder.createBlock(&sccOp.getBodyRegion());
+          builder.setInsertionPointToStart(sccBody);
         }
 
-        // Create an equation for each range of scheduled indices.
-        const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
+        // Create the operation for the scheduled equation.
+        auto scheduledEquationOp =
+            builder.create<ScheduledEquationInstanceOp>(
+                matchedEquation.getLoc(),
+                matchedEquation.getTemplate(),
+                matchedEquation.getPath(),
+                builder.getArrayAttr(llvm::ArrayRef(iterationDirections)
+                                         .take_front(numOfInductions)));
 
-        for (const MultidimensionalRange& scheduledRange :
-             llvm::make_range(scheduledIndices.rangesBegin(),
-                              scheduledIndices.rangesEnd())) {
-          if (!hasCycle) {
-            // If the SCC doesn't have a cycle, then each equation has to be
-            // declared in a dedicated SCC operation.
-            rewriter.setInsertionPointToEnd(sccGroupBody);
-            auto sccOp = rewriter.create<SCCOp>(scheduleOp.getLoc());
-            mlir::Block* sccBody = rewriter.createBlock(&sccOp.getBodyRegion());
-            rewriter.setInsertionPointToStart(sccBody);
-          }
+        if (!isScalarEquation) {
+          MultidimensionalRange explicitRange =
+              scheduledRange.takeFirstDimensions(numOfInductions);
 
-          // Create the operation for the scheduled equation.
-          auto scheduledEquationOp =
-              rewriter.create<ScheduledEquationInstanceOp>(
-                  matchedEquation.getLoc(),
-                  matchedEquation.getTemplate(),
-                  matchedEquation.getPath(),
-                  rewriter.getArrayAttr(llvm::ArrayRef(iterationDirections)
-                                            .take_front(numOfInductions)));
-
-          if (!isScalarEquation) {
-            MultidimensionalRange explicitRange =
-                scheduledRange.takeFirstDimensions(numOfInductions);
-
-            scheduledEquationOp.setIndicesAttr(
-                MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-          }
+          scheduledEquationOp.setIndicesAttr(
+              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
         }
       }
     }
-  }
-
-  // Erase the old SCCs.
-  for (SCCOp scc : SCCs) {
-    rewriter.eraseOp(scc);
   }
 
   return mlir::success();
@@ -216,27 +335,12 @@ SchedulingPass::getVariableAccessAnalysis(
     MatchedEquationInstanceOp equation,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  llvm::SmallVector<mlir::Operation*> parents;
-  mlir::Operation* parent = equation.getTemplate()->getParentOp();
-
-  while (parent != nullptr && parent != getOperation()) {
-    parents.push_back(parent);
-    parent = parent->getParentOp();
-  }
-
-  auto analysisManager = getAnalysisManager();
-
-  while (!parents.empty()) {
-    analysisManager = analysisManager.nest(parents.pop_back_val());
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(
-              equation.getTemplate())) {
+  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
+          equation.getTemplate())) {
     return *analysis;
   }
 
-  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
       equation.getTemplate());
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {

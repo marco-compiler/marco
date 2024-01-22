@@ -71,7 +71,9 @@ namespace mlir
       EquationScheduleDirection direction =
           EquationScheduleDirection::Unknown;
 
-      if (mlir::succeeded(parser.parseOptionalKeyword("forward"))) {
+      if (mlir::succeeded(parser.parseOptionalKeyword("any"))) {
+        direction = EquationScheduleDirection::Any;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("forward"))) {
         direction = EquationScheduleDirection::Forward;
       } else if (mlir::succeeded(parser.parseOptionalKeyword("backward"))) {
         direction = EquationScheduleDirection::Backward;
@@ -88,6 +90,10 @@ namespace mlir
       const mlir::modelica::EquationScheduleDirection& direction)
   {
     switch (direction) {
+      case EquationScheduleDirection::Any:
+        printer << "any";
+        break;
+
       case EquationScheduleDirection::Forward:
         printer << "forward";
         break;
@@ -785,6 +791,44 @@ namespace mlir::modelica
   llvm::ArrayRef<unsigned int> InverseFunctionsAttr::getArgumentsIndexes(unsigned int argumentIndex) const
   {
     return getInverseFunctionsMap().getArgumentsIndexes(argumentIndex);
+  }
+
+  //===----------------------------------------------------------------------===//
+  // VariableAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute VariableAttr::parse(mlir::AsmParser& parser, mlir::Type type)
+  {
+    mlir::StringAttr name;
+
+    if (parser.parseLess() ||
+        parser.parseSymbolName(name)) {
+      return {};
+    }
+
+    IndexSetAttr indices = IndexSetAttr::get(parser.getContext(), {});
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseAttribute(indices)) {
+        return {};
+      }
+    }
+
+    return VariableAttr::get(
+        parser.getContext(),
+        mlir::SymbolRefAttr::get(name),
+        indices);
+  }
+
+  void VariableAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<" << getName();
+
+    if (auto indicesAttr = getIndices(); !indicesAttr.getValue().empty()) {
+      printer << ", " << indicesAttr;
+    }
+
+    printer << ">";
   }
 
   //===----------------------------------------------------------------------===//

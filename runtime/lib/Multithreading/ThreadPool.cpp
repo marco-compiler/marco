@@ -18,7 +18,7 @@ namespace marco::runtime
     }
 
     for (unsigned int i = 0; i < numOfThreads; ++i) {
-      threads.push_back(std::thread(&ThreadPool::threadLoop, this));
+      threads.emplace_back(&ThreadPool::threadLoop, this);
     }
   }
 

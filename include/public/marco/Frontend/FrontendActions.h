@@ -159,7 +159,11 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();
 
+      std::unique_ptr<mlir::Pass> createMLIRKINSOLToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
+
       std::unique_ptr<mlir::Pass> createMLIRSimulationToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRSimulationToLLVMConversionPass();
 
       /// }
       /// @name MLIR built-in passes.

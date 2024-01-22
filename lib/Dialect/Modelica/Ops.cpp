@@ -62,54 +62,6 @@ namespace
   }
 }
 
-static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
-{
-  llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
-
-  flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
-      symbol->getContext(),
-      mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
-
-  mlir::Operation* parent = symbol->getParentOp();
-
-  while (parent != nullptr) {
-    if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
-      flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
-          symbol->getContext(),
-          mlir::cast<mlir::SymbolOpInterface>(
-              classInterface.getOperation()).getName()));
-    }
-
-    parent = parent->getParentOp();
-  }
-
-  std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
-
-  return mlir::SymbolRefAttr::get(
-      symbol->getContext(),
-      flatSymbolAttrs[0].getValue(),
-      llvm::ArrayRef(flatSymbolAttrs).drop_front());
-}
-
-static mlir::Operation* resolveSymbol(
-    mlir::ModuleOp moduleOp,
-    mlir::SymbolTableCollection& symbolTable,
-    mlir::SymbolRefAttr symbol)
-{
-  mlir::Operation* result =
-      symbolTable.lookupSymbolIn(moduleOp, symbol.getRootReference());
-
-  for (mlir::FlatSymbolRefAttr nestedRef : symbol.getNestedReferences()) {
-    if (result == nullptr) {
-      return nullptr;
-    }
-
-    result = symbolTable.lookupSymbolIn(result, nestedRef.getAttr());
-  }
-
-  return result;
-}
-
 static void printExpression(llvm::raw_ostream& os, mlir::Value value)
 {
   mlir::Operation* op = value.getDefiningOp();
@@ -1918,132 +1870,84 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
-// SimulationVariableOp
+// QualifiedVariableGetOp
 
 namespace mlir::modelica
 {
-  IndexSet SimulationVariableOp::getIndices()
-  {
-    VariableType variableType = getVariableType();
-
-    if (variableType.isScalar()) {
-      return {};
-    }
-
-    llvm::SmallVector<Range> ranges;
-
-    for (int64_t dimension : variableType.getShape()) {
-      ranges.push_back(Range(0, dimension));
-    }
-
-    return IndexSet(MultidimensionalRange(ranges));
-  }
-}
-
-//===---------------------------------------------------------------------===//
-// SimulationVariableGetOp
-
-namespace mlir::modelica
-{
-  void SimulationVariableGetOp::build(
+  void QualifiedVariableGetOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      SimulationVariableOp variableOp)
+      VariableOp variableOp)
   {
     auto variableType = variableOp.getVariableType();
-    auto variableName = variableOp.getSymName();
-    build(builder, state, variableType.unwrap(), variableName);
+    auto qualifiedRef = getSymbolRefFromRoot(variableOp);
+    build(builder, state, variableType.unwrap(), qualifiedRef);
   }
 
-  mlir::LogicalResult SimulationVariableGetOp::verifySymbolUses(
+  mlir::LogicalResult QualifiedVariableGetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
-
-    mlir::Operation* symbol =
-        symbolTableCollection.lookupSymbolIn(moduleOp, getVariableAttr());
-
-    if (!symbol) {
-      return emitOpError(
-          "simulation variable " + getVariable() + " has not been declared");
-    }
-
-    auto simulationVariableOp = mlir::dyn_cast<SimulationVariableOp>(symbol);
-
-    if (!simulationVariableOp) {
-      return emitOpError() << "symbol " << getVariable()
-                           << " is not a simulation variable";
-    }
-
+    // TODO
     return mlir::success();
   }
 
-  void SimulationVariableGetOp::printExpression(llvm::raw_ostream& os)
+  VariableOp QualifiedVariableGetOp::getVariableOp()
   {
-    os << getVariable();
+    mlir::SymbolTableCollection symbolTableCollection;
+    return getVariableOp(symbolTableCollection);
   }
 
-  mlir::LogicalResult SimulationVariableGetOp::getEquationAccesses(
-      llvm::SmallVectorImpl<VariableAccess>& accesses,
-      mlir::SymbolTableCollection& symbolTable,
-      llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
-      AdditionalInductions& additionalInductions,
-      llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
-      EquationPath path)
+  VariableOp QualifiedVariableGetOp::getVariableOp(
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
-    // Reverse the dimension accesses.
-    llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> reverted;
+    mlir::ModuleOp moduleOp =
+        getOperation()->getParentOfType<mlir::ModuleOp>();
 
-    for (size_t i = 0, e = dimensionAccesses.size(); i < e; ++i) {
-      reverted.push_back(dimensionAccesses[e - i - 1]->clone());
-    }
+    mlir::Operation* variable =
+        resolveSymbol(moduleOp, symbolTableCollection, getVariable());
 
-    // Finalize the accesses.
-    auto numOfInductions =
-        static_cast<uint64_t>(explicitInductionsPositionMap.size());
-
-    if (auto arrayType = getType().dyn_cast<ArrayType>();
-        arrayType &&
-        arrayType.getRank() > static_cast<int64_t>(reverted.size())) {
-      // Access to each scalar variable.
-      for (int64_t i = static_cast<int64_t>(reverted.size()),
-                   rank = arrayType.getRank(); i < rank; ++i) {
-        int64_t dimension = arrayType.getDimSize(i);
-        assert(dimension != ArrayType::kDynamic);
-
-        reverted.push_back(std::make_unique<DimensionAccessRange>(
-            getContext(), Range(0, dimension)));
-      }
-    }
-
-    accesses.push_back(VariableAccess(
-        std::move(path),
-        mlir::SymbolRefAttr::get(getVariableAttr()),
-        AccessFunction::build(getContext(), numOfInductions, reverted)));
-
-    return mlir::success();
+    return mlir::dyn_cast<VariableOp>(variable);
   }
 }
 
 //===---------------------------------------------------------------------===//
-// SimulationVariableSetOp
+//QualifiedVariableSetOp
 
 namespace mlir::modelica
 {
-  void SimulationVariableSetOp::build(
+  void QualifiedVariableSetOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      SimulationVariableOp variableOp,
+      VariableOp variableOp,
       mlir::Value value)
   {
-    auto variableName = variableOp.getSymName();
-    build(builder, state, variableName, value);
+    auto qualifiedRef = getSymbolRefFromRoot(variableOp);
+    build(builder, state, qualifiedRef, value);
   }
 
-  mlir::LogicalResult SimulationVariableSetOp::verifySymbolUses(
+  mlir::LogicalResult QualifiedVariableSetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
   {
+    // TODO
     return mlir::success();
+  }
+
+  VariableOp QualifiedVariableSetOp::getVariableOp()
+  {
+    mlir::SymbolTableCollection symbolTableCollection;
+    return getVariableOp(symbolTableCollection);
+  }
+
+  VariableOp QualifiedVariableSetOp::getVariableOp(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    mlir::ModuleOp moduleOp =
+        getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation* variable =
+        resolveSymbol(moduleOp, symbolTableCollection, getVariable());
+
+    return mlir::dyn_cast<VariableOp>(variable);
   }
 }
 
@@ -10194,6 +10098,51 @@ namespace mlir::modelica
     auto cls = getOperation()->getParentOfType<ClassInterface>();
     return symbolTable.lookupSymbolIn<VariableOp>(cls, getVariableAttr());
   }
+
+  mlir::LogicalResult StartOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable)
+  {
+    auto yieldOp = mlir::cast<YieldOp>(getBody()->getTerminator());
+
+    llvm::DenseMap<mlir::Value, unsigned int> inductionsPositionMap;
+
+    if (mlir::failed(searchAccesses(
+            result, symbolTable, inductionsPositionMap,
+            yieldOp.getValues()[0],
+            EquationPath(EquationPath::RIGHT, 0)))) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult StartOp::searchAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& accesses,
+      mlir::SymbolTableCollection& symbolTable,
+      llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+      mlir::Value value,
+      EquationPath path)
+  {
+    mlir::Operation* definingOp = value.getDefiningOp();
+
+    if (!definingOp) {
+      return mlir::success();
+    }
+
+    AdditionalInductions additionalInductions;
+    llvm::SmallVector<std::unique_ptr<DimensionAccess>, 10> dimensionAccesses;
+
+    if (auto expressionInt =
+            mlir::dyn_cast<EquationExpressionOpInterface>(definingOp)) {
+      return expressionInt.getEquationAccesses(
+          accesses, symbolTable, inductionsPositionMap,
+          additionalInductions, dimensionAccesses,
+          std::move(path));
+    }
+
+    return mlir::failure();
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -11126,14 +11075,6 @@ namespace mlir::modelica
           equationIndices,
           access.getPath());
 
-      if (requestedIndices != currentIndices &&
-          requestedIndices.overlaps(currentIndices)) {
-        return mlir::failure();
-      }
-
-      assert(requestedIndices == currentIndices ||
-             !requestedIndices.overlaps(currentIndices));
-
       if (requestedIndices == currentIndices) {
         filteredAccesses.push_back(access);
       }
@@ -11497,10 +11438,6 @@ namespace mlir::modelica
 
       while (definingOp) {
         if (auto op = mlir::dyn_cast<VariableGetOp>(definingOp)) {
-          return op.getVariable() == variable;
-        }
-
-        if (auto op = mlir::dyn_cast<SimulationVariableGetOp>(definingOp)) {
           return op.getVariable() == variable;
         }
 
@@ -12149,60 +12086,77 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EquationFunctionOp
 
-mlir::ParseResult EquationFunctionOp::parse(
-    mlir::OpAsmParser& parser, mlir::OperationState& result)
+namespace mlir::modelica
 {
-  auto buildFuncType =
-      [](mlir::Builder& builder,
-         llvm::ArrayRef<mlir::Type> argTypes,
-         llvm::ArrayRef<mlir::Type> results,
-         mlir::function_interface_impl::VariadicFlag,
-         std::string&) {
-        return builder.getFunctionType(argTypes, results);
-      };
+  mlir::ParseResult EquationFunctionOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto buildFuncType =
+        [](mlir::Builder& builder,
+           llvm::ArrayRef<mlir::Type> argTypes,
+           llvm::ArrayRef<mlir::Type> results,
+           mlir::function_interface_impl::VariadicFlag,
+           std::string&) {
+          return builder.getFunctionType(argTypes, results);
+        };
 
-  return mlir::function_interface_impl::parseFunctionOp(
-      parser, result, false,
-      getFunctionTypeAttrName(result.name), buildFuncType,
-      getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
-}
-
-void EquationFunctionOp::print(OpAsmPrinter& printer)
-{
-  mlir::function_interface_impl::printFunctionOp(
-      printer, *this, false, getFunctionTypeAttrName(),
-      getArgAttrsAttrName(), getResAttrsAttrName());
-}
-
-void EquationFunctionOp::build(
-    mlir::OpBuilder& builder,
-    mlir::OperationState& state,
-    llvm::StringRef name,
-    llvm::ArrayRef<mlir::NamedAttribute> attrs,
-    llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
-{
-  state.addAttribute(
-      mlir::SymbolTable::getSymbolAttrName(),
-      builder.getStringAttr(name));
-
-  auto functionType = builder.getFunctionType(std::nullopt, std::nullopt);
-
-  state.addAttribute(
-      getFunctionTypeAttrName(state.name),
-      mlir::TypeAttr::get(functionType));
-
-  state.attributes.append(attrs.begin(), attrs.end());
-  state.addRegion();
-
-  if (argAttrs.empty()) {
-    return;
+    return mlir::function_interface_impl::parseFunctionOp(
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
   }
 
-  assert(functionType.getNumInputs() == argAttrs.size());
+  void EquationFunctionOp::print(OpAsmPrinter& printer)
+  {
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
+  }
 
-  function_interface_impl::addArgAndResultAttrs(
-      builder, state, argAttrs, std::nullopt,
-      getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
+  void EquationFunctionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name,
+      uint64_t numOfInductions,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs,
+      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+  {
+    state.addAttribute(
+        mlir::SymbolTable::getSymbolAttrName(),
+        builder.getStringAttr(name));
+
+    llvm::SmallVector<mlir::Type> argTypes(
+        numOfInductions * 2, builder.getIndexType());
+
+    auto functionType = builder.getFunctionType(argTypes, std::nullopt);
+
+    state.addAttribute(
+        getFunctionTypeAttrName(state.name),
+        mlir::TypeAttr::get(functionType));
+
+    state.attributes.append(attrs.begin(), attrs.end());
+    state.addRegion();
+
+    if (argAttrs.empty()) {
+      return;
+    }
+
+    assert(functionType.getNumInputs() == argAttrs.size());
+
+    function_interface_impl::addArgAndResultAttrs(
+        builder, state, argAttrs, std::nullopt,
+        getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
+  }
+
+  mlir::Value EquationFunctionOp::getLowerBound(uint64_t induction)
+  {
+    return getArgument(induction * 2);
+  }
+
+  mlir::Value EquationFunctionOp::getUpperBound(uint64_t induction)
+  {
+    return getArgument(induction * 2 + 1);
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -12280,6 +12234,117 @@ namespace mlir::modelica
     for (SCCOp scc : getOps<SCCOp>()) {
       SCCs.push_back(scc);
     }
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// StartEquationInstanceOp
+
+namespace mlir::modelica
+{
+  void StartEquationInstanceOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      EquationTemplateOp equationTemplate)
+  {
+    build(builder, state, equationTemplate.getResult(), nullptr);
+  }
+
+  mlir::LogicalResult StartEquationInstanceOp::verify()
+  {
+    auto indicesRank =
+        [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
+      if (!ranges) {
+        return 0;
+      }
+
+      return ranges->getValue().rank();
+    };
+
+    // Check the indices for the explicit inductions.
+    size_t numOfExplicitInductions = getInductionVariables().size();
+
+    if (size_t explicitIndicesRank = indicesRank(getIndices());
+        numOfExplicitInductions != explicitIndicesRank) {
+      return emitOpError()
+          << "Unexpected rank of iteration indices (expected "
+          << numOfExplicitInductions << ", got " << explicitIndicesRank << ")";
+    }
+
+    return mlir::success();
+  }
+
+  EquationTemplateOp StartEquationInstanceOp::getTemplate()
+  {
+    auto result = getBase().getDefiningOp<EquationTemplateOp>();
+    assert(result != nullptr);
+    return result;
+  }
+
+  void StartEquationInstanceOp::printInline(llvm::raw_ostream& os)
+  {
+    getTemplate().printInline(os);
+  }
+
+  mlir::ValueRange StartEquationInstanceOp::getInductionVariables()
+  {
+    return getTemplate().getInductionVariables();
+  }
+
+  IndexSet StartEquationInstanceOp::getIterationSpace()
+  {
+    if (auto indices = getIndices()) {
+      return {indices->getValue()};
+    }
+
+    return {};
+  }
+
+  std::optional<VariableAccess> StartEquationInstanceOp::getWriteAccess(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    return getAccessAtPath(symbolTableCollection,
+                           EquationPath(EquationPath::LEFT, 0));
+  }
+
+  mlir::LogicalResult StartEquationInstanceOp::getAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTable)
+  {
+    return getTemplate().getAccesses(result, symbolTable);
+  }
+
+  mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    return getReadAccesses(
+        result, symbolTableCollection, getIterationSpace(), accesses);
+  }
+
+  mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
+      llvm::SmallVectorImpl<VariableAccess>& result,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      const IndexSet& equationIndices,
+      llvm::ArrayRef<VariableAccess> accesses)
+  {
+    std::optional<VariableAccess> writeAccess =
+        getWriteAccess(symbolTableCollection);
+
+    if (!writeAccess) {
+      return mlir::failure();
+    }
+
+    return getTemplate().getReadAccesses(
+        result, equationIndices, accesses, *writeAccess);
+  }
+
+  std::optional<VariableAccess> StartEquationInstanceOp::getAccessAtPath(
+      mlir::SymbolTableCollection& symbolTable,
+      const EquationPath& path)
+  {
+    return getTemplate().getAccessAtPath(symbolTable, path);
   }
 }
 
@@ -13683,7 +13748,7 @@ namespace mlir::modelica
   void CallOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      EquationFunctionOp callee,
+      RawFunctionOp callee,
       mlir::ValueRange args)
   {
     mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
@@ -13693,7 +13758,7 @@ namespace mlir::modelica
   void CallOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
-      RawFunctionOp callee,
+      EquationFunctionOp callee,
       mlir::ValueRange args)
   {
     mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
@@ -14098,6 +14163,59 @@ namespace mlir::modelica
     for (SCCOp scc : getOps<SCCOp>()) {
       SCCs.push_back(scc);
     }
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// RunScheduleOp
+
+namespace mlir::modelica
+{
+  void RunScheduleOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      ScheduleOp scheduleOp)
+  {
+    auto qualifiedRef = getSymbolRefFromRoot(scheduleOp);
+    build(builder, state, qualifiedRef);
+  }
+
+  mlir::LogicalResult RunScheduleOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation* symbolOp =
+        resolveSymbol(moduleOp, symbolTableCollection, getSchedule());
+
+    if (!symbolOp) {
+      return emitError() << "symbol " << getSchedule() << " not found";
+    }
+
+    auto scheduleOp = mlir::dyn_cast<ScheduleOp>(symbolOp);
+
+    if (!scheduleOp) {
+      return emitError() << "symbol " << getSchedule() << " is not a schedule";
+    }
+
+    return mlir::success();
+  }
+
+  ScheduleOp RunScheduleOp::getScheduleOp()
+  {
+    mlir::SymbolTableCollection symbolTableCollection;
+    return getScheduleOp(symbolTableCollection);
+  }
+
+  ScheduleOp RunScheduleOp::getScheduleOp(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation* variable =
+        resolveSymbol(moduleOp, symbolTableCollection, getSchedule());
+
+    return mlir::dyn_cast<ScheduleOp>(variable);
   }
 }
 

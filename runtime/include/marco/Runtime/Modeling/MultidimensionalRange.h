@@ -44,6 +44,17 @@ namespace marco::runtime
       std::vector<RangeIterator> endIterators;
       std::vector<int64_t> indices;
   };
+
+  uint64_t getFlatSize(const MultidimensionalRange& ranges);
+
+  uint64_t getFlatIndex(
+      const std::vector<int64_t>& indices,
+      const MultidimensionalRange& ranges);
+
+  void getIndicesFromFlatIndex(
+      uint64_t flatIndex,
+      std::vector<int64_t>& result,
+      const MultidimensionalRange& ranges);
 }
 
 #endif // MARCO_RUNTIME_MODELING_MULTIDIMENSIONALRANGE_H

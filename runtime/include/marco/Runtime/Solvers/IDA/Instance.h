@@ -356,7 +356,7 @@ namespace marco::runtime::sundials::ida
       // A chunk is composed of:
       //   - the identifier (position) of the equation.
       //   - the begin indices (included)
-      //   - the end indices (exluded)
+      //   - the end indices (excluded)
       using ThreadEquationsChunk = std::tuple<
           Equation, std::vector<int64_t>, std::vector<int64_t>>;
 

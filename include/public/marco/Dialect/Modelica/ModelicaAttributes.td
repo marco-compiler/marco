@@ -205,6 +205,23 @@ def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions">
     }];
 }
 
+def Modelica_VariableAttr : Modelica_Attr<"Variable">
+{
+    let summary = "Variable information.";
+
+    let description = [{
+        Attribute representing a variable and some of its indices.
+    }];
+
+    let mnemonic = "var";
+
+    let parameters = (ins
+        "mlir::SymbolRefAttr":$name,
+        OptionalParameter<"IndexSetAttr">:$indices);
+
+    let hasCustomAssemblyFormat = 1;
+}
+
 def Modelica_DerivativeAttr
     : Modelica_Attr<"Derivative"> {
     let summary = "TODO";

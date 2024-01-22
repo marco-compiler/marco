@@ -12,6 +12,10 @@ namespace marco::runtime
     int64_t begin;
     int64_t end;
 
+    Range();
+
+    Range(int64_t begin, int64_t end);
+
     bool operator<(const Range& other) const;
   };
 

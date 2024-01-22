@@ -6,9 +6,7 @@ set(SOURCES
     Modeling/MatchedEquationBridge.cpp
     Modeling/SCCBridge.cpp
     Modeling/VariableBridge.cpp
-    Solvers/Common.cpp
-    Solvers/IDAInstance.cpp
-    Solvers/KINSOLInstance.cpp
+    Solvers/SUNDIALS.cpp
     AccessReplacementTest.cpp
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
@@ -27,6 +25,7 @@ set(SOURCES
     FunctionInlining.cpp
     FunctionScalarization.cpp
     IDA.cpp
+    InitialConditionsSolving.cpp
     Matching.cpp
     ModelAlgorithmConversion.cpp
     ModelDebugCanonicalization.cpp
@@ -34,11 +33,15 @@ set(SOURCES
     RangeBoundariesInference.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp
+    SCCAbsenceVerification.cpp
     SCCDetection.cpp
-    SCCSolving.cpp
+    SCCSolvingBySubstitution.cpp
+    SCCSolvingWithKINSOL.cpp
+    ScheduleParallelization.cpp
+    SchedulersInstantiation.cpp
     Scheduling.cpp
-    SimulationVariablesInsertion.cpp
-    VariablesPromotion.cpp)
+    VariablesPromotion.cpp
+    ViewAccessFolding.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

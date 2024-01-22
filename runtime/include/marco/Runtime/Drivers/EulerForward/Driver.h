@@ -24,7 +24,6 @@ namespace marco::runtime
 
 extern "C"
 {
-  void calcIC();
   void updateNonStateVariables();
   void updateStateVariables(double timeStep);
 }

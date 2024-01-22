@@ -273,6 +273,55 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
+  {
+    llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
+
+    flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+        symbol->getContext(),
+        mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
+
+    mlir::Operation* parent = symbol->getParentOp();
+
+    while (parent != nullptr) {
+      if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
+        flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+            symbol->getContext(),
+            mlir::cast<mlir::SymbolOpInterface>(
+                classInterface.getOperation()).getName()));
+      }
+
+      parent = parent->getParentOp();
+    }
+
+    std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
+
+    return mlir::SymbolRefAttr::get(
+        symbol->getContext(),
+        flatSymbolAttrs[0].getValue(),
+        llvm::ArrayRef(flatSymbolAttrs).drop_front());
+  }
+
+  mlir::Operation* resolveSymbol(
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      mlir::SymbolRefAttr symbol)
+  {
+    mlir::Operation* result = symbolTableCollection.lookupSymbolIn(
+        moduleOp, symbol.getRootReference());
+
+    for (mlir::FlatSymbolRefAttr nestedRef : symbol.getNestedReferences()) {
+      if (result == nullptr) {
+        return nullptr;
+      }
+
+      result = symbolTableCollection.lookupSymbolIn(
+          result, nestedRef.getAttr());
+    }
+
+    return result;
+  }
+
   mlir::Type getMostGenericType(mlir::Value x, mlir::Value y)
   {
     assert(x != nullptr && y != nullptr);
@@ -680,50 +729,24 @@ namespace mlir::modelica
   }
 
   mlir::LogicalResult getWritesMap(
-      WritesMap<SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
-      mlir::ModuleOp moduleOp,
-      ScheduleOp scheduleOp,
+      WritesMap<VariableOp, ScheduleBlockOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<ScheduleBlockOp> scheduleBlocks,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    for (SCCOp scc : scheduleOp.getOps<SCCOp>()) {
-      for (MatchedEquationInstanceOp equation :
-           scc.getOps<MatchedEquationInstanceOp>()) {
-        IndexSet equationIndices = equation.getIterationSpace();
-        llvm::SmallVector<VariableAccess> accesses;
+    for (ScheduleBlockOp block : scheduleBlocks) {
+      for (VariableAttr writtenVariable :
+           block.getWrittenVariables().getAsRange<VariableAttr>()) {
+        auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+            modelOp, writtenVariable.getName());
 
-        if (mlir::failed(equation.getAccesses(
-                accesses, symbolTableCollection))) {
+        if (!variableOp) {
           return mlir::failure();
-        }
-
-        llvm::SmallVector<VariableAccess> writeAccesses;
-
-        if (mlir::failed(equation.getWriteAccesses(
-                writeAccesses, symbolTableCollection, accesses))) {
-          return mlir::failure();
-        }
-
-        std::optional<VariableAccess> matchedAccess =
-            equation.getMatchedAccess(symbolTableCollection);
-
-        if (!matchedAccess) {
-          return mlir::failure();
-        }
-
-        auto writtenVariableOp =
-            symbolTableCollection.lookupSymbolIn<SimulationVariableOp>(
-                moduleOp, matchedAccess->getVariable());
-
-        IndexSet writtenVariableIndices;
-
-        for (const VariableAccess& writeAccess : writeAccesses) {
-          const AccessFunction& accessFunction = writeAccess.getAccessFunction();
-          writtenVariableIndices += accessFunction.map(equationIndices);
         }
 
         writesMap.emplace(
-            writtenVariableOp,
-            std::make_pair(std::move(writtenVariableIndices), equation));
+            variableOp,
+            std::make_pair(writtenVariable.getIndices().getValue(), block));
       }
     }
 

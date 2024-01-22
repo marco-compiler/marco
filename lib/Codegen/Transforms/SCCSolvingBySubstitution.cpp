@@ -1,18 +1,18 @@
+#include "marco/Codegen/Transforms/SCCSolvingBySubstitution.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
-#include "marco/Codegen/Transforms/SCCSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
 
-#define DEBUG_TYPE "scc-solving"
+#define DEBUG_TYPE "scc-solving-by-substitution"
 
 namespace mlir::modelica
 {
-#define GEN_PASS_DEF_SCCSOLVINGPASS
+#define GEN_PASS_DEF_SCCSOLVINGBYSUBSTITUTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
@@ -36,12 +36,14 @@ using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 
 namespace
 {
-  class SCCSolvingPass
-      : public mlir::modelica::impl::SCCSolvingPassBase<SCCSolvingPass>,
+  class SCCSolvingBySubstitutionPass
+      : public mlir::modelica::impl::SCCSolvingBySubstitutionPassBase<
+            SCCSolvingBySubstitutionPass>,
         public VariableAccessAnalysis::AnalysisProvider
   {
     public:
-      using SCCSolvingPassBase<SCCSolvingPass>::SCCSolvingPassBase;
+      using SCCSolvingBySubstitutionPassBase<SCCSolvingBySubstitutionPass>
+          ::SCCSolvingBySubstitutionPassBase;
 
       void runOnOperation() override;
 
@@ -85,7 +87,7 @@ namespace
   };
 }
 
-void SCCSolvingPass::runOnOperation()
+void SCCSolvingBySubstitutionPass::runOnOperation()
 {
   ModelOp modelOp = getOperation();
   LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
@@ -105,13 +107,13 @@ void SCCSolvingPass::runOnOperation()
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-SCCSolvingPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
+SCCSolvingBySubstitutionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
 {
   return getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-SCCSolvingPass::getVariableAccessAnalysis(
+SCCSolvingBySubstitutionPass::getVariableAccessAnalysis(
     MatchedEquationInstanceOp equation,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
@@ -130,7 +132,8 @@ SCCSolvingPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-mlir::LogicalResult SCCSolvingPass::processModelOp(ModelOp modelOp)
+mlir::LogicalResult SCCSolvingBySubstitutionPass::processModelOp(
+    ModelOp modelOp)
 {
   mlir::IRRewriter rewriter(&getContext());
 
@@ -166,7 +169,7 @@ mlir::LogicalResult SCCSolvingPass::processModelOp(ModelOp modelOp)
   return mlir::success();
 }
 
-mlir::LogicalResult SCCSolvingPass::getCycles(
+mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     llvm::SmallVectorImpl<Cycle>& result,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -435,7 +438,7 @@ static bool isContainedInBiggerCycle(
   return false;
 }
 
-mlir::LogicalResult SCCSolvingPass::solveCycles(
+mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycles(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -451,7 +454,7 @@ mlir::LogicalResult SCCSolvingPass::solveCycles(
   return mlir::LogicalResult::success();
 }
 
-mlir::LogicalResult SCCSolvingPass::solveCycle(
+mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -609,7 +612,7 @@ mlir::LogicalResult SCCSolvingPass::solveCycle(
   return mlir::success();
 }
 
-void SCCSolvingPass::createSCCs(
+void SCCSolvingBySubstitutionPass::createSCCs(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
@@ -685,7 +688,7 @@ void SCCSolvingPass::createSCCs(
   }
 }
 
-mlir::LogicalResult SCCSolvingPass::cleanModelOp(ModelOp modelOp)
+mlir::LogicalResult SCCSolvingBySubstitutionPass::cleanModelOp(ModelOp modelOp)
 {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
@@ -694,14 +697,14 @@ mlir::LogicalResult SCCSolvingPass::cleanModelOp(ModelOp modelOp)
 
 namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createSCCSolvingPass()
+  std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass()
   {
-    return std::make_unique<SCCSolvingPass>();
+    return std::make_unique<SCCSolvingBySubstitutionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createSCCSolvingPass(
-      const SCCSolvingPassOptions& options)
+  std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass(
+      const SCCSolvingBySubstitutionPassOptions& options)
   {
-    return std::make_unique<SCCSolvingPass>(options);
+    return std::make_unique<SCCSolvingBySubstitutionPass>(options);
   }
 }

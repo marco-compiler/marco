@@ -120,6 +120,15 @@ def EquationInductionsExplicitationPass
         "mlir::modelica::createEquationInductionsExplicitationPass()";
 }
 
+def ViewAccessFoldingPass : Pass<"fold-view-accesses", "ModelOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor = "mlir::modelica::createViewAccessFoldingPass()";
+}
+
 def EquationTemplatesCreationPass
     : Pass<"create-equation-templates", "ModelOp">
 {
@@ -344,12 +353,12 @@ def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
     let constructor = "mlir::modelica::createSCCDetectionPass()";
 }
 
-def SCCSolvingPass : Pass<"solve-scc", "ModelOp">
+def SCCSolvingBySubstitutionPass : Pass<"scc-solving-substitution", "ModelOp">
 {
     let summary = "Solve the cycles of matched model by substitution";
 
     let description = [{
-        Solve the cycles of matched model by substitution
+        Solve the cycles of matched model by substitution.
     }];
 
     let dependentDialects = [
@@ -361,10 +370,45 @@ def SCCSolvingPass : Pass<"solve-scc", "ModelOp">
                "Set the maximum number of iterations">
     ];
 
-    let constructor = "mlir::modelica::createSCCSolvingPass()";
+    let constructor = "mlir::modelica::createSCCSolvingBySubstitutionPass()";
 }
 
-def SchedulingPass : Pass<"schedule", "ScheduleOp">
+def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
+{
+    let summary = "Solve the cycles of matched model using KINSOL";
+
+    let description = [{
+        Solve the cycles of matched model using KINSOL.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::kinsol::KINSOLDialect",
+        "mlir::simulation::SimulationDialect"
+    ];
+
+    let options = [
+        Option<"reducedDerivatives", "reduced-derivatives", "bool", "true",
+               "Determine the derivatives that are always equal to zero">,
+        Option<"jacobianOneSweep", "jacobian-one-sweep", "bool", "true",
+               "Enable one-sweep computation of derivatives with respect to state and derivative variables">,
+        Option<"debugInformation", "debug-information", "bool", "false",
+               "Insert the information for runtime debugging">
+    ];
+
+    let constructor = "mlir::modelica::createSCCSolvingWithKINSOLPass()";
+}
+
+def SCCAbsenceVerificationPass : Pass<"scc-absence-verification", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::modelica::createSCCAbsenceVerificationPass()";
+}
+
+def SchedulingPass : Pass<"schedule", "ModelOp">
 {
     let summary = "Perform the scheduling process";
 
@@ -377,6 +421,32 @@ def SchedulingPass : Pass<"schedule", "ScheduleOp">
     ];
 
     let constructor = "mlir::modelica::createSchedulingPass()";
+}
+
+def ScheduleParallelizationPass : Pass<"schedule-parallelization", "ModelOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"maxParallelBlocks", "max-parallel-blocks", "int64_t", "-1",
+               "Maximum number of parallel blocks">
+    ];
+
+    let constructor =
+        "mlir::modelica::createScheduleParallelizationPass()";
+}
+
+def SchedulersInstantiationPass
+    : Pass<"schedulers-instantiation", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::simulation::SimulationDialect"
+    ];
+
+    let constructor = "mlir::modelica::createSchedulersInstantiationPass()";
 }
 
 def EquationExplicitationPass
@@ -430,14 +500,14 @@ def EquationExplicitationTestPass
     let constructor = "mlir::modelica::createEquationExplicitationTestPass()";
 }
 
-def SimulationVariablesInsertionPass
-    : Pass<"insert-simulation-variables", "mlir::ModuleOp">
+def InitialConditionsSolvingPass
+    : Pass<"solve-initial-conditions", "mlir::ModuleOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::modelica::ModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createSimulationVariablesInsertionPass()";
+    let constructor = "mlir::modelica::createInitialConditionsSolvingPass()";
 }
 
 def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
@@ -451,10 +521,6 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::simulation::SimulationDialect",
-        "mlir::arith::ArithDialect",
-        "mlir::cf::ControlFlowDialect",
-        "mlir::func::FuncDialect",
-        "mlir::LLVM::LLVMDialect",
         "mlir::scf::SCFDialect"
     ];
 
@@ -472,12 +538,7 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
-        "mlir::simulation::SimulationDialect",
-        "mlir::arith::ArithDialect",
-        "mlir::cf::ControlFlowDialect",
-        "mlir::func::FuncDialect",
-        "mlir::LLVM::LLVMDialect",
-        "mlir::scf::SCFDialect"
+        "mlir::simulation::SimulationDialect"
     ];
 
     let options = [

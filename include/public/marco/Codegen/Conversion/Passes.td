@@ -78,6 +78,61 @@ def IDAToLLVMConversionPass : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
 }
 
 //===---------------------------------------------------------------------===//
+// KINSOL to Func
+//===---------------------------------------------------------------------===//
+
+def KINSOLToFuncConversionPass
+    : Pass<"convert-kinsol-to-func", "mlir::ModuleOp">
+{
+    let summary = "KINSOL: conversion to Func dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">
+    ];
+
+    let constructor = "mlir::createKINSOLToFuncConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
+// KINSOL to LLVM
+//===---------------------------------------------------------------------===//
+
+def KINSOLToLLVMConversionPass
+    : Pass<"convert-kinsol-to-llvm", "mlir::ModuleOp">
+{
+    let summary = "KINSOL: conversion to LLVM dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createKINSOLToLLVMConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // Modelica to Arith
 //===---------------------------------------------------------------------===//
 
@@ -269,7 +324,8 @@ def ModelicaToSimulationConversionPass : Pass<"convert-modelica-to-simulation", 
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::simulation::SimulationDialect"
+        "mlir::simulation::SimulationDialect",
+        "mlir::func::FuncDialect"
     ];
 
     let options = [
@@ -300,6 +356,33 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
     ];
 
     let constructor = "mlir::createSimulationToFuncConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
+// Simulation to LLVM
+//===---------------------------------------------------------------------===//
+
+def SimulationToLLVMConversionPass
+    : Pass<"convert-simulation-to-llvm", "mlir::ModuleOp"> {
+    let summary = "Simulation: conversion to LLVM dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createSimulationToLLVMConversionPass()";
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

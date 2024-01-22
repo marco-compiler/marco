@@ -87,7 +87,8 @@ namespace
 
       rewriter.setInsertionPointAfter(yieldOp);
 
-      if (auto inductions = templateOp.getInductionVariables(); !inductions.empty()) {
+      if (auto inductions = templateOp.getInductionVariables();
+          !inductions.empty()) {
         lhsValue = rewriter.create<LoadOp>(lhsValue.getLoc(), lhsValue, inductions);
         rhsValue = rewriter.create<LoadOp>(rhsValue.getLoc(), rhsValue, inductions);
       }

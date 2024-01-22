@@ -8,7 +8,4 @@ module {
         modelica.variable @x : !modelica.variable<!modelica.int>
         modelica.variable @y : !modelica.variable<3x!modelica.int>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<!modelica.int>
-    modelica.simulation_variable @y : !modelica.variable<3x!modelica.int>
 }

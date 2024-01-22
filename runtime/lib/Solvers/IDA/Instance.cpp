@@ -3,6 +3,7 @@
 #include "marco/Runtime/Solvers/IDA/Instance.h"
 #include "marco/Runtime/Solvers/IDA/Options.h"
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
+#include "marco/Runtime/Simulation/Options.h"
 #include "marco/Runtime/Support/MemoryManagement.h"
 #include <atomic>
 #include <cassert>
@@ -23,8 +24,8 @@ using namespace ::marco::runtime::sundials::ida;
 namespace marco::runtime::sundials::ida
 {
   IDAInstance::IDAInstance()
-      : startTime(getOptions().startTime),
-        endTime(getOptions().endTime),
+      : startTime(simulation::getOptions().startTime),
+        endTime(simulation::getOptions().endTime),
         timeStep(getOptions().timeStep)
   {
     // Initially there is no variable in the instance.
@@ -541,8 +542,6 @@ namespace marco::runtime::sundials::ida
     jacobianMatrixData.resize(scalarEquationsNumber);
 
     for (Equation eq : equationsProcessingOrder) {
-      uint64_t equationRank = getEquationRank(eq);
-
       std::vector<int64_t> equationIndices;
       getEquationBeginIndices(eq, equationIndices);
 
@@ -927,7 +926,6 @@ namespace marco::runtime::sundials::ida
 
     instance->equationsParallelIteration(
         [&](Equation eq, const std::vector<int64_t>& equationIndices) {
-            uint64_t equationRank = instance->getEquationRank(eq);
             Variable writtenVariable = instance->getWrittenVariable(eq);
 
             uint64_t writtenVariableArrayOffset =
@@ -1114,7 +1112,6 @@ namespace marco::runtime::sundials::ida
         Variable variable = access.first;
         AccessFunction accessFunction = access.second;
 
-        uint64_t equationRank = getEquationRank(eq);
         uint64_t variableRank = getVariableRank(variable);
 
         std::vector<uint64_t> variableIndices;
@@ -2060,8 +2057,6 @@ namespace marco::runtime::sundials::ida
       uint64_t columnIndex)
   {
     realtype* data = SUNSparseMatrix_Data(matrix);
-    sunindextype rows = SUNSparseMatrix_Rows(matrix);
-    sunindextype nnz = SUNSparseMatrix_NNZ(matrix);
 
     sunindextype* rowPtrs = SUNSparseMatrix_IndexPointers(matrix);
     sunindextype* columnIndices = SUNSparseMatrix_IndexValues(matrix);

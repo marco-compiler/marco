@@ -7,8 +7,7 @@ namespace mlir::modelica::bridge
   SCCBridge::SCCBridge(
       SCCOp op,
       mlir::SymbolTableCollection& symbolTable,
-      WritesMap<
-          SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
       llvm::DenseMap<
           MatchedEquationInstanceOp, MatchedEquationBridge*>& equationsMap)
       : op(op),

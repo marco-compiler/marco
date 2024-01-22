@@ -2,6 +2,8 @@
 #include "marco/Runtime/CLI/CLI.h"
 #include "marco/Runtime/Multithreading/CLI.h"
 #include "marco/Runtime/Profiling/Profiling.h"
+#include "marco/Runtime/Simulation/CLI.h"
+#include "marco/Runtime/Simulation/Options.h"
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Drivers/Driver.h"
 #include "marco/Runtime/Printers/Printer.h"
@@ -219,6 +221,7 @@ namespace
 #ifdef CLI_ENABLE
   SIMULATION_PROFILER_ARG_START;
   auto& cli = getCLI();
+  cli += simulation::getCLIOptions();
 
 #ifdef THREADS_ENABLE
   cli += multithreading::getCLIOptions();
@@ -231,7 +234,7 @@ namespace
 
   if (cmdl["help"]) {
     printHelp();
-    return 0;
+    return EXIT_SUCCESS;
   }
 
   for (size_t i = 0; i < cli.size(); ++i) {
@@ -245,8 +248,25 @@ namespace
   init();
   SIMULATION_PROFILER_INIT_STOP;
 
-  // Run the simulation.
+  // Set the start time.
+  setTime(simulation::getOptions().startTime);
+
+  // Tell the printer that the simulation has begun.
+  simulation.getPrinter()->simulationBegin();
+
+  // Compute the initial conditions and print their values.
+  icModelBegin();
+  solveICModel();
+  icModelEnd();
+  simulation.getPrinter()->printValues();
+
+  // Solve the dynamic model.
+  dynamicModelBegin();
   int result = driver->run();
+  dynamicModelEnd();
+
+  // Tell the printer that the simulation has finished.
+  simulation.getPrinter()->simulationEnd();
 
   deinit();
 

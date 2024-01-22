@@ -303,6 +303,39 @@ namespace
     }
   };
 
+  struct EquationCallOpLowering
+      : public ModelicaOpConversionPattern<EquationCallOp>
+  {
+    using ModelicaOpConversionPattern<EquationCallOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        EquationCallOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto indices = op.getIndices();
+      llvm::SmallVector<mlir::Value, 10> boundaries;
+
+      if (indices) {
+        for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
+          boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              op.getLoc(),
+              rewriter.getIndexAttr(indices->getValue()[i].getBegin())));
+
+          boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              op.getLoc(),
+              rewriter.getIndexAttr(indices->getValue()[i].getEnd())));
+        }
+      }
+
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+          op, op.getCallee(), std::nullopt, boundaries);
+
+      return mlir::success();
+    }
+  };
+
   struct RawFunctionOpLowering
       : public ModelicaOpConversionPattern<RawFunctionOp>
   {
@@ -3376,6 +3409,7 @@ static void populateModelicaToFuncPatterns(
 {
   patterns.insert<
       EquationFunctionOpLowering,
+      EquationCallOpLowering,
       RawFunctionOpLowering,
       RawReturnOpLowering,
       CallOpLowering>(typeConverter, context);
@@ -3390,296 +3424,190 @@ namespace
     public:
       using ModelicaToFuncConversionPassBase::ModelicaToFuncConversionPassBase;
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(convertSchedules())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in converting the schedules");
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(eraseObjectOrientation())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in erasing object-orientation");
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(convertBuiltInFunctions())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in converting the Modelica built-in functions");
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(convertRawVariables())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in converting the Modelica raw variables");
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(convertRawFunctions())) {
-          mlir::emitError(getOperation().getLoc(),
-                          "Error in converting the Modelica raw functions");
-          return signalPassFailure();
-        }
-      }
+      void runOnOperation() override;
 
     private:
-      mlir::LogicalResult convertSchedules();
+      mlir::LogicalResult eraseObjectOrientation();
 
-      mlir::LogicalResult eraseObjectOrientation()
-      {
-        auto moduleOp = getOperation();
-        mlir::ConversionTarget target(getContext());
+      mlir::LogicalResult convertBuiltInFunctions();
 
-        target.addIllegalOp<
-            FunctionOp,
-            ModelOp,
-            PackageOp,
-            RecordOp>();
+      mlir::LogicalResult convertRawVariables();
 
-        mlir::RewritePatternSet patterns(&getContext());
-
-        patterns.insert<
-            FunctionOpLowering,
-            ModelOpLowering,
-            PackageOpLowering,
-            RecordOpLowering>(&getContext());
-
-        return applyPartialConversion(moduleOp, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult convertBuiltInFunctions()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
-
-        target.addLegalDialect<mlir::BuiltinDialect>();
-        target.addLegalDialect<mlir::arith::ArithDialect>();
-        target.addLegalDialect<mlir::cf::ControlFlowDialect>();
-        target.addLegalDialect<mlir::func::FuncDialect>();
-        target.addLegalDialect<mlir::memref::MemRefDialect>();
-
-        target.addLegalDialect<ModelicaDialect>();
-
-        target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
-          return !isNumeric(op.getBase());
-        });
-
-        target.addIllegalOp<
-            AbsOp,
-            AcosOp,
-            AsinOp,
-            AtanOp,
-            Atan2Op,
-            CeilOp,
-            CosOp,
-            CoshOp,
-            DiagonalOp,
-            DivTruncOp,
-            ExpOp,
-            FloorOp,
-            IdentityOp,
-            IntegerOp,
-            LinspaceOp,
-            LogOp,
-            Log10Op,
-            OnesOp,
-            MaxOp,
-            MinOp,
-            ModOp,
-            ProductOp,
-            RemOp,
-            SignOp,
-            SinOp,
-            SinhOp,
-            SqrtOp,
-            SumOp,
-            SymmetricOp,
-            TanOp,
-            TanhOp,
-            TransposeOp,
-            ZerosOp>();
-
-        target.addIllegalOp<
-            PrintOp>();
-
-        mlir::modelica::TypeConverter typeConverter(bitWidth);
-        mlir::SymbolTableCollection symbolTableCollection;
-        mlir::RewritePatternSet patterns(&getContext());
-
-        populateModelicaBuiltInFunctionsPatterns(
-            patterns, &getContext(),
-            typeConverter, symbolTableCollection, assertions);
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult convertRawFunctions()
-      {
-        auto moduleOp = getOperation();
-        mlir::ConversionTarget target(getContext());
-
-        // Create an instance of the symbol table in order to reduce the cost
-        // of looking for symbols.
-        mlir::SymbolTableCollection symbolTable;
-
-        target.addLegalDialect<mlir::BuiltinDialect>();
-        target.addLegalDialect<mlir::arith::ArithDialect>();
-        target.addLegalDialect<mlir::cf::ControlFlowDialect>();
-        target.addLegalDialect<mlir::func::FuncDialect>();
-        target.addLegalDialect<mlir::memref::MemRefDialect>();
-
-        target.addLegalDialect<ModelicaDialect>();
-
-        target.addIllegalOp<
-            EquationFunctionOp,
-            RawFunctionOp,
-            RawReturnOp,
-            CallOp>();
-
-        mlir::modelica::TypeConverter typeConverter(bitWidth);
-        mlir::RewritePatternSet patterns(&getContext());
-
-        populateModelicaToFuncPatterns(
-            patterns, &getContext(), typeConverter);
-
-        return applyPartialConversion(moduleOp, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult convertRawVariables()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
-
-        target.addLegalDialect<mlir::BuiltinDialect>();
-        target.addLegalDialect<mlir::arith::ArithDialect>();
-        target.addLegalDialect<mlir::memref::MemRefDialect>();
-
-        target.addLegalDialect<ModelicaDialect>();
-
-        target.addIllegalOp<
-            RawVariableOp,
-            RawVariableGetOp,
-            RawVariableSetOp>();
-
-        mlir::modelica::TypeConverter typeConverter(bitWidth);
-        mlir::RewritePatternSet patterns(&getContext());
-
-        patterns.insert<
-            RawVariableScalarLowering,
-            RawVariableStaticArrayLowering>(&getContext());
-
-        patterns.insert<
-            RawVariableDynamicArrayLowering>(typeConverter, &getContext());
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
+      mlir::LogicalResult convertRawFunctions();
     };
 }
 
-namespace
+void ModelicaToFuncConversionPass::runOnOperation()
 {
-  class ScheduleOpPattern : public mlir::OpRewritePattern<ScheduleOp>
-  {
-    private:
-      mlir::SymbolTableCollection* symbolTableCollection;
+  if (mlir::failed(eraseObjectOrientation())) {
+    mlir::emitError(getOperation().getLoc(),
+                    "Error in erasing object-orientation");
+    return signalPassFailure();
+  }
 
-    public:
-      ScheduleOpPattern(
-          mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTableCollection)
-          : mlir::OpRewritePattern<ScheduleOp>(context),
-            symbolTableCollection(&symbolTableCollection)
-      {
-      }
+  if (mlir::failed(convertBuiltInFunctions())) {
+    mlir::emitError(getOperation().getLoc(),
+                    "Error in converting the Modelica built-in functions");
+    return signalPassFailure();
+  }
 
-      mlir::LogicalResult matchAndRewrite(
-          ScheduleOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        mlir::Location loc = op.getLoc();
-        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+  if (mlir::failed(convertRawVariables())) {
+    mlir::emitError(getOperation().getLoc(),
+                    "Error in converting the Modelica raw variables");
+    return signalPassFailure();
+  }
 
-        auto scheduleFuncOp = rewriter.create<mlir::func::FuncOp>(
-            loc, op.getSymName(),
-            rewriter.getFunctionType(std::nullopt, std::nullopt));
-
-        mlir::Block* entryBlock = scheduleFuncOp.addEntryBlock();
-        rewriter.setInsertionPointToStart(entryBlock);
-        size_t sccGroupCounter = 0;
-
-        for (SCCGroupOp sccGroup : op.getOps<SCCGroupOp>()) {
-          mlir::func::FuncOp sccGroupFunc = createSCCGroupFunction(
-              rewriter, moduleOp, sccGroup,
-              op.getSymName().str() +
-                  "_scc_group_" +
-                  std::to_string(sccGroupCounter++));
-
-          if (!sccGroupFunc) {
-            return mlir::failure();
-          }
-
-          rewriter.create<mlir::func::CallOp>(sccGroup.getLoc(), sccGroupFunc);
-        }
-
-        rewriter.create<mlir::func::ReturnOp>(scheduleFuncOp.getLoc());
-        rewriter.eraseOp(op);
-        return mlir::success();
-      }
-
-    private:
-      mlir::func::FuncOp createSCCGroupFunction(
-          mlir::PatternRewriter& rewriter,
-          mlir::ModuleOp moduleOp,
-          SCCGroupOp sccGroup,
-          llvm::StringRef functionName) const
-      {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointToEnd(moduleOp.getBody());
-
-        auto sccGroupFunc = rewriter.create<mlir::func::FuncOp>(
-            sccGroup.getLoc(), functionName,
-            rewriter.getFunctionType(std::nullopt, std::nullopt));
-
-        mlir::Block* entryBlock = sccGroupFunc.addEntryBlock();
-        rewriter.setInsertionPointToStart(entryBlock);
-        rewriter.mergeBlocks(sccGroup.getBody(), entryBlock);
-        rewriter.create<mlir::func::ReturnOp>(sccGroupFunc.getLoc());
-        return sccGroupFunc;
-      }
-  };
-
-  class RunScheduleOpPattern : public mlir::OpRewritePattern<RunScheduleOp>
-  {
-    public:
-      using mlir::OpRewritePattern<RunScheduleOp>::OpRewritePattern;
-
-      mlir::LogicalResult matchAndRewrite(
-          RunScheduleOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
-            op, op.getSchedule(), std::nullopt);
-
-        return mlir::success();
-      }
-  };
+  if (mlir::failed(convertRawFunctions())) {
+    mlir::emitError(getOperation().getLoc(),
+                    "Error in converting the Modelica raw functions");
+    return signalPassFailure();
+  }
 }
 
-mlir::LogicalResult ModelicaToFuncConversionPass::convertSchedules()
+mlir::LogicalResult ModelicaToFuncConversionPass::eraseObjectOrientation()
 {
+  auto moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
-  target.addIllegalOp<ScheduleOp, RunScheduleOp>();
+
+  target.addIllegalOp<
+      FunctionOp,
+      ModelOp,
+      PackageOp,
+      RecordOp>();
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  patterns.insert<
+      FunctionOpLowering,
+      ModelOpLowering,
+      PackageOpLowering,
+      RecordOpLowering>(&getContext());
+
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToFuncConversionPass::convertBuiltInFunctions()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addLegalDialect<mlir::BuiltinDialect>();
+  target.addLegalDialect<mlir::arith::ArithDialect>();
+  target.addLegalDialect<mlir::cf::ControlFlowDialect>();
+  target.addLegalDialect<mlir::func::FuncDialect>();
+  target.addLegalDialect<mlir::memref::MemRefDialect>();
+
+  target.addLegalDialect<ModelicaDialect>();
+
+  target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
+    return !isNumeric(op.getBase());
+  });
+
+  target.addIllegalOp<
+      AbsOp,
+      AcosOp,
+      AsinOp,
+      AtanOp,
+      Atan2Op,
+      CeilOp,
+      CosOp,
+      CoshOp,
+      DiagonalOp,
+      DivTruncOp,
+      ExpOp,
+      FloorOp,
+      IdentityOp,
+      IntegerOp,
+      LinspaceOp,
+      LogOp,
+      Log10Op,
+      OnesOp,
+      MaxOp,
+      MinOp,
+      ModOp,
+      ProductOp,
+      RemOp,
+      SignOp,
+      SinOp,
+      SinhOp,
+      SqrtOp,
+      SumOp,
+      SymmetricOp,
+      TanOp,
+      TanhOp,
+      TransposeOp,
+      ZerosOp>();
+
+  target.addIllegalOp<
+      PrintOp>();
+
+  mlir::modelica::TypeConverter typeConverter(bitWidth);
+  mlir::SymbolTableCollection symbolTableCollection;
+  mlir::RewritePatternSet patterns(&getContext());
+
+  populateModelicaBuiltInFunctionsPatterns(
+      patterns, &getContext(),
+      typeConverter, symbolTableCollection, assertions);
+
+  return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToFuncConversionPass::convertRawVariables()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addLegalDialect<mlir::BuiltinDialect>();
+  target.addLegalDialect<mlir::arith::ArithDialect>();
+  target.addLegalDialect<mlir::memref::MemRefDialect>();
+
+  target.addLegalDialect<ModelicaDialect>();
+
+  target.addIllegalOp<
+      RawVariableOp,
+      RawVariableGetOp,
+      RawVariableSetOp>();
+
+  mlir::modelica::TypeConverter typeConverter(bitWidth);
+  mlir::RewritePatternSet patterns(&getContext());
+
+  patterns.insert<
+      RawVariableScalarLowering,
+      RawVariableStaticArrayLowering>(&getContext());
+
+  patterns.insert<
+      RawVariableDynamicArrayLowering>(typeConverter, &getContext());
+
+  return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToFuncConversionPass::convertRawFunctions()
+{
+  auto moduleOp = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  // Create an instance of the symbol table in order to reduce the cost
+  // of looking for symbols.
+  mlir::SymbolTableCollection symbolTable;
+
+  target.addIllegalOp<
+      EquationFunctionOp,
+      EquationCallOp,
+      RawFunctionOp,
+      RawReturnOp,
+      CallOp>();
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
   });
 
+  mlir::modelica::TypeConverter typeConverter(bitWidth);
   mlir::RewritePatternSet patterns(&getContext());
-  mlir::SymbolTableCollection symbolTableCollection;
 
-  patterns.insert<RunScheduleOpPattern>(&getContext());
-  patterns.insert<ScheduleOpPattern>(&getContext(), symbolTableCollection);
+  populateModelicaToFuncPatterns(
+      patterns, &getContext(), typeConverter);
 
-  return applyPartialConversion(getOperation(), target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir

@@ -3,6 +3,7 @@
 
 #include "marco/Runtime/Modeling/IndexSet.h"
 #include "marco/Runtime/Printers/Printer.h"
+#include "marco/Runtime/Multithreading/ThreadPool.h"
 #include <cstdint>
 #include <vector>
 
@@ -96,6 +97,23 @@ extern "C"
   /// Given the index of a variable, get the index of its derivative, if any.
   /// If the variable has no derivative, the value -1 is returned.
   int64_t getDerivative(int64_t var);
+
+  /// Callback function for the beginning 'initial conditions' model solution.
+  void icModelBegin();
+
+  /// Callback function for the beginning of the 'initial conditions' model
+  /// processing.
+  void icModelEnd();
+
+  /// Callback function for the end of the 'initial conditions' model
+  /// processing.
+  void solveICModel();
+
+  /// Callback function for the beginning of the 'main' model processing.
+  void dynamicModelBegin();
+
+  /// Callback function for the end of the 'main' model processing.
+  void dynamicModelEnd();
 }
 
 #endif // MARCO_RUNTIME_SIMULATION_RUNTIME_H

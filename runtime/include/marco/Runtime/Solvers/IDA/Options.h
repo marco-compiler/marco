@@ -10,11 +10,7 @@ namespace marco::runtime::sundials::ida
   struct Options
   {
     bool debug = false;
-
-    double startTime = 0;
-    double endTime = 10;
     double timeStep = 0.1;
-
     bool equidistantTimeGrid = false;
 
     // Relative tolerance is intended as the difference between the values

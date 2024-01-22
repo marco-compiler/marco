@@ -1,10 +1,9 @@
 #include "marco/Codegen/Transforms/EulerForward.h"
+#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
-#include "marco/Codegen/Transforms/Solvers/Common.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "euler-forward"
@@ -20,8 +19,7 @@ using namespace ::mlir::modelica;
 namespace
 {
   class EulerForwardPass
-      : public mlir::modelica::impl::EulerForwardPassBase<EulerForwardPass>,
-        public mlir::modelica::impl::ModelSolver
+      : public mlir::modelica::impl::EulerForwardPassBase<EulerForwardPass>
   {
     public:
       using EulerForwardPassBase<EulerForwardPass>::EulerForwardPassBase;
@@ -33,12 +31,6 @@ namespace
 
       mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      mlir::LogicalResult solveICModel(
-          mlir::IRRewriter& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          llvm::ArrayRef<SCCOp> SCCs);
-
       mlir::LogicalResult solveMainModel(
           mlir::IRRewriter& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -46,16 +38,8 @@ namespace
           llvm::ArrayRef<VariableOp> variables,
           llvm::ArrayRef<SCCOp> SCCs);
 
-      mlir::LogicalResult createCalcICFunction(
-          mlir::IRRewriter& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          llvm::ArrayRef<SCCOp> SCCs);
-
       mlir::LogicalResult createUpdateNonStateVariablesFunction(
           mlir::IRRewriter& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
           llvm::ArrayRef<SCCOp> SCCs);
@@ -66,6 +50,8 @@ namespace
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps);
+
+      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
   };
 }
 
@@ -80,6 +66,10 @@ void EulerForwardPass::runOnOperation()
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(modelOp))) {
+      return signalPassFailure();
+    }
+
+    if (mlir::failed(cleanModelOp(modelOp))) {
       return signalPassFailure();
     }
   }
@@ -103,41 +93,16 @@ mlir::LogicalResult EulerForwardPass::processModelOp(ModelOp modelOp)
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
-  llvm::SmallVector<SCCOp> initialSCCs;
   llvm::SmallVector<SCCOp> mainSCCs;
-
-  modelOp.collectInitialSCCs(initialSCCs);
   modelOp.collectMainSCCs(mainSCCs);
 
   llvm::SmallVector<VariableOp> variables;
   modelOp.collectVariables(variables);
 
-  // Solve the 'initial conditions' model.
-  if (mlir::failed(solveICModel(
-          rewriter, symbolTableCollection, modelOp, initialSCCs))) {
-    return mlir::failure();
-  }
-
   // Solve the 'main' model.
   if (mlir::failed(solveMainModel(
           rewriter, symbolTableCollection, modelOp, variables, mainSCCs))) {
     return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-mlir::LogicalResult EulerForwardPass::solveICModel(
-    mlir::IRRewriter& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    llvm::ArrayRef<SCCOp> SCCs)
-{
-  auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-
-  if (mlir::failed(createCalcICFunction(
-          rewriter, symbolTableCollection, moduleOp, modelOp, SCCs))) {
-      return mlir::failure();
   }
 
   return mlir::success();
@@ -153,7 +118,7 @@ mlir::LogicalResult EulerForwardPass::solveMainModel(
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
   if (mlir::failed(createUpdateNonStateVariablesFunction(
-          rewriter, symbolTableCollection, moduleOp, modelOp, SCCs))) {
+          rewriter, moduleOp, modelOp, SCCs))) {
     return mlir::failure();
   }
 
@@ -165,53 +130,15 @@ mlir::LogicalResult EulerForwardPass::solveMainModel(
   return mlir::success();
 }
 
-mlir::LogicalResult EulerForwardPass::createCalcICFunction(
-    mlir::IRRewriter& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    llvm::ArrayRef<SCCOp> SCCs)
-{
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
-
-  // Create the function.
-  rewriter.setInsertionPointToEnd(moduleOp.getBody());
-
-  auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
-      modelOp.getLoc(), "calcIC",
-      rewriter.getFunctionType(std::nullopt, std::nullopt));
-
-  mlir::Block* entryBlock = functionOp.addEntryBlock();
-  rewriter.setInsertionPointToStart(entryBlock);
-
-  if (!SCCs.empty()) {
-    // Create the schedule operation.
-    ScheduleOp scheduleOp = createSchedule(
-        rewriter, symbolTableCollection, moduleOp, modelOp.getLoc(),
-        "ic_equations", SCCs);
-
-    if (!scheduleOp) {
-      return mlir::failure();
-    }
-
-    rewriter.create<RunScheduleOp>(
-        modelOp.getLoc(), mlir::SymbolRefAttr::get(scheduleOp.getSymNameAttr()));
-  }
-
-  rewriter.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
-  return mlir::success();
-}
-
 mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
     mlir::IRRewriter& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
     llvm::ArrayRef<SCCOp> SCCs)
 {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
-  // Create the function.
+  // Create the function running the schedule.
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
@@ -222,19 +149,27 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   rewriter.setInsertionPointToStart(entryBlock);
 
   if (!SCCs.empty()) {
-    // Create the schedule operation.
-    ScheduleOp scheduleOp = createSchedule(
-        rewriter, symbolTableCollection, moduleOp, modelOp.getLoc(),
-        "main_equations", SCCs);
+    rewriter.setInsertionPointToEnd(modelOp.getBody());
 
-    if (!scheduleOp) {
-      return mlir::failure();
+    // Create the schedule operation.
+    auto scheduleOp = rewriter.create<ScheduleOp>(modelOp.getLoc(), "dynamic");
+    rewriter.createBlock(&scheduleOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(scheduleOp.getBody());
+
+    auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
+    rewriter.createBlock(&mainModelOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mainModelOp.getBody());
+
+    for (SCCOp scc : SCCs) {
+      scc->moveBefore(mainModelOp.getBody(), mainModelOp.getBody()->end());
     }
 
-    rewriter.create<RunScheduleOp>(
-        modelOp.getLoc(), mlir::SymbolRefAttr::get(scheduleOp.getSymNameAttr()));
+    // Call the schedule.
+    rewriter.setInsertionPointToEnd(entryBlock);
+    rewriter.create<RunScheduleOp>(modelOp.getLoc(), scheduleOp);
   }
 
+  rewriter.setInsertionPointToEnd(entryBlock);
   rewriter.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
   return mlir::success();
 }
@@ -276,46 +211,32 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   for (VariableOp variableOp : variableOps) {
     if (auto derivativeName = derivativesMap.getDerivative(
             mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr()))) {
-      auto stateSimulationVarOp =
-          symbolTableCollection.lookupSymbolIn<SimulationVariableOp>(
-              moduleOp, variableOp.getSymNameAttr());
-
-      if (!stateSimulationVarOp) {
-        variableOp.emitError() << "simulation state variable not found";
-        return mlir::failure();
-      }
-
       assert(derivativeName->getNestedReferences().empty());
 
-      auto derivativeSimulationVarOp =
-          symbolTableCollection.lookupSymbolIn<SimulationVariableOp>(
-              moduleOp, derivativeName->getRootReference());
-
-      if (!derivativeSimulationVarOp) {
-        variableOp.emitError() << "derivative state variable not found";
-        return mlir::failure();
-      }
+      auto derivativeVariableOp =
+          symbolTableCollection.lookupSymbolIn<VariableOp>(
+              modelOp, derivativeName->getRootReference());
 
       VariableType variableType = variableOp.getVariableType();
 
       if (variableType.isScalar()) {
-        mlir::Value stateValue = builder.create<SimulationVariableGetOp>(
-            stateSimulationVarOp.getLoc(), stateSimulationVarOp);
+        mlir::Value stateValue = builder.create<QualifiedVariableGetOp>(
+            variableOp.getLoc(), variableOp);
 
-        mlir::Value derivativeValue = builder.create<SimulationVariableGetOp>(
-            derivativeSimulationVarOp.getLoc(), derivativeSimulationVarOp);
+        mlir::Value derivativeValue = builder.create<QualifiedVariableGetOp>(
+            derivativeVariableOp.getLoc(), derivativeVariableOp);
 
         mlir::Value updatedValue = apply(builder, stateValue, derivativeValue);
 
-        builder.create<SimulationVariableSetOp>(
-            stateSimulationVarOp.getLoc(), stateSimulationVarOp, updatedValue);
+        builder.create<QualifiedVariableSetOp>(
+            variableOp.getLoc(), variableOp, updatedValue);
       } else {
 
-        mlir::Value state = builder.create<SimulationVariableGetOp>(
-            variableOp.getLoc(), stateSimulationVarOp);
+        mlir::Value state = builder.create<QualifiedVariableGetOp>(
+            variableOp.getLoc(), variableOp);
 
-        mlir::Value derivative = builder.create<SimulationVariableGetOp>(
-            variableOp.getLoc(), derivativeSimulationVarOp);
+        mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
+            variableOp.getLoc(), derivativeVariableOp);
 
         // Create the loops to iterate on each scalar variable.
         llvm::SmallVector<mlir::Value, 3> lowerBounds;
@@ -361,6 +282,13 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   builder.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
 
   return mlir::success();
+}
+
+mlir::LogicalResult EulerForwardPass::cleanModelOp(ModelOp modelOp)
+{
+  mlir::RewritePatternSet patterns(&getContext());
+  ModelOp::getCleaningPatterns(patterns, &getContext());
+  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
 namespace mlir::modelica

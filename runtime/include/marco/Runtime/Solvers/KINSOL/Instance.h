@@ -170,8 +170,6 @@ namespace marco::runtime::sundials::kinsol
       /// {
       void printVariablesVector(N_Vector variables) const;
 
-      void printDerivativesVector(N_Vector derivatives) const;
-
       void printResidualsVector(N_Vector residuals) const;
 
       void printJacobianMatrix(SUNMatrix jacobianMatrix) const;
@@ -281,19 +279,19 @@ namespace marco::runtime::sundials::kinsol
 
 RUNTIME_FUNC_DECL(kinsolCreate, PTR(void))
 
-RUNTIME_FUNC_DECL(kinsolStep, void, PTR(void))
+RUNTIME_FUNC_DECL(kinsolSolve, void, PTR(void))
 
 RUNTIME_FUNC_DECL(kinsolFree, void, PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
+RUNTIME_FUNC_DECL(kinsolAddVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), uint64_t, uint64_t, PTR(void))
+RUNTIME_FUNC_DECL(kinsolAddVariableAccess, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
+RUNTIME_FUNC_DECL(kinsolAddEquation, uint64_t, PTR(void), PTR(int64_t), uint64_t, uint64_t, PTR(void), PTR(void))
 
-RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), uint64_t, PTR(void))
+RUNTIME_FUNC_DECL(kinsolSetResidual, void, PTR(void), uint64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(idaAddJacobian, void, PTR(void), uint64_t, uint64_t, PTR(void))
+RUNTIME_FUNC_DECL(kinsolAddJacobian, void, PTR(void), uint64_t, uint64_t, PTR(void))
 
 #endif // SUNDIALS_ENABLE
 

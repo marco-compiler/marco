@@ -1,8 +1,11 @@
 # Declare the library driving the simulation.
 marco_add_runtime_static_library(Simulation
     STATIC
+    CLI.cpp
+    Options.cpp
     Profiler.cpp
-    Runtime.cpp)
+    Runtime.cpp
+    Scheduler.cpp)
 
 target_link_libraries(Simulation
     PUBLIC

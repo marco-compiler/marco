@@ -7,8 +7,6 @@ namespace marco::runtime::eulerforward
 {
   struct Options
   {
-    double startTime = 0;
-    double endTime = 10;
     double timeStep = 0.1;
   };
 

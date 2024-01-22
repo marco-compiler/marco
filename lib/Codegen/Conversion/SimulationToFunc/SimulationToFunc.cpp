@@ -1029,6 +1029,191 @@ namespace
       }
   };
 
+  class ICModelBeginOpLowering
+      : public SimulationOpRewritePattern<ICModelBeginOp>
+  {
+    public:
+      using SimulationOpRewritePattern<ICModelBeginOp>
+          ::SimulationOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ICModelBeginOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), "icModelBegin",
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        rewriter.inlineRegionBefore(
+            op.getBodyRegion(),
+            funcOp.getFunctionBody(),
+            funcOp.getFunctionBody().end());
+
+        rewriter.setInsertionPointToEnd(&funcOp.getBody().back());
+        rewriter.create<mlir::func::ReturnOp>(funcOp.getLoc());
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class ICModelEndOpLowering
+      : public SimulationOpRewritePattern<ICModelEndOp>
+  {
+    public:
+      using SimulationOpRewritePattern<ICModelEndOp>
+          ::SimulationOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          ICModelEndOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), "icModelEnd",
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        rewriter.inlineRegionBefore(
+            op.getBodyRegion(),
+            funcOp.getFunctionBody(),
+            funcOp.getFunctionBody().end());
+
+        rewriter.setInsertionPointToEnd(&funcOp.getBody().back());
+        rewriter.create<mlir::func::ReturnOp>(funcOp.getLoc());
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class DynamicModelBeginOpLowering
+      : public SimulationOpRewritePattern<DynamicModelBeginOp>
+  {
+    public:
+      using SimulationOpRewritePattern<DynamicModelBeginOp>
+          ::SimulationOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          DynamicModelBeginOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), "dynamicModelBegin",
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        rewriter.inlineRegionBefore(
+            op.getBodyRegion(),
+            funcOp.getFunctionBody(),
+            funcOp.getFunctionBody().end());
+
+        rewriter.setInsertionPointToEnd(&funcOp.getBody().back());
+        rewriter.create<mlir::func::ReturnOp>(funcOp.getLoc());
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class DynamicModelEndOpLowering
+      : public SimulationOpRewritePattern<DynamicModelEndOp>
+  {
+    public:
+      using SimulationOpRewritePattern<DynamicModelEndOp>
+          ::SimulationOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          DynamicModelEndOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), "dynamicModelEnd",
+            rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+        rewriter.inlineRegionBefore(
+            op.getBodyRegion(),
+            funcOp.getFunctionBody(),
+            funcOp.getFunctionBody().end());
+
+        rewriter.setInsertionPointToEnd(&funcOp.getBody().back());
+        rewriter.create<mlir::func::ReturnOp>(funcOp.getLoc());
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class EquationFunctionOpLowering
+      : public SimulationOpRewritePattern<EquationFunctionOp>
+  {
+    public:
+      using SimulationOpRewritePattern<EquationFunctionOp>
+          ::SimulationOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          EquationFunctionOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+        llvm::SmallVector<mlir::Type, 1> argsTypes;
+
+        argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(
+            rewriter.getI64Type()));
+
+        auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), op.getSymName(), functionType);
+
+        mlir::Block* entryBlock = funcOp.addEntryBlock();
+        rewriter.setInsertionPointToStart(entryBlock);
+
+        llvm::SmallVector<mlir::Value> mappedBoundaries;
+        mlir::Value equationBoundariesPtr = funcOp.getArgument(0);
+
+        for (auto arg : llvm::enumerate(op.getArguments())) {
+          mlir::Value index = rewriter.create<mlir::arith::ConstantOp>(
+              arg.value().getLoc(),
+              rewriter.getI64IntegerAttr(arg.index()));
+
+          mlir::Value boundaryPtr = rewriter.create<mlir::LLVM::GEPOp>(
+              arg.value().getLoc(),
+              equationBoundariesPtr.getType(),
+              equationBoundariesPtr,
+              index);
+
+          mlir::Value mappedBoundary = rewriter.create<mlir::LLVM::LoadOp>(
+              boundaryPtr.getLoc(), boundaryPtr);
+
+          mappedBoundary = rewriter.create<mlir::arith::IndexCastOp>(
+              mappedBoundary.getLoc(), rewriter.getIndexType(), mappedBoundary);
+
+          mappedBoundaries.push_back(mappedBoundary);
+        }
+
+        rewriter.create<mlir::cf::BranchOp>(
+            funcOp.getLoc(), &op.getBody().front(), mappedBoundaries);
+
+        rewriter.inlineRegionBefore(
+            op.getBody(), funcOp.getFunctionBody(), funcOp.end());
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
   class FunctionOpLowering
       : public SimulationOpRewritePattern<FunctionOp>
   {
@@ -1076,53 +1261,165 @@ namespace
           SimulationToFuncConversionPass>
   {
     public:
-      using SimulationToFuncConversionPassBase
+      using SimulationToFuncConversionPassBase<SimulationToFuncConversionPass>
         ::SimulationToFuncConversionPassBase;
 
-      void runOnOperation() override
-      {
-        mlir::ConversionTarget target(getContext());
+      void runOnOperation() override;
 
-        target.addIllegalOp<
-            ModelNameOp,
-            NumberOfVariablesOp,
-            VariableNamesOp,
-            VariableRanksOp,
-            PrintableIndicesOp,
-            DerivativesMapOp,
-            VariableGetterOp,
-            VariableGettersOp,
-            InitFunctionOp,
-            DeinitFunctionOp,
-            FunctionOp,
-            ReturnOp>();
+    private:
+      mlir::LogicalResult groupModelOps();
 
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
-
-        mlir::RewritePatternSet patterns(&getContext());
-
-        patterns.insert<
-            ModelNameOpLowering,
-            NumberOfVariablesOpLowering,
-            VariableNamesOpLowering,
-            VariableRanksOpLowering,
-            PrintableIndicesOpLowering,
-            DerivativesMapOpLowering,
-            VariableGetterOpLowering,
-            VariableGettersOpLowering,
-            InitFunctionOpLowering,
-            DeinitFunctionOpLowering,
-            FunctionOpLowering,
-            ReturnOpLowering>(&getContext());
-
-        if (mlir::failed(applyPartialConversion(
-                getOperation(), target, std::move(patterns)))) {
-          return signalPassFailure();
-        }
-      }
+      mlir::LogicalResult convertOps();
   };
+}
+
+void SimulationToFuncConversionPass::runOnOperation()
+{
+  if (mlir::failed(groupModelOps())) {
+    return signalPassFailure();
+  }
+
+  if (mlir::failed(convertOps())) {
+    return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult SimulationToFuncConversionPass::groupModelOps()
+{
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::IRRewriter rewriter(&getContext());
+
+  llvm::SmallVector<ICModelBeginOp> icModelBeginOps;
+  llvm::SmallVector<ICModelEndOp> icModelEndOps;
+  llvm::SmallVector<DynamicModelBeginOp> dynamicModelBeginOps;
+  llvm::SmallVector<DynamicModelEndOp> dynamicModelEndOps;
+
+  for (auto& op : moduleOp.getOps()) {
+    if (auto icModelBeginOp = mlir::dyn_cast<ICModelBeginOp>(op)) {
+      icModelBeginOps.push_back(icModelBeginOp);
+      continue;
+    }
+
+    if (auto icModelEndOp = mlir::dyn_cast<ICModelEndOp>(op)) {
+      icModelEndOps.push_back(icModelEndOp);
+      continue;
+    }
+
+    if (auto dynamicModelBeginOp = mlir::dyn_cast<DynamicModelBeginOp>(op)) {
+      dynamicModelBeginOps.push_back(dynamicModelBeginOp);
+      continue;
+    }
+
+    if (auto dynamicModelEndOp = mlir::dyn_cast<DynamicModelEndOp>(op)) {
+      dynamicModelEndOps.push_back(dynamicModelEndOp);
+      continue;
+    }
+  }
+
+  if (icModelBeginOps.size() > 1) {
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto mergedOp = rewriter.create<ICModelBeginOp>(moduleOp.getLoc());
+    rewriter.createBlock(&mergedOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mergedOp.getBody());
+
+    for (ICModelBeginOp op : icModelBeginOps) {
+      rewriter.mergeBlocks(op.getBody(), mergedOp.getBody());
+      rewriter.eraseOp(op);
+    }
+  }
+
+  if (icModelEndOps.size() > 1) {
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto mergedOp = rewriter.create<ICModelEndOp>(moduleOp.getLoc());
+    rewriter.createBlock(&mergedOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mergedOp.getBody());
+
+    for (ICModelEndOp op : icModelEndOps) {
+      rewriter.mergeBlocks(op.getBody(), mergedOp.getBody());
+      rewriter.eraseOp(op);
+    }
+  }
+
+  if (dynamicModelBeginOps.size() > 1) {
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto mergedOp = rewriter.create<DynamicModelBeginOp>(moduleOp.getLoc());
+    rewriter.createBlock(&mergedOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mergedOp.getBody());
+
+    for (DynamicModelBeginOp op : dynamicModelBeginOps) {
+      rewriter.mergeBlocks(op.getBody(), mergedOp.getBody());
+      rewriter.eraseOp(op);
+    }
+  }
+
+  if (dynamicModelEndOps.size() > 1) {
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto mergedOp = rewriter.create<DynamicModelEndOp>(moduleOp.getLoc());
+    rewriter.createBlock(&mergedOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(mergedOp.getBody());
+
+    for (DynamicModelEndOp op : dynamicModelEndOps) {
+      rewriter.mergeBlocks(op.getBody(), mergedOp.getBody());
+      rewriter.eraseOp(op);
+    }
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult SimulationToFuncConversionPass::convertOps()
+{
+  mlir::ConversionTarget target(getContext());
+
+  target.addIllegalOp<
+      ModelNameOp,
+      NumberOfVariablesOp,
+      VariableNamesOp,
+      VariableRanksOp,
+      PrintableIndicesOp,
+      DerivativesMapOp,
+      VariableGetterOp,
+      VariableGettersOp,
+      InitFunctionOp,
+      DeinitFunctionOp,
+      ICModelBeginOp,
+      ICModelEndOp,
+      DynamicModelBeginOp,
+      DynamicModelEndOp,
+      EquationFunctionOp,
+      FunctionOp,
+      ReturnOp>();
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  patterns.insert<
+      ModelNameOpLowering,
+      NumberOfVariablesOpLowering,
+      VariableNamesOpLowering,
+      VariableRanksOpLowering,
+      PrintableIndicesOpLowering,
+      DerivativesMapOpLowering,
+      VariableGetterOpLowering,
+      VariableGettersOpLowering,
+      InitFunctionOpLowering,
+      DeinitFunctionOpLowering,
+      ICModelBeginOpLowering,
+      ICModelEndOpLowering,
+      DynamicModelBeginOpLowering,
+      DynamicModelEndOpLowering,
+      EquationFunctionOpLowering,
+      FunctionOpLowering,
+      ReturnOpLowering>(&getContext());
+
+  return applyPartialConversion(getOperation(), target, std::move(patterns));
 }
 
 namespace mlir

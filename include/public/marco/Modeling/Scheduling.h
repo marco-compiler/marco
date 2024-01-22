@@ -130,6 +130,7 @@ namespace marco::modeling
     /// variable.
     enum class Direction
     {
+      Any,
       Forward,
       Backward,
       Unknown
@@ -240,12 +241,10 @@ namespace marco::modeling
       using ScheduledSCC =
           scheduling::ScheduledSCC<ScheduledEquation>;
 
-      using ScheduledSCCsGroup = llvm::SmallVector<ScheduledSCC>;
-      using Schedule = llvm::SmallVector<ScheduledSCCsGroup>;
+      using ScheduledSCCs = llvm::SmallVector<ScheduledSCC>;
       using DirectionPossibility = internal::scheduling::DirectionPossibility;
 
     private:
-      static const int64_t kUnlimitedGroupElements = -1;
       mlir::MLIRContext* context;
 
     public:
@@ -260,106 +259,99 @@ namespace marco::modeling
         return context;
       }
 
-      Schedule schedule(
-          llvm::ArrayRef<SCCProperty> SCCs,
-          int64_t maxGroupElements = kUnlimitedGroupElements) const
+      ScheduledSCCs schedule(llvm::ArrayRef<SCCProperty> SCCs) const
       {
-        Schedule result;
+        ScheduledSCCs result;
 
         SCCsGraph SCCsDependencyGraph;
         SCCsDependencyGraph.addSCCs(SCCs);
 
-        auto scheduledSCCGroups =
-            sortSCCs(SCCsDependencyGraph, maxGroupElements);
+        for (SCCDescriptor sccDescriptor :
+             SCCsDependencyGraph.reversePostOrder()) {
+          const SCCProperty& scc = SCCsDependencyGraph[sccDescriptor];
+          auto sccElements = SCCTraits::getElements(&scc);
 
-        for (const IndependentSCCs& sccGroup : scheduledSCCGroups) {
-          auto& scheduledGroup = result.emplace_back();
+          if (sccElements.size() == 1) {
+            llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
+            getSchedulingDirections(scc, directionPossibilities);
 
-          for (SCCDescriptor sccDescriptor : sccGroup) {
-            const SCCProperty& scc = SCCsDependencyGraph[sccDescriptor];
-            auto sccElements = SCCTraits::getElements(&scc);
+            bool isSchedulableAsRange = llvm::all_of(
+                directionPossibilities,
+                [](DirectionPossibility direction) {
+                  return direction == DirectionPossibility::Any ||
+                      direction == DirectionPossibility::Forward ||
+                      direction == DirectionPossibility::Backward;
+                });
 
-            if (sccElements.size() == 1) {
-              llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
-              getSchedulingDirections(scc, directionPossibilities);
+            if (isSchedulableAsRange) {
+              const auto& equation = sccElements[0];
 
-              bool isSchedulableAsRange = llvm::all_of(
-                  directionPossibilities,
-                  [](DirectionPossibility direction) {
-                    return direction == DirectionPossibility::Any ||
-                        direction == DirectionPossibility::Forward ||
-                        direction == DirectionPossibility::Backward;
-                  });
+              llvm::SmallVector<scheduling::Direction> directions;
 
-              if (isSchedulableAsRange) {
-                const auto& equation = sccElements[0];
-
-                llvm::SmallVector<scheduling::Direction> directions;
-
-                for (DirectionPossibility direction : directionPossibilities) {
-                  if (direction == DirectionPossibility::Any ||
-                      direction == DirectionPossibility::Forward) {
-                    directions.push_back(scheduling::Direction::Forward);
-                  } else if (direction == DirectionPossibility::Backward) {
-                    directions.push_back(scheduling::Direction::Backward);
-                  } else {
-                    directions.push_back(scheduling::Direction::Unknown);
-                  }
-                }
-
-                ScheduledEquation scheduledEquation(
-                    equation,
-                    EquationTraits::getIterationRanges(&equation),
-                    directions);
-
-                scheduledGroup.emplace_back(std::move(scheduledEquation));
-                continue;
-              } else {
-                // Mixed accesses detected. Scheduling is possible only on the
-                // scalar equations.
-                std::vector<EquationView> scalarEquationViews;
-
-                for (const auto& equation : sccElements) {
-                  scalarEquationViews.push_back(EquationView(
-                      equation,
-                      EquationTraits::getIterationRanges(&equation)));
-                }
-
-                ScalarDependencyGraph scalarDependencyGraph(getContext());
-                scalarDependencyGraph.addEquations(scalarEquationViews);
-
-                for (const auto& equationDescriptor :
-                     scalarDependencyGraph.reversePostOrder()) {
-                  const auto& scalarEquation =
-                      scalarDependencyGraph[equationDescriptor];
-
-                  llvm::SmallVector<scheduling::Direction> directions(
-                      scalarEquation.getProperty().getNumOfIterationVars(),
-                      scheduling::Direction::Forward);
-
-                  ScheduledEquation scheduledEquation(
-                      *scalarEquation.getProperty(),
-                      IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
-                      directions);
-
-                  scheduledGroup.emplace_back(std::move(scheduledEquation));
+              for (DirectionPossibility direction : directionPossibilities) {
+                if (direction == DirectionPossibility::Any) {
+                  directions.push_back(scheduling::Direction::Any);
+                } else if (direction == DirectionPossibility::Forward) {
+                  directions.push_back(scheduling::Direction::Forward);
+                } else if (direction == DirectionPossibility::Backward) {
+                  directions.push_back(scheduling::Direction::Backward);
+                } else {
+                  directions.push_back(scheduling::Direction::Unknown);
                 }
               }
+
+              ScheduledEquation scheduledEquation(
+                  equation,
+                  EquationTraits::getIterationRanges(&equation),
+                  directions);
+
+              result.emplace_back(std::move(scheduledEquation));
+              continue;
             } else {
-              // A strongly connected component with more than one equation can
-              // be scheduled with respect to other SCCs, but the equations
-              // composing it are cyclic and thus can't be ordered.
-              std::vector<ScheduledEquation> SCC;
+              // Mixed accesses detected. Scheduling is possible only on the
+              // scalar equations.
+              std::vector<EquationView> scalarEquationViews;
 
               for (const auto& equation : sccElements) {
-                SCC.push_back(ScheduledEquation(
+                scalarEquationViews.push_back(EquationView(
                     equation,
-                    EquationTraits::getIterationRanges(&equation),
-                    scheduling::Direction::Unknown));
+                    EquationTraits::getIterationRanges(&equation)));
               }
 
-              scheduledGroup.emplace_back(std::move(SCC));
+              ScalarDependencyGraph scalarDependencyGraph(getContext());
+              scalarDependencyGraph.addEquations(scalarEquationViews);
+
+              for (const auto& equationDescriptor :
+                   scalarDependencyGraph.reversePostOrder()) {
+                const auto& scalarEquation =
+                    scalarDependencyGraph[equationDescriptor];
+
+                llvm::SmallVector<scheduling::Direction> directions(
+                    scalarEquation.getProperty().getNumOfIterationVars(),
+                    scheduling::Direction::Any);
+
+                ScheduledEquation scheduledEquation(
+                    *scalarEquation.getProperty(),
+                    IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
+                    directions);
+
+                result.emplace_back(std::move(scheduledEquation));
+              }
             }
+          } else {
+            // A strongly connected component with more than one equation can
+            // be scheduled with respect to other SCCs, but the equations
+            // composing it are cyclic and thus can't be ordered.
+            llvm::SmallVector<ScheduledEquation> SCC;
+
+            for (const auto& equation : sccElements) {
+              SCC.push_back(ScheduledEquation(
+                  equation,
+                  EquationTraits::getIterationRanges(&equation),
+                  scheduling::Direction::Unknown));
+            }
+
+            result.emplace_back(std::move(SCC));
           }
         }
 
@@ -367,83 +359,6 @@ namespace marco::modeling
       }
 
     private:
-      std::vector<IndependentSCCs> sortSCCs(
-          const SCCsGraph& dependencyGraph,
-          int64_t maxGroupElements) const
-      {
-        // Compute the in-degree of each node.
-        llvm::DenseMap<SCCDescriptor, size_t> inDegrees;
-
-        for (SCCDescriptor scc : llvm::make_range(
-                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
-          inDegrees[scc] = 0;
-        }
-
-        for (SCCDescriptor node : llvm::make_range(
-                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
-          for (SCCDescriptor child : llvm::make_range(
-                   dependencyGraph.dependentSCCsBegin(node),
-                   dependencyGraph.dependentSCCsEnd(node))) {
-            if (node == child) {
-              // Ignore self-loops.
-              continue;
-            }
-
-            inDegrees[child]++;
-          }
-        }
-
-        // Compute the sets of independent SCCs.
-        std::vector<IndependentSCCs> result;
-        std::set<SCCDescriptor> nodes;
-        std::set<SCCDescriptor> newNodes;
-
-        for (SCCDescriptor scc : llvm::make_range(
-                 dependencyGraph.SCCsBegin(), dependencyGraph.SCCsEnd())) {
-          if (inDegrees[scc] == 0) {
-            nodes.insert(scc);
-          }
-        }
-
-        while (!nodes.empty()) {
-          std::vector<SCCDescriptor> independentSCCs;
-
-          for (SCCDescriptor node : nodes) {
-            if (inDegrees[node] == 0 &&
-                (maxGroupElements == kUnlimitedGroupElements ||
-                 independentSCCs.size() < maxGroupElements)) {
-              independentSCCs.push_back(node);
-
-              for (SCCDescriptor child : llvm::make_range(
-                       dependencyGraph.dependentSCCsBegin(node),
-                       dependencyGraph.dependentSCCsEnd(node))) {
-                if (node == child) {
-                  // Ignore self-loops.
-                  continue;
-                }
-
-                assert(inDegrees[child] > 0);
-                inDegrees[child]--;
-                newNodes.insert(child);
-
-                // Avoid visiting again the node at the next iteration.
-                newNodes.erase(node);
-              }
-            } else {
-              newNodes.insert(node);
-            }
-          }
-
-          assert(!independentSCCs.empty());
-          result.push_back(std::move(independentSCCs));
-
-          nodes = std::move(newNodes);
-          newNodes.clear();
-        }
-
-        return result;
-      }
-
       /// Given a SSC containing only one equation that may depend on itself,
       /// determine the access direction with respect to the variable that is
       /// written by the equation.

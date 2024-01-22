@@ -17,12 +17,25 @@ static void getArgumentTypes(
     llvm::SmallVectorImpl<mlir::Type>& argumentTypes)
 {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(function)) {
-    argumentTypes = functionOp.getArgumentTypes();
+    argumentTypes.clear();
+
+    for (mlir::Type type : functionOp.getArgumentTypes()) {
+      argumentTypes.push_back(type);
+    }
+
     return;
   }
 
   if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(function)) {
     for (mlir::Type type : rawFunctionOp.getArgumentTypes()) {
+      argumentTypes.push_back(type);
+    }
+
+    return;
+  }
+
+  if (auto equationFunctionOp = mlir::dyn_cast<EquationFunctionOp>(function)) {
+    for (mlir::Type type : equationFunctionOp.getArgumentTypes()) {
       argumentTypes.push_back(type);
     }
 

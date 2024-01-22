@@ -6,6 +6,8 @@
 #include "marco/Runtime/Support/Mangling.h"
 #include "marco/Runtime/Modeling/MultidimensionalRange.h"
 #include "marco/Runtime/Multithreading/ThreadPool.h"
+#include "sundials/sundials_types.h"
+#include "sunmatrix/sunmatrix_sparse.h"
 #include <vector>
 
 namespace marco::runtime::sundials
@@ -170,6 +172,12 @@ namespace marco::runtime::sundials
       uint64_t flatIndex,
       std::vector<int64_t>& result,
       const MultidimensionalRange& ranges);
+
+  // Highly inefficient, use only for debug purposes.
+  sunrealtype getCellFromSparseMatrix(
+      SUNMatrix matrix,
+      uint64_t rowIndex,
+      uint64_t columnIndex);
 }
 
 #endif // SUNDIALS_ENABLE

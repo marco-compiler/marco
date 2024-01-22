@@ -3,6 +3,7 @@
 #include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/VariableFilter/VariableFilter.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -30,12 +31,46 @@ namespace
     private:
       DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
+      mlir::LogicalResult addMissingSimulationFunctions(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp);
+
       mlir::LogicalResult processModelOp(
           mlir::RewriterBase& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
-          llvm::ArrayRef<SimulationVariableOp> variables,
           ModelOp modelOp);
+
+      mlir::LogicalResult convertSchedules(
+          mlir::RewriterBase& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp);
+
+      mlir::LogicalResult convertScheduleBodyOp(
+          mlir::RewriterBase& rewriter,
+          mlir::IRMapping& mapping,
+          mlir::Operation* op);
+
+      mlir::LogicalResult convertScheduleBodyOp(
+          mlir::RewriterBase& rewriter,
+          mlir::IRMapping& mapping,
+          InitialModelOp op);
+
+      mlir::LogicalResult convertScheduleBodyOp(
+          mlir::RewriterBase& rewriter,
+          mlir::IRMapping& mapping,
+          MainModelOp op);
+
+      mlir::LogicalResult convertScheduleBodyOp(
+          mlir::RewriterBase& rewriter,
+          mlir::IRMapping& mapping,
+          ParallelScheduleBlocksOp op);
+
+      mlir::LogicalResult convertScheduleBodyOp(
+          mlir::RewriterBase& rewriter,
+          mlir::IRMapping& mapping,
+          ScheduleBlockOp op);
 
       mlir::LogicalResult createModelNameOp(
           mlir::OpBuilder& builder,
@@ -46,38 +81,38 @@ namespace
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       mlir::LogicalResult createVariableNamesOp(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       mlir::LogicalResult createVariableRanksOp(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       mlir::LogicalResult createPrintableIndicesOp(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables,
+          llvm::ArrayRef<VariableOp> variables,
           const marco::VariableFilter& variablesFilter);
 
       mlir::LogicalResult createDerivativesMapOp(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       mlir::LogicalResult createVariableGetters(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       /// Create the function that is called before starting the simulation.
       mlir::LogicalResult createInitFunction(
@@ -85,7 +120,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          llvm::ArrayRef<SimulationVariableOp> variables);
+          llvm::ArrayRef<VariableOp> variables);
 
       /// Create the function that is called when the simulation has finished.
       mlir::LogicalResult createDeinitFunction(
@@ -93,10 +128,18 @@ namespace
           mlir::ModuleOp moduleOp,
           ModelOp modelOp);
 
-      mlir::LogicalResult convertSimulationVarsToGlobalVars(
-          mlir::RewriterBase& rewriter,
+      mlir::LogicalResult declareGlobalVariables(
+          mlir::OpBuilder& builder,
           mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp);
+          mlir::ModuleOp moduleOp,
+          llvm::ArrayRef<VariableOp> variables,
+          llvm::StringMap<GlobalVariableOp>& globalVariablesMap);
+
+      mlir::LogicalResult convertQualifiedVariableAccesses(
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp,
+          llvm::StringMap<GlobalVariableOp>& globalVariablesMap);
 
       GlobalVariableOp declareTimeVariable(
           mlir::OpBuilder& builder,
@@ -125,11 +168,8 @@ void ModelicaToSimulationConversionPass::runOnOperation()
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
-  llvm::SmallVector<SimulationVariableOp> variables;
-
-  for (SimulationVariableOp variable :
-       moduleOp.getOps<SimulationVariableOp>()) {
-    variables.push_back(variable);
+  if (mlir::failed(addMissingSimulationFunctions(rewriter, moduleOp))) {
+    return signalPassFailure();
   }
 
   llvm::SmallVector<ModelOp> modelOps;
@@ -149,10 +189,11 @@ void ModelicaToSimulationConversionPass::runOnOperation()
   }
 
   if (mlir::failed(processModelOp(
-          rewriter, symbolTableCollection, moduleOp, variables, modelOps[0]))) {
+          rewriter, symbolTableCollection, moduleOp, modelOps[0]))) {
     return signalPassFailure();
   }
 
+  symbolTableCollection.getSymbolTable(moduleOp).remove(modelOps[0]);
   rewriter.eraseOp(modelOps[0]);
 
   // Declare the time variable.
@@ -193,13 +234,81 @@ DerivativesMap& ModelicaToSimulationConversionPass::getDerivativesMap(
   return analysis;
 }
 
+mlir::LogicalResult
+ModelicaToSimulationConversionPass::addMissingSimulationFunctions(
+    mlir::OpBuilder& builder,
+    mlir::ModuleOp moduleOp)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  size_t numOfICModelBeginOps = 0, numOfICModelEndOps = 0;
+  size_t numOfDynamicModelBeginOps = 0, numOfDynamicModelEndOps = 0;
+
+  for (auto& op : moduleOp.getOps()) {
+    if (mlir::isa<mlir::simulation::ICModelBeginOp>(op)) {
+      ++numOfICModelBeginOps;
+    } else if (mlir::isa<mlir::simulation::ICModelEndOp>(op)) {
+      ++numOfICModelEndOps;
+    } else if (mlir::isa<mlir::simulation::DynamicModelBeginOp>(op)) {
+      ++numOfDynamicModelBeginOps;
+    } else if (mlir::isa<mlir::simulation::DynamicModelEndOp>(op)) {
+      ++numOfDynamicModelEndOps;
+    }
+  }
+
+  if (numOfICModelBeginOps == 0) {
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto op = builder.create<mlir::simulation::ICModelBeginOp>(
+        moduleOp.getLoc());
+
+    builder.createBlock(&op.getBodyRegion());
+  }
+
+  if (numOfICModelEndOps == 0) {
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto op = builder.create<mlir::simulation::ICModelEndOp>(
+        moduleOp.getLoc());
+
+    builder.createBlock(&op.getBodyRegion());
+  }
+
+  if (numOfDynamicModelBeginOps == 0) {
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto op = builder.create<mlir::simulation::DynamicModelBeginOp>(
+        moduleOp.getLoc());
+
+    builder.createBlock(&op.getBodyRegion());
+  }
+
+  if (numOfDynamicModelEndOps == 0) {
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto op = builder.create<mlir::simulation::DynamicModelEndOp>(
+        moduleOp.getLoc());
+
+    builder.createBlock(&op.getBodyRegion());
+  }
+
+  return mlir::success();
+}
+
 mlir::LogicalResult ModelicaToSimulationConversionPass::processModelOp(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
-    llvm::ArrayRef<SimulationVariableOp> variables,
     ModelOp modelOp)
 {
+  llvm::SmallVector<VariableOp> variables;
+  modelOp.collectVariables(variables);
+
+  if (mlir::failed(convertSchedules(
+          rewriter, symbolTableCollection, moduleOp, modelOp))) {
+    return mlir::failure();
+  }
+
   if (mlir::failed(createModelNameOp(
           rewriter, moduleOp, modelOp))) {
     return mlir::failure();
@@ -259,9 +368,192 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::processModelOp(
     return mlir::failure();
   }
 
-  if (mlir::failed(convertSimulationVarsToGlobalVars(
-          rewriter, symbolTableCollection, moduleOp))) {
+  llvm::StringMap<GlobalVariableOp> globalVariablesMap;
+
+  if (mlir::failed(declareGlobalVariables(
+          rewriter, symbolTableCollection, moduleOp, variables,
+          globalVariablesMap))) {
     return mlir::failure();
+  }
+
+  if (mlir::failed(convertQualifiedVariableAccesses(
+          symbolTableCollection, moduleOp, modelOp, globalVariablesMap))) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static std::string flattenScheduleName(mlir::SymbolRefAttr name)
+{
+  std::string result = name.getRootReference().str();
+
+  for (mlir::FlatSymbolRefAttr nestedRef : name.getNestedReferences()) {
+    result += "_" + nestedRef.getValue().str();
+  }
+
+  return result;
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertSchedules(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp)
+{
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  llvm::DenseMap<ScheduleOp, llvm::SmallVector<RunScheduleOp, 1>> schedules;
+
+  moduleOp.walk([&](RunScheduleOp runScheduleOp) {
+    ScheduleOp scheduleOp = runScheduleOp.getScheduleOp(symbolTableCollection);
+    schedules[scheduleOp].push_back(runScheduleOp);
+  });
+
+  for (const auto& entry : schedules) {
+    ScheduleOp scheduleOp = entry.getFirst();
+    auto qualifiedName = getSymbolRefFromRoot(scheduleOp);
+
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto funcOp = rewriter.create<mlir::func::FuncOp>(
+        scheduleOp.getLoc(), flattenScheduleName(qualifiedName),
+        rewriter.getFunctionType(std::nullopt, std::nullopt));
+
+    symbolTableCollection.getSymbolTable(moduleOp).insert(funcOp);
+    mlir::Block* entryBlock = funcOp.addEntryBlock();
+    rewriter.setInsertionPointToStart(entryBlock);
+
+    mlir::IRMapping mapping;
+
+    for (auto& nestedOp : scheduleOp.getOps()) {
+      if (mlir::failed(convertScheduleBodyOp(rewriter, mapping, &nestedOp))) {
+        return mlir::failure();
+      }
+    }
+
+    rewriter.create<mlir::func::ReturnOp>(scheduleOp.getLoc());
+
+    for (RunScheduleOp runScheduleOp : schedules[scheduleOp]) {
+      rewriter.setInsertionPoint(runScheduleOp);
+
+      rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+          runScheduleOp, funcOp, std::nullopt);
+    }
+
+    symbolTableCollection.getSymbolTable(modelOp).remove(scheduleOp);
+    rewriter.eraseOp(scheduleOp);
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertScheduleBodyOp(
+    mlir::RewriterBase& rewriter,
+    mlir::IRMapping& mapping,
+    InitialModelOp op)
+{
+  for (auto& nestedOp : op.getOps()) {
+    if (auto parallelScheduleBlocksOp =
+            mlir::dyn_cast<ParallelScheduleBlocksOp>(nestedOp)) {
+      if (mlir::failed(convertScheduleBodyOp(
+              rewriter, mapping, parallelScheduleBlocksOp))) {
+        return mlir::failure();
+      }
+
+      continue;
+    }
+
+    if (auto scheduleBlockOp = mlir::dyn_cast<ScheduleBlockOp>(nestedOp)) {
+      if (mlir::failed(convertScheduleBodyOp(
+              rewriter, mapping, scheduleBlockOp))) {
+        return mlir::failure();
+      }
+
+      continue;
+    }
+
+    rewriter.clone(nestedOp, mapping);
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertScheduleBodyOp(
+    mlir::RewriterBase& rewriter,
+    mlir::IRMapping& mapping,
+    MainModelOp op)
+{
+  for (auto& nestedOp : op.getOps()) {
+    if (auto parallelScheduleBlocksOp =
+            mlir::dyn_cast<ParallelScheduleBlocksOp>(nestedOp)) {
+      if (mlir::failed(convertScheduleBodyOp(
+              rewriter, mapping, parallelScheduleBlocksOp))) {
+        return mlir::failure();
+      }
+
+      continue;
+    }
+
+    if (auto scheduleBlockOp = mlir::dyn_cast<ScheduleBlockOp>(nestedOp)) {
+      if (mlir::failed(convertScheduleBodyOp(
+              rewriter, mapping, scheduleBlockOp))) {
+        return mlir::failure();
+      }
+
+      continue;
+    }
+
+    rewriter.clone(nestedOp, mapping);
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertScheduleBodyOp(
+    mlir::RewriterBase& rewriter,
+    mlir::IRMapping& mapping,
+    mlir::Operation* op)
+{
+  if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
+    return convertScheduleBodyOp(rewriter, mapping, initialModelOp);
+  }
+
+  if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
+    return convertScheduleBodyOp(rewriter, mapping, mainModelOp);
+  }
+
+  rewriter.clone(*op, mapping);
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertScheduleBodyOp(
+    mlir::RewriterBase& rewriter,
+    mlir::IRMapping& mapping,
+    ParallelScheduleBlocksOp op)
+{
+  for (auto& nestedOp : op.getOps()) {
+    if (auto scheduleBlockOp = mlir::dyn_cast<ScheduleBlockOp>(nestedOp)) {
+      if (mlir::failed(convertScheduleBodyOp(
+              rewriter, mapping, scheduleBlockOp))) {
+        return mlir::failure();
+      }
+
+      continue;
+    }
+
+    rewriter.clone(nestedOp, mapping);
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelicaToSimulationConversionPass::convertScheduleBodyOp(
+    mlir::RewriterBase& rewriter,
+    mlir::IRMapping& mapping,
+    ScheduleBlockOp op)
+{
+  for (auto& nestedOp : op.getOps()) {
+    rewriter.clone(nestedOp, mapping);
   }
 
   return mlir::success();
@@ -285,7 +577,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createNumOfVariablesOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
@@ -302,19 +594,19 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableNamesOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variable)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  llvm::SmallVector<llvm::StringRef> names;
+  llvm::SmallVector<mlir::Attribute> names;
 
-  for (SimulationVariableOp variableOp : variable) {
-    names.push_back(variableOp.getSymName());
+  for (VariableOp variable : variables) {
+    names.push_back(builder.getStringAttr(variable.getSymName()));
   }
 
   builder.create<mlir::simulation::VariableNamesOp>(
-      modelOp.getLoc(), builder.getStrArrayAttr(names));
+      modelOp.getLoc(), builder.getArrayAttr(names));
 
   return mlir::success();
 }
@@ -323,15 +615,15 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableRanksOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   llvm::SmallVector<int64_t> ranks;
 
-  for (SimulationVariableOp variableOp : variables) {
-    VariableType variableType = variableOp.getVariableType();
+  for (VariableOp variable : variables) {
+    VariableType variableType = variable.getVariableType();
     ranks.push_back(variableType.getRank());
   }
 
@@ -386,7 +678,7 @@ ModelicaToSimulationConversionPass::createPrintableIndicesOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables,
+    llvm::ArrayRef<VariableOp> variables,
     const marco::VariableFilter& variablesFilter)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
@@ -406,7 +698,7 @@ ModelicaToSimulationConversionPass::createPrintableIndicesOp(
 
   auto& derivativesMap = getDerivativesMap(modelOp);
 
-  for (SimulationVariableOp variableOp : variables) {
+  for (VariableOp variableOp : variables) {
     VariableType variableType = variableOp.getVariableType();
     std::vector<marco::VariableFilter::Filter> filters;
 
@@ -450,7 +742,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createDerivativesMapOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
@@ -459,7 +751,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createDerivativesMapOp(
   llvm::DenseMap<mlir::SymbolRefAttr, size_t> positionsMap;
 
   for (size_t i = 0, e = variables.size(); i < e; ++i) {
-    SimulationVariableOp variableOp = variables[i];
+    VariableOp variableOp = variables[i];
     auto name = mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr());
     positionsMap[name] = i;
   }
@@ -468,9 +760,9 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createDerivativesMapOp(
   llvm::SmallVector<int64_t> derivatives;
   auto& derivativesMap = getDerivativesMap(modelOp);
 
-  for (SimulationVariableOp variableOp : variables) {
+  for (VariableOp variable : variables) {
     if (auto derivative = derivativesMap.getDerivative(
-            mlir::FlatSymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+            mlir::FlatSymbolRefAttr::get(variable.getSymNameAttr()))) {
       auto it = positionsMap.find(*derivative);
 
       if (it == positionsMap.end()) {
@@ -493,7 +785,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableGetters(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -501,12 +793,12 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableGetters(
   size_t variableGetterCounter = 0;
   llvm::SmallVector<mlir::Attribute> getterNames;
 
-  for (SimulationVariableOp simulationVariable : variables) {
+  for (VariableOp variable : variables) {
     builder.setInsertionPointToEnd(moduleOp.getBody());
-    VariableType variableType = simulationVariable.getVariableType();
+    VariableType variableType = variable.getVariableType();
 
     auto getterOp = builder.create<mlir::simulation::VariableGetterOp>(
-        simulationVariable.getLoc(),
+        variable.getLoc(),
         "var_getter_" + std::to_string(variableGetterCounter++),
         variableType.getRank());
 
@@ -516,8 +808,8 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableGetters(
     mlir::Block* bodyBlock = getterOp.addEntryBlock();
     builder.setInsertionPointToStart(bodyBlock);
 
-    mlir::Value getOp = builder.create<SimulationVariableGetOp>(
-        simulationVariable.getLoc(), simulationVariable);
+    mlir::Value getOp = builder.create<QualifiedVariableGetOp>(
+        variable.getLoc(), variable);
 
     mlir::Value result = getOp;
 
@@ -546,7 +838,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    llvm::ArrayRef<SimulationVariableOp> variables)
+    llvm::ArrayRef<VariableOp> variables)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
@@ -569,16 +861,10 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
     // Note that read-only variables must be set independently of the 'fixed'
     // attribute being true or false.
 
-    auto simulationVariableOp =
-        symbolTableCollection.lookupSymbolIn<SimulationVariableOp>(
-            moduleOp, startOp.getVariableAttr());
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, startOp.getVariableAttr());
 
-    if (!simulationVariableOp) {
-      startOp.emitError() << "simulation variable not found";
-      return mlir::failure();
-    }
-
-    if (startOp.getFixed() && !simulationVariableOp.isReadOnly()) {
+    if (startOp.getFixed() && !variableOp.isReadOnly()) {
       continue;
     }
 
@@ -590,12 +876,12 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
             startOpsMapping.lookup(yieldOp.getValues()[0]);
 
         if (startOp.getEach()) {
-          if (simulationVariableOp.getVariableType().isScalar()) {
-            builder.create<SimulationVariableSetOp>(
-                startOp.getLoc(), simulationVariableOp, valueToBeStored);
+          if (variableOp.getVariableType().isScalar()) {
+            builder.create<QualifiedVariableSetOp>(
+                startOp.getLoc(), variableOp, valueToBeStored);
           } else {
-            mlir::Value destination = builder.create<SimulationVariableGetOp>(
-                startOp.getLoc(), simulationVariableOp);
+            mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+                startOp.getLoc(), variableOp);
 
             builder.create<ArrayFillOp>(
                 startOp.getLoc(), destination, valueToBeStored);
@@ -604,14 +890,14 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
           auto valueType = valueToBeStored.getType();
 
           if (auto valueArrayType = valueType.dyn_cast<ArrayType>()) {
-            mlir::Value destination = builder.create<SimulationVariableGetOp>(
-                startOp.getLoc(), simulationVariableOp);
+            mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+                startOp.getLoc(), variableOp);
 
             builder.create<ArrayCopyOp>(
                 startOp.getLoc(), valueToBeStored, destination);
           } else {
-            builder.create<SimulationVariableSetOp>(
-                startOp.getLoc(), simulationVariableOp, valueToBeStored);
+            builder.create<QualifiedVariableSetOp>(
+                startOp.getLoc(), variableOp, valueToBeStored);
           }
         }
       } else {
@@ -621,12 +907,12 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
   }
 
   // The variables without a 'start' attribute must be initialized to zero.
-  for (SimulationVariableOp simulationVariable : variables) {
-    if (initializedVars.contains(simulationVariable.getSymName())) {
+  for (VariableOp variable : variables) {
+    if (initializedVars.contains(variable.getSymName())) {
       continue;
     }
 
-    VariableType variableType = simulationVariable.getVariableType();
+    VariableType variableType = variable.getVariableType();
 
     auto zeroMaterializableElementType =
         variableType.getElementType().dyn_cast<ZeroMaterializableType>();
@@ -637,14 +923,14 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
 
     mlir::Value zeroValue =
         zeroMaterializableElementType.materializeZeroValuedConstant(
-            builder, simulationVariable.getLoc());
+            builder, variable.getLoc());
 
     if (variableType.isScalar()) {
-      builder.create<SimulationVariableSetOp>(
-          simulationVariable.getLoc(), simulationVariable, zeroValue);
+      builder.create<QualifiedVariableSetOp>(
+          variable.getLoc(), variable, zeroValue);
     } else {
-      mlir::Value destination = builder.create<SimulationVariableGetOp>(
-          simulationVariable.getLoc(), simulationVariable);
+      mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+          variable.getLoc(), variable);
 
       builder.create<ArrayFillOp>(destination.getLoc(), destination, zeroValue);
     }
@@ -676,90 +962,175 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createDeinitFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult ModelicaToSimulationConversionPass
-    ::convertSimulationVarsToGlobalVars(
-        mlir::RewriterBase& rewriter,
-        mlir::SymbolTableCollection& symbolTableCollection,
-        mlir::ModuleOp moduleOp)
+mlir::LogicalResult ModelicaToSimulationConversionPass::declareGlobalVariables(
+    mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    llvm::ArrayRef<VariableOp> variables,
+    llvm::StringMap<GlobalVariableOp>& globalVariablesMap)
 {
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
-  llvm::StringMap<GlobalVariableOp> simulationToGlobalVariablesMap;
-  llvm::SmallVector<SimulationVariableOp> simulationVariables;
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToStart(moduleOp.getBody());
 
-  for (SimulationVariableOp simulationVariable :
-       moduleOp.getOps<SimulationVariableOp>()) {
-    simulationVariables.push_back(simulationVariable);
-  }
-
-  for (SimulationVariableOp simulationVariable : simulationVariables) {
-    rewriter.setInsertionPoint(simulationVariable);
-
-    auto globalVariableOp = rewriter.replaceOpWithNewOp<GlobalVariableOp>(
-        simulationVariable, "var",
-        simulationVariable.getVariableType().toArrayType());
+  for (VariableOp variable : variables) {
+    auto globalVariableOp = builder.create<GlobalVariableOp>(
+        variable.getLoc(), "var",
+        variable.getVariableType().toArrayType());
 
     symbolTableCollection.getSymbolTable(moduleOp).insert(
         globalVariableOp, moduleOp.getBody()->begin());
 
-    simulationToGlobalVariablesMap[simulationVariable.getSymName()] =
-        globalVariableOp;
-  }
-
-  llvm::SmallVector<SimulationVariableGetOp> getOps;
-  llvm::SmallVector<SimulationVariableSetOp> setOps;
-
-  moduleOp.walk([&](mlir::Operation* nestedOp) {
-    if (auto getOp = mlir::dyn_cast<SimulationVariableGetOp>(nestedOp)) {
-      getOps.push_back(getOp);
-    }
-
-    if (auto setOp = mlir::dyn_cast<SimulationVariableSetOp>(nestedOp)) {
-      setOps.push_back(setOp);
-    }
-  });
-
-  for (SimulationVariableGetOp getOp : getOps) {
-    rewriter.setInsertionPoint(getOp);
-
-    mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
-        getOp.getLoc(), simulationToGlobalVariablesMap[getOp.getVariable()]);
-
-    if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
-        arrayType && arrayType.isScalar()) {
-      replacement = rewriter.create<LoadOp>(
-          replacement.getLoc(), replacement, std::nullopt);
-    }
-
-    rewriter.replaceOp(getOp, replacement);
-  }
-
-  for (SimulationVariableSetOp setOp : setOps) {
-    rewriter.setInsertionPoint(setOp);
-
-    GlobalVariableOp globalVariableOp =
-        simulationToGlobalVariablesMap[setOp.getVariable()];
-
-    mlir::Value globalVariable =
-        rewriter.create<GlobalVariableGetOp>(setOp.getLoc(), globalVariableOp);
-
-    mlir::Value storedValue = setOp.getValue();
-    auto arrayType = globalVariable.getType().cast<ArrayType>();
-
-    if (!arrayType.isScalar()) {
-      return mlir::failure();
-    }
-
-    if (mlir::Type expectedType = arrayType.getElementType();
-        storedValue.getType() != expectedType) {
-      storedValue = rewriter.create<CastOp>(
-          storedValue.getLoc(), expectedType, storedValue);
-    }
-
-    rewriter.replaceOpWithNewOp<StoreOp>(
-        setOp, storedValue, globalVariable, std::nullopt);
+    globalVariablesMap[variable.getSymName()] = globalVariableOp;
   }
 
   return mlir::success();
+}
+
+namespace
+{
+  template<typename Op>
+  class QualifiedVariableOpPattern : public mlir::OpRewritePattern<Op>
+  {
+    public:
+      QualifiedVariableOpPattern(
+          mlir::MLIRContext* context,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          llvm::StringMap<GlobalVariableOp>& globalVariablesMap)
+          : mlir::OpRewritePattern<Op>(context),
+            symbolTableCollection(&symbolTableCollection),
+            globalVariablesMap(&globalVariablesMap)
+      {
+      }
+
+    protected:
+      mlir::SymbolTableCollection& getSymbolTableCollection() const
+      {
+        assert(symbolTableCollection != nullptr);
+        return *symbolTableCollection;
+      }
+
+      [[nodiscard]] GlobalVariableOp getGlobalVariable(
+          VariableOp variableOp) const
+      {
+        assert(globalVariablesMap != nullptr);
+        assert(globalVariablesMap->contains(variableOp.getSymName()));
+        return (*globalVariablesMap)[variableOp.getSymName()];
+      }
+
+    private:
+      mlir::SymbolTableCollection* symbolTableCollection;
+      llvm::StringMap<GlobalVariableOp>* globalVariablesMap;
+  };
+
+  class QualifiedVariableGetOpPattern
+      : public QualifiedVariableOpPattern<QualifiedVariableGetOp>
+  {
+    public:
+      using QualifiedVariableOpPattern<QualifiedVariableGetOp>
+          ::QualifiedVariableOpPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          QualifiedVariableGetOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
+
+        mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
+            op.getLoc(), getGlobalVariable(variableOp));
+
+        if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
+            arrayType && arrayType.isScalar()) {
+          replacement = rewriter.create<LoadOp>(
+              replacement.getLoc(), replacement, std::nullopt);
+        }
+
+        rewriter.replaceOp(op, replacement);
+        return mlir::success();
+      }
+  };
+
+  class QualifiedVariableSetOpPattern
+      : public QualifiedVariableOpPattern<QualifiedVariableSetOp>
+  {
+    public:
+    using QualifiedVariableOpPattern<QualifiedVariableSetOp>
+        ::QualifiedVariableOpPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        QualifiedVariableSetOp op,
+        mlir::PatternRewriter& rewriter) const override
+    {
+      VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
+
+      mlir::Value globalVariable = rewriter.create<GlobalVariableGetOp>(
+          op.getLoc(), getGlobalVariable(variableOp));
+
+      mlir::Value storedValue = op.getValue();
+      auto arrayType = globalVariable.getType().cast<ArrayType>();
+
+      if (!arrayType.isScalar()) {
+        return mlir::failure();
+      }
+
+      if (mlir::Type expectedType = arrayType.getElementType();
+          storedValue.getType() != expectedType) {
+        storedValue = rewriter.create<CastOp>(
+            storedValue.getLoc(), expectedType, storedValue);
+      }
+
+      rewriter.replaceOpWithNewOp<StoreOp>(
+          op, storedValue, globalVariable, std::nullopt);
+
+      return mlir::success();
+    }
+  };
+}
+
+mlir::LogicalResult
+ModelicaToSimulationConversionPass::convertQualifiedVariableAccesses(
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp,
+    llvm::StringMap<GlobalVariableOp>& globalVariablesMap)
+{
+  mlir::ConversionTarget target(getContext());
+
+  target.addDynamicallyLegalOp<QualifiedVariableGetOp>(
+            [&](QualifiedVariableGetOp op) {
+              VariableOp variableOp = op.getVariableOp(symbolTableCollection);
+              auto parentModelOp = variableOp->getParentOfType<ModelOp>();
+
+              if (!parentModelOp || parentModelOp != modelOp) {
+                return true;
+              }
+
+              return false;
+            });
+
+target.addDynamicallyLegalOp<QualifiedVariableSetOp>(
+    [&](QualifiedVariableSetOp op) {
+      VariableOp variableOp = op.getVariableOp(symbolTableCollection);
+      auto parentModelOp = variableOp->getParentOfType<ModelOp>();
+
+      if (!parentModelOp || parentModelOp != modelOp) {
+        return true;
+      }
+
+      return false;
+    });
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  patterns.insert<
+      QualifiedVariableGetOpPattern,
+      QualifiedVariableSetOpPattern>(&getContext(), symbolTableCollection,
+                                     globalVariablesMap);
+
+  return mlir::applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 GlobalVariableOp ModelicaToSimulationConversionPass::declareTimeVariable(
@@ -872,10 +1243,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::convertTimeOp(
     mlir::ModuleOp moduleOp)
 {
   mlir::RewritePatternSet patterns(moduleOp.getContext());
-
-  patterns.add<
-      TimeOpLowering>(moduleOp.getContext());
-
+  patterns.add<TimeOpLowering>(moduleOp.getContext());
   return mlir::applyPatternsAndFoldGreedily(moduleOp, std::move(patterns));
 }
 

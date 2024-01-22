@@ -689,7 +689,9 @@ namespace marco::frontend
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createEquationInductionsExplicitationPass());
 
-    // TODO: fold access functions operating on ranges
+    // Fold accesses operating on views.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createViewAccessFoldingPass());
 
     // Lift the equations.
     pm.addNestedPass<mlir::modelica::ModelOp>(
@@ -724,12 +726,11 @@ namespace marco::frontend
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createVariablesPromotionPass());
 
+    // Try to solve the cycles by substitution.
     pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSCCSolvingPass());
+        mlir::modelica::createSCCSolvingBySubstitutionPass());
 
     // Apply the selected solver.
-    pm.addPass(mlir::modelica::createSimulationVariablesInsertionPass());
-
     pm.addPass(
         llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
             ci.getSimulationOptions().solver)
@@ -737,16 +738,32 @@ namespace marco::frontend
             .Case("ida", createMLIRIDAPass())
             .Default(mlir::modelica::createEulerForwardPass()));
 
-    // Schedule the internal equations.
-    pm.addNestedPass<mlir::modelica::ScheduleOp>(
+    // Solve the initial conditions model.
+    pm.addPass(mlir::modelica::createInitialConditionsSolvingPass());
+
+    // Schedule the equations.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createSchedulingPass());
 
-    // Create the functions for the equations.
+    // Explicitate the equations.
     pm.addPass(mlir::modelica::createEquationExplicitationPass());
 
     // Lift loop-independent code from loops of equations.
     pm.addNestedPass<mlir::modelica::EquationFunctionOp>(
         mlir::modelica::createEquationFunctionLoopHoistingPass());
+
+    // Export the unsolved SCCs to KINSOL.
+    pm.addPass(mlir::modelica::createSCCSolvingWithKINSOLPass());
+
+    // Parallelize the scheduled blocks.
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createScheduleParallelizationPass());
+
+    // Delegate the calls to the equation functions to the runtime library.
+    pm.addPass(mlir::modelica::createSchedulersInstantiationPass());
+
+    // Check that no SCC is left unsolved.
+    pm.addPass(mlir::modelica::createSCCAbsenceVerificationPass());
 
     pm.addPass(createMLIRModelicaToSimulationConversionPass());
 
@@ -776,6 +793,8 @@ namespace marco::frontend
 
     pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
     pm.addPass(createMLIRIDAToFuncConversionPass());
+    pm.addPass(createMLIRKINSOLToFuncConversionPass());
+    pm.addPass(createMLIRSimulationToFuncConversionPass());
 
     if (ci.getCodeGenOptions().omp) {
       // Use OpenMP for parallel loops.
@@ -807,10 +826,8 @@ namespace marco::frontend
     // Convert the MARCO dialects to LLVM dialect.
     pm.addPass(createMLIRModelicaToLLVMConversionPass());
     pm.addPass(createMLIRIDAToLLVMConversionPass());
-
-    // Now that the Simulation dialect doesn't have dependencies from Modelica
-    // or the solvers, we can proceed converting it.
-    pm.addPass(createMLIRSimulationToFuncConversionPass());
+    pm.addPass(createMLIRKINSOLToLLVMConversionPass());
+    pm.addPass(createMLIRSimulationToLLVMConversionPass());
 
     // Convert the non-LLVM operations that may have been introduced by the
     // last conversions.
@@ -981,9 +998,38 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRKINSOLToFuncConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::KINSOLToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+
+    return mlir::createKINSOLToFuncConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
+  {
+    mlir::KINSOLToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createKINSOLToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
   CodeGenAction::createMLIRSimulationToFuncConversionPass()
   {
     return mlir::createSimulationToFuncConversionPass();
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRSimulationToLLVMConversionPass()
+  {
+    mlir::SimulationToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createSimulationToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>

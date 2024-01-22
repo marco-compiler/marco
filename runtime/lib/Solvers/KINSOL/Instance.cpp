@@ -383,8 +383,6 @@ namespace marco::runtime::sundials::kinsol
     jacobianMatrixData.resize(scalarEquationsNumber);
 
     for (Equation eq : equationsProcessingOrder) {
-      uint64_t equationRank = getEquationRank(eq);
-
       std::vector<int64_t> equationIndices;
       getEquationBeginIndices(eq, equationIndices);
 
@@ -616,7 +614,6 @@ namespace marco::runtime::sundials::kinsol
 
     instance->equationsParallelIteration(
         [&](Equation eq, const std::vector<int64_t>& equationIndices) {
-          uint64_t equationRank = instance->getEquationRank(eq);
           Variable writtenVariable = instance->getWrittenVariable(eq);
 
           uint64_t writtenVariableArrayOffset =
@@ -790,7 +787,6 @@ namespace marco::runtime::sundials::kinsol
         Variable variable = access.first;
         AccessFunction accessFunction = access.second;
 
-        uint64_t equationRank = getEquationRank(eq);
         uint64_t variableRank = getVariableRank(variable);
 
         std::vector<uint64_t> variableIndices;
@@ -1212,6 +1208,150 @@ namespace marco::runtime::sundials::kinsol
     }
 
     return retVal == KIN_SUCCESS;
+  }
+
+  void KINSOLInstance::getWritingEquation(
+      Variable variable,
+      const std::vector<uint64_t>& variableIndices,
+      Equation& equation,
+      std::vector<int64_t>& equationIndices) const
+  {
+    bool found = false;
+    uint64_t numOfVectorizedEquations = getNumOfVectorizedEquations();
+
+    for (Equation eq = 0; eq < numOfVectorizedEquations; ++eq) {
+      Variable writtenVariable = getWrittenVariable(eq);
+
+      if (writtenVariable == variable) {
+        std::vector<int64_t> writingEquationIndices;
+        getEquationBeginIndices(eq, writingEquationIndices);
+
+        std::vector<uint64_t> writtenVariableIndices(
+            getVariableRank(writtenVariable));
+
+        AccessFunction writeAccessFunction = getWriteAccessFunction(eq);
+
+        do {
+          writeAccessFunction(writingEquationIndices.data(),
+                              writtenVariableIndices.data());
+
+          if (writtenVariableIndices == variableIndices) {
+            assert(!found &&
+                   "Multiple equations writing to the same variable");
+            found = true;
+            equation = eq;
+            equationIndices = writingEquationIndices;
+          }
+        } while (advanceEquationIndices(
+            writingEquationIndices, equationRanges[eq]));
+      }
+    }
+
+    assert(found && "Writing equation not found");
+  }
+
+  void KINSOLInstance::printVariablesVector(N_Vector variables) const
+  {
+    realtype* data = N_VGetArrayPointer(variables);
+    uint64_t numOfArrayVariables = getNumOfArrayVariables();
+
+    for (Variable var = 0; var < numOfArrayVariables; ++var) {
+      std::vector<uint64_t> indices;
+      getVariableBeginIndices(var, indices);
+
+      do {
+        std::cerr << "var " << var << " ";
+        printIndices(indices);
+        std::cerr << "\t" << std::fixed << std::setprecision(9)
+                  << *data << std::endl;
+        ++data;
+      } while (advanceVariableIndices(indices, variablesDimensions[var]));
+    }
+  }
+
+  void KINSOLInstance::printResidualsVector(N_Vector residuals) const
+  {
+    realtype* data = N_VGetArrayPointer(residuals);
+    uint64_t numOfArrayVariables = getNumOfArrayVariables();
+
+    for (Variable var = 0; var < numOfArrayVariables; ++var) {
+      std::vector<uint64_t> variableIndices;
+      getVariableBeginIndices(var, variableIndices);
+
+      do {
+        Equation eq;
+        std::vector<int64_t> equationIndices;
+        getWritingEquation(var, variableIndices, eq, equationIndices);
+
+        std::cerr << "eq " << eq << " ";
+        printIndices(equationIndices);
+        std::cerr << " (writing to var " << var;
+        printIndices(variableIndices);
+        std::cerr << ")" << "\t" << std::fixed << std::setprecision(9)
+                  << *data << "\n";
+        ++data;
+      } while (advanceVariableIndices(
+          variableIndices, variablesDimensions[var]));
+    }
+  }
+
+  void KINSOLInstance::printJacobianMatrix(SUNMatrix jacobianMatrix) const
+  {
+    uint64_t numOfArrayVariables = getNumOfArrayVariables();
+
+    // Print the heading row.
+    for (Variable var = 0; var < numOfArrayVariables; ++var) {
+      std::vector<uint64_t> variableIndices;
+      getVariableBeginIndices(var, variableIndices);
+
+      do {
+        std::cerr << "\tvar " << var << " ";
+        printIndices(variableIndices);
+      } while (advanceVariableIndices(
+          variableIndices, variablesDimensions[var]));
+    }
+
+    std::cerr << std::endl;
+
+    // Print the rows containing the values.
+    uint64_t rowFlatIndex = 0;
+
+    for (Variable eqVar = 0; eqVar < numOfArrayVariables; ++eqVar) {
+      std::vector<uint64_t> eqVarIndices;
+      getVariableBeginIndices(eqVar, eqVarIndices);
+
+      do {
+        Equation eq;
+        std::vector<int64_t> equationIndices;
+        getWritingEquation(eqVar, eqVarIndices, eq, equationIndices);
+
+        std::cerr << "eq " << eq << " ";
+        printIndices(equationIndices);
+        std::cerr << " (writing to var " << eqVar << " ";
+        printIndices(eqVarIndices);
+        std::cerr << ")";
+
+        uint64_t columnFlatIndex = 0;
+
+        for (Variable indVar = 0; indVar < numOfArrayVariables; ++indVar) {
+          std::vector<uint64_t> indVarIndices;
+          getVariableBeginIndices(indVar, indVarIndices);
+
+          do {
+            auto value = getCellFromSparseMatrix(
+                jacobianMatrix, rowFlatIndex, columnFlatIndex);
+
+            std::cerr << "\t" << std::fixed << std::setprecision(9) << value;
+            columnFlatIndex++;
+          } while (advanceVariableIndices(
+              indVarIndices, variablesDimensions[indVar]));
+        }
+
+        std::cerr << std::endl;
+        rowFlatIndex++;
+      } while (advanceVariableIndices(
+          eqVarIndices, variablesDimensions[eqVar]));
+    }
   }
 }
 

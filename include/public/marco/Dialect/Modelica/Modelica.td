@@ -134,6 +134,15 @@ def IndexSetAttr
   let convertFromStorage = "$_self";
 }
 
+def VariableAttr
+    : Attr<CPred<"$_self.isa<::mlir::modelica::VariableAttr>()">,
+                 "Variable attribute">
+{
+  let storageType = [{ ::mlir::modelica::VariableAttr }];
+  let returnType = [{ ::mlir::modelica::VariableAttr }];
+  let convertFromStorage = "$_self";
+}
+
 def VarDerivativeAttr
     : Attr<CPred<"$_self.isa<::mlir::modelica::VarDerivativeAttr>()">,
                  "Variable's derivative attribute">;
@@ -1177,59 +1186,16 @@ def Modelica_GlobalVariableGetOp : Modelica_Op<"global_variable_get",
     ];
 }
 
-def Modelica_SimulationVariableOp : Modelica_Op<"simulation_variable",
-    [Symbol,
-    ParentOneOf<["mlir::ModuleOp"]>]>
+def Modelica_QualifiedVariableGetOp : Modelica_Op<"qualified_variable_get",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        TypeAttr:$type
-    );
+    let summary = "Load the data held by a class variable.";
 
-    let results = (outs);
-
-    let assemblyFormat = "$sym_name attr-dict `:` $type";
-
-    let extraClassDeclaration = [{
-        VariableType getVariableType() {
-            return getType().cast<VariableType>();
-        }
-
-        bool isInput() {
-            return getVariableType().isInput();
-        }
-
-        bool isOutput() {
-            return getVariableType().isOutput();
-        }
-
-        bool isReadOnly() {
-            return getVariableType().isReadOnly();
-        }
-
-        bool isDiscrete() {
-            return getVariableType().isDiscrete();
-        }
-
-        bool isParameter() {
-            return getVariableType().isParameter();
-        }
-
-        bool isConstant() {
-            return getVariableType().isConstant();
-        }
-
-        /// Get the indices of the variable, if the variable is an array.
-        IndexSet getIndices();
+    let description = [{
+        Load the data held by variable of a class.
     }];
-}
 
-def Modelica_SimulationVariableGetOp : Modelica_Op<"simulation_variable_get",
-    [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
-    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression", "getEquationAccesses"]>,
-    NoMemoryEffect]>
-{
-    let arguments = (ins SymbolNameAttr:$variable);
+    let arguments = (ins SymbolRefAttr:$variable);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
@@ -1237,14 +1203,27 @@ def Modelica_SimulationVariableGetOp : Modelica_Op<"simulation_variable_get",
     }];
 
     let builders = [
-        OpBuilder<(ins "SimulationVariableOp":$variableOp)>
+        OpBuilder<(ins "VariableOp":$variableOp)>
     ];
+
+    let extraClassDeclaration = [{
+        VariableOp getVariableOp();
+
+        VariableOp getVariableOp(
+            mlir::SymbolTableCollection& symbolTableCollection);
+    }];
 }
 
-def Modelica_SimulationVariableSetOp : Modelica_Op<"simulation_variable_set",
+def Modelica_QualifiedVariableSetOp : Modelica_Op<"qualified_variable_set",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
-    let arguments = (ins SymbolNameAttr:$variable, AnyType:$value);
+    let summary = "Store data into a class variable.";
+
+    let description = [{
+        Store data into the variable of a class.
+    }];
+
+    let arguments = (ins SymbolRefAttr:$variable, AnyType:$value);
     let results = (outs);
 
     let assemblyFormat = [{
@@ -1252,8 +1231,15 @@ def Modelica_SimulationVariableSetOp : Modelica_Op<"simulation_variable_set",
     }];
 
     let builders = [
-        OpBuilder<(ins "SimulationVariableOp":$variableOp, "mlir::Value":$value)>
+        OpBuilder<(ins "VariableOp":$variableOp, "mlir::Value":$value)>
     ];
+
+    let extraClassDeclaration = [{
+        VariableOp getVariableOp();
+
+        VariableOp getVariableOp(
+            mlir::SymbolTableCollection& symbolTableCollection);
+    }];
 }
 
 //===---------------------------------------------------------------------===//
@@ -3326,7 +3312,22 @@ def Modelica_StartOp : Modelica_Op<"start",
     }];
 
     let extraClassDeclaration = [{
-        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
+        public:
+            VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
+
+            mlir::LogicalResult getAccesses(
+                llvm::SmallVectorImpl<VariableAccess>& result,
+                mlir::SymbolTableCollection& symbolTable);
+
+        private:
+            mlir::LogicalResult searchAccesses(
+                llvm::SmallVectorImpl<VariableAccess>& accesses,
+                mlir::SymbolTableCollection& symbolTable,
+                llvm::DenseMap<mlir::Value, unsigned int>& inductionsPositionMap,
+                mlir::Value value,
+                EquationPath path);
+
+        public:
     }];
 }
 
@@ -3471,7 +3472,7 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
 
 def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
     [IsolatedFromAbove,
-    ParentOneOf<["ModelOp", "ScheduleOp"]>,
+    ParentOneOf<["ModelOp"]>,
     SingleBlock,
     NoMemoryEffect]>
 {
@@ -3660,7 +3661,8 @@ def Modelica_EquationTemplateOp : Modelica_Op<"equation_template",
 }
 
 def Modelica_EquationFunctionOp : Modelica_Op<"equation_function",
-    [IsolatedFromAbove,
+    [HasParent<"mlir::ModuleOp">,
+    IsolatedFromAbove,
     AutomaticAllocationScope,
     Symbol,
     FunctionOpInterface,
@@ -3680,6 +3682,7 @@ def Modelica_EquationFunctionOp : Modelica_Op<"equation_function",
     let builders = [
         OpBuilder<(ins
             "llvm::StringRef":$name,
+            "uint64_t":$numOfInductions,
             CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
             CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
     ];
@@ -3729,11 +3732,25 @@ def Modelica_EquationFunctionOp : Modelica_Op<"equation_function",
         }
 
         /// }
+
+        mlir::Value getLowerBound(uint64_t induction);
+        mlir::Value getUpperBound(uint64_t induction);
     }];
 }
 
+def Modelica_EquationCallOp : Modelica_Op<"equation_call", []>
+{
+    let arguments = (ins
+        SymbolNameAttr:$callee,
+        OptionalAttr<MultidimensionalRangeAttr>:$indices,
+        DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
+
+    let results = (outs);
+    let assemblyFormat = "$callee attr-dict";
+}
+
 def Modelica_InitialModelOp : Modelica_Op<"initial_model",
-    [ParentOneOf<["ModelOp"]>,
+    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
     SingleBlock,
     NoTerminator]>
 {
@@ -3761,7 +3778,7 @@ def Modelica_InitialModelOp : Modelica_Op<"initial_model",
 }
 
 def Modelica_MainModelOp : Modelica_Op<"main_model",
-    [ParentOneOf<["ModelOp"]>,
+    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
     SingleBlock,
     NoTerminator]>
 {
@@ -3785,6 +3802,85 @@ def Modelica_MainModelOp : Modelica_Op<"main_model",
         }
 
         void collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs);
+    }];
+}
+
+def Modelica_AbstractEquationOp : Modelica_Op<"abstract_equation",
+    [ParentOneOf<["SCCOp"]>,
+    SingleBlock,
+    NoTerminator]>
+{
+    let arguments = (ins
+        TypedArrayAttrBase<VariableAttr, "Written variables">:$writtenVariables,
+        TypedArrayAttrBase<VariableAttr, "Read variables">:$readVariables);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Modelica_StartEquationInstanceOp : Modelica_Op<"start_equation_instance",
+    [ParentOneOf<["ScheduleOp"]>]>
+{
+    let arguments = (ins
+        ModelicaEquation:$base,
+        OptionalAttr<MultidimensionalRangeAttr>:$indices);
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $base attr-dict `:` type($base)
+    }];
+
+    let hasVerifier = 1;
+
+    let builders = [
+        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>
+    ];
+
+    let extraClassDeclaration = [{
+        /// Get the equation template.
+        EquationTemplateOp getTemplate();
+
+        /// @name Forwarded methods.
+        /// {
+
+        void printInline(llvm::raw_ostream& os);
+
+        mlir::ValueRange getInductionVariables();
+
+        mlir::LogicalResult getAccesses(
+            llvm::SmallVectorImpl<VariableAccess>& result,
+            mlir::SymbolTableCollection& symbolTable);
+
+        std::optional<VariableAccess> getAccessAtPath(
+            mlir::SymbolTableCollection& symbolTable,
+            const EquationPath& path);
+
+        /// }
+
+        /// Get the indices visited by the induction variables.
+        /// An empty iteration space is returned if there is no iteration
+        /// variable.
+        IndexSet getIterationSpace();
+
+        std::optional<VariableAccess> getWriteAccess(
+            mlir::SymbolTableCollection& symbolTableCollection);
+
+        mlir::LogicalResult getReadAccesses(
+            llvm::SmallVectorImpl<VariableAccess>& result,
+            mlir::SymbolTableCollection& symbolTableCollection,
+            llvm::ArrayRef<VariableAccess> accesses);
+
+        mlir::LogicalResult getReadAccesses(
+            llvm::SmallVectorImpl<VariableAccess>& result,
+            mlir::SymbolTableCollection& symbolTableCollection,
+            const IndexSet& equationIndices,
+            llvm::ArrayRef<VariableAccess> accesses);
     }];
 }
 
@@ -3938,7 +4034,7 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
 }
 
 def Modelica_SCCGroupOp : Modelica_Op<"scc_group",
-    [ParentOneOf<["ModelOp", "ScheduleOp"]>,
+    [ParentOneOf<["ModelOp", "ScheduleOp", "InitialModelOp", "MainModelOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     SingleBlock,
     NoTerminator]>
@@ -4596,10 +4692,10 @@ def Modelica_CallOp : Modelica_Op<"call",
             CArg<"mlir::ValueRange", "{}">:$args,
             CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins
-            "EquationFunctionOp":$callee,
+            "RawFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,
         OpBuilder<(ins
-            "RawFunctionOp":$callee,
+            "EquationFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,
         OpBuilder<(ins
             "mlir::SymbolRefAttr":$callee,
@@ -4655,11 +4751,10 @@ def Modelica_CallOp : Modelica_Op<"call",
 }
 
 def Modelica_ScheduleOp : Modelica_Op<"schedule",
-    [ParentOneOf<["mlir::ModuleOp"]>,
+    [ParentOneOf<["ModelOp"]>,
     Symbol,
     SingleBlock,
-    NoTerminator,
-    IsolatedFromAbove]>
+    NoTerminator]>
 {
     let arguments = (ins SymbolNameAttr:$sym_name);
     let results = (outs);
@@ -4679,11 +4774,59 @@ def Modelica_ScheduleOp : Modelica_Op<"schedule",
     }];
 }
 
-def Modelica_RunScheduleOp : Modelica_Op<"run_schedule", []>
+def Modelica_ScheduleBlockOp : Modelica_Op<"schedule_block",
+    [ParentOneOf<["InitialModelOp", "MainModelOp", "ParallelScheduleBlocksOp"]>,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
+{
+    let arguments = (ins
+        DefaultValuedAttr<BoolAttr, "false">:$parallelizable,
+        TypedArrayAttrBase<VariableAttr, "Written variables">:$writtenVariables,
+        TypedArrayAttrBase<VariableAttr, "Read variables">:$readVariables);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Modelica_ParallelScheduleBlocksOp : Modelica_Op<"parallel_schedule_blocks",
+    [ParentOneOf<["InitialModelOp", "MainModelOp"]>,
+    SingleBlock,
+    NoTerminator,
+    IsolatedFromAbove]>
+{
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let assemblyFormat = "$bodyRegion attr-dict";
+}
+
+def Modelica_RunScheduleOp : Modelica_Op<"run_schedule",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
     let arguments = (ins SymbolRefAttr:$schedule);
     let results = (outs);
     let assemblyFormat = "$schedule attr-dict";
+
+    let builders = [
+        OpBuilder<(ins "ScheduleOp":$scheduleOp)>
+    ];
+
+    let extraClassDeclaration = [{
+        ScheduleOp getScheduleOp();
+
+        ScheduleOp getScheduleOp(
+            mlir::SymbolTableCollection& symbolTableCollection);
+    }];
 }
 
 //===---------------------------------------------------------------------===//

@@ -318,17 +318,7 @@ namespace marco::runtime::sundials
       const std::vector<int64_t>& indices,
       const MultidimensionalRange& ranges)
   {
-    assert(indices[0] >= ranges[0].begin);
-    uint64_t offset = indices[0] - ranges[0].begin;
-
-    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-      assert(ranges[i].end > ranges[i].begin);
-      offset = offset * (ranges[i].end - ranges[i].begin) +
-          (indices[i] - ranges[i].begin);
-    }
-
-    assert(offset >= 0);
-    return offset;
+    return getFlatIndex(indices, ranges);
   }
 
   void getEquationIndicesFromFlatIndex(
@@ -336,38 +326,29 @@ namespace marco::runtime::sundials
       std::vector<int64_t>& result,
       const MultidimensionalRange& ranges)
   {
-    result.resize(ranges.size());
-    uint64_t size = 1;
+    return getIndicesFromFlatIndex(flatIndex, result, ranges);
+  }
 
-    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-      assert(ranges[i].end > ranges[i].begin);
-      size *= ranges[i].end - ranges[i].begin;
+  sunrealtype getCellFromSparseMatrix(
+      SUNMatrix matrix,
+      uint64_t rowIndex,
+      uint64_t columnIndex)
+  {
+    realtype* data = SUNSparseMatrix_Data(matrix);
+
+    sunindextype* rowPtrs = SUNSparseMatrix_IndexPointers(matrix);
+    sunindextype* columnIndices = SUNSparseMatrix_IndexValues(matrix);
+
+    sunindextype beginIndex = rowPtrs[rowIndex];
+    sunindextype endIndex = rowPtrs[rowIndex + 1];
+
+    for (sunindextype i = beginIndex; i < endIndex; ++i) {
+      if (columnIndices[i] == static_cast<sunindextype>(columnIndex)) {
+        return data[i];
+      }
     }
 
-    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
-      result[i - 1] =
-          static_cast<int64_t>(flatIndex / size) + ranges[i - 1].begin;
-
-      flatIndex %= size;
-      assert(ranges[i].end > ranges[i].begin);
-      size /= ranges[i].end - ranges[i].begin;
-    }
-
-    result[ranges.size() - 1] =
-        static_cast<int64_t>(flatIndex) + ranges.back().begin;
-
-    assert(size == 1);
-
-    assert(([&]() -> bool {
-             for (size_t i = 0, e = result.size(); i < e; ++i) {
-               if (result[i] < ranges[i].begin ||
-                   result[i] >= ranges[i].end) {
-                 return false;
-               }
-             }
-
-             return true;
-           }()) && "Wrong index unflattening result");
+    return 0;
   }
 }
 

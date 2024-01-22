@@ -23,6 +23,13 @@ namespace mlir::modelica
   using DimensionAccessRange = ::marco::modeling::DimensionAccessRange;
   using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
 
+  mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol);
+
+  mlir::Operation* resolveSymbol(
+      mlir::ModuleOp moduleOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      mlir::SymbolRefAttr symbol);
+
   mlir::Type getMostGenericType(mlir::Value x, mlir::Value y);
 
   mlir::Type getMostGenericType(mlir::Type x, mlir::Type y);
@@ -66,8 +73,9 @@ namespace mlir::modelica
   // Map between variables and the equations writing to them.
   // The indices are referred to the written indices of the variable
   // (and not to the indices of the equation).
-  template<typename Variable, typename Equation>
-  using WritesMap = std::multimap<Variable, std::pair<IndexSet, Equation>>;
+  template<typename Variable, typename WritingEntity>
+  using WritesMap =
+      std::multimap<Variable, std::pair<IndexSet, WritingEntity>>;
 
   mlir::LogicalResult getWritesMap(
       WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
@@ -82,9 +90,9 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection);
 
   mlir::LogicalResult getWritesMap(
-      WritesMap<SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
-      mlir::ModuleOp moduleOp,
-      ScheduleOp scheduleOp,
+      WritesMap<VariableOp, ScheduleBlockOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<ScheduleBlockOp> scheduleBlocks,
       mlir::SymbolTableCollection& symbolTableCollection);
 }
 

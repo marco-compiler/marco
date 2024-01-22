@@ -90,4 +90,70 @@ namespace marco::runtime
       }
     }
   }
+
+  uint64_t getFlatSize(const MultidimensionalRange& ranges)
+  {
+    uint64_t result = 1;
+
+    for (const Range& range : ranges) {
+      result *= range.end - range.begin;
+    }
+
+    return result;
+  }
+
+  uint64_t getFlatIndex(
+      const std::vector<int64_t>& indices,
+      const MultidimensionalRange& ranges)
+  {
+    assert(indices[0] >= ranges[0].begin);
+    uint64_t offset = indices[0] - ranges[0].begin;
+
+    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+      assert(ranges[i].end > ranges[i].begin);
+      offset = offset * (ranges[i].end - ranges[i].begin) +
+          (indices[i] - ranges[i].begin);
+    }
+
+    return offset;
+  }
+
+  void getIndicesFromFlatIndex(
+      uint64_t flatIndex,
+      std::vector<int64_t>& result,
+      const MultidimensionalRange& ranges)
+  {
+    result.resize(ranges.size());
+    uint64_t size = 1;
+
+    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+      assert(ranges[i].end > ranges[i].begin);
+      size *= ranges[i].end - ranges[i].begin;
+    }
+
+    for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+      result[i - 1] =
+          static_cast<int64_t>(flatIndex / size) + ranges[i - 1].begin;
+
+      flatIndex %= size;
+      assert(ranges[i].end > ranges[i].begin);
+      size /= ranges[i].end - ranges[i].begin;
+    }
+
+    result[ranges.size() - 1] =
+        static_cast<int64_t>(flatIndex) + ranges.back().begin;
+
+    assert(size == 1);
+
+    assert(([&]() -> bool {
+             for (size_t i = 0, e = result.size(); i < e; ++i) {
+               if (result[i] < ranges[i].begin ||
+                   result[i] >= ranges[i].end) {
+                 return false;
+               }
+             }
+
+             return true;
+           }()) && "Wrong index unflattening result");
+  }
 }

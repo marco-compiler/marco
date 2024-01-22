@@ -14,7 +14,7 @@ namespace mlir::modelica::bridge
     public:
       SCCOp op;
       mlir::SymbolTableCollection* symbolTable;
-      WritesMap<SimulationVariableOp, MatchedEquationInstanceOp>* writesMap;
+      WritesMap<VariableOp, MatchedEquationInstanceOp>* writesMap;
 
       llvm::DenseMap<
           MatchedEquationInstanceOp, MatchedEquationBridge*>* equationsMap;
@@ -30,8 +30,7 @@ namespace mlir::modelica::bridge
       SCCBridge(
           SCCOp op,
           mlir::SymbolTableCollection& symbolTable,
-          WritesMap<
-              SimulationVariableOp, MatchedEquationInstanceOp>& writesMap,
+          WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
           llvm::DenseMap<
               MatchedEquationInstanceOp, MatchedEquationBridge*>& equationsMap);
 
@@ -104,15 +103,14 @@ namespace marco::modeling::dependency
       std::vector<ElementRef> result;
 
       for (const mlir::modelica::VariableAccess& readAccess : readAccesses) {
-        auto simulationVariableOp =
-            symbolTableCollection.lookupSymbolIn<
-                mlir::modelica::SimulationVariableOp>(
+        auto variableOp =
+            symbolTableCollection.lookupSymbolIn<mlir::modelica::VariableOp>(
                 moduleOp, readAccess.getVariable());
 
         IndexSet readVariableIndices =
             readAccess.getAccessFunction().map(equationIndices);
 
-        auto writingEquations = writesMap->equal_range(simulationVariableOp);
+        auto writingEquations = writesMap->equal_range(variableOp);
 
         for (const auto& writingEquation : llvm::make_range(
                  writingEquations.first, writingEquations.second)) {

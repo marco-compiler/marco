@@ -22,13 +22,6 @@ namespace mlir::modelica::bridge
     return std::make_unique<VariableBridge>(name, std::move(indices));
   }
 
-  std::unique_ptr<VariableBridge> VariableBridge::build(
-    SimulationVariableOp variable)
-  {
-    auto nameAttr = mlir::SymbolRefAttr::get(variable.getSymNameAttr());
-    return build(nameAttr, getNonEmptyIndices(variable.getIndices()));
-  }
-
   std::unique_ptr<VariableBridge> VariableBridge::build(VariableOp variable)
   {
     auto nameAttr = mlir::SymbolRefAttr::get(variable.getSymNameAttr());

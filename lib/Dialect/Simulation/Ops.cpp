@@ -164,6 +164,72 @@ namespace mlir::simulation
 }
 
 //===---------------------------------------------------------------------===//
+// EquationFunctionOp
+
+namespace mlir::simulation
+{
+  mlir::ParseResult EquationFunctionOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto buildFuncType =
+        [](mlir::Builder& builder,
+           llvm::ArrayRef<mlir::Type> argTypes,
+           llvm::ArrayRef<mlir::Type> results,
+           mlir::function_interface_impl::VariadicFlag,
+           std::string&) {
+          return builder.getFunctionType(argTypes, results);
+        };
+
+    return mlir::function_interface_impl::parseFunctionOp(
+        parser, result, false,
+        getFunctionTypeAttrName(result.name), buildFuncType,
+        getArgAttrsAttrName(result.name), getResAttrsAttrName(result.name));
+  }
+
+  void EquationFunctionOp::print(OpAsmPrinter& printer)
+  {
+    mlir::function_interface_impl::printFunctionOp(
+        printer, *this, false, getFunctionTypeAttrName(),
+        getArgAttrsAttrName(), getResAttrsAttrName());
+  }
+
+  void EquationFunctionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name,
+      uint64_t numOfInductions,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs,
+      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+  {
+    state.addAttribute(
+        mlir::SymbolTable::getSymbolAttrName(),
+        builder.getStringAttr(name));
+
+    llvm::SmallVector<mlir::Type> argTypes(
+        numOfInductions * 2, builder.getIndexType());
+
+    auto functionType = builder.getFunctionType(argTypes, std::nullopt);
+
+    state.addAttribute(
+        getFunctionTypeAttrName(state.name),
+        mlir::TypeAttr::get(functionType));
+
+    state.attributes.append(attrs.begin(), attrs.end());
+    state.addRegion();
+
+    if (argAttrs.empty()) {
+      return;
+    }
+
+    assert(functionType.getNumInputs() == argAttrs.size());
+
+    mlir::function_interface_impl::addArgAndResultAttrs(
+        builder, state, argAttrs, std::nullopt,
+        getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // FunctionOp
 
 namespace mlir::simulation

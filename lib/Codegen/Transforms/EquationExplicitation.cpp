@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/EquationExplicitation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -25,29 +26,41 @@ namespace
       void runOnOperation() override;
 
     private:
-      mlir::LogicalResult processSchedule(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ScheduleOp schedule);
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getVariableAccessAnalysis(
+          ScheduledEquationInstanceOp equation,
+          mlir::SymbolTableCollection& symbolTableCollection);
 
-      mlir::LogicalResult processSCCGroup(
+      mlir::LogicalResult processScheduleOp(
           mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
           mlir::SymbolTableCollection& symbolTableCollection,
-          SCCGroupOp sccGroup);
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp,
+          ScheduleOp scheduleOp);
+
+      mlir::LogicalResult processSCCs(
+          mlir::RewriterBase& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp,
+          llvm::ArrayRef<SCCOp> SCCs);
 
       mlir::LogicalResult processSCC(
           mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
           mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp,
           SCCOp scc);
 
       EquationFunctionOp createEquationFunction(
           mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
           mlir::SymbolTableCollection& symbolTableCollection,
-          ScheduledEquationInstanceOp equation);
+          mlir::ModuleOp moduleOp,
+          ModelOp modelOp,
+          ScheduledEquationInstanceOp equation,
+          llvm::SmallVectorImpl<uint64_t>& lowerBounds,
+          llvm::SmallVectorImpl<uint64_t>& upperBounds,
+          llvm::SmallVectorImpl<uint64_t>& steps);
 
       llvm::SmallVector<mlir::Value> shiftInductions(
           mlir::RewriterBase& rewriter,
@@ -57,8 +70,18 @@ namespace
 
       mlir::LogicalResult cloneEquationTemplateIntoFunction(
           mlir::RewriterBase& rewriter,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
           EquationTemplateOp templateOp,
           llvm::ArrayRef<mlir::Value> inductions);
+
+      mlir::LogicalResult getAccessAttrs(
+          llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
+          llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ScheduledEquationInstanceOp equationOp);
+
+      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
   };
 }
 
@@ -67,47 +90,82 @@ void EquationExplicitationPass::runOnOperation()
   mlir::ModuleOp moduleOp = getOperation();
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
-  llvm::SmallVector<ScheduleOp, 2> schedules;
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ScheduleOp schedule : moduleOp.getOps<ScheduleOp>()) {
-    if (mlir::failed(processSchedule(
-            rewriter, moduleOp, symbolTableCollection, schedule))) {
+  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+    for (ScheduleOp scheduleOp :
+         llvm::make_early_inc_range(modelOp.getOps<ScheduleOp>())) {
+      if (mlir::failed(processScheduleOp(
+              rewriter, symbolTableCollection, moduleOp, modelOp,
+              scheduleOp))) {
+        return signalPassFailure();
+      }
+    }
+
+    if (mlir::failed(cleanModelOp(modelOp))) {
       return signalPassFailure();
     }
   }
 }
 
-mlir::LogicalResult EquationExplicitationPass::processSchedule(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ScheduleOp schedule)
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+EquationExplicitationPass::getVariableAccessAnalysis(
+    ScheduledEquationInstanceOp equation,
+    mlir::SymbolTableCollection& symbolTableCollection)
 {
-  llvm::SmallVector<SCCGroupOp> SCCGroups;
-  schedule.collectSCCGroups(SCCGroups);
+  auto modelOp = equation->getParentOfType<ModelOp>();
+  auto analysisManager = getAnalysisManager().nest(modelOp);
 
-  for (SCCGroupOp sccGroup : SCCGroups) {
-    if (mlir::failed(processSCCGroup(
-            rewriter, moduleOp, symbolTableCollection, sccGroup))) {
-      return mlir::failure();
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(
+              equation.getTemplate())) {
+    return *analysis;
+  }
+
+  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+      equation.getTemplate());
+
+  if (mlir::failed(analysis.initialize(symbolTableCollection))) {
+    return std::nullopt;
+  }
+
+  return std::reference_wrapper(analysis);
+}
+
+mlir::LogicalResult EquationExplicitationPass::processScheduleOp(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp,
+    ScheduleOp scheduleOp)
+{
+  llvm::SmallVector<SCCOp> SCCs;
+
+  for (auto& op : scheduleOp.getOps()) {
+    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
+      initialModelOp.collectSCCs(SCCs);
+      continue;
+    }
+
+    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
+      mainModelOp.collectSCCs(SCCs);
+      continue;
     }
   }
 
-  return mlir::success();
+  return processSCCs(rewriter, symbolTableCollection, moduleOp, modelOp, SCCs);
 }
 
-mlir::LogicalResult EquationExplicitationPass::processSCCGroup(
+mlir::LogicalResult EquationExplicitationPass::processSCCs(
     mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
-    SCCGroupOp sccGroup)
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp,
+    llvm::ArrayRef<SCCOp> SCCs)
 {
-  llvm::SmallVector<SCCOp> SCCs;
-  sccGroup.collectSCCs(SCCs);
-
   for (SCCOp scc : SCCs) {
     if (mlir::failed(processSCC(
-            rewriter, moduleOp, symbolTableCollection, scc))) {
+            rewriter, symbolTableCollection, moduleOp, modelOp, scc))) {
       return mlir::failure();
     }
   }
@@ -117,9 +175,10 @@ mlir::LogicalResult EquationExplicitationPass::processSCCGroup(
 
 mlir::LogicalResult EquationExplicitationPass::processSCC(
     mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::modelica::SCCOp scc)
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp,
+    SCCOp scc)
 {
   llvm::SmallVector<ScheduledEquationInstanceOp> equations;
   scc.collectEquations(equations);
@@ -136,15 +195,69 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
         equation.cloneAndExplicitate(rewriter, symbolTableCollection);
 
     if (explicitEquation) {
+      llvm::SmallVector<uint64_t, 10> lowerBounds;
+      llvm::SmallVector<uint64_t, 10> upperBounds;
+      llvm::SmallVector<uint64_t, 10> steps;
+
       EquationFunctionOp eqFunc = createEquationFunction(
-          rewriter, moduleOp, symbolTableCollection, explicitEquation);
+          rewriter, symbolTableCollection, moduleOp, modelOp, explicitEquation,
+          lowerBounds, upperBounds, steps);
 
       if (!eqFunc) {
         return mlir::failure();
       }
 
       rewriter.setInsertionPoint(scc);
-      rewriter.create<CallOp>(eqFunc.getLoc(), eqFunc);
+
+      llvm::SmallVector<mlir::Attribute> writtenVariables;
+      llvm::SmallVector<mlir::Attribute> readVariables;
+
+      if (mlir::failed(getAccessAttrs(
+              writtenVariables, readVariables, symbolTableCollection,
+              equation))) {
+        return mlir::failure();
+      }
+
+      auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
+          modelOp.getLoc(),
+          true,
+          rewriter.getArrayAttr(writtenVariables),
+          rewriter.getArrayAttr(readVariables));
+
+      rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
+      rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
+
+      llvm::SmallVector<Range> ranges;
+
+      for (size_t i = 0, e = equation.getInductionVariables().size();
+           i < e; ++i) {
+        ranges.push_back(Range(
+            static_cast<Point::data_type>(lowerBounds[i]),
+            static_cast<Point::data_type>(upperBounds[i])));
+
+        assert(steps[i] == 1);
+      }
+
+      auto iterationDirections = equation.getIterationDirections();
+      bool independentIndices = !iterationDirections.empty();
+
+      if (independentIndices) {
+        independentIndices &= llvm::all_of(
+            equation.getIterationDirections(),
+            [](mlir::Attribute attr) {
+              return attr.cast<EquationScheduleDirectionAttr>().getValue() ==
+                  EquationScheduleDirection::Any;
+            });
+      }
+
+      auto callOp = rewriter.create<EquationCallOp>(
+          eqFunc.getLoc(), eqFunc.getSymName(), nullptr, independentIndices);
+
+      if (!ranges.empty()) {
+        callOp.setIndicesAttr(MultidimensionalRangeAttr::get(
+            rewriter.getContext(), MultidimensionalRange(ranges)));
+      }
+
       rewriter.eraseOp(explicitEquation);
     } else {
       isSCCErasable = false;
@@ -160,15 +273,19 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
 
 EquationFunctionOp EquationExplicitationPass::createEquationFunction(
     mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
-    ScheduledEquationInstanceOp equation)
+    mlir::ModuleOp moduleOp,
+    ModelOp modelOp,
+    ScheduledEquationInstanceOp equation,
+    llvm::SmallVectorImpl<uint64_t>& lowerBounds,
+    llvm::SmallVectorImpl<uint64_t>& upperBounds,
+    llvm::SmallVectorImpl<uint64_t>& steps)
 {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto eqFunc = rewriter.create<EquationFunctionOp>(
-      equation.getLoc(), "equation");
+      equation.getLoc(), "equation", equation.getInductionVariables().size());
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(eqFunc);
 
@@ -176,50 +293,45 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
   rewriter.setInsertionPointToStart(entryBlock);
 
   if (auto indicesAttr = equation.getIndices()) {
-    llvm::SmallVector<mlir::Value, 3> lowerBounds;
-    llvm::SmallVector<mlir::Value, 3> upperBounds;
-    llvm::SmallVector<mlir::Value, 3> steps;
-
     size_t rank = indicesAttr->getValue().rank();
     auto iterationDirections = equation.getIterationDirections();
 
-    mlir::Value zeroValue = rewriter.create<mlir::arith::ConstantOp>(
-        equation.getLoc(), rewriter.getIndexAttr(0));
-
-    mlir::Value oneValue = rewriter.create<mlir::arith::ConstantOp>(
-        equation.getLoc(), rewriter.getIndexAttr(1));
-
     for (size_t i = 0; i < rank; ++i) {
-      auto iterationDirection =
+      auto iterationDirectionAttr =
           iterationDirections[i].cast<EquationScheduleDirectionAttr>();
 
-      lowerBounds.push_back(zeroValue);
-      steps.push_back(oneValue);
+      lowerBounds.push_back(0);
+      steps.push_back(1);
 
-      if (iterationDirection.getValue() ==
-          EquationScheduleDirection::Forward) {
+      auto iterationDirection = iterationDirectionAttr.getValue();
+
+      if (iterationDirection == EquationScheduleDirection::Any ||
+          iterationDirection == EquationScheduleDirection::Forward) {
         auto upperBound = indicesAttr->getValue()[i].getEnd() -
             indicesAttr->getValue()[i].getBegin();
 
-        upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
-            equation.getLoc(), rewriter.getIndexAttr(upperBound)));
+        upperBounds.push_back(upperBound);
       } else {
-        assert(iterationDirection.getValue() ==
-               EquationScheduleDirection::Backward);
+        assert(iterationDirection == EquationScheduleDirection::Backward);
 
         auto upperBound = indicesAttr->getValue()[i].getBegin() -
             indicesAttr->getValue()[i].getEnd();
 
-        upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
-            equation.getLoc(), rewriter.getIndexAttr(upperBound)));
+        upperBounds.push_back(upperBound);
       }
     }
 
     llvm::SmallVector<mlir::Value> inductions;
 
+    mlir::Value oneValue = rewriter.create<mlir::arith::ConstantOp>(
+        equation.getLoc(), rewriter.getIndexAttr(1));
+
     for (size_t i = 0; i < rank; ++i) {
       auto forOp = rewriter.create<mlir::scf::ForOp>(
-          equation.getLoc(), lowerBounds[i], upperBounds[i], steps[i]);
+          equation.getLoc(),
+          eqFunc.getLowerBound(i),
+          eqFunc.getUpperBound(i),
+          oneValue);
 
       inductions.push_back(forOp.getInductionVar());
       rewriter.setInsertionPointToStart(forOp.getBody());
@@ -230,13 +342,13 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
         inductions);
 
     if (mlir::failed(cloneEquationTemplateIntoFunction(
-            rewriter, equation.getTemplate(),
+            rewriter, symbolTableCollection, modelOp, equation.getTemplate(),
             shiftedInductions))) {
       return nullptr;
     }
   } else {
     if (mlir::failed(cloneEquationTemplateIntoFunction(
-            rewriter, equation.getTemplate(),
+            rewriter, symbolTableCollection, modelOp, equation.getTemplate(),
             std::nullopt))) {
       return nullptr;
     }
@@ -262,19 +374,20 @@ llvm::SmallVector<mlir::Value> EquationExplicitationPass::shiftInductions(
         induction.getLoc(),
         rewriter.getIndexAttr(indices[i].getBegin()));
 
-    auto iterationDirection =
+    auto iterationDirectionAttr =
         iterationDirections[i].cast<EquationScheduleDirectionAttr>();
 
-    if (iterationDirection.getValue() ==
-        EquationScheduleDirection::Forward) {
+    auto iterationDirection = iterationDirectionAttr.getValue();
+
+    if (iterationDirection == EquationScheduleDirection::Any ||
+        iterationDirection == EquationScheduleDirection::Forward) {
       mlir::Value mappedInduction = rewriter.create<mlir::arith::AddIOp>(
           induction.getLoc(), rewriter.getIndexType(),
           fromValue, induction);
 
       mappedInductions.push_back(mappedInduction);
     } else {
-      assert(iterationDirection.getValue() ==
-             EquationScheduleDirection::Backward);
+      assert(iterationDirection == EquationScheduleDirection::Backward);
       mlir::Value mappedInduction = rewriter.create<mlir::arith::SubIOp>(
           induction.getLoc(), rewriter.getIndexType(),
           fromValue, induction);
@@ -289,6 +402,8 @@ llvm::SmallVector<mlir::Value> EquationExplicitationPass::shiftInductions(
 mlir::LogicalResult
 EquationExplicitationPass::cloneEquationTemplateIntoFunction(
     mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
     EquationTemplateOp templateOp,
     llvm::ArrayRef<mlir::Value> inductions)
 {
@@ -328,10 +443,10 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
         continue;
       }
 
-      if (auto getOp = mappedLhs.getDefiningOp<SimulationVariableGetOp>()) {
+      if (auto getOp = lhs.getDefiningOp<VariableGetOp>()) {
         if (getOp.getType().isa<ArrayType>()) {
           rewriter.create<ArrayCopyOp>(
-              equationSidesOp.getLoc(), mappedRhs, getOp);
+              equationSidesOp.getLoc(), mappedRhs, mapping.lookup(getOp));
         } else {
           // Left-hand side is a scalar variable.
           if (auto lhsType = mappedLhs.getType();
@@ -340,19 +455,100 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
                 mappedRhs.getLoc(), mappedLhs.getType(), mappedRhs);
           }
 
-          rewriter.create<SimulationVariableSetOp>(
-              equationSidesOp.getLoc(), getOp.getVariable(),
-              mappedRhs);
+          auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+              modelOp, getOp.getVariableAttr());
+
+          rewriter.create<QualifiedVariableSetOp>(
+              equationSidesOp.getLoc(), variableOp, mappedRhs);
 
           return mlir::success();
         }
       }
+    } else if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
+      auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+          modelOp, variableGetOp.getVariableAttr());
+
+      auto qualifiedVariableGetOp = rewriter.create<QualifiedVariableGetOp>(
+          op.getLoc(), variableOp);
+
+      mapping.map(variableGetOp.getResult(),
+                  qualifiedVariableGetOp.getResult());
     } else {
       rewriter.clone(op, mapping);
     }
   }
 
   return mlir::success();
+}
+
+mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
+    llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
+    llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ScheduledEquationInstanceOp equationOp)
+{
+  auto accessAnalysis =
+      getVariableAccessAnalysis(equationOp, symbolTableCollection);
+
+  if (!accessAnalysis) {
+    return mlir::failure();
+  }
+
+  IndexSet equationIndices = equationOp.getIterationSpace();
+  auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
+
+  if (!matchedAccess) {
+    return mlir::failure();
+  }
+
+  IndexSet matchedVariableIndices =
+      matchedAccess->getAccessFunction().map(equationIndices);
+
+  auto writtenVariableAttr = VariableAttr::get(
+      equationOp.getContext(),
+      matchedAccess->getVariable(),
+      IndexSetAttr::get(
+          equationOp.getContext(),
+          std::move(matchedVariableIndices)));
+
+  writtenVariables.push_back(writtenVariableAttr);
+  llvm::SmallVector<VariableAccess> readAccesses;
+
+  auto accesses = accessAnalysis->get().getAccesses(
+      equationOp, symbolTableCollection);
+
+  if (!accesses) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(equationOp.getReadAccesses(
+          readAccesses, symbolTableCollection, *accesses))) {
+    return mlir::failure();
+  }
+
+  llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> readVariablesIndices;
+
+  for (const VariableAccess& readAccess : readAccesses) {
+    const AccessFunction& accessFunction = readAccess.getAccessFunction();
+    IndexSet readIndices = accessFunction.map(equationIndices);
+    readVariablesIndices[readAccess.getVariable()] += readIndices;
+  }
+
+  for (const auto& entry : readVariablesIndices) {
+    readVariables.push_back(VariableAttr::get(
+        equationOp.getContext(),
+        entry.getFirst(),
+        IndexSetAttr::get(equationOp.getContext(), entry.getSecond())));
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult EquationExplicitationPass::cleanModelOp(ModelOp modelOp)
+{
+  mlir::RewritePatternSet patterns(&getContext());
+  ModelOp::getCleaningPatterns(patterns, &getContext());
+  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
 namespace mlir::modelica

@@ -3,6 +3,8 @@
 
 #include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/KINSOLToFunc/KINSOLToFunc.h"
+#include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToArith/ModelicaToArith.h"
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
@@ -11,6 +13,7 @@
 #include "marco/Codegen/Conversion/ModelicaToSimulation/ModelicaToSimulation.h"
 #include "marco/Codegen/Conversion/ModelicaToVector/ModelicaToVector.h"
 #include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
+#include "marco/Codegen/Conversion/SimulationToLLVM/SimulationToLLVM.h"
 #include "marco/Codegen/Conversion/SUNDIALSToFunc/SUNDIALSToFunc.h"
 
 namespace marco::codegen

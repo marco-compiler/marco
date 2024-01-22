@@ -20,9 +20,6 @@ namespace mlir::modelica::bridge
           mlir::SymbolRefAttr name,
           IndexSet indices);
 
-      static std::unique_ptr<VariableBridge>
-      build(SimulationVariableOp variable);
-
       static std::unique_ptr<VariableBridge> build(VariableOp variable);
 
       VariableBridge(

@@ -205,18 +205,12 @@ namespace
 
         if (op.getInitial()) {
           auto initialModelOp = rewriter.create<InitialModelOp>(loc);
-
-          mlir::Block* bodyBlock =
-              rewriter.createBlock(&initialModelOp.getBodyRegion());
-
-          rewriter.setInsertionPointToStart(bodyBlock);
+          rewriter.createBlock(&initialModelOp.getBodyRegion());
+          rewriter.setInsertionPointToStart(initialModelOp.getBody());
         } else {
           auto mainModelOp = rewriter.create<MainModelOp>(loc);
-
-          mlir::Block* bodyBlock =
-              rewriter.createBlock(&mainModelOp.getBodyRegion());
-
-          rewriter.setInsertionPointToStart(bodyBlock);
+          rewriter.createBlock(&mainModelOp.getBodyRegion());
+          rewriter.setInsertionPointToStart(mainModelOp.getBody());
         }
 
         for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {

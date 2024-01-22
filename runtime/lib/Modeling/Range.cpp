@@ -4,6 +4,17 @@
 
 namespace marco::runtime
 {
+  Range::Range()
+      : begin(0), end(1)
+  {
+  }
+
+  Range::Range(int64_t begin, int64_t end)
+      : begin(begin),
+        end(end)
+  {
+  }
+
   bool Range::operator<(const Range& other) const
   {
     if (begin == other.begin) {

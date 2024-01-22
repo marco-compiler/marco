@@ -2,6 +2,7 @@
 #include "marco/Runtime/Drivers/EulerForward/CLI.h"
 #include "marco/Runtime/Solvers/EulerForward/Options.h"
 #include "marco/Runtime/Solvers/EulerForward/Profiler.h"
+#include "marco/Runtime/Simulation/Options.h"
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Simulation/Runtime.h"
 
@@ -21,20 +22,7 @@ namespace marco::runtime
 
   int EulerForward::run()
   {
-    double time = eulerforward::getOptions().startTime;
-
-    // Set the start time.
-    setTime(time);
-
-    getSimulation()->getPrinter()->simulationBegin();
-
-    // Compute the initial conditions.
-    EULER_FORWARD_PROFILER_IC_START;
-    calcIC();
-    EULER_FORWARD_PROFILER_IC_STOP;
-
-    // Print the initial values.
-    getSimulation()->getPrinter()->printValues();
+    double time;
 
     do {
       // Compute the next values of the state variables.
@@ -52,12 +40,10 @@ namespace marco::runtime
 
       // Print the values.
       getSimulation()->getPrinter()->printValues();
-    } while (std::abs(eulerforward::getOptions().endTime - time) >=
+    } while (std::abs(simulation::getOptions().endTime - time) >=
              eulerforward::getOptions().timeStep);
 
-    getSimulation()->getPrinter()->simulationEnd();
-
-    return 0;
+    return EXIT_SUCCESS;
   }
 }
 

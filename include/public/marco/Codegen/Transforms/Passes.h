@@ -20,6 +20,7 @@
 #include "marco/Codegen/Transforms/FunctionInlining.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/IDA.h"
+#include "marco/Codegen/Transforms/InitialConditionsSolving.h"
 #include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Codegen/Transforms/ModelAlgorithmConversion.h"
 #include "marco/Codegen/Transforms/ModelDebugCanonicalization.h"
@@ -27,11 +28,15 @@
 #include "marco/Codegen/Transforms/RangeBoundariesInference.h"
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
 #include "marco/Codegen/Transforms/RecordInlining.h"
+#include "marco/Codegen/Transforms/SCCAbsenceVerification.h"
 #include "marco/Codegen/Transforms/SCCDetection.h"
-#include "marco/Codegen/Transforms/SCCSolving.h"
+#include "marco/Codegen/Transforms/SCCSolvingBySubstitution.h"
+#include "marco/Codegen/Transforms/SCCSolvingWithKINSOL.h"
+#include "marco/Codegen/Transforms/ScheduleParallelization.h"
+#include "marco/Codegen/Transforms/SchedulersInstantiation.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
-#include "marco/Codegen/Transforms/SimulationVariablesInsertion.h"
 #include "marco/Codegen/Transforms/VariablesPromotion.h"
+#include "marco/Codegen/Transforms/ViewAccessFolding.h"
 
 namespace marco::codegen
 {

@@ -238,14 +238,12 @@ def KINSOL_ResidualFunctionOp : KINSOL_Op<"residual_function",
         its right-hand side and left-hand side values.
 
         The function takes a variadic list of arguments:
-          1. Current time of the simulation (which will be provided by KINSOL when
-             calling the residual function).
-          2. The indices of the scalar equation to be examined.
+          1. The indices of the scalar equation to be examined.
 
         Example:
 
         ```mlir
-        kinsol.residual_function @foo(%time : f64, %i : index, %j : index, %k : index) -> f64 {
+        kinsol.residual_function @foo(%i : index, %j : index, %k : index) -> f64 {
             %diff = ... : f64
             kinsol.return %diff : f64
         }
@@ -271,7 +269,6 @@ def KINSOL_ResidualFunctionOp : KINSOL_Op<"residual_function",
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
-            args.push_back($_builder.getF64Type());
 
             for (size_t i = 0; i < equationRank; ++i) {
                 args.push_back($_builder.getIndexType());
@@ -284,7 +281,6 @@ def KINSOL_ResidualFunctionOp : KINSOL_Op<"residual_function",
     ];
 
     let extraClassDeclaration = [{
-        BlockArgument getTime();
         ArrayRef<BlockArgument> getEquationIndices();
 
         //===-------------------------------------------------------------===//
@@ -352,17 +348,14 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
         equation is derived.
 
         The function takes a variadic list of arguments:
-          1. Current time of the simulation (which will be provided by KINSOL when
-             calling the residual function).
-          2. The indices of the scalar equation to be examined.
-          3. The indices of the scalar variable with respect to the equation is
+          1. The indices of the scalar equation to be examined.
+          2. The indices of the scalar variable with respect to the equation is
              derived.
-          4. The KINSOL `alpha` parameter.
 
         Example:
 
         ```mlir
-        kinsol.jacobian_function @foo(%time : f64, %i : index, %j : index, %k : index, %l : index, %m : index, %alpha: f64) -> f64 attributes { equationRank = 3, variableRank = 2 } {
+        kinsol.jacobian_function @foo(%i : index, %j : index, %k : index, %l : index, %m : index) -> f64 attributes { equationRank = 3, variableRank = 2 } {
             %der = ... : f64
             kinsol.return %der : f64
         }
@@ -388,9 +381,7 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
     let builders = [
         OpBuilder<(ins "StringRef":$sym_name, "size_t":$equationRank, "size_t":$variableRank), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
-
             SmallVector<Type, 3> args;
-            args.push_back($_builder.getF64Type());
 
             for (size_t i = 0; i < equationRank; ++i) {
                 args.push_back($_builder.getIndexType());
@@ -399,8 +390,6 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
             for (size_t i = 0; i < variableRank; ++i) {
                 args.push_back($_builder.getIndexType());
             }
-
-            args.push_back($_builder.getF64Type());
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
@@ -411,10 +400,8 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
     ];
 
     let extraClassDeclaration = [{
-        BlockArgument getTime();
         ArrayRef<BlockArgument> getEquationIndices();
         ArrayRef<BlockArgument> getVariableIndices();
-        BlockArgument getAlpha();
 
         //===-------------------------------------------------------------===//
         // SymbolOpInterface Methods

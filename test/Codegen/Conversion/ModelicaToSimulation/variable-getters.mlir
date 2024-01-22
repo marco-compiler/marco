@@ -15,8 +15,6 @@ module {
     modelica.model @Test {
         modelica.variable @x : !modelica.variable<!modelica.int>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<!modelica.int>
 }
 
 // -----
@@ -36,8 +34,6 @@ module {
     modelica.model @Test {
         modelica.variable @x : !modelica.variable<2x3x!modelica.int>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<2x3x!modelica.int>
 }
 
 // -----
@@ -52,7 +48,4 @@ module {
         modelica.variable @x : !modelica.variable<!modelica.int>
         modelica.variable @y : !modelica.variable<2x3x!modelica.int>
     }
-
-    modelica.simulation_variable @x : !modelica.variable<!modelica.int>
-    modelica.simulation_variable @y : !modelica.variable<2x3x!modelica.int>
 }

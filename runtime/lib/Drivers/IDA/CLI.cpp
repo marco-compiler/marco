@@ -17,11 +17,9 @@ namespace marco::runtime::sundials::ida
   {
     os << "  --debug                                Enable the debug messages." << std::endl;
 
-    os << "  --start-time=<value>                   Set the start time (in seconds)." << std::endl;
-    os << "  --end-time=<value>                     Set the end time (in seconds)." << std::endl;
     os << "  --time-step=<value>                    Set the time step (in seconds)." << std::endl;
 
-    os << "  --equations-chunks-factor              Set the factor which, once multiplied by the threads count, determines the number of equation chunks" << std::endl;
+    os << "  --ida-equations-chunks-factor          Set the factor which, once multiplied by the threads count, determines the number of equation chunks" << std::endl;
 
     os << "  --ida-relative-tolerance=<value>       Set the relative tolerance." << std::endl;
     os << "  --ida-absolute-tolerance=<value>       Set the absolute tolerance." << std::endl;
@@ -50,13 +48,11 @@ namespace marco::runtime::sundials::ida
       const argh::parser& options) const
   {
     getOptions().debug = options["debug"];
-    options("start-time") >> getOptions().startTime;
-    options("end-time") >> getOptions().endTime;
 
     getOptions().equidistantTimeGrid = static_cast<bool>(
         options("time-step") >> getOptions().timeStep);
 
-    options("equations-chunks-factor") >> getOptions().equationsChunksFactor;
+    options("ida-equations-chunks-factor") >> getOptions().equationsChunksFactor;
 
     options("ida-max-steps") >> getOptions().maxSteps;
     options("ida-initial-step-size") >> getOptions().initialStepSize;
