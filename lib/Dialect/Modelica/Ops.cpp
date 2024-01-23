@@ -168,7 +168,15 @@ namespace mlir::modelica
     }
 
     if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
-      return IntegerAttr::get(getContext(), intRange.getLowerBound());
+      mlir::Type inductionType =
+          intRange.getType().cast<RangeType>().getInductionType();
+
+      if (inductionType.isa<mlir::IndexType>()) {
+        return mlir::IntegerAttr::get(
+            mlir::IndexType::get(getContext()), intRange.getLowerBound());
+      } else {
+        return IntegerAttr::get(getContext(), intRange.getLowerBound());
+      }
     }
 
     if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
@@ -194,7 +202,15 @@ namespace mlir::modelica
     }
 
     if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
-      return IntegerAttr::get(getContext(), intRange.getUpperBound());
+      mlir::Type inductionType =
+          intRange.getType().cast<RangeType>().getInductionType();
+
+      if (inductionType.isa<mlir::IndexType>()) {
+        return mlir::IntegerAttr::get(
+            mlir::IndexType::get(getContext()), intRange.getUpperBound());
+      } else {
+        return IntegerAttr::get(getContext(), intRange.getUpperBound());
+      }
     }
 
     if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
@@ -220,7 +236,15 @@ namespace mlir::modelica
     }
 
     if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
-      return IntegerAttr::get(getContext(), intRange.getStep());
+      mlir::Type inductionType =
+          intRange.getType().cast<RangeType>().getInductionType();
+
+      if (inductionType.isa<mlir::IndexType>()) {
+        return mlir::IntegerAttr::get(
+            mlir::IndexType::get(getContext()), intRange.getStep());
+      } else {
+        return IntegerAttr::get(getContext(), intRange.getStep());
+      }
     }
 
     if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
@@ -251,8 +275,15 @@ namespace mlir::modelica
       int64_t step = intRange.getStep();
       int64_t result = 1 + (upperBound - lowerBound) / step;
 
-      return mlir::IntegerAttr::get(
-          mlir::IndexType::get(getContext()), result);
+      mlir::Type inductionType =
+          intRange.getType().cast<RangeType>().getInductionType();
+
+      if (inductionType.isa<mlir::IndexType>()) {
+        return mlir::IntegerAttr::get(
+            mlir::IndexType::get(getContext()), result);
+      } else {
+        return IntegerAttr::get(getContext(), result);
+      }
     }
 
     if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
