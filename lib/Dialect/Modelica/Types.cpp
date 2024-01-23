@@ -290,7 +290,7 @@ namespace mlir::modelica
 
   bool BaseArrayType::isValidElementType(mlir::Type type)
   {
-    return type.isIndex() ||
+    return type.isIndex() || type.isIntOrFloat() ||
         type.isa<BooleanType, IntegerType, RealType, RecordType>();
   }
 

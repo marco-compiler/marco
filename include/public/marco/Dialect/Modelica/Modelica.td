@@ -90,7 +90,8 @@ class ArrayOf<list<Type> allowedTypes> :
                   "array", "::mlir::modelica::ArrayType">;
 
 def AnyArray : ArrayOf<[
-    ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray,
+    AnySignlessIntegerOrIndex, AnyFloat,
+    ModelicaBoolean, ModelicaInteger, ModelicaReal,
     ModelicaRecord]>;
 
 // Whether a type is a VariableType.
