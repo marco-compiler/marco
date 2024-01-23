@@ -666,6 +666,10 @@ namespace marco::modeling::impl
       return *this == *rhsCasted;
     }
 
+    if (rank() != rhs.rank()) {
+      return false;
+    }
+
     if (!contains(rhs)) {
       return false;
     }
@@ -679,41 +683,32 @@ namespace marco::modeling::impl
 
   bool RTreeIndexSet::operator==(const RTreeIndexSet& rhs) const
   {
+    if (rank() != rhs.rank()) {
+      return false;
+    }
+
     return contains(rhs) &&
         rhs.contains(static_cast<const IndexSet::Impl&>(*this));
   }
 
   bool RTreeIndexSet::operator!=(const Point& rhs) const
   {
-    return *this != RTreeIndexSet(rhs);
+    return !(*this == rhs);
   }
 
   bool RTreeIndexSet::operator!=(const MultidimensionalRange& rhs) const
   {
-    return *this != RTreeIndexSet(rhs);
+    return !(*this == rhs);
   }
 
   bool RTreeIndexSet::operator!=(const IndexSet::Impl& rhs) const
   {
-    if (auto* rhsCasted = rhs.dyn_cast<RTreeIndexSet>()) {
-      return *this != *rhsCasted;
-    }
-
-    if (!contains(rhs)) {
-      return true;
-    }
-
-    return std::any_of(
-        rangesBegin(), rangesEnd(),
-        [&](const MultidimensionalRange& range) {
-          return !rhs.contains(range);
-        });
+    return !(*this == rhs);
   }
 
   bool RTreeIndexSet::operator!=(const RTreeIndexSet& rhs) const
   {
-    return !contains(rhs) ||
-        !rhs.contains(static_cast<const IndexSet::Impl&>(*this));
+    return !(*this == rhs);
   }
 
   IndexSet::Impl& RTreeIndexSet::operator+=(const Point& rhs)

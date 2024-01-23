@@ -23,8 +23,9 @@ namespace marco::modeling
 
   bool MultidimensionalRange::operator==(const Point& other) const
   {
-    if (rank() != other.rank())
+    if (rank() != other.rank()) {
       return false;
+    }
 
     for (size_t i = 0, e = rank(); i < e; ++i) {
       if (ranges[i] != other[i]) {
@@ -52,31 +53,12 @@ namespace marco::modeling
 
   bool MultidimensionalRange::operator!=(const Point& other) const
   {
-    if (rank() != other.rank())
-      return true;
-
-    for (size_t i = 0, e = rank(); i < e; ++i) {
-      if (ranges[i] != other[i]) {
-        return true;
-      }
-    }
-
-    return false;
+    return !(*this == other);
   }
 
   bool MultidimensionalRange::operator!=(const MultidimensionalRange& other) const
   {
-    if (rank() != other.rank()) {
-      return true;
-    }
-
-    for (const auto&[lhs, rhs]: llvm::zip(ranges, other.ranges)) {
-      if (lhs != rhs) {
-        return true;
-      }
-    }
-
-    return false;
+    return !(*this == other);
   }
 
   bool MultidimensionalRange::operator<(const MultidimensionalRange& other) const

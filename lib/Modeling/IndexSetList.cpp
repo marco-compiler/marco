@@ -450,44 +450,40 @@ namespace marco::modeling::impl
       return *this == *rhsCasted;
     }
 
+    if (rank() != rhs.rank()) {
+      return false;
+    }
+
     return contains(rhs) && rhs.contains(*this);
   }
 
   bool ListIndexSet::operator==(const ListIndexSet& rhs) const
   {
+    if (rank() != rhs.rank()) {
+      return false;
+    }
+
     return contains(rhs) && rhs.contains(*this);
   }
 
   bool ListIndexSet::operator!=(const Point& rhs) const
   {
-    if (ranges.size() != 1) {
-      return true;
-    }
-
-    return ranges.front() != rhs;
+    return !(*this == rhs);
   }
 
   bool ListIndexSet::operator!=(const MultidimensionalRange& rhs) const
   {
-    if (ranges.size() != 1) {
-      return true;
-    }
-
-    return ranges.front() != rhs;
+    return !(*this == rhs);
   }
 
   bool ListIndexSet::operator!=(const IndexSet::Impl& rhs) const
   {
-    if (auto* rhsCasted = rhs.dyn_cast<ListIndexSet>()) {
-      return *this != *rhsCasted;
-    }
-
-    return contains(rhs) && rhs.contains(*this);
+    return !(*this == rhs);
   }
 
   bool ListIndexSet::operator!=(const ListIndexSet& rhs) const
   {
-    return !contains(rhs) || !rhs.contains(*this);
+    return !(*this == rhs);
   }
 
   IndexSet::Impl& ListIndexSet::operator+=(const Point& rhs)
