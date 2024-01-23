@@ -4,6 +4,8 @@
 #include <atomic>
 #include <cassert>
 
+#include <iostream>
+
 using namespace ::marco::runtime;
 
 // The thread pool is shared by all the schedulers.
@@ -91,7 +93,9 @@ namespace marco::runtime
       }
 
       if (shouldSplitIndices) {
-        uint64_t chunkSize = flatSize / numOfThreads;
+        uint64_t chunkSize =
+            std::max(flatSize / numOfThreads, static_cast<uint64_t>(1));
+
         uint64_t equationFlatIndex = 0;
 
         // Divide the ranges into chunks.
