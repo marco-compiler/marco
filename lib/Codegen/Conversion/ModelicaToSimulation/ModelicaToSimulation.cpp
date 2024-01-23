@@ -116,7 +116,7 @@ namespace
 
       /// Create the function that is called before starting the simulation.
       mlir::LogicalResult createInitFunction(
-          mlir::OpBuilder& builder,
+          mlir::RewriterBase& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
@@ -834,22 +834,22 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createVariableGetters(
 }
 
 mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
-    mlir::OpBuilder& builder,
+    mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
     llvm::ArrayRef<VariableOp> variables)
 {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToEnd(moduleOp.getBody());
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto initFunctionOp =
-      builder.create<mlir::simulation::InitFunctionOp>(modelOp.getLoc());
+      rewriter.create<mlir::simulation::InitFunctionOp>(modelOp.getLoc());
 
   mlir::Block* entryBlock =
-      builder.createBlock(&initFunctionOp.getBodyRegion());
+      rewriter.createBlock(&initFunctionOp.getBodyRegion());
 
-  builder.setInsertionPointToStart(entryBlock);
+  rewriter.setInsertionPointToStart(entryBlock);
 
   // Keep track of the variables for which a start value has been provided.
   llvm::DenseSet<llvm::StringRef> initializedVars;
@@ -877,31 +877,31 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
 
         if (startOp.getEach()) {
           if (variableOp.getVariableType().isScalar()) {
-            builder.create<QualifiedVariableSetOp>(
+            rewriter.create<QualifiedVariableSetOp>(
                 startOp.getLoc(), variableOp, valueToBeStored);
           } else {
-            mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+            mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
                 startOp.getLoc(), variableOp);
 
-            builder.create<ArrayFillOp>(
+            rewriter.create<ArrayFillOp>(
                 startOp.getLoc(), destination, valueToBeStored);
           }
         } else {
           auto valueType = valueToBeStored.getType();
 
           if (auto valueArrayType = valueType.dyn_cast<ArrayType>()) {
-            mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+            mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
                 startOp.getLoc(), variableOp);
 
-            builder.create<ArrayCopyOp>(
+            rewriter.create<ArrayCopyOp>(
                 startOp.getLoc(), valueToBeStored, destination);
           } else {
-            builder.create<QualifiedVariableSetOp>(
+            rewriter.create<QualifiedVariableSetOp>(
                 startOp.getLoc(), variableOp, valueToBeStored);
           }
         }
       } else {
-        builder.clone(op, startOpsMapping);
+        rewriter.clone(op, startOpsMapping);
       }
     }
   }
@@ -923,21 +923,35 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
 
     mlir::Value zeroValue =
         zeroMaterializableElementType.materializeZeroValuedConstant(
-            builder, variable.getLoc());
+            rewriter, variable.getLoc());
 
     if (variableType.isScalar()) {
-      builder.create<QualifiedVariableSetOp>(
+      rewriter.create<QualifiedVariableSetOp>(
           variable.getLoc(), variable, zeroValue);
     } else {
-      mlir::Value destination = builder.create<QualifiedVariableGetOp>(
+      mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
           variable.getLoc(), variable);
 
-      builder.create<ArrayFillOp>(destination.getLoc(), destination, zeroValue);
+      rewriter.create<ArrayFillOp>(destination.getLoc(), destination, zeroValue);
     }
   }
 
-  builder.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
-  builder.create<mlir::simulation::YieldOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
+  rewriter.create<mlir::simulation::YieldOp>(modelOp.getLoc(), std::nullopt);
+
+  llvm::SmallVector<VariableGetOp> variableGetOps;
+
+  initFunctionOp->walk([&](VariableGetOp getOp) {
+    variableGetOps.push_back(getOp);
+  });
+
+  for (VariableGetOp getOp : variableGetOps) {
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, getOp.getVariableAttr());
+
+    rewriter.setInsertionPoint(getOp);
+    rewriter.replaceOpWithNewOp<QualifiedVariableGetOp>(getOp, variableOp);
+  }
 
   return mlir::success();
 }
