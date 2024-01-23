@@ -448,7 +448,8 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
     }
 
     builder.create<mlir::simulation::SchedulerAddEquationOp>(
-        callOp.getLoc(), schedulerName, wrapperFunction.getSymName(), ranges);
+        callOp.getLoc(), schedulerName, wrapperFunction.getSymName(), ranges,
+        callOp.getParallelizable());
   }
 
   return mlir::success();

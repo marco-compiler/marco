@@ -375,7 +375,7 @@ namespace
       // Independent indices property.
       mlir::Value independentIndices =
           rewriter.create<mlir::arith::ConstantOp>(
-              loc, rewriter.getBoolAttr(false));
+              loc, rewriter.getBoolAttr(op.getIndependentIndices()));
 
       args.push_back(independentIndices);
       mangledArgsTypes.push_back(mangling.getIntegerType(1));
