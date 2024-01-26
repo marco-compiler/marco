@@ -22,11 +22,11 @@ Full set of compiler flags
 --------------------------
 Array based models:
 ```
--f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --showStructuralAnnotations
+--baseModelica -d=nonfScalarize,arrayConnect,combineSubscripts,evaluateAllParameters,vectorizeBindings
 ```
 Automatic vectorization of model with many scalar instances of the same components:
 ```
--f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --showStructuralAnnotations
+--baseModelica -d=nonfScalarize,mergeComponents,combineSubscripts,evaluateAllParameters,vectorizeBindings
 ```
 If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag.
 
@@ -34,7 +34,7 @@ These flags should be set in [FrontendActions.cpp](https://github.com/modelica-p
 
 Explanations
 -----------
-- [``-f``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-flatmodelica)
+- [``--baseModelica``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-basemodelica)
   Enables Flat Modelica Output (see [MCP 0031](https://github.com/modelica/ModelicaSpecification/tree/MCP/0031/RationaleMCP/0031)).
 - [``-d=nonfScalarize``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-nfscalarize)
   Disables scalarization pass in OMC front end.
@@ -44,15 +44,10 @@ Explanations
   Turns ``a[j].b[k]`` into ``a.b[j,k]``.
 - [``-d=mergeComponents``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-mergecomponents)
   Merges instances of the same model with the same type of modifications into arrays.
-- [``-d=printRecordTypes``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-printrecordtypes)
-  Prints flat record type definitions instead of constructor function definitions, which is the default.
 - [``-d=evaluateAllParameters``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-evaluateallparameters)
   Evaluate all parameters in the frontend and produce literal values only for parameter modifiers.
-- [``--showStructuralAnnotations``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-showstructuralannotations)
-  keeps structural annotations in the function definitions, such as ``Inline = true``.
 - [``--vectorizeBindings``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-vectorizebindings)
   uses iterators to vectorize non-trivial bindings with expressions that involve arrays and scalars when flattened without unrolling arrays.
 - [``--frontendInline``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-frontendinline) enable inlining of functions with trivial algorithms assigning the output to an expression.
   
   
-
