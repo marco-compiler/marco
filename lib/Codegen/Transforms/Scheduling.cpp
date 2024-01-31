@@ -293,7 +293,8 @@ mlir::LogicalResult SchedulingPass::processSCCs(
       }
 
       // Create an equation for each range of scheduled indices.
-      const IndexSet& scheduledIndices = scheduledEquation.getIndexes();
+      IndexSet scheduledIndices =
+          scheduledEquation.getIndexes().getCanonicalRepresentation();
 
       for (const MultidimensionalRange& scheduledRange :
            llvm::make_range(scheduledIndices.rangesBegin(),
