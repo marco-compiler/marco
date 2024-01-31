@@ -687,6 +687,8 @@ namespace mlir::modelica
         return mlir::failure();
       }
 
+      assert(!writeAccesses.empty());
+
       std::optional<VariableAccess> matchedAccess =
           equationOp.getMatchedAccess(symbolTableCollection);
 
