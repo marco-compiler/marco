@@ -96,7 +96,7 @@ namespace marco::modeling::dependency
       }
 
       IndexSet equationIndices = equation->op.getIterationSpace();
-      auto moduleOp = (*scc)->op->getParentOfType<mlir::ModuleOp>();
+      auto modelOp = (*scc)->op->getParentOfType<mlir::modelica::ModelOp>();
       const auto& writesMap = (*scc)->writesMap;
       const auto& equationMap = (*scc)->equationsMap;
 
@@ -105,7 +105,9 @@ namespace marco::modeling::dependency
       for (const mlir::modelica::VariableAccess& readAccess : readAccesses) {
         auto variableOp =
             symbolTableCollection.lookupSymbolIn<mlir::modelica::VariableOp>(
-                moduleOp, readAccess.getVariable());
+                modelOp, readAccess.getVariable());
+
+        assert(variableOp && "Variable not found");
 
         IndexSet readVariableIndices =
             readAccess.getAccessFunction().map(equationIndices);
