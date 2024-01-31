@@ -61,7 +61,8 @@ def EquationExpressionOpInterface
         InterfaceMethod<
             "Print inline representation of the expression.",
             "void", "printExpression",
-            (ins "::llvm::raw_ostream&":$os)>,
+            (ins "::llvm::raw_ostream&":$os,
+                 "const ::llvm::DenseMap<::mlir::Value, int64_t>&":$inductions)>,
         InterfaceMethod<
             "Get the number of elements.",
             "uint64_t", "getNumOfExpressionElements",

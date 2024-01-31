@@ -62,12 +62,20 @@ namespace
   }
 }
 
-static void printExpression(llvm::raw_ostream& os, mlir::Value value)
+static void printExpression(
+    llvm::raw_ostream& os,
+    mlir::Value value,
+    const llvm::DenseMap<mlir::Value, int64_t>& inductions)
 {
   mlir::Operation* op = value.getDefiningOp();
 
   if (!op) {
-    os << "(" << value << ")";
+    if (auto inductionsIt = inductions.find(value);
+        inductionsIt != inductions.end()) {
+      os << "{ind " << inductionsIt->getSecond() << "}";
+    } else {
+      os << "(" << value << ")";
+    }
     return;
   }
 
@@ -78,7 +86,7 @@ static void printExpression(llvm::raw_ostream& os, mlir::Value value)
     return;
   }
 
-  expressionOp.printExpression(os);
+  expressionOp.printExpression(os, inductions);
 }
 
 #define GET_OP_CLASSES
@@ -512,12 +520,14 @@ namespace mlir::modelica
     return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
-  void ArrayFromElementsOp::printExpression(llvm::raw_ostream& os)
+  void ArrayFromElementsOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "{";
 
     llvm::interleaveComma(getValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << "}";
@@ -600,7 +610,9 @@ namespace mlir::modelica
     return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
-  void ArrayBroadcastOp::printExpression(llvm::raw_ostream& os)
+  void ArrayBroadcastOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "{";
 
@@ -609,7 +621,7 @@ namespace mlir::modelica
         os << ", ";
       }
 
-      ::printExpression(os, getValue());
+      ::printExpression(os, getValue(), inductions);
     }
 
     os << "}";
@@ -666,9 +678,11 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  void ArrayCastOp::printExpression(llvm::raw_ostream& os)
+  void ArrayCastOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
   }
 
   mlir::LogicalResult ArrayCastOp::getEquationAccesses(
@@ -750,12 +764,14 @@ namespace mlir::modelica
     patterns.add<DimOpStaticDimensionPattern>(context);
   }
 
-  void DimOp::printExpression(llvm::raw_ostream& os)
+  void DimOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "dim(";
-    ::printExpression(os, getArray());
+    ::printExpression(os, getArray(), inductions);
     os << ", ";
-    ::printExpression(os, getDimension());
+    ::printExpression(os, getDimension(), inductions);
     os << ")";
   }
 
@@ -919,13 +935,15 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void LoadOp::printExpression(llvm::raw_ostream& os)
+  void LoadOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
-    ::printExpression(os, getArray());
+    ::printExpression(os, getArray(), inductions);
     os << "[";
 
     llvm::interleaveComma(getIndices(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << "]";
@@ -1240,13 +1258,15 @@ namespace mlir::modelica
         MergeSubscriptionsPattern>(context);
   }
 
-  void SubscriptionOp::printExpression(llvm::raw_ostream& os)
+  void SubscriptionOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
-    ::printExpression(os, getSource());
+    ::printExpression(os, getSource(), inductions);
     os << "[";
 
     llvm::interleaveComma(getIndices(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << "]";
@@ -1643,7 +1663,9 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  void VariableGetOp::printExpression(llvm::raw_ostream& os)
+  void VariableGetOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << getVariable();
   }
@@ -1989,7 +2011,9 @@ namespace mlir::modelica
     return getValue().cast<mlir::Attribute>();
   }
 
-  void ConstantOp::printExpression(llvm::raw_ostream& os)
+  void ConstantOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     if (auto boolAttr = getValue().dyn_cast<BooleanAttr>()) {
       os << (boolAttr.getValue() ? "true" : "false");
@@ -2099,10 +2123,12 @@ namespace mlir::modelica
     }
   }
 
-  void NegateOp::printExpression(llvm::raw_ostream& os)
+  void NegateOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(- ";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -2459,12 +2485,14 @@ namespace mlir::modelica
     }
   }
 
-  void AddOp::printExpression(llvm::raw_ostream& os)
+  void AddOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " + ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -2801,12 +2829,14 @@ namespace mlir::modelica
     }
   }
 
-  void AddEWOp::printExpression(llvm::raw_ostream& os)
+  void AddEWOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " .+ ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -3144,12 +3174,14 @@ namespace mlir::modelica
     }
   }
 
-  void SubOp::printExpression(llvm::raw_ostream& os)
+  void SubOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " - ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -3489,12 +3521,14 @@ namespace mlir::modelica
     }
   }
 
-  void SubEWOp::printExpression(llvm::raw_ostream& os)
+  void SubEWOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " .- ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -3836,12 +3870,14 @@ namespace mlir::modelica
     }
   }
 
-  void MulOp::printExpression(llvm::raw_ostream& os)
+  void MulOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " * ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -4217,12 +4253,14 @@ namespace mlir::modelica
     }
   }
 
-  void MulEWOp::printExpression(llvm::raw_ostream& os)
+  void MulEWOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " .* ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -4596,12 +4634,14 @@ namespace mlir::modelica
     }
   }
 
-  void DivOp::printExpression(llvm::raw_ostream& os)
+  void DivOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " / ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -4968,12 +5008,14 @@ namespace mlir::modelica
     }
   }
 
-  void DivEWOp::printExpression(llvm::raw_ostream& os)
+  void DivEWOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " ./ ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 
@@ -5348,12 +5390,14 @@ namespace mlir::modelica
     }
   }
 
-  void PowOp::printExpression(llvm::raw_ostream& os)
+  void PowOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getBase());
+    ::printExpression(os, getBase(), inductions);
     os << " ^ ";
-    ::printExpression(os, getExponent());
+    ::printExpression(os, getExponent(), inductions);
     os << ")";
   }
 
@@ -5506,12 +5550,14 @@ namespace mlir::modelica
     }
   }
 
-  void PowEWOp::printExpression(llvm::raw_ostream& os)
+  void PowEWOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getBase());
+    ::printExpression(os, getBase(), inductions);
     os << " .^ ";
-    ::printExpression(os, getExponent());
+    ::printExpression(os, getExponent(), inductions);
     os << ")";
   }
 
@@ -5615,12 +5661,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void EqOp::printExpression(llvm::raw_ostream& os)
+  void EqOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " == ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5670,12 +5718,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void NotEqOp::printExpression(llvm::raw_ostream& os)
+  void NotEqOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " != ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5725,12 +5775,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void GtOp::printExpression(llvm::raw_ostream& os)
+  void GtOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " > ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5780,12 +5832,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void GteOp::printExpression(llvm::raw_ostream& os)
+  void GteOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " >= ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5835,12 +5889,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void LtOp::printExpression(llvm::raw_ostream& os)
+  void LtOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " < ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5890,12 +5946,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void LteOp::printExpression(llvm::raw_ostream& os)
+  void LteOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " <= ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -5959,10 +6017,12 @@ namespace mlir::modelica
     }
   }
 
-  void NotOp::printExpression(llvm::raw_ostream& os)
+  void NotOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "!(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 }
@@ -6056,12 +6116,14 @@ namespace mlir::modelica
     }
   }
 
-  void AndOp::printExpression(llvm::raw_ostream& os)
+  void AndOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " && ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -6155,12 +6217,14 @@ namespace mlir::modelica
     }
   }
 
-  void OrOp::printExpression(llvm::raw_ostream& os)
+  void OrOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "(";
-    ::printExpression(os, getLhs());
+    ::printExpression(os, getLhs(), inductions);
     os << " || ";
-    ::printExpression(os, getRhs());
+    ::printExpression(os, getRhs(), inductions);
     os << ")";
   }
 }
@@ -6258,19 +6322,21 @@ namespace mlir::modelica
     }
   }
 
-  void SelectOp::printExpression(llvm::raw_ostream& os)
+  void SelectOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
-    ::printExpression(os, getCondition());
+    ::printExpression(os, getCondition(), inductions);
     os << " ? (";
 
     llvm::interleaveComma(getTrueValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ") : (";
 
     llvm::interleaveComma(getFalseValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ")";
@@ -6336,10 +6402,12 @@ namespace mlir::modelica
     }
   }
 
-  void AbsOp::printExpression(llvm::raw_ostream& os)
+  void AbsOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "abs(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -6435,10 +6503,12 @@ namespace mlir::modelica
     }
   }
 
-  void AcosOp::printExpression(llvm::raw_ostream& os)
+  void AcosOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "acos(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -6578,10 +6648,12 @@ namespace mlir::modelica
     }
   }
 
-  void AsinOp::printExpression(llvm::raw_ostream& os)
+  void AsinOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "asin(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -6719,10 +6791,12 @@ namespace mlir::modelica
     }
   }
 
-  void AtanOp::printExpression(llvm::raw_ostream& os)
+  void AtanOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "atan(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -6840,12 +6914,14 @@ namespace mlir::modelica
     }
   }
 
-  void Atan2Op::printExpression(llvm::raw_ostream& os)
+  void Atan2Op::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "atan2(";
-    ::printExpression(os, getY());
+    ::printExpression(os, getY(), inductions);
     os << ", ";
-    ::printExpression(os, getX());
+    ::printExpression(os, getX(), inductions);
     os << ")";
   }
 
@@ -6997,10 +7073,12 @@ namespace mlir::modelica
     }
   }
 
-  void CeilOp::printExpression(llvm::raw_ostream& os)
+  void CeilOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "ceil(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7096,10 +7174,12 @@ namespace mlir::modelica
     }
   }
 
-  void CosOp::printExpression(llvm::raw_ostream& os)
+  void CosOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "cos(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7228,10 +7308,12 @@ namespace mlir::modelica
     }
   }
 
-  void CoshOp::printExpression(llvm::raw_ostream& os)
+  void CoshOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "cosh(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7326,10 +7408,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void DiagonalOp::printExpression(llvm::raw_ostream& os)
+  void DiagonalOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "diagonal(";
-    ::printExpression(os, getValues());
+    ::printExpression(os, getValues(), inductions);
     os << ")";
   }
 }
@@ -7379,12 +7463,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void DivTruncOp::printExpression(llvm::raw_ostream& os)
+  void DivTruncOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "div(";
-    ::printExpression(os, getX());
+    ::printExpression(os, getX(), inductions);
     os << ", ";
-    ::printExpression(os, getY());
+    ::printExpression(os, getY(), inductions);
     os << ")";
   }
 }
@@ -7446,10 +7532,12 @@ namespace mlir::modelica
     }
   }
 
-  void ExpOp::printExpression(llvm::raw_ostream& os)
+  void ExpOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "exp(";
-    ::printExpression(os, getExponent());
+    ::printExpression(os, getExponent(), inductions);
     os << ")";
   }
 
@@ -7538,10 +7626,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void FillOp::printExpression(llvm::raw_ostream& os)
+  void FillOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "fill(";
-    ::printExpression(os, getValue());
+    ::printExpression(os, getValue(), inductions);
     os << ")";
   }
 }
@@ -7601,10 +7691,12 @@ namespace mlir::modelica
     }
   }
 
-  void FloorOp::printExpression(llvm::raw_ostream& os)
+  void FloorOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "floor(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7664,10 +7756,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void IdentityOp::printExpression(llvm::raw_ostream& os)
+  void IdentityOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "identity(";
-    ::printExpression(os, getSize());
+    ::printExpression(os, getSize(), inductions);
     os << ")";
   }
 }
@@ -7727,10 +7821,12 @@ namespace mlir::modelica
     }
   }
 
-  void IntegerOp::printExpression(llvm::raw_ostream& os)
+  void IntegerOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "integer(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7790,14 +7886,16 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void LinspaceOp::printExpression(llvm::raw_ostream& os)
+  void LinspaceOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "linspace(";
-    ::printExpression(os, getBegin());
+    ::printExpression(os, getBegin(), inductions);
     os << ", ";
-    ::printExpression(os, getEnd());
+    ::printExpression(os, getEnd(), inductions);
     os << ", ";
-    ::printExpression(os, getAmount());
+    ::printExpression(os, getAmount(), inductions);
     os << ")";
   }
 }
@@ -7859,10 +7957,12 @@ namespace mlir::modelica
     }
   }
 
-  void LogOp::printExpression(llvm::raw_ostream& os)
+  void LogOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "log(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -7988,10 +8088,12 @@ namespace mlir::modelica
     }
   }
 
-  void Log10Op::printExpression(llvm::raw_ostream& os)
+  void Log10Op::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "log10(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -8223,14 +8325,16 @@ namespace mlir::modelica
     }
   }
 
-  void MaxOp::printExpression(llvm::raw_ostream& os)
+  void MaxOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "max(";
-    ::printExpression(os, getFirst());
+    ::printExpression(os, getFirst(), inductions);
 
     if (mlir::Value second = getSecond()) {
       os << ", ";
-      ::printExpression(os, second);
+      ::printExpression(os, second, inductions);
     }
 
     os << ")";
@@ -8392,14 +8496,16 @@ namespace mlir::modelica
     }
   }
 
-  void MinOp::printExpression(llvm::raw_ostream& os)
+  void MinOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "min(";
-    ::printExpression(os, getFirst());
+    ::printExpression(os, getFirst(), inductions);
 
     if (mlir::Value second = getSecond()) {
       os << ", ";
-      ::printExpression(os, second);
+      ::printExpression(os, second, inductions);
     }
 
     os << ")";
@@ -8463,12 +8569,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void ModOp::printExpression(llvm::raw_ostream& os)
+  void ModOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "mod(";
-    ::printExpression(os, getX());
+    ::printExpression(os, getX(), inductions);
     os << ", ";
-    ::printExpression(os, getY());
+    ::printExpression(os, getY(), inductions);
     os << ")";
   }
 }
@@ -8478,10 +8586,12 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  void NDimsOp::printExpression(llvm::raw_ostream& os)
+  void NDimsOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "ndims(";
-    ::printExpression(os, getArray());
+    ::printExpression(os, getArray(), inductions);
     os << ")";
   }
 }
@@ -8507,12 +8617,14 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void OnesOp::printExpression(llvm::raw_ostream& os)
+  void OnesOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "ones(";
 
     llvm::interleaveComma(getSizes(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ")";
@@ -8535,10 +8647,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void ProductOp::printExpression(llvm::raw_ostream& os)
+  void ProductOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "product(";
-    ::printExpression(os, getArray());
+    ::printExpression(os, getArray(), inductions);
     os << ")";
   }
 }
@@ -8588,12 +8702,14 @@ namespace mlir::modelica
     return {};
   }
 
-  void RemOp::printExpression(llvm::raw_ostream& os)
+  void RemOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "rem(";
-    ::printExpression(os, getX());
+    ::printExpression(os, getX(), inductions);
     os << ", ";
-    ::printExpression(os, getY());
+    ::printExpression(os, getY(), inductions);
     os << ")";
   }
 }
@@ -8667,10 +8783,12 @@ namespace mlir::modelica
     }
   }
 
-  void SignOp::printExpression(llvm::raw_ostream& os)
+  void SignOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "sign(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -8764,10 +8882,12 @@ namespace mlir::modelica
     }
   }
 
-  void SinOp::printExpression(llvm::raw_ostream& os)
+  void SinOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "sin(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -8891,10 +9011,12 @@ namespace mlir::modelica
     }
   }
 
-  void SinhOp::printExpression(llvm::raw_ostream& os)
+  void SinhOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "sinh(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -9072,14 +9194,16 @@ namespace mlir::modelica
     }
   }
 
-  void SizeOp::printExpression(llvm::raw_ostream& os)
+  void SizeOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "size(";
-    ::printExpression(os, getArray());
+    ::printExpression(os, getArray(), inductions);
 
     if (mlir::Value dimension = getDimension()) {
       os << ", ";
-      ::printExpression(os, dimension);
+      ::printExpression(os, dimension, inductions);
     }
 
     os << ")";
@@ -9118,10 +9242,12 @@ namespace mlir::modelica
     return {};
   }
 
-  void SqrtOp::printExpression(llvm::raw_ostream& os)
+  void SqrtOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "sqrt(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -9239,10 +9365,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void SumOp::printExpression(llvm::raw_ostream& os)
+  void SumOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "sum(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 }
@@ -9273,10 +9401,12 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void SymmetricOp::printExpression(llvm::raw_ostream& os)
+  void SymmetricOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "symmetric(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 }
@@ -9338,10 +9468,12 @@ namespace mlir::modelica
     }
   }
 
-  void TanOp::printExpression(llvm::raw_ostream& os)
+  void TanOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "tan(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -9474,10 +9606,12 @@ namespace mlir::modelica
     }
   }
 
-  void TanhOp::printExpression(llvm::raw_ostream& os)
+  void TanhOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "tanh(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 
@@ -9581,10 +9715,12 @@ namespace mlir::modelica
     }
   }
 
-  void TransposeOp::printExpression(llvm::raw_ostream& os)
+  void TransposeOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "transpose(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 }
@@ -9610,12 +9746,14 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
-  void ZerosOp::printExpression(llvm::raw_ostream& os)
+  void ZerosOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "zeros(";
 
     llvm::interleaveComma(getSizes(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ")";
@@ -9728,7 +9866,9 @@ namespace mlir::modelica
     return builder.createBlock(&getExpressionRegion(), {}, argTypes, argLocs);
   }
 
-  void ReductionOp::printExpression(llvm::raw_ostream& os)
+  void ReductionOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << getAction();
     os << "(";
@@ -9736,7 +9876,7 @@ namespace mlir::modelica
     auto terminator = mlir::cast<YieldOp>(getBody()->getTerminator());
 
     llvm::interleaveComma(terminator.getValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << " for ";
@@ -9753,7 +9893,7 @@ namespace mlir::modelica
     os << " in ";
 
     llvm::interleaveComma(iterables, os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ")";
@@ -10186,10 +10326,12 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  void DerOp::printExpression(llvm::raw_ostream& os)
+  void DerOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "der(";
-    ::printExpression(os, getOperand());
+    ::printExpression(os, getOperand(), inductions);
     os << ")";
   }
 }
@@ -10199,7 +10341,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  void TimeOp::printExpression(llvm::raw_ostream& os)
+  void TimeOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << "time";
   }
@@ -10442,9 +10586,16 @@ namespace mlir::modelica
     mlir::Value lhs = getValueAtPath(EquationPath(EquationPath::LEFT, 0));
     mlir::Value rhs = getValueAtPath(EquationPath(EquationPath::RIGHT, 0));
 
-    ::printExpression(os, lhs);
+    llvm::DenseMap<mlir::Value, int64_t> inductions;
+    auto inductionVars = getInductionVariables();
+
+    for (size_t i = 0, e = inductionVars.size(); i < e; ++i) {
+      inductions[inductionVars[i]] = static_cast<int64_t>(i);
+    }
+
+    ::printExpression(os, lhs, inductions);
     os << " = ";
-    ::printExpression(os, rhs);
+    ::printExpression(os, rhs, inductions);
   }
 
   mlir::ValueRange EquationTemplateOp::getInductionVariables()
@@ -14003,12 +14154,14 @@ namespace mlir::modelica
     return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
-  void CallOp::printExpression(llvm::raw_ostream& os)
+  void CallOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
     os << getCallee() << "(";
 
     llvm::interleaveComma(getArgs(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp);
+      ::printExpression(os, exp, inductions);
     });
 
     os << ")";
@@ -14580,9 +14733,11 @@ namespace mlir::modelica
     return {};
   }
 
-  void CastOp::printExpression(llvm::raw_ostream& os)
+  void CastOp::printExpression(
+      llvm::raw_ostream& os,
+      const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
-    ::printExpression(os, getValue());
+    ::printExpression(os, getValue(), inductions);
   }
 
   mlir::ValueRange CastOp::derive(
