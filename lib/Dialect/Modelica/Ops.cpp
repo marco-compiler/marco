@@ -11845,7 +11845,7 @@ namespace mlir::modelica
     auto requestedIndices = requestedAccessFunction.map(equationIndices);
 
     for (const VariableAccess& access : accesses) {
-      if (access.getVariable() != access.getVariable()) {
+      if (access.getVariable() != requestedAccess.getVariable()) {
         continue;
       }
 
