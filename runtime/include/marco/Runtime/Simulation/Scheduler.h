@@ -36,6 +36,9 @@ namespace marco::runtime
     private:
       void initialize();
 
+      [[maybe_unused, nodiscard]] bool checkEquationScheduledExactlyOnce(
+          const Equation& equation) const;
+
     private:
       bool initialized{false};
       std::vector<Equation> equations;

@@ -3,8 +3,7 @@
 #include "marco/Runtime/Simulation/Options.h"
 #include <atomic>
 #include <cassert>
-
-#include <iostream>
+#include <optional>
 
 using namespace ::marco::runtime;
 
@@ -93,17 +92,22 @@ namespace marco::runtime
       }
 
       if (shouldSplitIndices) {
-        uint64_t chunkSize =
+        uint64_t idealChunkSize =
             std::max(flatSize / numOfThreads, static_cast<uint64_t>(1));
 
         uint64_t equationFlatIndex = 0;
+        size_t equationRank = equation.indices.size();
 
         // Divide the ranges into chunks.
         while (equationFlatIndex < flatSize) {
           uint64_t beginFlatIndex = equationFlatIndex;
 
           uint64_t endFlatIndex = std::min(
-              beginFlatIndex + static_cast<uint64_t>(chunkSize), flatSize);
+              beginFlatIndex +static_cast<uint64_t>(idealChunkSize),
+              flatSize);
+
+          assert(endFlatIndex > 0);
+          --endFlatIndex;
 
           std::vector<int64_t> beginIndices;
           std::vector<int64_t> endIndices;
@@ -111,29 +115,109 @@ namespace marco::runtime
           getIndicesFromFlatIndex(
               beginFlatIndex, beginIndices, equation.indices);
 
-          if (endFlatIndex == flatSize) {
-            endIndices.clear();
+          getIndicesFromFlatIndex(
+              endFlatIndex, endIndices, equation.indices);
 
-            for (const Range& range : equation.indices) {
-              endIndices.push_back(range.end);
+          assert(beginIndices.size() == equationRank);
+          assert(endIndices.size() == equationRank);
+
+          std::vector<std::vector<int64_t>> unwrappingBeginIndices;
+          std::vector<std::vector<int64_t>> unwrappingEndIndices;
+
+          // We need to detect if some of the dimensions do wrap around.
+          // In this case, the indices must be split into multiple ranges.
+          std::optional<size_t> increasingDimension = std::nullopt;
+
+          for (size_t dim = 0; dim < equationRank; ++dim) {
+            if (endIndices[dim] > beginIndices[dim] &&
+                dim + 1 != equationRank) {
+              increasingDimension = dim;
+              break;
             }
+          }
+
+          if (increasingDimension) {
+            std::vector<int64_t> currentBeginIndices(beginIndices);
+            std::vector<int64_t> currentEndIndices(beginIndices);
+            currentEndIndices.back() = equation.indices.back().end - 1;
+
+            unwrappingBeginIndices.push_back(currentBeginIndices);
+            unwrappingEndIndices.push_back(currentEndIndices);
+
+            for (size_t i = 0, e = equationRank - *increasingDimension - 2;
+                 i < e; ++i) {
+              currentBeginIndices[equationRank - i - 1] = 0;
+              ++currentBeginIndices[equationRank - i - 2];
+
+              currentEndIndices[equationRank - i - 2] =
+                  equation.indices[equationRank - i - 2].end;
+
+              unwrappingBeginIndices.push_back(currentBeginIndices);
+              unwrappingEndIndices.push_back(currentEndIndices);
+            }
+
+            currentBeginIndices[*increasingDimension + 1] = 0;
+
+            if (endIndices[*increasingDimension] -
+                    beginIndices[*increasingDimension] > 1) {
+              ++currentBeginIndices[*increasingDimension];
+
+              currentEndIndices[*increasingDimension] =
+                  endIndices[*increasingDimension] - 1;
+
+              unwrappingBeginIndices.push_back(currentBeginIndices);
+              unwrappingEndIndices.push_back(currentEndIndices);
+            }
+
+            for (size_t i = 0, e = equationRank - *increasingDimension - 1;
+                 i < e; ++i) {
+              currentBeginIndices[*increasingDimension + i] =
+                  endIndices[*increasingDimension + i];
+
+              currentEndIndices[*increasingDimension + i] =
+                  endIndices[*increasingDimension + i];
+
+              currentEndIndices[*increasingDimension + i + 1] =
+                  endIndices[*increasingDimension + i + 1];
+
+              if (currentEndIndices[*increasingDimension + i + 1] != 0) {
+                --currentEndIndices[*increasingDimension + i + 1];
+                unwrappingBeginIndices.push_back(currentBeginIndices);
+                unwrappingEndIndices.push_back(currentEndIndices);
+              }
+            }
+
+            currentBeginIndices.back() = endIndices.back();
+            currentEndIndices.back() = endIndices.back();
+            unwrappingBeginIndices.push_back(currentBeginIndices);
+            unwrappingEndIndices.push_back(currentEndIndices);
           } else {
-            getIndicesFromFlatIndex(
-                endFlatIndex, endIndices, equation.indices);
+            unwrappingBeginIndices.push_back(std::move(beginIndices));
+            unwrappingEndIndices.push_back(std::move(endIndices));
           }
 
-          assert(beginIndices.size() == endIndices.size());
-          std::vector<int64_t> ranges;
+          assert(unwrappingBeginIndices.size() == unwrappingEndIndices.size());
 
-          for (size_t i = 0, e = beginIndices.size(); i < e; ++i) {
-            ranges.push_back(beginIndices[i]);
-            ranges.push_back(endIndices[i]);
+          for (size_t i = 0, e = unwrappingBeginIndices.size(); i < e; ++i) {
+            std::vector<int64_t> ranges;
+
+            for (size_t j = 0; j < equationRank; ++j) {
+              const auto& currentBeginIndices = unwrappingBeginIndices[i];
+              const auto& currentEndIndices = unwrappingEndIndices[i];
+
+              assert(currentBeginIndices[j] <= currentEndIndices[j]);
+              ranges.push_back(currentBeginIndices[j]);
+              ranges.push_back(currentEndIndices[j] + 1);
+            }
+
+            threadEquationsChunks.emplace_back(equation, ranges);
           }
 
-          threadEquationsChunks.emplace_back(equation, std::move(ranges));
+          // Move to the next chunks.
+          endFlatIndex = getFlatIndex(
+              unwrappingEndIndices.back(), equation.indices);
 
-          // Move to the next chunk.
-          equationFlatIndex = endFlatIndex;
+          equationFlatIndex = endFlatIndex + 1;
         }
       } else {
         std::vector<int64_t> ranges;
@@ -143,11 +227,64 @@ namespace marco::runtime
           ranges.push_back(range.end);
         }
 
-        threadEquationsChunks.emplace_back(equation, std::move(ranges));
+        threadEquationsChunks.emplace_back(equation, ranges);
+      }
+
+      assert(checkEquationScheduledExactlyOnce(equation));
+    }
+
+    assert(std::all_of(
+               equations.begin(), equations.end(),
+               [&](const Equation& equation) {
+                 return checkEquationScheduledExactlyOnce(equation);
+               }) && "Not all the equations are scheduled exactly once");
+
+    initialized = true;
+  }
+
+  bool Scheduler::checkEquationScheduledExactlyOnce(
+      const Equation& equation) const
+  {
+    auto beginIndicesIt =
+        MultidimensionalRangeIterator::begin(equation.indices);
+
+    auto endIndicesIt =
+        MultidimensionalRangeIterator::end(equation.indices);
+
+    size_t rank = equation.indices.size();
+
+    for (auto it = beginIndicesIt; it != endIndicesIt; ++it) {
+      std::vector<int64_t> indices;
+
+      for (size_t dim = 0; dim < rank; ++dim) {
+        indices.push_back((*it)[dim]);
+      }
+
+      size_t chunksCount = std::count_if(
+          threadEquationsChunks.begin(), threadEquationsChunks.end(),
+          [&](const ThreadEquationsChunk& chunk) {
+            if (chunk.first.function != equation.function) {
+              return false;
+            }
+
+            bool containsPoint = true;
+
+            for (size_t dim = 0; dim < rank && containsPoint; ++dim) {
+              if (!(indices[dim] >= chunk.second[dim * 2] &&
+                  indices[dim] < chunk.second[dim * 2 + 1])) {
+                containsPoint = false;
+              }
+            }
+
+            return containsPoint;
+          });
+
+      if (chunksCount != 1) {
+        return false;
       }
     }
 
-    initialized = true;
+    return true;
   }
 }
 
