@@ -1079,8 +1079,7 @@ namespace marco::codegen::lowering
       shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
     }
 
-    auto resultType = ArrayType::get(
-        shape, IntegerType::get(builder().getContext()));
+    auto resultType = ArrayType::get(shape, value.getType());
 
     mlir::Value result = builder().create<FillOp>(
         loc(call.getLocation()), resultType, value);
