@@ -126,6 +126,12 @@ namespace marco::modeling
     return obj.impl->dump(os);
   }
 
+  llvm::raw_ostream& IndexSet::dump(llvm::raw_ostream& os) const
+  {
+    assert(impl != nullptr);
+    return impl->dump(os);
+  }
+
   bool IndexSet::operator==(const Point& rhs) const
   {
     assert(impl != nullptr);
