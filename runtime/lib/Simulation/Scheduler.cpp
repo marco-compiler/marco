@@ -230,7 +230,7 @@ namespace marco::runtime
           equationFlatIndex = endFlatIndex + 1;
 
           // Create a new chunks group if necessary.
-          chunksGroupSize += endFlatIndex - beginFlatIndex;
+          chunksGroupSize += equationFlatIndex - beginFlatIndex;
 
           if (chunksGroupSize >= chunksGroupMaxSize) {
             pushChunksGroupFn();
@@ -271,6 +271,10 @@ namespace marco::runtime
           }
         }
       }
+    }
+
+    if (chunksGroupSize != 0) {
+      pushChunksGroupFn();
     }
 
     assert(std::all_of(
