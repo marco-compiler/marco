@@ -53,7 +53,7 @@ namespace marco::runtime
       // one chunk at a time.
       // The information is computed only once during the initialization to
       // save time during the simulation.
-      std::vector<ThreadEquationsChunk> threadEquationsChunks;
+      std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
   };
 }
 

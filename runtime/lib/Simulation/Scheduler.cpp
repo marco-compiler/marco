@@ -51,19 +51,21 @@ namespace marco::runtime
 
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
-    std::atomic_size_t chunkIndex = 0;
+    std::atomic_size_t chunksGroupIndex = 0;
 
     for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
       threadPool.async([&]() {
-        size_t assignedChunk;
+        size_t assignedChunksGroup;
 
-        while ((assignedChunk = chunkIndex++) < threadEquationsChunks.size()) {
-          const ThreadEquationsChunk& chunk =
-              threadEquationsChunks[assignedChunk];
+        while ((assignedChunksGroup = chunksGroupIndex++) <
+               threadEquationsChunks.size()) {
+          const auto& chunksGroup = threadEquationsChunks[assignedChunksGroup];
 
-          const Equation& equation = chunk.first;
-          const auto& ranges = chunk.second;
-          equation.function(ranges.data());
+          for (const ThreadEquationsChunk& chunk : chunksGroup) {
+            const Equation& equation = chunk.first;
+            const auto& ranges = chunk.second;
+            equation.function(ranges.data());
+          }
         }
       });
     }
@@ -77,24 +79,32 @@ namespace marco::runtime
 
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
+    int64_t chunksFactor = simulation::getOptions().equationsChunksFactor;
+    int64_t numOfChunks = numOfThreads * chunksFactor;
 
-    int64_t chunksFactor = simulation::getOptions().threadEquationChunks;
-    int64_t minNumOfEquations = numOfThreads * chunksFactor;
+    uint64_t numOfScalarEquations = 0;
 
     for (const Equation& equation : equations) {
-      bool shouldSplitIndices = equation.independentIndices;
+      numOfScalarEquations += getFlatSize(equation.indices);
+    }
+
+    size_t chunksGroupMaxSize =
+        (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
+
+    std::vector<ThreadEquationsChunk> chunksGroup;
+    size_t chunksGroupSize = 0;
+
+    auto pushChunksGroupFn = [&]() {
+      threadEquationsChunks.push_back(std::move(chunksGroup));
+      chunksGroup.clear();
+      chunksGroupSize = 0;
+    };
+
+    for (const Equation& equation : equations) {
       uint64_t flatSize = getFlatSize(equation.indices);
+      size_t remainingSpace = chunksGroupMaxSize - chunksGroupSize;
 
-      if (shouldSplitIndices) {
-        // Avoid splitting the indices until a certain amount of equations.
-        shouldSplitIndices &=
-            static_cast<int64_t>(flatSize) >= minNumOfEquations;
-      }
-
-      if (shouldSplitIndices) {
-        uint64_t idealChunkSize =
-            std::max(flatSize / numOfThreads, static_cast<uint64_t>(1));
-
+      if (equation.independentIndices) {
         uint64_t equationFlatIndex = 0;
         size_t equationRank = equation.indices.size();
 
@@ -103,7 +113,7 @@ namespace marco::runtime
           uint64_t beginFlatIndex = equationFlatIndex;
 
           uint64_t endFlatIndex = std::min(
-              beginFlatIndex +static_cast<uint64_t>(idealChunkSize),
+              beginFlatIndex +static_cast<uint64_t>(remainingSpace),
               flatSize);
 
           assert(endFlatIndex > 0);
@@ -210,7 +220,7 @@ namespace marco::runtime
               ranges.push_back(currentEndIndices[j] + 1);
             }
 
-            threadEquationsChunks.emplace_back(equation, ranges);
+            chunksGroup.emplace_back(equation, ranges);
           }
 
           // Move to the next chunks.
@@ -218,8 +228,16 @@ namespace marco::runtime
               unwrappingEndIndices.back(), equation.indices);
 
           equationFlatIndex = endFlatIndex + 1;
+
+          // Create a new chunks group if necessary.
+          chunksGroupSize += endFlatIndex - beginFlatIndex;
+
+          if (chunksGroupSize >= chunksGroupMaxSize) {
+            pushChunksGroupFn();
+          }
         }
       } else {
+        // All the indices must be visited by a single thread.
         std::vector<int64_t> ranges;
 
         for (const Range& range : equation.indices) {
@@ -227,10 +245,32 @@ namespace marco::runtime
           ranges.push_back(range.end);
         }
 
-        threadEquationsChunks.emplace_back(equation, ranges);
-      }
+        if (flatSize <= remainingSpace) {
+          // There is still space in the current chunks group.
+          chunksGroup.emplace_back(equation, ranges);
+          chunksGroupSize += flatSize;
 
-      assert(checkEquationScheduledExactlyOnce(equation));
+          if (chunksGroupSize >= chunksGroupMaxSize) {
+            pushChunksGroupFn();
+          }
+        } else {
+          if (flatSize >= chunksGroupMaxSize) {
+            // Independent chunks group exceeding the maximum number of
+            // equations inside a chunk.
+            std::vector<ThreadEquationsChunk> independentChunksGroup;
+            independentChunksGroup.emplace_back(equation, ranges);
+            threadEquationsChunks.push_back(std::move(independentChunksGroup));
+          } else {
+            pushChunksGroupFn();
+            chunksGroup.emplace_back(equation, ranges);
+            chunksGroupSize += flatSize;
+
+            if (chunksGroupSize >= chunksGroupMaxSize) {
+              pushChunksGroupFn();
+            }
+          }
+        }
+      }
     }
 
     assert(std::all_of(
@@ -260,24 +300,28 @@ namespace marco::runtime
         indices.push_back((*it)[dim]);
       }
 
-      size_t chunksCount = std::count_if(
-          threadEquationsChunks.begin(), threadEquationsChunks.end(),
-          [&](const ThreadEquationsChunk& chunk) {
-            if (chunk.first.function != equation.function) {
-              return false;
-            }
+      size_t chunksCount = 0;
 
-            bool containsPoint = true;
-
-            for (size_t dim = 0; dim < rank && containsPoint; ++dim) {
-              if (!(indices[dim] >= chunk.second[dim * 2] &&
-                  indices[dim] < chunk.second[dim * 2 + 1])) {
-                containsPoint = false;
+      for (const auto& chunksGroup : threadEquationsChunks) {
+        chunksCount += std::count_if(
+            chunksGroup.begin(), chunksGroup.end(),
+            [&](const ThreadEquationsChunk& chunk) {
+              if (chunk.first.function != equation.function) {
+                return false;
               }
-            }
 
-            return containsPoint;
-          });
+              bool containsPoint = true;
+
+              for (size_t dim = 0; dim < rank && containsPoint; ++dim) {
+                if (!(indices[dim] >= chunk.second[dim * 2] &&
+                      indices[dim] < chunk.second[dim * 2 + 1])) {
+                  containsPoint = false;
+                }
+              }
+
+              return containsPoint;
+            });
+      }
 
       if (chunksCount != 1) {
         return false;

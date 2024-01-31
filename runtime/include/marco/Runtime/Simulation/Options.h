@@ -14,7 +14,7 @@ namespace marco::runtime::simulation
     // of equations chunks.
     // In other words, it is the amount of chunks each thread would process in
     // a perfectly balanced scenario.
-    int64_t threadEquationChunks = 10;
+    int64_t equationsChunksFactor = 10;
   };
 
   Options& getOptions();

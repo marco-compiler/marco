@@ -16,7 +16,7 @@ namespace marco::runtime::simulation
   {
     os << "  --start-time=<value>         Set the start time (in seconds)." << std::endl;
     os << "  --end-time=<value>           Set the end time (in seconds)." << std::endl;
-    os << "  --thread-equation-chunks     Set the amount of equation chunks each thread would process in a perfectly balanced scenario." << std::endl;
+    os << "  --equations-chunks-factor    Set the amount of equation chunks each thread would process in a perfectly balanced scenario." << std::endl;
   }
 
   void CommandLineOptions::parseCommandLineOptions(
@@ -24,7 +24,7 @@ namespace marco::runtime::simulation
   {
     options("start-time") >> getOptions().startTime;
     options("end-time") >> getOptions().endTime;
-    options("thread-equation-chunks") >> getOptions().threadEquationChunks;
+    options("equations-chunks-factor") >> getOptions().equationsChunksFactor;
   }
 
   std::unique_ptr<cli::Category> getCLIOptions()
