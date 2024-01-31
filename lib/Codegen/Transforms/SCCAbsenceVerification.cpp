@@ -32,7 +32,7 @@ void SCCAbsenceVerification::runOnOperation()
 
   if (!SCCs.empty()) {
     for (SCCOp scc : SCCs) {
-      scc.emitError() << "unsolved cycle";
+      scc.emitError() << "unsolved SCC";
     }
 
     signalPassFailure();
