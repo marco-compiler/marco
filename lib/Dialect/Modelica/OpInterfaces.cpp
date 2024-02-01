@@ -7,7 +7,14 @@ namespace mlir::modelica
   uint64_t AdditionalInductions::addIterationSpace(IndexSet iterationSpace)
   {
     auto id = static_cast<uint64_t>(iterationSpaces.size());
+    size_t rank = iterationSpace.rank();
     iterationSpaces.push_back(std::move(iterationSpace));
+    dependencies[id] = IterationSpaceDependencies();
+
+    for (size_t i = 0; i < rank; ++i) {
+      dependencies[id][i] = {};
+    }
+
     return id;
   }
 

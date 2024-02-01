@@ -62,8 +62,16 @@ namespace mlir::modelica
           uint64_t iterationSpace, uint64_t dimension, uint64_t dependency);
 
     private:
+      // The list of iteration spaces.
       llvm::SmallVector<IndexSet> iterationSpaces;
+
+      // Map an SSA to the dimension of an iteration space.
+      // The first element of the pair represents the iteration space ID, while
+      // the second one represent the linked dimension.
       llvm::DenseMap<mlir::Value, std::pair<uint64_t, uint64_t>> inductions;
+
+      // For each iteration space, keep track of the dependencies among its
+      // dimensions.
       llvm::DenseMap<uint64_t, IterationSpaceDependencies> dependencies;
   };
 }

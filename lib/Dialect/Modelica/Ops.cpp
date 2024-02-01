@@ -9939,7 +9939,7 @@ namespace mlir::modelica
         Range range(lowerBound, upperBound);
         indices = indices.append(IndexSet(MultidimensionalRange(range)));
 
-        int64_t currentDimension = static_cast<uint64_t>(indices.rank() - 1);
+        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
         inductionsMap.emplace_back(induction, currentDimension);
 
         continue;
@@ -9957,7 +9957,7 @@ namespace mlir::modelica
         Range range(lowerBound, upperBound);
         indices = indices.append(IndexSet(MultidimensionalRange(range)));
 
-        int64_t currentDimension = static_cast<uint64_t>(indices.rank() - 1);
+        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
         inductionsMap.emplace_back(induction, currentDimension);
 
         continue;
