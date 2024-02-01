@@ -62,7 +62,8 @@ namespace
           llvm::SmallVectorImpl<uint64_t>& upperBounds,
           llvm::SmallVectorImpl<uint64_t>& steps);
 
-      llvm::SmallVector<mlir::Value> shiftInductions(
+      void shiftInductions(
+          llvm::SmallVectorImpl<mlir::Value>& shiftedInductions,
           mlir::RewriterBase& rewriter,
           mlir::ArrayAttr iterationDirections,
           const MultidimensionalRange& indices,
@@ -292,6 +293,8 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
   mlir::Block* entryBlock = eqFunc.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
 
+  llvm::SmallVector<mlir::Value> shiftedInductions;
+
   if (auto indicesAttr = equation.getIndices()) {
     size_t rank = indicesAttr->getValue().rank();
     auto iterationDirections = equation.getIterationDirections();
@@ -337,36 +340,37 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
       rewriter.setInsertionPointToStart(forOp.getBody());
     }
 
-    auto shiftedInductions = shiftInductions(
-        rewriter, iterationDirections, indicesAttr->getValue(),
-        inductions);
-
-    if (mlir::failed(cloneEquationTemplateIntoFunction(
-            rewriter, symbolTableCollection, modelOp, equation.getTemplate(),
-            shiftedInductions))) {
-      return nullptr;
-    }
-  } else {
-    if (mlir::failed(cloneEquationTemplateIntoFunction(
-            rewriter, symbolTableCollection, modelOp, equation.getTemplate(),
-            std::nullopt))) {
-      return nullptr;
-    }
+    shiftInductions(shiftedInductions, rewriter, iterationDirections,
+                    indicesAttr->getValue(), inductions);
   }
+
+  if (mlir::failed(cloneEquationTemplateIntoFunction(
+          rewriter, symbolTableCollection, modelOp, equation.getTemplate(),
+          shiftedInductions))) {
+    return nullptr;
+  }
+
+  // Replace the VariableGetOps.
+  eqFunc.walk([&](VariableGetOp getOp) {
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, getOp.getVariableAttr());
+
+    rewriter.setInsertionPoint(getOp);
+    rewriter.replaceOpWithNewOp<QualifiedVariableGetOp>(getOp, variableOp);
+  });
 
   rewriter.setInsertionPointToEnd(entryBlock);
   rewriter.create<YieldOp>(eqFunc.getLoc());
   return eqFunc;
 }
 
-llvm::SmallVector<mlir::Value> EquationExplicitationPass::shiftInductions(
+void EquationExplicitationPass::shiftInductions(
+    llvm::SmallVectorImpl<mlir::Value>& shiftedInductions,
     mlir::RewriterBase& rewriter,
     mlir::ArrayAttr iterationDirections,
     const MultidimensionalRange& indices,
     mlir::ValueRange loopInductions)
 {
-  llvm::SmallVector<mlir::Value> mappedInductions;
-
   for (size_t i = 0, e = indices.rank(); i < e; ++i) {
     mlir::Value induction = loopInductions[i];
 
@@ -385,18 +389,16 @@ llvm::SmallVector<mlir::Value> EquationExplicitationPass::shiftInductions(
           induction.getLoc(), rewriter.getIndexType(),
           fromValue, induction);
 
-      mappedInductions.push_back(mappedInduction);
+      shiftedInductions.push_back(mappedInduction);
     } else {
       assert(iterationDirection == EquationScheduleDirection::Backward);
       mlir::Value mappedInduction = rewriter.create<mlir::arith::SubIOp>(
           induction.getLoc(), rewriter.getIndexType(),
           fromValue, induction);
 
-      mappedInductions.push_back(mappedInduction);
+      shiftedInductions.push_back(mappedInduction);
     }
   }
-
-  return mappedInductions;
 }
 
 mlir::LogicalResult
