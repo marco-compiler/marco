@@ -1100,12 +1100,12 @@ namespace marco::parser
 
       if ((**outputExpressionList).size() == 1) {
         (**outputExpressionList)[0]->setLocation(loc);
-        return std::move((**outputExpressionList)[0]);
+        result = std::move((**outputExpressionList)[0]);
+      } else {
+        auto newResult = std::make_unique<Tuple>(loc);
+        newResult->setExpressions(**outputExpressionList);
+        result = std::move(newResult);
       }
-
-      auto newResult = std::make_unique<Tuple>(loc);
-      newResult->setExpressions(**outputExpressionList);
-      result = std::move(newResult);
 
     } else if (accept<TokenKind::LCurly>()) {
       TRY(arrayArguments, parseArrayArguments());
@@ -1114,6 +1114,7 @@ namespace marco::parser
 
       auto &expressions = arrayArguments->first;
       auto &forIndices = arrayArguments->second;
+
       if (forIndices.empty()) {
         auto newResult = std::make_unique<ArrayConstant>(loc);
         newResult->setValues(expressions);
