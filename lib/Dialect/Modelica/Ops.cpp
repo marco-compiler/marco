@@ -9776,6 +9776,10 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
+    result.addAttribute(
+        getActionAttrName(result.name),
+        parser.getBuilder().getStringAttr(action));
+
     llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand> iterables;
     llvm::SmallVector<mlir::Type> iterablesTypes;
 
@@ -9792,7 +9796,7 @@ namespace mlir::modelica
         parser.parseKeyword("inductions") ||
         parser.parseEqual() ||
         parser.parseArgumentList(
-            inductions, mlir::AsmParser::Delimiter::Square) ||
+            inductions, mlir::AsmParser::Delimiter::Square, true) ||
         parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
         parser.parseRegion(*expressionRegion, inductions) ||
         parser.parseColon() ||
@@ -9806,13 +9810,15 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
+    result.addTypes(resultType);
+
     return mlir::success();
   }
 
   void ReductionOp::print(mlir::OpAsmPrinter& printer)
   {
-    printer << " " << getAction()
-            << ", iterables = [" << getIterables()
+    printer << " \"" << getAction()
+            << "\", iterables = [" << getIterables()
             << "], inductions = [";
 
     for (size_t i = 0, e = getInductions().size(); i < e; ++i) {
@@ -9870,30 +9876,40 @@ namespace mlir::modelica
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
   {
+    // Add the inductions to the inductions map.
+    llvm::DenseMap<mlir::Value, int64_t> expandedInductions(inductions);
+    auto inductionValues = getInductions();
+
+    for (mlir::Value inductionValue : inductionValues) {
+      auto id = static_cast<int64_t>(expandedInductions.size());
+      expandedInductions[inductionValue] = id;
+    }
+
+    // Print the operation.
     os << getAction();
     os << "(";
 
     auto terminator = mlir::cast<YieldOp>(getBody()->getTerminator());
 
     llvm::interleaveComma(terminator.getValues(), os, [&](mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
+      ::printExpression(os, exp, expandedInductions);
     });
 
     os << " for ";
     auto iterables = getIterables();
 
-    for (size_t i = 0, e = iterables.size(); i < e; ++i) {
+    for (size_t i = 0, e = inductionValues.size(); i < e; ++i) {
       if (i != 0) {
         os << ", ";
       }
 
-      os << "i" << i;
+      ::printExpression(os, inductionValues[i], expandedInductions);
     }
 
     os << " in ";
 
     llvm::interleaveComma(iterables, os, [&](mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
+      ::printExpression(os, exp, expandedInductions);
     });
 
     os << ")";
@@ -9936,7 +9952,7 @@ namespace mlir::modelica
         auto upperBound = static_cast<Range::data_type>(
             rangeAttr.getUpperBound());
 
-        Range range(lowerBound, upperBound);
+        Range range(lowerBound, upperBound + 1);
         indices = indices.append(IndexSet(MultidimensionalRange(range)));
 
         auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
