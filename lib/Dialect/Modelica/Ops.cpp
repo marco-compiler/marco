@@ -278,20 +278,20 @@ namespace mlir::modelica
     }
 
     if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
-      int64_t lowerBound = intRange.getLowerBound();
-      int64_t upperBound = intRange.getUpperBound();
+      int64_t beginValue = intRange.getLowerBound();
+      int64_t endValue = intRange.getUpperBound();
       int64_t step = intRange.getStep();
-      int64_t result = 1 + (upperBound - lowerBound) / step;
+      int64_t result = 1 + (endValue - beginValue) / step;
 
       return mlir::IntegerAttr::get(
           mlir::IndexType::get(getContext()), result);
     }
 
     if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
-      double lowerBound = realRange.getLowerBound().convertToDouble();
-      double upperBound = realRange.getUpperBound().convertToDouble();
+      double beginValue = realRange.getLowerBound().convertToDouble();
+      double endValue = realRange.getUpperBound().convertToDouble();
       double step = realRange.getStep().convertToDouble();
-      double result = 1 + (upperBound - lowerBound) / step;
+      double result = 1 + (endValue - beginValue) / step;
 
       return mlir::IntegerAttr::get(
           mlir::IndexType::get(getContext()),

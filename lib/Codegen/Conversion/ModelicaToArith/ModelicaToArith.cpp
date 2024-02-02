@@ -3579,7 +3579,13 @@ namespace
               loc, indexType, isNonNegativeStep, step, negatedStep);
 
           lowerBounds.push_back(lowerBoundSelectOp.getResult(0));
-          upperBounds.push_back(upperBoundSelectOp.getResult(0));
+
+          mlir::Value upperBound = upperBoundSelectOp.getResult(0);
+
+          upperBound = rewriter.create<AddOp>(
+              loc, upperBound.getType(), upperBound, one);
+
+          upperBounds.push_back(upperBound);
           steps.push_back(stepSelectOp.getResult(0));
         }
 
@@ -3607,7 +3613,7 @@ namespace
         mlir::Value reductionResult = computeReductionResult(
             rewriter, loc, op.getAction(), resultType,
             reduceOp.getReductionOperator().front().getArgument(0),
-            reduceOp.getReductionOperator().front().getArgument(0));
+            reduceOp.getReductionOperator().front().getArgument(1));
 
         rewriter.create<mlir::scf::ReduceReturnOp>(loc, reductionResult);
         rewriter.eraseOp(yieldOp);
@@ -3618,12 +3624,16 @@ namespace
 
         for (auto [oldInduction, newInduction] :
              llvm::zip(op.getInductions(), parallelOp.getInductionVars())) {
-          mlir::Value mapped = rewriter.create<CastOp>(
-              loc, getTypeConverter()->convertType(oldInduction.getType()),
-              newInduction);
+          mlir::Value mapped = newInduction;
 
-          mapped = getTypeConverter()->materializeSourceConversion(
-              rewriter, loc, oldInduction.getType(), mapped);
+          if (mapped.getType() != oldInduction.getType()) {
+            mapped = rewriter.create<CastOp>(
+                loc, getTypeConverter()->convertType(oldInduction.getType()),
+                mapped);
+
+            mapped = getTypeConverter()->materializeSourceConversion(
+                rewriter, loc, oldInduction.getType(), mapped);
+          }
 
           newInductions.push_back(mapped);
         }
