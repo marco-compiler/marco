@@ -101,11 +101,13 @@ namespace mlir::modelica
         functionOp.getLoc(),
         derivativeAttribute.getName());
 
+    builder.createBlock(&derivedFunctionOp.getBodyRegion());
+
     symbolTable.getSymbolTable(symbolTableOp).insert(
         derivedFunctionOp.getOperation());
 
     // Start the body of the function.
-    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
+    builder.setInsertionPointToStart(derivedFunctionOp.getBody());
     mlir::IRMapping mapping;
 
     // Clone the original variables, with the output ones being converted to
@@ -296,7 +298,8 @@ namespace mlir::modelica
     partialDersTemplateCallers[derivedFunctionOp.getSymName()] =
         templateFunction;
 
-    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
+    builder.createBlock(&derivedFunctionOp.getBodyRegion());
+    builder.setInsertionPointToStart(derivedFunctionOp.getBody());
 
     // Declare the variables.
     llvm::SmallVector<VariableOp> inputVariables;
@@ -487,13 +490,15 @@ namespace mlir::modelica
     auto derivedFunctionOp = builder.create<FunctionOp>(
         functionOp.getLoc(), derivedFunctionName);
 
+    builder.createBlock(&derivedFunctionOp.getBodyRegion());
+
     mlir::Operation* parentSymbolTable =
         derivedFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
     symbolTable.getSymbolTable(parentSymbolTable).insert(derivedFunctionOp);
 
     // Start the body of the function.
-    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
+    builder.setInsertionPointToStart(derivedFunctionOp.getBody());
     mlir::IRMapping mapping;
 
     // Clone the variables.

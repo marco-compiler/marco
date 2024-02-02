@@ -19,7 +19,8 @@ namespace marco::codegen::lowering
     auto functionOp = builder().create<FunctionOp>(location, function.getName());
 
     mlir::OpBuilder::InsertionGuard guard(builder());
-    builder().setInsertionPointToStart(functionOp.bodyBlock());
+    builder().createBlock(&functionOp.getBodyRegion());
+    builder().setInsertionPointToStart(functionOp.getBody());
 
     // Declare the inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
@@ -36,7 +37,7 @@ namespace marco::codegen::lowering
     // Get the operation.
     auto functionOp = mlir::cast<FunctionOp>(getClass(function));
     pushLookupScope(functionOp);
-    builder().setInsertionPointToEnd(functionOp.bodyBlock());
+    builder().setInsertionPointToEnd(functionOp.getBody());
 
     // Declare the variables.
     for (const auto& variable : function.getVariables()) {
@@ -59,7 +60,7 @@ namespace marco::codegen::lowering
     // Get the operation.
     auto functionOp = mlir::cast<FunctionOp>(getClass(function));
     pushLookupScope(functionOp);
-    builder().setInsertionPointToEnd(functionOp.bodyBlock());
+    builder().setInsertionPointToEnd(functionOp.getBody());
 
     // Map the variables.
     insertVariable(

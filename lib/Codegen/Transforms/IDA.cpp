@@ -1285,7 +1285,7 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
 
   // Add the time to the input variables (and signature).
   mlir::OpBuilder::InsertionGuard guard(rewriter);
-  rewriter.setInsertionPointToStart(partialDerTemplate.bodyBlock());
+  rewriter.setInsertionPointToStart(partialDerTemplate.getBody());
 
   auto timeVariable = rewriter.create<VariableOp>(
       loc, "time",
@@ -1336,9 +1336,10 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
   // Create the function to be derived.
   auto functionOp = rewriter.create<FunctionOp>(loc, functionOpName);
+  rewriter.createBlock(&functionOp.getBodyRegion());
 
   // Start the body of the function.
-  rewriter.setInsertionPointToStart(functionOp.bodyBlock());
+  rewriter.setInsertionPointToStart(functionOp.getBody());
 
   // Replicate the original independent variables inside the function.
   llvm::StringMap<VariableOp> localVariableOps;

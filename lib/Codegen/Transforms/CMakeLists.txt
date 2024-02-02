@@ -24,6 +24,7 @@ set(SOURCES
     ExplicitStartValueInsertion.cpp
     FunctionInlining.cpp
     FunctionScalarization.cpp
+    FunctionUnwrap.cpp
     IDA.cpp
     InitialConditionsSolving.cpp
     Matching.cpp

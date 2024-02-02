@@ -831,9 +831,10 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 
   // Create the function to be derived.
   auto functionOp = rewriter.create<FunctionOp>(loc, functionOpName);
+  rewriter.createBlock(&functionOp.getBodyRegion());
 
   // Start the body of the function.
-  rewriter.setInsertionPointToStart(functionOp.bodyBlock());
+  rewriter.setInsertionPointToStart(functionOp.getBody());
 
   // Replicate the original independent variables inside the function.
   llvm::StringMap<VariableOp> localVariableOps;

@@ -10118,7 +10118,7 @@ namespace mlir::modelica
       mlir::OperationState& state,
       llvm::StringRef name)
   {
-    build(builder, state, name, builder.getArrayAttr({}));
+    build(builder, state, name, builder.getArrayAttr(std::nullopt));
   }
 
   void ModelOp::getCanonicalizationPatterns(
@@ -13364,68 +13364,6 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  void FunctionOp::build(
-      mlir::OpBuilder& builder,
-      mlir::OperationState& state,
-      llvm::StringRef name)
-  {
-    state.addRegion()->emplaceBlock();
-
-    state.attributes.push_back(builder.getNamedAttr(
-        mlir::SymbolTable::getSymbolAttrName(),
-        builder.getStringAttr(name)));
-  }
-
-  mlir::ParseResult FunctionOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    mlir::StringAttr nameAttr;
-
-    if (parser.parseSymbolName(
-            nameAttr,
-            mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes)) {
-      return mlir::failure();
-    }
-
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    if (bodyRegion->empty()) {
-      bodyRegion->emplaceBlock();
-    }
-
-    return mlir::success();
-  }
-
-  void FunctionOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer.printSymbolName(getSymName());
-
-    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-
-    printer.printOptionalAttrDictWithKeyword(
-        getOperation()->getAttrs(), elidedAttrs);
-
-    printer << " ";
-    printer.printRegion(getBody());
-  }
-
-  mlir::Block* FunctionOp::bodyBlock()
-  {
-    assert(getBody().hasOneBlock());
-    return &getBody().front();
-  }
-
   llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes()
   {
     llvm::SmallVector<mlir::Type> types;
@@ -14117,8 +14055,6 @@ namespace mlir::modelica
 
     return emitOpError() << "'" << getCallee()
                          << "' does not reference a valid function";
-
-    return mlir::failure();
   }
 
   void CallOp::getEffects(

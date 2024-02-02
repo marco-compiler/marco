@@ -85,9 +85,10 @@ namespace
         rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
         auto functionOp = rewriter.create<FunctionOp>(loc, functionName);
+        rewriter.createBlock(&functionOp.getBodyRegion());
 
         // Declare the variables.
-        rewriter.setInsertionPointToStart(functionOp.bodyBlock());
+        rewriter.setInsertionPointToStart(functionOp.getBody());
         mlir::IRMapping mapping;
 
         for (VariableOp variableOp : inputVariables) {
@@ -148,7 +149,7 @@ namespace
 
         // Create the algorithm inside the function and move the original body
         // into it.
-        rewriter.setInsertionPointToEnd(functionOp.bodyBlock());
+        rewriter.setInsertionPointToEnd(functionOp.getBody());
         auto algorithmOp = rewriter.create<AlgorithmOp>(loc);
 
         rewriter.inlineRegionBefore(

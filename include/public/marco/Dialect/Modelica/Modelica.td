@@ -4315,9 +4315,11 @@ def Modelica_AssignmentOp : Modelica_Op<"assignment",
 
 def Modelica_FunctionOp : Modelica_Op<"function",
     [IsolatedFromAbove,
+    NoRegionArguments,
     AutomaticAllocationScope,
     Symbol,
     SymbolTable,
+    SingleBlock,
     NoTerminator,
     DeclareOpInterfaceMethods<ClassInterface>]>
 {
@@ -4328,18 +4330,10 @@ def Modelica_FunctionOp : Modelica_Op<"function",
     }];
 
     let arguments = (ins SymbolNameAttr:$sym_name);
-
-    let regions = (region AnyRegion:$body);
-
-    // Ensure that the block inside the region exists.
-    let hasCustomAssemblyFormat = 1;
-    let skipDefaultBuilders = 1;
-
-    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
+    let regions = (region AnyRegion:$bodyRegion);
+    let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
 
     let extraClassDeclaration = [{
-        mlir::Block* bodyBlock();
-
         auto getVariables()
         {
             return getOps<VariableOp>();
@@ -4363,7 +4357,8 @@ def Modelica_FunctionOp : Modelica_Op<"function",
         /// @name SymbolOpInterface Methods
         /// {
 
-        bool isDeclaration() {
+        bool isDeclaration()
+        {
             return false;
         }
 

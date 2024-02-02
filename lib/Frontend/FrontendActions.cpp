@@ -674,6 +674,7 @@ namespace marco::frontend
     pm.addPass(mlir::modelica::createFunctionInliningPass());
 
     pm.addPass(mlir::modelica::createRecordInliningPass());
+    pm.addPass(mlir::modelica::createFunctionUnwrapPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     // Infer the range boundaries for subscriptions.

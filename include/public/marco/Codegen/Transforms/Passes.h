@@ -19,6 +19,7 @@
 #include "marco/Codegen/Transforms/ExplicitStartValueInsertion.h"
 #include "marco/Codegen/Transforms/FunctionInlining.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
+#include "marco/Codegen/Transforms/FunctionUnwrap.h"
 #include "marco/Codegen/Transforms/IDA.h"
 #include "marco/Codegen/Transforms/InitialConditionsSolving.h"
 #include "marco/Codegen/Transforms/Matching.h"

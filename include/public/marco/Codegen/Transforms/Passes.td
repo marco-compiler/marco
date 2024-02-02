@@ -198,6 +198,15 @@ def ExplicitStartValueInsertionPass
         "mlir::modelica::createExplicitStartValueInsertionPass()";
 }
 
+def FunctionUnwrapPass : Pass<"function-unwrap", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::modelica::createFunctionUnwrapPass()";
+}
+
 def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
 {
     let summary = "Scalarize";
