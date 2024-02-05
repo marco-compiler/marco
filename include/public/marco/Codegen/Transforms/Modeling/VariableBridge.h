@@ -42,32 +42,11 @@ namespace marco::modeling::matching
     using Variable = ::mlir::modelica::bridge::VariableBridge*;
     using Id = ::mlir::modelica::bridge::VariableBridge*;
 
-    static Id getId(const Variable* variable)
-    {
-      return *variable;
-    }
+    static Id getId(const Variable* variable);
 
-    static size_t getRank(const Variable* variable)
-    {
-      size_t rank = (*variable)->indices.rank();
+    static size_t getRank(const Variable* variable);
 
-      if (rank == 0) {
-        return 1;
-      }
-
-      return rank;
-    }
-
-    static IndexSet getIndices(const Variable* variable)
-    {
-      const IndexSet& result = (*variable)->indices;
-
-      if (result.empty()) {
-        return {Point(0)};
-      }
-
-      return result;
-    }
+    static IndexSet getIndices(const Variable* variable);
   };
 }
 
@@ -79,32 +58,11 @@ namespace marco::modeling::dependency
     using Variable = ::mlir::modelica::bridge::VariableBridge*;
     using Id = ::mlir::modelica::bridge::VariableBridge*;
 
-    static Id getId(const Variable* variable)
-    {
-      return *variable;
-    }
+    static Id getId(const Variable* variable);
 
-    static size_t getRank(const Variable* variable)
-    {
-      size_t rank = (*variable)->indices.rank();
+    static size_t getRank(const Variable* variable);
 
-      if (rank == 0) {
-        return 1;
-      }
-
-      return rank;
-    }
-
-    static IndexSet getIndices(const Variable* variable)
-    {
-      const IndexSet& result = (*variable)->indices;
-
-      if (result.empty()) {
-        return {Point(0)};
-      }
-
-      return result;
-    }
+    static IndexSet getIndices(const Variable* variable);
   };
 }
 

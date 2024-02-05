@@ -36,3 +36,67 @@ namespace mlir::modelica::bridge
   {
   }
 }
+
+namespace marco::modeling::matching
+{
+  VariableTraits<VariableBridge*>::Id
+  VariableTraits<VariableBridge*>::getId(const Variable* variable)
+  {
+    return *variable;
+  }
+
+  size_t VariableTraits<VariableBridge*>::getRank(const Variable* variable)
+  {
+    size_t rank = (*variable)->indices.rank();
+
+    if (rank == 0) {
+      return 1;
+    }
+
+    return rank;
+  }
+
+  IndexSet VariableTraits<VariableBridge*>::getIndices(
+      const Variable* variable)
+  {
+    const IndexSet& result = (*variable)->indices;
+
+    if (result.empty()) {
+      return {Point(0)};
+    }
+
+    return result;
+  }
+}
+
+namespace marco::modeling::dependency
+{
+  VariableTraits<VariableBridge*>::Id
+  VariableTraits<VariableBridge*>::getId(const Variable* variable)
+  {
+    return *variable;
+  }
+
+  size_t VariableTraits<VariableBridge*>::getRank(const Variable* variable)
+  {
+    size_t rank = (*variable)->indices.rank();
+
+    if (rank == 0) {
+      return 1;
+    }
+
+    return rank;
+  }
+
+  IndexSet VariableTraits<VariableBridge*>::getIndices(
+      const Variable* variable)
+  {
+    const IndexSet& result = (*variable)->indices;
+
+    if (result.empty()) {
+      return {Point(0)};
+    }
+
+    return result;
+  }
+}

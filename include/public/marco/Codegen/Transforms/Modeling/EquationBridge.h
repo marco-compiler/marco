@@ -45,82 +45,21 @@ namespace marco::modeling::matching
     using Equation = ::mlir::modelica::bridge::EquationBridge*;
     using Id = mlir::Operation*;
 
-    static Id getId(const Equation* equation)
-    {
-      return (*equation)->op.getOperation();
-    }
+    static Id getId(const Equation* equation);
 
-    static size_t getNumOfIterationVars(const Equation* equation)
-    {
-      auto numOfInductions = static_cast<uint64_t>(
-          (*equation)->op.getInductionVariables().size());
+    static size_t getNumOfIterationVars(const Equation* equation);
 
-      if (numOfInductions == 0) {
-        // Scalar equation.
-        return 1;
-      }
-
-      return static_cast<size_t>(numOfInductions);
-    }
-
-    static IndexSet getIterationRanges(const Equation* equation)
-    {
-      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
-
-      if (iterationSpace.empty()) {
-        // Scalar equation.
-        iterationSpace += MultidimensionalRange(Range(0, 1));
-      }
-
-      return iterationSpace;
-    }
+    static IndexSet getIterationRanges(const Equation* equation);
 
     using VariableType = ::mlir::modelica::bridge::VariableBridge*;
     using AccessProperty = ::mlir::modelica::EquationPath;
 
     static std::vector<Access<VariableType, AccessProperty>>
-    getAccesses(const Equation* equation)
-    {
-      std::vector<Access<VariableType, AccessProperty>> accesses;
-
-      auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-          (*equation)->op, *(*equation)->symbolTable);
-
-      if (cachedAccesses) {
-        for (auto& access : *cachedAccesses) {
-          auto accessFunction = getAccessFunction(
-              (*equation)->op.getContext(), access);
-
-          auto variableIt =
-              (*(*equation)->variablesMap).find(access.getVariable());
-
-          if (variableIt != (*(*equation)->variablesMap).end()) {
-            accesses.emplace_back(
-                variableIt->getSecond(),
-                std::move(accessFunction),
-                access.getPath());
-          }
-        }
-      }
-
-      return accesses;
-    }
+    getAccesses(const Equation* equation);
 
     static std::unique_ptr<AccessFunction> getAccessFunction(
         mlir::MLIRContext* context,
-        const mlir::modelica::VariableAccess& access)
-    {
-      const AccessFunction& accessFunction = access.getAccessFunction();
-
-      if (accessFunction.getNumOfResults() == 0) {
-        // Access to scalar variable.
-        return AccessFunction::build(mlir::AffineMap::get(
-            accessFunction.getNumOfDims(), 0,
-            mlir::getAffineConstantExpr(0, context)));
-      }
-
-      return accessFunction.clone();
-    }
+        const mlir::modelica::VariableAccess& access);
   };
 }
 

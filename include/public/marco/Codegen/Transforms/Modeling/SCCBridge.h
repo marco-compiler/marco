@@ -54,8 +54,8 @@ namespace marco::modeling::dependency
 
     static std::vector<ElementRef> getElements(const SCC* scc);
 
-    static std::vector<ElementRef> getDependencies(
-        const SCC* scc, ElementRef equation);
+    static std::vector<ElementRef>
+    getDependencies(const SCC* scc, ElementRef equation);
   };
 }
 
