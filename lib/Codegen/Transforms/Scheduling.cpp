@@ -85,8 +85,6 @@ void SchedulingPass::runOnOperation()
       return signalPassFailure();
     }
   }
-
-  modelOp.dump();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

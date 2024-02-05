@@ -1249,8 +1249,6 @@ void SCCSolvingWithKINSOLPass::runOnOperation()
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
-
-  moduleOp.dump();
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
