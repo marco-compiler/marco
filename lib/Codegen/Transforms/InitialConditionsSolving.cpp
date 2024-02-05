@@ -24,6 +24,7 @@ namespace
 
     private:
       mlir::LogicalResult processModelOp(
+          mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp);
   };
@@ -40,31 +41,134 @@ void InitialConditionsSolvingPass::runOnOperation()
   }
 
   for (ModelOp modelOp : modelOps) {
-    if (mlir::failed(processModelOp(moduleOp, modelOp))) {
+    if (mlir::failed(processModelOp(
+            symbolTableCollection, moduleOp, modelOp))) {
       return signalPassFailure();
     }
   }
 }
 
+static EquationTemplateOp createEquationTemplate(
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    StartOp startOp)
+{
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointToStart(modelOp.getBody());
+
+  auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+      modelOp, startOp.getVariableAttr());
+
+  if (!variableOp) {
+    return nullptr;
+  }
+
+  VariableType variableType = variableOp.getVariableType();
+  int64_t numOfInductions = variableType.getRank();
+
+  auto templateOp = rewriter.create<EquationTemplateOp>(startOp.getLoc());
+  mlir::Block* templateBody = templateOp.createBody(numOfInductions);
+  rewriter.mergeBlocks(startOp.getBody(), templateBody);
+
+  auto clonedYieldedOp = mlir::cast<YieldOp>(templateBody->getTerminator());
+  mlir::Value clonedYieldedValue = clonedYieldedOp.getValues()[0];
+  rewriter.setInsertionPoint(clonedYieldedOp);
+
+  mlir::Value lhs =
+      rewriter.create<VariableGetOp>(startOp.getLoc(), variableOp);
+
+  mlir::Value rhs = clonedYieldedValue;
+
+  if (!variableType.isScalar()) {
+    lhs = rewriter.create<LoadOp>(
+        lhs.getLoc(), lhs, templateOp.getInductionVariables());
+  }
+
+  if (auto rhsArrayType = rhs.getType().dyn_cast<ArrayType>()) {
+    int64_t rhsRank = rhsArrayType.getRank();
+
+    rhs = rewriter.create<LoadOp>(
+        rhs.getLoc(), rhs,
+        templateOp.getInductionVariables().take_back(rhsRank));
+  }
+
+  mlir::Value lhsOp = rewriter.create<EquationSideOp>(lhs.getLoc(), lhs);
+  mlir::Value rhsOp = rewriter.create<EquationSideOp>(rhs.getLoc(), rhs);
+  rewriter.replaceOpWithNewOp<EquationSidesOp>(clonedYieldedOp, lhsOp, rhsOp);
+
+  return templateOp;
+}
+
 static mlir::LogicalResult addStartEquationsToSchedule(
-    mlir::OpBuilder& builder,
-    ScheduleOp schedule,
+    mlir::RewriterBase& rewriter,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    InitialModelOp initialModelOp,
     llvm::ArrayRef<StartOp> startOps)
 {
-  // TODO
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+  for (StartOp startOp : startOps) {
+    assert(!startOp.getFixed());
+
+    auto templateOp = createEquationTemplate(
+        rewriter, symbolTableCollection, modelOp, startOp);
+
+    if (!templateOp) {
+      return mlir::failure();
+    }
+
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, startOp.getVariableAttr());
+
+    if (!variableOp) {
+      return mlir::failure();
+    }
+
+    IndexSet variableIndices =
+        variableOp.getIndices().getCanonicalRepresentation();
+
+    rewriter.setInsertionPointToStart(initialModelOp.getBody());
+
+    if (variableIndices.empty()) {
+      rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
+    } else {
+      for (const MultidimensionalRange& range : llvm::make_range(
+               variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
+        rewriter.create<StartEquationInstanceOp>(
+            startOp.getLoc(), templateOp,
+            MultidimensionalRangeAttr::get(rewriter.getContext(), range));
+      }
+    }
+  }
+
   return mlir::success();
 }
 
 mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
+    mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp)
 {
   mlir::IRRewriter rewriter(&getContext());
+  llvm::SmallVector<StartOp> unfixedStartOps;
   llvm::SmallVector<InitialModelOp> initialModelOps;
   llvm::SmallVector<SCCOp> SCCs;
 
-  for (InitialModelOp initialModelOp : modelOp.getOps<InitialModelOp>()) {
-    initialModelOps.push_back(initialModelOp);
+  for (auto& op : modelOp.getOps()) {
+    if (auto startOp = mlir::dyn_cast<StartOp>(op)) {
+      if (!startOp.getFixed() && !startOp.getImplicit()) {
+        unfixedStartOps.push_back(startOp);
+      }
+
+      continue;
+    }
+
+    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
+      initialModelOps.push_back(initialModelOp);
+      continue;
+    }
   }
 
   for (InitialModelOp initialModelOp : initialModelOps) {
@@ -81,7 +185,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   mlir::Block* entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
 
-  if (!SCCs.empty()) {
+  if (!SCCs.empty() || !unfixedStartOps.empty()) {
     rewriter.setInsertionPointToEnd(modelOp.getBody());
 
     // Create the schedule operation.
@@ -92,6 +196,12 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
     auto initialModelOp = rewriter.create<InitialModelOp>(modelOp.getLoc());
     rewriter.createBlock(&initialModelOp.getBodyRegion());
     rewriter.setInsertionPointToStart(initialModelOp.getBody());
+
+    if (mlir::failed(addStartEquationsToSchedule(
+            rewriter, symbolTableCollection, modelOp, initialModelOp,
+            unfixedStartOps))) {
+      return mlir::failure();
+    }
 
     for (SCCOp scc : SCCs) {
       rewriter.clone(*scc.getOperation());

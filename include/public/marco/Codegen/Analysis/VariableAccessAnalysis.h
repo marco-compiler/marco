@@ -53,6 +53,12 @@ namespace mlir::modelica
           ScheduledEquationInstanceOp instanceOp,
           mlir::SymbolTableCollection& symbolTable);
 
+      /// Get the accesses of a 'start' assignment.
+      /// Returns std::nullopt if the accesses can't be computed.
+      std::optional<llvm::ArrayRef<VariableAccess>> getAccesses(
+          StartEquationInstanceOp instanceOp,
+          mlir::SymbolTableCollection& symbolTable);
+
     private:
       mlir::LogicalResult loadAccesses(
         mlir::SymbolTableCollection& symbolTableCollection);

@@ -26,6 +26,16 @@ namespace
     private:
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
+          EquationTemplateOp equationTemplate,
+          mlir::SymbolTableCollection& symbolTableCollection);
+
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getVariableAccessAnalysis(
+          StartEquationInstanceOp equation,
+          mlir::SymbolTableCollection& symbolTableCollection);
+
+      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+      getVariableAccessAnalysis(
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
 
@@ -46,13 +56,21 @@ namespace
           ScheduleOp scheduleOp,
           llvm::ArrayRef<MainModelOp> mainModelOps);
 
-      mlir::LogicalResult processSCCs(
+      mlir::LogicalResult schedule(
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           ScheduleOp scheduleOp,
           llvm::ArrayRef<SCCOp> SCCs,
+          llvm::ArrayRef<StartEquationInstanceOp> startEquations,
           llvm::function_ref<mlir::Block*(
               mlir::OpBuilder&, mlir::Location)> createContainerFn);
+
+      mlir::LogicalResult addStartEquations(
+          mlir::OpBuilder& builder,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          ModelOp modelOp,
+          mlir::Block* containerBody,
+          llvm::ArrayRef<StartEquationInstanceOp> startEquations);
   };
 }
 
@@ -67,6 +85,47 @@ void SchedulingPass::runOnOperation()
       return signalPassFailure();
     }
   }
+
+  modelOp.dump();
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+SchedulingPass::getVariableAccessAnalysis(
+    EquationTemplateOp equationTemplate,
+    mlir::SymbolTableCollection& symbolTableCollection)
+{
+  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
+          equationTemplate)) {
+    return *analysis;
+  }
+
+  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
+      equationTemplate);
+
+  if (mlir::failed(analysis.initialize(symbolTableCollection))) {
+    return std::nullopt;
+  }
+
+  return std::reference_wrapper(analysis);
+}
+
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+SchedulingPass::getVariableAccessAnalysis(
+    StartEquationInstanceOp equation,
+    mlir::SymbolTableCollection& symbolTableCollection)
+{
+  return getVariableAccessAnalysis(
+      equation.getTemplate(), symbolTableCollection);
+}
+
+std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+SchedulingPass::getVariableAccessAnalysis(
+    MatchedEquationInstanceOp equation,
+    mlir::SymbolTableCollection& symbolTableCollection)
+{
+  return getVariableAccessAnalysis(
+      equation.getTemplate(), symbolTableCollection);
 }
 
 mlir::LogicalResult SchedulingPass::processScheduleOp(
@@ -108,11 +167,17 @@ mlir::LogicalResult SchedulingPass::processInitialModel(
     ScheduleOp scheduleOp,
     llvm::ArrayRef<InitialModelOp> initialModelOps)
 {
-  // Collect the SCCs.
+  // Collect the start equations and the SCCs.
+  llvm::SmallVector<StartEquationInstanceOp> startEquations;
   llvm::SmallVector<SCCOp> SCCs;
 
   for (InitialModelOp initialModelOp : initialModelOps) {
     initialModelOp.collectSCCs(SCCs);
+
+    for (StartEquationInstanceOp startEquation :
+         initialModelOp.getOps<StartEquationInstanceOp>()) {
+      startEquations.push_back(startEquation);
+    }
   }
 
   if (SCCs.empty()) {
@@ -127,8 +192,8 @@ mlir::LogicalResult SchedulingPass::processInitialModel(
     return initialModelOp.getBody();
   };
 
-  if (mlir::failed(processSCCs(
-          symbolTableCollection, modelOp, scheduleOp, SCCs,
+  if (mlir::failed(schedule(
+          symbolTableCollection, modelOp, scheduleOp, SCCs, startEquations,
           createContainerFn))) {
     return mlir::failure();
   }
@@ -166,8 +231,8 @@ mlir::LogicalResult SchedulingPass::processMainModel(
     return mainModelOp.getBody();
   };
 
-  if (mlir::failed(processSCCs(
-          symbolTableCollection, modelOp, scheduleOp, SCCs,
+  if (mlir::failed(schedule(
+          symbolTableCollection, modelOp, scheduleOp, SCCs, std::nullopt,
           createContainerFn))) {
     return mlir::failure();
   }
@@ -180,19 +245,27 @@ mlir::LogicalResult SchedulingPass::processMainModel(
   return mlir::success();
 }
 
-mlir::LogicalResult SchedulingPass::processSCCs(
+mlir::LogicalResult SchedulingPass::schedule(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     ScheduleOp scheduleOp,
     llvm::ArrayRef<SCCOp> SCCs,
+    llvm::ArrayRef<StartEquationInstanceOp> startEquations,
     llvm::function_ref<mlir::Block*(
         mlir::OpBuilder&, mlir::Location)> createContainerFn)
 {
-  // Compute the writes map.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> writesMap;
+  // Compute the writes maps.
+  WritesMap<VariableOp, MatchedEquationInstanceOp> matchedEquationsWritesMap;
+  WritesMap<VariableOp, StartEquationInstanceOp> startEquationsWritesMap;
 
   if (mlir::failed(getWritesMap(
-          writesMap, modelOp, SCCs, symbolTableCollection))) {
+          matchedEquationsWritesMap, modelOp, SCCs, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(getWritesMap(
+          startEquationsWritesMap, modelOp, startEquations,
+          symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -231,7 +304,8 @@ mlir::LogicalResult SchedulingPass::processSCCs(
     }
 
     auto& sccBridge = sccBridges.emplace_back(SCCBridge::build(
-        scc, symbolTableCollection, writesMap, equationsMap));
+        scc, symbolTableCollection, matchedEquationsWritesMap,
+        startEquationsWritesMap, equationsMap));
 
     sccBridgePtrs.push_back(sccBridge.get());
 
@@ -328,27 +402,156 @@ mlir::LogicalResult SchedulingPass::processSCCs(
     }
   }
 
+  if (mlir::failed(addStartEquations(
+          builder, symbolTableCollection, modelOp, containerBody,
+          startEquations))) {
+    return mlir::failure();
+  }
+
   return mlir::success();
 }
 
-std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-SchedulingPass::getVariableAccessAnalysis(
-    MatchedEquationInstanceOp equation,
-    mlir::SymbolTableCollection& symbolTableCollection)
+mlir::LogicalResult SchedulingPass::addStartEquations(
+    mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    ModelOp modelOp,
+    mlir::Block* containerBody,
+    llvm::ArrayRef<StartEquationInstanceOp> startEquations)
 {
-  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
-          equation.getTemplate())) {
-    return *analysis;
+  if (startEquations.empty()) {
+    return mlir::success();
   }
 
-  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
-      equation.getTemplate());
+  mlir::OpBuilder::InsertionGuard guard(builder);
 
-  if (mlir::failed(analysis.initialize(symbolTableCollection))) {
-    return std::nullopt;
+  // Get the writes map.
+  llvm::SmallVector<SCCOp> SCCs;
+
+  for (SCCOp scc : containerBody->getOps<SCCOp>()) {
+    SCCs.push_back(scc);
   }
 
-  return std::reference_wrapper(analysis);
+  WritesMap<VariableOp, SCCOp> writesMap;
+
+  if (mlir::failed(getWritesMap<ScheduledEquationInstanceOp>(
+          writesMap, modelOp, SCCs, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
+  // Determine the first SCC writing to each variable.
+  llvm::DenseMap<VariableOp, SCCOp> firstWritingSCCs;
+
+  for (const auto& entry : writesMap) {
+    VariableOp writtenVariable = entry.first;
+    SCCOp scc = entry.second.second;
+
+    if (auto firstWritingSCCIt = firstWritingSCCs.find(writtenVariable);
+        firstWritingSCCIt != firstWritingSCCs.end()) {
+      if (scc->isBeforeInBlock(firstWritingSCCIt->getSecond())) {
+        firstWritingSCCs[writtenVariable] = scc;
+      }
+    } else {
+      firstWritingSCCs[writtenVariable] = scc;
+    }
+  }
+
+  // Determine the last SCC computing the dependencies of each start equation.
+  llvm::DenseMap<StartEquationInstanceOp, SCCOp> lastSCCDependencies;
+
+  for (StartEquationInstanceOp equation : startEquations) {
+    auto accessAnalysis =
+        getVariableAccessAnalysis(equation, symbolTableCollection);
+
+    if (!accessAnalysis) {
+      return mlir::failure();
+    }
+
+    auto accesses = accessAnalysis->get().getAccesses(
+        equation, symbolTableCollection);
+
+    if (!accesses) {
+      return mlir::failure();
+    }
+
+    IndexSet equationIndices = equation.getIterationSpace();
+    llvm::SmallVector<VariableAccess> readAccesses;
+
+    if (mlir::failed(equation.getReadAccesses(
+            readAccesses, symbolTableCollection, *accesses))) {
+      return mlir::failure();
+    }
+
+    for (const VariableAccess& readAccess : readAccesses) {
+      auto readVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+          modelOp, readAccess.getVariable());
+
+      if (!readVariableOp) {
+        return mlir::failure();
+      }
+
+      const AccessFunction& accessFunction = readAccess.getAccessFunction();
+      auto readIndices = accessFunction.map(equationIndices);
+
+      for (const auto& writeEntry :
+           llvm::make_range(writesMap.equal_range(readVariableOp))) {
+        if (readIndices.empty() || writeEntry.second.first.overlaps(readIndices)) {
+          SCCOp writingSCC = writeEntry.second.second;
+
+          if (auto lastSCCDependenciesIt = lastSCCDependencies.find(equation);
+              lastSCCDependenciesIt != lastSCCDependencies.end()) {
+            if (lastSCCDependenciesIt->second->isBeforeInBlock(writingSCC)) {
+              lastSCCDependencies[equation] = writingSCC;
+            }
+          } else {
+            lastSCCDependencies[equation] = writingSCC;
+          }
+        }
+      }
+    }
+  }
+
+  // Insert the start equations.
+  for (StartEquationInstanceOp startEquation : startEquations) {
+    auto writeAccess = startEquation.getWriteAccess(symbolTableCollection);
+
+    if (!writeAccess) {
+      return mlir::failure();
+    }
+
+    auto writtenVariable = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, writeAccess->getVariable());
+
+    if (!writtenVariable) {
+      return mlir::failure();
+    }
+
+    // Determine where to insert the start equation.
+    auto lastDependencyIt = lastSCCDependencies.find(startEquation);
+
+    if (lastDependencyIt == lastSCCDependencies.end()) {
+      builder.setInsertionPointToStart(containerBody);
+    } else {
+      SCCOp lastDependency = lastDependencyIt->getSecond();
+      builder.setInsertionPointAfter(lastDependency);
+
+      auto firstWritingSCCIt = firstWritingSCCs.find(writtenVariable);
+
+      if (firstWritingSCCIt != firstWritingSCCs.end()) {
+        SCCOp firstWritingSCC = firstWritingSCCIt->getSecond();
+
+        if (!lastDependency->isBeforeInBlock(firstWritingSCC)) {
+          startEquation->emitWarning()
+              << "the 'start' attribute will not be computed properly due to"
+                 " cycles involving the its dependencies";
+        }
+      }
+    }
+
+    // Clone the equation instance.
+    builder.clone(*startEquation.getOperation());
+  }
+
+  return mlir::success();
 }
 
 namespace mlir::modelica

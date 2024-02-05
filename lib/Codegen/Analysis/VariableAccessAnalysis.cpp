@@ -78,6 +78,22 @@ namespace mlir::modelica
     return accesses;
   }
 
+  std::optional<llvm::ArrayRef<VariableAccess>>
+  VariableAccessAnalysis::getAccesses(
+      StartEquationInstanceOp instanceOp,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    assert(initialized && "Variable access analysis not initialized");
+
+    if (!valid) {
+      if (mlir::failed(loadAccesses(symbolTableCollection))) {
+        return std::nullopt;
+      }
+    }
+
+    return accesses;
+  }
+
   mlir::LogicalResult VariableAccessAnalysis::loadAccesses(
       mlir::SymbolTableCollection& symbolTableCollection)
   {

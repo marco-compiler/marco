@@ -3825,7 +3825,7 @@ def Modelica_AbstractEquationOp : Modelica_Op<"abstract_equation",
 }
 
 def Modelica_StartEquationInstanceOp : Modelica_Op<"start_equation_instance",
-    [ParentOneOf<["ScheduleOp"]>]>
+    [ParentOneOf<["InitialModelOp"]>]>
 {
     let arguments = (ins
         ModelicaEquation:$base,

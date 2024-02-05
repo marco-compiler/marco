@@ -664,14 +664,18 @@ namespace mlir::modelica
 
     return nullptr;
   }
+}
 
+namespace
+{
+  template<typename Equation>
   mlir::LogicalResult getWritesMap(
-      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      WritesMap<VariableOp, Equation>& writesMap,
       ModelOp modelOp,
-      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+      llvm::ArrayRef<Equation> equations,
       mlir::SymbolTableCollection& symbolTableCollection)
   {
-    for (MatchedEquationInstanceOp equationOp : equations) {
+    for (Equation equationOp : equations) {
       IndexSet equationIndices = equationOp.getIterationSpace();
       llvm::SmallVector<VariableAccess> accesses;
 
@@ -700,6 +704,8 @@ namespace mlir::modelica
           symbolTableCollection.lookupSymbolIn<VariableOp>(
               modelOp, matchedAccess->getVariable());
 
+      assert(writtenVariableOp != nullptr);
+
       IndexSet writtenVariableIndices;
 
       for (const VariableAccess& writeAccess : writeAccesses) {
@@ -713,6 +719,63 @@ namespace mlir::modelica
     }
 
     return mlir::success();
+  }
+}
+
+namespace mlir::modelica
+{
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, StartEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<StartEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    for (StartEquationInstanceOp equation : equations) {
+      IndexSet equationIndices = equation.getIterationSpace();
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(equation.getAccesses(
+              accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      auto writeAccess = equation.getWriteAccess(symbolTableCollection);
+
+      auto writtenVariableOp =
+          symbolTableCollection.lookupSymbolIn<VariableOp>(
+              modelOp, writeAccess->getVariable());
+
+      assert(writtenVariableOp != nullptr);
+
+      IndexSet writtenVariableIndices =
+          writeAccess->getAccessFunction().map(equationIndices);
+
+      writesMap.emplace(
+          writtenVariableOp,
+          std::make_pair(std::move(writtenVariableIndices), equation));
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    return ::getWritesMap<MatchedEquationInstanceOp>(
+        writesMap, modelOp, equations, symbolTableCollection);
+  }
+
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, ScheduledEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    return ::getWritesMap<ScheduledEquationInstanceOp>(
+        writesMap, modelOp, equations, symbolTableCollection);
   }
 
   mlir::LogicalResult getWritesMap(
@@ -728,6 +791,76 @@ namespace mlir::modelica
     }
 
     return getWritesMap(writesMap, modelOp, equations, symbolTableCollection);
+  }
+
+  template<>
+  mlir::LogicalResult getWritesMap<MatchedEquationInstanceOp>(
+      WritesMap<VariableOp, SCCOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::SmallVector<MatchedEquationInstanceOp> equations;
+
+    for (SCCOp scc : SCCs) {
+      for (MatchedEquationInstanceOp equation :
+           scc.getOps<MatchedEquationInstanceOp>()) {
+        equations.push_back(equation);
+      }
+    }
+
+    WritesMap<VariableOp, MatchedEquationInstanceOp> equationsWritesMap;
+
+    if (mlir::failed(getWritesMap(
+            equationsWritesMap, modelOp, equations, symbolTableCollection))) {
+      return mlir::failure();
+    }
+
+    for (const auto& entry : equationsWritesMap) {
+      auto parentSCC = entry.second.second->getParentOfType<SCCOp>();
+      assert(parentSCC != nullptr);
+
+      writesMap.emplace(
+          entry.first,
+          std::make_pair(entry.second.first, parentSCC));
+    }
+
+    return mlir::success();
+  }
+
+  template<>
+  mlir::LogicalResult getWritesMap<ScheduledEquationInstanceOp>(
+      WritesMap<VariableOp, SCCOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    llvm::SmallVector<ScheduledEquationInstanceOp> equations;
+
+    for (SCCOp scc : SCCs) {
+      for (ScheduledEquationInstanceOp equation :
+           scc.getOps<ScheduledEquationInstanceOp>()) {
+        equations.push_back(equation);
+      }
+    }
+
+    WritesMap<VariableOp, ScheduledEquationInstanceOp> equationsWritesMap;
+
+    if (mlir::failed(getWritesMap(
+            equationsWritesMap, modelOp, equations, symbolTableCollection))) {
+      return mlir::failure();
+    }
+
+    for (const auto& entry : equationsWritesMap) {
+      auto parentSCC = entry.second.second->getParentOfType<SCCOp>();
+      assert(parentSCC != nullptr);
+
+      writesMap.emplace(
+          entry.first,
+          std::make_pair(entry.second.first, parentSCC));
+    }
+
+    return mlir::success();
   }
 
   mlir::LogicalResult getWritesMap(

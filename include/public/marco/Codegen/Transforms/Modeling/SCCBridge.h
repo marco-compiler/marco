@@ -14,7 +14,8 @@ namespace mlir::modelica::bridge
     public:
       SCCOp op;
       mlir::SymbolTableCollection* symbolTable;
-      WritesMap<VariableOp, MatchedEquationInstanceOp>* writesMap;
+      WritesMap<VariableOp, MatchedEquationInstanceOp>* matchedEqsWritesMap;
+      WritesMap<VariableOp, StartEquationInstanceOp>* startEqsWritesMap;
 
       llvm::DenseMap<
           MatchedEquationInstanceOp, MatchedEquationBridge*>* equationsMap;
@@ -30,7 +31,8 @@ namespace mlir::modelica::bridge
       SCCBridge(
           SCCOp op,
           mlir::SymbolTableCollection& symbolTable,
-          WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+          WritesMap<VariableOp, MatchedEquationInstanceOp>& matchedEqsWritesMap,
+          WritesMap<VariableOp, StartEquationInstanceOp>& startEqsWritesMap,
           llvm::DenseMap<
               MatchedEquationInstanceOp, MatchedEquationBridge*>& equationsMap);
 
@@ -50,89 +52,10 @@ namespace marco::modeling::dependency
     using SCC = ::mlir::modelica::bridge::SCCBridge*;
     using ElementRef = ::mlir::modelica::bridge::MatchedEquationBridge*;
 
-    static std::vector<ElementRef> getElements(const SCC* scc)
-    {
-      mlir::modelica::SCCOp sccOp = (*scc)->op;
-      const auto& equationsMap = (*scc)->equationsMap;
-      std::vector<ElementRef> result;
-
-      for (mlir::modelica::MatchedEquationInstanceOp equation :
-           sccOp.getOps<mlir::modelica::MatchedEquationInstanceOp>()) {
-        ElementRef equationPtr = equationsMap->lookup(equation);
-        assert(equationPtr && "Equation bridge not found");
-        result.push_back(equationPtr);
-      }
-
-      return result;
-    }
+    static std::vector<ElementRef> getElements(const SCC* scc);
 
     static std::vector<ElementRef> getDependencies(
-        const SCC* scc, ElementRef equation)
-    {
-      mlir::SymbolTableCollection& symbolTableCollection =
-          *equation->symbolTable;
-
-      const auto& accesses = equation->accessAnalysis->getAccesses(
-          equation->op, symbolTableCollection);
-
-      if (!accesses) {
-        llvm_unreachable("Can't obtain accesses");
-        return {};
-      }
-
-      auto matchedAccess = equation->op.getMatchedAccess(symbolTableCollection);
-
-      if (!matchedAccess) {
-        llvm_unreachable("Can't obtain matched access");
-        return {};
-      }
-
-      llvm::SmallVector<mlir::modelica::VariableAccess> readAccesses;
-
-      if (mlir::failed(equation->op.getReadAccesses(
-              readAccesses, symbolTableCollection, *accesses))) {
-        llvm_unreachable("Can't obtain read accesses");
-        return {};
-      }
-
-      IndexSet equationIndices = equation->op.getIterationSpace();
-      auto modelOp = (*scc)->op->getParentOfType<mlir::modelica::ModelOp>();
-      const auto& writesMap = (*scc)->writesMap;
-      const auto& equationMap = (*scc)->equationsMap;
-
-      std::vector<ElementRef> result;
-
-      for (const mlir::modelica::VariableAccess& readAccess : readAccesses) {
-        auto variableOp =
-            symbolTableCollection.lookupSymbolIn<mlir::modelica::VariableOp>(
-                modelOp, readAccess.getVariable());
-
-        assert(variableOp && "Variable not found");
-
-        IndexSet readVariableIndices =
-            readAccess.getAccessFunction().map(equationIndices);
-
-        auto writingEquations = writesMap->equal_range(variableOp);
-
-        for (const auto& writingEquation : llvm::make_range(
-                 writingEquations.first, writingEquations.second)) {
-          if (auto writingEquationPtr =
-                  equationMap->lookup(writingEquation.second.second)) {
-            if (readVariableIndices.empty()) {
-              result.push_back(writingEquationPtr);
-            } else {
-              const IndexSet& writtenVariableIndices = writingEquation.second.first;
-
-              if (writtenVariableIndices.overlaps(readVariableIndices)) {
-                result.push_back(writingEquationPtr);
-              }
-            }
-          }
-        }
-      }
-
-      return result;
-    }
+        const SCC* scc, ElementRef equation);
   };
 }
 

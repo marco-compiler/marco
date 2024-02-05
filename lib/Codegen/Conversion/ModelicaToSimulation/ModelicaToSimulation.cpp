@@ -851,67 +851,8 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
 
   rewriter.setInsertionPointToStart(entryBlock);
 
-  // Keep track of the variables for which a start value has been provided.
-  llvm::DenseSet<llvm::StringRef> initializedVars;
-
-  for (StartOp startOp : modelOp.getOps<StartOp>()) {
-    // Set the variable as initialized.
-    initializedVars.insert(startOp.getVariable());
-
-    // Note that read-only variables must be set independently of the 'fixed'
-    // attribute being true or false.
-
-    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        modelOp, startOp.getVariableAttr());
-
-    if (startOp.getFixed() && !variableOp.isReadOnly()) {
-      continue;
-    }
-
-    mlir::IRMapping startOpsMapping;
-
-    for (auto& op : startOp.getBodyRegion().getOps()) {
-      if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
-        mlir::Value valueToBeStored =
-            startOpsMapping.lookup(yieldOp.getValues()[0]);
-
-        if (startOp.getEach()) {
-          if (variableOp.getVariableType().isScalar()) {
-            rewriter.create<QualifiedVariableSetOp>(
-                startOp.getLoc(), variableOp, valueToBeStored);
-          } else {
-            mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
-                startOp.getLoc(), variableOp);
-
-            rewriter.create<ArrayFillOp>(
-                startOp.getLoc(), destination, valueToBeStored);
-          }
-        } else {
-          auto valueType = valueToBeStored.getType();
-
-          if (auto valueArrayType = valueType.dyn_cast<ArrayType>()) {
-            mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
-                startOp.getLoc(), variableOp);
-
-            rewriter.create<ArrayCopyOp>(
-                startOp.getLoc(), valueToBeStored, destination);
-          } else {
-            rewriter.create<QualifiedVariableSetOp>(
-                startOp.getLoc(), variableOp, valueToBeStored);
-          }
-        }
-      } else {
-        rewriter.clone(op, startOpsMapping);
-      }
-    }
-  }
-
-  // The variables without a 'start' attribute must be initialized to zero.
+  // Initialize the variables to zero.
   for (VariableOp variable : variables) {
-    if (initializedVars.contains(variable.getSymName())) {
-      continue;
-    }
-
     VariableType variableType = variable.getVariableType();
 
     auto zeroMaterializableElementType =

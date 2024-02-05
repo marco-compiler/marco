@@ -78,13 +78,46 @@ namespace mlir::modelica
       std::multimap<Variable, std::pair<IndexSet, WritingEntity>>;
 
   mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, StartEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<StartEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  mlir::LogicalResult getWritesMap(
       WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
       ModelOp modelOp,
       llvm::ArrayRef<MatchedEquationInstanceOp> equations,
       mlir::SymbolTableCollection& symbolTableCollection);
 
   mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, ScheduledEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  mlir::LogicalResult getWritesMap(
       WritesMap<VariableOp, MatchedEquationInstanceOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  template<typename Equation>
+  mlir::LogicalResult getWritesMap(
+      WritesMap<VariableOp, SCCOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  template<>
+  mlir::LogicalResult getWritesMap<MatchedEquationInstanceOp>(
+      WritesMap<VariableOp, SCCOp>& writesMap,
+      ModelOp modelOp,
+      llvm::ArrayRef<SCCOp> SCCs,
+      mlir::SymbolTableCollection& symbolTableCollection);
+
+  template<>
+  mlir::LogicalResult getWritesMap<ScheduledEquationInstanceOp>(
+      WritesMap<VariableOp, SCCOp>& writesMap,
       ModelOp modelOp,
       llvm::ArrayRef<SCCOp> SCCs,
       mlir::SymbolTableCollection& symbolTableCollection);
