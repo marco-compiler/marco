@@ -425,7 +425,12 @@ namespace marco::frontend
   {
   }
 
-  CodeGenAction::~CodeGenAction() = default;
+  CodeGenAction::~CodeGenAction()
+  {
+    if (mlirModule != nullptr) {
+      mlirModule->erase();
+    }
+  }
 
   bool CodeGenAction::beginSourceFilesAction()
   {
