@@ -2,6 +2,7 @@
 #include "marco/Diagnostic/Printer.h"
 #include "marco/VariableFilter/Parser.h"
 #include "marco/VariableFilter/Token.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
 #include <map>
@@ -180,11 +181,13 @@ namespace marco
 
     Parser parser(vf, actualDiagnostics, sourceFile);
 
-    if (!parser.run()) {
+    auto deallocateDiagnosticsOnExit = llvm::make_scope_exit([&]() {
       if (diagnostics == nullptr) {
         delete actualDiagnostics;
       }
+    });
 
+    if (!parser.run()) {
       return std::nullopt;
     }
 
