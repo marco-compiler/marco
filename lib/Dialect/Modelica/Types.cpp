@@ -557,6 +557,41 @@ namespace mlir::modelica
         type.isa<BooleanType, IntegerType, RealType, RecordType>();
   }
 
+  bool VariableType::isScalar() const
+  {
+    return getRank() == 0;
+  }
+
+  bool VariableType::isDiscrete() const
+  {
+    return getVariabilityProperty() == VariabilityProperty::discrete;
+  }
+
+  bool VariableType::isParameter() const
+  {
+    return getVariabilityProperty() == VariabilityProperty::parameter;
+  }
+
+  bool VariableType::isConstant() const
+  {
+    return getVariabilityProperty() == VariabilityProperty::constant;
+  }
+
+  bool VariableType::isReadOnly() const
+  {
+    return isParameter() || isConstant();
+  }
+
+  bool VariableType::isInput() const
+  {
+    return getVisibilityProperty() == IOProperty::input;
+  }
+
+  bool VariableType::isOutput() const
+  {
+    return getVisibilityProperty() == IOProperty::output;
+  }
+
   VariableType VariableType::wrap(
       mlir::Type type,
       VariabilityProperty variabilityProperty,

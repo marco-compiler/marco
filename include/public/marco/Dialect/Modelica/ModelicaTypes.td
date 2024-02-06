@@ -224,40 +224,26 @@ def VariableType : Modelica_Type<"Variable",
         /// Arguments that are passed into the builder must outlive the builder.
         class Builder;
 
-        bool isScalar() const
-        {
-            return getRank() == 0;
-        }
+        /// Get whether the type represents a scalar variable.
+        bool isScalar() const;
 
-        bool isDiscrete() const
-        {
-            return getVariabilityProperty() == VariabilityProperty::discrete;
-        }
+        /// Get whether the variable has the 'discrete' modifier.
+        bool isDiscrete() const;
 
-        bool isParameter() const
-        {
-            return getVariabilityProperty() == VariabilityProperty::parameter;
-        }
+        /// Get whether the variable has the 'parameter' modifier.
+        bool isParameter() const;
 
-        bool isConstant() const
-        {
-            return getVariabilityProperty() == VariabilityProperty::constant;
-        }
+        /// Get whether the variable has the 'constant' modifier.
+        bool isConstant() const;
 
-        bool isReadOnly() const
-        {
-            return isParameter() || isConstant();
-        }
+        /// Get whether the parameter is a parameter or a constant.
+        bool isReadOnly() const;
 
-        bool isInput() const
-        {
-            return getVisibilityProperty() == IOProperty::input;
-        }
+        /// Get whether the variable has the 'input' modifier.
+        bool isInput() const;
 
-        bool isOutput() const
-        {
-            return getVisibilityProperty() == IOProperty::output;
-        }
+        /// Get whether the variable has the 'output' modifier.
+        bool isOutput() const;
 
         static VariableType wrap(
             mlir::Type type,
