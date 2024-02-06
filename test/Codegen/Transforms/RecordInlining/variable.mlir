@@ -14,7 +14,7 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<!modelica<record @R>>
 }
 
 // -----
@@ -43,12 +43,12 @@ modelica.record @R1 {
 }
 
 modelica.record @R2 {
-    modelica.variable @r1 : !modelica.variable<!modelica.record<@R1>>
-    modelica.variable @r2 : !modelica.variable<!modelica.record<@R1>>
+    modelica.variable @r1 : !modelica.variable<!modelica<record @R1>>
+    modelica.variable @r2 : !modelica.variable<!modelica<record @R1>>
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica.record<@R2>>
+    modelica.variable @r : !modelica.variable<!modelica<record @R2>>
 }
 
 // -----
@@ -65,7 +65,7 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<3x4x5x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x4x5x!modelica<record @R>>
 }
 
 // -----
@@ -82,5 +82,5 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<!modelica<record @R>>
 }

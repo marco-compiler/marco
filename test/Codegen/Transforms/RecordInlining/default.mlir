@@ -18,12 +18,12 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<!modelica<record @R>>
 
     modelica.default @r {
         %0 = modelica.constant #modelica.real<0.0>
         %1 = modelica.constant #modelica.real<1.0>
-        %2 = modelica.record_create %0, %1 : !modelica.real, !modelica.real -> !modelica.record<@R>
-        modelica.yield %2 : !modelica.record<@R>
+        %2 = modelica.record_create %0, %1 : !modelica.real, !modelica.real -> !modelica<record @R>
+        modelica.yield %2 : !modelica<record @R>
     }
 }

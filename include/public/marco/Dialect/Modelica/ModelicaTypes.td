@@ -168,7 +168,7 @@ def Modelica_RecordType : Modelica_Type<"Record", []>
         AttrParameter<"mlir::SymbolRefAttr", "Name">:$name
     );
 
-    let assemblyFormat = "`<` $name `>`";
+    let assemblyFormat = "$name";
 
     let extraClassDeclaration = [{
         mlir::Operation* getRecordOp(

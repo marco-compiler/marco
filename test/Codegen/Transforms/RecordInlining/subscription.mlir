@@ -24,14 +24,14 @@ modelica.record @R {
 }
 
 modelica.model @Test {
-    modelica.variable @r : !modelica.variable<3x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x!modelica<record @R>>
 
     modelica.equation {
-        %0 = modelica.variable_get @r : !modelica.array<3x!modelica.record<@R>>
+        %0 = modelica.variable_get @r : !modelica.array<3x!modelica<record @R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica.record<@R>>
-        %3 = modelica.component_get %2, @x : !modelica.record<@R> -> !modelica.real
-        %4 = modelica.component_get %2, @y : !modelica.record<@R> -> !modelica.real
+        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica<record @R>>
+        %3 = modelica.component_get %2, @x : !modelica<record @R> -> !modelica.real
+        %4 = modelica.component_get %2, @y : !modelica<record @R> -> !modelica.real
         %5 = modelica.equation_side %3 : tuple<!modelica.real>
         %6 = modelica.equation_side %4 : tuple<!modelica.real>
         modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
@@ -66,15 +66,15 @@ modelica.record @R {
 }
 
 modelica.model @Test {
-    modelica.variable @r : !modelica.variable<3x5x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x5x!modelica<record @R>>
 
     modelica.equation {
-        %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica.record<@R>>
+        %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica<record @R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>, index -> !modelica.array<5x!modelica.record<@R>>
-        %3 = modelica.load %2[%1] : !modelica.array<5x!modelica.record<@R>>
-        %4 = modelica.component_get %3, @x : !modelica.record<@R> -> !modelica.real
-        %5 = modelica.component_get %3, @y : !modelica.record<@R> -> !modelica.real
+        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica<record @R>>, index -> !modelica.array<5x!modelica<record @R>>
+        %3 = modelica.load %2[%1] : !modelica.array<5x!modelica<record @R>>
+        %4 = modelica.component_get %3, @x : !modelica<record @R> -> !modelica.real
+        %5 = modelica.component_get %3, @y : !modelica<record @R> -> !modelica.real
         %6 = modelica.equation_side %4 : tuple<!modelica.real>
         %7 = modelica.equation_side %5 : tuple<!modelica.real>
         modelica.equation_sides %6, %7 : tuple<!modelica.real>, tuple<!modelica.real>
@@ -105,16 +105,16 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<3x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x!modelica<record @R>>
 
     modelica.algorithm {
-        %0 = modelica.variable_get @r : !modelica.array<3x!modelica.record<@R>>
+        %0 = modelica.variable_get @r : !modelica.array<3x!modelica<record @R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica.record<@R>>
+        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica<record @R>>
         %3 = modelica.constant #modelica.real<1.0>
         %4 = modelica.constant #modelica.real<1.0>
-        modelica.component_set %2, @x, %3 : !modelica.record<@R>, !modelica.real
-        modelica.component_set %2, @y, %4 : !modelica.record<@R>, !modelica.real
+        modelica.component_set %2, @x, %3 : !modelica<record @R>, !modelica.real
+        modelica.component_set %2, @y, %4 : !modelica<record @R>, !modelica.real
     }
 }
 
@@ -144,17 +144,17 @@ modelica.record @R {
 }
 
 modelica.function @Test {
-    modelica.variable @r : !modelica.variable<3x5x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x5x!modelica<record @R>>
 
     modelica.algorithm {
-        %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica.record<@R>>
+        %0 = modelica.variable_get @r : !modelica.array<3x5x!modelica<record @R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica.record<@R>>, index -> !modelica.array<5x!modelica.record<@R>>
-        %3 = modelica.load %2[%1] : !modelica.array<5x!modelica.record<@R>>
+        %2 = modelica.subscription %0[%1] : !modelica.array<3x5x!modelica<record @R>>, index -> !modelica.array<5x!modelica<record @R>>
+        %3 = modelica.load %2[%1] : !modelica.array<5x!modelica<record @R>>
         %4 = modelica.constant #modelica.real<1.0>
         %5 = modelica.constant #modelica.real<1.0>
-        modelica.component_set %3, @x, %4 : !modelica.record<@R>, !modelica.real
-        modelica.component_set %3, @y, %5 : !modelica.record<@R>, !modelica.real
+        modelica.component_set %3, @x, %4 : !modelica<record @R>, !modelica.real
+        modelica.component_set %3, @y, %5 : !modelica<record @R>, !modelica.real
     }
 }
 
@@ -184,18 +184,18 @@ modelica.record @R {
 }
 
 modelica.function @Foo {
-    modelica.variable @r : !modelica.variable<!modelica.record<@R>, input>
+    modelica.variable @r : !modelica.variable<!modelica<record @R>, input>
     modelica.variable @y : !modelica.variable<!modelica.real, output>
 }
 
 modelica.model @Test {
-    modelica.variable @r : !modelica.variable<3x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<3x!modelica<record @R>>
 
     modelica.equation {
-        %0 = modelica.variable_get @r : !modelica.array<3x!modelica.record<@R>>
+        %0 = modelica.variable_get @r : !modelica.array<3x!modelica<record @R>>
         %1 = modelica.constant 0 : index
-        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica.record<@R>>
-        %3 = modelica.call @Foo(%2) : (!modelica.record<@R>) -> !modelica.real
+        %2 = modelica.load %0[%1] : !modelica.array<3x!modelica<record @R>>
+        %3 = modelica.call @Foo(%2) : (!modelica<record @R>) -> !modelica.real
         %4 = modelica.constant #modelica.real<0.0>
         %5 = modelica.equation_side %3 : tuple<!modelica.real>
         %6 = modelica.equation_side %4 : tuple<!modelica.real>
@@ -228,7 +228,7 @@ modelica.record @R {
 modelica.function @Foo {
     modelica.variable @x : !modelica.variable<!modelica.real, input>
     modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @r : !modelica.variable<3x!modelica.record<@R>, output>
+    modelica.variable @r : !modelica.variable<3x!modelica<record @R>, output>
 }
 
 modelica.model @Test {
@@ -238,11 +238,11 @@ modelica.model @Test {
     modelica.equation {
         %0 = modelica.variable_get @x : !modelica.real
         %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.call @Foo(%0, %1) : (!modelica.real, !modelica.real) -> !modelica.array<3x!modelica.record<@R>>
+        %2 = modelica.call @Foo(%0, %1) : (!modelica.real, !modelica.real) -> !modelica.array<3x!modelica<record @R>>
         %3 = modelica.constant 0 : index
-        %4 = modelica.load %2[%3] : !modelica.array<3x!modelica.record<@R>>
-        %5 = modelica.component_get %4, @x : !modelica.record<@R> -> !modelica.real
-        %6 = modelica.component_get %4, @y : !modelica.record<@R> -> !modelica.real
+        %4 = modelica.load %2[%3] : !modelica.array<3x!modelica<record @R>>
+        %5 = modelica.component_get %4, @x : !modelica<record @R> -> !modelica.real
+        %6 = modelica.component_get %4, @y : !modelica<record @R> -> !modelica.real
         %7 = modelica.equation_side %5 : tuple<!modelica.real>
         %8 = modelica.equation_side %6 : tuple<!modelica.real>
         modelica.equation_sides %7, %8 : tuple<!modelica.real>, tuple<!modelica.real>

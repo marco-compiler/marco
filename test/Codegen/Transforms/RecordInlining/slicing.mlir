@@ -17,12 +17,12 @@ modelica.record @R {
 }
 
 modelica.model @Test {
-    modelica.variable @r : !modelica.variable<5x!modelica.record<@R>>
+    modelica.variable @r : !modelica.variable<5x!modelica<record @R>>
 
     modelica.equation {
-        %0 = modelica.variable_get @r : !modelica.array<5x!modelica.record<@R>>
-        %1 = modelica.component_get %0, @x : !modelica.array<5x!modelica.record<@R>> -> !modelica.array<5x3x!modelica.real>
-        %2 = modelica.component_get %0, @y : !modelica.array<5x!modelica.record<@R>> -> !modelica.array<5x3x!modelica.real>
+        %0 = modelica.variable_get @r : !modelica.array<5x!modelica<record @R>>
+        %1 = modelica.component_get %0, @x : !modelica.array<5x!modelica<record @R>> -> !modelica.array<5x3x!modelica.real>
+        %2 = modelica.component_get %0, @y : !modelica.array<5x!modelica<record @R>> -> !modelica.array<5x3x!modelica.real>
         %3 = modelica.equation_side %1 : tuple<!modelica.array<5x3x!modelica.real>>
         %4 = modelica.equation_side %2 : tuple<!modelica.array<5x3x!modelica.real>>
         modelica.equation_sides %3, %4 : tuple<!modelica.array<5x3x!modelica.real>>, tuple<!modelica.array<5x3x!modelica.real>>
