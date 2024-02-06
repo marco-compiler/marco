@@ -1578,6 +1578,41 @@ namespace mlir::modelica
     return mlir::success();
   }
 
+  VariableType VariableOp::getVariableType()
+  {
+    return getType().cast<VariableType>();
+  }
+
+  bool VariableOp::isInput()
+  {
+    return getVariableType().isInput();
+  }
+
+  bool VariableOp::isOutput()
+  {
+    return getVariableType().isOutput();
+  }
+
+  bool VariableOp::isDiscrete()
+  {
+    return getVariableType().isDiscrete();
+  }
+
+  bool VariableOp::isParameter()
+  {
+    return getVariableType().isParameter();
+  }
+
+  bool VariableOp::isConstant()
+  {
+    return getVariableType().isConstant();
+  }
+
+  bool VariableOp::isReadOnly()
+  {
+    return getVariableType().isReadOnly();
+  }
+
   size_t VariableOp::getNumOfUnboundedDimensions()
   {
     return llvm::count_if(
@@ -13787,6 +13822,41 @@ namespace mlir::modelica
 
     printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
   }
+
+  VariableType RawVariableOp::getVariableType()
+  {
+    return getVariable().getType().cast<VariableType>();
+  }
+
+  bool RawVariableOp::isInput()
+  {
+    return getVariableType().isInput();
+  }
+
+  bool RawVariableOp::isOutput()
+  {
+    return getVariableType().isOutput();
+  }
+
+  bool RawVariableOp::isReadOnly()
+  {
+    return getVariableType().isReadOnly();
+  }
+
+  bool RawVariableOp::isDiscrete()
+  {
+    return getVariableType().isDiscrete();
+  }
+
+  bool RawVariableOp::isParameter()
+  {
+    return getVariableType().isParameter();
+  }
+
+  bool RawVariableOp::isConstant()
+  {
+    return getVariableType().isConstant();
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -13794,29 +13864,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::ParseResult RawVariableGetOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  VariableType RawVariableGetOp::getVariableType()
   {
-    mlir::OpAsmParser::UnresolvedOperand variable;
-    mlir::Type variableType;
-
-    if (parser.parseOperand(variable) ||
-        parser.parseOptionalAttrDict(result.attributes) ||
-        parser.parseColonType(variableType) ||
-        parser.resolveOperand(variable, variableType, result.operands)) {
-      return mlir::failure();
-    }
-
-    result.addTypes(variableType.cast<VariableType>().unwrap());
-    return mlir::success();
-  }
-
-  void RawVariableGetOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer << getVariable();
-    printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getVariable().getType();
+    return getVariable().getType().cast<VariableType>();
   }
 }
 
@@ -13825,36 +13875,9 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  mlir::ParseResult RawVariableSetOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  VariableType RawVariableSetOp::getVariableType()
   {
-    mlir::OpAsmParser::UnresolvedOperand variable;
-    mlir::OpAsmParser::UnresolvedOperand value;
-    mlir::Type variableType;
-    mlir::Type valueType;
-
-    if (parser.parseOperand(variable) ||
-        parser.parseComma() ||
-        parser.parseOperand(value) ||
-        parser.parseOptionalAttrDict(result.attributes) ||
-        parser.parseColon() ||
-        parser.parseType(variableType) ||
-        parser.parseComma() ||
-        parser.parseType(valueType) ||
-        parser.resolveOperand(variable, variableType, result.operands) ||
-        parser.resolveOperand(value, valueType, result.operands)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  }
-
-  void RawVariableSetOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer << getVariable() << ", " << getValue();
-    printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getVariable().getType() << ", " << getValue().getType();
+    return getVariable().getType().cast<VariableType>();
   }
 }
 
