@@ -439,10 +439,10 @@ namespace
     public:
       CallFiller(
           mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTable,
+          mlir::SymbolTableCollection& symbolTableCollection,
           const DefaultOpComputationOrderings& orderings)
           : mlir::OpRewritePattern<CallOp>(context),
-            symbolTable(&symbolTable),
+            symbolTableCollection(&symbolTableCollection),
             orderings(&orderings)
       {
       }
@@ -453,9 +453,9 @@ namespace
         auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
         auto functionOp = mlir::cast<FunctionOp>(
-            op.getFunction(moduleOp, *symbolTable));
+            op.getFunction(moduleOp, *symbolTableCollection));
 
-        // Colelct the input variables.
+        // Collect the input variables.
         llvm::SmallVector<VariableOp, 3> inputVariables;
 
         for (VariableOp variableOp : functionOp.getVariables()) {
@@ -563,7 +563,7 @@ namespace
       }
 
     private:
-      mlir::SymbolTableCollection* symbolTable;
+      mlir::SymbolTableCollection* symbolTableCollection;
       const DefaultOpComputationOrderings* orderings;
   };
 
@@ -1248,196 +1248,212 @@ namespace
           ModelicaToCFConversionPass>
   {
     public:
-      using ModelicaToCFConversionPassBase::ModelicaToCFConversionPassBase;
+      using ModelicaToCFConversionPassBase<ModelicaToCFConversionPass>
+          ::ModelicaToCFConversionPassBase;
 
-      void runOnOperation() override
-      {
-        mlir::ModuleOp moduleOp = getOperation();
+      void runOnOperation() override;
 
-        if (mlir::failed(applyDefaultInputValues(moduleOp))) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Can't apply default values for input arguments");
+    private:
+      mlir::LogicalResult applyDefaultInputValues(mlir::ModuleOp moduleOp);
 
-          return signalPassFailure();
-        }
+      mlir::LogicalResult convertModelicaToCFG(mlir::ModuleOp moduleOp);
 
-        if (mlir::failed(convertModelicaToCFG(moduleOp))) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Can't compute CFG of Modelica functions");
+      mlir::LogicalResult setFlatCallees(mlir::ModuleOp moduleOp);
 
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(setFlatCallees(moduleOp))) {
-          return signalPassFailure();
-        }
-
-        if (outputArraysPromotion) {
-          if (mlir::failed(promoteCallResults(moduleOp))) {
-            return signalPassFailure();
-          }
-        }
-      }
-
-      mlir::LogicalResult applyDefaultInputValues(mlir::ModuleOp moduleOp)
-      {
-        mlir::SymbolTableCollection symbolTable;
-
-        // Compute the order of computation for the default values of input
-        // variables.
-        DefaultOpComputationOrderings orderings;
-        llvm::SmallVector<ClassInterface> classes;
-
-        for (ClassInterface cls : moduleOp.getOps<ClassInterface>()) {
-          classes.push_back(cls);
-        }
-
-        while (!classes.empty()) {
-          ClassInterface cls = classes.pop_back_val();
-
-          if (auto functionOp =
-                  mlir::dyn_cast<FunctionOp>(cls.getOperation())) {
-            llvm::StringMap<DefaultOp> defaultOps;
-
-            for (DefaultOp defaultOp : functionOp.getDefaultValues()) {
-              defaultOps[defaultOp.getVariable()] = defaultOp;
-            }
-
-            llvm::SmallVector<VariableOp, 3> inputVariables;
-
-            for (VariableOp variableOp : functionOp.getVariables()) {
-              if (variableOp.isInput()) {
-                inputVariables.push_back(variableOp);
-              }
-            }
-
-            DefaultValuesGraph defaultValuesGraph(defaultOps);
-            defaultValuesGraph.addVariables(inputVariables);
-            defaultValuesGraph.discoverDependencies();
-
-            orderings.set(functionOp, defaultValuesGraph.reversePostOrder());
-          }
-
-          // Search for nested functions.
-          for (mlir::Region& region : cls->getRegions()) {
-            for (ClassInterface nestedCls : region.getOps<ClassInterface>()) {
-              classes.push_back(nestedCls);
-            }
-          }
-        }
-
-        mlir::ConversionTarget target(getContext());
-
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
-
-        target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          mlir::Operation* callee = op.getFunction(moduleOp, symbolTable);
-
-          if (!mlir::isa<FunctionOp>(callee)) {
-            return true;
-          }
-
-          auto functionOp = mlir::cast<FunctionOp>(callee);
-
-          size_t numOfInputVariables = llvm::count_if(
-              functionOp.getVariables(),
-              [](VariableOp variableOp) {
-                return variableOp.isInput();
-              });
-
-          return op.getArgs().size() == numOfInputVariables;
-        });
-
-        mlir::RewritePatternSet patterns(&getContext());
-        patterns.add<CallFiller>(&getContext(), symbolTable, orderings);
-
-        return applyPartialConversion(moduleOp, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult convertModelicaToCFG(mlir::ModuleOp moduleOp)
-      {
-        mlir::RewritePatternSet patterns(&getContext());
-        patterns.add<CFGLowering>(&getContext(), outputArraysPromotion);
-
-        mlir::GreedyRewriteConfig config;
-        config.useTopDownTraversal = true;
-
-        return applyPatternsAndFoldGreedily(
-           moduleOp, std::move(patterns), config);
-      }
-
-      mlir::LogicalResult setFlatCallees(mlir::ModuleOp moduleOp)
-      {
-        mlir::ConversionTarget target(getContext());
-
-        target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          return op.getCallee().getNestedReferences().empty();
-        });
-
-        mlir::RewritePatternSet patterns(&getContext());
-        patterns.add<CallFlattener>(&getContext());
-
-        return applyPartialConversion(moduleOp, target, std::move(patterns));
-      }
-
-      mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp)
-      {
-        mlir::OpBuilder builder(moduleOp);
-
-        moduleOp.walk([&](CallOp callOp) {
-          builder.setInsertionPoint(callOp);
-
-          llvm::SmallVector<mlir::Value> args;
-
-          for (mlir::Value arg : callOp.getArgs()) {
-            args.push_back(arg);
-          }
-
-          llvm::SmallVector<mlir::Type> resultTypes;
-          llvm::DenseMap<size_t, size_t> resultsMap;
-          size_t newResultsCounter = 0;
-
-          for (const auto& result : llvm::enumerate(callOp->getResults())) {
-            mlir::Type resultType = result.value().getType();
-
-            if (auto arrayType = resultType.dyn_cast<ArrayType>();
-                arrayType && canBePromoted(arrayType)) {
-              // Allocate the array inside the caller body.
-              mlir::Value array = builder.create<AllocOp>(
-                  callOp.getLoc(), arrayType, std::nullopt);
-
-              // Add the array to the arguments.
-              args.push_back(array);
-
-              // Replace the usages of the old result.
-              result.value().replaceAllUsesWith(array);
-            } else {
-              resultTypes.push_back(resultType);
-              resultsMap[newResultsCounter++] = result.index();
-            }
-          }
-
-          // Create the new function call.
-          auto newCallOp = builder.create<CallOp>(
-              callOp.getLoc(), callOp.getCallee(), resultTypes, args);
-
-          // Replace the non-promoted old results.
-          for (size_t i = 0; i < newResultsCounter; ++i) {
-            callOp.getResult(resultsMap[i])
-                .replaceAllUsesWith(newCallOp.getResult(i));
-          }
-
-          // Erase the old function call.
-          callOp.erase();
-        });
-
-        return mlir::success();
-      }
+      mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp);
   };
+}
+
+void ModelicaToCFConversionPass::runOnOperation()
+{
+  mlir::ModuleOp moduleOp = getOperation();
+
+  if (mlir::failed(applyDefaultInputValues(moduleOp))) {
+    mlir::emitError(
+        getOperation().getLoc(),
+        "Can't apply default values for input arguments");
+
+    return signalPassFailure();
+  }
+
+  if (mlir::failed(convertModelicaToCFG(moduleOp))) {
+    mlir::emitError(
+        getOperation().getLoc(),
+        "Can't compute CFG of Modelica functions");
+
+    return signalPassFailure();
+  }
+
+  if (mlir::failed(setFlatCallees(moduleOp))) {
+    return signalPassFailure();
+  }
+
+  if (outputArraysPromotion) {
+    if (mlir::failed(promoteCallResults(moduleOp))) {
+      return signalPassFailure();
+    }
+  }
+}
+
+mlir::LogicalResult ModelicaToCFConversionPass::applyDefaultInputValues(
+    mlir::ModuleOp moduleOp)
+{
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  // Determine the order of computation for the default values of input
+  // variables.
+  DefaultOpComputationOrderings orderings;
+  llvm::SmallVector<ClassInterface> classes;
+
+  for (ClassInterface cls : moduleOp.getOps<ClassInterface>()) {
+    classes.push_back(cls);
+  }
+
+  while (!classes.empty()) {
+    ClassInterface cls = classes.pop_back_val();
+
+    if (auto functionOp =
+            mlir::dyn_cast<FunctionOp>(cls.getOperation())) {
+      llvm::StringMap<DefaultOp> defaultOps;
+
+      for (DefaultOp defaultOp : functionOp.getDefaultValues()) {
+        defaultOps[defaultOp.getVariable()] = defaultOp;
+      }
+
+      llvm::SmallVector<VariableOp, 3> inputVariables;
+
+      for (VariableOp variableOp : functionOp.getVariables()) {
+        if (variableOp.isInput()) {
+          inputVariables.push_back(variableOp);
+        }
+      }
+
+      DefaultValuesGraph defaultValuesGraph(defaultOps);
+      defaultValuesGraph.addVariables(inputVariables);
+      defaultValuesGraph.discoverDependencies();
+
+      orderings.set(functionOp, defaultValuesGraph.reversePostOrder());
+    }
+
+    // Search for nested functions.
+    for (mlir::Region& region : cls->getRegions()) {
+      for (ClassInterface nestedCls : region.getOps<ClassInterface>()) {
+        classes.push_back(nestedCls);
+      }
+    }
+  }
+
+  mlir::ConversionTarget target(getContext());
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
+    mlir::Operation* callee = op.getFunction(moduleOp, symbolTableCollection);
+
+    if (!mlir::isa<FunctionOp>(callee)) {
+      return true;
+    }
+
+    auto functionOp = mlir::cast<FunctionOp>(callee);
+
+    size_t numOfInputVariables = llvm::count_if(
+        functionOp.getVariables(),
+        [](VariableOp variableOp) {
+          return variableOp.isInput();
+        });
+
+    return op.getArgs().size() == numOfInputVariables;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.add<CallFiller>(&getContext(), symbolTableCollection, orderings);
+
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToCFConversionPass::convertModelicaToCFG(
+    mlir::ModuleOp moduleOp)
+{
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.add<CFGLowering>(&getContext(), outputArraysPromotion);
+
+  mlir::GreedyRewriteConfig config;
+  config.useTopDownTraversal = true;
+
+  return applyPatternsAndFoldGreedily(
+      moduleOp, std::move(patterns), config);
+}
+
+mlir::LogicalResult ModelicaToCFConversionPass::setFlatCallees(
+    mlir::ModuleOp moduleOp)
+{
+  mlir::ConversionTarget target(getContext());
+
+  target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
+    return op.getCallee().getNestedReferences().empty();
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.add<CallFlattener>(&getContext());
+
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToCFConversionPass::promoteCallResults(
+    mlir::ModuleOp moduleOp)
+{
+  mlir::OpBuilder builder(moduleOp);
+
+  moduleOp.walk([&](CallOp callOp) {
+    builder.setInsertionPoint(callOp);
+
+    llvm::SmallVector<mlir::Value> args;
+
+    for (mlir::Value arg : callOp.getArgs()) {
+      args.push_back(arg);
+    }
+
+    llvm::SmallVector<mlir::Type> resultTypes;
+    llvm::DenseMap<size_t, size_t> resultsMap;
+    size_t newResultsCounter = 0;
+
+    for (const auto& result : llvm::enumerate(callOp->getResults())) {
+      mlir::Type resultType = result.value().getType();
+
+      if (auto arrayType = resultType.dyn_cast<ArrayType>();
+          arrayType && canBePromoted(arrayType)) {
+        // Allocate the array inside the caller body.
+        mlir::Value array = builder.create<AllocOp>(
+            callOp.getLoc(), arrayType, std::nullopt);
+
+        // Add the array to the arguments.
+        args.push_back(array);
+
+        // Replace the usages of the old result.
+        result.value().replaceAllUsesWith(array);
+      } else {
+        resultTypes.push_back(resultType);
+        resultsMap[newResultsCounter++] = result.index();
+      }
+    }
+
+    // Create the new function call.
+    auto newCallOp = builder.create<CallOp>(
+        callOp.getLoc(), callOp.getCallee(), resultTypes, args);
+
+    // Replace the non-promoted old results.
+    for (size_t i = 0; i < newResultsCounter; ++i) {
+      callOp.getResult(resultsMap[i])
+          .replaceAllUsesWith(newCallOp.getResult(i));
+    }
+
+    // Erase the old function call.
+    callOp.erase();
+  });
+
+  return mlir::success();
 }
 
 namespace mlir
