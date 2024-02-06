@@ -10486,9 +10486,9 @@ namespace mlir::modelica
 
     mlir::OpAsmParser::Argument induction;
 
-    long from;
-    long to;
-    long step = 1;
+    int64_t from;
+    int64_t to;
+    int64_t step = 1;
 
     if (parser.parseArgument(induction) ||
         parser.parseEqual() ||

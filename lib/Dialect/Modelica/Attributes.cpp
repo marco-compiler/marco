@@ -441,7 +441,7 @@ namespace mlir::modelica
 
   mlir::Attribute IntegerAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
-    long value;
+    int64_t value;
 
     if (parser.parseLess() ||
         parser.parseInteger(value) ||
@@ -454,7 +454,7 @@ namespace mlir::modelica
     }
 
     return IntegerAttr::get(
-        parser.getContext(), type, llvm::APInt(sizeof(long) * 8, value, true));
+        parser.getContext(), type, llvm::APInt(64, value, true));
   }
 
   void IntegerAttr::print(mlir::AsmPrinter& printer) const
@@ -558,14 +558,14 @@ namespace mlir::modelica
   mlir::Attribute IntegerArrayAttr::parse(
       mlir::AsmParser& parser, mlir::Type type)
   {
-    llvm::SmallVector<llvm::APInt> values;
+    llvm::SmallVector<int64_t> values;
 
     if (parser.parseLess() ||
         parser.parseLSquare()) {
       return {};
     }
 
-    llvm::APInt value;
+    int64_t value;
 
     if (parser.parseInteger(value)) {
       return {};
@@ -592,7 +592,7 @@ namespace mlir::modelica
       type = ArrayType::get(shape, IntegerType::get(parser.getContext()));
     }
 
-    return IntegerArrayAttr::get(parser.getContext(), type, values);
+    return IntegerArrayAttr::get(type, values);
   }
 
   void IntegerArrayAttr::print(mlir::AsmPrinter& printer) const
@@ -838,7 +838,7 @@ namespace mlir::modelica
   mlir::Attribute DerivativeAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     mlir::StringAttr name;
-    unsigned int order = 1;
+    int64_t order = 1;
 
     if (parser.parseLess() ||
         parser.parseAttribute(name) ||
