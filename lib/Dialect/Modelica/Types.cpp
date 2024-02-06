@@ -128,18 +128,6 @@ namespace mlir::modelica
           dimensions, elementType, variabilityProperty, ioProperty);
     }
 
-    if (typeTag == "range") {
-      mlir::Type inductionType;
-
-      if (parser.parseLess() ||
-          parser.parseType(inductionType) ||
-          parser.parseGreater()) {
-        return {};
-      }
-
-      return RangeType::get(getContext(), inductionType);
-    }
-
     llvm_unreachable("Unexpected 'Modelica' type kind");
     return {};
   }
@@ -203,11 +191,6 @@ namespace mlir::modelica
       }
 
       printer << ">";
-      return;
-    }
-
-    if (auto rangeType = type.dyn_cast<RangeType>()) {
-      printer << "range<" << rangeType.getInductionType() << ">";
       return;
     }
 
