@@ -468,7 +468,7 @@ namespace marco::frontend
     llvm::CodeGenOpt::Level optLevel = mapOptimizationLevelToCodeGenLevel(
         codegenOptions.optLevel, codegenOptions.debug);
 
-    std::string features = "";
+    std::string features;
 
     auto relocationModel =
         std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
