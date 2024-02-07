@@ -635,7 +635,7 @@ namespace mlir::modelica
   {
     mlir::Value derivedValue = derivatives.lookup(getValue());
 
-    auto derivedOp = builder.create<ArrayFromElementsOp>(
+    auto derivedOp = builder.create<ArrayBroadcastOp>(
         getLoc(),
         getArrayType().toElementType(RealType::get(builder.getContext())),
         derivedValue);
