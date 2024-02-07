@@ -785,6 +785,7 @@ namespace marco::frontend
     }
 
     pm.addPass(mlir::modelica::createArrayDeallocationPass());
+    pm.addPass(mlir::modelica::createCallDefaultValuesInsertionPass());
     pm.addPass(createMLIRModelicaToCFConversionPass());
 
     if (ci.getCodeGenOptions().inlining) {

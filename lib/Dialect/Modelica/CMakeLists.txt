@@ -1,6 +1,7 @@
 add_mlir_dialect_library(MLIRModelica
     Attributes.cpp
     AttrInterfaces.cpp
+    DefaultValuesDependencyGraph.cpp
     EquationPath.cpp
     ExpressionPath.cpp
     ModelicaDialect.cpp
@@ -9,6 +10,8 @@ add_mlir_dialect_library(MLIRModelica
     Types.cpp
     TypeInterfaces.cpp
     VariableAccess.cpp
+    VariablesDependencyGraph.cpp
+    VariablesDimensionsDependencyGraph.cpp
 
     DEPENDS
     MLIRModelicaIncGen

@@ -10,6 +10,7 @@ set(SOURCES
     AccessReplacementTest.cpp
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
+    CallDefaultValuesInsertion.cpp
     DerivativesAllocation.cpp
     EquationAccessSplit.cpp
     EquationExplicitation.cpp
