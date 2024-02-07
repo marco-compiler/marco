@@ -228,8 +228,9 @@ def DerivableOpInterface : Modelica_OpInterface<"DerivableOpInterface">
     let methods = [
         InterfaceMethod<
             "Compute the derivative of the operation.",
-            "mlir::ValueRange", "derive",
+            "::mlir::LogicalResult", "derive",
             (ins
+                "::llvm::SmallVectorImpl<::mlir::Value>&":$results,
                 "::mlir::OpBuilder&":$builder,
                 "const ::llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&":$symbolDerivatives,
                 "::mlir::IRMapping&":$ssaDerivatives)

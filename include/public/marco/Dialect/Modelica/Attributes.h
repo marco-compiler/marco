@@ -29,9 +29,6 @@ namespace mlir::modelica
   mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values);
   mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values);
 
-  mlir::Attribute getZeroAttr(mlir::Type type);
-  mlir::Attribute getOneAttr(mlir::Type type);
-
   namespace detail
   {
     template<typename ValueType, typename BaseIterator>

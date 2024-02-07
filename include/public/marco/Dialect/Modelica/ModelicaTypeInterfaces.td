@@ -21,33 +21,32 @@ def ElementaryType : Modelica_TypeInterface<"ElementaryType">
     }];
 }
 
-def ZeroMaterializableType : Modelica_TypeInterface<"ZeroMaterializableType">
+def ConstantMaterializableType
+    : Modelica_TypeInterface<"ConstantMaterializableType">
 {
     let description = [{
-        Interface for a type for which a zero-valued constant can be
-        materialized.
+        Interface for a type for which a constant can be materialized.
     }];
 
     let methods = [
         InterfaceMethod<
-            "Materialize a zero-valued constant of this type.",
-            "mlir::Value", "materializeZeroValuedConstant",
-            (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc)>
-    ];
-}
-
-def OneMaterializableType : Modelica_TypeInterface<"OneMaterializableType">
-{
-    let description = [{
-        Interface for a type for which a one-valued constant can be
-        materialized.
-    }];
-
-    let methods = [
+            "Materialize a constant of this type.",
+            "mlir::Value", "materializeBoolConstant",
+            (ins "mlir::OpBuilder&":$builder,
+                 "mlir::Location":$loc,
+                 "bool":$value)>,
         InterfaceMethod<
-            "Materialize a one-valued constant of this type.",
-            "mlir::Value", "materializeOneValuedConstant",
-            (ins "mlir::OpBuilder&":$builder, "mlir::Location":$loc)>
+            "Materialize a constant of this type.",
+            "mlir::Value", "materializeIntConstant",
+            (ins "mlir::OpBuilder&":$builder,
+                 "mlir::Location":$loc,
+                 "int64_t":$value)>,
+        InterfaceMethod<
+            "Materialize a constant of this type.",
+            "mlir::Value", "materializeFloatConstant",
+            (ins "mlir::OpBuilder&":$builder,
+                 "mlir::Location":$loc,
+                 "double":$value)>
     ];
 }
 

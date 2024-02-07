@@ -273,10 +273,14 @@ namespace
                   symbolDerivatives[classOp.getOperation()]);
             }
 
-            mlir::ValueRange ders = forwardAD.deriveTree(
-                builder, derivableOp,
-                symbolDerivatives[classOp.getOperation()],
-                ssaDerivatives);
+            llvm::SmallVector<mlir::Value> ders;
+
+            if (mlir::failed(forwardAD.deriveTree(
+                    ders, builder, derivableOp,
+                    symbolDerivatives[classOp.getOperation()],
+                    ssaDerivatives))) {
+              continue;
+            }
 
             if (ders.size() != derOp->getNumResults()) {
               continue;

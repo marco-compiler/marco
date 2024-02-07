@@ -198,60 +198,80 @@ namespace mlir::modelica
   }
 }
 
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // BooleanType
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace mlir::modelica
 {
-  mlir::Value BooleanType::materializeZeroValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value BooleanType::materializeBoolConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, bool value) const
   {
-    return builder.create<ConstantOp>(loc, BooleanAttr::get(*this, false));
+    return builder.create<ConstantOp>(loc, BooleanAttr::get(*this, value));
   }
 
-  mlir::Value BooleanType::materializeOneValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value BooleanType::materializeIntConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, int64_t value) const
   {
-    return builder.create<ConstantOp>(loc, RealAttr::get(*this, true));
+    return materializeBoolConstant(
+        builder, loc, static_cast<bool>(value != 0));
+  }
+
+  mlir::Value BooleanType::materializeFloatConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, double value) const
+  {
+    return materializeBoolConstant(
+        builder, loc, static_cast<bool>(value != 0));
   }
 }
 
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // IntegerType
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace mlir::modelica
 {
-  mlir::Value IntegerType::materializeZeroValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value IntegerType::materializeBoolConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, bool value) const
   {
-    return builder.create<ConstantOp>(loc, IntegerAttr::get(*this, 0));
+    return materializeIntConstant(builder, loc, static_cast<int64_t>(value));
   }
 
-  mlir::Value IntegerType::materializeOneValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value IntegerType::materializeIntConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, int64_t value) const
   {
-    return builder.create<ConstantOp>(loc, IntegerAttr::get(*this, 1));
+    return builder.create<ConstantOp>(loc, IntegerAttr::get(*this, value));
+  }
+
+  mlir::Value IntegerType::materializeFloatConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, double value) const
+  {
+    return materializeIntConstant(builder, loc, static_cast<int64_t>(value));
   }
 }
 
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // RealType
-//===-------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace mlir::modelica
 {
-  mlir::Value RealType::materializeZeroValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value RealType::materializeBoolConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, bool value) const
   {
-    return builder.create<ConstantOp>(loc, RealAttr::get(*this, 0));
+    return materializeFloatConstant(builder, loc, static_cast<double>(value));
   }
 
-  mlir::Value RealType::materializeOneValuedConstant(
-      mlir::OpBuilder& builder, mlir::Location loc) const
+  mlir::Value RealType::materializeIntConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, int64_t value) const
   {
-    return builder.create<ConstantOp>(loc, RealAttr::get(*this, 1));
+    return materializeFloatConstant(builder, loc, static_cast<double>(value));
+  }
+
+  mlir::Value RealType::materializeFloatConstant(
+      mlir::OpBuilder& builder, mlir::Location loc, double value) const
+  {
+    return builder.create<ConstantOp>(loc, RealAttr::get(*this, value));
   }
 }
 

@@ -26,7 +26,8 @@ namespace mlir::modelica
           mlir::modelica::DerFunctionOp derFunctionOp,
           mlir::SymbolTableCollection& symbolTableCollection);
 
-      mlir::ValueRange deriveTree(
+      mlir::LogicalResult deriveTree(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
           mlir::modelica::DerivableOpInterface op,
           const llvm::DenseMap<
@@ -55,7 +56,8 @@ namespace mlir::modelica
           llvm::DenseMap<
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::IRMapping& ssaDerivatives,
-          llvm::function_ref<mlir::ValueRange(
+          llvm::function_ref<mlir::LogicalResult(
+              llvm::SmallVectorImpl<mlir::Value>& results,
               mlir::OpBuilder&,
               mlir::Operation*,
               mlir::SymbolTableCollection&,
@@ -64,14 +66,16 @@ namespace mlir::modelica
 
       bool isDerivable(mlir::Operation* op) const;
 
-      mlir::ValueRange createOpFullDerivative(
+      mlir::LogicalResult createOpFullDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
           mlir::Operation* op,
           const llvm::DenseMap<
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::IRMapping& ssaDerivatives);
 
-      mlir::ValueRange createOpPartialDerivative(
+      mlir::LogicalResult createOpPartialDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
           mlir::Operation* op,
           mlir::SymbolTableCollection& symbolTable,
@@ -79,26 +83,28 @@ namespace mlir::modelica
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::IRMapping& ssaDerivatives);
 
-      mlir::ValueRange createCallOpFullDerivative(
+      mlir::LogicalResult createCallOpFullDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
           mlir::IRMapping& ssaDerivatives);
 
-      mlir::ValueRange createCallOpPartialDerivative(
+      mlir::LogicalResult createCallOpPartialDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
           mlir::SymbolTableCollection& symbolTable,
           mlir::IRMapping& ssaDerivatives);
 
-      mlir::ValueRange createTimeOpFullDerivative(
+      mlir::LogicalResult createTimeOpFullDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::TimeOp timeOp,
-          mlir::IRMapping& ssaDerivatives);
+          mlir::modelica::TimeOp timeOp);
 
-      mlir::ValueRange createTimeOpPartialDerivative(
+      mlir::LogicalResult createTimeOpPartialDerivative(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::TimeOp timeOp,
-          mlir::IRMapping& ssaDerivatives);
+          mlir::modelica::TimeOp timeOp);
 
     private:
       // Keeps track of the operations that have already been derived

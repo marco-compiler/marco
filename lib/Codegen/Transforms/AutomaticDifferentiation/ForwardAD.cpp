@@ -234,24 +234,21 @@ namespace mlir::modelica
 
     for (AlgorithmOp algorithmOp : algorithmOps) {
       auto deriveFn =
-          [this](mlir::OpBuilder& builder,
+          [this](llvm::SmallVectorImpl<mlir::Value>& results,
+                 mlir::OpBuilder& builder,
                  mlir::Operation* op,
                  mlir::SymbolTableCollection& symbolTable,
                  const llvm::DenseMap<
                      mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
                  mlir::IRMapping& ssaDerivatives)
-          -> mlir::ValueRange {
+          -> mlir::LogicalResult {
             return createOpFullDerivative(
-                builder, op, symbolDerivatives, ssaDerivatives);
+                results, builder, op, symbolDerivatives, ssaDerivatives);
           };
 
-      mlir::LogicalResult res = deriveRegion(
-          builder, algorithmOp.getBodyRegion(),
-          symbolTable,
-          variableDerivatives, ssaDerivatives,
-          deriveFn);
-
-      if (mlir::failed(res)) {
+      if (mlir::failed(deriveRegion(
+              builder, algorithmOp.getBodyRegion(), symbolTable,
+              variableDerivatives, ssaDerivatives, deriveFn))) {
         return mlir::failure();
       }
     }
@@ -437,7 +434,7 @@ namespace mlir::modelica
     mlir::Operation* parentSymbolTable =
         derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-    FunctionOp functionOp = symbolTable.lookupSymbolIn<FunctionOp>(
+    auto functionOp = symbolTable.lookupSymbolIn<FunctionOp>(
         parentSymbolTable,
         builder.getStringAttr(derFunctionOp.getDerivedFunction()));
 
@@ -548,15 +545,16 @@ namespace mlir::modelica
 
       if (auto algorithmOp = mlir::dyn_cast<AlgorithmOp>(clonedOp)) {
         auto deriveFn =
-            [this](mlir::OpBuilder& nestedBuilder,
+            [this](llvm::SmallVectorImpl<mlir::Value>& results,
+                mlir::OpBuilder& nestedBuilder,
                 mlir::Operation* op,
                 mlir::SymbolTableCollection& symbolTable,
                 const llvm::DenseMap<
                     mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
                 mlir::IRMapping& ssaDerivatives) {
               return createOpPartialDerivative(
-                  nestedBuilder, op, symbolTable,
-                  symbolDerivatives, ssaDerivatives);
+                  results, nestedBuilder, op, symbolTable, symbolDerivatives,
+                  ssaDerivatives);
         };
 
         if (mlir::failed(deriveRegion(
@@ -593,7 +591,8 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::IRMapping& ssaDerivatives,
-      llvm::function_ref<mlir::ValueRange(
+      llvm::function_ref<mlir::LogicalResult(
+          llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder&,
           mlir::Operation*,
           mlir::SymbolTableCollection&,
@@ -615,14 +614,20 @@ namespace mlir::modelica
       builder.setInsertionPointAfter(op);
 
       if (isDerivable(op) && !isDerived(op)) {
-        mlir::ValueRange derivedValues = deriveFn(
-            builder, op, symbolTable, symbolDerivatives, ssaDerivatives);
+        llvm::SmallVector<mlir::Value> derivedValues;
+
+        if (mlir::failed(deriveFn(
+                derivedValues, builder, op, symbolTable, symbolDerivatives,
+                ssaDerivatives))) {
+          return mlir::failure();
+        }
 
         assert(op->getNumResults() == derivedValues.size());
         setAsDerived(op);
 
         if (!derivedValues.empty()) {
-          for (const auto& [base, derived] : llvm::zip(op->getResults(), derivedValues)) {
+          for (const auto& [base, derived] :
+               llvm::zip(op->getResults(), derivedValues)) {
             ssaDerivatives.map(base, derived);
           }
         }
@@ -654,7 +659,8 @@ namespace mlir::modelica
         DerivableOpInterface>(op);
   }
 
-  mlir::ValueRange ForwardAD::createOpFullDerivative(
+  mlir::LogicalResult ForwardAD::createOpFullDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
       mlir::Operation* op,
       const llvm::DenseMap<
@@ -662,22 +668,25 @@ namespace mlir::modelica
       mlir::IRMapping& ssaDerivatives)
   {
     if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
-      return createCallOpFullDerivative(builder, callOp, ssaDerivatives);
+      return createCallOpFullDerivative(
+          results, builder, callOp, ssaDerivatives);
     }
 
     if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
-      return createTimeOpFullDerivative(builder, timeOp, ssaDerivatives);
+      return createTimeOpFullDerivative(results, builder, timeOp);
     }
 
     if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(op)) {
-      return derivableOp.derive(builder, symbolDerivatives, ssaDerivatives);
+      return derivableOp.derive(
+          results, builder, symbolDerivatives, ssaDerivatives);
     }
 
     llvm_unreachable("Can't derive a non-derivable operation");
-    return std::nullopt;
+    return mlir::failure();
   }
 
-  mlir::ValueRange ForwardAD::createOpPartialDerivative(
+  mlir::LogicalResult ForwardAD::createOpPartialDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
       mlir::Operation* op,
       mlir::SymbolTableCollection& symbolTable,
@@ -687,31 +696,34 @@ namespace mlir::modelica
   {
     if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
       return createCallOpPartialDerivative(
-          builder, callOp, symbolTable, ssaDerivatives);
+          results, builder, callOp, symbolTable, ssaDerivatives);
     }
 
     if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
-      return createTimeOpPartialDerivative(builder, timeOp, ssaDerivatives);
+      return createTimeOpPartialDerivative(results, builder, timeOp);
     }
 
     if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(op)) {
-      return derivableOp.derive(builder, symbolDerivatives, ssaDerivatives);
+      return derivableOp.derive(
+          results, builder, symbolDerivatives, ssaDerivatives);
     }
 
     llvm_unreachable("Can't derive a non-derivable operation");
-    return std::nullopt;
+    return mlir::failure();
   }
 
-  mlir::ValueRange ForwardAD::createCallOpFullDerivative(
+  mlir::LogicalResult ForwardAD::createCallOpFullDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
       CallOp callOp,
       mlir::IRMapping& ssaDerivatives)
   {
     llvm_unreachable("CallOp full derivative is not implemented");
-    return std::nullopt;
+    return mlir::failure();
   }
 
-  mlir::ValueRange ForwardAD::createCallOpPartialDerivative(
+  mlir::LogicalResult ForwardAD::createCallOpPartialDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
       CallOp callOp,
       mlir::SymbolTableCollection& symbolTable,
@@ -736,38 +748,53 @@ namespace mlir::modelica
 
     if (auto derTemplate =
             moduleOp.lookupSymbol<FunctionOp>(derivedFunctionName)) {
-      return builder.create<CallOp>(loc, derTemplate, args)->getResults();
+      auto derivedOp = builder.create<CallOp>(loc, derTemplate, args);
+
+      for (mlir::Value result : derivedOp->getResults()) {
+        results.push_back(result);
+      }
+
+      return mlir::success();
     }
 
     auto derTemplate = createPartialDerTemplateFunction(
         builder, loc, symbolTable, callee, derivedFunctionName);
 
-    return builder.create<CallOp>(loc, derTemplate, args)->getResults();
+    auto derivedOp = builder.create<CallOp>(loc, derTemplate, args);
+
+    for (mlir::Value result : derivedOp->getResults()) {
+      results.push_back(result);
+    }
+
+    return mlir::success();
   }
 
-  mlir::ValueRange ForwardAD::createTimeOpFullDerivative(
+  mlir::LogicalResult ForwardAD::createTimeOpFullDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::modelica::TimeOp timeOp,
-      mlir::IRMapping& ssaDerivatives)
+      mlir::modelica::TimeOp timeOp)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 1));
 
-    return derivedOp->getResults();
+    results.push_back(derivedOp);
+    return mlir::success();
   }
 
-  mlir::ValueRange ForwardAD::createTimeOpPartialDerivative(
+  mlir::LogicalResult ForwardAD::createTimeOpPartialDerivative(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::modelica::TimeOp timeOp,
-      mlir::IRMapping& ssaDerivatives)
+      mlir::modelica::TimeOp timeOp)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 0));
 
-    return derivedOp->getResults();
+    results.push_back(derivedOp);
+    return mlir::success();
   }
 
-  mlir::ValueRange ForwardAD::deriveTree(
+  mlir::LogicalResult ForwardAD::deriveTree(
+      llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
       DerivableOpInterface op,
       const llvm::DenseMap<
@@ -785,11 +812,11 @@ namespace mlir::modelica
         mlir::Operation* definingOp = operand.getDefiningOp();
 
         if (definingOp == nullptr) {
-          return std::nullopt;
+          return mlir::failure();
         }
 
         if (!mlir::isa<DerivableOpInterface>(definingOp)) {
-          return std::nullopt;
+          return mlir::failure();
         }
       }
     }
@@ -803,11 +830,16 @@ namespace mlir::modelica
 
       if (auto derivableOp =
               mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
-        auto derivedValues = deriveTree(
-            builder, derivableOp, symbolDerivatives, ssaDerivatives);
+        llvm::SmallVector<mlir::Value> derivedValues;
+
+        if (mlir::failed(deriveTree(
+                derivedValues, builder, derivableOp, symbolDerivatives,
+                ssaDerivatives))) {
+          return mlir::failure();
+        }
 
         if (derivedValues.size() != derivableOp->getNumResults()) {
-          return std::nullopt;
+          return mlir::failure();
         }
 
         for (const auto& [base, derived] : llvm::zip(
@@ -817,6 +849,6 @@ namespace mlir::modelica
       }
     }
 
-    return op.derive(builder, symbolDerivatives, ssaDerivatives);
+    return op.derive(results, builder, symbolDerivatives, ssaDerivatives);
   }
 }

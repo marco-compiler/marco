@@ -855,16 +855,16 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::createInitFunction(
   for (VariableOp variable : variables) {
     VariableType variableType = variable.getVariableType();
 
-    auto zeroMaterializableElementType =
-        variableType.getElementType().dyn_cast<ZeroMaterializableType>();
+    auto constantMaterializableElementType =
+        variableType.getElementType().dyn_cast<ConstantMaterializableType>();
 
-    if (!zeroMaterializableElementType) {
+    if (!constantMaterializableElementType) {
       return mlir::failure();
     }
 
     mlir::Value zeroValue =
-        zeroMaterializableElementType.materializeZeroValuedConstant(
-            rewriter, variable.getLoc());
+        constantMaterializableElementType.materializeIntConstant(
+            rewriter, variable.getLoc(), 0);
 
     if (variableType.isScalar()) {
       rewriter.create<QualifiedVariableSetOp>(

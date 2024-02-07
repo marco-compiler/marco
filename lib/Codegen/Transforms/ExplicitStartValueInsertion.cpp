@@ -44,10 +44,11 @@ namespace
             continue;
           }
 
-          auto zeroMaterializableType =
-              variableType.getElementType().dyn_cast<ZeroMaterializableType>();
+          auto constantMaterializableType =
+              variableType.getElementType()
+                  .dyn_cast<ConstantMaterializableType>();
 
-          if (!zeroMaterializableType) {
+          if (!constantMaterializableType) {
             // Proceed only if a zero-valued constant can be materialized.
             continue;
           }
@@ -65,9 +66,8 @@ namespace
 
           builder.setInsertionPointToStart(bodyBlock);
 
-          mlir::Value zero =
-              zeroMaterializableType.materializeZeroValuedConstant(
-                  builder, variableOp.getLoc());
+          mlir::Value zero = constantMaterializableType.materializeIntConstant(
+              builder, variableOp.getLoc(), 0);
 
           mlir::Value result = zero;
 
