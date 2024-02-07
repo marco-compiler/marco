@@ -639,7 +639,8 @@ namespace marco::frontend
             dlSpecAttrName);
 
     if ((existingDlAttr && existingDlAttr != dlAttr) ||
-        (existingDlSpecAttr && existingDlSpecAttr != dlSpecAttr)) {
+        (existingDlSpecAttr && existingDlSpecAttr !=
+             mlir::cast<mlir::Attribute>(dlSpecAttr))) {
       // The MLIR module already has a data layout which is different from the
       // one given by the target machine.
       getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
@@ -647,7 +648,9 @@ namespace marco::frontend
     }
 
     (*mlirModule)->setAttr(dlAttrName, dlAttr);
-    (*mlirModule)->setAttr(dlSpecAttrName, dlSpecAttr);
+
+    (*mlirModule)->setAttr(
+        dlSpecAttrName, mlir::cast<mlir::Attribute>(dlSpecAttr));
   }
 
   void CodeGenAction::createModelicaToLLVMPassPipeline(mlir::PassManager& pm)
