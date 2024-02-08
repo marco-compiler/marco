@@ -529,6 +529,12 @@ namespace mlir::modelica
     return {};
   }
 
+  std::optional<mlir::Operation*> ArrayFromElementsOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
   mlir::HoistingKind ArrayFromElementsOp::getHoistingKind()
   {
     return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
@@ -619,6 +625,12 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> ArrayBroadcastOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
   }
 
   mlir::HoistingKind ArrayBroadcastOp::getHoistingKind()
@@ -2205,6 +2217,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> NegateOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind NegateOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void NegateOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -2569,6 +2592,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> AddOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AddOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void AddOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -2886,7 +2920,10 @@ namespace mlir::modelica
     return {};
   }
 
-  void AddEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddEWOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
     if (getLhs().getType().isa<ArrayType>()) {
       effects.emplace_back(
@@ -2913,6 +2950,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> AddEWOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AddEWOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void AddEWOp::printExpression(
@@ -3260,6 +3308,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> SubOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SubOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void SubOp::printExpression(
@@ -3611,6 +3670,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> SubEWOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SubEWOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void SubEWOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -3960,6 +4030,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> MulOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind MulOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void MulOp::printExpression(
@@ -4347,6 +4428,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> MulEWOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind MulEWOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void MulEWOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -4730,6 +4822,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> DivOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind DivOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void DivOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -5104,6 +5207,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> DivEWOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind DivEWOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void DivEWOp::printExpression(
@@ -5490,6 +5604,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> PowOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind PowOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void PowOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -5649,6 +5774,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> PowEWOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind PowEWOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void PowEWOp::printExpression(
@@ -6119,6 +6255,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> NotOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind NotOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void NotOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -6216,6 +6363,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> AndOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AndOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void AndOp::printExpression(
@@ -6317,6 +6475,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> OrOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind OrOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void OrOp::printExpression(
@@ -6504,6 +6673,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> AbsOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AbsOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void AbsOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -6603,6 +6783,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> AcosOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AcosOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void AcosOp::printExpression(
@@ -6752,6 +6943,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> AsinOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AsinOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void AsinOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -6897,6 +7099,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> AtanOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind AtanOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void AtanOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7020,6 +7233,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> Atan2Op::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind Atan2Op::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void Atan2Op::printExpression(
@@ -7182,6 +7406,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> CeilOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind CeilOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void CeilOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7281,6 +7516,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> CosOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind CosOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void CosOp::printExpression(
@@ -7419,6 +7665,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> CoshOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind CoshOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void CoshOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7519,6 +7776,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> DiagonalOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind DiagonalOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void DiagonalOp::printExpression(
@@ -7645,6 +7913,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> ExpOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind ExpOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void ExpOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7741,6 +8020,17 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  std::optional<mlir::Operation*> FillOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind FillOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void FillOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7804,6 +8094,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> FloorOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind FloorOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void FloorOp::printExpression(
@@ -7871,6 +8172,17 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  std::optional<mlir::Operation*> IdentityOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind IdentityOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void IdentityOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7936,6 +8248,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> IntegerOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind IntegerOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void IntegerOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -7999,6 +8322,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> LinspaceOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind LinspaceOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void LinspaceOp::printExpression(
@@ -8070,6 +8404,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> LogOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind LogOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void LogOp::printExpression(
@@ -8202,6 +8547,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> Log10Op::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind Log10Op::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void Log10Op::printExpression(
@@ -8443,6 +8799,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> MaxOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind MaxOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void MaxOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -8614,6 +8981,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> MinOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind MinOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void MinOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -8735,6 +9113,17 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  std::optional<mlir::Operation*> OnesOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind OnesOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void OnesOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -8763,6 +9152,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Read::get(),
         getArray(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> ProductOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind ProductOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void ProductOp::printExpression(
@@ -8901,6 +9301,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> SignOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SignOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void SignOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -8998,6 +9409,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> SinOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SinOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void SinOp::printExpression(
@@ -9129,6 +9551,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> SinhOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SinhOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void SinhOp::printExpression(
@@ -9316,6 +9749,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> SizeOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SizeOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void SizeOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -9362,6 +9806,17 @@ namespace mlir::modelica
     }
 
     return {};
+  }
+
+  std::optional<mlir::Operation*> SqrtOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SqrtOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void SqrtOp::printExpression(
@@ -9488,6 +9943,17 @@ namespace mlir::modelica
         mlir::SideEffects::DefaultResource::get());
   }
 
+  std::optional<mlir::Operation*> SumOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SumOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void SumOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -9522,6 +9988,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> SymmetricOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind SymmetricOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void SymmetricOp::printExpression(
@@ -9589,6 +10066,17 @@ namespace mlir::modelica
           getResult(),
           mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  std::optional<mlir::Operation*> TanOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind TanOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void TanOp::printExpression(
@@ -9731,6 +10219,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> TanhOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind TanhOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void TanhOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -9842,6 +10341,17 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> TransposeOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind TransposeOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
+  }
+
   void TransposeOp::printExpression(
       llvm::raw_ostream& os,
       const llvm::DenseMap<mlir::Value, int64_t>& inductions)
@@ -9871,6 +10381,17 @@ namespace mlir::modelica
         mlir::MemoryEffects::Write::get(),
         getResult(),
         mlir::SideEffects::DefaultResource::get());
+  }
+
+  std::optional<mlir::Operation*> ZerosOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
+  mlir::HoistingKind ZerosOp::getHoistingKind()
+  {
+    return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
   }
 
   void ZerosOp::printExpression(
