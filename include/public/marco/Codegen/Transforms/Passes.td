@@ -66,23 +66,6 @@ def BindingEquationConversionPass
     let constructor = "mlir::modelica::createBindingEquationConversionPass()";
 }
 
-def CallDefaultValuesInsertionPass
-    : Pass<"call-default-values-insertion", "mlir::ModuleOp">
-{
-    let summary = "Explicitate all the arguments of function calls.";
-
-    let description = [{
-        Explicitate all the arguments of function calls, by taking the missing
-        ones from the callees.
-    }];
-
-    let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
-    ];
-
-    let constructor = "mlir::modelica::createCallDefaultValuesInsertionPass()";
-}
-
 def DerivativesAllocationPass
     : Pass<"allocate-derivatives", "ModelOp">
 {
@@ -135,6 +118,25 @@ def EquationInductionsExplicitationPass
 
     let constructor =
         "mlir::modelica::createEquationInductionsExplicitationPass()";
+}
+
+def FunctionDefaultValuesConversionPass
+    : Pass<"function-default-values-conversion", "mlir::ModuleOp">
+{
+    let summary = "Fill the function calls and the output variables with the default values.";
+
+    let description = [{
+        Explicitate all the arguments of function calls and convert the default
+        output values to assdignments to be performed as soon as the function
+        starts its execution.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor =
+        "mlir::modelica::createFunctionDefaultValuesConversionPass()";
 }
 
 def ViewAccessFoldingPass : Pass<"fold-view-accesses", "ModelOp">

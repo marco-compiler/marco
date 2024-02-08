@@ -47,7 +47,6 @@ namespace
         // Discover the variables.
         llvm::SmallVector<VariableOp> inputVariables;
         llvm::SmallVector<VariableOp> outputVariables;
-        llvm::SmallVector<VariableOp> promotedOutputVariables;
         llvm::SmallVector<VariableOp> protectedVariables;
 
         collectVariables(
@@ -111,33 +110,6 @@ namespace
         for (VariableOp variable : dimensionsGraph.reversePostOrder()) {
           rawVariables[variable.getSymName()] = createVariable(
               rewriter, variable, exitBlock, lastBlockBeforeExitBlock);
-        }
-
-        // Set the default values.
-        llvm::StringMap<DefaultOp> defaultOps;
-
-        for (DefaultOp defaultOp : op.getOps<DefaultOp>()) {
-          defaultOps[defaultOp.getVariable()] = defaultOp;
-        }
-
-        DefaultValuesDependencyGraph defaultValuesGraph(defaultOps);
-
-        defaultValuesGraph.addVariables(outputVariables);
-        defaultValuesGraph.addVariables(protectedVariables);
-
-        defaultValuesGraph.discoverDependencies();
-
-        for (VariableOp variable : defaultValuesGraph.reversePostOrder()) {
-          auto defaultOpIt = defaultOps.find(variable.getSymName());
-
-          if (defaultOpIt != defaultOps.end()) {
-            setDefaultValue(
-                rewriter,
-                variable,
-                defaultOpIt->getValue(),
-                rawVariables,
-                exitBlock, lastBlockBeforeExitBlock);
-          }
         }
 
         // Convert the algorithms.
@@ -267,49 +239,6 @@ namespace
             variableOp.getVariableType(),
             variableOp.getDimensionsConstraints(),
             constraints);
-      }
-
-      void setDefaultValue(
-          mlir::PatternRewriter& rewriter,
-          VariableOp variableOp,
-          DefaultOp defaultOp,
-          const llvm::StringMap<RawVariableOp>& rawVariables,
-          mlir::Block* exitBlock,
-          mlir::Block*& lastBlockBeforeExitBlock) const
-      {
-        // Inline the operations to compute the default value, if any.
-        mlir::Region& region = defaultOp.getBodyRegion();
-
-        if (region.empty()) {
-          return;
-        }
-
-        // Create the block containing the assignment of the default value.
-        mlir::Block* valueAssignmentBlock = rewriter.createBlock(exitBlock);
-
-        // Create the branch to the block computing the default value.
-        rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
-        rewriter.create<mlir::cf::BranchOp>(defaultOp.getLoc(), &region.front());
-
-        // Inline the blocks computing the default value.
-        auto terminator = mlir::cast<YieldOp>(region.back().getTerminator());
-        mlir::Value value = terminator.getValues()[0];
-        rewriter.setInsertionPoint(terminator);
-
-        rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(
-            terminator, valueAssignmentBlock);
-
-        rewriter.inlineRegionBefore(region, valueAssignmentBlock);
-
-        // Assign the value.
-        rewriter.setInsertionPointToStart(valueAssignmentBlock);
-        auto it = rawVariables.find(variableOp.getSymName());
-        assert(it != rawVariables.end());
-        RawVariableOp rawVariableOp = it->second;
-        rewriter.create<RawVariableSetOp>(value.getLoc(), rawVariableOp, value);
-
-        // Set the last block before the exit one.
-        lastBlockBeforeExitBlock = valueAssignmentBlock;
       }
 
       /// Replace the references to the symbol of a variable with references to
@@ -699,8 +628,6 @@ namespace
 
     private:
       mlir::LogicalResult convertModelicaToCFG(mlir::ModuleOp moduleOp);
-
-      mlir::LogicalResult setFlatCallees(mlir::ModuleOp moduleOp);
 
       mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp);
   };

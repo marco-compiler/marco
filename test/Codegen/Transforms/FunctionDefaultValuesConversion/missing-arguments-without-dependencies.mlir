@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --call-default-values-insertion | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
 
 // CHECK-LABEL: @caller
 // CHECK-DAG: %[[x:.*]] = modelica.constant #modelica.int<0>

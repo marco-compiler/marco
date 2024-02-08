@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --call-default-values-insertion | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
 
 // CHECK-LABEL: @caller
 // CHECK: %[[cst:.*]] = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>

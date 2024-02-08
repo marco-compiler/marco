@@ -10,7 +10,6 @@ set(SOURCES
     AccessReplacementTest.cpp
     ArrayDeallocation.cpp
     BindingEquationConversion.cpp
-    CallDefaultValuesInsertion.cpp
     DerivativesAllocation.cpp
     EquationAccessSplit.cpp
     EquationExplicitation.cpp
@@ -23,6 +22,7 @@ set(SOURCES
     ExplicitCastInsertion.cpp
     ExplicitInitialEquationsInsertion.cpp
     ExplicitStartValueInsertion.cpp
+    FunctionDefaultValuesConversion.cpp
     FunctionInlining.cpp
     FunctionScalarization.cpp
     FunctionUnwrap.cpp
