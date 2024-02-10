@@ -2360,7 +2360,7 @@ namespace mlir::modelica
       if (auto negDistributionInt =
               mlir::dyn_cast<NegateOpDistributionInterface>(operandOp)) {
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-            results, builder, getResult().getType()))) {
+                results, builder))) {
           return mlir::success();
         }
       }
@@ -2374,8 +2374,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult NegateOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value operand = getOperand();
     bool operandDistributed = false;
@@ -2387,7 +2386,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           operand = childResults[0];
           operandDistributed = true;
@@ -2396,13 +2395,11 @@ namespace mlir::modelica
     }
 
     if (!operandDistributed) {
-      auto newOperandOp = builder.create<NegateOp>(
-          getLoc(), operand.getType(), operand);
-
+      auto newOperandOp = builder.create<NegateOp>(getLoc(), operand);
       operand = newOperandOp.getResult();
     }
 
-    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), operand);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -2411,7 +2408,6 @@ namespace mlir::modelica
   mlir::LogicalResult NegateOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value operand = getOperand();
@@ -2424,7 +2420,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           operand = childResults[0];
           operandDistributed = true;
@@ -2433,13 +2429,11 @@ namespace mlir::modelica
     }
 
     if (!operandDistributed) {
-      auto newOperandOp = builder.create<MulOp>(
-          getLoc(), operand.getType(), operand, value);
-
+      auto newOperandOp = builder.create<MulOp>(getLoc(), operand, value);
       operand = newOperandOp.getResult();
     }
 
-    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), operand);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -2448,7 +2442,6 @@ namespace mlir::modelica
   mlir::LogicalResult NegateOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value operand = getOperand();
@@ -2461,7 +2454,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           operand = childResults[0];
           operandDistributed = true;
@@ -2470,13 +2463,11 @@ namespace mlir::modelica
     }
 
     if (!operandDistributed) {
-      auto newOperandOp = builder.create<DivOp>(
-          getLoc(), operand.getType(), operand, value);
-
+      auto newOperandOp = builder.create<DivOp>(getLoc(), operand, value);
       operand = newOperandOp.getResult();
     }
 
-    auto resultOp = builder.create<NegateOp>(getLoc(), resultType, operand);
+    auto resultOp = builder.create<NegateOp>(getLoc(), operand);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -2825,8 +2816,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult AddOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -2843,7 +2833,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -2857,7 +2847,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -2866,20 +2856,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<NegateOp>(
-          lhs.getLoc(), lhs.getType(), lhs);
-
+      auto newLhsOp = builder.create<NegateOp>(lhs.getLoc(), lhs);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<NegateOp>(
-          rhs.getLoc(), rhs.getType(), rhs);
-
+      auto newRhsOp = builder.create<NegateOp>(rhs.getLoc(), rhs);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -2888,7 +2874,6 @@ namespace mlir::modelica
   mlir::LogicalResult AddOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -2906,7 +2891,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -2920,7 +2905,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -2929,20 +2914,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<MulOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<MulOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<MulOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<MulOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -2951,7 +2932,6 @@ namespace mlir::modelica
   mlir::LogicalResult AddOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -2969,7 +2949,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -2983,7 +2963,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -2992,20 +2972,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<DivOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<DivOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<DivOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<DivOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3264,8 +3240,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult AddEWOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -3282,7 +3257,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionOp.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3296,7 +3271,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionOp.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3305,20 +3280,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<NegateOp>(
-          lhs.getLoc(), lhs.getType(), lhs);
-
+      auto newLhsOp = builder.create<NegateOp>(lhs.getLoc(), lhs);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<NegateOp>(
-          rhs.getLoc(), rhs.getType(), rhs);
-
+      auto newRhsOp = builder.create<NegateOp>(rhs.getLoc(), rhs);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3327,7 +3298,6 @@ namespace mlir::modelica
   mlir::LogicalResult AddEWOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -3345,7 +3315,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3359,7 +3329,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3368,20 +3338,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<MulOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<MulOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<MulOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<MulOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3390,7 +3356,6 @@ namespace mlir::modelica
   mlir::LogicalResult AddEWOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -3408,7 +3373,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3422,7 +3387,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3431,20 +3396,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<DivOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<DivOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<DivOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<DivOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<AddEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3708,8 +3669,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult SubOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -3726,7 +3686,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3740,7 +3700,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3749,20 +3709,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<NegateOp>(
-          lhs.getLoc(), lhs.getType(), lhs);
-
+      auto newLhsOp = builder.create<NegateOp>(lhs.getLoc(), lhs);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<NegateOp>(
-          rhs.getLoc(), rhs.getType(), rhs);
-
+      auto newRhsOp = builder.create<NegateOp>(rhs.getLoc(), rhs);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3771,7 +3727,6 @@ namespace mlir::modelica
   mlir::LogicalResult SubOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -3789,7 +3744,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3803,7 +3758,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3812,20 +3767,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<MulOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<MulOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<MulOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<MulOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -3834,7 +3785,6 @@ namespace mlir::modelica
   mlir::LogicalResult SubOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -3852,7 +3802,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -3866,7 +3816,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -3875,20 +3825,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<DivOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<DivOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<DivOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<DivOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4149,8 +4095,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult SubEWOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -4167,7 +4112,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -4181,7 +4126,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -4190,20 +4135,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<NegateOp>(
-          lhs.getLoc(), lhs.getType(), lhs);
-
+      auto newLhsOp = builder.create<NegateOp>(lhs.getLoc(), lhs);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<NegateOp>(
-          rhs.getLoc(), rhs.getType(), rhs);
-
+      auto newRhsOp = builder.create<NegateOp>(rhs.getLoc(), rhs);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4212,7 +4153,6 @@ namespace mlir::modelica
   mlir::LogicalResult SubEWOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -4230,7 +4170,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -4244,7 +4184,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -4253,20 +4193,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<MulOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<MulOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<MulOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<MulOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4275,7 +4211,6 @@ namespace mlir::modelica
   mlir::LogicalResult SubEWOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -4293,7 +4228,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
           lhsDistributed = true;
@@ -4307,7 +4242,7 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
           rhsDistributed = true;
@@ -4316,20 +4251,16 @@ namespace mlir::modelica
     }
 
     if (!lhsDistributed) {
-      auto newLhsOp = builder.create<DivOp>(
-          lhs.getLoc(), lhs.getType(), lhs, value);
-
+      auto newLhsOp = builder.create<DivOp>(lhs.getLoc(), lhs, value);
       lhs = newLhsOp.getResult();
     }
 
     if (!rhsDistributed) {
-      auto newRhsOp = builder.create<DivOp>(
-          rhs.getLoc(), rhs.getType(), rhs, value);
-
+      auto newRhsOp = builder.create<DivOp>(rhs.getLoc(), rhs, value);
       rhs = newRhsOp.getResult();
     }
 
-    auto resultOp = builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<SubEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4625,7 +4556,7 @@ namespace mlir::modelica
         results.clear();
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-            results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -4638,7 +4569,7 @@ namespace mlir::modelica
         results.clear();
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-            results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -4652,8 +4583,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult MulOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -4667,13 +4597,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -4686,23 +4614,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4711,7 +4637,6 @@ namespace mlir::modelica
   mlir::LogicalResult MulOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -4726,13 +4651,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -4745,23 +4668,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -4770,7 +4691,6 @@ namespace mlir::modelica
   mlir::LogicalResult MulOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -4785,13 +4705,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -4804,23 +4722,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5102,7 +5018,7 @@ namespace mlir::modelica
         results.clear();
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -5115,7 +5031,7 @@ namespace mlir::modelica
         results.clear();
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -5129,8 +5045,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult MulEWOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -5144,13 +5059,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5163,23 +5076,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5187,7 +5098,8 @@ namespace mlir::modelica
 
   mlir::LogicalResult MulEWOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+      mlir::OpBuilder& builder,
+      mlir::Value value)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -5201,13 +5113,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5220,23 +5130,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5245,7 +5153,6 @@ namespace mlir::modelica
   mlir::LogicalResult MulEWOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -5260,13 +5167,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5279,23 +5184,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<MulEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<MulEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5557,7 +5460,7 @@ namespace mlir::modelica
         mlir::Value toDistribute = getRhs();
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-            results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -5571,8 +5474,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult DivOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -5586,13 +5488,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5605,23 +5505,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5630,7 +5528,6 @@ namespace mlir::modelica
   mlir::LogicalResult DivOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -5645,13 +5542,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5664,23 +5559,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -5689,7 +5582,6 @@ namespace mlir::modelica
   mlir::LogicalResult DivOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -5704,13 +5596,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -5723,23 +5613,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -6026,7 +5914,7 @@ namespace mlir::modelica
         mlir::Value toDistribute = getRhs();
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                results, builder, getResult().getType(), toDistribute))) {
+                results, builder, toDistribute))) {
           return mlir::success();
         }
       }
@@ -6040,8 +5928,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult DivEWOp::distributeNegateOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
-      mlir::OpBuilder& builder,
-      mlir::Type resultType)
+      mlir::OpBuilder& builder)
   {
     mlir::Value lhs = getLhs();
     mlir::Value rhs = getRhs();
@@ -6055,13 +5942,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -6074,23 +5959,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(negDistributionInt.distributeNegateOp(
-                childResults, builder, resultType))
+                childResults, builder))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs.getType(), lhs);
+    auto lhsNewOp = builder.create<NegateOp>(getLoc(), lhs);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -6099,7 +5982,6 @@ namespace mlir::modelica
   mlir::LogicalResult DivEWOp::distributeMulOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -6114,13 +5996,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -6133,23 +6013,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<MulOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();
@@ -6158,7 +6036,6 @@ namespace mlir::modelica
   mlir::LogicalResult DivEWOp::distributeDivOp(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::Type resultType,
       mlir::Value value)
   {
     mlir::Value lhs = getLhs();
@@ -6173,13 +6050,11 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(divDistributionInt.distributeDivOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           lhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
@@ -6192,23 +6067,21 @@ namespace mlir::modelica
         llvm::SmallVector<mlir::Value, 1> childResults;
 
         if (mlir::succeeded(mulDistributionInt.distributeMulOp(
-                childResults, builder, resultType, value))
+                childResults, builder, value))
             && childResults.size() == 1) {
           rhs = childResults[0];
 
-          auto resultOp = builder.create<DivEWOp>(
-              getLoc(), resultType, lhs, rhs);
-
+          auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
           results.push_back(resultOp.getResult());
           return mlir::success();
         }
       }
     }
 
-    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs.getType(), lhs, value);
+    auto lhsNewOp = builder.create<DivOp>(getLoc(), lhs, value);
     lhs = lhsNewOp.getResult();
 
-    auto resultOp = builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
+    auto resultOp = builder.create<DivEWOp>(getLoc(), lhs, rhs);
     results.push_back(resultOp.getResult());
 
     return mlir::success();

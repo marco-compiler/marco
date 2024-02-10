@@ -176,8 +176,7 @@ def NegateOpDistributionInterface : Modelica_OpInterface<"NegateOpDistributionIn
             "Distribute a negate operation among the arguments. The returned value is the result after propagation",
             "::mlir::LogicalResult", "distributeNegateOp",
             (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
-                 "::mlir::OpBuilder&":$builder,
-                 "::mlir::Type":$resultType)
+                 "::mlir::OpBuilder&":$builder)
         >
     ];
 }
@@ -194,7 +193,6 @@ def MulOpDistributionInterface : Modelica_OpInterface<"MulOpDistributionInterfac
             "::mlir::LogicalResult", "distributeMulOp",
             (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
                  "::mlir::OpBuilder&":$builder,
-                 "::mlir::Type":$resultType,
                  "::mlir::Value":$factor)
         >
     ];
@@ -212,7 +210,6 @@ def DivOpDistributionInterface : Modelica_OpInterface<"DivOpDistributionInterfac
             "::mlir::LogicalResult", "distributeDivOp",
             (ins "llvm::SmallVectorImpl<::mlir::Value>&":$results,
                  "::mlir::OpBuilder&":$builder,
-                 "::mlir::Type":$resultType,
                  "::mlir::Value":$divisor)
         >
     ];
