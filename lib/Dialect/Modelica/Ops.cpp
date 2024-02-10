@@ -101,6 +101,50 @@ static void printExpression(
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult RangeOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lowerBoundType = adaptor.getLowerBound().getType();
+    mlir::Type upperBoundType = adaptor.getUpperBound().getType();
+    mlir::Type stepType = adaptor.getStep().getType();
+
+    if (isScalar(lowerBoundType) &&
+        isScalar(upperBoundType) &&
+        isScalar(stepType)) {
+      mlir::Type resultType =
+          getMostGenericScalarType(lowerBoundType, upperBoundType);
+
+      resultType = getMostGenericScalarType(resultType, stepType);
+      returnTypes.push_back(RangeType::get(context, resultType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool RangeOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult RangeOp::fold(FoldAdaptor adaptor)
   {
     auto lowerBound = adaptor.getLowerBound();
@@ -2169,6 +2213,47 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult NegateOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type operandType = adaptor.getOperand().getType();
+
+    if (isScalar(operandType)) {
+      returnTypes.push_back(operandType);
+      return mlir::success();
+    }
+
+    if (auto arrayType = operandType.dyn_cast<ArrayType>()) {
+      returnTypes.push_back(arrayType);
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool NegateOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult NegateOp::fold(FoldAdaptor adaptor)
   {
     auto operand = adaptor.getOperand();
@@ -2457,6 +2542,90 @@ namespace
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult AddOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      for (int64_t dim = 0, rank = lhsArrayType.getRank(); dim < rank; ++dim) {
+        int64_t lhsDimSize = lhsArrayType.getDimSize(dim);
+        int64_t rhsDimSize = rhsArrayType.getDimSize(dim);
+
+        if (lhsDimSize != ArrayType::kDynamic &&
+            rhsDimSize != ArrayType::kDynamic &&
+            lhsDimSize != rhsDimSize) {
+          return mlir::failure();
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(
+          ArrayType::get(lhsArrayType.getShape(), resultElementType));
+
+      return mlir::success();
+    }
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsRangeType = lhsType.dyn_cast<RangeType>();
+    auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+
+    if (isScalar(lhsType) && rhsRangeType) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    if (lhsRangeType && isScalar(rhsType)) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool AddOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult AddOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -2880,6 +3049,87 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult AddEWOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (isScalar(lhsType) && rhsArrayType) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsType, rhsArrayType.getElementType());
+
+      returnTypes.push_back(rhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && isScalar(rhsType)) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsArrayType.getElementType(), rhsType);
+
+      returnTypes.push_back(lhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(ArrayType::get(shape, resultElementType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool AddEWOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult AddEWOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -3238,6 +3488,90 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult SubOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      for (int64_t dim = 0, rank = lhsArrayType.getRank(); dim < rank; ++dim) {
+        int64_t lhsDimSize = lhsArrayType.getDimSize(dim);
+        int64_t rhsDimSize = rhsArrayType.getDimSize(dim);
+
+        if (lhsDimSize != ArrayType::kDynamic &&
+            rhsDimSize != ArrayType::kDynamic &&
+            lhsDimSize != rhsDimSize) {
+          return mlir::failure();
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(
+          ArrayType::get(lhsArrayType.getShape(), resultElementType));
+
+      return mlir::success();
+    }
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsRangeType = lhsType.dyn_cast<RangeType>();
+    auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+
+    if (isScalar(lhsType) && rhsRangeType) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    if (lhsRangeType && isScalar(rhsType)) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool SubOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult SubOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -3598,6 +3932,87 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult SubEWOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (isScalar(lhsType) && rhsArrayType) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsType, rhsArrayType.getElementType());
+
+      returnTypes.push_back(rhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && isScalar(rhsType)) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsArrayType.getElementType(), rhsType);
+
+      returnTypes.push_back(lhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(ArrayType::get(shape, resultElementType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool SubEWOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult SubEWOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -3960,6 +4375,106 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult MulOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (isScalar(lhsType) && rhsArrayType) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsType, rhsArrayType.getElementType());
+
+      returnTypes.push_back(rhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && rhsArrayType) {
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      if (lhsArrayType.getRank() == 1 && rhsArrayType.getRank() == 1) {
+        returnTypes.push_back(resultElementType);
+        return mlir::success();
+      }
+
+      if (lhsArrayType.getRank() == 1 && rhsArrayType.getRank() == 2) {
+        returnTypes.push_back(
+            ArrayType::get(rhsArrayType.getShape()[1], resultElementType));
+
+        return mlir::success();
+      }
+
+      if (lhsArrayType.getRank() == 2 && rhsArrayType.getRank() == 1) {
+        returnTypes.push_back(
+            ArrayType::get(lhsArrayType.getShape()[0], resultElementType));
+
+        return mlir::success();
+      }
+
+      if (lhsArrayType.getRank() == 2 && rhsArrayType.getRank() == 2) {
+        llvm::SmallVector<int64_t> shape;
+        shape.push_back(lhsArrayType.getShape()[0]);
+        shape.push_back(rhsArrayType.getShape()[1]);
+
+        returnTypes.push_back(ArrayType::get(shape, resultElementType));
+        return mlir::success();
+      }
+    }
+
+    auto lhsRangeType = lhsType.dyn_cast<RangeType>();
+    auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+
+    if (isScalar(lhsType) && rhsRangeType) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    if (lhsRangeType && isScalar(rhsType)) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool MulOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult MulOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -4356,6 +4871,87 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult MulEWOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (isScalar(lhsType) && rhsArrayType) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsType, rhsArrayType.getElementType());
+
+      returnTypes.push_back(rhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && isScalar(rhsType)) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsArrayType.getElementType(), rhsType);
+
+      returnTypes.push_back(lhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(ArrayType::get(shape, resultElementType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool MulEWOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult MulEWOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -4750,6 +5346,72 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult DivOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+
+    if (lhsArrayType && isScalar(rhsType)) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsArrayType.getElementType(), rhsType);
+
+      returnTypes.push_back(lhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    auto lhsRangeType = lhsType.dyn_cast<RangeType>();
+    auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+
+    if (isScalar(lhsType) && rhsRangeType) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    if (lhsRangeType && isScalar(rhsType)) {
+      mlir::Type inductionType =
+          getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+
+      returnTypes.push_back(RangeType::get(context, inductionType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool DivOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult DivOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -5137,6 +5799,87 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult DivEWOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (isScalar(lhsType) && rhsArrayType) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsType, rhsArrayType.getElementType());
+
+      returnTypes.push_back(rhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && isScalar(rhsType)) {
+      mlir::Type resultElementType =
+          getMostGenericScalarType(lhsArrayType.getElementType(), rhsType);
+
+      returnTypes.push_back(lhsArrayType.toElementType(resultElementType));
+      return mlir::success();
+    }
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      mlir::Type resultElementType = getMostGenericScalarType(
+          lhsArrayType.getElementType(), rhsArrayType.getElementType());
+
+      returnTypes.push_back(ArrayType::get(shape, resultElementType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool DivEWOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult DivEWOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -5526,6 +6269,57 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult PowOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type baseType = adaptor.getBase().getType();
+    mlir::Type exponentType = adaptor.getExponent().getType();
+
+    if (isScalar(baseType)) {
+      if (exponentType.isa<RealType, mlir::FloatType>()) {
+        returnTypes.push_back(exponentType);
+        return mlir::success();
+      }
+
+      returnTypes.push_back(baseType);
+      return mlir::success();
+    }
+
+    if (auto baseArrayType = baseType.dyn_cast<ArrayType>()) {
+      if (!isScalar(exponentType)) {
+        return mlir::failure();
+      }
+
+      returnTypes.push_back(baseArrayType);
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool PowOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult PowOp::fold(FoldAdaptor adaptor)
   {
     auto base = adaptor.getBase();
@@ -5698,6 +6492,94 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult PowEWOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type baseType = adaptor.getBase().getType();
+    mlir::Type exponentType = adaptor.getExponent().getType();
+
+    auto inferResultType =
+        [](mlir::Type baseType, mlir::Type exponentType) -> mlir::Type {
+      if (exponentType.isa<RealType, mlir::FloatType>()) {
+        return exponentType;
+      }
+
+      return baseType;
+    };
+
+    if (isScalar(baseType) && isScalar(exponentType)) {
+      returnTypes.push_back(inferResultType(baseType, exponentType));
+      return mlir::success();
+    }
+
+    auto baseArrayType = baseType.dyn_cast<ArrayType>();
+    auto exponentArrayType = exponentType.dyn_cast<ArrayType>();
+
+    if (isScalar(baseType) && exponentArrayType) {
+      returnTypes.push_back(exponentArrayType.toElementType(
+          inferResultType(baseType, exponentArrayType.getElementType())));
+
+      return mlir::success();
+    }
+
+    if (baseArrayType && isScalar(exponentType)) {
+      returnTypes.push_back(baseArrayType.toElementType(
+          inferResultType(baseArrayType.getElementType(), exponentType)));
+
+      return mlir::success();
+    }
+
+    if (baseArrayType && exponentArrayType) {
+      if (baseArrayType.getRank() != exponentArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(baseArrayType.getShape(), exponentArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      mlir::Type resultElementType = inferResultType(
+          baseArrayType.getElementType(), exponentArrayType.getElementType());
+
+      returnTypes.push_back(ArrayType::get(shape, resultElementType));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool PowEWOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult PowEWOp::fold(FoldAdaptor adaptor)
   {
     auto base = adaptor.getBase();
@@ -5859,6 +6741,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult EqOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool EqOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult EqOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -5916,6 +6827,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult NotEqOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool NotEqOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult NotEqOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -5973,6 +6913,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult GtOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool GtOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult GtOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6030,6 +6999,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult GteOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool GteOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult GteOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6087,6 +7085,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult LtOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool LtOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult LtOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6144,6 +7171,35 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult LteOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    returnTypes.push_back(BooleanType::get(context));
+    return mlir::success();
+  }
+
+  bool LteOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult LteOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6205,6 +7261,49 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult NotOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type operandType = adaptor.getOperand().getType();
+
+    if (isScalar(operandType)) {
+      returnTypes.push_back(BooleanType::get(context));
+      return mlir::success();
+    }
+
+    if (auto arrayType = operandType.dyn_cast<ArrayType>()) {
+      returnTypes.push_back(
+          arrayType.toElementType(BooleanType::get(context)));
+
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool NotOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult NotOp::fold(FoldAdaptor adaptor)
   {
     auto operand = adaptor.getOperand();
@@ -6281,6 +7380,68 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult AndOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(BooleanType::get(context));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      returnTypes.push_back(ArrayType::get(shape, BooleanType::get(context)));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool AndOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult AndOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6393,6 +7554,68 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult OrOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type lhsType = adaptor.getLhs().getType();
+    mlir::Type rhsType = adaptor.getRhs().getType();
+
+    if (isScalar(lhsType) && isScalar(rhsType)) {
+      returnTypes.push_back(BooleanType::get(context));
+      return mlir::success();
+    }
+
+    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
+    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
+
+    if (lhsArrayType && rhsArrayType) {
+      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<int64_t> shape;
+
+      for (const auto& [lhsDim, rhsDim] :
+           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
+        if (lhsDim != ArrayType::kDynamic) {
+          shape.push_back(lhsDim);
+        } else if (rhsDim != ArrayType::kDynamic) {
+          shape.push_back(rhsDim);
+        } else {
+          shape.push_back(ArrayType::kDynamic);
+        }
+      }
+
+      returnTypes.push_back(ArrayType::get(shape, BooleanType::get(context)));
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool OrOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::OpFoldResult OrOp::fold(FoldAdaptor adaptor)
   {
     auto lhs = adaptor.getLhs();
@@ -6505,6 +7728,84 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult SelectOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+
+    if (adaptor.getTrueValues().size() != adaptor.getFalseValues().size()) {
+      return mlir::failure();
+    }
+
+    for (auto [trueValue, falseValue] : llvm::zip(
+             adaptor.getTrueValues(), adaptor.getFalseValues())) {
+      mlir::Type trueValueType = trueValue.getType();
+      mlir::Type falseValueType = falseValue.getType();
+
+      if (trueValueType == falseValueType) {
+        returnTypes.push_back(trueValueType);
+      } else if (isScalar(trueValueType) && isScalar(falseValueType)) {
+        returnTypes.push_back(
+            getMostGenericScalarType(trueValueType, falseValueType));
+      } else {
+        auto trueValueArrayType = trueValueType.dyn_cast<ArrayType>();
+        auto falseValueArrayType = falseValueType.dyn_cast<ArrayType>();
+
+        if (trueValueArrayType && falseValueArrayType) {
+          if (trueValueArrayType.getRank() != falseValueArrayType.getRank()) {
+            return mlir::failure();
+          }
+
+          llvm::SmallVector<int64_t> shape;
+
+          for (const auto& [lhsDim, rhsDim] : llvm::zip(
+                   trueValueArrayType.getShape(),
+                   falseValueArrayType.getShape())) {
+            if (lhsDim != ArrayType::kDynamic) {
+              shape.push_back(lhsDim);
+            } else if (rhsDim != ArrayType::kDynamic) {
+              shape.push_back(rhsDim);
+            } else {
+              shape.push_back(ArrayType::kDynamic);
+            }
+          }
+
+          mlir::Type resultElementType = getMostGenericScalarType(
+              trueValueArrayType.getElementType(),
+              falseValueArrayType.getElementType());
+
+          returnTypes.push_back(ArrayType::get(shape, resultElementType));
+        } else {
+          return mlir::failure();
+        }
+      }
+    }
+
+    return mlir::success();
+  }
+
+  bool SelectOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::ParseResult SelectOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
@@ -8649,6 +9950,53 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult MaxOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type firstType = adaptor.getFirst().getType();
+
+    if (adaptor.getSecond()) {
+      mlir::Type secondType = adaptor.getSecond().getType();
+
+      if (isScalar(firstType) && isScalar(secondType)) {
+        returnTypes.push_back(getMostGenericScalarType(firstType, secondType));
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+
+    if (auto firstArrayType = firstType.dyn_cast<ArrayType>()) {
+      returnTypes.push_back(firstArrayType.getElementType());
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool MaxOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::ParseResult MaxOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
@@ -8831,6 +10179,53 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::LogicalResult MinOp::inferReturnTypes(
+      mlir::MLIRContext* context,
+      std::optional<mlir::Location> location,
+      mlir::ValueRange operands,
+      mlir::DictionaryAttr attributes,
+      mlir::OpaqueProperties properties,
+      mlir::RegionRange regions,
+      llvm::SmallVectorImpl<mlir::Type>& returnTypes)
+  {
+    Adaptor adaptor(operands, attributes, properties, regions);
+    mlir::Type firstType = adaptor.getFirst().getType();
+
+    if (adaptor.getSecond()) {
+      mlir::Type secondType = adaptor.getSecond().getType();
+
+      if (isScalar(firstType) && isScalar(secondType)) {
+        returnTypes.push_back(getMostGenericScalarType(firstType, secondType));
+        return mlir::success();
+      }
+
+      return mlir::failure();
+    }
+
+    if (auto firstArrayType = firstType.dyn_cast<ArrayType>()) {
+      returnTypes.push_back(firstArrayType.getElementType());
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  bool MinOp::isCompatibleReturnTypes(
+      mlir::TypeRange lhs, mlir::TypeRange rhs)
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    for (auto [lhsType, rhsType] : llvm::zip(lhs, rhs)) {
+      if (!areTypesCompatible(lhsType, rhsType)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   mlir::ParseResult MinOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
@@ -12655,7 +14050,7 @@ namespace mlir::modelica
 
         result = rewriter.create<AddOp>(
             it->first.getLoc(),
-            getMostGenericType(result.getType(), it->first.getType()),
+            getMostGenericScalarType(result.getType(), it->first.getType()),
             result, factor->second);
       }
 
@@ -12673,7 +14068,7 @@ namespace mlir::modelica
 
         result = rewriter.create<AddOp>(
             value.getLoc(),
-            getMostGenericType(result.getType(), value.getType()),
+            getMostGenericScalarType(result.getType(), value.getType()),
             result, value);
       }
 
@@ -12725,12 +14120,12 @@ namespace mlir::modelica
           getLoc(), requestedValue.getType(),
           rewriter.create<SubOp>(
               getLoc(),
-              getMostGenericType(
+              getMostGenericScalarType(
                   rhsRemaining.getType(), lhsRemaining.getType()),
               rhsRemaining, lhsRemaining),
           rewriter.create<SubOp>(
               getLoc(),
-              getMostGenericType(
+              getMostGenericScalarType(
                   lhsFactor.getType(), rhsFactor.getType()),
               lhsFactor, rhsFactor));
 
@@ -12806,7 +14201,7 @@ namespace mlir::modelica
           getLoc(), requestedValue.getType(),
           rewriter.create<SubOp>(
               getLoc(),
-              getMostGenericType(
+              getMostGenericScalarType(
                   equationSidesOp.getRhsValues()[viewElementIndex].getType(),
                   lhsRemaining.getType()),
               equationSidesOp.getRhsValues()[viewElementIndex],
@@ -12882,7 +14277,7 @@ namespace mlir::modelica
           getLoc(), requestedValue.getType(),
           rewriter.create<SubOp>(
               getLoc(),
-              getMostGenericType(
+              getMostGenericScalarType(
                   equationSidesOp.getLhsValues()[viewElementIndex].getType(),
                   rhsRemaining.getType()),
               equationSidesOp.getLhsValues()[viewElementIndex],

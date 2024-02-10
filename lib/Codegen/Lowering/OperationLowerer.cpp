@@ -111,28 +111,6 @@ namespace marco::codegen::lowering
     }
   }
 
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::negate>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 1);
-    mlir::Type operandType = operands[0].getType();
-
-    if (isScalarType(operandType)) {
-      inferredTypes.push_back(operandType);
-      return true;
-    }
-
-    if (auto arrayType = operandType.dyn_cast<ArrayType>()) {
-      inferredTypes.push_back(arrayType);
-      return true;
-    }
-
-    return false;
-  }
-
   Results OperationLowerer::negate(const ast::Operation& operation)
   {
     mlir::Location location = loc(operation.getLocation());
@@ -141,54 +119,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 1);
 
-    mlir::Value result = builder().create<NegateOp>(
-        location, args[0].getType(), args[0]);
-
+    mlir::Value result = builder().create<NegateOp>(location, args[0]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::add>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic &&
-            rhsDim != ArrayType::kDynamic &&
-            lhsDim != rhsDim) {
-          return false;
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          ArrayType::get(lhsArrayType.getShape(), resultElementType));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::add(const ast::Operation& operation)
@@ -203,101 +135,17 @@ namespace marco::codegen::lowering
     current.push_back(args[0]);
     current.push_back(args[1]);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::add>(
-        builder().getContext(), current, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
     mlir::Value result = builder().create<AddOp>(
-        location, resultTypes[0], current[0], current[1]);
+        location, current[0], current[1]);
 
     for (size_t i = 2; i < args.size(); ++i) {
       current.clear();
       args.push_back(result);
       args.push_back(args[i]);
-
-      resultTypes.clear();
-
-      inferResult = inferResultTypes<ast::OperationKind::add>(
-          builder().getContext(), current, resultTypes);
-
-      assert(inferResult && "Can't infer result type");
-      assert(resultTypes.size() == 1);
-
-      result = builder().create<AddOp>(
-          location, resultTypes[0], current[0], current[1]);
+      result = builder().create<AddOp>(location, current[0], current[1]);
     }
 
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::addEW>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (isScalarType(lhsType) && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsType, rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          rhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && isScalarType(rhsType)) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsType);
-
-      inferredTypes.push_back(
-          lhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::addEW(const ast::Operation& operation)
@@ -308,62 +156,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::addEW>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<AddEWOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<AddEWOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::subtract>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic &&
-            rhsDim != ArrayType::kDynamic &&
-            lhsDim != rhsDim) {
-          return false;
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          ArrayType::get(lhsArrayType.getShape(), resultElementType));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::subtract(const ast::Operation& operation)
@@ -374,84 +168,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::subtract>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<SubOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<SubOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::subtractEW>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (isScalarType(lhsType) && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsType, rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          rhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && isScalarType(rhsType)) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsType);
-
-      inferredTypes.push_back(
-          lhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::subtractEW(const ast::Operation& operation)
@@ -462,86 +180,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::subtractEW>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<SubEWOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<SubEWOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::multiply>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (isScalarType(lhsType) && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsType, rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          rhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      if (lhsArrayType.getRank() == 1 && rhsArrayType.getRank() == 1) {
-        inferredTypes.push_back(resultElementType);
-        return true;
-      }
-
-      if (lhsArrayType.getRank() == 1 && rhsArrayType.getRank() == 2) {
-        inferredTypes.push_back(
-            ArrayType::get(rhsArrayType.getShape()[1], resultElementType));
-
-        return true;
-      }
-
-      if (lhsArrayType.getRank() == 2 && rhsArrayType.getRank() == 1) {
-        inferredTypes.push_back(
-            ArrayType::get(lhsArrayType.getShape()[0], resultElementType));
-
-        return true;
-      }
-
-      if (lhsArrayType.getRank() == 2 && rhsArrayType.getRank() == 2) {
-        llvm::SmallVector<int64_t> shape;
-        shape.push_back(lhsArrayType.getShape()[0]);
-        shape.push_back(rhsArrayType.getShape()[1]);
-
-        inferredTypes.push_back(
-            ArrayType::get(shape, resultElementType));
-
-        return true;
-      }
-
-      return false;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::multiply(const ast::Operation& operation)
@@ -556,101 +196,18 @@ namespace marco::codegen::lowering
     current.push_back(args[0]);
     current.push_back(args[1]);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::multiply>(
-        builder().getContext(), current, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
     mlir::Value result = builder().create<MulOp>(
-        location, resultTypes[0], current[0], current[1]);
+        location, current[0], current[1]);
 
     for (size_t i = 2; i < args.size(); ++i) {
       current.clear();
       args.push_back(result);
       args.push_back(args[i]);
 
-      resultTypes.clear();
-
-      inferResult = inferResultTypes<ast::OperationKind::multiply>(
-          builder().getContext(), current, resultTypes);
-
-      assert(inferResult && "Can't infer result type");
-      assert(resultTypes.size() == 1);
-
-      result = builder().create<MulOp>(
-          location, resultTypes[0], current[0], current[1]);
+      result = builder().create<MulOp>(location, current[0], current[1]);
     }
 
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::multiplyEW>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (isScalarType(lhsType) && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsType, rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          rhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && isScalarType(rhsType)) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsType);
-
-      inferredTypes.push_back(
-          lhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::multiplyEW(const ast::Operation& operation)
@@ -661,50 +218,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::multiplyEW>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<MulEWOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<MulEWOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::divide>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(
-          getMostGenericScalarType(lhsType, rhsType));
-
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-
-    if (lhsArrayType && isScalarType(rhsType)) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsType);
-
-      inferredTypes.push_back(
-          lhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::divide(const ast::Operation& operation)
@@ -715,84 +230,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::divide>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<DivOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<DivOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::divideEW>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (isScalarType(lhsType) && rhsArrayType) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsType, rhsArrayType.getElementType());
-
-      inferredTypes.push_back(
-          rhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && isScalarType(rhsType)) {
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsType);
-
-      inferredTypes.push_back(
-          lhsArrayType.toElementType(resultElementType));
-
-      return true;
-    }
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          lhsArrayType.getElementType(), rhsArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::divideEW(const ast::Operation& operation)
@@ -803,73 +242,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::divideEW>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<DivEWOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<DivEWOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::ifelse>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type trueValueType = operands[0].getType();
-    mlir::Type falseValueType = operands[1].getType();
-
-    if (isScalarType(trueValueType) && isScalarType(falseValueType)) {
-      inferredTypes.push_back(
-          getMostGenericScalarType(trueValueType, falseValueType));
-
-      return true;
-    }
-
-    auto trueValueArrayType = trueValueType.dyn_cast<ArrayType>();
-    auto falseValueArrayType = falseValueType.dyn_cast<ArrayType>();
-
-    if (trueValueArrayType && falseValueArrayType) {
-      if (trueValueArrayType.getRank() != falseValueArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] : llvm::zip(
-               trueValueArrayType.getShape(),
-               falseValueArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = getMostGenericScalarType(
-          trueValueArrayType.getElementType(),
-          falseValueArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    if (trueValueType == falseValueType) {
-      inferredTypes.push_back(trueValueType);
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::ifElse(const ast::Operation& operation)
@@ -888,7 +262,6 @@ namespace marco::codegen::lowering
     Results falseExpressions = lower(*operation.getArgument(2));
 
     llvm::SmallVector<mlir::Value, 3> args;
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     std::vector<mlir::Value> trueValues;
     std::vector<mlir::Value> falseValues;
@@ -904,16 +277,10 @@ namespace marco::codegen::lowering
       args.clear();
       args.push_back(trueValue);
       args.push_back(falseValue);
-
-      bool inferResult = inferResultTypes<ast::OperationKind::ifelse>(
-          builder().getContext(), args, resultTypes);
-
-      assert(inferResult && "Can't infer result type");
-      assert(resultTypes.size() == 1);
     }
 
     auto selectOp = builder().create<SelectOp>(
-        location, resultTypes, condition, trueValues, falseValues);
+        location, condition, trueValues, falseValues);
 
     std::vector<Reference> results;
 
@@ -921,17 +288,7 @@ namespace marco::codegen::lowering
       results.push_back(Reference::ssa(builder(), result));
     }
 
-    return Results(results.begin(), results.end());
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::greater>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
+    return {results.begin(), results.end()};
   }
 
   Results OperationLowerer::greater(const ast::Operation& operation)
@@ -942,28 +299,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::greater>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<GtOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<GtOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::greaterEqual>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
   }
 
   Results OperationLowerer::greaterOrEqual(const ast::Operation& operation)
@@ -974,29 +311,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult =
-        inferResultTypes<ast::OperationKind::greaterEqual>(
-            builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<GteOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<GteOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::equal>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
   }
 
   Results OperationLowerer::equal(const ast::Operation& operation)
@@ -1007,28 +323,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::equal>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<EqOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<EqOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::different>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
   }
 
   Results OperationLowerer::notEqual(const ast::Operation& operation)
@@ -1039,28 +335,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::different>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<NotEqOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<NotEqOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::lessEqual>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
   }
 
   Results OperationLowerer::lessOrEqual(const ast::Operation& operation)
@@ -1071,28 +347,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::lessEqual>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<LteOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<LteOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::less>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    inferredTypes.push_back(BooleanType::get(context));
-    return true;
   }
 
   Results OperationLowerer::less(const ast::Operation& operation)
@@ -1103,63 +359,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::less>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<LtOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<LtOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::land>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(BooleanType::get(context));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      inferredTypes.push_back(
-          ArrayType::get(shape, BooleanType::get(context)));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::logicalAnd(const ast::Operation& operation)
@@ -1170,42 +371,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::land>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<AndOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<AndOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::lnot>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 1);
-    mlir::Type operandType = operands[0].getType();
-
-    if (isScalarType(operandType)) {
-      inferredTypes.push_back(BooleanType::get(context));
-      return true;
-    }
-
-    if (auto operandArrayType = operandType.dyn_cast<ArrayType>()) {
-      inferredTypes.push_back(
-          operandArrayType.toElementType(BooleanType::get(context)));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::logicalNot(const ast::Operation& operation)
@@ -1216,63 +383,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 1);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::lnot>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<NotOp>(
-        location, resultTypes[0], args[0]);
-
+    mlir::Value result = builder().create<NotOp>(location, args[0]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::lor>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type lhsType = operands[0].getType();
-    mlir::Type rhsType = operands[1].getType();
-
-    if (isScalarType(lhsType) && isScalarType(rhsType)) {
-      inferredTypes.push_back(BooleanType::get(context));
-      return true;
-    }
-
-    auto lhsArrayType = lhsType.dyn_cast<ArrayType>();
-    auto rhsArrayType = rhsType.dyn_cast<ArrayType>();
-
-    if (lhsArrayType && rhsArrayType) {
-      if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      inferredTypes.push_back(
-          ArrayType::get(shape, BooleanType::get(context)));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::logicalOr(const ast::Operation& operation)
@@ -1283,17 +395,7 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::lor>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<OrOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<OrOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
   }
 
@@ -1320,38 +422,6 @@ namespace marco::codegen::lowering
     return Reference::memory(builder(), result);
   }
 
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::powerOf>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type baseType = operands[0].getType();
-    mlir::Type exponentType = operands[1].getType();
-
-    auto inferResultType =
-        [](mlir::Type base, mlir::Type exponent) -> mlir::Type {
-      if (exponent.isa<RealType>()) {
-        return exponent;
-      }
-
-      return base;
-    };
-
-    if (isScalarType(baseType)) {
-      inferredTypes.push_back(inferResultType(baseType, exponentType));
-      return true;
-    }
-
-    if (auto baseArrayType = baseType.dyn_cast<ArrayType>()) {
-      inferredTypes.push_back(baseArrayType);
-      return true;
-    }
-
-    return false;
-  }
-
   Results OperationLowerer::powerOf(const ast::Operation& operation)
   {
     mlir::Location location = loc(operation.getLocation());
@@ -1360,86 +430,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::powerOf>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<PowOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<PowOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::powerOfEW>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 2);
-    mlir::Type baseType = operands[0].getType();
-    mlir::Type exponentType = operands[1].getType();
-
-    auto inferResultType =
-        [](mlir::Type base, mlir::Type exponent) -> mlir::Type {
-          if (exponent.isa<RealType>()) {
-            return exponent;
-          }
-
-          return base;
-        };
-
-    if (isScalarType(baseType) && isScalarType(exponentType)) {
-      inferredTypes.push_back(inferResultType(baseType, exponentType));
-      return true;
-    }
-
-    auto baseArrayType = baseType.dyn_cast<ArrayType>();
-    auto exponentArrayType = exponentType.dyn_cast<ArrayType>();
-
-    if (isScalarType(baseType) && exponentArrayType) {
-      inferredTypes.push_back(exponentArrayType.toElementType(
-          inferResultType(baseType, exponentArrayType.getElementType())));
-
-      return true;
-    }
-
-    if (baseArrayType && isScalarType(exponentType)) {
-      inferredTypes.push_back(baseArrayType.toElementType(
-          inferResultType(baseArrayType.getElementType(), exponentType)));
-      return true;
-    }
-
-    if (baseArrayType && exponentArrayType) {
-      if (baseArrayType.getRank() != exponentArrayType.getRank()) {
-        return false;
-      }
-
-      llvm::SmallVector<int64_t> shape;
-
-      for (const auto& [lhsDim, rhsDim] :
-           llvm::zip(baseArrayType.getShape(), exponentArrayType.getShape())) {
-        if (lhsDim != ArrayType::kDynamic) {
-          shape.push_back(lhsDim);
-        } else if (rhsDim != ArrayType::kDynamic) {
-          shape.push_back(rhsDim);
-        } else {
-          shape.push_back(ArrayType::kDynamic);
-        }
-      }
-
-      mlir::Type resultElementType = inferResultType(
-          baseArrayType.getElementType(), exponentArrayType.getElementType());
-
-      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::powerOfEW(const ast::Operation& operation)
@@ -1450,44 +442,8 @@ namespace marco::codegen::lowering
     lowerArgs(operation, args);
     assert(args.size() == 2);
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::powerOfEW>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
-    mlir::Value result = builder().create<PowEWOp>(
-        location, resultTypes[0], args[0], args[1]);
-
+    mlir::Value result = builder().create<PowEWOp>(location, args[0], args[1]);
     return Reference::ssa(builder(), result);
-  }
-
-  template<>
-  bool OperationLowerer::inferResultTypes<ast::OperationKind::range>(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Value> operands,
-      llvm::SmallVectorImpl<mlir::Type>& inferredTypes)
-  {
-    assert(operands.size() == 3);
-    mlir::Type lowerBoundType = operands[0].getType();
-    mlir::Type upperBoundType = operands[2].getType();
-    mlir::Type stepType = operands[1].getType();
-
-    if (isScalarType(lowerBoundType) &&
-        isScalarType(upperBoundType) &&
-        isScalarType(stepType)) {
-      mlir::Type lowerUpperGeneric =
-          getMostGenericScalarType(lowerBoundType, upperBoundType);
-
-      inferredTypes.push_back(
-          getMostGenericScalarType(lowerUpperGeneric, stepType));
-
-      return true;
-    }
-
-    return false;
   }
 
   Results OperationLowerer::range(const ast::Operation& operation)
@@ -1507,18 +463,8 @@ namespace marco::codegen::lowering
       args[1] = step;
     }
 
-    llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-    bool inferResult = inferResultTypes<ast::OperationKind::range>(
-        builder().getContext(), args, resultTypes);
-
-    assert(inferResult && "Can't infer result type");
-    assert(resultTypes.size() == 1);
-
     mlir::Value result = builder().create<RangeOp>(
-        location,
-        RangeType::get(builder().getContext(), resultTypes[0]),
-        args[0], args[2], args[1]);
+        location, args[0], args[2], args[1]);
 
     return Reference::ssa(builder(), result);
   }

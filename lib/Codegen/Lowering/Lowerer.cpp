@@ -195,42 +195,6 @@ namespace marco::codegen::lowering
     getVariablesSymbolTable().insert(name, reference);
   }
 
-  mlir::Type Lowerer::getMostGenericScalarType(mlir::Type first, mlir::Type second)
-  {
-    assert((first.isa<BooleanType, IntegerType, RealType, mlir::IndexType>()));
-
-    assert((second.isa<
-            BooleanType, IntegerType, RealType, mlir::IndexType>()));
-
-    if (first.isa<BooleanType>()) {
-      if (second.isa<mlir::IndexType>()) {
-        return IntegerType::get(first.getContext());
-      }
-
-      return second;
-    }
-
-    if (first.isa<IntegerType>()) {
-      if (second.isa<RealType>()) {
-        return second;
-      }
-
-      return first;
-    }
-
-    if (first.isa<RealType>()) {
-      return first;
-    }
-
-    assert(first.isa<mlir::IndexType>());
-
-    if (second.isa<RealType>() || second.isa<mlir::IndexType>()) {
-      return second;
-    }
-
-    return IntegerType::get(first.getContext());
-  }
-
   bool Lowerer::isScalarType(mlir::Type type)
   {
     return type.isa<BooleanType, IntegerType, RealType, mlir::IndexType>();

@@ -329,38 +329,126 @@ namespace mlir::modelica
     return result;
   }
 
-  mlir::Type getMostGenericType(mlir::Value x, mlir::Value y)
+  mlir::Type getMostGenericScalarType(mlir::Value x, mlir::Value y)
   {
     assert(x != nullptr && y != nullptr);
-    return getMostGenericType(x.getType(), y.getType());
+    return getMostGenericScalarType(x.getType(), y.getType());
   }
 
-  mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
+  /// Get the most generic scalar type among two.
+  ///
+  ///                 |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR Integer  |  MLIR Float
+  /// Boolean         |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR Integer  |  MLIR Float
+  /// Integer         |     -     |  Integer  |  Real  |    Integer   |     Integer    |  MLIR Float
+  /// Real            |     -     |     -     |  Real  |     Real     |      Real      |     Real
+  /// MLIR Index      |     -     |     -     |   -    |  MLIR Index  |  MLIR Integer  |  MLIR Float
+  /// MLIR Integer    |     -     |     -     |   -    |       -      |  MLIR Integer  |  MLIR Float
+  /// MLIR Float      |     -     |     -     |   -    |       -      |        -       |  MLIR Float
+  mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second)
   {
-    assert((x.isa<BooleanType, IntegerType, RealType, mlir::IndexType>()));
-    assert((y.isa<BooleanType, IntegerType, RealType, mlir::IndexType>()));
+    assert(isScalar(first) && isScalar(second));
 
-    if (x.isa<BooleanType>()) {
-      return y;
+    if (first.isa<BooleanType>()) {
+      return second;
     }
 
-    if (y.isa<BooleanType>()) {
-      return x;
+    if (first.isa<IntegerType>()) {
+      if (second.isa<BooleanType>()) {
+        return first;
+      }
+
+      return second;
     }
 
-    if (x.isa<RealType>()) {
-      return x;
+    if (first.isa<RealType>()) {
+      return first;
     }
 
-    if (y.isa<RealType>()) {
-      return y;
+    if (first.isa<mlir::IndexType>()) {
+      if (second.isa<BooleanType, mlir::IndexType>()) {
+        return first;
+      }
+
+      if (second.isa<IntegerType, RealType,
+                     mlir::IntegerType, mlir::FloatType>()) {
+        return second;
+      }
     }
 
-    if (x.isa<IntegerType>()) {
-      return y;
+    if (first.isa<mlir::IntegerType>()) {
+      if (second.isa<BooleanType, mlir::IndexType>()) {
+        return first;
+      }
+
+      if (second.isa<mlir::IntegerType>()) {
+        if (first.getIntOrFloatBitWidth() >= second.getIntOrFloatBitWidth()) {
+          return first;
+        }
+
+        return second;
+      }
+
+      if (second.isa<IntegerType, RealType, mlir::FloatType>()) {
+        return second;
+      }
     }
 
-    return x;
+    if (first.isa<mlir::FloatType>()) {
+      if (second.isa<BooleanType, IntegerType,
+                     mlir::IndexType, mlir::IntegerType>()) {
+        return first;
+      }
+
+      if (second.isa<mlir::FloatType>()) {
+        if (first.getIntOrFloatBitWidth() >= second.getIntOrFloatBitWidth()) {
+          return first;
+        }
+
+        return second;
+      }
+
+      if (second.isa<RealType>()) {
+        return second;
+      }
+    }
+
+    llvm_unreachable("Can't compare types");
+    return first;
+  }
+
+  bool areScalarTypesCompatible(mlir::Type first, mlir::Type second)
+  {
+    return isScalar(first) && isScalar(second);
+  }
+
+  bool areTypesCompatible(mlir::Type first, mlir::Type second)
+  {
+    if (isScalar(first) && isScalar(second)) {
+      return areScalarTypesCompatible(first, second);
+    }
+
+    auto firstArrayType = first.dyn_cast<ArrayType>();
+    auto secondArrayType = second.dyn_cast<ArrayType>();
+
+    if (firstArrayType && secondArrayType) {
+      if (mlir::failed(verifyCompatibleShape(
+              firstArrayType.getShape(), secondArrayType.getShape()))) {
+        return false;
+      }
+
+      return areTypesCompatible(firstArrayType.getElementType(),
+                                secondArrayType.getElementType());
+    }
+
+    auto firstRangeType = first.dyn_cast<RangeType>();
+    auto secondRangeType = second.dyn_cast<RangeType>();
+
+    if (firstRangeType && secondRangeType) {
+      return areTypesCompatible(firstRangeType.getInductionType(),
+                                secondRangeType.getInductionType());
+    }
+
+    return false;
   }
 
   bool isScalar(mlir::Type type)

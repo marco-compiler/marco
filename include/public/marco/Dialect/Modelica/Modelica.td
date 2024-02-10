@@ -10,6 +10,7 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
@@ -218,7 +219,8 @@ class Modelica_Op<string mnemonic, list<Trait> traits = []> :
 // Range operations
 //===---------------------------------------------------------------------===//
 
-def RangeOp : Modelica_Op<"range", []>
+def RangeOp : Modelica_Op<"range",
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>]>
 {
     let summary = "Range";
 
@@ -241,6 +243,11 @@ def RangeOp : Modelica_Op<"range", []>
     let results = (outs ModelicaRange:$result);
     let assemblyFormat = "$lowerBound `,` $upperBound `,` $step attr-dict `:` `(` type($lowerBound) `,` type($upperBound) `,` type($step) `)` `->` type($result)";
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def UnboundedRangeOp : Modelica_Op<"unbounded_range", [Pure]>
@@ -385,16 +392,8 @@ def RangeSizeOp : Modelica_Op<"range_size", []>
 
     let arguments = (ins ModelicaRange:$range);
     let results = (outs Index:$result);
-
     let assemblyFormat = "$range attr-dict `:` type($range)";
-
     let hasFolder = 1;
-
-    let builders = [
-        OpBuilder<(ins "mlir::Value":$range), [{
-            build($_builder, $_state, $_builder.getIndexType(), range);
-        }]>
-    ];
 }
 
 //===---------------------------------------------------------------------===//
@@ -696,13 +695,6 @@ def Modelica_DimOp : Modelica_Op<"dim",
     let results = (outs Index:$result);
     let assemblyFormat = "$array `,` $dimension attr-dict `:` type($array)";
     let hasCanonicalizer = 1;
-
-    let builders = [
-        OpBuilder<(ins "Value":$array, "Value":$dimension), [{
-            auto indexType = $_builder.getIndexType();
-            build($_builder, $_state, indexType, array, dimension);
-        }]>
-    ];
 }
 
 def Modelica_LoadOp : Modelica_Op<"load",
@@ -739,14 +731,6 @@ def Modelica_LoadOp : Modelica_Op<"load",
     let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
     let hasCanonicalizer = 1;
-
-    let builders = [
-        OpBuilder<(ins "Value":$array, CArg<"ValueRange", "{}">:$indices), [{
-            auto arrayType = array.getType().cast<ArrayType>();
-            auto elementType = arrayType.getElementType();
-            build($_builder, $_state, elementType, array, indices);
-        }]>
-    ];
 
     let extraClassDeclaration = [{
         /// Get the array type.
@@ -1313,7 +1297,8 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
 }
 
 def Modelica_NegateOp : Modelica_Op<"neg",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
@@ -1339,10 +1324,16 @@ def Modelica_NegateOp : Modelica_Op<"neg",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_AddOp : Modelica_Op<"add",
     [Commutative,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1379,10 +1370,16 @@ def Modelica_AddOp : Modelica_Op<"add",
 
     let hasFolder = 1;
     let hasCanonicalizer = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_AddEWOp : Modelica_Op<"add_ew",
     [Commutative,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1417,10 +1414,16 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_SubOp : Modelica_Op<"sub",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     AlwaysSpeculatable,
@@ -1455,10 +1458,16 @@ def Modelica_SubOp : Modelica_Op<"sub",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_SubEWOp : Modelica_Op<"sub_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     AlwaysSpeculatable,
@@ -1492,10 +1501,17 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_MulOp : Modelica_Op<"mul",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [Commutative,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     AlwaysSpeculatable,
@@ -1531,10 +1547,15 @@ def Modelica_MulOp : Modelica_Op<"mul",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_MulEWOp : Modelica_Op<"mul_ew",
-    [Commutative,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1570,10 +1591,16 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_DivOp : Modelica_Op<"div",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
@@ -1608,10 +1635,16 @@ def Modelica_DivOp : Modelica_Op<"div",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_DivEWOp : Modelica_Op<"div_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
@@ -1645,10 +1678,16 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_PowOp : Modelica_Op<"pow",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
@@ -1677,10 +1716,16 @@ def Modelica_PowOp : Modelica_Op<"pow",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_PowEWOp : Modelica_Op<"pow_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
@@ -1710,6 +1755,11 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 //===---------------------------------------------------------------------===//
@@ -1734,6 +1784,7 @@ class Modelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
 def Modelica_EqOp : Modelica_ComparisonOp<"eq",
     [Commutative,
     Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if two values are equal.";
@@ -1751,11 +1802,17 @@ def Modelica_EqOp : Modelica_ComparisonOp<"eq",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_NotEqOp : Modelica_ComparisonOp<"neq",
     [Commutative,
     Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if two values are not equal.";
@@ -1773,10 +1830,16 @@ def Modelica_NotEqOp : Modelica_ComparisonOp<"neq",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_GtOp : Modelica_ComparisonOp<"gt",
     [Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if a value is greater than another one.";
@@ -1794,10 +1857,16 @@ def Modelica_GtOp : Modelica_ComparisonOp<"gt",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_GteOp : Modelica_ComparisonOp<"gte",
     [Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if a value is greater or equal than another one.";
@@ -1815,10 +1884,16 @@ def Modelica_GteOp : Modelica_ComparisonOp<"gte",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_LtOp : Modelica_ComparisonOp<"lt",
     [Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if a value is less than another one.";
@@ -1836,10 +1911,16 @@ def Modelica_LtOp : Modelica_ComparisonOp<"lt",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_LteOp : Modelica_ComparisonOp<"lte",
     [Pure,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
     let summary = "Check if a value is less or equal than another one.";
@@ -1856,6 +1937,11 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 //===---------------------------------------------------------------------===//
@@ -1864,6 +1950,7 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte",
 
 def Modelica_NotOp : Modelica_Op<"not",
     [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1901,10 +1988,16 @@ def Modelica_NotOp : Modelica_Op<"not",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_AndOp : Modelica_Op<"and",
     [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1945,10 +2038,16 @@ def Modelica_AndOp : Modelica_Op<"and",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_OrOp : Modelica_Op<"or",
     [AlwaysSpeculatable,
+    DeclareOpInterfaceMethods<InferTypeOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -1989,10 +2088,16 @@ def Modelica_OrOp : Modelica_Op<"or",
     }];
 
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_SelectOp : Modelica_Op<"select",
-    [SameVariadicOperandSize,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    SameVariadicOperandSize,
     AlwaysSpeculatable,
     DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>]>
 {
@@ -2011,6 +2116,11 @@ def Modelica_SelectOp : Modelica_Op<"select",
     let results = (outs Variadic<AnyType>:$results);
 
     let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 //===---------------------------------------------------------------------===//
@@ -2569,7 +2679,8 @@ def Modelica_Log10Op : Modelica_Op<"log10",
 }
 
 def Modelica_MaxOp : Modelica_Op<"max",
-    [AlwaysSpeculatable,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -2608,10 +2719,16 @@ def Modelica_MaxOp : Modelica_Op<"max",
 
     let hasCustomAssemblyFormat = 1;
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_MinOp : Modelica_Op<"min",
-    [AlwaysSpeculatable,
+    [DeclareOpInterfaceMethods<InferTypeOpInterface>,
+    AlwaysSpeculatable,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<AllocationOpInterface,
                               ["getHoistingKind", "buildDealloc"]>,
@@ -2650,6 +2767,11 @@ def Modelica_MinOp : Modelica_Op<"min",
 
     let hasCustomAssemblyFormat = 1;
     let hasFolder = 1;
+
+    let extraClassDeclaration = [{
+        static bool isCompatibleReturnTypes(
+            ::mlir::TypeRange lhs, ::mlir::TypeRange rhs);
+    }];
 }
 
 def Modelica_ModOp : Modelica_Op<"mod",

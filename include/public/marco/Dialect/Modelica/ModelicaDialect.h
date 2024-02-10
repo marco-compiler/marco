@@ -30,9 +30,13 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection,
       mlir::SymbolRefAttr symbol);
 
-  mlir::Type getMostGenericType(mlir::Value x, mlir::Value y);
+  mlir::Type getMostGenericScalarType(mlir::Value first, mlir::Value second);
 
-  mlir::Type getMostGenericType(mlir::Type x, mlir::Type y);
+  mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second);
+
+  bool areScalarTypesCompatible(mlir::Type first, mlir::Type second);
+
+  bool areTypesCompatible(mlir::Type first, mlir::Type second);
 
   bool isScalar(mlir::Type type);
 

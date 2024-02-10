@@ -1301,11 +1301,8 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 2> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    mlir::Type resultType = getMostGenericScalarType(
-        args[0].getType(), args[1].getType());
-
     mlir::Value result = builder().create<MaxOp>(
-        loc(call.getLocation()), resultType, args);
+        loc(call.getLocation()), args);
 
     return Reference::ssa(builder(), result);
   }
@@ -1357,11 +1354,8 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 2> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    mlir::Type resultType = getMostGenericScalarType(
-        args[0].getType(), args[1].getType());
-
     mlir::Value result = builder().create<MinOp>(
-        loc(call.getLocation()), resultType, args);
+        loc(call.getLocation()), args);
 
     return Reference::ssa(builder(), result);
   }

@@ -72,8 +72,6 @@ namespace marco::codegen::lowering
 
       void insertVariable(llvm::StringRef name, Reference reference);
 
-      mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second);
-
       bool isScalarType(mlir::Type type);
 
       /// }

@@ -45,12 +45,6 @@ namespace marco::codegen::lowering
       Results powerOfEW(const ast::Operation& operation);
       Results range(const ast::Operation& operation);
 
-      template<ast::OperationKind OperationKind>
-      bool inferResultTypes(
-          mlir::MLIRContext* context,
-          llvm::ArrayRef<mlir::Value> operands,
-          llvm::SmallVectorImpl<mlir::Type>& inferredTypes);
-
     private:
       mlir::Value lowerArg(const ast::Expression& expression);
 
