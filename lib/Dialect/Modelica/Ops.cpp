@@ -16141,6 +16141,12 @@ namespace mlir::modelica
     }
   }
 
+  std::optional<mlir::Operation*> CallOp::buildDealloc(
+      mlir::OpBuilder& builder, mlir::Value alloc)
+  {
+    return builder.create<FreeOp>(alloc.getLoc(), alloc).getOperation();
+  }
+
   mlir::HoistingKind CallOp::getHoistingKind()
   {
     return mlir::HoistingKind::Loop | mlir::HoistingKind::Block;
