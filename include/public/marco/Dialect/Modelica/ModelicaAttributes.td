@@ -345,8 +345,9 @@ def Modelica_IntegerRangeAttr : Modelica_Attr<"IntegerRange",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        AttrBuilder<(
-            ins "int64_t":$lowerBound, "int64_t":$upperBound, "int64_t":$step)>
+        AttrBuilder<(ins "int64_t":$lowerBound,
+                         "int64_t":$upperBound,
+                         "int64_t":$step)>
     ];
 }
 
@@ -371,8 +372,13 @@ def Modelica_RealRangeAttr : Modelica_Attr<"RealRange",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        AttrBuilder<(
-            ins "double":$lowerBound, "double":$upperBound, "double":$step)>
+        AttrBuilderWithInferredContext<(ins "mlir::Type":$type,
+                         "double":$lowerBound,
+                         "double":$upperBound,
+                         "double":$step)>,
+        AttrBuilder<(ins "double":$lowerBound,
+                         "double":$upperBound,
+                         "double":$step)>
     ];
 }
 

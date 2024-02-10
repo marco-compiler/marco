@@ -817,6 +817,16 @@ namespace mlir::modelica
   //===-------------------------------------------------------------------===//
 
   RealRangeAttr RealRangeAttr::get(
+      mlir::Type type,
+      double lowerBound, double upperBound, double step)
+  {
+    return get(type.getContext(), type,
+               llvm::APFloat(lowerBound),
+               llvm::APFloat(upperBound),
+               llvm::APFloat(step));
+  }
+
+  RealRangeAttr RealRangeAttr::get(
       mlir::MLIRContext *context,
       double lowerBound, double upperBound, double step)
   {

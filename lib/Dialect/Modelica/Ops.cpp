@@ -2663,7 +2663,8 @@ namespace mlir::modelica
         int64_t step = lhsRange.getStep();
 
         return IntegerRangeAttr::get(
-            getContext(), lowerBound, upperBound, step);
+            getContext(), lhsRange.getType(),
+            lowerBound, upperBound, step);
       }
 
       if (isScalarFloatLike(rhs)) {
@@ -2675,8 +2676,10 @@ namespace mlir::modelica
         double upperBound =
             static_cast<double>(lhsRange.getUpperBound()) + rhsValue;
 
-        double step = static_cast<double>(lhsRange.getStep());
-        return RealRangeAttr::get(getContext(), lowerBound, upperBound, step);
+        auto step = static_cast<double>(lhsRange.getStep());
+
+        return RealRangeAttr::get(
+            getContext(), lowerBound, upperBound, step);
       }
     }
 
@@ -2694,7 +2697,7 @@ namespace mlir::modelica
         double step = lhsRange.getStep().convertToDouble();
 
         return RealRangeAttr::get(
-            getContext(), lowerBound, upperBound, step);
+            lhsRange.getType(), lowerBound, upperBound, step);
       }
 
       if (isScalarFloatLike(rhs)) {
@@ -2707,7 +2710,9 @@ namespace mlir::modelica
             lhsRange.getUpperBound().convertToDouble() + rhsValue;
 
         double step = lhsRange.getStep().convertToDouble();
-        return RealRangeAttr::get(getContext(), lowerBound, upperBound, step);
+
+        return RealRangeAttr::get(
+            getContext(), lowerBound, upperBound, step);
       }
     }
 
