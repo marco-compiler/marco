@@ -3575,6 +3575,69 @@ namespace mlir::modelica
       }
     }
 
+    if (auto lhsRange = lhs.dyn_cast<IntegerRangeAttr>();
+        lhsRange && isScalar(rhs)) {
+      if (isScalarIntegerLike(rhs)) {
+        int64_t rhsValue = getScalarIntegerLikeValue(rhs);
+        int64_t lowerBound = lhsRange.getLowerBound() - rhsValue;
+        int64_t upperBound = lhsRange.getUpperBound() - rhsValue;
+        int64_t step = lhsRange.getStep();
+
+        return IntegerRangeAttr::get(
+            getContext(), lhsRange.getType(),
+            lowerBound, upperBound, step);
+      }
+
+      if (isScalarFloatLike(rhs)) {
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
+        double lowerBound =
+            static_cast<double>(lhsRange.getLowerBound()) - rhsValue;
+
+        double upperBound =
+            static_cast<double>(lhsRange.getUpperBound()) - rhsValue;
+
+        auto step = static_cast<double>(lhsRange.getStep());
+
+        return RealRangeAttr::get(
+            getContext(), lowerBound, upperBound, step);
+      }
+    }
+
+    if (auto lhsRange = lhs.dyn_cast<RealRangeAttr>();
+        lhsRange && isScalar(rhs)) {
+      if (isScalarIntegerLike(rhs)) {
+        auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
+
+        double lowerBound =
+            lhsRange.getLowerBound().convertToDouble() - rhsValue;
+
+        double upperBound =
+            lhsRange.getUpperBound().convertToDouble() - rhsValue;
+
+        double step = lhsRange.getStep().convertToDouble();
+
+        return RealRangeAttr::get(
+            lhsRange.getType(), lowerBound, upperBound, step);
+      }
+
+      if (isScalarFloatLike(rhs)) {
+        double rhsValue = getScalarFloatLikeValue(rhs);
+
+        double lowerBound =
+            lhsRange.getLowerBound().convertToDouble() - rhsValue;
+
+        double upperBound =
+            lhsRange.getUpperBound().convertToDouble() - rhsValue;
+
+        double step = lhsRange.getStep().convertToDouble();
+
+        return RealRangeAttr::get(
+            getContext(), lowerBound, upperBound, step);
+      }
+    }
+
+
     return {};
   }
 
