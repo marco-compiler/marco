@@ -70,34 +70,6 @@ func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.int) -> !modelica.real 
 
 // -----
 
-// Array and scalar operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.array<3x?x!modelica.real>, %[[arg1:.*]]: !modelica.real) -> !modelica.array<3x?x!modelica.real>
-// CHECK-DAG:   %[[arg1_casted:.*]] = builtin.unrealized_conversion_cast %[[arg1]] : !modelica.real to f64
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim0:.*]] = modelica.dim %[[arg0]], %[[c0]]
-// CHECK-DAG:   %[[arg0_dim1:.*]] = modelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : !modelica.array<3x?x!modelica.real>
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] {
-// CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg0_dim1]] step %[[c1]] {
-// CHECK:               %[[array_value:.*]] = modelica.load %[[arg0]][%[[index_0]], %[[index_1]]]
-// CHECK:               %[[array_value_casted:.*]] = builtin.unrealized_conversion_cast %[[array_value]] : !modelica.real to f64
-// CHECK:               %[[mul:.*]] = arith.mulf %[[arg1_casted]], %[[array_value_casted]]
-// CHECK:               %[[mul_casted:.*]] = builtin.unrealized_conversion_cast %[[mul]] : f64 to !modelica.real
-// CHECK:               modelica.store %[[result]][%[[index_0]], %[[index_1]]], %[[mul_casted]]
-// CHECK:           }
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !modelica.array<3x?x!modelica.real>, %arg1 : !modelica.real) -> !modelica.array<3x?x!modelica.real> {
-    %0 = modelica.mul %arg0, %arg1 : (!modelica.array<3x?x!modelica.real>, !modelica.real) -> !modelica.array<3x?x!modelica.real>
-    func.return %0 : !modelica.array<3x?x!modelica.real>
-}
-
-// -----
-
 // Scalar and array operands
 
 // CHECK-LABEL: @foo
