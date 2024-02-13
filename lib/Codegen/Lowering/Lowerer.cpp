@@ -323,7 +323,7 @@ namespace marco::codegen::lowering
   }
 
   void Lowerer::lowerStartAttribute(
-      const ast::Member& variable,
+      mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
       bool each)

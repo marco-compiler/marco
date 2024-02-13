@@ -138,7 +138,7 @@ namespace
         mlir::PatternRewriter& rewriter) const override
     {
       auto startOp = rewriter.replaceOpWithNewOp<StartOp>(
-          op, op.getVariable(), true, false);
+          op, mlir::SymbolRefAttr::get(op.getVariableAttr()), true, false);
 
       assert(startOp.getBodyRegion().empty());
 

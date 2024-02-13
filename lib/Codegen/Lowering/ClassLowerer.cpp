@@ -266,7 +266,7 @@ namespace marco::codegen::lowering
   }
 
   void ClassLowerer::lowerStartAttribute(
-      const ast::Member& member,
+      mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
       bool each)
@@ -274,7 +274,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(expression.getLocation());
 
     auto startOp = builder().create<StartOp>(
-        location, member.getName(), fixed, each);
+        location, variable, fixed, each);
 
     mlir::OpBuilder::InsertionGuard guard(builder());
 

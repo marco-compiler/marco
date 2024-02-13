@@ -3542,7 +3542,7 @@ def Modelica_StartOp : Modelica_Op<"start",
     }];
 
     let arguments = (ins
-        SymbolNameAttr:$variable,
+        SymbolRefAttr:$variable,
         BoolAttr:$fixed,
         BoolAttr:$each,
         DefaultValuedAttr<BoolAttr, "false">:$implicit);

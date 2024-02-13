@@ -18,6 +18,15 @@ namespace marco::codegen::lowering
 
       void lower(const ast::Model& model) override;
 
+      void lowerVariableAttributes(
+          mlir::modelica::ModelOp modelOp,
+          const ast::Member& variable);
+
+      void lowerVariableAttributes(
+          mlir::modelica::ModelOp modelOp,
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& components,
+          const ast::ClassModification& classModification);
+
     protected:
       using Lowerer::declare;
       using Lowerer::declareVariables;

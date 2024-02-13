@@ -494,19 +494,32 @@ namespace
 
         for (auto& bodyOp : cls->getRegion(0).getOps()) {
           if (auto startOp = mlir::dyn_cast<StartOp>(bodyOp)) {
-            if (startOp.getVariable() == op.getSymName() &&
-                startOp.getVariableOp(
-                           getSymbolTableCollection()).getVariableType()
-                    .getElementType().isa<RecordType>()) {
-              startOps.push_back(startOp);
+            if (startOp.getVariable().getRootReference() != op.getSymName()) {
+              continue;
             }
+
+            auto startVariableOp =
+                getSymbolTableCollection().lookupSymbolIn<VariableOp>(
+                    cls, startOp.getVariable().getRootReference());
+
+            if (!startVariableOp) {
+              continue;
+            }
+
+            mlir::Type startVariableElementType =
+                startVariableOp.getVariableType().getElementType();
+
+            if (!startVariableElementType.isa<RecordType>()) {
+              continue;
+            }
+
+            startOps.push_back(startOp);
           }
 
           if (auto defaultOp = mlir::dyn_cast<DefaultOp>(bodyOp)) {
             if (defaultOp.getVariable() == op.getSymName() &&
-                defaultOp.getVariableOp(
-                             getSymbolTableCollection()).getVariableType()
-                    .getElementType().isa<RecordType>()) {
+                defaultOp.getVariableOp(getSymbolTableCollection())
+                    .getVariableType().getElementType().isa<RecordType>()) {
               defaultOps.push_back(defaultOp);
             }
           }
@@ -559,12 +572,29 @@ namespace
     private:
       void unpackStartOp(
           mlir::PatternRewriter& rewriter,
-          StartOp op) const
+          StartOp startOp) const
       {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
+        if (auto oldNestedRefs = startOp.getVariable().getNestedReferences();
+            !oldNestedRefs.empty()) {
+          // The StartOp already goes through the components of the record.
+          std::string newRoot = getComposedComponentName(
+              startOp.getVariable().getRootReference(),
+              oldNestedRefs.front().getValue());
 
-        VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
+          startOp.setVariableAttr(mlir::SymbolRefAttr::get(
+              rewriter.getStringAttr(newRoot), oldNestedRefs.drop_front()));
+
+          return;
+        }
+
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPointAfter(startOp);
+
+        auto modelOp = startOp->getParentOfType<ModelOp>();
+
+        auto variableOp =
+            getSymbolTableCollection().lookupSymbolIn<VariableOp>(
+                modelOp, startOp.getVariable().getRootReference());
 
         auto recordType = variableOp.getVariableType()
                               .getElementType().cast<RecordType>();
@@ -580,10 +610,11 @@ namespace
               component.getVariableType().getShape());
 
           auto clonedOp = mlir::cast<StartOp>(
-              rewriter.clone(*op.getOperation()));
+              rewriter.clone(*startOp.getOperation()));
 
-          clonedOp.setVariable(
-              getComposedComponentName(variableOp, component));
+          clonedOp.setVariableAttr(mlir::SymbolRefAttr::get(
+              rewriter.getStringAttr(
+                  getComposedComponentName(variableOp, component))));
 
           auto yieldOp = mlir::cast<YieldOp>(
               clonedOp.getBody()->getTerminator());
@@ -600,7 +631,7 @@ namespace
           rewriter.setInsertionPointAfter(clonedOp);
         }
 
-        rewriter.eraseOp(op);
+        rewriter.eraseOp(startOp);
       }
 
       void unpackDefaultOp(

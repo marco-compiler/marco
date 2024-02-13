@@ -63,7 +63,7 @@ namespace marco::codegen::lowering
           const ast::Expression& expression) = 0;
 
       virtual void lowerStartAttribute(
-          const ast::Member& variable,
+          mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
           bool each) = 0;

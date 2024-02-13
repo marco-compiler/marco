@@ -258,7 +258,9 @@ namespace
       StartOp getStartOp(ModelOp modelOp, llvm::StringRef variable) const
       {
         for (StartOp startOp : modelOp.getOps<StartOp>()) {
-          if (startOp.getVariable() == variable) {
+          assert(startOp.getVariable().getNestedReferences().empty());
+          
+          if (startOp.getVariable().getRootReference() == variable) {
             return startOp;
           }
         }

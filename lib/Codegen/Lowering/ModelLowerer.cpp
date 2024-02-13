@@ -87,17 +87,10 @@ namespace marco::codegen::lowering
       }
     }
 
-    // Create the 'start' values.
+    // Lower the attributes of the variables.
     for (const auto& variableNode : model.getVariables()) {
       const ast::Member* variable = variableNode->cast<ast::Member>();
-
-      if (variable->hasStartExpression()) {
-        lowerStartAttribute(
-            *variable,
-            *variable->getStartExpression(),
-            variable->getFixedProperty(),
-            variable->getEachProperty());
-      }
+      lowerVariableAttributes(modelOp, *variable);
     }
 
     // Lower the body.
@@ -106,6 +99,112 @@ namespace marco::codegen::lowering
     // Lower the inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
       lower(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  void ModelLowerer::lowerVariableAttributes(
+      ModelOp modelOp, const ast::Member& variable)
+  {
+    if (!variable.hasModification()) {
+      return;
+    }
+
+    const ast::Modification* modification = variable.getModification();
+
+    if (!modification->hasClassModification()) {
+      return;
+    }
+
+    const ast::ClassModification* classModification =
+        modification->getClassModification();
+
+    if (classModification) {
+      auto variableOp = mlir::dyn_cast<VariableOp>(
+          resolveSymbolName<VariableOp>(variable.getName(), modelOp));
+
+      assert(variableOp != nullptr && "Variable not found");
+      llvm::SmallVector<VariableOp> components;
+      components.push_back(variableOp);
+
+      lowerVariableAttributes(modelOp, components, *classModification);
+    }
+  }
+
+  void ModelLowerer::lowerVariableAttributes(
+      ModelOp modelOp,
+      llvm::SmallVectorImpl<VariableOp>& components,
+      const ast::ClassModification& classModification)
+  {
+    assert(!components.empty());
+
+    if (classModification.hasStartExpression()) {
+      llvm::SmallVector<mlir::FlatSymbolRefAttr> nestedRefs;
+
+      for (size_t i = 1, e = components.size(); i < e; ++i) {
+        nestedRefs.push_back(mlir::FlatSymbolRefAttr::get(
+            components[i].getSymNameAttr()));
+      }
+
+      lowerStartAttribute(
+          mlir::SymbolRefAttr::get(components[0].getSymNameAttr(), nestedRefs),
+          *classModification.getStartExpression(),
+          classModification.getFixedProperty(),
+          classModification.getEachProperty());
+    }
+
+    VariableOp lastVariableOp = components.back();
+    VariableType variableType = lastVariableOp.getVariableType();
+    mlir::Type elementType = variableType.getElementType();
+
+    if (auto recordType = elementType.dyn_cast<RecordType>()) {
+      auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
+
+      auto recordOp = mlir::cast<RecordOp>(
+          recordType.getRecordOp(getSymbolTable(), moduleOp));
+
+      assert(recordOp != nullptr && "Record not found");
+
+      for (VariableOp recordComponent : recordOp.getVariables()) {
+        components.push_back(recordComponent);
+
+        for (const auto& argumentNode : classModification.getArguments()) {
+          const auto* argument = argumentNode->cast<ast::Argument>();
+
+          const auto* elementModification =
+              argument->dyn_cast<ast::ElementModification>();
+
+          if (!elementModification) {
+            continue;
+          }
+
+          if (elementModification->getName() != recordComponent.getSymName()) {
+            continue;
+          }
+
+          if (!elementModification->hasModification()) {
+            continue;
+          }
+
+          const ast::Modification* modification =
+              elementModification->getModification();
+
+          if (!modification->hasClassModification()) {
+            continue;
+          }
+
+          const ast::ClassModification* innerClassModification =
+              modification->getClassModification();
+
+          if (!innerClassModification) {
+            continue;
+          }
+
+          lowerVariableAttributes(modelOp, components,
+                                  *innerClassModification);
+        }
+
+        components.pop_back();
+      }
     }
   }
 }

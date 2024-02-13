@@ -672,9 +672,7 @@ static mlir::LogicalResult createStartOp(
 
   mlir::Location loc = variableOp.getLoc();
 
-  auto startOp = builder.create<StartOp>(
-      loc, variable.getRootReference().getValue(), false, false, true);
-
+  auto startOp = builder.create<StartOp>(loc, variable, false, false, true);
   assert(startOp.getBodyRegion().empty());
   mlir::Block* bodyBlock = builder.createBlock(&startOp.getBodyRegion());
   builder.setInsertionPointToStart(bodyBlock);

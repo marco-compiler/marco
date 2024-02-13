@@ -32,7 +32,8 @@ namespace
         llvm::StringMap<StartOp> startOps;
 
         for (StartOp startOp : modelOp.getOps<StartOp>()) {
-          startOps[startOp.getVariable()] = startOp;
+          assert(startOp.getVariable().getNestedReferences().empty());
+          startOps[startOp.getVariable().getRootReference()] = startOp;
         }
 
         // Create the missing 'start' operations.
@@ -57,7 +58,9 @@ namespace
           builder.setInsertionPointToEnd(modelOp.getBody());
 
           auto startOp = builder.create<StartOp>(
-              variableOp.getLoc(), variableOp.getSymName(), false, false, true);
+              variableOp.getLoc(),
+              mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()),
+              false, false, true);
 
           assert(startOp.getBodyRegion().empty());
 

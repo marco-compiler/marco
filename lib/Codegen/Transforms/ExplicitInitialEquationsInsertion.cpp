@@ -104,9 +104,11 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     builder.setInsertionPointToStart(templateBody);
 
     auto inductions = templateOp.getInductionVariables();
+    assert(startOp.getVariable().getNestedReferences().empty());
 
     mlir::Value lhs = builder.create<VariableGetOp>(
-        startOp.getLoc(), variableType.unwrap(), startOp.getVariable());
+        startOp.getLoc(), variableType.unwrap(),
+        startOp.getVariable().getRootReference());
 
     if (!inductions.empty()) {
       lhs = builder.create<LoadOp>(lhs.getLoc(), lhs, inductions);

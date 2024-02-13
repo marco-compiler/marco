@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
           const ast::Expression& expression) override;
 
       void lowerStartAttribute(
-          const ast::Member& variable,
+          mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
           bool each) override;
