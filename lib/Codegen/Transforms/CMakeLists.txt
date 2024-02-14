@@ -42,6 +42,7 @@ set(SOURCES
     ScheduleParallelization.cpp
     SchedulersInstantiation.cpp
     Scheduling.cpp
+    SingleValuedInductionElimination.cpp
     VariablesPromotion.cpp
     ViewAccessFolding.cpp)
 

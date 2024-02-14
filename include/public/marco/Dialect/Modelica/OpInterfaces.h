@@ -1,6 +1,7 @@
 #ifndef MARCO_DIALECTS_MODELICA_OPINTERFACES_H
 #define MARCO_DIALECTS_MODELICA_OPINTERFACES_H
 
+#include "marco/Dialect/Modelica/Attributes.h"
 #include "marco/Dialect/Modelica/VariableAccess.h"
 #include "marco/Modeling/DimensionAccess.h"
 #include "marco/Modeling/DimensionAccessAdd.h"
@@ -11,6 +12,7 @@
 #include "marco/Modeling/DimensionAccessIndices.h"
 #include "marco/Modeling/DimensionAccessRange.h"
 #include "marco/Modeling/DimensionAccessSub.h"
+#include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/IRMapping.h"

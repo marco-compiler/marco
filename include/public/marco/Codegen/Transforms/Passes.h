@@ -37,6 +37,7 @@
 #include "marco/Codegen/Transforms/ScheduleParallelization.h"
 #include "marco/Codegen/Transforms/SchedulersInstantiation.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
+#include "marco/Codegen/Transforms/SingleValuedInductionElimination.h"
 #include "marco/Codegen/Transforms/VariablesPromotion.h"
 #include "marco/Codegen/Transforms/ViewAccessFolding.h"
 

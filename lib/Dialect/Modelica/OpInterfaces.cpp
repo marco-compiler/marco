@@ -1,4 +1,7 @@
 #include "marco/Dialect/Modelica/OpInterfaces.h"
+#include "marco/Dialect/Modelica/Attributes.h"
+
+using namespace ::mlir::modelica;
 
 #include "marco/Dialect/Modelica/ModelicaOpInterfaces.cpp.inc"
 

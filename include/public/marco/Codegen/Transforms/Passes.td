@@ -99,6 +99,24 @@ def EquationAccessSplitPass
     let constructor = "mlir::modelica::createEquationAccessSplitPass()";
 }
 
+def SingleValuedInductionEliminationPass
+    : Pass<"single-valued-induction-elimination", "ModelOp">
+{
+    let summary = "Remove the induction variables that obtain a single value.";
+
+    let description = [{
+        The pass visits all the equation instances and for each of them erases
+        the induction variables iterating only on one single value.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor =
+        "mlir::modelica::createSingleValuedInductionEliminationPass()";
+}
+
 def EquationSidesSplitPass
     : Pass<"split-equation-sides", "ModelOp">
 {

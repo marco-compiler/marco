@@ -4070,7 +4070,8 @@ def Modelica_AbstractEquationOp : Modelica_Op<"abstract_equation",
 }
 
 def Modelica_StartEquationInstanceOp : Modelica_Op<"start_equation_instance",
-    [ParentOneOf<["InitialModelOp"]>]>
+    [ParentOneOf<["InitialModelOp"]>,
+    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
@@ -4109,11 +4110,6 @@ def Modelica_StartEquationInstanceOp : Modelica_Op<"start_equation_instance",
 
         /// }
 
-        /// Get the indices visited by the induction variables.
-        /// An empty iteration space is returned if there is no iteration
-        /// variable.
-        IndexSet getIterationSpace();
-
         std::optional<VariableAccess> getWriteAccess(
             mlir::SymbolTableCollection& symbolTableCollection);
 
@@ -4132,7 +4128,7 @@ def Modelica_StartEquationInstanceOp : Modelica_Op<"start_equation_instance",
 
 def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
     [ParentOneOf<["InitialModelOp", "MainModelOp"]>,
-    EquationInterface]>
+    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
@@ -4171,11 +4167,6 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
 
         /// }
 
-        /// Get the indices visited by the induction variables.
-        /// An empty iteration space is returned if there is no iteration
-        /// variable.
-        IndexSet getIterationSpace();
-
         mlir::LogicalResult cloneWithReplacedAccess(
             mlir::RewriterBase& rewriter,
             std::optional<
@@ -4189,7 +4180,7 @@ def Modelica_EquationInstanceOp : Modelica_Op<"equation_instance",
 
 def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance",
     [ParentOneOf<["InitialModelOp", "MainModelOp", "SCCOp"]>,
-    EquationInterface]>
+    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
@@ -4229,11 +4220,6 @@ def Modelica_MatchedEquationInstanceOp : Modelica_Op<"matched_equation_instance"
             const EquationPath& path);
 
         /// }
-
-        /// Get the indices visited by the induction variables.
-        /// An empty iteration space is returned if there is no iteration
-        /// variable.
-        IndexSet getIterationSpace();
 
         std::optional<VariableAccess> getMatchedAccess(
             mlir::SymbolTableCollection& symbolTableCollection);
@@ -4332,7 +4318,8 @@ def Modelica_SCCOp : Modelica_Op<"scc",
 }
 
 def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_instance",
-    [ParentOneOf<["SCCOp"]>]>
+    [ParentOneOf<["SCCOp"]>,
+    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
         ModelicaEquation:$base,
@@ -4376,11 +4363,6 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
             const EquationPath& path);
 
         /// }
-
-        /// Get the indices visited by the induction variables.
-        /// An empty iteration space is returned if there is no iteration
-        /// variable.
-        IndexSet getIterationSpace();
 
         std::optional<VariableAccess> getMatchedAccess(
             mlir::SymbolTableCollection& symbolTableCollection);

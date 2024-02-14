@@ -730,6 +730,9 @@ namespace marco::frontend
         mlir::modelica::createEquationAccessSplitPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createSingleValuedInductionEliminationPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createSCCDetectionPass());
 
     pm.addNestedPass<mlir::modelica::ModelOp>(
@@ -738,6 +741,9 @@ namespace marco::frontend
     // Try to solve the cycles by substitution.
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createSCCSolvingBySubstitutionPass());
+
+    pm.addNestedPass<mlir::modelica::ModelOp>(
+        mlir::modelica::createSingleValuedInductionEliminationPass());
 
     // Apply the selected solver.
     pm.addPass(

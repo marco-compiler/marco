@@ -51,7 +51,7 @@ void ExplicitInitialEquationsInsertionPass::cloneEquationsAsInitialEquations(
     builder.setInsertionPointToStart(initialModelOp.getBody());
 
     for (auto& childOp : mainModelOp.getOps()) {
-      if (mlir::isa<EquationInterface>(childOp)) {
+      if (mlir::isa<EquationInstanceInterface>(childOp)) {
         builder.clone(childOp);
       }
     }
