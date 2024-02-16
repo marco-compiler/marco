@@ -83,10 +83,17 @@ namespace
           EquationOp op, mlir::PatternRewriter& rewriter) const override
       {
         mlir::Location loc = op.getLoc();
-        auto modelOp = op->getParentOfType<ModelOp>();
 
         // Create the equation template.
-        rewriter.setInsertionPointToEnd(modelOp.getBody());
+        mlir::Operation* templateInsertionPoint = op->getParentOp();
+
+        while (templateInsertionPoint &&
+               !mlir::isa<MainModelOp, InitialModelOp>(
+                   templateInsertionPoint)) {
+          templateInsertionPoint = templateInsertionPoint->getParentOp();
+        }
+
+        rewriter.setInsertionPoint(templateInsertionPoint);
 
         llvm::SmallVector<ForEquationOp, 3> loops;
         getForEquationOps(op, loops);
@@ -114,20 +121,16 @@ namespace
         }
 
         // Create the equation instances.
-        rewriter.setInsertionPointAfter(templateOp);
+        mlir::Operation* instanceInsertionPoint = op.getOperation();
 
-        if (op.getInitial()) {
-          auto initialModelOp =
-              rewriter.create<InitialModelOp>(modelOp.getLoc());
-
-          rewriter.createBlock(&initialModelOp.getBodyRegion());
-          rewriter.setInsertionPointToStart(initialModelOp.getBody());
-        } else {
-          auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
-          rewriter.createBlock(&mainModelOp.getBodyRegion());
-          rewriter.setInsertionPointToStart(mainModelOp.getBody());
+        while (instanceInsertionPoint &&
+               instanceInsertionPoint->getParentOp() &&
+               !mlir::isa<MainModelOp, InitialModelOp>(
+                   instanceInsertionPoint->getParentOp())) {
+          instanceInsertionPoint = instanceInsertionPoint->getParentOp();
         }
 
+        rewriter.setInsertionPoint(instanceInsertionPoint);
         IndexSet explicitIndices = getIndices(loops);
 
         if (mlir::failed(createEquationInstances(

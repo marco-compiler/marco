@@ -206,31 +206,8 @@ namespace marco::codegen::lowering
     }
 
     // Create the equations.
-    for (const auto& blockNode : cls.getEquationsBlocks()) {
-      const ast::EquationsBlock* block =
-          blockNode->cast<ast::EquationsBlock>();
-
-      for (size_t i = 0, e = block->getNumOfEquations(); i < e; ++i) {
-        lower(*block->getEquation(i), false);
-      }
-
-      for (size_t i = 0, e = block->getNumOfForEquations(); i < e; ++i) {
-        lower(*block->getForEquation(i), false);
-      }
-    }
-
-    // Create the initial equations.
-    for (const auto& blockNode : cls.getInitialEquationsBlocks()) {
-      const ast::EquationsBlock* block =
-          blockNode->cast<ast::EquationsBlock>();
-
-      for (size_t i = 0, e = block->getNumOfEquations(); i < e; ++i) {
-        lower(*block->getEquation(i), true);
-      }
-
-      for (size_t i = 0, e = block->getNumOfForEquations(); i < e; ++i) {
-        lower(*block->getForEquation(i), true);
-      }
+    for (const auto& section : cls.getEquationSections()) {
+      lower(*section->cast<ast::EquationSection>());
     }
 
     // Create the algorithms.

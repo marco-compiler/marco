@@ -1,6 +1,6 @@
 #include "marco/AST/Node/ForEquation.h"
 #include "marco/AST/Node/Equation.h"
-#include "marco/AST/Node/Induction.h"
+#include "marco/AST/Node/ForIndex.h"
 #include <memory>
 
 using namespace ::marco;
@@ -9,15 +9,15 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
   ForEquation::ForEquation(SourceRange location)
-      : ASTNode(ASTNode::Kind::ForEquation, std::move(location))
+      : Equation(ASTNode::Kind::Equation_For, std::move(location))
   {
   }
 
   ForEquation::ForEquation(const ForEquation& other)
-      : ASTNode(other)
+      : Equation(other)
   {
-    setInductions(other.inductions);
-    setEquation(other.equation->clone());
+    setForIndices(other.forIndices);
+    setEquations(other.equations);
   }
 
   ForEquation::~ForEquation() = default;
@@ -30,66 +30,80 @@ namespace marco::ast
   llvm::json::Value ForEquation::toJSON() const
   {
     llvm::json::Object result;
+    llvm::SmallVector<llvm::json::Value> forIndicesJson;
 
-    llvm::SmallVector<llvm::json::Value> inductionsJson;
-
-    for (const auto& induction : inductions) {
-      inductionsJson.push_back(induction->toJSON());
+    for (const auto& forIndex : forIndices) {
+      forIndicesJson.push_back(forIndex->toJSON());
     }
 
-    result["inductions"] = llvm::json::Array(inductionsJson);
-    result["equation"] = getEquation()->toJSON();
+    llvm::SmallVector<llvm::json::Value> equationsJson;
+
+    for (const auto& equation : equations) {
+      equationsJson.push_back(equation->toJSON());
+    }
+
+    result["for_indices"] = llvm::json::Array(forIndicesJson);
+    result["equations"] = llvm::json::Array(equationsJson);
 
     addJSONProperties(result);
     return result;
   }
 
-  size_t ForEquation::getNumOfInductions() const
+  size_t ForEquation::getNumOfForIndices() const
   {
-    return inductions.size();
+    return forIndices.size();
   }
 
-  Induction* ForEquation::getInduction(size_t index)
+  ForIndex* ForEquation::getForIndex(size_t index)
   {
-    assert(index < inductions.size());
-    return inductions[index]->cast<Induction>();
+    assert(index < forIndices.size());
+    return forIndices[index]->cast<ForIndex>();
   }
 
-  const Induction* ForEquation::getInduction(size_t index) const
+  const ForIndex* ForEquation::getForIndex(size_t index) const
   {
-    assert(index < inductions.size());
-    return inductions[index]->cast<Induction>();
+    assert(index < forIndices.size());
+    return forIndices[index]->cast<ForIndex>();
   }
 
-  void ForEquation::setInductions(
+  void ForEquation::setForIndices(
       llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    inductions.clear();
+    forIndices.clear();
 
     for (const auto& node : nodes) {
-      assert(node->isa<Induction>());
-      auto& clone = inductions.emplace_back(node->clone());
+      assert(node->isa<ForIndex>());
+      auto& clone = forIndices.emplace_back(node->clone());
       clone->setParent(this);
     }
   }
 
-  void ForEquation::addOuterInduction(std::unique_ptr<ASTNode> induction)
+  size_t ForEquation::getNumOfEquations() const
   {
-    assert(induction->isa<Induction>());
-    induction->setParent(this);
-    inductions.insert(inductions.begin(), std::move(induction));
+    return equations.size();
   }
 
-  Equation* ForEquation::getEquation() const
+  Equation* ForEquation::getEquation(size_t index)
   {
-    assert(equation != nullptr && "Equation not set");
-    return equation->cast<Equation>();
+    assert(index < equations.size());
+    return equations[index]->cast<Equation>();
   }
 
-  void ForEquation::setEquation(std::unique_ptr<ASTNode> node)
+  const Equation* ForEquation::getEquation(size_t index) const
   {
-    assert(node->isa<Equation>());
-    equation = std::move(node);
-    equation->setParent(this);
+    assert(index < equations.size());
+    return equations[index]->cast<Equation>();
+  }
+
+  void ForEquation::setEquations(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  {
+    equations.clear();
+
+    for (const auto& node : nodes) {
+      assert(node->isa<Equation>());
+      auto& clone = equations.emplace_back(node->clone());
+      clone->setParent(this);
+    }
   }
 }

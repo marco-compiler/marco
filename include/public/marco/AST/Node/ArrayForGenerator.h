@@ -9,7 +9,7 @@
 namespace marco::ast
 {
 	class ArrayGenerator;
-  class Induction;
+  class ForIndex;
 
 	class ArrayForGenerator : public ArrayGenerator
 	{
@@ -35,9 +35,9 @@ namespace marco::ast
 
       unsigned getNumIndices() const;
 
-      Induction* getIndex(unsigned index);
+      ForIndex* getIndex(unsigned index);
 
-      const Induction* getIndex(unsigned index) const;
+      const ForIndex* getIndex(unsigned index) const;
 
       void setIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 

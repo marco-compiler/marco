@@ -12,10 +12,11 @@ set(AST_NODES
 	Node/Class.cpp
 	Node/ComponentReference.cpp
 	Node/ComponentReferenceEntry.cpp
-	Node/EquationsBlock.cpp
+	Node/EquationSection.cpp
 	Node/ExpressionFunctionArgument.cpp
 	Node/Model.cpp
 	Node/Constant.cpp
+	Node/EqualityEquation.cpp
 	Node/Equation.cpp
 	Node/Expression.cpp
 	Node/ForEquation.cpp
@@ -23,8 +24,8 @@ set(AST_NODES
 	Node/ForStatement.cpp
 	Node/Function.cpp
 	Node/FunctionArgument.cpp
+	Node/IfEquation.cpp
 	Node/IfStatement.cpp
-	Node/Induction.cpp
 	Node/Member.cpp
 	Node/Modification.cpp
 	Node/NamedFunctionArgument.cpp
@@ -41,6 +42,7 @@ set(AST_NODES
 	Node/Tuple.cpp
 	Node/Type.cpp
 	Node/TypePrefix.cpp
+	Node/WhenEquation.cpp
 	Node/WhenStatement.cpp
 	Node/WhileStatement.cpp)
 

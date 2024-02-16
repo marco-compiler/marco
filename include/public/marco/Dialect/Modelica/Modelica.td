@@ -3671,7 +3671,7 @@ def Modelica_BindingEquationOp : Modelica_Op<"binding_equation",
 }
 
 def Modelica_ForEquationOp : Modelica_Op<"for_equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
+    [ParentOneOf<["MainModelOp", "InitialModelOp", "ForEquationOp"]>,
     NoTerminator]>
 {
     let summary = "Loop defining more equation through a for loop.";
@@ -4409,7 +4409,7 @@ def Modelica_ScheduledEquationInstanceOp : Modelica_Op<"scheduled_equation_insta
 }
 
 def Modelica_EquationOp : Modelica_Op<"equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
+    [ParentOneOf<["MainModelOp", "InitialModelOp", "ForEquationOp"]>,
     SingleBlock]>
 {
     let summary = "Equation.";
@@ -4418,16 +4418,10 @@ def Modelica_EquationOp : Modelica_Op<"equation",
         The operation represents a Modelica equation.
     }];
 
-    let arguments = (ins DefaultValuedAttr<BoolAttr, "false">:$initial);
+    let arguments = (ins);
     let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = [{
-       attr-dict-with-keyword $bodyRegion
-    }];
+    let regions = (region SizedRegion<1>:$bodyRegion);
+    let assemblyFormat = "attr-dict-with-keyword $bodyRegion";
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",

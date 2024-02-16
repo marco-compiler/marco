@@ -1,7 +1,7 @@
 #include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Annotation.h"
-#include "marco/AST/Node/EquationsBlock.h"
+#include "marco/AST/Node/EquationSection.h"
 #include "marco/AST/Node/Member.h"
 
 using namespace ::marco;
@@ -14,8 +14,7 @@ namespace marco::ast
         name(other.name)
   {
     setVariables(other.variables);
-    setEquationsBlocks(other.equationsBlocks);
-    setInitialEquationsBlocks(other.initialEquationsBlocks);
+    setEquationSections(other.equationSections);
     setAlgorithms(other.algorithms);
     setInnerClasses(other.innerClasses);
 
@@ -38,21 +37,13 @@ namespace marco::ast
 
     obj["variables"] = llvm::json::Array(variablesJson);
 
-    llvm::SmallVector<llvm::json::Value> equationsBlocksJson;
+    llvm::SmallVector<llvm::json::Value> equationSectionsJson;
 
-    for (const auto& block : equationsBlocks) {
-      equationsBlocksJson.push_back(block->toJSON());
+    for (const auto& section : equationSections) {
+      equationSectionsJson.push_back(section->toJSON());
     }
 
-    obj["equations"] = llvm::json::Array(equationsBlocksJson);
-
-    llvm::SmallVector<llvm::json::Value> initialEquationsBlocksJson;
-
-    for (const auto& block : initialEquationsBlocks) {
-      initialEquationsBlocksJson.push_back(block->toJSON());
-    }
-
-    obj["initial_equations"] = llvm::json::Array(initialEquationsBlocksJson);
+    obj["equation_sections"] = llvm::json::Array(equationSectionsJson);
 
     llvm::SmallVector<llvm::json::Value> algorithmsJson;
 
@@ -100,37 +91,19 @@ namespace marco::ast
     }
   }
 
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getEquationsBlocks() const
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getEquationSections() const
   {
-    return equationsBlocks;
+    return equationSections;
   }
 
-  void Class::setEquationsBlocks(
+  void Class::setEquationSections(
       llvm::ArrayRef<std::unique_ptr<ASTNode>> newBlocks)
   {
-    equationsBlocks.clear();
+    equationSections.clear();
 
     for (const auto& block : newBlocks) {
-      assert(block->isa<EquationsBlock>());
-      auto& clone = equationsBlocks.emplace_back(block->clone());
-      clone->setParent(this);
-    }
-  }
-
-  llvm::ArrayRef<std::unique_ptr<ASTNode>>
-  Class::getInitialEquationsBlocks() const
-  {
-    return initialEquationsBlocks;
-  }
-
-  void Class::setInitialEquationsBlocks(
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> newBlocks)
-  {
-    initialEquationsBlocks.clear();
-
-    for (const auto& block : newBlocks) {
-      assert(block->isa<EquationsBlock>());
-      auto& clone = initialEquationsBlocks.emplace_back(block->clone());
+      assert(block->isa<EquationSection>());
+      auto& clone = equationSections.emplace_back(block->clone());
       clone->setParent(this);
     }
   }

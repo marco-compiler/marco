@@ -6,41 +6,18 @@
 
 namespace marco::ast
 {
-	class Expression;
-
 	class Equation : public ASTNode
 	{
 		public:
-      explicit Equation(SourceRange location);
+      using ASTNode::ASTNode;
 
-      Equation(const Equation& other);
-
-      ~Equation() override;
+      virtual ~Equation();
 
       static bool classof(const ASTNode* node)
       {
-        return node->getKind() == ASTNode::Kind::Equation;
+        return node->getKind() >= ASTNode::Kind::Equation &&
+            node->getKind() <= ASTNode::Kind::Equation_LastEquation;
       }
-
-      std::unique_ptr<ASTNode> clone() const override;
-
-      llvm::json::Value toJSON() const override;
-
-      Expression* getLhsExpression();
-
-      const Expression* getLhsExpression() const;
-
-      void setLhsExpression(std::unique_ptr<ASTNode> node);
-
-      Expression* getRhsExpression();
-
-      const Expression* getRhsExpression() const;
-
-      void setRhsExpression(std::unique_ptr<ASTNode> node);
-
-    private:
-      std::unique_ptr<ASTNode> lhs;
-      std::unique_ptr<ASTNode> rhs;
 	};
 }
 

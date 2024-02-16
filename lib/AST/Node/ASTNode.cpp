@@ -35,10 +35,16 @@ static std::string toString(ASTNode::Kind kind)
       return "class_modification";
     case ASTNode::Kind::ComponentReferenceEntry:
       return "component_reference_entry";
-    case ASTNode::Kind::Equation:
-      return "equation";
-    case ASTNode::Kind::EquationsBlock:
-      return "equations_block";
+    case ASTNode::Kind::Equation_Equality:
+      return "equation_equality";
+    case ASTNode::Kind::Equation_For:
+      return "equation_for";
+    case ASTNode::Kind::Equation_If:
+      return "equation_if";
+    case ASTNode::Kind::Equation_When:
+      return "equation_when";
+    case ASTNode::Kind::EquationSection:
+      return "equation_section";
     case ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant:
       return "array_constant";
     case ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator:
@@ -55,8 +61,6 @@ static std::string toString(ASTNode::Kind kind)
       return "subscript";
     case ASTNode::Kind::Expression_Tuple:
       return "tuple";
-    case ASTNode::Kind::ForEquation:
-      return "for_equation";
     case ASTNode::Kind::ForIndex:
       return "for_index";
     case ASTNode::Kind::FunctionArgument_Expression:
@@ -65,8 +69,6 @@ static std::string toString(ASTNode::Kind kind)
       return "function_argument_named";
     case ASTNode::Kind::FunctionArgument_Reduction:
       return "function_argument_reduction";
-    case ASTNode::Kind::Induction:
-      return "induction";
     case ASTNode::Kind::Member:
       return "member";
     case ASTNode::Kind::Modification:

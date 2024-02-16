@@ -38,19 +38,11 @@ namespace marco::ast
       /// Set the variables.
       void setVariables(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      /// Get the 'equations' blocks.
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquationsBlocks() const;
+      /// Get the equation sections.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquationSections() const;
 
-      /// Set the 'equations' blocks.
-      void setEquationsBlocks(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
-
-      /// Get the 'initial equations' blocks.
-      llvm::ArrayRef<std::unique_ptr<ASTNode>>
-      getInitialEquationsBlocks() const;
-
-      /// Set the 'initial equations' blocks.
-      void setInitialEquationsBlocks(
-          llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+      /// Set the equation sections.
+      void setEquationSections(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
       /// Get the 'algorithm' blocks.
       llvm::ArrayRef<std::unique_ptr<ASTNode>> getAlgorithms() const;
@@ -75,8 +67,7 @@ namespace marco::ast
     private:
       std::string name;
       llvm::SmallVector<std::unique_ptr<ASTNode>> variables;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> equationsBlocks;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> initialEquationsBlocks;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> equationSections;
       llvm::SmallVector<std::unique_ptr<ASTNode>> algorithms;
       llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;
       std::unique_ptr<ASTNode> annotation;

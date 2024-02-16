@@ -7,10 +7,15 @@ set(SOURCES
     Lowering/ClassDependencyGraph.cpp
     Lowering/ClassPath.cpp
     Lowering/ClassLowerer.cpp
+    Lowering/ComponentReferenceLowerer.cpp
     Lowering/ConstantLowerer.cpp
-    Lowering/ExpressionLowerer.cpp
+    Lowering/EqualityEquationLowerer.cpp
     Lowering/EquationLowerer.cpp
+    Lowering/EquationSectionLowerer.cpp
+    Lowering/ExpressionLowerer.cpp
+    Lowering/ForEquationLowerer.cpp
     Lowering/ForStatementLowerer.cpp
+    Lowering/IfEquationLowerer.cpp
     Lowering/IfStatementLowerer.cpp
     Lowering/Lowerer.cpp
     Lowering/LoweringContext.cpp
@@ -19,7 +24,6 @@ set(SOURCES
     Lowering/PackageLowerer.cpp
     Lowering/PartialDerFunctionLowerer.cpp
     Lowering/Reference.cpp
-    Lowering/ComponentReferenceLowerer.cpp
     Lowering/Results.cpp
     Lowering/RecordLowerer.cpp
     Lowering/ReturnStatementLowerer.cpp
@@ -28,6 +32,7 @@ set(SOURCES
     Lowering/SubscriptLowerer.cpp
     Lowering/TupleLowerer.cpp
     Lowering/Verifier.cpp
+    Lowering/WhenEquationLowerer.cpp
     Lowering/WhenStatementLowerer.cpp
     Lowering/WhileStatementLowerer.cpp
     Bridge.cpp

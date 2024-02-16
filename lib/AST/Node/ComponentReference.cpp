@@ -34,7 +34,7 @@ namespace marco::ast
     llvm::json::Object result;
 
     result["dummy"] = isDummy();
-    result["globalLookup"] = isGlobalLookup();
+    result["global_lookup"] = isGlobalLookup();
 
     llvm::SmallVector<llvm::json::Value> pathJson;
 

@@ -45,13 +45,15 @@ modelica.function @Foo {
 modelica.model @Test {
     modelica.variable @r : !modelica.variable<!modelica<record @R>>
 
-    modelica.equation {
-        %0 = modelica.variable_get @r : !modelica<record @R>
-        %1 = modelica.call @Foo(%0) : (!modelica<record @R>) -> !modelica.real
-        %2 = modelica.constant #modelica.real<0.0>
-        %3 = modelica.equation_side %1 : tuple<!modelica.real>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @r : !modelica<record @R>
+            %1 = modelica.call @Foo(%0) : (!modelica<record @R>) -> !modelica.real
+            %2 = modelica.constant #modelica.real<0.0>
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
     }
 }
 
@@ -107,14 +109,16 @@ modelica.model @Test {
     modelica.variable @y : !modelica.variable<!modelica.real>
     modelica.variable @r : !modelica.variable<!modelica<record @R>>
 
-    modelica.equation {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.call @Foo(%0, %1) : (!modelica.real, !modelica.real) -> !modelica<record @R>
-        %3 = modelica.component_get %2, @x : !modelica<record @R> -> !modelica.real
-        %4 = modelica.component_get %2, @y : !modelica<record @R> -> !modelica.real
-        %5 = modelica.equation_side %3 : tuple<!modelica.real>
-        %6 = modelica.equation_side %4 : tuple<!modelica.real>
-        modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @x : !modelica.real
+            %1 = modelica.variable_get @y : !modelica.real
+            %2 = modelica.call @Foo(%0, %1) : (!modelica.real, !modelica.real) -> !modelica<record @R>
+            %3 = modelica.component_get %2, @x : !modelica<record @R> -> !modelica.real
+            %4 = modelica.component_get %2, @y : !modelica<record @R> -> !modelica.real
+            %5 = modelica.equation_side %3 : tuple<!modelica.real>
+            %6 = modelica.equation_side %4 : tuple<!modelica.real>
+            modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
     }
 }

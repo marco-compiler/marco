@@ -371,6 +371,36 @@ namespace marco::codegen::lowering
     return bridge->lower(subscript);
   }
 
+  void Lowerer::lower(const ast::EquationSection& node)
+  {
+    return bridge->lower(node);
+  }
+
+  void Lowerer::lower(const ast::Equation& node)
+  {
+    return bridge->lower(node);
+  }
+
+  void Lowerer::lower(const ast::EqualityEquation& node)
+  {
+    return bridge->lower(node);
+  }
+
+  void Lowerer::lower(const ast::ForEquation& node)
+  {
+    return bridge->lower(node);
+  }
+
+  void Lowerer::lower(const ast::IfEquation& node)
+  {
+    return bridge->lower(node);
+  }
+
+  void Lowerer::lower(const ast::WhenEquation& node)
+  {
+    return bridge->lower(node);
+  }
+
   void Lowerer::lower(const ast::Algorithm& algorithm)
   {
     return bridge->lower(algorithm);
@@ -414,16 +444,5 @@ namespace marco::codegen::lowering
   void Lowerer::lower(const ast::WhileStatement& statement)
   {
     return bridge->lower(statement);
-  }
-
-  void Lowerer::lower(const ast::Equation& equation, bool initialEquation)
-  {
-    return bridge->lower(equation, initialEquation);
-  }
-
-  void Lowerer::lower(
-      const ast::ForEquation& forEquation, bool initialEquation)
-  {
-    return bridge->lower(forEquation, initialEquation);
   }
 }

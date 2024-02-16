@@ -32,14 +32,16 @@ module {
         modelica.variable @x : !modelica.variable<3x4x5x!modelica.int>
         modelica.variable @y : !modelica.variable<3x4x5x!modelica.int>
 
-        modelica.equation {
-            %0 = modelica.variable_get @x : !modelica.array<3x4x5x!modelica.int>
-            %1 = modelica.call @foo(%0) : (!modelica.array<3x4x5x!modelica.int>) -> !modelica.array<3x?x5x!modelica.int>
-            %2 = modelica.variable_get @y : !modelica.array<3x4x5x!modelica.int>
-            %3 = modelica.call @bar(%2) : (!modelica.array<3x4x5x!modelica.int>) -> !modelica.array<3x4x?x!modelica.int>
-            %4 = modelica.equation_side %1 : tuple<!modelica.array<3x?x5x!modelica.int>>
-            %5 = modelica.equation_side %3 : tuple<!modelica.array<3x4x?x!modelica.int>>
-            modelica.equation_sides %4, %5 : tuple<!modelica.array<3x?x5x!modelica.int>>, tuple<!modelica.array<3x4x?x!modelica.int>>
+        modelica.main_model {
+            modelica.equation {
+                %0 = modelica.variable_get @x : !modelica.array<3x4x5x!modelica.int>
+                %1 = modelica.call @foo(%0) : (!modelica.array<3x4x5x!modelica.int>) -> !modelica.array<3x?x5x!modelica.int>
+                %2 = modelica.variable_get @y : !modelica.array<3x4x5x!modelica.int>
+                %3 = modelica.call @bar(%2) : (!modelica.array<3x4x5x!modelica.int>) -> !modelica.array<3x4x?x!modelica.int>
+                %4 = modelica.equation_side %1 : tuple<!modelica.array<3x?x5x!modelica.int>>
+                %5 = modelica.equation_side %3 : tuple<!modelica.array<3x4x?x!modelica.int>>
+                modelica.equation_sides %4, %5 : tuple<!modelica.array<3x?x5x!modelica.int>>, tuple<!modelica.array<3x4x?x!modelica.int>>
+            }
         }
     }
 }

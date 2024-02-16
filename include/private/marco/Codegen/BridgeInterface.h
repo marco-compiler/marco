@@ -85,6 +85,18 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Subscript& subscript) = 0;
 
+      virtual void lower(const ast::EquationSection& node) = 0;
+
+      virtual void lower(const ast::Equation& equation) = 0;
+
+      virtual void lower(const ast::EqualityEquation& equation) = 0;
+
+      virtual void lower(const ast::ForEquation& equation) = 0;
+
+      virtual void lower(const ast::IfEquation& equation) = 0;
+
+      virtual void lower(const ast::WhenEquation& equation) = 0;
+
       virtual void lower(const ast::Algorithm& algorithm) = 0;
 
       virtual void lower(const ast::Statement& statement) = 0;
@@ -102,14 +114,6 @@ namespace marco::codegen::lowering
       virtual void lower(const ast::WhenStatement& statement) = 0;
 
       virtual void lower(const ast::WhileStatement& statement) = 0;
-
-      virtual void lower(
-          const ast::Equation& equation,
-          bool initialEquation) = 0;
-
-      virtual void lower(
-          const ast::ForEquation& forEquation,
-          bool initialEquation) = 0;
   };
 }
 

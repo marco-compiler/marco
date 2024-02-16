@@ -30,5 +30,7 @@ namespace marco::codegen::lowering
     for (size_t i = 0, e = algorithm.size(); i < e; ++i) {
       lower(*algorithm[i]);
     }
+
+    builder().setInsertionPointAfter(algorithmOp);
   }
 }

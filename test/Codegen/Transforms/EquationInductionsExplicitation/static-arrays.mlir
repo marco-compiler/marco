@@ -19,11 +19,13 @@ modelica.model @Test {
     modelica.variable @x : !modelica.variable<3x4x5x!modelica.int>
     modelica.variable @y : !modelica.variable<3x4x5x!modelica.int>
 
-    modelica.equation {
-        %0 = modelica.variable_get @x : !modelica.array<3x4x5x!modelica.int>
-        %1 = modelica.variable_get @y : !modelica.array<3x4x5x!modelica.int>
-        %2 = modelica.equation_side %0 : tuple<!modelica.array<3x4x5x!modelica.int>>
-        %3 = modelica.equation_side %1 : tuple<!modelica.array<3x4x5x!modelica.int>>
-        modelica.equation_sides %2, %3 : tuple<!modelica.array<3x4x5x!modelica.int>>, tuple<!modelica.array<3x4x5x!modelica.int>>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @x : !modelica.array<3x4x5x!modelica.int>
+            %1 = modelica.variable_get @y : !modelica.array<3x4x5x!modelica.int>
+            %2 = modelica.equation_side %0 : tuple<!modelica.array<3x4x5x!modelica.int>>
+            %3 = modelica.equation_side %1 : tuple<!modelica.array<3x4x5x!modelica.int>>
+            modelica.equation_sides %2, %3 : tuple<!modelica.array<3x4x5x!modelica.int>>, tuple<!modelica.array<3x4x5x!modelica.int>>
+        }
     }
 }

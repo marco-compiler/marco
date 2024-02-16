@@ -29,13 +29,15 @@ modelica.model @Test {
     modelica.variable @b : !modelica.variable<3x!modelica.real>
     modelica.variable @c : !modelica.variable<3x!modelica.real>
 
-    modelica.equation {
-        %0 = modelica.variable_get @a : !modelica.array<3x!modelica.real>
-        %1 = modelica.variable_get @b : !modelica.array<3x!modelica.real>
-        %2 = modelica.call @Foo(%0, %1) : (!modelica.array<3x!modelica.real>, !modelica.array<3x!modelica.real>) -> !modelica.array<3x!modelica.real>
-        %3 = modelica.variable_get @c : !modelica.array<3x!modelica.real>
-        %4 = modelica.equation_side %2 : tuple<!modelica.array<3x!modelica.real>>
-        %5 = modelica.equation_side %3 : tuple<!modelica.array<3x!modelica.real>>
-        modelica.equation_sides %4, %5 : tuple<!modelica.array<3x!modelica.real>>, tuple<!modelica.array<3x!modelica.real>>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @a : !modelica.array<3x!modelica.real>
+            %1 = modelica.variable_get @b : !modelica.array<3x!modelica.real>
+            %2 = modelica.call @Foo(%0, %1) : (!modelica.array<3x!modelica.real>, !modelica.array<3x!modelica.real>) -> !modelica.array<3x!modelica.real>
+            %3 = modelica.variable_get @c : !modelica.array<3x!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.array<3x!modelica.real>>
+            %5 = modelica.equation_side %3 : tuple<!modelica.array<3x!modelica.real>>
+            modelica.equation_sides %4, %5 : tuple<!modelica.array<3x!modelica.real>>, tuple<!modelica.array<3x!modelica.real>>
+        }
     }
 }

@@ -22,7 +22,9 @@ namespace marco::codegen::lowering
     }
   }
 
-  void ArrayGeneratorLowerer::computeShape(const ast::ArrayGenerator& array, llvm::SmallVectorImpl<int64_t>& outShape)
+  void ArrayGeneratorLowerer::computeShape(
+      const ast::ArrayGenerator& array,
+      llvm::SmallVectorImpl<int64_t>& outShape)
   {
     llvm::SmallVector<const ast::ArrayGenerator*> nestedArrays;
     nestedArrays.push_back(&array);
@@ -45,17 +47,34 @@ namespace marco::codegen::lowering
 
       } else if (auto forGen = current->dyn_cast<ast::ArrayForGenerator>()) {
         unsigned inductions = forGen->getNumIndices();
+
         for (unsigned i = 0; i < inductions; i++) {
-          const ast::Induction *ind = forGen->getIndex(inductions - i - 1);
-          
-          if (!ind->getBegin()->isa<ast::Constant>() ||
-              !ind->getEnd()->isa<ast::Constant>() ||
-              !ind->getStep()->isa<ast::Constant>()) {
-            assert(false && "Array for generators with non-constant indices not supported");
+          const ast::ForIndex* ind = forGen->getIndex(inductions - i - 1);
+          assert(ind->hasExpression());
+          assert(ind->getExpression()->isa<ast::Operation>());
+          const auto* indRange = ind->getExpression()->cast<ast::Operation>();
+          assert(indRange->getOperationKind() == ast::OperationKind::range);
+
+          int64_t begin, end, step;
+
+          if (indRange->getNumOfArguments() == 2) {
+            assert(indRange->getArgument(0)->isa<ast::Constant>());
+            assert(indRange->getArgument(1)->isa<ast::Constant>());
+
+            begin = indRange->getArgument(0)->cast<ast::Constant>()->as<int64_t>();
+            end = indRange->getArgument(1)->cast<ast::Constant>()->as<int64_t>();
+            step = 1;
+          } else {
+            assert(indRange->getNumOfArguments() == 3);
+            assert(indRange->getArgument(0)->isa<ast::Constant>());
+            assert(indRange->getArgument(1)->isa<ast::Constant>());
+            assert(indRange->getArgument(2)->isa<ast::Constant>());
+
+            begin = indRange->getArgument(0)->cast<ast::Constant>()->as<int64_t>();
+            end = indRange->getArgument(2)->cast<ast::Constant>()->as<int64_t>();
+            step = indRange->getArgument(1)->cast<ast::Constant>()->as<int64_t>();
           }
-          auto begin = ind->getBegin()->cast<ast::Constant>()->as<uint64_t>();
-          auto end = ind->getEnd()->cast<ast::Constant>()->as<uint64_t>();
-          auto step = ind->getStep()->cast<ast::Constant>()->as<uint64_t>();
+
           if (begin != 1 || step != 1) {
             assert(false && "Array for generators with step/index not equal to 1 are not supported");
           }
@@ -70,7 +89,9 @@ namespace marco::codegen::lowering
     }
   }
 
-  void ArrayGeneratorLowerer::lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues)
+  void ArrayGeneratorLowerer::lowerValues(
+      const ast::Expression& array,
+      llvm::SmallVectorImpl<mlir::Value>& outValues)
   {
     llvm::SmallVector<const ast::Expression*> s1;
     llvm::SmallVector<const ast::Expression*> s2;
@@ -86,13 +107,24 @@ namespace marco::codegen::lowering
         }
       } else if (auto arrayNode = node->dyn_cast<ast::ArrayForGenerator>()) {
         // TODO: extend broadcast to arrays and avoid duplicating elements here
-        unsigned n = 1;
+        int64_t n = 1;
         unsigned inductions = arrayNode->getNumIndices();
+
         for (unsigned i = 0; i < inductions; i++) {
-          const ast::Induction *ind = arrayNode->getIndex(i);          
-          auto end = ind->getEnd()->cast<ast::Constant>()->as<uint64_t>();
+          const ast::ForIndex* ind = arrayNode->getIndex(i);
+          auto indOperation = ind->getExpression()->cast<ast::Operation>();
+
+          int64_t end;
+
+          if (indOperation->getNumOfArguments() == 2) {
+            end = indOperation->getArgument(1)->cast<ast::Constant>()->as<int64_t>();
+          } else {
+            end = indOperation->getArgument(2)->cast<ast::Constant>()->as<int64_t>();
+          }
+
           n = n * end;
         }
+
         for (unsigned i = 0; i < n; i++) {
           s1.push_back(arrayNode->getValue());
         }

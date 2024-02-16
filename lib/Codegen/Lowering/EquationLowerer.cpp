@@ -11,99 +11,24 @@ namespace marco::codegen::lowering
   {
   }
 
-  void EquationLowerer::lower(
-      const ast::Equation& equation, bool initialEquation)
+  void EquationLowerer::lower(const ast::Equation& equation)
   {
-    mlir::Location location = loc(equation.getLocation());
-
-    auto equationOp = builder().create<EquationOp>(location);
-    equationOp.setInitial(initialEquation);
-    assert(equationOp.getBodyRegion().empty());
-
-    mlir::Block* bodyBlock =
-        builder().createBlock(&equationOp.getBodyRegion());
-
-    builder().setInsertionPointToStart(bodyBlock);
-
-    llvm::SmallVector<mlir::Value, 1> lhs;
-    llvm::SmallVector<mlir::Value, 1> rhs;
-
-    {
-      // Left-hand side.
-      const auto* expression = equation.getLhsExpression();
-
-      auto referencesLoc = loc(expression->getLocation());
-      auto references = lower(*expression);
-
-      for (auto& reference : references) {
-        lhs.push_back(reference.get(referencesLoc));
-      }
+    if (auto casted = equation.dyn_cast<ast::EqualityEquation>()) {
+      return lower(*casted);
     }
 
-    {
-      // Right-hand side.
-      const auto* expression = equation.getRhsExpression();
-
-      auto referencesLoc = loc(expression->getLocation());
-      auto references = lower(*expression);
-
-      for (auto& reference : references) {
-        rhs.push_back(reference.get(referencesLoc));
-      }
+    if (auto casted = equation.dyn_cast<ast::IfEquation>()) {
+      return lower(*casted);
     }
 
-    mlir::Value lhsTuple = builder().create<EquationSideOp>(location, lhs);
-    mlir::Value rhsTuple = builder().create<EquationSideOp>(location, rhs);
-    builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
-    builder().setInsertionPointAfter(equationOp);
-  }
-
-  void EquationLowerer::lower(
-      const ast::ForEquation& forEquation, bool initialEquation)
-  {
-    Lowerer::VariablesScope scope(getVariablesSymbolTable());
-    mlir::Location location = loc(forEquation.getEquation()->getLocation());
-
-    // We need to keep track of the first loop in order to restore
-    // the insertion point right after that when we have finished
-    // lowering all the nested inductions.
-    mlir::Operation* firstOp = nullptr;
-
-    llvm::SmallVector<mlir::Value, 3> inductions;
-
-    for (size_t i = 0, e = forEquation.getNumOfInductions(); i < e; ++i) {
-      const ast::Induction* induction = forEquation.getInduction(i);
-
-      const ast::Expression* startExpression = induction->getBegin();
-      assert(startExpression->isa<ast::Constant>());
-      long start = startExpression->cast<ast::Constant>()->as<int64_t>();
-
-      const ast::Expression* endExpression = induction->getEnd();
-      assert(endExpression->isa<ast::Constant>());
-      long end = endExpression->cast<ast::Constant>()->as<int64_t>();
-
-      const ast::Expression* stepExpression = induction->getStep();
-      assert(stepExpression->isa<ast::Constant>());
-      long step = stepExpression->cast<ast::Constant>()->as<int64_t>();
-
-      auto forEquationOp =
-          builder().create<ForEquationOp>(location, start, end, step);
-
-      builder().setInsertionPointToStart(forEquationOp.bodyBlock());
-
-      // Add the induction variable to the symbol table
-      getVariablesSymbolTable().insert(
-          induction->getName(),
-          Reference::ssa(builder(), forEquationOp.induction()));
-
-      if (firstOp == nullptr) {
-        firstOp = forEquationOp.getOperation();
-      }
+    if (auto casted = equation.dyn_cast<ast::ForEquation>()) {
+      return lower(*casted);
     }
 
-    // Create the equation body.
-    lower(*forEquation.getEquation(), initialEquation);
+    if (auto casted = equation.dyn_cast<ast::WhenEquation>()) {
+      return lower(*casted);
+    }
 
-    builder().setInsertionPointAfter(firstOp);
+    llvm_unreachable("Unknown equation type");
   }
 }

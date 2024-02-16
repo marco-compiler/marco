@@ -10,8 +10,12 @@
 #include "marco/Codegen/Lowering/ComponentReferenceLowerer.h"
 #include "marco/Codegen/Lowering/ConstantLowerer.h"
 #include "marco/Codegen/Lowering/EquationLowerer.h"
+#include "marco/Codegen/Lowering/EqualityEquationLowerer.h"
+#include "marco/Codegen/Lowering/EquationSectionLowerer.h"
 #include "marco/Codegen/Lowering/ExpressionLowerer.h"
+#include "marco/Codegen/Lowering/ForEquationLowerer.h"
 #include "marco/Codegen/Lowering/ForStatementLowerer.h"
+#include "marco/Codegen/Lowering/IfEquationLowerer.h"
 #include "marco/Codegen/Lowering/IfStatementLowerer.h"
 #include "marco/Codegen/Lowering/ModelLowerer.h"
 #include "marco/Codegen/Lowering/OperationLowerer.h"
@@ -23,6 +27,7 @@
 #include "marco/Codegen/Lowering/StatementLowerer.h"
 #include "marco/Codegen/Lowering/SubscriptLowerer.h"
 #include "marco/Codegen/Lowering/TupleLowerer.h"
+#include "marco/Codegen/Lowering/WhenEquationLowerer.h"
 #include "marco/Codegen/Lowering/WhenStatementLowerer.h"
 #include "marco/Codegen/Lowering/WhileStatementLowerer.h"
 #include <memory>
@@ -41,7 +46,7 @@ namespace marco::codegen::lowering
     public:
       Impl(mlir::MLIRContext& context, CodegenOptions options);
 
-      ~Impl();
+      ~Impl() override;
 
       LoweringContext& getContext() override;
 
@@ -122,6 +127,18 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Subscript& subscript) override;
 
+      void lower(const ast::EquationSection& node) override;
+
+      void lower(const ast::Equation& node) override;
+
+      void lower(const ast::EqualityEquation& node) override;
+
+      void lower(const ast::IfEquation& node) override;
+
+      void lower(const ast::ForEquation& node) override;
+
+      void lower(const ast::WhenEquation& node) override;
+
       void lower(const ast::Algorithm& node) override;
 
       void lower(const ast::Statement& node) override;
@@ -139,14 +156,6 @@ namespace marco::codegen::lowering
       void lower(const ast::WhenStatement& statement) override;
 
       void lower(const ast::WhileStatement& statement) override;
-
-      virtual void lower(
-          const ast::Equation& equation,
-          bool initialEquation) override;
-
-      virtual void lower(
-          const ast::ForEquation& forEquation,
-          bool initialEquation) override;
 
     private:
       std::unique_ptr<LoweringContext> context;
@@ -169,6 +178,12 @@ namespace marco::codegen::lowering
       std::unique_ptr<ComponentReferenceLowerer> componentReferenceLowerer;
       std::unique_ptr<TupleLowerer> tupleLowerer;
       std::unique_ptr<SubscriptLowerer> subscriptLowerer;
+      std::unique_ptr<EquationSectionLowerer> equationSectionLowerer;
+      std::unique_ptr<EquationLowerer> equationLowerer;
+      std::unique_ptr<EqualityEquationLowerer> equalityEquationLowerer;
+      std::unique_ptr<ForEquationLowerer> forEquationLowerer;
+      std::unique_ptr<IfEquationLowerer> ifEquationLowerer;
+      std::unique_ptr<WhenEquationLowerer> whenEquationLowerer;
       std::unique_ptr<AlgorithmLowerer> algorithmLowerer;
       std::unique_ptr<StatementLowerer> statementLowerer;
       std::unique_ptr<AssignmentStatementLowerer> assignmentStatementLowerer;
@@ -178,7 +193,6 @@ namespace marco::codegen::lowering
       std::unique_ptr<ReturnStatementLowerer> returnStatementLowerer;
       std::unique_ptr<WhenStatementLowerer> whenStatementLowerer;
       std::unique_ptr<WhileStatementLowerer> whileStatementLowerer;
-      std::unique_ptr<EquationLowerer> equationLowerer;
   };
 
   Bridge::Impl::Impl(mlir::MLIRContext& context, CodegenOptions options)
@@ -213,6 +227,19 @@ namespace marco::codegen::lowering
     this->operationLowerer = std::make_unique<OperationLowerer>(this);
     this->tupleLowerer = std::make_unique<TupleLowerer>(this);
     this->subscriptLowerer = std::make_unique<SubscriptLowerer>(this);
+
+    this->equationSectionLowerer =
+        std::make_unique<EquationSectionLowerer>(this);
+
+    this->equationLowerer = std::make_unique<EquationLowerer>(this);
+
+    this->equalityEquationLowerer =
+        std::make_unique<EqualityEquationLowerer>(this);
+
+    this->forEquationLowerer = std::make_unique<ForEquationLowerer>(this);
+    this->ifEquationLowerer = std::make_unique<IfEquationLowerer>(this);
+    this->whenEquationLowerer = std::make_unique<WhenEquationLowerer>(this);
+
     this->algorithmLowerer = std::make_unique<AlgorithmLowerer>(this);
     this->statementLowerer = std::make_unique<StatementLowerer>(this);
 
@@ -232,8 +259,6 @@ namespace marco::codegen::lowering
 
     this->whileStatementLowerer =
         std::make_unique<WhileStatementLowerer>(this);
-
-    this->equationLowerer = std::make_unique<EquationLowerer>(this);
   }
 
   Bridge::Impl::~Impl()
@@ -477,6 +502,42 @@ namespace marco::codegen::lowering
     return subscriptLowerer->lower(subscript);
   }
 
+  void Bridge::Impl::lower(const ast::EquationSection& equationSection)
+  {
+    assert(equationLowerer != nullptr);
+    return equationSectionLowerer->lower(equationSection);
+  }
+
+  void Bridge::Impl::lower(const ast::Equation& equation)
+  {
+    assert(equationLowerer != nullptr);
+    return equationLowerer->lower(equation);
+  }
+
+  void Bridge::Impl::lower(const ast::EqualityEquation& equation)
+  {
+    assert(equationLowerer != nullptr);
+    return equalityEquationLowerer->lower(equation);
+  }
+
+  void Bridge::Impl::lower(const ast::ForEquation& forEquation)
+  {
+    assert(equationLowerer != nullptr);
+    return forEquationLowerer->lower(forEquation);
+  }
+
+  void Bridge::Impl::lower(const ast::IfEquation& equation)
+  {
+    assert(equationLowerer != nullptr);
+    return ifEquationLowerer->lower(equation);
+  }
+
+  void Bridge::Impl::lower(const ast::WhenEquation& equation)
+  {
+    assert(equationLowerer != nullptr);
+    return whenEquationLowerer->lower(equation);
+  }
+
   void Bridge::Impl::lower(const ast::Algorithm& algorithm)
   {
     assert(algorithmLowerer != nullptr);
@@ -530,23 +591,6 @@ namespace marco::codegen::lowering
     assert(whileStatementLowerer != nullptr);
     return whileStatementLowerer->lower(statement);
   }
-
-  void Bridge::Impl::lower(
-      const ast::Equation& equation,
-      bool initialEquation)
-  {
-    assert(equationLowerer != nullptr);
-    return equationLowerer->lower(equation, initialEquation);
-  }
-
-  void Bridge::Impl::lower(
-      const ast::ForEquation& forEquation,
-      bool initialEquation)
-  {
-    assert(equationLowerer != nullptr);
-    return equationLowerer->lower(forEquation, initialEquation);
-  }
-
 
   Bridge::Bridge(mlir::MLIRContext& context, CodegenOptions options)
     : impl(std::make_unique<Impl>(context, std::move(options)))

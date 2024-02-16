@@ -28,15 +28,17 @@ modelica.model @Test {
         modelica.yield %3 : !modelica.array<3x!modelica.int>
     }
 
-    modelica.for_equation %i = 0 to 2 {
-        modelica.equation {
-            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
-            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
-            %4 = modelica.equation_side %1 : tuple<!modelica.int>
-            %5 = modelica.equation_side %3 : tuple<!modelica.int>
-            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    modelica.main_model {
+        modelica.for_equation %i = 0 to 2 {
+            modelica.equation {
+                %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+                %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+                %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+                %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+                %4 = modelica.equation_side %1 : tuple<!modelica.int>
+                %5 = modelica.equation_side %3 : tuple<!modelica.int>
+                modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+            }
         }
     }
 }
@@ -71,15 +73,17 @@ modelica.model @Test {
         modelica.yield %3 : !modelica.array<3x!modelica.int>
     }
 
-    modelica.for_equation %i = 0 to 2 {
-        modelica.equation {
-            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
-            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
-            %4 = modelica.equation_side %1 : tuple<!modelica.int>
-            %5 = modelica.equation_side %3 : tuple<!modelica.int>
-            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    modelica.main_model {
+        modelica.for_equation %i = 0 to 2 {
+            modelica.equation {
+                %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+                %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+                %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+                %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+                %4 = modelica.equation_side %1 : tuple<!modelica.int>
+                %5 = modelica.equation_side %3 : tuple<!modelica.int>
+                modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+            }
         }
     }
 }

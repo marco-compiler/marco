@@ -35,13 +35,15 @@ modelica.model @Test {
     modelica.variable @a : !modelica.variable<!modelica.real>
     modelica.variable @b : !modelica.variable<!modelica.real>
 
-    modelica.equation {
-        %0 = modelica.variable_get @a : !modelica.real
-        %1 = modelica.call @Foo(%0) : (!modelica.real) -> !modelica.real
-        %2 = modelica.variable_get @b : !modelica.real
-        %3 = modelica.equation_side %1 : tuple<!modelica.real>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @a : !modelica.real
+            %1 = modelica.call @Foo(%0) : (!modelica.real) -> !modelica.real
+            %2 = modelica.variable_get @b : !modelica.real
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
     }
 }
 
@@ -81,12 +83,14 @@ modelica.model @Test {
     modelica.variable @a : !modelica.variable<!modelica.real>
     modelica.variable @b : !modelica.variable<!modelica.real>
 
-    modelica.equation {
-        %0 = modelica.variable_get @a : !modelica.real
-        %1 = modelica.call @Foo(%0, %0) : (!modelica.real, !modelica.real) -> !modelica.real
-        %2 = modelica.variable_get @b : !modelica.real
-        %3 = modelica.equation_side %1 : tuple<!modelica.real>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @a : !modelica.real
+            %1 = modelica.call @Foo(%0, %0) : (!modelica.real, !modelica.real) -> !modelica.real
+            %2 = modelica.variable_get @b : !modelica.real
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
     }
 }

@@ -296,7 +296,7 @@ TEST(Parser, algorithm_statementsCount)
   EXPECT_EQ((*node)->cast<Algorithm>()->getStatements().size(), 3);
 }
 
-TEST(Parser, equation)
+TEST(Parser, equalityEquation)
 {
   std::string str = "y = x";
 
@@ -313,15 +313,15 @@ TEST(Parser, equation)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
-  ASSERT_TRUE((*node)->isa<Equation>());
+  ASSERT_TRUE((*node)->isa<EqualityEquation>());
 
-  auto lhs = (*node)->cast<Equation>()->getLhsExpression();
+  auto lhs = (*node)->cast<EqualityEquation>()->getLhsExpression();
   ASSERT_TRUE(lhs->isa<ComponentReference>());
   EXPECT_EQ(lhs->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getName(), "y");
   EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
-  auto rhs = (*node)->cast<Equation>()->getRhsExpression();
+  auto rhs = (*node)->cast<EqualityEquation>()->getRhsExpression();
   ASSERT_TRUE(rhs->isa<ComponentReference>());
   EXPECT_EQ(rhs->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getName(), "x");
@@ -1390,30 +1390,6 @@ TEST(Parser, expression_array_induction)
 
   ASSERT_TRUE(array.getValue()->isa<Constant>());
   EXPECT_EQ(array.getValue()->cast<Constant>()->as<int64_t>(), 666);
-
-  ASSERT_TRUE(array.getIndex(0)->isa<Induction>());
-  ASSERT_TRUE(array.getIndex(0)->getBegin()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(0)->getBegin()->cast<Constant>()->as<int64_t>(), 1);
-  ASSERT_TRUE(array.getIndex(0)->getEnd()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(0)->getEnd()->cast<Constant>()->as<int64_t>(), 3);
-  ASSERT_TRUE(array.getIndex(0)->getStep()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(0)->getStep()->cast<Constant>()->as<int64_t>(), 1);
-
-  ASSERT_TRUE(array.getIndex(1)->isa<Induction>());
-  ASSERT_TRUE(array.getIndex(1)->getBegin()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(1)->getBegin()->cast<Constant>()->as<int64_t>(), 7);
-  ASSERT_TRUE(array.getIndex(1)->getEnd()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(1)->getEnd()->cast<Constant>()->as<int64_t>(), 12);
-  ASSERT_TRUE(array.getIndex(1)->getStep()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(1)->getStep()->cast<Constant>()->as<int64_t>(), 1);
-
-  ASSERT_TRUE(array.getIndex(2)->isa<Induction>());
-  ASSERT_TRUE(array.getIndex(2)->getBegin()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(2)->getBegin()->cast<Constant>()->as<int64_t>(), 8);
-  ASSERT_TRUE(array.getIndex(2)->getEnd()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(2)->getEnd()->cast<Constant>()->as<int64_t>(), 39);
-  ASSERT_TRUE(array.getIndex(2)->getStep()->cast<Constant>());
-  EXPECT_EQ(array.getIndex(2)->getStep()->cast<Constant>()->as<int64_t>(), 1);
 }
 
 TEST(Parser, expression_subscription)

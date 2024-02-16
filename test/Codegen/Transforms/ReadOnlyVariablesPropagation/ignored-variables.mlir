@@ -28,13 +28,15 @@ modelica.model @Test {
         modelica.yield %0 : !modelica.int
     }
 
-    modelica.equation {
-        %0 = modelica.variable_get @x : !modelica.int
-        %1 = modelica.variable_get @y : !modelica.int
-        %2 = modelica.add %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-        %3 = modelica.variable_get @z : !modelica.int
-        %4 = modelica.equation_side %2 : tuple<!modelica.int>
-        %5 = modelica.equation_side %3 : tuple<!modelica.int>
-        modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @x : !modelica.int
+            %1 = modelica.variable_get @y : !modelica.int
+            %2 = modelica.add %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
+            %3 = modelica.variable_get @z : !modelica.int
+            %4 = modelica.equation_side %2 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+        }
     }
 }

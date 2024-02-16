@@ -1,5 +1,5 @@
 #include "marco/AST/Node/ForStatement.h"
-#include "marco/AST/Node/Induction.h"
+#include "marco/AST/Node/ForIndex.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -14,7 +14,7 @@ namespace marco::ast
   ForStatement::ForStatement(const ForStatement& other)
       : Statement(other)
   {
-    setInduction(other.induction->clone());
+    setForIndices(other.forIndices);
     setStatements(other.statements);
   }
 
@@ -28,8 +28,13 @@ namespace marco::ast
   llvm::json::Value ForStatement::toJSON() const
   {
     llvm::json::Object result;
-    result["induction"] = getInduction()->toJSON();
+    llvm::SmallVector<llvm::json::Value> forIndicesJson;
 
+    for (const auto& forIndex : forIndices) {
+      forIndicesJson.push_back(forIndex->toJSON());
+    }
+    
+    result["for_indices"] = llvm::json::Array(forIndicesJson);
     llvm::SmallVector<llvm::json::Value> statementsJson;
 
     for (const auto& statement : statements) {
@@ -42,37 +47,52 @@ namespace marco::ast
     return result;
   }
 
-  Induction* ForStatement::getInduction()
+  size_t ForStatement::getNumOfForIndices() const
   {
-    assert(induction != nullptr && "Induction not set");
-    return induction->cast<Induction>();
+    return forIndices.size();
   }
 
-  const Induction* ForStatement::getInduction() const
+  ForIndex* ForStatement::getForIndex(size_t index)
   {
-    assert(induction != nullptr && "Induction not set");
-    return induction->cast<Induction>();
+    assert(index < forIndices.size());
+    return forIndices[index]->cast<ForIndex>();
   }
 
-  void ForStatement::setInduction(std::unique_ptr<ASTNode> node)
+  const ForIndex* ForStatement::getForIndex(size_t index) const
   {
-    assert(node->isa<Induction>());
-    induction = std::move(node);
-    induction->setParent(this);
+    assert(index < forIndices.size());
+    return forIndices[index]->cast<ForIndex>();
   }
 
-  size_t ForStatement::size() const
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> ForStatement::getForIndices() const
+  {
+    return forIndices;
+  }
+
+  void ForStatement::setForIndices(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  {
+    forIndices.clear();
+
+    for (const auto& node : nodes) {
+      assert(node->isa<ForIndex>());
+      auto& clone = forIndices.emplace_back(node->clone());
+      clone->setParent(this);
+    }
+  }
+
+  size_t ForStatement::getNumOfStatements() const
   {
     return statements.size();
   }
 
-  Statement* ForStatement::operator[](size_t index)
+  Statement* ForStatement::getStatement(size_t index)
   {
     assert(index < statements.size());
     return statements[index]->cast<Statement>();
   }
 
-  const Statement* ForStatement::operator[](size_t index) const
+  const Statement* ForStatement::getStatement(size_t index) const
   {
     assert(index < statements.size());
     return statements[index]->cast<Statement>();

@@ -5,7 +5,7 @@
 
 namespace marco::ast
 {
-  class Induction;
+  class ForIndex;
 
   class ForStatement : public Statement
   {
@@ -25,24 +25,28 @@ namespace marco::ast
 
       llvm::json::Value toJSON() const override;
 
-      Induction* getInduction();
+      size_t getNumOfForIndices() const;
 
-      const Induction* getInduction() const;
+      ForIndex* getForIndex(size_t index);
 
-      void setInduction(std::unique_ptr<ASTNode> node);
+      const ForIndex* getForIndex(size_t index) const;
 
-      size_t size() const;
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getForIndices() const;
 
-      Statement* operator[](size_t index);
+      void setForIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      const Statement* operator[](size_t index) const;
+      size_t getNumOfStatements() const;
+
+      Statement* getStatement(size_t index);
+
+      const Statement* getStatement(size_t index) const;
 
       llvm::ArrayRef<std::unique_ptr<ASTNode>> getStatements() const;
 
       void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
-      std::unique_ptr<ASTNode> induction;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> forIndices;
       llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
   };
 }

@@ -20,12 +20,14 @@ modelica.model @Test {
         modelica.yield %0 : !modelica.int
     }
 
-    modelica.equation {
-        %0 = modelica.variable_get @x : !modelica.int
-        %1 = modelica.variable_get @y : !modelica.int
-        %2 = modelica.equation_side %0 : tuple<!modelica.int>
-        %3 = modelica.equation_side %1 : tuple<!modelica.int>
-        modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @x : !modelica.int
+            %1 = modelica.variable_get @y : !modelica.int
+            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %3 = modelica.equation_side %1 : tuple<!modelica.int>
+            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+        }
     }
 }
 
@@ -51,11 +53,13 @@ modelica.model @Test {
         modelica.yield %0 : !modelica.int
     }
 
-    modelica.equation {
-        %0 = modelica.variable_get @x : !modelica.int
-        %1 = modelica.variable_get @y : !modelica.int
-        %2 = modelica.equation_side %0 : tuple<!modelica.int>
-        %3 = modelica.equation_side %1 : tuple<!modelica.int>
-        modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+    modelica.main_model {
+        modelica.equation {
+            %0 = modelica.variable_get @x : !modelica.int
+            %1 = modelica.variable_get @y : !modelica.int
+            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %3 = modelica.equation_side %1 : tuple<!modelica.int>
+            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+        }
     }
 }

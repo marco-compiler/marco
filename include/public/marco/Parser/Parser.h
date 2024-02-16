@@ -119,14 +119,23 @@ namespace marco::parser
       /// Parse the 'algorithm-section' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseAlgorithmSection();
 
+      /// Parse the 'equation-section' symbol.
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseEquationSection();
+
       /// Parse the 'equation' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseEquation();
 
       /// Parse the 'statement' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseStatement();
 
+      /// Parse the 'if-equation' symbol.
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseIfEquation();
+
       /// Parse the 'if-statement' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseIfStatement();
+
+      /// Parse the 'for-equation' symbol.
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseForEquation();
 
       /// Parse the 'for-statement' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseForStatement();
@@ -140,6 +149,9 @@ namespace marco::parser
 
       /// Parse the 'while-statement' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseWhileStatement();
+
+      /// Parse the 'when-equation' symbol.
+      ParseResult<std::unique_ptr<ast::ASTNode>> parseWhenEquation();
 
       /// Parse the 'when-statement' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseWhenStatement();
@@ -235,14 +247,6 @@ namespace marco::parser
       ParseResult<std::unique_ptr<ast::ASTNode>> parseAnnotation();
 
     private:
-      std::optional<std::unique_ptr<ast::ASTNode>> parseEquationsBlock();
-
-      std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
-      parseForEquations();
-
-      /// Parse the 'for-index' symbol (old version, to be removed).
-      std::optional<std::unique_ptr<ast::ASTNode>> parseForIndexOld();
-
       std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
       parseElementList(bool publicSection);
 

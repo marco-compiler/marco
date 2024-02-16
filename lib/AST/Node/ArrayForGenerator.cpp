@@ -1,5 +1,5 @@
 #include "marco/AST/Node/ArrayForGenerator.h"
-#include "marco/AST/Node/Induction.h"
+#include "marco/AST/Node/ForIndex.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -7,7 +7,9 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
   ArrayForGenerator::ArrayForGenerator(SourceRange location)
-      : ArrayGenerator(ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator, std::move(location))
+      : ArrayGenerator(
+            ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator,
+            std::move(location))
   {
   }
 
@@ -61,23 +63,24 @@ namespace marco::ast
     return indices.size();
   }
 
-  Induction* ArrayForGenerator::getIndex(unsigned index)
+  ForIndex* ArrayForGenerator::getIndex(unsigned index)
   {
     assert(index < indices.size());
-    return indices[index]->cast<Induction>();
+    return indices[index]->cast<ForIndex>();
   }
 
-  const Induction* ArrayForGenerator::getIndex(unsigned index) const
+  const ForIndex* ArrayForGenerator::getIndex(unsigned index) const
   {
     assert(index < indices.size());
-    return indices[index]->cast<Induction>();
+    return indices[index]->cast<ForIndex>();
   }
 
   void ArrayForGenerator::setIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
     indices.clear();
+
     for (const auto& node : nodes) {
-      assert(node->isa<Induction>());
+      assert(node->isa<ForIndex>());
       auto& clone = indices.emplace_back(node->clone());
       clone->setParent(this);
     }
