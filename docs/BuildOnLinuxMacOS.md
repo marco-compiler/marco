@@ -1,5 +1,5 @@
 # Building on Linux / macOS
-We provide here directions to install ONNX-MLIR on Linux and macOS.
+We provide here directions to install MARCO on Linux and macOS.
 The commands for installing some packages are based on the `apt` tool, but it can be easily adapted to other package managers.
 
 ## Requirements
@@ -50,7 +50,7 @@ However, a build script is available inside the repository to build and install 
 The following dependencies must be installed before attempting a build:
 
 ```bash
-sudo apt install libgmp3
+sudo apt install libgmp3-dev
 sudo apt install libmpc-dev
 ```
 
