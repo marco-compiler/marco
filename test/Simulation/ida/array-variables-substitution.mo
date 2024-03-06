@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=ArrayVariablesSubstitution --solver=ida -o %basename_t %s -L %runtime_lib_dir -L %sundials_lib_dir
+// RUN: marco --omc-bypass --model=ArrayVariablesSubstitution --solver=ida -o %basename_t %s -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=2 | FileCheck %s
 
 // CHECK: "time","Q[1]","Q[2]","Q[3]","Q[4]","Q[5]","T[1]","T[2]","T[3]","T[4]"

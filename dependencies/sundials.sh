@@ -65,27 +65,27 @@ cd ..
 cd $SUITESPARSE || fail "Error extracting $SUITESPARSE.tar.gz"
 
 cd SuiteSparse_config/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_RPATH="$INSTDIR/lib"
 cmake --build . --target install || fail "AMD install failed"
 cd ../..
 
 cd AMD/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_RPATH="$INSTDIR/lib"
 cmake --build . --target install || fail "AMD install failed"
 cd ../..
 
 cd BTF/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_RPATH="$INSTDIR/lib"
 cmake --build . --target install || fail "BTF install failed"
 cd ../..
 
 cd COLAMD/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_RPATH="$INSTDIR/lib"
 cmake --build . --target install || fail "COLAMD install failed"
 cd ../..
 
 cd KLU/build
-cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+cmake .. -DCMAKE_PREFIX_PATH="$INSTDIR/lib" -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_RPATH="$INSTDIR/lib"
 cmake --build . --target install || fail "KLU install failed"
 cd ../..
 

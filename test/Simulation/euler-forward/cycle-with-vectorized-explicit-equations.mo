@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=M1 --solver=euler-forward -o %basename_t -L %runtime_lib_dir %s -L %sundials_lib_dir
+// RUN: marco --omc-bypass --model=M1 --solver=euler-forward -o %basename_t -L %runtime_lib_dir %s -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir
 // RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1]","x[2]","x[3]","y[1]","y[2]","y[3]","z[1]","z[2]","z[3]"
