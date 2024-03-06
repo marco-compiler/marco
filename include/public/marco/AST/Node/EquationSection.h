@@ -44,7 +44,7 @@ namespace marco::ast
       void setEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
-      bool initial;
+      bool initial{false};
       llvm::SmallVector<std::unique_ptr<ASTNode>> equations;
   };
 }

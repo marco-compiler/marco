@@ -12,7 +12,8 @@ namespace marco::ast
   }
 
   EquationSection::EquationSection(const EquationSection& other)
-      : ASTNode(other)
+      : ASTNode(other),
+        initial(other.initial)
   {
     setEquations(other.equations);
   }
