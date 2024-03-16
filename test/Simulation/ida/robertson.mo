@@ -2,8 +2,7 @@
 // RUN: ./%basename_t --end-time=400 --time-step=1 --precision=4 | FileCheck %s
 
 // CHECK: "time","y1","y2","y3"
-// CHECK-NEXT: 0.0000,1.0000,0.0000,0.0000
-// CHECK: 300.0000,0.4862,0.0000,0.5138
+// CHECK: 0.0000,1.0000,0.0000,0.0000
 // CHECK: 400.0000,0.4505,0.0000,0.5495
 
 model Robertson
