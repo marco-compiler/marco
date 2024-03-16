@@ -79,7 +79,7 @@ func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.int) -> !modelica.real 
 // CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
 // CHECK-DAG:   %[[arg1_dim0:.*]] = modelica.dim %[[arg1]], %[[c0]]
 // CHECK-DAG:   %[[arg1_dim1:.*]] = modelica.dim %[[arg1]], %[[c1]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg1_dim1]] : !modelica.array<3x?x!modelica.real>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg1_dim1]] : <3x?x!modelica.real>
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg1_dim0]] step %[[c1]] {
 // CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg1_dim1]] step %[[c1]] {
 // CHECK:               %[[array_value:.*]] = modelica.load %[[arg1]][%[[index_0]], %[[index_1]]]
@@ -141,7 +141,7 @@ func.func @foo(%arg0 : !modelica.array<?x!modelica.real>, %arg1 : !modelica.arra
 // CHECK-DAG:   %[[arg1_dim0:.*]] = modelica.dim %[[arg1]], %[[c0]]
 // CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim0]]
 // CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc : !modelica.array<3x5x!modelica.real>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc : <3x5x!modelica.real>
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] {
 // CHECK:           %[[arg1_dim1:.*]] = modelica.dim %[[arg1]], %[[c1]]
 // CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg1_dim1]] step %[[c1]] {
@@ -180,7 +180,7 @@ func.func @foo(%arg0 : !modelica.array<3x?x!modelica.real>, %arg1 : !modelica.ar
 // CHECK-DAG:   %[[arg1_dim0:.*]] = modelica.dim %[[arg1]], %[[c0]]
 // CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim0]], %[[arg1_dim0]]
 // CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc : !modelica.array<3x!modelica.real>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc : <3x!modelica.real>
 // CHECK-DAG:   %[[result_dim0:.*]] = modelica.dim %[[result]], %[[c0]]
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
 // CHECK-DAG:       %[[zero:.*]] = arith.constant 0.000000e+00 : f64
@@ -217,7 +217,7 @@ func.func @foo(%arg0 : !modelica.array<?x!modelica.real>, %arg1 : !modelica.arra
 // CHECK-DAG:   %[[arg1_dim0:.*]] = modelica.dim %[[arg1]], %[[c0]]
 // CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim0]]
 // CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc : !modelica.array<3x!modelica.real>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc : <3x!modelica.real>
 // CHECK-DAG:   %[[result_dim0:.*]] = modelica.dim %[[result]], %[[c0]]
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
 // CHECK-DAG:       %[[zero:.*]] = arith.constant 0.000000e+00 : f64

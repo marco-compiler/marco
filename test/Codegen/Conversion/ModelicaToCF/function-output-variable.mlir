@@ -100,7 +100,7 @@ modelica.function @staticArraySet {
     modelica.variable @x : !modelica.variable<3x2x!modelica.int, output>
 
     modelica.algorithm {
-        %1 = modelica.alloc : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.alloc : <3x2x!modelica.int>
         modelica.variable_set @x, %1 : !modelica.array<3x2x!modelica.int>
     }
 }
@@ -155,7 +155,7 @@ modelica.function @dynamicArraySet {
     modelica.variable @x : !modelica.variable<3x?x!modelica.int, output>
 
     modelica.algorithm {
-        %1 = modelica.alloc : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.alloc : <3x2x!modelica.int>
         modelica.variable_set @x, %1 : !modelica.array<3x2x!modelica.int>
     }
 }

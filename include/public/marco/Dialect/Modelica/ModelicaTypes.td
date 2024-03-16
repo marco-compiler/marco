@@ -6,16 +6,16 @@ include "marco/Dialect/Modelica/ModelicaTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica type definitions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 // Base class for Modelica dialect types.
 class Modelica_Type<
-    string name,
+    string typeName,
     list<Trait> traits = [],
     string baseCppClass = "::mlir::Type">
-    : TypeDef<Modelica_Dialect, name, traits, baseCppClass>
+    : TypeDef<Modelica_Dialect, typeName, traits, baseCppClass>
 {
     let mnemonic = ?;
 }
@@ -61,6 +61,7 @@ def ArrayType : Modelica_Type<"Array",
     "BaseArrayType">
 {
     let summary = "Array type";
+    let mnemonic = "array";
 
     let description = [{
         Type representing a Modelica array.
@@ -72,6 +73,7 @@ def ArrayType : Modelica_Type<"Array",
         "mlir::Attribute":$memorySpace
     );
 
+    let hasCustomAssemblyFormat = 1;
     let skipDefaultBuilders = 1;
 
     let builders = [
@@ -115,6 +117,7 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
     "BaseArrayType">
 {
     let summary = "Unranked array type";
+    let mnemonic = "unranked_array";
 
     let description = [{
         TODO
@@ -125,6 +128,7 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
         "mlir::Attribute":$memorySpace
     );
 
+    let hasCustomAssemblyFormat = 1;
     let skipDefaultBuilders = 1;
 
     let builders = [
@@ -152,7 +156,7 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
     let genVerifyDecl = 1;
 }
 
-def Modelica_RecordType : Modelica_Type<"Record", []>
+def Modelica_RecordType : Modelica_Type<"Record">
 {
     let summary = "Record type";
     let mnemonic = "record";
@@ -178,6 +182,7 @@ def VariableType : Modelica_Type<"Variable",
     [DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
 {
     let summary = "Variable type";
+    let mnemonic = "variable";
 
     let description = [{
         Variable type.
@@ -191,6 +196,7 @@ def VariableType : Modelica_Type<"Variable",
         "mlir::Attribute":$memorySpace
     );
 
+    let hasCustomAssemblyFormat = 1;
     let skipDefaultBuilders = 1;
 
     let builders = [

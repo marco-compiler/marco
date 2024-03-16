@@ -5,7 +5,7 @@
 // CHECK-LABEL: @test
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.array<3x3x!modelica.int>) -> !modelica.array<3x3x!modelica.int>
 // CHECK-DAG: %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.array<3x3x!modelica.int> to memref<3x3xi64>
-// CHECK-DAG: %[[result:.*]] = modelica.alloc : !modelica.array<3x3x!modelica.int>
+// CHECK-DAG: %[[result:.*]] = modelica.alloc : <3x3x!modelica.int>
 // CHECK: %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !modelica.array<3x3x!modelica.int> to memref<3x3xi64>
 // CHECK-DAG: %[[result_unranked:.*]] = memref.cast %[[result_casted]] : memref<3x3xi64> to memref<*xi64>
 // CHECK-DAG: %[[arg0_unranked:.*]] = memref.cast %[[arg0_casted]] : memref<3x3xi64> to memref<*xi64>

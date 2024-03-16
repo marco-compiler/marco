@@ -3593,9 +3593,6 @@ namespace
         auto parallelOp = rewriter.create<mlir::scf::ParallelOp>(
             loc, lowerBounds, upperBounds, steps, initialValues);
 
-        // Erase the default-created YieldOp inside ParallelOp.
-        rewriter.eraseOp(parallelOp.getBody()->getTerminator());
-
         // Create the reduce operation.
         rewriter.setInsertionPoint(yieldOp);
 
@@ -3608,12 +3605,12 @@ namespace
             loc, currentElementValue);
 
         rewriter.setInsertionPointToEnd(
-            &reduceOp.getReductionOperator().front());
+            &reduceOp.getReductions().front().front());
 
         mlir::Value reductionResult = computeReductionResult(
             rewriter, loc, op.getAction(), resultType,
-            reduceOp.getReductionOperator().front().getArgument(0),
-            reduceOp.getReductionOperator().front().getArgument(1));
+            reduceOp.getReductions().front().getArgument(0),
+            reduceOp.getReductions().front().getArgument(1));
 
         rewriter.create<mlir::scf::ReduceReturnOp>(loc, reductionResult);
         rewriter.eraseOp(yieldOp);
@@ -3640,12 +3637,7 @@ namespace
 
         rewriter.mergeBlocks(op.getBody(), parallelOp.getBody(), newInductions);
 
-        // Recreate the YieldOp for ParallelOp.
-        rewriter.setInsertionPointToEnd(parallelOp.getBody());
-        rewriter.create<mlir::scf::YieldOp>(loc);
-
         rewriter.replaceOp(op, parallelOp);
-
         return mlir::success();
       }
 

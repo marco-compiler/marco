@@ -186,7 +186,7 @@ modelica.model @Test {
 // CHECK-LABEL: @Test
 // CHECK:       modelica.start @der_x {
 // CHECK-NEXT:      %[[zero:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[zero]] : !modelica.real -> !modelica.array<2x!modelica.real>
+// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[zero]] : !modelica.real -> <2x!modelica.real>
 // CHECK-NEXT:      modelica.yield %[[array]]
 // CHECK-NEXT:  }
 

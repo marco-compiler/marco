@@ -19,7 +19,7 @@ modelica.function @callee {
 }
 
 // CHECK-CALLER: func.func @caller
-// CHECK-CALLER: %[[x:.*]] = modelica.alloc : !modelica.array<3x!modelica.int>
+// CHECK-CALLER: %[[x:.*]] = modelica.alloc : <3x!modelica.int>
 // CHECK-CALLER: %[[y:.*]] = modelica.call @callee(%[[x]]) : (!modelica.array<3x!modelica.int>) -> !modelica.array<?x!modelica.int>
 // CHECK-CALLER: return %[[x]], %[[y]]
 

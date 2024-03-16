@@ -64,14 +64,14 @@ namespace
       mlir::SmallVector<mlir::Type, 3> argsTypes;
 
       argsTypes.push_back(
-          mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()));
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
       auto functionType = rewriter.getFunctionType(
           argsTypes,
           op.getFunctionType().getResult(0));
 
-      auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
-          op, op.getSymName(), functionType);
+      auto newOp = rewriter.create<mlir::func::FuncOp>(
+          loc, op.getSymName(), functionType);
 
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
@@ -90,11 +90,12 @@ namespace
         mlir::Value equationIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(
             equationIndicesPtr.getLoc(),
             equationIndicesPtr.getType(),
+            rewriter.getI64Type(),
             equationIndicesPtr,
             index);
 
         mlir::Value mappedEquationIndex = rewriter.create<mlir::LLVM::LoadOp>(
-            equationIndexPtr.getLoc(), equationIndexPtr);
+            equationIndexPtr.getLoc(), rewriter.getI64Type(), equationIndexPtr);
 
         mappedEquationIndex = getTypeConverter()->materializeSourceConversion(
             rewriter,
@@ -130,6 +131,7 @@ namespace
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };
@@ -150,17 +152,17 @@ namespace
       mlir::SmallVector<mlir::Type, 5> argsTypes;
 
       argsTypes.push_back(
-          mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()));
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
       argsTypes.push_back(
-          mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type()));
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
       auto functionType = rewriter.getFunctionType(
           argsTypes,
           op.getFunctionType().getResult(0));
 
-      auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
-          op, op.getSymName(), functionType);
+      auto newOp = rewriter.create<mlir::func::FuncOp>(
+          loc, op.getSymName(), functionType);
 
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
@@ -179,11 +181,12 @@ namespace
         mlir::Value equationIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(
             equationIndicesPtr.getLoc(),
             equationIndicesPtr.getType(),
+            rewriter.getI64Type(),
             equationIndicesPtr,
             index);
 
         mlir::Value mappedEquationIndex = rewriter.create<mlir::LLVM::LoadOp>(
-            equationIndexPtr.getLoc(), equationIndexPtr);
+            equationIndexPtr.getLoc(), rewriter.getI64Type(), equationIndexPtr);
 
         mappedEquationIndex = rewriter.create<mlir::arith::IndexCastOp>(
             mappedEquationIndex.getLoc(),
@@ -204,11 +207,12 @@ namespace
         mlir::Value variableIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(
             variableIndicesPtr.getLoc(),
             variableIndicesPtr.getType(),
+            rewriter.getI64Type(),
             variableIndicesPtr,
             index);
 
         mlir::Value mappedVariableIndex = rewriter.create<mlir::LLVM::LoadOp>(
-            variableIndexPtr.getLoc(), variableIndexPtr);
+            variableIndexPtr.getLoc(), rewriter.getI64Type(), variableIndexPtr);
 
         mappedVariableIndex = getTypeConverter()->materializeSourceConversion(
             rewriter,
@@ -244,6 +248,7 @@ namespace
           newOp.getFunctionBody(),
           newOp.getFunctionBody().end());
 
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };

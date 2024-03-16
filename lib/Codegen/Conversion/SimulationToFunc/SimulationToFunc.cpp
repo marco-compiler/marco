@@ -61,20 +61,13 @@ namespace
         mlir::Value globalPtr =
             builder.create<mlir::LLVM::AddressOfOp>(loc, global);
 
-        mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
-            loc,
-            mlir::IntegerType::get(builder.getContext(), 64),
-            builder.getIntegerAttr(builder.getIndexType(), 0));
+        mlir::Type type = mlir::LLVM::LLVMArrayType::get(
+            mlir::IntegerType::get(builder.getContext(), 8),
+            value.size() + 1);
 
-        mlir::Value ptr = builder.create<mlir::LLVM::GEPOp>(
-            loc,
-            mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8)),
-            globalPtr, llvm::ArrayRef({cst0, cst0}));
-
-        ptr = builder.create<mlir::LLVM::BitcastOp>(
-            loc, getVoidPtrType(), ptr);
-
-        return ptr;
+        return builder.create<mlir::LLVM::GEPOp>(
+            loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
+            globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
       }
   };
 }
@@ -827,12 +820,12 @@ namespace
       {
         mlir::Location loc = op.getLoc();
 
-        mlir::Type int64PtrType =
-            mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type());
+        mlir::Type ptrType =
+            mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             loc, op.getSymName(),
-            rewriter.getFunctionType(int64PtrType, op.getResultTypes()));
+            rewriter.getFunctionType(ptrType, op.getResultTypes()));
 
         mlir::IRMapping mapping;
 
@@ -854,13 +847,12 @@ namespace
         llvm::SmallVector<mlir::Value, 3> mappedIndices;
 
         for (size_t i = 0; i < numOfIndices; ++i) {
-          mlir::Value offset = rewriter.create<mlir::arith::ConstantOp>(
-              loc, rewriter.getI64IntegerAttr(i));
-
           mlir::Value address = rewriter.create<mlir::LLVM::GEPOp>(
-              loc, int64PtrType, int64PtrType, funcOp.getArgument(0), offset);
+              loc, ptrType, rewriter.getI64Type(), funcOp.getArgument(0),
+              llvm::ArrayRef<mlir::LLVM::GEPArg>(static_cast<int32_t>(i)));
 
-          mlir::Value index = rewriter.create<mlir::LLVM::LoadOp>(loc, address);
+          mlir::Value index = rewriter.create<mlir::LLVM::LoadOp>(
+              loc, rewriter.getI64Type(), address);
 
           index = rewriter.create<mlir::arith::IndexCastOp>(
               loc, rewriter.getIndexType(), index);
@@ -890,12 +882,12 @@ namespace
       {
         mlir::Location loc = op.getLoc();
 
-        mlir::Type int64PtrType =
-            mlir::LLVM::LLVMPointerType::get(rewriter.getI64Type());
+        mlir::Type ptrType =
+            mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
 
         llvm::SmallVector<mlir::Type, 2> argTypes;
         argTypes.push_back(rewriter.getI64Type());
-        argTypes.push_back(int64PtrType);
+        argTypes.push_back(ptrType);
 
         auto funcOp = rewriter.create<mlir::func::FuncOp>(
             loc, "getVariableValue",
@@ -1170,7 +1162,7 @@ namespace
         llvm::SmallVector<mlir::Type, 1> argsTypes;
 
         argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(
-            rewriter.getI64Type()));
+            rewriter.getContext()));
 
         auto functionType = rewriter.getFunctionType(argsTypes, std::nullopt);
 
@@ -1191,11 +1183,12 @@ namespace
           mlir::Value boundaryPtr = rewriter.create<mlir::LLVM::GEPOp>(
               arg.value().getLoc(),
               equationBoundariesPtr.getType(),
+              rewriter.getI64Type(),
               equationBoundariesPtr,
               index);
 
           mlir::Value mappedBoundary = rewriter.create<mlir::LLVM::LoadOp>(
-              boundaryPtr.getLoc(), boundaryPtr);
+              boundaryPtr.getLoc(), rewriter.getI64Type(), boundaryPtr);
 
           mappedBoundary = rewriter.create<mlir::arith::IndexCastOp>(
               mappedBoundary.getLoc(), rewriter.getIndexType(), mappedBoundary);

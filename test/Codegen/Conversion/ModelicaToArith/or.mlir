@@ -112,7 +112,7 @@ func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.int) -> !modelica.bool 
 // CHECK-DAG:   %[[arg1_dim1:.*]] = modelica.dim %[[arg1]], %[[c1]]
 // CHECK-DAG:   %[[dim1_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim1]]
 // CHECK-DAG:   cf.assert %[[dim1_cmp]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : !modelica.array<3x?x!modelica.bool>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : <3x?x!modelica.bool>
 // CHECK-DAG:   %[[result_dim0:.*]] = modelica.dim %[[result]], %[[c0]]
 // CHECK-DAG:   %[[result_dim1:.*]] = modelica.dim %[[result]], %[[c1]]
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {

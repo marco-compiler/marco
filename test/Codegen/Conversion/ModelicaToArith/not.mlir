@@ -58,7 +58,7 @@ func.func @foo(%arg0 : !modelica.real) -> !modelica.bool {
 // CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
 // CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
 // CHECK-DAG:   %[[arg0_dim1:.*]] = modelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : !modelica.array<3x?x!modelica.bool>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : <3x?x!modelica.bool>
 // CHECK-DAG:   %[[result_dim0:.*]] = modelica.dim %[[result]], %[[c0]]
 // CHECK-DAG:   %[[result_dim1:.*]] = modelica.dim %[[result]], %[[c1]]
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {

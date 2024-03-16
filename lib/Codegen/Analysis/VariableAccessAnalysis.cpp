@@ -125,9 +125,9 @@ namespace mlir::modelica
   {
   }
 
-  void VariableAccessAnalysis::IRListener::notifyOperationRemoved(Operation* op)
+  void VariableAccessAnalysis::IRListener::notifyOperationErased(Operation* op)
   {
-    Listener::notifyOperationRemoved(op);
+    Listener::notifyOperationErased(op);
 
     if (auto equationOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
       auto analysis = provider->getCachedVariableAccessAnalysis(

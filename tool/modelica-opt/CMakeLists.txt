@@ -1,5 +1,5 @@
 set(SOURCES
-        modelica-opt.cpp)
+    modelica-opt.cpp)
 
 marco_add_tool(modelica-opt ${SOURCES})
 
@@ -12,7 +12,6 @@ target_link_libraries(modelica-opt
     PRIVATE ${extension_libs}
     PRIVATE ${conversion_libs}
     PRIVATE MLIROptLib
-    PRIVATE marco::codegen
-    PRIVATE marco::ast)
+    PRIVATE marco::codegen)
 
 mlir_check_all_link_libraries(modelica-opt)

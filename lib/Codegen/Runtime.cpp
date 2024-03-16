@@ -81,7 +81,7 @@ namespace marco::codegen
     builder.setInsertionPointToStart(moduleOp.getBody());
 
     auto resultType =
-        mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8));
+        mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
     llvm::SmallVector<mlir::Type, 1> argTypes;
     argTypes.push_back(builder.getI64Type());

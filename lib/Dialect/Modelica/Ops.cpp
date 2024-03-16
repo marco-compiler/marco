@@ -16344,6 +16344,13 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  llvm::SmallVector<mlir::Region*> ForOp::getLoopRegions()
+  {
+    llvm::SmallVector<mlir::Region*> result;
+    result.push_back(&getBodyRegion());
+    return result;
+  }
+
   mlir::Block* ForOp::conditionBlock()
   {
     assert(!getConditionRegion().empty());
@@ -16614,6 +16621,13 @@ namespace mlir::modelica
     printer << " do ";
     printer.printRegion(getBodyRegion(), false);
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+  }
+
+  llvm::SmallVector<mlir::Region*> WhileOp::getLoopRegions()
+  {
+    llvm::SmallVector<mlir::Region*> result;
+    result.push_back(&getBodyRegion());
+    return result;
   }
 
   mlir::LogicalResult WhileOp::derive(

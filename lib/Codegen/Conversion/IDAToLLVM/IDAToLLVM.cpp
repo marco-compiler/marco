@@ -38,14 +38,15 @@ namespace
           mlir::Location loc,
           llvm::StringRef name) const
       {
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(
-            this->getTypeConverter()->convertType(
-                InstanceType::get(builder.getContext())));
+        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         mlir::Value address =
             builder.create<mlir::LLVM::AddressOfOp>(loc, ptrType, name);
 
-        return builder.create<mlir::LLVM::LoadOp>(loc, address);
+        mlir::Type elementType = this->getTypeConverter()->convertType(
+            InstanceType::get(builder.getContext()));
+
+        return builder.create<mlir::LLVM::LoadOp>(loc, elementType, address);
       }
 
       mlir::LLVM::GlobalOp declareDimensionsArray(
@@ -96,8 +97,6 @@ namespace
         mlir::Value address =
             builder.create<mlir::LLVM::AddressOfOp>(loc, globalOp);
 
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getI64Type());
-        address = builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, address);
         return address;
       }
 
@@ -147,8 +146,6 @@ namespace
         mlir::Value address =
             builder.create<mlir::LLVM::AddressOfOp>(loc, globalOp);
 
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getI64Type());
-        address = builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, address);
         return address;
       }
 
@@ -215,13 +212,13 @@ namespace
           mlir::LLVM::LLVMFunctionType functionType,
           llvm::StringRef name) const
       {
-        auto functionPtrType = mlir::LLVM::LLVMPointerType::get(functionType);
+        auto functionPtrType =
+            mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         mlir::Value address = builder.create<mlir::LLVM::AddressOfOp>(
             loc, functionPtrType, name);
 
-        return builder.create<mlir::LLVM::BitcastOp>(
-            loc, this->getVoidPtrType(), address);
+        return address;
       }
 
       mlir::Value getGetterFunctionAddress(
@@ -234,7 +231,7 @@ namespace
         llvm::SmallVector<mlir::Type, 1> argTypes;
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         auto functionType =
             mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
@@ -254,7 +251,7 @@ namespace
         argTypes.push_back(builder.getF64Type());
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         auto functionType =
             mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
@@ -273,7 +270,7 @@ namespace
         argTypes.push_back(builder.getF64Type());
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         auto functionType =
             mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
@@ -292,10 +289,10 @@ namespace
         argTypes.push_back(builder.getF64Type());
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         argTypes.push_back(builder.getF64Type());
 
@@ -316,10 +313,10 @@ namespace
         llvm::SmallVector<mlir::Type, 4> argTypes;
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         auto functionType =
             mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
@@ -357,20 +354,13 @@ namespace
         mlir::Value globalPtr =
             builder.create<mlir::LLVM::AddressOfOp>(loc, global);
 
-        mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
-            loc,
-            mlir::IntegerType::get(builder.getContext(), 64),
-            builder.getIntegerAttr(builder.getIndexType(), 0));
+        mlir::Type type = mlir::LLVM::LLVMArrayType::get(
+            mlir::IntegerType::get(builder.getContext(), 8),
+            value.size() + 1);
 
-        mlir::Value ptr = builder.create<mlir::LLVM::GEPOp>(
-            loc,
-            mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8)),
-            globalPtr, llvm::ArrayRef({cst0, cst0}));
-
-        ptr = builder.create<mlir::LLVM::BitcastOp>(
-            loc, this->getVoidPtrType(), ptr);
-
-        return ptr;
+        return builder.create<mlir::LLVM::GEPOp>(
+            loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
+            globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
       }
 
     protected:
@@ -428,9 +418,8 @@ namespace
 
       auto callOp = rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
 
-      auto instancePtrType = mlir::LLVM::LLVMPointerType::get(
-          getTypeConverter()->convertType(
-              InstanceType::get(rewriter.getContext())));
+      auto instancePtrType =
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
 
       mlir::Value address = rewriter.create<mlir::LLVM::AddressOfOp>(
           loc, instancePtrType, op.getInstance());
@@ -629,7 +618,7 @@ namespace
             rewriter, loc, moduleOp, "eqStr", *stringRepr));
       } else {
         args.push_back(
-            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+            rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
       }
 
       // Create the call to the runtime library.
@@ -715,7 +704,7 @@ namespace
             rewriter, loc, moduleOp, "varName", *name));
       } else {
         args.push_back(
-            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+            rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
       }
 
       // Create the call to the runtime library.
@@ -817,7 +806,7 @@ namespace
             rewriter, loc, moduleOp, "varName", *name));
       } else {
         args.push_back(
-            rewriter.create<mlir::LLVM::NullOp>(loc, getVoidPtrType()));
+            rewriter.create<mlir::LLVM::ZeroOp>(loc, getVoidPtrType()));
       }
 
       // Create the call to the runtime library.

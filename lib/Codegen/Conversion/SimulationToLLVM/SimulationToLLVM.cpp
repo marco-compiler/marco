@@ -57,13 +57,13 @@ namespace
           mlir::Location loc,
           llvm::StringRef name) const
       {
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(
-            this->getVoidPtrType());
+        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         mlir::Value address =
             builder.create<mlir::LLVM::AddressOfOp>(loc, ptrType, name);
 
-        return builder.create<mlir::LLVM::LoadOp>(loc, address);
+        return builder.create<mlir::LLVM::LoadOp>(
+            loc, this->getVoidPtrType(), address);
       }
 
       mlir::LLVM::GlobalOp declareRangesArray(
@@ -106,10 +106,10 @@ namespace
           std::optional<MultidimensionalRangeAttr> indices,
           llvm::StringRef instanceName) const
       {
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getI64Type());
+        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         if (!indices) {
-          return builder.create<mlir::LLVM::NullOp>(loc, ptrType);
+          return builder.create<mlir::LLVM::ZeroOp>(loc, ptrType);
         }
 
         auto globalOp = declareRangesArray(
@@ -118,7 +118,6 @@ namespace
         mlir::Value address =
             builder.create<mlir::LLVM::AddressOfOp>(loc, globalOp);
 
-        address = builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, address);
         return address;
       }
 
@@ -185,13 +184,13 @@ namespace
           mlir::LLVM::LLVMFunctionType functionType,
           llvm::StringRef name) const
       {
-        auto functionPtrType = mlir::LLVM::LLVMPointerType::get(functionType);
+        auto functionPtrType =
+            mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         mlir::Value address = builder.create<mlir::LLVM::AddressOfOp>(
             loc, functionPtrType, name);
 
-        return builder.create<mlir::LLVM::BitcastOp>(
-            loc, this->getVoidPtrType(), address);
+        return address;
       }
 
       mlir::Value getEquationFunctionAddress(
@@ -205,7 +204,7 @@ namespace
         llvm::SmallVector<mlir::Type, 1> argTypes;
 
         argTypes.push_back(
-            mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+            mlir::LLVM::LLVMPointerType::get(builder.getContext()));
 
         auto functionType =
             mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
@@ -271,7 +270,7 @@ namespace
       auto callOp = rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
 
       auto instancePtrType =
-          mlir::LLVM::LLVMPointerType::get(getVoidPtrType());
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
 
       mlir::Value address = rewriter.create<mlir::LLVM::AddressOfOp>(
           loc, instancePtrType, op.getScheduler());

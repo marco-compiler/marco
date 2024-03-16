@@ -6,8 +6,8 @@
 // CHECK: memref.copy %[[source]], %[[destination]]
 
 func.func @staticArrays() {
-    %0 = modelica.alloc : !modelica.array<3x2x!modelica.int>
-    %1 = modelica.alloc : !modelica.array<3x2x!modelica.int>
+    %0 = modelica.alloc : <3x2x!modelica.int>
+    %1 = modelica.alloc : <3x2x!modelica.int>
     modelica.array_copy %0, %1 : !modelica.array<3x2x!modelica.int>, !modelica.array<3x2x!modelica.int>
     func.return
 }
@@ -21,8 +21,8 @@ func.func @staticArrays() {
 
 func.func @dynamicArrays() {
     %0 = arith.constant 2 : index
-    %1 = modelica.alloc %0, %0 : !modelica.array<?x?x!modelica.int>
-    %2 = modelica.alloc %0, %0 : !modelica.array<?x?x!modelica.int>
+    %1 = modelica.alloc %0, %0 : <?x?x!modelica.int>
+    %2 = modelica.alloc %0, %0 : <?x?x!modelica.int>
     modelica.array_copy %1, %2 : !modelica.array<?x?x!modelica.int>, !modelica.array<?x?x!modelica.int>
     func.return
 }
@@ -49,8 +49,8 @@ func.func @dynamicArrays() {
 // CHECK:   }
 
 func.func @implicitCast() {
-    %0 = modelica.alloc : !modelica.array<3x2x!modelica.int>
-    %1 = modelica.alloc : !modelica.array<3x2x!modelica.real>
+    %0 = modelica.alloc : <3x2x!modelica.int>
+    %1 = modelica.alloc : <3x2x!modelica.real>
     modelica.array_copy %0, %1 : !modelica.array<3x2x!modelica.int>, !modelica.array<3x2x!modelica.real>
     func.return
 }

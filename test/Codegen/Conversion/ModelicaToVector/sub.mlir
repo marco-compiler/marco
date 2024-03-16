@@ -11,7 +11,7 @@
 // CHECK-DAG:   %[[lhs_vector:.*]] = vector.transfer_read %[[arg0_casted]][%[[c0_index]]], %[[c0_i64]]
 // CHECK-DAG:   %[[rhs_vector:.*]] = vector.transfer_read %[[arg1_casted]][%[[c0_index]]], %[[c0_i64]]
 // CHECK:       %[[result_vector:.*]] = arith.subi %[[lhs_vector]], %[[rhs_vector]] : vector<3xi64>
-// CHECK:       %[[result_array:.*]] = modelica.alloc  : !modelica.array<3x!modelica.int>
+// CHECK:       %[[result_array:.*]] = modelica.alloc  : <3x!modelica.int>
 // CHECK:       %[[result_memref:.*]] = builtin.unrealized_conversion_cast %[[result_array]] : !modelica.array<3x!modelica.int> to memref<3xi64>
 // CHECK:       vector.transfer_write %[[result_vector]], %[[result_memref]][%[[c0_index]]]
 // CHECK:       return %[[result_array]]
@@ -34,7 +34,7 @@ func.func @foo(%arg0 : !modelica.array<3x!modelica.int>, %arg1 : !modelica.array
 // CHECK-DAG:   %[[lhs_vector:.*]] = vector.transfer_read %[[arg0_casted]][%[[c0_index]]], %[[c0_f64]]
 // CHECK-DAG:   %[[rhs_vector:.*]] = vector.transfer_read %[[arg1_casted]][%[[c0_index]]], %[[c0_f64]]
 // CHECK:       %[[result_vector:.*]] = arith.subf %[[lhs_vector]], %[[rhs_vector]] : vector<3xf64>
-// CHECK:       %[[result_array:.*]] = modelica.alloc  : !modelica.array<3x!modelica.real>
+// CHECK:       %[[result_array:.*]] = modelica.alloc  : <3x!modelica.real>
 // CHECK:       %[[result_memref:.*]] = builtin.unrealized_conversion_cast %[[result_array]] : !modelica.array<3x!modelica.real> to memref<3xf64>
 // CHECK:       vector.transfer_write %[[result_vector]], %[[result_memref]][%[[c0_index]]]
 // CHECK:       return %[[result_array]]

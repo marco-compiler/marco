@@ -64,12 +64,6 @@ namespace mlir::ida
       return std::nullopt;
     }
 
-    auto elementType = resultType.getElementType().dyn_cast<mlir::IntegerType>();
-
-    if (!elementType || elementType.getIntOrFloatBitWidth() != 8) {
-      return std::nullopt;
-    }
-
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
@@ -97,12 +91,6 @@ namespace mlir::ida
     auto pointerType = inputs[0].getType().dyn_cast<mlir::LLVM::LLVMPointerType>();
 
     if (!pointerType) {
-      return std::nullopt;
-    }
-
-    auto elementType = pointerType.getElementType().dyn_cast<mlir::IntegerType>();
-
-    if (!elementType || elementType.getIntOrFloatBitWidth() != 8) {
       return std::nullopt;
     }
 

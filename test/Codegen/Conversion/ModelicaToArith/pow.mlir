@@ -16,7 +16,7 @@
 // CHECK:       scf.for %[[index_0:.*]] = %[[c1]] to %[[upper_bound_1based]] step %[[c1]] {
 // CHECK-DAG:       %[[result_dim0:.*]] = modelica.dim %[[result]], %[[c0]]
 // CHECK-DAG:       %[[result_dim1:.*]] = modelica.dim %[[result]], %[[c1]]
-// CHECK-DAG:       %[[temp_result:.*]] = modelica.alloc %[[result_dim0]], %[[arg0_dim1]] : !modelica.array<?x?x!modelica.real>
+// CHECK-DAG:       %[[temp_result:.*]] = modelica.alloc %[[result_dim0]], %[[arg0_dim1]] : <?x?x!modelica.real>
 // CHECK:           scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
 // CHECK:               scf.for %[[index_1:.*]] = %[[c0]] to %[[arg0_dim1]] step %[[c1]] {
 // CHECK:                   %[[zero:.*]] = arith.constant 0.000000e+00 : f64

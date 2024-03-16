@@ -89,7 +89,7 @@ int main(int argc, const char** argv)
                                [](const char *a) { return a != nullptr; });
   if (firstArg != args.end()) {
     // Call mc1 frontend
-    if (llvm::StringRef(args[1]).startswith("-mc1")) {
+    if (llvm::StringRef(args[1]).equals("-mc1")) {
       return executeMC1Tool(args);
     }
   }

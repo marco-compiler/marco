@@ -54,7 +54,7 @@ namespace marco::codegen::lowering
         if (!getVectorizedResultTypes(
                 argValues, expectedArgRanks,
                 scalarizedResultTypes, resultTypes)) {
-          assert("Can't vectorize function call");
+          assert(false && "Can't vectorize function call");
           return {};
         }
 
@@ -707,7 +707,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -739,7 +739,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -771,7 +771,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -803,7 +803,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -836,7 +836,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -868,7 +868,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -900,7 +900,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -932,7 +932,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -964,7 +964,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1039,7 +1039,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1107,7 +1107,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1159,7 +1159,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1210,7 +1210,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1242,7 +1242,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1516,7 +1516,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1548,7 +1548,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1615,7 +1615,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1700,7 +1700,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 
@@ -1732,7 +1732,7 @@ namespace marco::codegen::lowering
 
     if (!getVectorizedResultTypes(
             args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-      assert("Can't vectorize function call");
+      assert(false && "Can't vectorize function call");
       return {};
     }
 

@@ -6,7 +6,7 @@
 // CHECK: return %[[result]]
 
 func.func @emptyShape() -> !modelica.array<!modelica.int> {
-    %0 = modelica.alloc : !modelica.array<!modelica.int>
+    %0 = modelica.alloc : <!modelica.int>
     func.return %0 : !modelica.array<!modelica.int>
 }
 
@@ -18,7 +18,7 @@ func.func @emptyShape() -> !modelica.array<!modelica.int> {
 // CHECK: return %[[result]]
 
 func.func @fixedSize() -> !modelica.array<5x3x!modelica.int> {
-    %0 = modelica.alloc : !modelica.array<5x3x!modelica.int>
+    %0 = modelica.alloc : <5x3x!modelica.int>
     func.return %0 : !modelica.array<5x3x!modelica.int>
 }
 
@@ -32,6 +32,6 @@ func.func @fixedSize() -> !modelica.array<5x3x!modelica.int> {
 
 func.func @dynamicSize() -> !modelica.array<5x?x!modelica.int> {
     %0 = arith.constant 3 : index
-    %1 = modelica.alloc %0 : !modelica.array<5x?x!modelica.int>
+    %1 = modelica.alloc %0 : <5x?x!modelica.int>
     func.return %1 : !modelica.array<5x?x!modelica.int>
 }

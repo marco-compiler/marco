@@ -9,7 +9,7 @@
 // CHECK:           %[[value:.*]] = modelica.call @callee(%[[load]]) : (!modelica.real) -> !modelica.real
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 modelica.function @callee {
@@ -23,7 +23,7 @@ modelica.function @callee {
 }
 
 func.func @caller() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %c0 = modelica.constant 0 : index
     %0 = modelica.constant #modelica.real<0.0> : !modelica.real

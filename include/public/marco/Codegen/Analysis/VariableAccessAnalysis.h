@@ -21,7 +21,7 @@ namespace mlir::modelica
         public:
           explicit IRListener(AnalysisProvider& provider);
 
-          void notifyOperationRemoved(mlir::Operation* op) override;
+          void notifyOperationErased(mlir::Operation* op) override;
 
         private:
           AnalysisProvider* provider;

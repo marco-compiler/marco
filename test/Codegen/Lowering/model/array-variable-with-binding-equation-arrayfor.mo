@@ -3,7 +3,7 @@
 // CHECK-LABEL: @Test
 // CHECK:       modelica.binding_equation @x {
 // CHECK-DAG:       %[[cst0:.*]] = modelica.constant #modelica.int<1234>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[cst0]] : !modelica.int -> !modelica.array<3x!modelica.real>
+// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[cst0]] : !modelica.int -> <3x!modelica.real>
 // CHECK-NEXT:      modelica.yield %[[array]]
 // CHECK-NEXT:  }
 

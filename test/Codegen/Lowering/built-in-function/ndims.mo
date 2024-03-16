@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: modelica.ndims
-// CHECK-SAME: !modelica.array<?x?x!modelica.int> -> !modelica.int
+// CHECK-SAME: <?x?x!modelica.int> -> !modelica.int
 
 function foo
     input Integer[:,:] x;

@@ -27,12 +27,11 @@ func.func @foo() -> !modelica.real {
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
 // CHECK:           %[[load:.*]] = modelica.load %[[array]][%[[i0]], %[[i1]]]
 // CHECK:           %[[load_casted:.*]] = builtin.unrealized_conversion_cast %[[load]] : !modelica.real to f64
-// CHECK:           scf.reduce(%[[load_casted]]) : f64 {
+// CHECK:           scf.reduce(%[[load_casted]] : f64) {
 // CHECK:           ^{{.*}}(%[[first:.*]]: f64, %[[second:.*]]: f64):
 // CHECK:               %[[reduced:.*]] = arith.addf %[[first]], %[[second]]
 // CHECK:               scf.reduce.return %[[reduced]]
 // CHECK:           }
-// CHECK:           scf.yield
 // CHECK:       }
 
 func.func @foo(%begin0: index, %end0: index, %step0: index,
@@ -56,12 +55,11 @@ func.func @foo(%begin0: index, %end0: index, %step0: index,
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
 // CHECK:           %[[load:.*]] = modelica.load %[[array]][%[[i0]], %[[i1]]]
 // CHECK:           %[[load_casted:.*]] = builtin.unrealized_conversion_cast %[[load]] : !modelica.real to f64
-// CHECK:           scf.reduce(%[[load_casted]]) : f64 {
+// CHECK:           scf.reduce(%[[load_casted]] : f64) {
 // CHECK:           ^{{.*}}(%[[first:.*]]: f64, %[[second:.*]]: f64):
 // CHECK:               %[[reduced:.*]] = arith.mulf %[[first]], %[[second]]
 // CHECK:               scf.reduce.return %[[reduced]]
 // CHECK:           }
-// CHECK:           scf.yield
 // CHECK:       }
 
 func.func @foo(%begin0: index, %end0: index, %step0: index,

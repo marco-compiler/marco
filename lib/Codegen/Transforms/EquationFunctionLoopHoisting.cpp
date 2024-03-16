@@ -35,7 +35,7 @@ void EquationFunctionLoopHoistingPass::runOnOperation()
 
     getOperation()->walk([&](mlir::LoopLikeOpInterface loopLike) {
       licmOps = moveLoopInvariantCode(
-          &loopLike.getLoopBody(),
+          loopLike.getLoopRegions(),
           [&](mlir::Value value, mlir::Region*) {
             return loopLike.isDefinedOutsideOfLoop(value);
           },

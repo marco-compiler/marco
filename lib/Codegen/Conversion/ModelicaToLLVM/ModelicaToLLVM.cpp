@@ -80,10 +80,6 @@ namespace
             getTypeConverter()->convertType(op.getResult().getType())
                 .cast<mlir::LLVM::LLVMStructType>();
 
-        mlir::Type inductionType = op.getResult().getType()
-                                       .cast<IterableTypeInterface>()
-                                       .getInductionType();
-
         mlir::Value result =
             rewriter.create<mlir::LLVM::UndefOp>(loc, structType);
 
@@ -390,10 +386,10 @@ namespace
         auto one = builder.create<mlir::LLVM::ConstantOp>(
             loc, this->getIndexType(), builder.getIndexAttr(1));
 
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(value.getType());
+        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
         auto allocated = builder.create<mlir::LLVM::AllocaOp>(
-            loc, ptrType, mlir::ValueRange{one});
+            loc, ptrType, value.getType(), one);
 
         builder.create<mlir::LLVM::StoreOp>(loc, value, allocated);
 

@@ -8,11 +8,11 @@
 // CHECK:           %[[value:.*]] = modelica.abs %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_abs() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-2.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -41,11 +41,11 @@ func.func @test_abs() -> () {
 // CHECK:           %[[value:.*]] = modelica.acos %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_acos() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -74,11 +74,11 @@ func.func @test_acos() -> () {
 // CHECK:           %[[value:.*]] = modelica.asin %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_asin() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -107,11 +107,11 @@ func.func @test_asin() -> () {
 // CHECK:           %[[value:.*]] = modelica.atan %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_atan() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -139,12 +139,12 @@ func.func @test_atan() -> () {
 // CHECK:           %[[value:.*]] = modelica.atan2 %{{.*}}, %{{.*}}
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_atan2() -> () {
-    %y = modelica.alloca : !modelica.array<4x!modelica.real>
-    %x = modelica.alloca : !modelica.array<4x!modelica.real>
+    %y = modelica.alloca : <4x!modelica.real>
+    %x = modelica.alloca : <4x!modelica.real>
 
     %c0 = modelica.constant 0 : index
     %y0 = modelica.constant #modelica.real<0.707106781> : !modelica.real
@@ -185,11 +185,11 @@ func.func @test_atan2() -> () {
 // CHECK:           %[[value:.*]] = modelica.ceil %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_ceil() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-3.14> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -214,11 +214,11 @@ func.func @test_ceil() -> () {
 // CHECK:           %[[value:.*]] = modelica.cos %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_cos() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -243,11 +243,11 @@ func.func @test_cos() -> () {
 // CHECK:           %[[value:.*]] = modelica.cosh %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_cosh() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -276,11 +276,11 @@ func.func @test_cosh() -> () {
 // CHECK:           %[[value:.*]] = modelica.exp %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_exp() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -309,11 +309,11 @@ func.func @test_exp() -> () {
 // CHECK:           %[[value:.*]] = modelica.floor %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_floor() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-3.14> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -338,11 +338,11 @@ func.func @test_floor() -> () {
 // CHECK:           %[[value:.*]] = modelica.integer %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_integer() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-3.14> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -367,11 +367,11 @@ func.func @test_integer() -> () {
 // CHECK:           %[[value:.*]] = modelica.log %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_log() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.135335283> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -400,11 +400,11 @@ func.func @test_log() -> () {
 // CHECK:           %[[value:.*]] = modelica.log10 %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_log10() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.01> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -433,11 +433,11 @@ func.func @test_log10() -> () {
 // CHECK:           %[[value:.*]] = modelica.sign %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_sign() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-2.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -466,11 +466,11 @@ func.func @test_sign() -> () {
 // CHECK:           %[[value:.*]] = modelica.sin %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_sin() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -495,11 +495,11 @@ func.func @test_sin() -> () {
 // CHECK:           %[[value:.*]] = modelica.sinh %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_sinh() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -528,11 +528,11 @@ func.func @test_sinh() -> () {
 // CHECK:           %[[value:.*]] = modelica.sqrt %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_sqrt() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<4.0> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -557,11 +557,11 @@ func.func @test_sqrt() -> () {
 // CHECK:           %[[value:.*]] = modelica.tan %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_tan() -> () {
-    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+    %array = modelica.alloca : <2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
     %c0 = modelica.constant 0 : index
@@ -586,11 +586,11 @@ func.func @test_tan() -> () {
 // CHECK:           %[[value:.*]] = modelica.tanh %[[load]]
 // CHECK:           %[[subscription:.*]] = modelica.subscription %{{.*}}
 // CHECK:           modelica.assignment %[[subscription]], %[[value]]
-// CHECK:           scf.yield
+// CHECK:           scf.reduce
 // CHECK-NEXT:  }
 
 func.func @test_tanh() -> () {
-    %array = modelica.alloca : !modelica.array<3x!modelica.real>
+    %array = modelica.alloca : <3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
     %c0 = modelica.constant 0 : index

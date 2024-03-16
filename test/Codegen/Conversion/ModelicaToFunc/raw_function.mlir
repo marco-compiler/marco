@@ -90,13 +90,13 @@ modelica.raw_function @realScalarOutput() -> !modelica.real {
 // -----
 
 // CHECK:       func.func @staticArrayOutput() -> memref<3x5xi64> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : !modelica.array<3x5x!modelica.int>
+// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
 // CHECK-NEXT:      %[[x_casted:.*]] = builtin.unrealized_conversion_cast %[[x]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      return %[[x_casted]]
 // CHECK-NEXT:  }
 
 modelica.raw_function @staticArrayOutput() -> !modelica.array<3x5x!modelica.int> {
-    %0 = modelica.alloc : !modelica.array<3x5x!modelica.int>
+    %0 = modelica.alloc : <3x5x!modelica.int>
     modelica.raw_return %0 : !modelica.array<3x5x!modelica.int>
 }
 
@@ -104,7 +104,7 @@ modelica.raw_function @staticArrayOutput() -> !modelica.array<3x5x!modelica.int>
 
 // CHECK:       func.func @dynamicArrayOutput() {
 // CHECK-NEXT:      %[[ptr:.*]] = memref.alloca() : memref<memref<3x?xi64>>
-// CHECK-NEXT:      %[[fakeArray:.*]] = modelica.alloc : !modelica.array<3x0x!modelica.int>
+// CHECK-NEXT:      %[[fakeArray:.*]] = modelica.alloc : <3x0x!modelica.int>
 // CHECK-NEXT:      %[[fakeArray_casted_1:.*]] = builtin.unrealized_conversion_cast %[[fakeArray]] : !modelica.array<3x0x!modelica.int> to memref<3x0xi64>
 // CHECK-NEXT:      %[[fakeArray_casted_2:.*]] = memref.cast %[[fakeArray_casted_1]] : memref<3x0xi64> to memref<3x?xi64>
 // CHECK-NEXT:      memref.store %[[fakeArray_casted_2]], %[[ptr]][]
@@ -119,7 +119,7 @@ modelica.raw_function @dynamicArrayOutput() {
 // -----
 
 // CHECK:       func.func @scalarOutputVariableGet() -> i64 {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloca : !modelica.array<!modelica.int>
+// CHECK-NEXT:      %[[x:.*]] = modelica.alloca : <!modelica.int>
 // CHECK-NEXT:      %[[result:.*]] = modelica.load %[[x]][]
 // CHECK-NEXT:      %[[result_casted:.*]] =  builtin.unrealized_conversion_cast %[[result]] : !modelica.int to i64
 // CHECK-NEXT:      return %[[result_casted]]
@@ -134,7 +134,7 @@ modelica.raw_function @scalarOutputVariableGet() -> !modelica.int {
 // -----
 
 // CHECK:       func.func @scalarOutputVariableSet() {
-// CHECK-DAG:       %[[x:.*]] = modelica.alloca : !modelica.array<!modelica.int>
+// CHECK-DAG:       %[[x:.*]] = modelica.alloca : <!modelica.int>
 // CHECK-DAG:       %[[value:.*]] = modelica.constant #modelica.int<0>
 // CHECK-NEXT:      modelica.store %[[x]][], %[[value]]
 // CHECK-NEXT:      return
@@ -150,7 +150,7 @@ modelica.raw_function @scalarOutputVariableSet() {
 // -----
 
 // CHECK:       func.func @staticArrayOutputVariableGet() -> memref<3x5xi64> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : !modelica.array<3x5x!modelica.int>
+// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
 // CHECK-NEXT:      %[[result:.*]] = builtin.unrealized_conversion_cast %[[x]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      return %[[result]]
 // CHECK-NEXT:  }
@@ -164,15 +164,15 @@ modelica.raw_function @staticArrayOutputVariableGet() -> !modelica.array<3x5x!mo
 // -----
 
 // CHECK:       func.func @staticArrayOutputVariableSet() {
-// CHECK-DAG:       %[[x:.*]] = modelica.alloc : !modelica.array<3x5x!modelica.int>
-// CHECK-DAG:       %[[value:.*]] = modelica.alloca : !modelica.array<3x5x!modelica.int>
+// CHECK-DAG:       %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
+// CHECK-DAG:       %[[value:.*]] = modelica.alloca : <3x5x!modelica.int>
 // CHECK-NEXT:      modelica.array_copy %[[value]], %[[x]]
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
 modelica.raw_function @staticArrayOutputVariableSet() {
     %0 = modelica.raw_variable : !modelica.variable<3x5x!modelica.int, output> {name = "x"}
-    %1 = modelica.alloca : !modelica.array<3x5x!modelica.int>
+    %1 = modelica.alloca : <3x5x!modelica.int>
     modelica.raw_variable_set %0, %1 : !modelica.variable<3x5x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
     modelica.raw_return
 }
@@ -195,10 +195,10 @@ modelica.raw_function @dynamicArrayOutputGet() -> !modelica.array<3x?x!modelica.
 
 // CHECK:       func.func @dynamicArrayOutputSet() {
 // CHECK-NEXT:      %[[ptr:.*]] = memref.alloca() : memref<memref<3x?xi64>>
-// CHECK:           %[[new:.*]] = modelica.alloc : !modelica.array<3x5x!modelica.int>
+// CHECK:           %[[new:.*]] = modelica.alloc : <3x5x!modelica.int>
 // CHECK-NEXT:      %[[previous:.*]] = memref.load %alloca[] : memref<memref<3x?xi64>>
 // CHECK-NEXT:      %[[previous_casted:.*]] = builtin.unrealized_conversion_cast %[[previous]] : memref<3x?xi64> to !modelica.array<3x?x!modelica.int>
-// CHECK-NEXT:      modelica.free %[[previous_casted]] : !modelica.array<3x?x!modelica.int>
+// CHECK-NEXT:      modelica.free %[[previous_casted]] : <3x?x!modelica.int>
 // CHECK-NEXT:      %[[new_casted_1:.*]] = builtin.unrealized_conversion_cast %[[new]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      %[[new_casted_2:.*]] = memref.cast %[[new_casted_1]] : memref<3x5xi64> to memref<3x?xi64>
 // CHECK-NEXT:      memref.store %[[new_casted_2]], %[[ptr]][] : memref<memref<3x?xi64>>
@@ -207,7 +207,7 @@ modelica.raw_function @dynamicArrayOutputGet() -> !modelica.array<3x?x!modelica.
 
 modelica.raw_function @dynamicArrayOutputSet() {
     %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
-    %1 = modelica.alloc : !modelica.array<3x5x!modelica.int>
+    %1 = modelica.alloc : <3x5x!modelica.int>
     modelica.raw_variable_set %0, %1 : !modelica.variable<3x?x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
     modelica.raw_return
 }

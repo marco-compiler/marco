@@ -79,7 +79,7 @@ func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.int) -> !modelica.real 
 // CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
 // CHECK-DAG:   %[[arg0_dim0:.*]] = modelica.dim %[[arg0]], %[[c0]]
 // CHECK-DAG:   %[[arg0_dim1:.*]] = modelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : !modelica.array<3x?x!modelica.real>
+// CHECK-DAG:   %[[result:.*]] = modelica.alloc %[[arg0_dim1]] : <3x?x!modelica.real>
 // CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] {
 // CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg0_dim1]] step %[[c1]] {
 // CHECK:               %[[array_value:.*]] = modelica.load %[[arg0]][%[[index_0]], %[[index_1]]]

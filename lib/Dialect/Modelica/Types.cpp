@@ -30,174 +30,6 @@ namespace mlir::modelica
   }
 }
 
-namespace mlir::modelica
-{
-  mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const
-  {
-    llvm::StringRef typeTag;
-    mlir::Type genType;
-
-    mlir::OptionalParseResult parseResult =
-        generatedTypeParser(parser, &typeTag, genType);
-
-    if (parseResult.has_value()) {
-      return genType;
-    }
-
-    if (typeTag == "array") {
-      bool isUnranked;
-      llvm::SmallVector<int64_t, 3> dimensions;
-
-      if (parser.parseLess()) {
-        return {};
-      }
-
-      if (mlir::succeeded(parser.parseOptionalStar())) {
-        isUnranked = true;
-
-        if (parser.parseXInDimensionList()) {
-          return {};
-        }
-      } else {
-        isUnranked = false;
-
-        if (parser.parseDimensionList(dimensions)) {
-          return {};
-        }
-      }
-
-      mlir::Type elementType;
-      mlir::Attribute memorySpace;
-
-      if (parser.parseType(elementType)) {
-        return {};
-      }
-
-      if (mlir::succeeded(parser.parseOptionalComma())) {
-        if (parser.parseAttribute(memorySpace)) {
-          return {};
-        }
-      }
-
-      if (isUnranked) {
-        return UnrankedArrayType::get(elementType, memorySpace);
-      }
-
-      return ArrayType::get(dimensions, elementType, memorySpace);
-    }
-
-    if (typeTag == "variable") {
-      if (parser.parseLess()) {
-        return {};
-      }
-
-      llvm::SmallVector<int64_t, 3> dimensions;
-
-      if (parser.parseDimensionList(dimensions)) {
-        return {};
-      }
-
-      mlir::Type elementType;
-
-      if (parser.parseType(elementType)) {
-        return {};
-      }
-
-      VariabilityProperty variabilityProperty = VariabilityProperty::none;
-      IOProperty ioProperty = IOProperty::none;
-
-      while (mlir::succeeded(parser.parseOptionalComma())) {
-        if (mlir::succeeded(parser.parseOptionalKeyword("discrete"))) {
-          variabilityProperty = VariabilityProperty::discrete;
-        } else if (mlir::succeeded(parser.parseOptionalKeyword("parameter"))) {
-          variabilityProperty = VariabilityProperty::parameter;
-        } else if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
-          variabilityProperty = VariabilityProperty::constant;
-        } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
-          ioProperty = IOProperty::input;
-        } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
-          ioProperty = IOProperty::output;
-        }
-      }
-
-      if (parser.parseGreater()) {
-        return {};
-      }
-
-      return VariableType::get(
-          dimensions, elementType, variabilityProperty, ioProperty);
-    }
-
-    llvm_unreachable("Unexpected 'Modelica' type kind");
-    return {};
-  }
-
-  void ModelicaDialect::printType(
-      mlir::Type type, mlir::DialectAsmPrinter& printer) const
-  {
-    if (mlir::succeeded(generatedTypePrinter(type, printer))) {
-      return;
-    }
-
-    if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      printer << "array<";
-
-      for (int64_t dimension : arrayType.getShape()) {
-        if (dimension == ArrayType::kDynamic) {
-          printer << "?";
-        } else {
-          printer << dimension;
-        }
-
-        printer << "x";
-      }
-
-      printer << arrayType.getElementType() << ">";
-      return;
-    }
-
-    if (auto unrankedArrayType = type.dyn_cast<UnrankedArrayType>()) {
-      printer << "array<*x" << unrankedArrayType.getElementType() << ">";
-      return;
-    }
-
-    if (auto variableType = type.dyn_cast<VariableType>()) {
-      printer << "variable<";
-
-      for (int64_t dimension : variableType.getShape()) {
-        if (dimension == VariableType::kDynamic) {
-          printer << "?";
-        } else {
-          printer << dimension;
-        }
-
-        printer << "x";
-      }
-
-      printer << variableType.getElementType();
-
-      if (variableType.isDiscrete()) {
-        printer << ", discrete";
-      } else if (variableType.isParameter()) {
-        printer << ", parameter";
-      } else if (variableType.isConstant()) {
-        printer << ", constant";
-      }
-
-      if (variableType.isInput()) {
-        printer << ", input";
-      } else if (variableType.isOutput()) {
-        printer << ", output";
-      }
-
-      printer << ">";
-      return;
-    }
-
-    llvm_unreachable("Unexpected 'Modelica' type kind");
-  }
-}
-
 //===---------------------------------------------------------------------===//
 // BooleanType
 //===---------------------------------------------------------------------===//
@@ -353,6 +185,50 @@ namespace mlir::modelica
   // ArrayType
   //===-------------------------------------------------------------------===//
 
+  mlir::Type ArrayType::parse(mlir::AsmParser& parser)
+  {
+    llvm::SmallVector<int64_t, 3> dimensions;
+
+    mlir::Type elementType;
+    mlir::Attribute memorySpace;
+
+    if (parser.parseLess() ||
+        parser.parseDimensionList(dimensions) ||
+        parser.parseType(elementType)) {
+      return {};
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseAttribute(memorySpace)) {
+        return {};
+      }
+    }
+
+    if (parser.parseGreater()) {
+      return {};
+    }
+
+    return ArrayType::get(dimensions, elementType, memorySpace);
+  }
+
+  void ArrayType::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<";
+
+    for (int64_t dimension : getShape()) {
+      if (dimension == ArrayType::kDynamic) {
+        printer << "?";
+      } else {
+        printer << dimension;
+      }
+
+      printer << "x";
+    }
+
+    printer << getElementType() << ">";
+    // TODO print memory space
+  }
+
   ArrayType ArrayType::get(
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
@@ -446,6 +322,35 @@ namespace mlir::modelica
   // UnrankedArrayType
   //===-------------------------------------------------------------------===//
 
+  mlir::Type UnrankedArrayType::parse(mlir::AsmParser& parser)
+  {
+    mlir::Type elementType;
+    mlir::Attribute memorySpace;
+
+    if (parser.parseLess() ||
+        parser.parseType(elementType)) {
+      return {};
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseAttribute(memorySpace)) {
+        return {};
+      }
+    }
+
+    if (parser.parseGreater()) {
+      return {};
+    }
+
+    return UnrankedArrayType::get(elementType, memorySpace);
+  }
+
+  void UnrankedArrayType::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<" << getElementType() << ">";
+    // TODO print memory space
+  }
+
   mlir::LogicalResult UnrankedArrayType::verify(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
       mlir::Type elementType,
@@ -488,6 +393,75 @@ namespace mlir::modelica
   //===-------------------------------------------------------------------===//
   // VariableType
   //===-------------------------------------------------------------------===//
+
+  mlir::Type VariableType::parse(mlir::AsmParser& parser)
+  {
+    llvm::SmallVector<int64_t, 3> dimensions;
+    mlir::Type elementType;
+
+    if (parser.parseLess() ||
+        parser.parseDimensionList(dimensions) ||
+        parser.parseType(elementType)) {
+      return {};
+    }
+
+    VariabilityProperty variabilityProperty = VariabilityProperty::none;
+    IOProperty ioProperty = IOProperty::none;
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (mlir::succeeded(parser.parseOptionalKeyword("discrete"))) {
+        variabilityProperty = VariabilityProperty::discrete;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("parameter"))) {
+        variabilityProperty = VariabilityProperty::parameter;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
+        variabilityProperty = VariabilityProperty::constant;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
+        ioProperty = IOProperty::input;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
+        ioProperty = IOProperty::output;
+      }
+    }
+
+    if (parser.parseGreater()) {
+      return {};
+    }
+
+    return VariableType::get(
+        dimensions, elementType, variabilityProperty, ioProperty);
+  }
+
+  void VariableType::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<";
+
+    for (int64_t dimension : getShape()) {
+      if (dimension == VariableType::kDynamic) {
+        printer << "?";
+      } else {
+        printer << dimension;
+      }
+
+      printer << "x";
+    }
+
+    printer << getElementType();
+
+    if (isDiscrete()) {
+      printer << ", discrete";
+    } else if (isParameter()) {
+      printer << ", parameter";
+    } else if (isConstant()) {
+      printer << ", constant";
+    }
+
+    if (isInput()) {
+      printer << ", input";
+    } else if (isOutput()) {
+      printer << ", output";
+    }
+
+    printer << ">";
+  }
 
   VariableType VariableType::get(
       llvm::ArrayRef<int64_t> shape,

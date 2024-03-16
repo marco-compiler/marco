@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-simulation-to-func | FileCheck %s
 
-// CHECK:       func.func @getVariableValue(%[[variable:.*]]: i64, %[[indices:.*]]: !llvm.ptr<i64>) -> f64 {
+// CHECK:       func.func @getVariableValue(%[[variable:.*]]: i64, %[[indices:.*]]: !llvm.ptr) -> f64 {
 // CHECK-NEXT:      %[[default:.*]] = arith.constant 0.000000e+00 : f64
 // CHECK-NEXT:      cf.switch %[[variable]] : i64, [
 // CHECK-DAG:           default: ^[[out:.*]](%cst : f64),
@@ -25,7 +25,7 @@ simulation.variable_getter @getter0() -> f64 {
 }
 
 simulation.variable_getter @getter1(%arg0: index, %arg1: index, %arg2: index) -> f64 {
-    %0 = modelica.alloc : !modelica.array<2x3x4x!modelica.real>
+    %0 = modelica.alloc : <2x3x4x!modelica.real>
     %1 = modelica.load %0[%arg0, %arg1, %arg2] : !modelica.array<2x3x4x!modelica.real>
     %2 = modelica.cast %1 : !modelica.real -> f64
     simulation.return %2 : f64

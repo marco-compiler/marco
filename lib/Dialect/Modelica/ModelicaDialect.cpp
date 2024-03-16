@@ -88,7 +88,7 @@ namespace
 
     void handleTerminator(
         mlir::Operation* op,
-        llvm::ArrayRef<mlir::Value> valuesToReplace) const final
+        mlir::ValueRange valuesToReplace) const final
     {
       // Only "modelica.raw_return" needs to be handled here.
       auto returnOp = mlir::cast<RawReturnOp>(op);

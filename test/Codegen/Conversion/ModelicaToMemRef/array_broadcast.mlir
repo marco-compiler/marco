@@ -16,7 +16,7 @@
 
 func.func @fixedSize() -> !modelica.array<3x!modelica.int> {
     %0 = modelica.constant #modelica.int<0>
-    %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x!modelica.int>
+    %1 = modelica.array_broadcast %0 : !modelica.int -> <3x!modelica.int>
     func.return %1 : !modelica.array<3x!modelica.int>
 }
 
@@ -40,7 +40,7 @@ func.func @fixedSize() -> !modelica.array<3x!modelica.int> {
 func.func @dynamicSize() -> !modelica.array<?x!modelica.int> {
     %0 = arith.constant 2 : index
     %1 = modelica.constant #modelica.int<0>
-    %2 = modelica.array_broadcast %1, %0 : !modelica.int -> !modelica.array<?x!modelica.int>
+    %2 = modelica.array_broadcast %1, %0 : !modelica.int -> <?x!modelica.int>
     func.return %2 : !modelica.array<?x!modelica.int>
 }
 
@@ -70,7 +70,7 @@ func.func @dynamicSize() -> !modelica.array<?x!modelica.int> {
 
 func.func @multidimensionalArray() -> !modelica.array<2x3x4x!modelica.int> {
     %0 = modelica.constant #modelica.int<0>
-    %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<2x3x4x!modelica.int>
+    %1 = modelica.array_broadcast %0 : !modelica.int -> <2x3x4x!modelica.int>
     func.return %1 : !modelica.array<2x3x4x!modelica.int>
 }
 

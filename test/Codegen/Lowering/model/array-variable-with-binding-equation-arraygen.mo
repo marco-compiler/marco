@@ -8,7 +8,7 @@
 // CHECK-DAG:       %[[cst3:.*]] = modelica.constant #modelica.int<2>
 // CHECK-DAG:       %[[cst4:.*]] = modelica.constant #modelica.int<1>
 // CHECK-DAG:       %[[cst5:.*]] = modelica.constant #modelica.int<2>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_from_elements %[[cst0]], %[[cst1]], %[[cst2]], %[[cst3]], %[[cst4]], %[[cst5]] : !modelica.int, !modelica.int, !modelica.int, !modelica.int, !modelica.int, !modelica.int -> !modelica.array<3x2x!modelica.real>
+// CHECK-NEXT:      %[[array:.*]] = modelica.array_from_elements %[[cst0]], %[[cst1]], %[[cst2]], %[[cst3]], %[[cst4]], %[[cst5]] : !modelica.int, !modelica.int, !modelica.int, !modelica.int, !modelica.int, !modelica.int -> <3x2x!modelica.real>
 // CHECK-NEXT:      modelica.yield %[[array]]
 // CHECK-NEXT:  }
 

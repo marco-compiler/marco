@@ -111,25 +111,25 @@ namespace
 // Utility functions
 //===---------------------------------------------------------------------===//
 
-static llvm::CodeGenOpt::Level mapOptimizationLevelToCodeGenLevel(
+static llvm::CodeGenOptLevel mapOptimizationLevelToCodeGenLevel(
     llvm::OptimizationLevel level, bool debug)
 {
   if (level == llvm::OptimizationLevel::O0) {
-    return llvm::CodeGenOpt::Level::None;;
+    return llvm::CodeGenOptLevel::None;
   }
 
   if (debug || level == llvm::OptimizationLevel::O1) {
-    return llvm::CodeGenOpt::Level::Less;
+    return llvm::CodeGenOptLevel::Less;
   }
 
   if (level == llvm::OptimizationLevel::O2 ||
       level == llvm::OptimizationLevel::Os ||
       level == llvm::OptimizationLevel::Oz) {
-    return llvm::CodeGenOpt::Level::Default;
+    return llvm::CodeGenOptLevel::Default;
   }
 
   assert(level == llvm::OptimizationLevel::O3);
-  return llvm::CodeGenOpt::Level::Aggressive;
+  return llvm::CodeGenOptLevel::Aggressive;
 }
 
 /// Generate target-specific machine-code or assembly file from the input LLVM
@@ -465,7 +465,7 @@ namespace marco::frontend
     // Create the LLVM TargetMachine.
     const CodegenOptions& codegenOptions = ci.getCodeGenOptions();
 
-    llvm::CodeGenOpt::Level optLevel = mapOptimizationLevelToCodeGenLevel(
+    llvm::CodeGenOptLevel optLevel = mapOptimizationLevelToCodeGenLevel(
         codegenOptions.optLevel, codegenOptions.debug);
 
     std::string features;
@@ -1362,7 +1362,7 @@ namespace marco::frontend
     // Emit the assembly code.
     generateMachineCodeOrAssemblyImpl(
         ci.getDiagnostics(), *targetMachine,
-        llvm::CodeGenFileType::CGFT_AssemblyFile, *llvmModule,
+        llvm::CodeGenFileType::AssemblyFile, *llvmModule,
         ci.isOutputStreamNull() ? *os : ci.getOutputStream());
   }
 
@@ -1388,7 +1388,7 @@ namespace marco::frontend
     // Emit the object file.
     generateMachineCodeOrAssemblyImpl(
         ci.getDiagnostics(), *targetMachine,
-        llvm::CodeGenFileType::CGFT_ObjectFile, *llvmModule,
+        llvm::CodeGenFileType::ObjectFile, *llvmModule,
         ci.isOutputStreamNull() ? *os : ci.getOutputStream());
   }
 }
