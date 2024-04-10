@@ -11,11 +11,17 @@ namespace marco::codegen::lowering
   {
   }
 
-  void IfStatementLowerer::lower(const ast::IfStatement& statement)
+  __attribute__((warn_unused_result)) bool 
+  IfStatementLowerer::lower(const ast::IfStatement& statement)
   {
     mlir::Location location = loc(statement.getLocation());
 
-    mlir::Value ifCondition = lowerCondition(*statement.getIfCondition());
+    std::optional<mlir::Value> optionalIfCondition = 
+        lowerCondition(*statement.getIfCondition());
+    if (!optionalIfCondition) {
+      return false;
+    }
+    mlir::Value &ifCondition = optionalIfCondition.value();
 
     auto ifOp = builder().create<IfOp>(
         location, ifCondition,
@@ -24,22 +30,32 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(ifOp.thenBlock());
 
     // Lower the statements belonging to the 'if' block.
-    lower(*statement.getIfBlock());
+    bool outcome = lower(*statement.getIfBlock());
+    if (!outcome) {
+      return false;
+    }
 
     // Lower the statements belonging to the 'else if' blocks.
     if (statement.hasElseIfBlocks() || statement.hasElseBlock()) {
       builder().setInsertionPointToStart(ifOp.elseBlock());
 
       for (size_t i = 0, e = statement.getNumOfElseIfBlocks(); i < e; ++i) {
-        mlir::Value elseIfCondition =
+        std::optional<mlir::Value> optionalElseIfCondition = 
             lowerCondition(*statement.getElseIfCondition(i));
+        if (!optionalElseIfCondition) {
+          return false;
+        }
+        mlir::Value &elseIfCondition = optionalElseIfCondition.value();
 
         auto elseIfOp = builder().create<IfOp>(
             location, elseIfCondition,
             i != e - 1 || statement.hasElseBlock());
 
         builder().setInsertionPointToStart(elseIfOp.thenBlock());
-        lower(*statement.getElseIfBlock(i));
+        outcome = lower(*statement.getElseIfBlock(i));
+        if (!outcome) {
+          return false;
+        }
 
         if (i != e - 1 || statement.hasElseBlock()) {
           builder().setInsertionPointToStart(elseIfOp.elseBlock());
@@ -49,26 +65,40 @@ namespace marco::codegen::lowering
 
     // Lower the statements belonging to the 'else' block.
     if (statement.hasElseBlock()) {
-      lower(*statement.getElseBlock());
+      outcome = lower(*statement.getElseBlock());
+      if (!outcome) {
+        return false;
+      }
     }
 
     // Continue creating the operations after the outermost IfOp.
     builder().setInsertionPointAfter(ifOp);
+
+    return true;
   }
 
-  mlir::Value IfStatementLowerer::lowerCondition(
+  std::optional<mlir::Value> IfStatementLowerer::lowerCondition(
       const ast::Expression& expression)
   {
     mlir::Location location = loc(expression.getLocation());
-    auto results = lower(expression);
+    auto optionalResults = lower(expression);
+    if (!optionalResults) {
+      return std::nullopt;
+    }
+    auto &results = optionalResults.value();
     assert(results.size() == 1);
     return results[0].get(location);
   }
 
-  void IfStatementLowerer::lower(const ast::StatementsBlock& statementsBlock)
+  __attribute__((warn_unused_result)) bool
+  IfStatementLowerer::lower(const ast::StatementsBlock& statementsBlock)
   {
     for (size_t i = 0, e = statementsBlock.size(); i < e; ++i) {
-      lower(*statementsBlock[i]);
+      const bool outcome = lower(*statementsBlock[i]);
+      if (!outcome) {
+        return false;
+      }
     }
+    return true;
   }
 }

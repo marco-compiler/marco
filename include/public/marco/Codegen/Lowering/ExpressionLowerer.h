@@ -13,7 +13,7 @@ namespace marco::codegen::lowering
     public:
       explicit ExpressionLowerer(BridgeInterface* bridge);
 
-      Results lower(const ast::Expression& expression) override;
+      std::optional<Results> lower(const ast::Expression& expression) override;
 
     protected:
       using Lowerer::lower;

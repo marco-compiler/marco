@@ -12,14 +12,18 @@ namespace marco::codegen::lowering
   {
   }
 
-  void AssignmentStatementLowerer::lower(
+  __attribute__((warn_unused_result)) bool AssignmentStatementLowerer::lower(
       const ast::AssignmentStatement& statement)
   {
     mlir::Location statementLoc = loc(statement.getLocation());
     const auto* destinations = statement.getDestinations();
 
     mlir::Location valuesLoc = loc(statement.getExpression()->getLocation());
-    auto values = lower(*statement.getExpression());
+    const auto optionalValues = lower(*statement.getExpression());
+    if (!optionalValues) {
+      return false;
+    }
+    auto &values = optionalValues.value();
 
     assert(values.size() == destinations->size() &&
            "Unequal number of destinations and results");
@@ -47,16 +51,30 @@ namespace marco::codegen::lowering
           mlir::Location subscriptLoc =
               loc(refEntry->getSubscript(subscriptIndex)->getLocation());
 
-          mlir::Value subscriptValue =
-              lower(*refEntry->getSubscript(subscriptIndex))[0]
-                  .get(subscriptLoc);
+          std::optional<Results> optionalResult =
+              lower(*refEntry->getSubscript(subscriptIndex));
+          if (!optionalResult) {
+            return false;
+          }
+          mlir::Value subscriptValue = optionalResult.value()[0].get(subscriptLoc);
 
           subscripts.push_back(subscriptValue);
         }
       }
 
       if (path.size() == 1) {
-        Reference variableRef = lookupVariable(path.front().getValue());
+        std::optional<Reference> optionalVariableRef = lookupVariable(path.front().getValue());
+        if (!optionalVariableRef) {
+          std::set<std::string> declaredVars = {};
+          initializeDeclaredVars(declaredVars);
+
+          const marco::SourceRange sourceRange = statement.getExpression()->getLocation();
+          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(path.front().getValue()), 
+                              declaredVars, sourceRange.begin.line, sourceRange.begin.column);
+          return false;
+        }
+        Reference &variableRef = optionalVariableRef.value();
+
         mlir::Value rhs = values[i].get(valuesLoc);
         variableRef.set(statementLoc, subscripts, rhs);
       } else {
@@ -69,5 +87,7 @@ namespace marco::codegen::lowering
             values[i].get(valuesLoc));
       }
     }
+
+    return true;
   }
 }

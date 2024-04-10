@@ -12,11 +12,11 @@ namespace marco::codegen::lowering
     public:
       explicit ComponentReferenceLowerer(BridgeInterface* bridge);
 
-      Results lower(
+      std::optional<Results> lower(
           const ast::ComponentReference& componentReference) override;
 
     private:
-      Reference lowerSubscripts(
+      std::optional<Reference> lowerSubscripts(
         Reference current, const ast::ComponentReferenceEntry& entry);
 
     protected:

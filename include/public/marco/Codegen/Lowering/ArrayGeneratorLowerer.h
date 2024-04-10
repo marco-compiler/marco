@@ -12,19 +12,20 @@ namespace marco::codegen::lowering
     public:
       explicit ArrayGeneratorLowerer(BridgeInterface* bridge);
 
-      Results lower(const ast::ArrayGenerator& array) override;
+      std::optional<Results> lower(const ast::ArrayGenerator& array) override;
 
     protected:
       using Lowerer::lower;
 
     private:
-      Results lower(const ast::ArrayConstant& array);
+      std::optional<Results> lower(const ast::ArrayConstant& array);
 
-      Results lower(const ast::ArrayForGenerator& array);
+      std::optional<Results> lower(const ast::ArrayForGenerator& array);
 
       void computeShape(const ast::ArrayGenerator& array, llvm::SmallVectorImpl<int64_t>& outShape);
 
-      void lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues);
+      __attribute__((warn_unused_result)) bool 
+      lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues);
   };
 }
 

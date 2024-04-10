@@ -11,14 +11,15 @@ namespace marco::codegen::lowering
   {
   }
 
-  void StatementLowerer::lower(const ast::Statement& statement)
+  __attribute__((warn_unused_result)) bool StatementLowerer::lower(const ast::Statement& statement)
   {
     if (auto casted = statement.dyn_cast<ast::AssignmentStatement>()) {
       return lower(*casted);
     }
 
     if (auto casted = statement.dyn_cast<ast::BreakStatement>()) {
-      return lower(*casted);
+      lower(*casted);
+      return true;
     }
 
     if (auto casted = statement.dyn_cast<ast::ForStatement>()) {
@@ -30,7 +31,8 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = statement.dyn_cast<ast::ReturnStatement>()) {
-      return lower(*casted);
+      lower(*casted);
+      return true;
     }
 
     if (auto casted = statement.dyn_cast<ast::WhileStatement>()) {
@@ -38,7 +40,8 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = statement.dyn_cast<ast::WhenStatement>()) {
-      return lower(*casted);
+      lower(*casted);
+      return true;
     }
 
     llvm_unreachable("Unknown statement type");

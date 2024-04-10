@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit StatementLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::Statement& statement) override;
+      __attribute__((warn_unused_result)) bool lower(const ast::Statement& statement) override;
 
     protected:
       using Lowerer::lower;

@@ -12,15 +12,15 @@ namespace marco::codegen::lowering
     public:
       explicit IfStatementLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::IfStatement& statement) override;
+      __attribute__((warn_unused_result)) bool lower(const ast::IfStatement& statement) override;
 
     protected:
       using Lowerer::lower;
 
     private:
-      mlir::Value lowerCondition(const ast::Expression& expression);
+      std::optional<mlir::Value> lowerCondition(const ast::Expression& expression);
 
-      void lower(const ast::StatementsBlock& statementsBlock);
+      __attribute__((warn_unused_result)) bool lower(const ast::StatementsBlock& statementsBlock);
   };
 }
 

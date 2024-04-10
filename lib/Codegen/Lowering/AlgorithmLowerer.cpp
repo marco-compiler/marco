@@ -11,10 +11,10 @@ namespace marco::codegen::lowering
   {
   }
 
-  void AlgorithmLowerer::lower(const ast::Algorithm& algorithm)
+  __attribute__((warn_unused_result)) bool AlgorithmLowerer::lower(const ast::Algorithm& algorithm)
   {
     if (algorithm.empty()) {
-      return;
+      return true;
     }
 
     mlir::Location location = loc(algorithm.getLocation());
@@ -28,9 +28,13 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(algorithmBody);
 
     for (size_t i = 0, e = algorithm.size(); i < e; ++i) {
-      lower(*algorithm[i]);
+      const bool outcome = lower(*algorithm[i]);
+      if (!outcome) {
+        return false;
+      }
     }
 
     builder().setInsertionPointAfter(algorithmOp);
+    return true;
   }
 }

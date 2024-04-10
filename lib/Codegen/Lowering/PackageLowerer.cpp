@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  void PackageLowerer::declareVariables(const ast::Package& package)
+  __attribute__((warn_unused_result)) bool PackageLowerer::declareVariables(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -39,16 +39,24 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : package.getVariables()) {
-      declare(*variable->cast<ast::Member>());
+      const bool outcome = declare(*variable->cast<ast::Member>());
+      if (!outcome) {
+        return false;
+      }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      declareVariables(*innerClassNode->cast<ast::Class>());
+      const bool outcome = declareVariables(*innerClassNode->cast<ast::Class>());
+      if (!outcome) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void PackageLowerer::lower(const ast::Package& package)
+  __attribute__((warn_unused_result)) bool PackageLowerer::lower(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
@@ -75,7 +83,10 @@ namespace marco::codegen::lowering
     }
 
     // Lower the body.
-    lowerClassBody(package);
+    bool outcome = lowerClassBody(package);
+    if (!outcome) {
+      return false;
+    }
 
     // Create the algorithms.
     llvm::SmallVector<const ast::Algorithm*> initialAlgorithms;
@@ -98,7 +109,10 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initialOp.getBody());
 
       for (const auto& algorithm : initialAlgorithms) {
-        lower(*algorithm);
+        const bool outcome = lower(*algorithm);
+        if (!outcome) {
+          return false;
+        }
       }
     }
 
@@ -111,13 +125,21 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(dynamicOp.getBody());
 
       for (const auto& algorithm : algorithms) {
-        lower(*algorithm);
+        const bool outcome = lower(*algorithm);
+        if (!outcome) {
+          return false;
+        }
       }
     }
 
     // Lower the inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      lower(*innerClassNode->cast<ast::Class>());
+      outcome = lower(*innerClassNode->cast<ast::Class>());
+      if (!outcome) {
+        return false;
+      }
     }
+
+    return true;
   }
 }

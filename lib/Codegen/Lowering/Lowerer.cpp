@@ -38,6 +38,53 @@ namespace marco::codegen::lowering
     return getContext().getSymbolTable();
   }
 
+  std::set<llvm::StringRef>& Lowerer::getDeclaredVariables()
+  {
+    return getContext().getDeclaredVariables();
+  }
+
+  void Lowerer::initializeDeclaredSymbols(
+      mlir::Operation* scope, 
+      std::set<std::string>& declaredSymbols,
+      llvm::function_ref<bool(mlir::Operation*)> filterFn)
+  {
+    mlir::SymbolTable::walkSymbolTables(getRoot(), true, [this, &scope, &declaredSymbols, &filterFn](mlir::Operation *op, bool visible) {
+      const mlir::StringAttr attr = op->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName());
+      if (attr) {
+        const llvm::StringRef symbolName = attr;
+        if (resolveSymbolName(symbolName, scope, filterFn)) {
+          declaredSymbols.insert(std::string(symbolName));
+        }
+      }
+    });
+
+    std::set<llvm::StringRef>& declaredVariables = getDeclaredVariables();
+    for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
+      if (resolveSymbolName(*pVar, scope, filterFn)) {
+        declaredSymbols.insert(std::string(*pVar));
+      }
+    }
+  }
+
+  void Lowerer::initializeDeclaredSymbols(
+      mlir::Operation* scope, 
+      std::set<std::string>& declaredSymbols)
+  {
+    return initializeDeclaredSymbols(scope, declaredSymbols, [](mlir::Operation* op) {
+      return true;
+    });
+  }
+
+  void Lowerer::initializeDeclaredVars(std::set<std::string>& declaredVars)
+  {
+    std::set<llvm::StringRef>& declaredVariables = getDeclaredVariables();
+    for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
+      if (lookupVariable(*pVar)) {
+        declaredVars.insert(std::string(*pVar));
+      }
+    }
+  }
+
   LoweringContext::VariablesSymbolTable& Lowerer::getVariablesSymbolTable()
   {
     return getContext().getVariablesSymbolTable();
@@ -74,7 +121,6 @@ namespace marco::codegen::lowering
       classes.pop_back();
     }
 
-    assert(result != nullptr && "Class not found");
     return result;
   }
 
@@ -115,7 +161,7 @@ namespace marco::codegen::lowering
     });
   }
 
-  mlir::Operation* Lowerer::resolveType(
+  std::optional<mlir::Operation*> Lowerer::resolveType(
       const ast::UserDefinedType& type,
       mlir::Operation* lookupScope)
   {
@@ -125,8 +171,20 @@ namespace marco::codegen::lowering
       scope = getRoot();
     }
 
+    mlir::Operation* originalScope = scope;
+
     scope = resolveSymbolName<ClassInterface>(
         type.getElement(0), scope);
+
+    if (!scope) {
+      std::set<std::string> declaredTypes;
+      initializeDeclaredSymbols<ClassInterface>(originalScope, declaredTypes);
+
+      const marco::SourceRange sourceRange = type.getLocation();
+          emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
+                              declaredTypes, sourceRange.begin.line, sourceRange.begin.column);
+      return std::nullopt;
+    }
 
     for (size_t i = 1, e = type.getPathLength();
          i < e && scope != nullptr; ++i) {
@@ -185,13 +243,20 @@ namespace marco::codegen::lowering
     return nullptr;
   }
 
-  Reference Lowerer::lookupVariable(llvm::StringRef name)
+  std::optional<Reference> Lowerer::lookupVariable(llvm::StringRef name)
   {
-    return getVariablesSymbolTable().lookup(name);
+    // Check if the variable is present in the symbol table.
+    // If it is, return a Reference to it, otherwise return a null optional.
+    const auto &symbolTable = getVariablesSymbolTable();
+    if (symbolTable.count(name)) {
+      return symbolTable.lookup(name);
+    }
+    return std::nullopt;
   }
 
   void Lowerer::insertVariable(llvm::StringRef name, Reference reference)
   {
+    getDeclaredVariables().insert(name);
     getVariablesSymbolTable().insert(name, reference);
   }
 
@@ -245,17 +310,17 @@ namespace marco::codegen::lowering
     return bridge->declare(node);
   }
 
-  void Lowerer::declareVariables(const ast::Class& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Class& node)
   {
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declareVariables(const ast::Model& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Model& node)
   {
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declareVariables(const ast::Package& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Package& node)
   {
     return bridge->declareVariables(node);
   }
@@ -265,32 +330,32 @@ namespace marco::codegen::lowering
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declareVariables(const ast::Record& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Record& node)
   {
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declareVariables(const ast::StandardFunction& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::StandardFunction& node)
   {
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declare(const ast::Member& node)
+  __attribute__((warn_unused_result)) bool Lowerer::declare(const ast::Member& node)
   {
     return bridge->declare(node);
   }
 
-  void Lowerer::lower(const ast::Class& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Class& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::Model& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Model& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::Package& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Package& node)
   {
     return bridge->lower(node);
   }
@@ -300,29 +365,29 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::Record& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Record& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::StandardFunction& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::StandardFunction& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lowerClassBody(const ast::Class& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lowerClassBody(const ast::Class& node)
   {
     return bridge->lowerClassBody(node);
   }
 
-  void Lowerer::createBindingEquation(
+  __attribute__((warn_unused_result)) bool Lowerer::createBindingEquation(
       const ast::Member& variable,
       const ast::Expression& expression)
   {
     return bridge->createBindingEquation(variable, expression);
   }
 
-  void Lowerer::lowerStartAttribute(
+  __attribute__((warn_unused_result)) bool Lowerer::lowerStartAttribute(
       mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
@@ -331,17 +396,17 @@ namespace marco::codegen::lowering
     return bridge->lowerStartAttribute(variable, expression, fixed, each);
   }
 
-  Results Lowerer::lower(const ast::Expression& expression)
+  std::optional<Results> Lowerer::lower(const ast::Expression& expression)
   {
     return bridge->lower(expression);
   }
 
-  Results Lowerer::lower(const ast::ArrayGenerator& array)
+  std::optional<Results> Lowerer::lower(const ast::ArrayGenerator& array)
   {
     return bridge->lower(array);
   }
 
-  Results Lowerer::lower(const ast::Call& call)
+  std::optional<Results> Lowerer::lower(const ast::Call& call)
   {
     return bridge->lower(call);
   }
@@ -351,42 +416,42 @@ namespace marco::codegen::lowering
     return bridge->lower(constant);
   }
 
-  Results Lowerer::lower(const ast::Operation& operation)
+  std::optional<Results> Lowerer::lower(const ast::Operation& operation)
   {
     return bridge->lower(operation);
   }
 
-  Results Lowerer::lower(const ast::ComponentReference& componentReference)
+  std::optional<Results> Lowerer::lower(const ast::ComponentReference& componentReference)
   {
     return bridge->lower(componentReference);
   }
 
-  Results Lowerer::lower(const ast::Tuple& tuple)
+  std::optional<Results> Lowerer::lower(const ast::Tuple& tuple)
   {
     return bridge->lower(tuple);
   }
 
-  Results Lowerer::lower(const ast::Subscript& subscript)
+  std::optional<Results> Lowerer::lower(const ast::Subscript& subscript)
   {
     return bridge->lower(subscript);
   }
 
-  void Lowerer::lower(const ast::EquationSection& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::EquationSection& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::Equation& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Equation& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::EqualityEquation& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::EqualityEquation& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::ForEquation& node)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::ForEquation& node)
   {
     return bridge->lower(node);
   }
@@ -401,17 +466,17 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::Algorithm& algorithm)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Algorithm& algorithm)
   {
     return bridge->lower(algorithm);
   }
 
-  void Lowerer::lower(const ast::Statement& statement)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Statement& statement)
   {
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::AssignmentStatement& statement)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::AssignmentStatement& statement)
   {
     return bridge->lower(statement);
   }
@@ -421,12 +486,12 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::ForStatement& statement)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::ForStatement& statement)
   {
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::IfStatement& statement)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::IfStatement& statement)
   {
     return bridge->lower(statement);
   }
@@ -441,8 +506,19 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::WhileStatement& statement)
+  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::WhileStatement& statement)
   {
     return bridge->lower(statement);
+  }
+
+  void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
+                                    const std::set<std::string> &declaredIdentifiers,
+                                    unsigned int line, unsigned int column)
+  {
+    bridge->emitIdentifierError(identifierType, name, declaredIdentifiers, line, column);
+  }
+
+  void Lowerer::emitError(const std::string &error) {
+    bridge->emitError(error);
   }
 }

@@ -36,6 +36,25 @@ namespace marco::codegen::lowering
 
       LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
 
+      std::set<llvm::StringRef>& getDeclaredVariables();
+
+      // Helper to initialize declaredSymbols, adding all the declared symbols visible from scope 
+      // of the requested type.
+      template<typename... T>
+      void initializeDeclaredSymbols(
+          mlir::Operation* scope, 
+          std::set<std::string> &declaredSymbols) 
+      {
+        return initializeDeclaredSymbols(scope, declaredSymbols, [](mlir::Operation* op) {
+          return mlir::isa<T...>(op);
+        });
+      }
+
+      void initializeDeclaredSymbols(mlir::Operation* scope, std::set<std::string> &declaredSymbols);
+
+      // Helper to initialize declaredVars, adding all the declared variables visible from the current scope.
+      void initializeDeclaredVars(std::set<std::string> &declaredVars);
+
       mlir::Operation* getLookupScope();
 
       void pushLookupScope(mlir::Operation* lookupScope);
@@ -48,7 +67,7 @@ namespace marco::codegen::lowering
           llvm::StringRef name,
           mlir::Operation* currentScope);
 
-      mlir::Operation* resolveType(
+      std::optional<mlir::Operation*> resolveType(
           const ast::UserDefinedType& type,
           mlir::Operation* lookupScope);
 
@@ -68,7 +87,7 @@ namespace marco::codegen::lowering
         });
       }
 
-      Reference lookupVariable(llvm::StringRef name);
+      std::optional<Reference> lookupVariable(llvm::StringRef name);
 
       void insertVariable(llvm::StringRef name, Reference reference);
 
@@ -96,92 +115,100 @@ namespace marco::codegen::lowering
 
       virtual void declare(const ast::StandardFunction& node) override;
 
-      virtual void declareVariables(const ast::Class& node) override;
+      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Class& node) override;
 
-      virtual void declareVariables(const ast::Model& model) override;
+      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Model& model) override;
 
-      virtual void declareVariables(const ast::Package& package) override;
+      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Package& package) override;
 
       virtual void declareVariables(
           const ast::PartialDerFunction& function) override;
 
-      virtual void declareVariables(const ast::Record& record) override;
+      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Record& record) override;
 
-      virtual void declareVariables(
+      virtual __attribute__((warn_unused_result)) bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      virtual void declare(const ast::Member& node) override;
+      virtual __attribute__((warn_unused_result)) bool declare(const ast::Member& node) override;
 
-      virtual void lower(const ast::Class& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Class& node) override;
 
-      virtual void lower(const ast::Model& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Model& node) override;
 
-      virtual void lower(const ast::Package& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Package& node) override;
 
       virtual void lower(const ast::PartialDerFunction& node) override;
 
-      virtual void lower(const ast::Record& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Record& node) override;
 
-      virtual void lower(const ast::StandardFunction& node) override;
+      __attribute__((warn_unused_result)) virtual bool 
+          lower(const ast::StandardFunction& node) override;
 
-      virtual void lowerClassBody(const ast::Class& node) override;
+      __attribute__((warn_unused_result)) virtual bool 
+          lowerClassBody(const ast::Class& node) override;
 
-      virtual void createBindingEquation(
+      __attribute__((warn_unused_result)) virtual bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      virtual void lowerStartAttribute(
+      __attribute__((warn_unused_result)) virtual bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
           bool each) override;
 
-      virtual Results lower(const ast::Expression& expression) override;
+      virtual std::optional<Results> lower(const ast::Expression& expression) override;
 
-      virtual Results lower(const ast::ArrayGenerator& node) override;
+      virtual std::optional<Results> lower(const ast::ArrayGenerator& node) override;
 
-      virtual Results lower(const ast::Call& node) override;
+      virtual std::optional<Results> lower(const ast::Call& node) override;
 
       virtual Results lower(const ast::Constant& constant) override;
 
-      virtual Results lower(const ast::Operation& operation) override;
+      virtual std::optional<Results> lower(const ast::Operation& operation) override;
 
-      virtual Results lower(
+      virtual std::optional<Results> lower(
           const ast::ComponentReference& componentReference) override;
 
-      virtual Results lower(const ast::Tuple& tuple) override;
+      virtual std::optional<Results> lower(const ast::Tuple& tuple) override;
 
-      virtual Results lower(const ast::Subscript& subscript) override;
+      virtual std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      virtual void lower(const ast::EquationSection& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::EquationSection& node) override;
 
-      virtual void lower(const ast::Equation& equation) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Equation& equation) override;
 
-      virtual void lower(const ast::EqualityEquation& equation) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::EqualityEquation& equation) override;
 
-      virtual void lower(const ast::ForEquation& equation) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::ForEquation& equation) override;
 
       virtual void lower(const ast::IfEquation& equation) override;
 
       virtual void lower(const ast::WhenEquation& equation) override;
 
-      virtual void lower(const ast::Algorithm& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Algorithm& node) override;
 
-      virtual void lower(const ast::Statement& node) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::Statement& node) override;
 
-      virtual void lower(const ast::AssignmentStatement& statement) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::AssignmentStatement& statement) override;
 
       virtual void lower(const ast::BreakStatement& statement) override;
 
-      virtual void lower(const ast::ForStatement& statement) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::ForStatement& statement) override;
 
-      virtual void lower(const ast::IfStatement& statement) override;
+      __attribute__((warn_unused_result)) virtual bool lower(const ast::IfStatement& statement) override;
 
       virtual void lower(const ast::ReturnStatement& statement) override;
 
       virtual void lower(const ast::WhenStatement& statement) override;
 
-      virtual void lower(const ast::WhileStatement& statement) override;
+      __attribute__((warn_unused_result)) virtual bool 
+          lower(const ast::WhileStatement& statement) override;
+
+      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
+                                       const std::set<std::string> &declaredIdentifiers, 
+                                       unsigned int line, unsigned int column) override;
+      virtual void emitError(const std::string &error) override;
 
       /// }
 
@@ -189,6 +216,11 @@ namespace marco::codegen::lowering
       mlir::Operation* resolveSymbolName(
           llvm::StringRef name,
           mlir::Operation* currentScope,
+          llvm::function_ref<bool(mlir::Operation*)> filterFn);
+      
+      void initializeDeclaredSymbols(
+          mlir::Operation* scope, 
+          std::set<std::string> &declaredSymbols,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
 
     private:

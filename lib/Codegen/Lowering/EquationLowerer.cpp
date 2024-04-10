@@ -11,14 +11,16 @@ namespace marco::codegen::lowering
   {
   }
 
-  void EquationLowerer::lower(const ast::Equation& equation)
+  __attribute__((warn_unused_result)) bool
+  EquationLowerer::lower(const ast::Equation& equation)
   {
     if (auto casted = equation.dyn_cast<ast::EqualityEquation>()) {
       return lower(*casted);
     }
 
     if (auto casted = equation.dyn_cast<ast::IfEquation>()) {
-      return lower(*casted);
+      lower(*casted);
+      return true;
     }
 
     if (auto casted = equation.dyn_cast<ast::ForEquation>()) {
@@ -26,9 +28,11 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = equation.dyn_cast<ast::WhenEquation>()) {
-      return lower(*casted);
+      lower(*casted);
+      return true;
     }
 
     llvm_unreachable("Unknown equation type");
+    return false;
   }
 }

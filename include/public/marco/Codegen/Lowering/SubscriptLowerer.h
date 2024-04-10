@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit SubscriptLowerer(BridgeInterface* bridge);
 
-      Results lower(const ast::Subscript& subscript) override;
+      std::optional<Results> lower(const ast::Subscript& subscript) override;
 
     protected:
       using Lowerer::lower;

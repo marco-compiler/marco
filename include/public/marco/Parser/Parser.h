@@ -188,7 +188,7 @@ namespace marco::parser
       /// Parse the 'term' symbol.
       ParseResult<std::unique_ptr<ast::ASTNode>> parseTerm();
 
-      /// Parse the mul-operator' symbol.
+      /// Parse the 'mul-operator' symbol.
       WrappedParseResult<ast::OperationKind> parseMulOperator();
 
       /// Parse the 'factor' symbol.

@@ -14,9 +14,9 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Package& package) override;
 
-      void declareVariables(const ast::Package& package) override;
+      __attribute__((warn_unused_result)) bool declareVariables(const ast::Package& package) override;
 
-      void lower(const ast::Package& package) override;
+      __attribute__((warn_unused_result)) bool lower(const ast::Package& package) override;
 
     protected:
       using Lowerer::declare;
