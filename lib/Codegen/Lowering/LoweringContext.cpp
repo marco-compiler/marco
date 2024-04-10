@@ -43,6 +43,12 @@ namespace marco::codegen::lowering
     return variablesSymbolTable;
   }
 
+  std::set<llvm::StringRef>& 
+  LoweringContext::getDeclaredVariables()
+  {
+    return declaredVariables;
+  }
+
   mlir::Operation* LoweringContext::getLookupScope()
   {
     assert(!lookupScopes.empty());

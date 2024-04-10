@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit TupleLowerer(BridgeInterface* bridge);
 
-      Results lower(const ast::Tuple& tuple) override;
+      std::optional<Results> lower(const ast::Tuple& tuple) override;
 
     protected:
       using Lowerer::lower;

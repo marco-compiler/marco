@@ -14,15 +14,15 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Model& model) override;
 
-      void declareVariables(const ast::Model& model) override;
+      __attribute__((warn_unused_result)) bool declareVariables(const ast::Model& model) override;
 
-      void lower(const ast::Model& model) override;
+      __attribute__((warn_unused_result)) bool lower(const ast::Model& model) override;
 
-      void lowerVariableAttributes(
+      __attribute__((warn_unused_result)) bool lowerVariableAttributes(
           mlir::bmodelica::ModelOp modelOp,
           const ast::Member& variable);
 
-      void lowerVariableAttributes(
+      __attribute__((warn_unused_result)) bool lowerVariableAttributes(
           mlir::bmodelica::ModelOp modelOp,
           llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& components,
           const ast::ClassModification& classModification);

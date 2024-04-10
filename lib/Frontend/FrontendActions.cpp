@@ -662,8 +662,11 @@ namespace marco::frontend
       }
 
       // Convert the AST to MLIR.
-      marco::codegen::lowering::Bridge bridge(getMLIRContext());
-      bridge.lower(*ast->cast<ast::Root>());
+      clang::DiagnosticsEngine &diag = ci.getDiagnostics();
+      marco::codegen::lowering::Bridge bridge(getMLIRContext(), diag);
+      if (!bridge.lower(*ast->cast<ast::Root>())) {
+        return false;
+      }
 
       mlirModule = std::move(bridge.getMLIRModule());
     }

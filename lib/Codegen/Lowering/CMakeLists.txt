@@ -16,6 +16,7 @@ set(SOURCES
     ExpressionLowerer.cpp
     ForEquationLowerer.cpp
     ForStatementLowerer.cpp
+    IdentifierError.cpp
     IfEquationLowerer.cpp
     IfStatementLowerer.cpp
     Lowerer.cpp
@@ -48,4 +49,7 @@ marco_add_library(Lowering
     marco::ast
     marco::modeling
     marco::variableFilter
+    marco::Distance
     ${MLIR_LIBS})
+
+add_subdirectory(Distance)

@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit ForEquationLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::ForEquation& equation) override;
+      __attribute__((warn_unused_result)) bool lower(const ast::ForEquation& equation) override;
 
     protected:
       using Lowerer::lower;

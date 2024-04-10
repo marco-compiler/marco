@@ -11,7 +11,8 @@ namespace marco::codegen::lowering
   {
   }
 
-  void ForStatementLowerer::lower(const ast::ForStatement& statement)
+  __attribute__((warn_unused_result)) bool 
+  ForStatementLowerer::lower(const ast::ForStatement& statement)
   {
     Lowerer::VariablesScope varScope(getVariablesSymbolTable());
     mlir::Location location = loc(statement.getLocation());
@@ -36,7 +37,11 @@ namespace marco::codegen::lowering
 
       const ast::Expression* lowerBoundExp = forIndexRange->getArgument(0);
       mlir::Location lowerBoundLoc = loc(lowerBoundExp->getLocation());
-      mlir::Value lowerBound = lower(*lowerBoundExp)[0].get(lowerBoundLoc);
+      auto optionalLowerBoundExp = lower(*lowerBoundExp);
+      if (!optionalLowerBoundExp) {
+        return false;
+      }
+      mlir::Value lowerBound = optionalLowerBoundExp.value()[0].get(lowerBoundLoc);
 
       lowerBound = builder().create<CastOp>(
           lowerBound.getLoc(), builder().getIndexType(), lowerBound);
@@ -67,7 +72,11 @@ namespace marco::codegen::lowering
 
         const ast::Expression* upperBoundExp = forIndexRange->getArgument(1);
         mlir::Location upperBoundLoc = loc(upperBoundExp->getLocation());
-        mlir::Value upperBound = lower(*upperBoundExp)[0].get(upperBoundLoc);
+        auto optionalUpperBoundExp = lower(*upperBoundExp);
+        if (!optionalUpperBoundExp) {
+          return false;
+        }
+        mlir::Value upperBound = optionalUpperBoundExp.value()[0].get(upperBoundLoc);
 
         upperBound = builder().create<CastOp>(
             lowerBound.getLoc(), builder().getIndexType(), upperBound);
@@ -88,12 +97,17 @@ namespace marco::codegen::lowering
         mlir::Value inductionValue =
             builder().create<LoadOp>(location, inductionVar);
 
+        const llvm::StringRef name = forIndex->getName();
+        getDeclaredVariables().insert(std::string(name));
         getVariablesSymbolTable().insert(
-            forIndex->getName(), Reference::ssa(builder(), inductionValue));
+            name, Reference::ssa(builder(), inductionValue));
 
         for (size_t statementIndex = 0, e = statement.getNumOfStatements();
              statementIndex < e; ++statementIndex) {
-          lower(*statement.getStatement(statementIndex));
+          const bool outcome = lower(*statement.getStatement(statementIndex));
+          if (!outcome) {
+            return false;
+          }
         }
 
         if (bodyBlock->empty() ||
@@ -113,7 +127,11 @@ namespace marco::codegen::lowering
         mlir::Value step;
 
         if (forIndexRange->getNumOfArguments() == 3) {
-          step = lower(*forIndexRange->getArgument(2))[0].get(
+          auto optionalStep = lower(*forIndexRange->getArgument(2));
+          if (!optionalStep) {
+            return false;
+          }
+          step = optionalStep.value()[0].get(
               loc(forIndexRange->getArgument(2)->getLocation()));
         } else {
           step = builder().create<ConstantOp>(
@@ -129,5 +147,7 @@ namespace marco::codegen::lowering
         builder().create<YieldOp>(location, std::nullopt);
       }
     }
+    
+    return true;
   }
 }

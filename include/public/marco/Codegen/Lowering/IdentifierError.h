@@ -1,0 +1,57 @@
+#ifndef IDENTIFIER_ERROR_H
+#define IDENTIFIER_ERROR_H
+
+#include <string>
+#include <array>
+#include "marco/Codegen/Lowering/LoweringContext.h"
+
+namespace marco::codegen::lowering
+{
+  class IdentifierError
+  {
+    public:
+      // Types of identifiers that may generate a lowering error.
+      enum class IdentifierType {
+        VARIABLE,
+        FUNCTION,
+        TYPE,
+        FIELD
+      };
+
+      // Create an IdentifierError object, calculating the most similar identifier to identifierName 
+      // among those in declaredIdentifiers and the built-in ones (if any).
+      IdentifierError(const IdentifierType &errorType, std::string identifierName, 
+                      const std::set<std::string> &declaredIdentifiers, 
+                      unsigned int line, unsigned int column);
+
+      IdentifierType getIdentifierType() const;
+      std::string getActual() const;
+      std::string getPredicted() const;
+      unsigned int getLine() const;
+      unsigned int getColumn() const;
+
+    private:
+      // Type of identifier that generated the error.
+      const IdentifierType identifierType;
+      // Actual identifier that generated the error.
+      const std::string actualName;
+      // Most similar identifier or keyword to the actual one.
+      std::string predictedName;
+
+      // Starting line of the identifier that generated the error.
+      const unsigned int line;
+      // Starting column of the identifier that generated the error.
+      const unsigned int column;
+
+      // Threshold to avoid using semantic distance.
+      constexpr static unsigned int threshold = 10;
+
+      // List of built-in functions in the language.
+      static const std::set<std::string> builtInFunctions;
+
+      // List of built-in types in the language.
+      static const std::set<std::string> builtInTypes;
+  };
+}
+
+#endif //MARCO_CODEGEN_IDENTIFIER_ERROR_H

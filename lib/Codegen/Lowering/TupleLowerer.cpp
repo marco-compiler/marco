@@ -11,12 +11,16 @@ namespace marco::codegen::lowering
   {
   }
 
-  Results TupleLowerer::lower(const ast::Tuple& tuple)
+  std::optional<Results> TupleLowerer::lower(const ast::Tuple& tuple)
   {
     Results result;
 
     for (size_t i = 0, e = tuple.size(); i < e; ++i) {
-      auto values = lower(*tuple.getExpression(i));
+      auto optionalValues = lower(*tuple.getExpression(i));
+      if (!optionalValues) {
+        return std::nullopt;
+      }
+      auto &values = optionalValues.value();
 
       // The only way to have multiple returns is to call a function, but
       // this is forbidden in a tuple declaration. In fact, a tuple is just
