@@ -1,7 +1,7 @@
 include(CMakePackageConfigHelpers)
 
 set(INSTALL_PATH "")
-set(TARGETS_PATH "lib/cmake")
+set(TARGETS_PATH "${CMAKE_INSTALL_LIBDIR}/cmake")
 
 set(INCLUDE_PATH "include")
 set(LIB_PATH "lib")
