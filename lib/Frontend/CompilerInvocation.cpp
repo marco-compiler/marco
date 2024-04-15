@@ -281,6 +281,11 @@ static void parseCodegenArgs(
       options::OPT_no_cse,
       options.cse);
 
+  options.equationsRuntimeScheduling = args.hasFlag(
+      options::OPT_equations_runtime_scheduling,
+      options::OPT_no_equations_runtime_scheduling,
+      options.equationsRuntimeScheduling);
+
   options.omp = args.hasFlag(
       options::OPT_omp,
       options::OPT_no_omp,

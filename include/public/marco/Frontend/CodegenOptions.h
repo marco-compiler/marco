@@ -18,6 +18,7 @@ namespace marco::frontend
     bool readOnlyVariablesPropagation = false;
     bool variablesToParametersPromotion = false;
     bool cse = false;
+    bool equationsRuntimeScheduling = false;
     bool omp = false;
 
     unsigned int bitWidth = 64;

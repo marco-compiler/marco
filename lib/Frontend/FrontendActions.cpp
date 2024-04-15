@@ -774,8 +774,10 @@ namespace marco::frontend
     pm.addNestedPass<mlir::modelica::ModelOp>(
         mlir::modelica::createScheduleParallelizationPass());
 
-    // Delegate the calls to the equation functions to the runtime library.
-    pm.addPass(mlir::modelica::createSchedulersInstantiationPass());
+    if (ci.getCodeGenOptions().equationsRuntimeScheduling) {
+      // Delegate the calls to the equation functions to the runtime library.
+      pm.addPass(mlir::modelica::createSchedulersInstantiationPass());
+    }
 
     // Check that no SCC is left unsolved.
     pm.addPass(mlir::modelica::createSCCAbsenceVerificationPass());
