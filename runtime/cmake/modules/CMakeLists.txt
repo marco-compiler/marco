@@ -4,7 +4,7 @@ set(INSTALL_PATH "")
 set(TARGETS_PATH "${CMAKE_INSTALL_LIBDIR}/cmake")
 
 set(INCLUDE_PATH "include")
-set(LIB_PATH "lib")
+set(LIB_PATH ${CMAKE_INSTALL_LIBDIR})
 set(SUNDIALS_LIB_PATH "dependencies/lib/sundials")
 
 list(APPEND EXTRA_LINK_ARGS
