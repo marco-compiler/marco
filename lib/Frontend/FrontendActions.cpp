@@ -423,6 +423,7 @@ namespace marco::frontend
       : ASTAction(ASTActionKind::Parse),
         action(action)
   {
+    registerMLIRExtensions();
   }
 
   CodeGenAction::~CodeGenAction()
@@ -434,12 +435,28 @@ namespace marco::frontend
 
   bool CodeGenAction::beginSourceFilesAction()
   {
-    if (action == CodeGenActionKind::GenerateLLVMIR) {
-      return generateLLVMIR();
+    if (!mlirContext) {
+      createMLIRContext();
     }
 
-    assert(action == CodeGenActionKind::GenerateMLIR);
-    return generateMLIR();
+    if (action == CodeGenActionKind::GenerateMLIR) {
+      return generateMLIR();
+    }
+
+    if (action == CodeGenActionKind::GenerateMLIRModelica) {
+      return generateMLIRModelica();
+    }
+
+    if (action == CodeGenActionKind::GenerateMLIRLLVM) {
+      return generateMLIRLLVM();
+    }
+
+    if (!llvmContext) {
+      createLLVMContext();
+    }
+
+    assert(action == CodeGenActionKind::GenerateLLVMIR);
+    return generateLLVMIR();
   }
 
   bool CodeGenAction::setUpTargetMachine()
@@ -508,12 +525,14 @@ namespace marco::frontend
     mlirDialectRegistry.insert<mlir::simulation::SimulationDialect>();
   }
 
-  bool CodeGenAction::generateMLIR()
+  void CodeGenAction::registerMLIRExtensions()
+  {
+    mlir::func::registerInlinerExtension(mlirDialectRegistry);
+  }
+
+  void CodeGenAction::createMLIRContext()
   {
     CompilerInstance& ci = getInstance();
-
-    // Create the MLIR context.
-    mlir::func::registerInlinerExtension(mlirDialectRegistry);
 
     mlirContext = std::make_unique<mlir::MLIRContext>(mlirDialectRegistry);
     mlirContext->enableMultithreading(ci.getFrontendOptions().multithreading);
@@ -521,6 +540,28 @@ namespace marco::frontend
     mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
     mlirContext->loadDialect<mlir::DLTIDialect>();
     mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();
+  }
+
+  mlir::MLIRContext& CodeGenAction::getMLIRContext()
+  {
+    assert(mlirContext && "MLIR context has not been initialized");
+    return *mlirContext;
+  }
+
+  void CodeGenAction::createLLVMContext()
+  {
+    llvmContext = std::make_unique<llvm::LLVMContext>();
+  }
+
+  llvm::LLVMContext& CodeGenAction::getLLVMContext()
+  {
+    assert(llvmContext && "LLVM context has not been initialized");
+    return *llvmContext;
+  }
+
+  bool CodeGenAction::generateMLIR()
+  {
+    CompilerInstance& ci = getInstance();
 
     if (getCurrentInputs()[0].getKind().getLanguage() == Language::MLIR) {
       // If the input is an MLIR file, parse it.
@@ -536,7 +577,7 @@ namespace marco::frontend
 
       // Parse the module.
       mlir::OwningOpRef<mlir::ModuleOp> module =
-          mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, mlirContext.get());
+          mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &getMLIRContext());
 
       if (!module || mlir::failed(module->verifyInvariants())) {
         ci.getDiagnostics().emitError<GenericStringMessage>(
@@ -546,7 +587,6 @@ namespace marco::frontend
       }
 
       mlirModule = std::make_unique<mlir::ModuleOp>(module.release());
-      return true;
     } else {
       // If the input is not an MLIR file, then the MLIR module will be
       // obtained starting from the AST.
@@ -557,7 +597,7 @@ namespace marco::frontend
 
       // Convert the AST to MLIR.
       codegen::CodegenOptions options;
-      marco::codegen::lowering::Bridge bridge(*mlirContext, options);
+      marco::codegen::lowering::Bridge bridge(getMLIRContext(), options);
       bridge.lower(*ast->cast<ast::Root>());
 
       mlirModule = std::move(bridge.getMLIRModule());
@@ -568,7 +608,7 @@ namespace marco::frontend
     setMLIRModuleDataLayout();
 
     // Verify the IR.
-    mlir::PassManager pm(mlirContext.get());
+    mlir::PassManager pm(&getMLIRContext());
     pm.addPass(std::make_unique<codegen::lowering::VerifierPass>());
 
     if (!mlir::succeeded(pm.run(*mlirModule))) {
@@ -579,6 +619,33 @@ namespace marco::frontend
     }
 
     return true;
+  }
+
+  bool CodeGenAction::generateMLIRModelica()
+  {
+    return generateMLIR();
+  }
+
+  bool CodeGenAction::generateMLIRLLVM()
+  {
+    if (!generateMLIR()) {
+      return false;
+    }
+
+    mlir::PassManager pm(&getMLIRContext());
+    CompilerInstance& ci = getInstance();
+
+    // Enable verification.
+    pm.enableVerifier(true);
+
+    // If requested, print the statistics.
+    if (ci.getFrontendOptions().printStatistics) {
+      pm.enableTiming();
+      pm.enableStatistics();
+    }
+
+    buildMLIRLoweringPipeline(pm);
+    return mlir::succeeded(pm.run(*mlirModule));
   }
 
   void CodeGenAction::setMLIRModuleTargetTriple()
@@ -623,7 +690,7 @@ namespace marco::frontend
         mlir::LLVM::LLVMDialect::getDataLayoutAttrName();
 
     auto dlAttr = mlir::StringAttr::get(
-        mlirContext.get(), dl.getStringRepresentation());
+        &getMLIRContext(), dl.getStringRepresentation());
 
     auto existingDlAttr =
         (*mlirModule)->getAttrOfType<mlir::StringAttr>(dlAttrName);
@@ -632,7 +699,7 @@ namespace marco::frontend
         mlir::DLTIDialect::kDataLayoutAttrName;
 
     mlir::DataLayoutSpecInterface dlSpecAttr =
-        mlir::translateDataLayout(dl, mlirContext.get());
+        mlir::translateDataLayout(dl, &getMLIRContext());
 
     auto existingDlSpecAttr =
         (*mlirModule)->getAttrOfType<mlir::DataLayoutSpecInterface>(
@@ -653,7 +720,8 @@ namespace marco::frontend
         dlSpecAttrName, mlir::cast<mlir::Attribute>(dlSpecAttr));
   }
 
-  void CodeGenAction::createModelicaToLLVMPassPipeline(mlir::PassManager& pm)
+  void CodeGenAction::buildMLIRLoweringPipeline(
+      mlir::PassManager& pm)
   {
     CompilerInstance& ci = getInstance();
 
@@ -863,12 +931,6 @@ namespace marco::frontend
         mlir::createCanonicalizerPass());
 
     pm.addPass(mlir::LLVM::createLegalizeForExportPass());
-
-    // If requested, print the statistics.
-    if (ci.getFrontendOptions().printStatistics) {
-      pm.enableTiming();
-      pm.enableStatistics();
-    }
   }
 
   std::unique_ptr<mlir::Pass>
@@ -1091,25 +1153,21 @@ namespace marco::frontend
 
   void CodeGenAction::registerMLIRToLLVMIRTranslations()
   {
-    assert(mlirContext && "MLIR context has not been created yet");
-    mlir::registerBuiltinDialectTranslation(*mlirContext);
-    mlir::registerLLVMDialectTranslation(*mlirContext);
-    mlir::registerOpenMPDialectTranslation(*mlirContext);
+    mlir::registerBuiltinDialectTranslation(getMLIRContext());
+    mlir::registerLLVMDialectTranslation(getMLIRContext());
+    mlir::registerOpenMPDialectTranslation(getMLIRContext());
   }
 
   bool CodeGenAction::generateLLVMIR()
   {
     CompilerInstance& ci = getInstance();
 
-    // Create the LLVM context.
-    llvmContext = std::make_unique<llvm::LLVMContext>();
-
     if (getCurrentInputs()[0].getKind().getLanguage() == Language::LLVM_IR) {
       // If the input is an LLVM file, parse it return.
       llvm::SMDiagnostic err;
 
       llvmModule = llvm::parseIRFile(
-          getCurrentInputs()[0].getFile(), err, *llvmContext);
+          getCurrentInputs()[0].getFile(), err, getLLVMContext());
 
       if (!llvmModule || llvm::verifyModule(*llvmModule, &llvm::errs())) {
         err.print("marco", llvm::errs());
@@ -1120,30 +1178,13 @@ namespace marco::frontend
         return false;
       }
     } else {
-      // If the input is not an LLVM file, then the LLVM module will be
-      // obtained starting from the MLIR module.
-
-      if (!generateMLIR()) {
+      // Obtain the LLVM dialect.
+      if (!generateMLIRLLVM()) {
         return false;
       }
 
       // Register the MLIR translations to obtain LLVM-IR.
       registerMLIRToLLVMIRTranslations();
-
-      // Set up the MLIR pass manager.
-      mlir::PassManager pm(mlirContext.get());
-      pm.enableVerifier(true);
-
-      // Create the pass pipeline.
-      createModelicaToLLVMPassPipeline(pm);
-
-      // Run the pass manager.
-      if (!mlir::succeeded(pm.run(*mlirModule))) {
-        ci.getDiagnostics().emitError<GenericStringMessage>(
-            "Lower to LLVM dialect failed");
-
-        return false;
-      }
 
       // Translate to LLVM-IR.
       std::optional<llvm::StringRef> moduleName = mlirModule->getName();
@@ -1157,7 +1198,7 @@ namespace marco::frontend
       }
 
       llvmModule = mlir::translateModuleToLLVMIR(
-          *mlirModule, *llvmContext,
+          *mlirModule, getLLVMContext(),
           moduleName ? *moduleName : "ModelicaModule");
 
       if (!llvmModule) {
@@ -1234,7 +1275,7 @@ namespace marco::frontend
     llvm::PipelineTuningOptions pto;
     std::optional<llvm::PGOOptions> pgoOpt;
 
-    llvm::StandardInstrumentations si(*llvmContext, false);
+    llvm::StandardInstrumentations si(getLLVMContext(), false);
     si.registerCallbacks(pic, &mam);
 
     llvm::PassBuilder pb(targetMachine.get(), pto, pgoOpt, &pic);
@@ -1275,6 +1316,54 @@ namespace marco::frontend
 
       if (!(os = ci.createDefaultOutputFile(
                 false, ci.getSimulationOptions().modelName, "mlir"))) {
+        return;
+      }
+    }
+
+    // Emit MLIR.
+    mlirModule->print(ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+  }
+
+  EmitMLIRModelicaAction::EmitMLIRModelicaAction()
+      : CodeGenAction(CodeGenActionKind::GenerateMLIRModelica)
+  {
+  }
+
+  void EmitMLIRModelicaAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    // Get the default output stream, if none was specified.
+    if (ci.isOutputStreamNull()) {
+      auto fileOrBufferNames = getCurrentFilesOrBufferNames();
+
+      if (!(os = ci.createDefaultOutputFile(
+                false, ci.getSimulationOptions().modelName, "mo.mlir"))) {
+        return;
+      }
+    }
+
+    // Emit MLIR.
+    mlirModule->print(ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+  }
+
+  EmitMLIRLLVMAction::EmitMLIRLLVMAction()
+      : CodeGenAction(CodeGenActionKind::GenerateMLIRLLVM)
+  {
+  }
+
+  void EmitMLIRLLVMAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    // Get the default output stream, if none was specified.
+    if (ci.isOutputStreamNull()) {
+      auto fileOrBufferNames = getCurrentFilesOrBufferNames();
+
+      if (!(os = ci.createDefaultOutputFile(
+                false, ci.getSimulationOptions().modelName, "llvm.mlir"))) {
         return;
       }
     }

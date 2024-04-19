@@ -94,6 +94,8 @@ namespace marco::frontend
   enum class CodeGenActionKind
   {
     GenerateMLIR,
+    GenerateMLIRModelica,
+    GenerateMLIRLLVM,
     GenerateLLVMIR
   };
 
@@ -121,9 +123,32 @@ namespace marco::frontend
       /// Register the MLIR dialects that can be encountered while parsing.
       void registerMLIRDialects();
 
+      /// Register the MLIR extensions.
+      void registerMLIRExtensions();
+
+      /// Create the MLIR context.
+      void createMLIRContext();
+
+      /// Get the MLIR context.
+      mlir::MLIRContext& getMLIRContext();
+
+      /// Create the LLVM context.
+      void createLLVMContext();
+
+      /// Get the LLVM context.
+      llvm::LLVMContext& getLLVMContext();
+
       /// Parse MLIR from the source file if in MLIR format, or generate it
       /// according to the source file type.
       bool generateMLIR();
+
+      /// Parse MLIR from the source file if in MLIR format (or generate it)
+      /// and obtain the Modelica dialect.
+      bool generateMLIRModelica();
+
+      /// Parse MLIR from the source file if in MLIR format (or generate it)
+      /// and obtain the LLVM dialect.
+      bool generateMLIRLLVM();
 
       /// Set the target triple inside the MLIR module.
       void setMLIRModuleTargetTriple();
@@ -131,9 +156,9 @@ namespace marco::frontend
       /// Set the data layout inside the MLIR module.
       void setMLIRModuleDataLayout();
 
-      /// Given a pass manager, append the passes to convert the Modelica
-      /// dialect to the LLVM dialect
-      void createModelicaToLLVMPassPipeline(mlir::PassManager& pm);
+      /// Given a pass manager, append the passes to lower the MLIR module to
+      /// the LLVM dialect.
+      void buildMLIRLoweringPipeline(mlir::PassManager& pm);
 
       /// }
       /// @name Modelica passes.
@@ -203,15 +228,13 @@ namespace marco::frontend
 
     private:
       CodeGenActionKind action;
-
-    protected:
       mlir::DialectRegistry mlirDialectRegistry;
       std::unique_ptr<mlir::MLIRContext> mlirContext;
-      std::unique_ptr<mlir::ModuleOp> mlirModule;
-
       std::unique_ptr<llvm::LLVMContext> llvmContext;
-      std::unique_ptr<llvm::Module> llvmModule;
 
+    protected:
+      std::unique_ptr<mlir::ModuleOp> mlirModule;
+      std::unique_ptr<llvm::Module> llvmModule;
       std::unique_ptr<llvm::TargetMachine> targetMachine;
   };
 
@@ -219,6 +242,22 @@ namespace marco::frontend
   {
     public:
       EmitMLIRAction();
+
+      void executeAction() override;
+  };
+
+  class EmitMLIRModelicaAction : public CodeGenAction
+  {
+    public:
+      EmitMLIRModelicaAction();
+
+      void executeAction() override;
+  };
+
+  class EmitMLIRLLVMAction : public CodeGenAction
+  {
+    public:
+      EmitMLIRLLVMAction();
 
       void executeAction() override;
   };

@@ -24,6 +24,12 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(
     case EmitMLIR:
       return std::make_unique<EmitMLIRAction>();
 
+    case EmitMLIRModelica:
+      return std::make_unique<EmitMLIRModelicaAction>();
+
+    case EmitMLIRLLVM:
+      return std::make_unique<EmitMLIRLLVMAction>();
+
     case EmitLLVMIR:
       return std::make_unique<EmitLLVMIRAction>();
 

@@ -22,6 +22,12 @@ namespace marco::frontend
     // Emit a .mlir file.
     EmitMLIR,
 
+    // Emit a .mo.mlir file.
+    EmitMLIRModelica,
+
+    // Emit a .llvm.mlir file.
+    EmitMLIRLLVM,
+
     // Emit a .ll file.
     EmitLLVMIR,
 

@@ -112,8 +112,8 @@ static void parseFrontendArgs(
   // Default action
   options.programAction = EmitObject;
 
-  // -emit-ast is not part of the Action group in clang's options.
   if (args.hasArg(options::OPT_emit_ast)) {
+    // -emit-ast is not part of the Action group in clang's options.
     options.programAction = EmitAST;
   } else if (const llvm::opt::Arg* a =
                  args.getLastArg(options::OPT_Action_Group)) {
@@ -130,6 +130,14 @@ static void parseFrontendArgs(
         options.programAction = EmitMLIR;
         break;
 
+      case options::OPT_emit_mlir_modelica:
+        options.programAction = EmitMLIRModelica;
+        break;
+
+      case options::OPT_emit_mlir_llvm:
+        options.programAction = EmitMLIRLLVM;
+        break;
+
       case options::OPT_emit_llvm:
         options.programAction = EmitLLVMIR;
         break;
@@ -138,7 +146,8 @@ static void parseFrontendArgs(
         options.programAction = EmitLLVMBitcode;
         break;
 
-      case options::OPT_S: // Old OPT_compile_only
+      // Old OPT_compile_only.
+      case options::OPT_S:
         options.programAction = EmitAssembly;
         break;
 
