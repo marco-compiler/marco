@@ -2,6 +2,7 @@
 #define MARCO_FRONTEND_CODEGENOPTIONS_H
 
 #include "llvm/Passes/OptimizationLevel.h"
+#include <string>
 
 namespace marco::frontend
 {
