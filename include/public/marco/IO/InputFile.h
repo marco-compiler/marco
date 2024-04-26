@@ -11,6 +11,7 @@ namespace marco::io
   {
     Unknown,
     Modelica,
+    BaseModelica,
     MLIR,
     LLVM_IR
   };
