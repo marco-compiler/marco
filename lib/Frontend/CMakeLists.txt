@@ -1,13 +1,13 @@
 set(SOURCES
     CompilerInstance.cpp
     CompilerInvocation.cpp
+    DiagnosticHandler.cpp
     ExecuteCompilerInvocation.cpp
     FrontendAction.cpp
     FrontendActions.cpp
     FrontendOptions.cpp
-    SimulationOptions.cpp
-    TextDiagnostic.cpp
-    TextDiagnosticPrinter.cpp)
+    LanguageOptions.cpp
+    SimulationOptions.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)

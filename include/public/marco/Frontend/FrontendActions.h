@@ -2,6 +2,7 @@
 #define MARCO_FRONTEND_FRONTENDACTIONS_H
 
 #include "marco/AST/AST.h"
+#include "marco/Frontend/DiagnosticHandler.h"
 #include "marco/Frontend/FrontendAction.h"
 #include "marco/IO/InputFile.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -44,9 +45,6 @@ namespace marco::frontend
   {
     public:
       bool beginSourceFilesAction() override;
-
-    protected:
-      std::string flattened;
   };
 
   class EmitBaseModelicaAction : public PreprocessingAction
@@ -230,6 +228,7 @@ namespace marco::frontend
       CodeGenActionKind action;
       mlir::DialectRegistry mlirDialectRegistry;
       std::unique_ptr<mlir::MLIRContext> mlirContext;
+      std::unique_ptr<DiagnosticHandler> diagnosticHandler;
       std::unique_ptr<llvm::LLVMContext> llvmContext;
 
     protected:

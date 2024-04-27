@@ -1,9 +1,13 @@
 #include "marco/Frontend/CompilerInstance.h"
-#include "marco/Diagnostic/Printer.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Frontend/CompilerInvocation.h"
+#include "marco/Frontend/DiagnosticHandler.h"
 #include "marco/Frontend/FrontendActions.h"
 #include "clang/Driver/Options.h"
+#include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/SARIFDiagnosticPrinter.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Frontend/VerifyDiagnosticConsumer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
@@ -12,36 +16,8 @@
 #include "llvm/Support/raw_ostream.h"
 
 using namespace ::marco;
-using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 using namespace ::marco::io;
-
-//===---------------------------------------------------------------------===//
-// Messages
-//===---------------------------------------------------------------------===//
-
-namespace
-{
-  class CantOpenFileMessage : public Message
-  {
-    public:
-      CantOpenFileMessage(llvm::StringRef file, llvm::StringRef error)
-        : file(file.str()),
-          error(error.str())
-      {
-      }
-
-      void print(PrinterInstance* printer) const override
-      {
-        auto& os = printer->getOutputStream();
-        os << "Unable to open file '" << file << "': " << error << "\n";
-      }
-
-    private:
-      std::string file;
-      std::string error;
-  };
-}
 
 //===---------------------------------------------------------------------===//
 // CompilerInstance
@@ -56,10 +32,18 @@ namespace marco::frontend
   }
 
   CompilerInstance::CompilerInstance()
-      : invocation(new CompilerInvocation()),
-        diagnostics(
-            std::make_unique<DiagnosticEngine>(std::make_unique<Printer>()))
+      : invocation(new CompilerInvocation())
   {
+    clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
+        new clang::DiagnosticOptions();
+
+    /*
+    diagnostics = std::make_unique<clang::DiagnosticsEngine>(
+        llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs()),
+        std::move(diagOpts),
+        new TextDiagnosticPrinter(llvm::errs(), diagOpts.get())
+    );
+     */
   }
 
   CompilerInstance::~CompilerInstance()
@@ -95,10 +79,86 @@ namespace marco::frontend
     return diagnostics != nullptr;
   }
 
-  diagnostic::DiagnosticEngine& CompilerInstance::getDiagnostics() const
+  clang::DiagnosticsEngine& CompilerInstance::getDiagnostics()
   {
     assert(diagnostics && "Compiler instance has no diagnostics");
     return *diagnostics;
+  }
+
+  const clang::DiagnosticsEngine& CompilerInstance::getDiagnostics() const
+  {
+    assert(diagnostics && "Compiler instance has no diagnostics");
+    return *diagnostics;
+  }
+
+  clang::DiagnosticConsumer& CompilerInstance::getDiagnosticClient() const
+  {
+    assert(diagnostics && diagnostics->getClient() &&
+           "Compiler instance has no diagnostic client!");
+
+    return *diagnostics->getClient();
+  }
+
+  bool CompilerInstance::hasFileManager() const
+  {
+    return fileManager != nullptr;
+  }
+
+  clang::FileManager& CompilerInstance::getFileManager() const
+  {
+    assert(fileManager && "Compiler instance has no file manager");
+    return *fileManager;
+  }
+
+  void CompilerInstance::setFileManager(clang::FileManager* value)
+  {
+    fileManager = value;
+  }
+
+  bool CompilerInstance::hasSourceManager() const
+  {
+    return sourceManager != nullptr;
+  }
+
+  clang::SourceManager& CompilerInstance::getSourceManager() const
+  {
+    assert(sourceManager && "Compiler instance has no source manager");
+    return *sourceManager;
+  }
+
+  void CompilerInstance::setSourceManager(clang::SourceManager* value)
+  {
+    sourceManager = value;
+  }
+
+  LanguageOptions& CompilerInstance::getLanguageOptions()
+  {
+    return getInvocation().getLanguageOptions();
+  }
+
+  const LanguageOptions& CompilerInstance::getLanguageOptions() const
+  {
+    return getInvocation().getLanguageOptions();
+  }
+
+  clang::DiagnosticOptions& CompilerInstance::getDiagnosticOptions()
+  {
+    return getInvocation().getDiagnosticOptions();
+  }
+
+  const clang::DiagnosticOptions& CompilerInstance::getDiagnosticOptions() const
+  {
+    return getInvocation().getDiagnosticOptions();
+  }
+
+  clang::FileSystemOptions& CompilerInstance::getFileSystemOpts()
+  {
+    return getInvocation().getFileSystemOptions();
+  }
+
+  const clang::FileSystemOptions& CompilerInstance::getFileSystemOpts() const
+  {
+    return getInvocation().getFileSystemOptions();
   }
 
   FrontendOptions& CompilerInstance::getFrontendOptions()
@@ -131,17 +191,6 @@ namespace marco::frontend
     return getInvocation().getSimulationOptions();
   }
 
-  diagnostic::DiagnosticOptions& CompilerInstance::getDiagnosticOptions()
-  {
-    return getDiagnostics().getOptions();
-  }
-
-  const diagnostic::DiagnosticOptions&
-  CompilerInstance::getDiagnosticOptions() const
-  {
-    return getDiagnostics().getOptions();
-  }
-
   bool CompilerInstance::executeAction(FrontendAction& act)
   {
     assert(hasDiagnostics() && "Diagnostics engine is not initialized");
@@ -162,7 +211,71 @@ namespace marco::frontend
       act.endSourceFiles();
     }
 
-    return getDiagnostics().numOfErrors() == 0;
+    return getDiagnostics().getNumErrors() == 0;
+  }
+
+  void CompilerInstance::createDiagnostics(
+      clang::DiagnosticConsumer* client,
+      bool shouldOwnClient)
+  {
+    diagnostics = createDiagnostics(
+        &getLanguageOptions(), &getDiagnosticOptions(), client,
+        shouldOwnClient);
+  }
+
+  llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
+  CompilerInstance::createDiagnostics(
+      LanguageOptions* languageOptions,
+      clang::DiagnosticOptions* diagnosticOptions,
+      clang::DiagnosticConsumer* client,
+      bool shouldOwnClient)
+  {
+    llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(
+        new clang::DiagnosticIDs());
+
+    llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
+        diags(new clang::DiagnosticsEngine(DiagID, diagnosticOptions));
+
+    // Create the diagnostic client for reporting errors or for
+    // implementing -verify.
+    if (client) {
+      diags->setClient(client, shouldOwnClient);
+    } else if (diagnosticOptions->getFormat() == clang::DiagnosticOptions::SARIF) {
+      diags->setClient(
+          new clang::SARIFDiagnosticPrinter(llvm::errs(), diagnosticOptions));
+    } else {
+      diags->setClient(new clang::TextDiagnosticPrinter(
+          llvm::errs(), diagnosticOptions));
+    }
+
+    // Chain in -verify checker, if requested.
+    if (diagnosticOptions->VerifyDiagnostics) {
+      diags->setClient(new clang::VerifyDiagnosticConsumer(*diags));
+    }
+
+    // Configure our handling of diagnostics.
+    ProcessWarningOptions(*diags, *diagnosticOptions);
+
+    return diags;
+  }
+
+  clang::FileManager* CompilerInstance::createFileManager(
+      llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
+  {
+    if (!VFS) {
+      VFS = fileManager ? &fileManager->getVirtualFileSystem()
+                        : createVFSFromCompilerInvocation(
+                              getInvocation(), getDiagnostics());
+    }
+
+    assert(VFS && "FileManager has no VFS?");
+    fileManager = new clang::FileManager(getFileSystemOpts(), std::move(VFS));
+    return fileManager.get();
+  }
+
+  void CompilerInstance::createSourceManager(clang::FileManager& newFileManager)
+  {
+    sourceManager = new clang::SourceManager(getDiagnostics(), newFileManager);
   }
 
   void CompilerInstance::clearOutputFiles(bool eraseFiles)
@@ -247,9 +360,9 @@ namespace marco::frontend
       return std::move(*os);
     }
 
-    getDiagnostics().emitError<CantOpenFileMessage>(
-        outputPath,
-        llvm::errorToErrorCode(os.takeError()).message());
+    getDiagnostics().Report(getDiagnostics().getCustomDiagID(
+        clang::DiagnosticsEngine::Error, "Unable to open file '%0': %1"))
+        << outputPath << llvm::errorToErrorCode(os.takeError()).message();
 
     return nullptr;
   }

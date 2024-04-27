@@ -1,9 +1,8 @@
 #include "marco/Frontend/FrontendActions.h"
-#include "marco/Diagnostic/Printer.h"
 #include "marco/Codegen/Bridge.h"
-#include "marco/Codegen/Verifier.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
+#include "marco/Codegen/Verifier.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modeling/ModelingDialect.h"
 #include "marco/Dialect/Simulation/SimulationDialect.h"
@@ -13,8 +12,8 @@
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
 #include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
-#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -24,6 +23,7 @@
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
+#include "clang/Basic/DiagnosticFrontend.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -38,74 +38,8 @@
 #include "llvm/TargetParser/Host.h"
 
 using namespace ::marco;
-using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 using namespace ::marco::io;
-
-//===---------------------------------------------------------------------===//
-// Messages
-//===---------------------------------------------------------------------===//
-
-namespace
-{
-  class CantOpenInputFileMessage : public Message
-  {
-    public:
-      CantOpenInputFileMessage(llvm::StringRef file)
-          : file(file.str())
-      {
-      }
-
-      void print(PrinterInstance* printer) const override
-      {
-        auto& os = printer->getOutputStream();
-        os << "Unable to open input file '" << file << "'" << "\n";
-      }
-
-    private:
-      std::string file;
-  };
-
-  class FlatteningFailureMessage : public Message
-  {
-    public:
-      FlatteningFailureMessage(llvm::StringRef error)
-          : error(error.str())
-      {
-      }
-
-      void print(PrinterInstance* printer) const override
-      {
-        auto& os = printer->getOutputStream();
-        os << "OMC flattening failed";
-
-        if (!error.empty()) {
-          os << "\n\n" << error << "\n";
-        }
-      }
-
-    private:
-      std::string error;
-  };
-
-  class InvalidTargetTripleMessage : public Message
-  {
-    public:
-      InvalidTargetTripleMessage(llvm::StringRef targetTriple)
-          : targetTriple(targetTriple.str())
-      {
-      }
-
-      void print(PrinterInstance* printer) const override
-      {
-        auto& os = printer->getOutputStream();
-        os << "Invalid target triple '" << targetTriple << "'\n";
-      }
-
-    private:
-      std::string targetTriple;
-  };
-}
 
 //===---------------------------------------------------------------------===//
 // Utility functions
@@ -141,7 +75,7 @@ static llvm::CodeGenOptLevel mapOptimizationLevelToCodeGenLevel(
 /// @param llvmModule   LLVM module to lower to assembly/machine-code
 /// @param os           Output stream to emit the generated code to
 static void generateMachineCodeOrAssemblyImpl(
-    diagnostic::DiagnosticEngine& diags,
+    clang::DiagnosticsEngine& diags,
     llvm::TargetMachine& tm,
     llvm::CodeGenFileType fileType,
     llvm::Module& llvmModule,
@@ -164,8 +98,9 @@ static void generateMachineCodeOrAssemblyImpl(
   codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
 
   if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, fileType)) {
-    diags.emitFatalError<GenericStringMessage>(
-        "TargetMachine can't emit a file of this type");
+    diags.Report(diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Fatal,
+        "TargetMachine can't emit a file of this type"));
 
     return;
   }
@@ -183,25 +118,6 @@ namespace marco::frontend
     CompilerInstance& ci = getInstance();
 
     if (ci.getFrontendOptions().omcBypass) {
-      const auto& inputs = ci.getFrontendOptions().inputs;
-
-      if (inputs.size() > 1) {
-        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-            "MARCO can receive only one input flattened file");
-
-        return false;
-      }
-
-      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputs[0].getFile());
-      auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
-
-      if (!buffer) {
-        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(inputs[0].getFile());
-        llvm::consumeError(buffer.takeError());
-        return false;
-      }
-
-      flattened = (*buffer)->getBuffer().str();
       return true;
     }
 
@@ -209,8 +125,11 @@ namespace marco::frontend
     auto omcPath = llvm::sys::findProgramByName("omc");
 
     if (!omcPath) {
-      ci.getDiagnostics().emitWarning<GenericStringMessage>(
-          "Can't obtain path to omc executable");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Can't obtain path to omc executable"));
 
       return false;
     }
@@ -220,8 +139,11 @@ namespace marco::frontend
     // Add the input files.
     for (const InputFile& inputFile : ci.getFrontendOptions().inputs) {
       if (inputFile.getKind().getLanguage() != Language::Modelica) {
-        ci.getDiagnostics().emitError<GenericStringMessage>(
-            "Invalid input type: flattening can be performed only on Modelica files");
+        auto& diag = ci.getDiagnostics();
+
+        diag.Report(diag.getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "Invalid input type: flattening can be performed only on Modelica files"));
 
         return false;
       }
@@ -232,8 +154,10 @@ namespace marco::frontend
     // Set the model to be flattened.
     if (const auto& modelName = ci.getSimulationOptions().modelName;
         modelName.empty()) {
-      ci.getDiagnostics().emitWarning<GenericStringMessage>(
-          "Model name not specified");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal, "Model name not specified"));
     } else {
       cmd.appendArg("+i=" + ci.getSimulationOptions().modelName);
     }
@@ -255,34 +179,67 @@ namespace marco::frontend
         llvm::sys::fs::TempFile::create(tmpPath);
 
     if (!tempFile) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-          "Can't create OMC output file");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal, "Can't create OMC output file"));
 
       return false;
     }
 
+    // Redirect stdout of omc.
     cmd.setStdoutRedirect(tempFile->TmpName);
+
+    // Run the command.
     int resultCode = cmd.exec();
 
     if (resultCode == EXIT_SUCCESS) {
-      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(tempFile->TmpName);
-      auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
+      auto buffer = llvm::errorOrToExpected(
+          ci.getFileManager().getBufferForFile(tempFile->TmpName));
 
       if (!buffer) {
-        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(tempFile->TmpName);
+        auto& diag = ci.getDiagnostics();
+
+        diag.Report(diag.getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "Unable to open input file ''")) << tempFile->TmpName;
+
         llvm::consumeError(buffer.takeError());
         return false;
       }
 
-      flattened = (*buffer)->getBuffer().str();
+      // Create a virtual file in the file manager.
+      auto& fileManager = ci.getFileManager();
+      uint64_t fileSize;
+
+      if (auto ec = llvm::sys::fs::file_size(tempFile->TmpName, fileSize)) {
+        // TODO emit error
+        return false;
+      }
+
+      auto fileRef = fileManager.getVirtualFileRef(
+          tempFile->TmpName, static_cast<off_t>(fileSize), 0);
+
+      ci.getSourceManager().createFileID(
+          fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
+
+      ci.getSourceManager().overrideFileContents(
+          fileRef, std::move(*buffer));
     }
 
     if (auto ec = tempFile->discard()) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-          "Can't erase the temporary OMC output file");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Can't erase the temporary OMC output file"));
 
       return false;
     }
+
+    setCurrentInputs(io::InputFile(
+        tempFile->TmpName,
+        InputKind(io::Language::BaseModelica, io::Format::Source)));
 
     return resultCode == EXIT_SUCCESS;
   }
@@ -300,7 +257,18 @@ namespace marco::frontend
       }
     }
 
-    *os << flattened;
+    auto inputFile = getCurrentInputs()[0].getFile();
+    auto& fileManager = ci.getFileManager();
+
+    auto fileBuffer = llvm::errorOrToExpected(
+        fileManager.getBufferForFile(inputFile));
+
+    if (!fileBuffer) {
+      // TODO emit error
+      return;
+    }
+
+    *os << fileBuffer->get()->getBuffer();
   }
 
   ASTAction::ASTAction(ASTActionKind action)
@@ -315,18 +283,59 @@ namespace marco::frontend
     }
 
     CompilerInstance& ci = getInstance();
-    auto& diagnostics = ci.getDiagnostics();
+    auto& diags = ci.getDiagnostics();
 
     // Parse the source code.
-    auto sourceFile = std::make_shared<marco::SourceFile>(
-        "-", llvm::MemoryBuffer::getMemBuffer(flattened));
+    auto& fileManager = ci.getFileManager();
+    auto inputFile = getCurrentInputs()[0].getFile();
 
-    parser::Parser parser(diagnostics, sourceFile);
+    auto fileRef = inputFile == "-"
+        ? fileManager.getSTDIN()
+        : fileManager.getFileRef(inputFile, true);
+
+    if (!fileRef) {
+      auto errorCode = llvm::errorToErrorCode(fileRef.takeError());
+
+      if (inputFile != "-") {
+        diags.Report(clang::diag::err_fe_error_reading)
+            << inputFile << errorCode.message();
+      } else {
+        diags.Report(clang::diag::err_fe_error_reading_stdin)
+            << errorCode.message();
+      }
+
+      return false;
+    }
+
+    auto sourceFile = std::make_shared<SourceFile>(inputFile);
+
+    ci.getSourceManager().createFileID(
+        *fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
+
+    auto fileBuffer = fileManager.getBufferForFile(*fileRef);
+
+    if (!fileBuffer) {
+      auto errorCode = llvm::errorToErrorCode(fileRef.takeError());
+
+      if (inputFile != "-") {
+        diags.Report(clang::diag::err_fe_error_reading)
+            << inputFile << errorCode.message();
+      } else {
+        diags.Report(clang::diag::err_fe_error_reading_stdin)
+            << errorCode.message();
+      }
+
+      return false;
+    }
+
+    sourceFile->setMemoryBuffer(fileBuffer->get());
+    parser::Parser parser(diags, ci.getSourceManager(), sourceFile);
     auto cls = parser.parseRoot();
 
     if (!cls.has_value()) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-          "AST generation failed");
+      diags.Report(diags.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal, "AST generation failed"));
+
       return false;
     }
 
@@ -366,9 +375,11 @@ namespace marco::frontend
   void InitOnlyAction::executeAction()
   {
     CompilerInstance& ci = getInstance();
+    auto& diag = ci.getDiagnostics();
 
-    ci.getDiagnostics().emitWarning<GenericStringMessage>(
-        "Use '--init-only' for testing purposes only");
+    diag.Report(diag.getCustomDiagID(
+        clang::DiagnosticsEngine::Warning,
+        "Use '--init-only' for testing purposes only"));
 
     auto& os = llvm::outs();
 
@@ -474,8 +485,12 @@ namespace marco::frontend
       // Print an error and exit if we couldn't find the requested target.
       // This generally occurs if we've forgotten to initialize the
       // TargetRegistry or if we have a bogus target triple.
+      auto& diag = ci.getDiagnostics();
 
-      ci.getDiagnostics().emitFatalError<InvalidTargetTripleMessage>(triple);
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Invalid target triple '%0'")) << triple;
+
       return false;
     }
 
@@ -497,8 +512,11 @@ namespace marco::frontend
         std::nullopt, optLevel));
 
     if (!targetMachine) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-          "Can't create TargetMachine");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Can't create TargetMachine %0")) << triple;
 
       return false;
     }
@@ -537,6 +555,22 @@ namespace marco::frontend
     mlirContext = std::make_unique<mlir::MLIRContext>(mlirDialectRegistry);
     mlirContext->enableMultithreading(ci.getFrontendOptions().multithreading);
 
+    // Register the handler for the diagnostics.
+    diagnosticHandler = std::make_unique<DiagnosticHandler>(ci);
+
+    mlirContext->getDiagEngine().registerHandler(
+        [&](mlir::Diagnostic &diag) -> mlir::LogicalResult {
+          llvm::SmallVector<std::string> notes;
+
+          for (const auto& note : diag.getNotes()) {
+            notes.push_back(note.str());
+          }
+
+          return diagnosticHandler->emit(
+              diag.getSeverity(), diag.getLocation(), diag.str(), notes);
+        });
+
+    // Load dialects.
     mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
     mlirContext->loadDialect<mlir::DLTIDialect>();
     mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();
@@ -567,10 +601,49 @@ namespace marco::frontend
       // If the input is an MLIR file, parse it.
       llvm::SourceMgr sourceMgr;
 
-      llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
-          llvm::MemoryBuffer::getFileOrSTDIN(getCurrentInputs()[0].getFile());
+      auto& fileManager = ci.getFileManager();
+      auto inputFile = getCurrentInputs()[0].getFile();
 
-      sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
+      auto fileRef = inputFile == "-"
+          ? fileManager.getSTDIN()
+          : fileManager.getFileRef(inputFile, true);
+
+      if (!fileRef) {
+        auto& diags = ci.getDiagnostics();
+        auto errorCode = llvm::errorToErrorCode(fileRef.takeError());
+
+        if (inputFile != "-") {
+          diags.Report(clang::diag::err_fe_error_reading)
+              << inputFile << errorCode.message();
+        } else {
+          diags.Report(clang::diag::err_fe_error_reading_stdin)
+              << errorCode.message();
+        }
+
+        return false;
+      }
+
+      ci.getSourceManager().createFileID(
+          *fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
+
+      auto fileBuffer = fileManager.getBufferForFile(*fileRef);
+
+      if (!fileBuffer) {
+        auto& diags = ci.getDiagnostics();
+        auto errorCode = llvm::errorToErrorCode(fileRef.takeError());
+
+        if (inputFile != "-") {
+          diags.Report(clang::diag::err_fe_error_reading)
+              << inputFile << errorCode.message();
+        } else {
+          diags.Report(clang::diag::err_fe_error_reading_stdin)
+              << errorCode.message();
+        }
+
+        return false;
+      }
+
+      sourceMgr.AddNewSourceBuffer(std::move(*fileBuffer), llvm::SMLoc());
 
       // Register the dialects that can be parsed.
       registerMLIRDialects();
@@ -580,8 +653,10 @@ namespace marco::frontend
           mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &getMLIRContext());
 
       if (!module || mlir::failed(module->verifyInvariants())) {
-        ci.getDiagnostics().emitError<GenericStringMessage>(
-            "Could not parse MLIR");
+        auto& diag = ci.getDiagnostics();
+
+        diag.Report(diag.getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal, "Could not parse MLIR"));
 
         return false;
       }
@@ -612,8 +687,11 @@ namespace marco::frontend
     pm.addPass(std::make_unique<codegen::lowering::VerifierPass>());
 
     if (!mlir::succeeded(pm.run(*mlirModule))) {
-      ci.getDiagnostics().emitError<GenericStringMessage>(
-          "Verification of MLIR code failed");
+      auto& diag = ci.getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Verification of MLIR code failed"));
 
       return false;
     }
@@ -669,8 +747,11 @@ namespace marco::frontend
     if (existingTripleAttr && existingTripleAttr != tripleAttr) {
       // The LLVM module already has a target triple which is different from
       // the one specified through the command-line.
-      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
-          "The target triple is being overridden");
+      auto& diag = getInstance().getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Warning,
+          "The target triple is being overridden"));
     }
 
     (*mlirModule)->setAttr(tripleAttrName, tripleAttr);
@@ -710,8 +791,11 @@ namespace marco::frontend
              mlir::cast<mlir::Attribute>(dlSpecAttr))) {
       // The MLIR module already has a data layout which is different from the
       // one given by the target machine.
-      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
-          "The data layout is being overridden");
+      auto& diag = getInstance().getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Warning,
+          "The data layout is being overridden"));
     }
 
     (*mlirModule)->setAttr(dlAttrName, dlAttr);
@@ -1171,9 +1255,11 @@ namespace marco::frontend
 
       if (!llvmModule || llvm::verifyModule(*llvmModule, &llvm::errs())) {
         err.print("marco", llvm::errs());
+        auto& diag = ci.getDiagnostics();
 
-        ci.getDiagnostics().emitError<GenericStringMessage>(
-            "Could not parse LLVM-IR");
+        diag.Report(diag.getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "Could not parse LLVM-IR"));
 
         return false;
       }
@@ -1202,8 +1288,11 @@ namespace marco::frontend
           moduleName ? *moduleName : "ModelicaModule");
 
       if (!llvmModule) {
-        ci.getDiagnostics().emitError<GenericStringMessage>(
-            "Failed to create the LLVM module");
+        auto& diag = ci.getDiagnostics();
+
+        diag.Report(diag.getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "Failed to create the LLVM module"));
 
         return false;
       }
@@ -1232,8 +1321,11 @@ namespace marco::frontend
     if (llvmModule->getTargetTriple() != triple) {
       // The LLVM module already has a target triple which is different from
       // the one specified through the command-line.
-      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
-          "The target triple is being overridden");
+      auto& diag = getInstance().getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Warning,
+          "The target triple is being overridden"));
     }
 
     llvmModule->setTargetTriple(triple);
@@ -1252,8 +1344,11 @@ namespace marco::frontend
     if (llvmModule->getDataLayout() != dataLayout) {
       // The LLVM module already has a data layout which is different from the
       // one given by the target machine.
-      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
-          "The data layout is being overridden");
+      auto& diag = getInstance().getDiagnostics();
+
+      diag.Report(diag.getCustomDiagID(
+          clang::DiagnosticsEngine::Warning,
+          "The data layout is being overridden"));
     }
 
     llvmModule->setDataLayout(dataLayout);

@@ -15,6 +15,9 @@ extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
 
+  // Create the diagnostics engine.
+  instance->createDiagnostics();
+
   // Parse the arguments.
   bool success = CompilerInvocation::createFromArgs(
       instance->getInvocation(), argv, instance->getDiagnostics());

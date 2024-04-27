@@ -1,6 +1,6 @@
-#include "clang/Driver/Options.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
+#include "clang/Driver/Options.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace ::marco::frontend;
@@ -87,7 +87,7 @@ namespace marco::frontend
     }
 
     // If there were errors in processing arguments, don't do anything else.
-    if (ci->getDiagnostics().hasErrors()) {
+    if (ci->getDiagnostics().hasErrorOccurred()) {
       return false;
     }
 

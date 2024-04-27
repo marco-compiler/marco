@@ -1,28 +1,33 @@
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 
 using namespace ::marco;
 
 namespace marco
 {
-  SourceFile::SourceFile(llvm::StringRef filePath, std::unique_ptr<llvm::MemoryBuffer> buffer)
-    : filePath_(filePath.str()), buffer_(std::move(buffer))
+  SourceFile::SourceFile(llvm::StringRef fileName)
+    : fileName(fileName.str())
   {
   }
 
   bool SourceFile::operator==(const SourceFile& other) const
   {
-    return filePath_ == other.filePath_;
+    return fileName == other.fileName;
   }
 
-  llvm::StringRef SourceFile::filePath() const
+  llvm::StringRef SourceFile::getFileName() const
   {
-    return filePath_;
+    return fileName;
   }
 
-  const char* SourceFile::source() const
+  llvm::MemoryBuffer* SourceFile::getBuffer() const
   {
-    assert(buffer_ != nullptr);
-    return buffer_->getBufferStart();
+    assert(buffer && "The source file has no buffer");
+    return buffer;
+  }
+
+  void SourceFile::setMemoryBuffer(llvm::MemoryBuffer* value)
+  {
+    buffer = value;
   }
 
   SourcePosition::SourcePosition(std::shared_ptr<SourceFile> file, int64_t line, int64_t column)
@@ -34,7 +39,7 @@ namespace marco
 
   SourcePosition SourcePosition::unknown()
   {
-    auto file = std::make_unique<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(""));
+    auto file = std::make_unique<SourceFile>("-");
     return SourcePosition(std::move(file), 0, 0);
   }
 

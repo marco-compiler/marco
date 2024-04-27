@@ -1,7 +1,7 @@
 #ifndef MARCO_MODELING_DEPENDENCY_H
 #define MARCO_MODELING_DEPENDENCY_H
 
-#include "marco/Diagnostic/TreeOStream.h"
+#include "marco/Modeling/TreeOStream.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/IndexSet.h"

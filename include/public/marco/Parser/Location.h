@@ -15,16 +15,19 @@ namespace marco
   class SourceFile
   {
     public:
-      SourceFile(llvm::StringRef file, std::unique_ptr<llvm::MemoryBuffer> buffer);
+      SourceFile(llvm::StringRef fileName);
 
       bool operator==(const SourceFile& other) const;
 
-      llvm::StringRef filePath() const;
-      const char* source() const;
+      llvm::StringRef getFileName() const;
+
+      llvm::MemoryBuffer* getBuffer() const;
+
+      void setMemoryBuffer(llvm::MemoryBuffer* buffer);
 
     private:
-      std::string filePath_;
-      std::unique_ptr<llvm::MemoryBuffer> buffer_;
+      std::string fileName;
+      llvm::MemoryBuffer* buffer;
   };
 
   class SourcePosition

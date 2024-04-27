@@ -1,17 +1,22 @@
 set(SOURCES
-    Level.cpp
-    Message.cpp
     ModelicaStateMachine.cpp
     Parser.cpp
-    Token.cpp)
+    Token.cpp
+    Location.cpp)
 
 marco_add_library(parser
     ${SOURCES}
 
     LINK_LIBS
-    PUBLIC marco::diagnostic
     PUBLIC marco::ast
 
     LINK_COMPONENTS
     Core
-    Support)
+    Support
+
+    LINK_LIBS PUBLIC
+    MLIRIR
+
+    clangBasic
+    clangCodeGen)
+# TODO check if really need the link libs

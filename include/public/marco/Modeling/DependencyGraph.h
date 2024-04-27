@@ -1,7 +1,6 @@
 #ifndef MARCO_MODELING_CYCLES_H
 #define MARCO_MODELING_CYCLES_H
 
-#include "marco/Diagnostic/TreeOStream.h"
 #include "marco/Modeling/ArrayVariablesDependencyGraph.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/IndexSet.h"

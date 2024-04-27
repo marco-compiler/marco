@@ -1,7 +1,7 @@
 #ifndef MARCO_AST_NODE_ASTNODE_H
 #define MARCO_AST_NODE_ASTNODE_H
 
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/JSON.h"
 

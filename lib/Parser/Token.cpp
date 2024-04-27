@@ -300,11 +300,6 @@ namespace marco::parser
     return "unknown";
   }
 
-  std::ostream& operator<<(std::ostream& os, const TokenKind& obj)
-  {
-    return os << toString(obj);
-  }
-
   llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TokenKind& obj)
   {
     return os << toString(obj);
@@ -366,11 +361,6 @@ namespace marco::parser
   std::string toString(const Token& obj)
   {
     return toString(obj.getKind());
-  }
-
-  std::ostream& operator<<(std::ostream& os, const Token& obj)
-  {
-    return os << obj.getKind();
   }
 
   llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Token& obj)

@@ -53,7 +53,6 @@ marco_add_library(ast
 	${SOURCES}
 
 	LINK_LIBS
-	PUBLIC marco::diagnostic
 
 	LINK_COMPONENTS
 	Core

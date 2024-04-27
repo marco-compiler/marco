@@ -1,15 +1,14 @@
 #include "marco/VariableFilter/Parser.h"
-#include "marco/VariableFilter/Error.h"
+#include "mlir/Support/LLVM.h"
 #include "llvm/Support/Regex.h"
 
-using namespace ::marco;
 using namespace ::marco::vf;
 
-#define EXPECT(Token)                                                                           \
-	if (!accept<Token>()) {                                                                       \
-	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
-    return std::nullopt;                                                                        \
-  }                                                                                             \
+#define EXPECT(Token)                               \
+	if (!accept<Token>()) {                           \
+    emitUnexpectedTokenError(lookahead[0], Token);  \
+    return std::nullopt;                            \
+  }                                                 \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -21,53 +20,120 @@ using namespace ::marco::vf;
 
 namespace marco::vf
 {
-  Parser::Parser(VariableFilter& vf, diagnostic::DiagnosticEngine* diagnostics, std::shared_ptr<SourceFile> file)
+  Parser::Parser(
+      VariableFilter& vf,
+      clang::DiagnosticsEngine& diagnosticsEngine,
+      clang::SourceManager& sourceManager,
+      std::shared_ptr<SourceFile> source)
       : vf(&vf),
-        diagnostics(diagnostics),
-        lexer(file),
-        current(lexer.scan())
+        diagnosticsEngine(&diagnosticsEngine),
+        sourceManager(&sourceManager),
+        lexer(source)
   {
+    for (size_t i = 0, e = lookahead.size(); i < e; ++i) {
+      advance();
+    }
+  }
+
+  void Parser::advance()
+  {
+    token = lookahead[0];
+
+    for (size_t i = 0, e = lookahead.size(); i + 1 < e; ++i) {
+      lookahead[i] = lookahead[i + 1];
+    }
+
+    lookahead.back() = lexer.scan();
+  }
+
+  SourceRange Parser::getLocation() const
+  {
+    return token.getLocation();
+  }
+
+  SourceRange Parser::getCursorLocation() const
+  {
+    return {getLocation().end, getLocation().end};
+  }
+
+  std::string Parser::getString() const
+  {
+    return token.getString();
+  }
+
+  int64_t Parser::getInt() const
+  {
+    return token.getInt();
+  }
+
+  clang::SourceLocation Parser::convertLocation(
+      const SourceRange& location) const
+  {
+    auto& fileManager = sourceManager->getFileManager();
+
+    auto fileRef = fileManager.getVirtualFileRef(
+        location.begin.file->getFileName(), 0, 0);
+
+    return sourceManager->translateFileLineCol(
+        fileRef, location.begin.line, location.begin.column);
+  }
+
+  void Parser::emitUnexpectedTokenError(const Token& found, TokenKind expected)
+  {
+    auto& diags = *diagnosticsEngine;
+    auto location = convertLocation(found.getLocation());
+
+    auto diagID = diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Error,
+        "Unexpected token: found '%0' instead of '%1'");
+
+    diags.Report(location, diagID) << toString(found) << toString(expected);
+  }
+
+  void Parser::emitEmptyRegexError(const SourceRange& location)
+  {
+    auto& diags = *diagnosticsEngine;
+    auto convertedLocation = convertLocation(location);
+
+    auto diagID = diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Error,
+        "Empty regular expression");
+
+    diags.Report(convertedLocation, diagID);
+  }
+
+  void Parser::emitInvalidRegexError(const SourceRange& location)
+  {
+    auto& diags = *diagnosticsEngine;
+    auto convertedLocation = convertLocation(location);
+
+    auto diagID = diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Error,
+        "Invalid regular expression");
+
+    diags.Report(convertedLocation, diagID);
   }
 
   bool Parser::run()
   {
-    // In case of empty string
-    if (current == Token::EndOfFile) {
-      return true;
-    }
-
-    // Consume consecutive semicolons
-    while(accept<Token::Semicolons>());
-
-    // Check if we reached the end of the string
-    if (current == Token::EndOfFile) {
-      return true;
-    }
-
-    if (!token()) {
-      return false;
-    }
-
-    while (accept<Token::Semicolons>()) {
-      // For strings ending with a semicolon
-      if (current == Token::EndOfFile) {
-        return true;
+    while (!lookahead[0].isa<TokenKind::EndOfFile>()) {
+      // Consume consecutive semicolons.
+      if (accept<TokenKind::Semicolons>()) {
+        continue;
       }
 
-      if (current != Token::Semicolons) {
-        if (!token()) {
-          return false;
-        }
+      if (!parseListElement()) {
+        return false;
       }
     }
 
     return true;
   }
 
-  bool Parser::token()
+  bool Parser::parseListElement()
   {
-    if (current == Token::DerKeyword) {
-      auto derNode = der();
+    if (lookahead[0].isa<TokenKind::DerKeyword>()) {
+      auto derNode = parseDer();
 
       if (!derNode.has_value()) {
         return false;
@@ -76,9 +142,10 @@ namespace marco::vf
       Tracker tracker(derNode->getDerivedVariable().getIdentifier());
       vf->addDerivative(tracker);
       return true;
+    }
 
-    } else if (current == Token::Regex) {
-      auto regexNode = regex();
+    if (lookahead[0].isa<TokenKind::Regex>()) {
+      auto regexNode = parseRegex();
 
       if (!regexNode.has_value()) {
         return false;
@@ -88,14 +155,14 @@ namespace marco::vf
       return true;
     }
 
-    auto variableNode = identifier();
+    auto variableNode = parseVariableExpression();
 
     if (!variableNode.has_value()) {
       return false;
     }
 
-    if (current == Token::LSquare) {
-      auto arrayNode = array(*variableNode);
+    if (lookahead[0].isa<TokenKind::LSquare>()) {
+      auto arrayNode = parseArray(*variableNode);
 
       if (!arrayNode.has_value()) {
         return false;
@@ -110,93 +177,77 @@ namespace marco::vf
     return true;
   }
 
-  std::optional<DerivativeExpression> Parser::der()
+  std::optional<RegexExpression> Parser::parseRegex()
   {
-    EXPECT(Token::DerKeyword);
-    EXPECT(Token::LPar);
-    VariableExpression variable(lexer.getLastIdentifier());
-    EXPECT(Token::Ident);
-    EXPECT(Token::RPar);
-    return DerivativeExpression(variable);
-  }
-
-  std::optional<RegexExpression> Parser::regex()
-  {
-    auto loc = lexer.getTokenPosition();
-    RegexExpression node(lexer.getLastRegex());
-    EXPECT(Token::Regex);
+    EXPECT(TokenKind::Regex);
+    SourceRange loc = getLocation();
+    RegexExpression node(getString());
 
     if (node.getRegex().empty()) {
-      diagnostics->emitError<EmptyRegexMessage>(loc);
+      emitEmptyRegexError(loc);
       return std::nullopt;
     }
 
     llvm::Regex regexObj(node.getRegex());
 
     if (!regexObj.isValid()) {
-      diagnostics->emitError<InvalidRegexMessage>(loc);
+      emitInvalidRegexError(loc);
       return std::nullopt;
     }
 
     return node;
   }
 
-  std::optional<VariableExpression> Parser::identifier()
+  std::optional<VariableExpression> Parser::parseVariableExpression()
   {
-    VariableExpression node(lexer.getLastIdentifier());
-    EXPECT(Token::Ident);
+    EXPECT(TokenKind::Identifier);
+    VariableExpression node(getString());
     return node;
   }
 
-  std::optional<ArrayExpression> Parser::array(VariableExpression variable)
+  std::optional<ArrayExpression> Parser::parseArray(
+      VariableExpression variable)
   {
-    EXPECT(Token::LSquare);
+    EXPECT(TokenKind::LSquare);
 
     llvm::SmallVector<Range, 3> ranges;
-    TRY(range, arrayRange());
+    TRY(range, parseArrayRange());
     ranges.push_back(*range);
 
-    while (accept<Token::Comma>()) {
-      TRY(anotherRange, arrayRange());
+    while (accept<TokenKind::Comma>()) {
+      TRY(anotherRange, parseArrayRange());
       ranges.push_back(*anotherRange);
     }
 
-    EXPECT(Token::RSquare);
-    return ArrayExpression(variable, ranges);
+    EXPECT(TokenKind::RSquare);
+    return ArrayExpression(std::move(variable), ranges);
   }
 
-  std::optional<Range> Parser::arrayRange()
+  std::optional<Range> Parser::parseArrayRange()
   {
-    auto getIndex = [&]() -> std::optional<int> {
-      if (accept<Token::Dollar>()) {
-        return Range::kUnbounded;
-      }
-
-      int index = lexer.getLastInt();
-      EXPECT(Token::Integer);
-      return index;
-    };
-
-    TRY(lowerBound, getIndex());
-    EXPECT(Token::Colons);
-    TRY(upperBound, getIndex());
-
+    TRY(lowerBound, parseArrayIndex());
+    EXPECT(TokenKind::Colons);
+    TRY(upperBound, parseArrayIndex());
     return Range(*lowerBound, *upperBound);
   }
 
-  void Parser::next()
+  std::optional<int> Parser::parseArrayIndex()
   {
-    current = lexer.scan();
-  }
-
-  bool Parser::accept(Token t)
-  {
-    if (current == t)
-    {
-      next();
-      return true;
+    if (accept<TokenKind::Dollar>()) {
+      return Range::kUnbounded;
     }
 
-    return false;
+    EXPECT(TokenKind::Integer);
+    return getInt();
+  }
+
+  std::optional<DerivativeExpression> Parser::parseDer()
+  {
+    EXPECT(TokenKind::DerKeyword);
+    EXPECT(TokenKind::LPar);
+    EXPECT(TokenKind::Identifier);
+    VariableExpression variable(getString());
+    EXPECT(TokenKind::RPar);
+    return DerivativeExpression(std::move(variable));
   }
 }

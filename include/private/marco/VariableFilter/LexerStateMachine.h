@@ -1,7 +1,7 @@
 #ifndef MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 #define MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 #include "marco/Parser/Lexer.h"
 #include "marco/Parser/IntegerLexer.h"
 #include "marco/VariableFilter/Token.h"
@@ -12,11 +12,11 @@
 namespace marco::lexer
 {
   template<>
-  struct TokenTraits<vf::Token>
+  struct TokenTraits<vf::TokenKind>
   {
-    static vf::Token getEOFToken()
+    static vf::TokenKind getEOFToken()
     {
-      return vf::Token::EndOfFile;
+      return vf::TokenKind::EndOfFile;
     }
   };
 }
@@ -45,21 +45,20 @@ namespace marco::vf
 
       /// Returns the last seen identifier, or the one being built if the
       /// machine is in the process of recognizing one.
-      const std::string& getLastIdentifier() const;
+      std::string getIdentifier() const;
 
       /// Returns the last seen string, or the one being built if the machine
       /// is in the process of recognizing one.
-      const std::string& getLastRegex() const;
+      std::string getRegex() const;
 
       /// Returns the last seen integer, or the one being built if the machine
       /// is in the process of recognizing one.
       ///
       /// Notice that as soon as a new number is found this value is
       /// overridden, even if it was a float and not a int.
-      long getLastInt() const;
+      int64_t getInt() const;
 
-      /// Returns the string associated to the last Error token found.
-      const std::string& getLastError() const;
+      llvm::StringRef getError() const;
 
       SourcePosition getCurrentPosition() const;
 
@@ -76,20 +75,29 @@ namespace marco::vf
       /// Updates column and line number, as well as current and next char.
       void advance(char c);
 
-      Token stringToToken(llvm::StringRef str) const;
+      TokenKind stringToToken(llvm::StringRef str) const;
 
-      Token charToToken(char c) const;
+      TokenKind charToToken(char c) const;
 
       template<State s>
       std::optional<Token> scan();
 
-      /// Try to scan the next symbol by taking into account both the current
-      /// and the next characters. This avoids the need to define custom states
-      /// to recognize simple symbols such as '==' or ':='.
-      Token tryScanSymbol();
+      Token trySymbolScan();
 
       void setTokenBeginPosition();
       void setTokenEndPosition();
+
+      Token makeToken(TokenKind kind);
+
+      template<typename T>
+      Token makeToken(TokenKind kind, T value)
+      {
+        return {
+            kind,
+            SourceRange(beginPosition, endPosition),
+            std::move(value)
+        };
+      }
 
     private:
       State state;
@@ -97,17 +105,17 @@ namespace marco::vf
       char current;
       char next;
 
-      std::string lastIdentifier;
-      IntegerLexer<10> lastNum;
-      std::string lastRegex;
+      std::string identifier;
+      IntegerLexer<10> numberLexer;
+      std::string regex;
 
       SourcePosition currentPosition;
       SourcePosition beginPosition;
       SourcePosition endPosition;
 
       std::string error;
-      llvm::StringMap<Token> keywordMap;
-      std::map<char, Token> symbols;
+      llvm::StringMap<TokenKind> keywordMap;
+      std::map<char, TokenKind> symbols;
   };
 
   template<>

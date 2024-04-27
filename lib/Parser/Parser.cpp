@@ -1,16 +1,14 @@
 #include "marco/Parser/Parser.h"
-#include "marco/Parser/Message.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-#define EXPECT(Token)                                                   \
-	if (!accept<Token>()) {                                               \
-	  diagnostics->emitError<UnexpectedTokenMessage>(                     \
-        lookahead[0].getLocation(), lookahead[0].getKind(), Token);     \
-    return std::nullopt;                                                \
-  }                                                                     \
+#define EXPECT(Token)                               \
+	if (!accept<Token>()) {                           \
+    emitUnexpectedTokenError(lookahead[0], Token);  \
+    return std::nullopt;                            \
+  }                                                 \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -23,9 +21,11 @@ using namespace ::marco::parser;
 namespace marco::parser
 {
   Parser::Parser(
-      diagnostic::DiagnosticEngine& diagnostics,
+      clang::DiagnosticsEngine& diagnosticsEngine,
+      clang::SourceManager& sourceManager,
       std::shared_ptr<SourceFile> file)
-      : diagnostics(&diagnostics),
+      : diagnosticsEngine(&diagnosticsEngine),
+        sourceManager(&sourceManager),
         lexer(std::move(file))
   {
     for (size_t i = 0, e = lookahead.size(); i < e; ++i) {
@@ -40,7 +40,7 @@ namespace marco::parser
     for (size_t i = 0, e = lookahead.size(); i + 1 < e; ++i) {
       lookahead[i] = lookahead[i + 1];
     }
-    
+
     lookahead.back() = lexer.scan();
   }
 
@@ -67,6 +67,49 @@ namespace marco::parser
   double Parser::getFloat() const
   {
     return token.getFloat();
+  }
+
+  clang::SourceLocation Parser::convertLocation(
+      const SourceRange& location) const
+  {
+    auto& fileManager = sourceManager->getFileManager();
+
+    auto fileRef = fileManager.getFileRef(
+        location.begin.file->getFileName(), true);
+
+    if (!fileRef) {
+      return clang::SourceLocation();
+    }
+
+    return sourceManager->translateFileLineCol(
+        *fileRef, location.begin.line, location.begin.column);
+  }
+
+  void Parser::emitUnexpectedTokenError(const Token& found, TokenKind expected)
+  {
+    auto& diags = *diagnosticsEngine;
+    auto location = convertLocation(found.getLocation());
+
+    auto diagID = diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Error,
+        "Unexpected token: found '%0' instead of '%1'");
+
+    diags.Report(location, diagID) << toString(found) << toString(expected);
+  }
+
+  void Parser::emitUnexpectedIdentifierError(
+      const SourceRange& location,
+      llvm::StringRef found,
+      llvm::StringRef expected)
+  {
+    auto& diags = *diagnosticsEngine;
+    auto convertedLocation = convertLocation(location);
+
+    auto diagID = diags.getCustomDiagID(
+        clang::DiagnosticsEngine::Error,
+        "Unexpected identifier: found '%0' instead of '%1'");
+
+    diags.Report(convertedLocation, diagID) << found << expected;
   }
 
   ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseRoot()
@@ -282,7 +325,7 @@ namespace marco::parser
     TRY(endName, parseIdentifier());
 
     if (name->getValue() != endName->getValue()) {
-      diagnostics->emitError<UnexpectedIdentifierMessage>(
+      emitUnexpectedIdentifierError(
           endName->getLocation(), endName->getValue(), name->getValue());
 
       return std::nullopt;

@@ -3,7 +3,6 @@
 #include "llvm/ADT/ScopeExit.h"
 
 using namespace ::marco;
-using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 using namespace ::marco::io;
 
@@ -107,6 +106,20 @@ namespace marco::frontend
       return false;
     }
 
+    // Set up the file and source managers, if needed.
+    if (!ci.hasFileManager()) {
+      if (!ci.createFileManager()) {
+        return false;
+      }
+    }
+
+    if (!ci.hasSourceManager()) {
+      ci.createSourceManager(ci.getFileManager());
+    }
+
+    // Inform the diagnostic client we are processing a source file.
+    ci.getDiagnosticClient().BeginSourceFile(ci.getLanguageOptions());
+
     // Initialize the action.
     if (!beginSourceFilesAction()) {
       return false;
@@ -126,6 +139,9 @@ namespace marco::frontend
   {
     CompilerInstance& ci = getInstance();
 
+    // Inform the diagnostic client we are done with this source file.
+    ci.getDiagnosticClient().EndSourceFile();
+
     // Finalize the action.
     endSourceFilesAction();
 
@@ -139,7 +155,7 @@ namespace marco::frontend
 
   bool FrontendAction::shouldEraseOutputFiles() const
   {
-    return getInstance().getDiagnostics().hasErrors();
+    return getInstance().getDiagnostics().hasErrorOccurred();
   }
 
   bool FrontendAction::prepareToExecuteAction(CompilerInstance& ci)

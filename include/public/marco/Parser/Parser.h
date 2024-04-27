@@ -1,10 +1,11 @@
 #ifndef MARCO_PARSER_PARSER_H
 #define MARCO_PARSER_PARSER_H
 
-#include "marco/Diagnostic/Diagnostic.h"
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 #include "marco/Parser/ModelicaStateMachine.h"
 #include "marco/AST/AST.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 
@@ -69,7 +70,8 @@ namespace marco::parser
   {
     public:
       Parser(
-        diagnostic::DiagnosticEngine& diagnostics,
+        clang::DiagnosticsEngine& diagnosticsEngine,
+        clang::SourceManager& sourceManager,
         std::shared_ptr<SourceFile> source);
 
       ParseResult<std::unique_ptr<ast::ASTNode>> parseRoot();
@@ -293,8 +295,23 @@ namespace marco::parser
       /// Get the floating point value stored with the current token.
       [[nodiscard]] double getFloat() const;
 
+      /// @name Diagnostics
+      /// {
+
+      clang::SourceLocation convertLocation(const SourceRange& location) const;
+
+      void emitUnexpectedTokenError(const Token& found, TokenKind expected);
+
+      void emitUnexpectedIdentifierError(
+          const SourceRange& location,
+          llvm::StringRef found,
+          llvm::StringRef expected);
+
+      /// }
+
     private:
-      diagnostic::DiagnosticEngine* diagnostics;
+      clang::DiagnosticsEngine* diagnosticsEngine;
+      clang::SourceManager* sourceManager;
       Lexer<ModelicaStateMachine> lexer;
       Token token{TokenKind::Begin};
       llvm::SmallVector<Token, 2> lookahead{2, Token(TokenKind::Begin)};

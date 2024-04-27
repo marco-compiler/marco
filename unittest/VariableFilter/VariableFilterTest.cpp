@@ -1,16 +1,14 @@
 #include "gtest/gtest.h"
-#include "marco/Diagnostic/Diagnostic.h"
-#include "marco/Diagnostic/Printer.h"
 #include "marco/VariableFilter/VariableFilter.h"
 
 using namespace marco;
 
 TEST(VariableFilter, scalarVariable)
 {
-	std::string str = "x.y";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+	auto str = R"(x.y)";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x.y", 0);
@@ -22,10 +20,10 @@ TEST(VariableFilter, scalarVariable)
 
 TEST(VariableFilter, unboundedArray)
 {
-	std::string str = "x.y[$:$]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x.y[$:$])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x.y", 1);
@@ -41,10 +39,10 @@ TEST(VariableFilter, unboundedArray)
 
 TEST(VariableFilter, arrayWithLowerBound)
 {
-	std::string str = "x.y[1:$]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x.y[1:$])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x.y", 1);
@@ -61,10 +59,10 @@ TEST(VariableFilter, arrayWithLowerBound)
 
 TEST(VariableFilter, arrayWithUpperBound)
 {
-	std::string str = "x.y[$:3]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x.y[$:3])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x.y", 1);
@@ -81,10 +79,10 @@ TEST(VariableFilter, arrayWithUpperBound)
 
 TEST(VariableFilter, arrayWithLowerAndUpperBound)
 {
-	std::string str = "x.y[1:3]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x.y[1:3])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x.y", 1);
@@ -102,10 +100,10 @@ TEST(VariableFilter, arrayWithLowerAndUpperBound)
 
 TEST(VariableFilter, multipleVariables)
 {
-	std::string str = "x;y[1:3]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x;y[1:3])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto xFilters = vf->getVariableInfo("x", 0);
@@ -119,10 +117,10 @@ TEST(VariableFilter, multipleVariables)
 
 TEST(VariableFilter, sameVariableRepeated)
 {
-  std::string str = "x[1:3];x[5:6]";
-  auto vf = VariableFilter::fromString(str);
-  ASSERT_TRUE(vf);
+  auto str = R"(x[1:3];x[5:6])";
 
+  auto vf = VariableFilter::fromString(str);
+  ASSERT_TRUE(vf.has_value());
   EXPECT_TRUE(vf->isEnabled());
 
   auto filters = vf->getVariableInfo("x", 1);
@@ -147,10 +145,10 @@ TEST(VariableFilter, sameVariableRepeated)
 
 TEST(VariableFilter, lowerRankRequested)
 {
-	std::string str = "x[$:3,2:7]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x[$:3,2:7])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x", 1);
@@ -166,10 +164,10 @@ TEST(VariableFilter, lowerRankRequested)
 
 TEST(VariableFilter, higherRankRequested)
 {
-	std::string str = "x[$:3,2:7]";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(x[$:3,2:7])";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto filters = vf->getVariableInfo("x", 3);
@@ -195,10 +193,10 @@ TEST(VariableFilter, higherRankRequested)
 
 TEST(VariableFilter, derivative)
 {
-	std::string str = "der(x)";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(der(x))";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto varFilters = vf->getVariableInfo("x", 0);
@@ -212,10 +210,10 @@ TEST(VariableFilter, derivative)
 
 TEST(VariableFilter, regex)
 {
-	std::string str = "/^[a-z]+$/";
-	auto vf = VariableFilter::fromString(str);
-	ASSERT_TRUE(vf);
+  auto str = R"(/^[a-z]+$/)";
 
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_TRUE(vf.has_value());
 	EXPECT_TRUE(vf->isEnabled());
 
 	auto xFilters = vf->getVariableInfo("x", 0);

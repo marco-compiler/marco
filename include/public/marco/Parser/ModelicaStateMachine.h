@@ -1,8 +1,8 @@
 #ifndef MARCO_PARSER_MODELICASTATEMACHINE_H
 #define MARCO_PARSER_MODELICASTATEMACHINE_H
 
-#include "marco/Diagnostic/Location.h"
 #include "marco/Parser/Lexer.h"
+#include "marco/Parser/Location.h"
 #include "marco/Parser/FloatLexer.h"
 #include "marco/Parser/Token.h"
 #include "llvm/ADT/StringMap.h"

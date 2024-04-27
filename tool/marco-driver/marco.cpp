@@ -1,11 +1,10 @@
-#include "clang/Driver/Options.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/Support/InitLLVM.h"
 #include "clang/Driver/Driver.h"
+#include "clang/Driver/Options.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/Compilation.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Option/ArgList.h"
@@ -13,7 +12,6 @@
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/Host.h"
-#include "marco/Frontend/TextDiagnosticPrinter.h"
 
 #define BUG_REPORT_URL "https://github.com/modelica-polimi/marco/issues/"
 
@@ -99,10 +97,12 @@ int main(int argc, const char** argv)
   // Create DiagnosticsEngine for the compiler driver
   llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
       createAndPopulateDiagOpts(args);
+
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
       new clang::DiagnosticIDs());
-  marco::frontend::TextDiagnosticPrinter *diagClient =
-      new marco::frontend::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
+
+  auto* diagClient =
+      new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
 
   diagClient->setPrefix(
       std::string(llvm::sys::path::stem(getExecutablePath(args[0]))));

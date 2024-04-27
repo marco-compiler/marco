@@ -1,7 +1,7 @@
 #ifndef MARCO_PARSER_LEXER_H
 #define MARCO_PARSER_LEXER_H
 
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 #include "llvm/ADT/StringRef.h"
 #include <functional>
 #include <memory>
@@ -77,12 +77,12 @@ namespace marco
       using TokenTraits = typename lexer::TokenTraits<Token>;
 
       explicit Lexer(std::shared_ptr<SourceFile> file)
-        : StateMachine(file, *file->source()),
-          getNext([iter = file->source()]() mutable -> char {
+        : StateMachine(file, *file->getBuffer()->getBufferStart()),
+          getNext([iter = file->getBuffer()->getBufferStart()]() mutable -> char {
             iter++;
             return *iter;
           }),
-          lastChar(*file->source())
+          lastChar(*file->getBuffer()->getBufferStart())
       {
       }
 

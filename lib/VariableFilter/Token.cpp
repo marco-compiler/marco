@@ -6,47 +6,109 @@ using namespace ::marco::vf;
 
 namespace marco::vf
 {
-  std::string toString(Token token)
+  std::string toString(TokenKind token)
   {
-    switch (token)
-    {
-      case Token::Begin:
+    switch (token) {
+      case TokenKind::Begin:
         return "Begin";
-      case Token::EndOfFile:
+
+      case TokenKind::EndOfFile:
         return "EOF";
-      case Token::Error:
+
+      case TokenKind::Error:
         return "Error";
-      case Token::Integer:
+
+      case TokenKind::Integer:
         return "Integer";
-      case Token::Ident:
+
+      case TokenKind::Identifier:
         return "Identifier";
-      case Token::Regex:
+
+      case TokenKind::Regex:
         return "Regex";
-      case Token::LPar:
+
+      case TokenKind::LPar:
         return "(";
-      case Token::RPar:
+
+      case TokenKind::RPar:
         return ")";
-      case Token::LSquare:
+
+      case TokenKind::LSquare:
         return "[";
-      case Token::RSquare:
+
+      case TokenKind::RSquare:
         return "]";
-      case Token::Comma:
+
+      case TokenKind::Comma:
         return ",";
-      case Token::Semicolons:
+
+      case TokenKind::Semicolons:
         return ";";
-      case Token::Colons:
+
+      case TokenKind::Colons:
         return ":";
-      case Token::Dollar:
+
+      case TokenKind::Dollar:
         return "$";
-      case Token::DerKeyword:
+
+      case TokenKind::DerKeyword:
         return "der";
     }
 
     return "[Unexpected]";
   }
 
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Token& obj)
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TokenKind& obj)
   {
-    return stream << toString(obj);
+    return os << toString(obj);
+  }
+
+  Token::Token(TokenKind kind, SourceRange location)
+      : kind(kind), location(std::move(location))
+  {
+  }
+
+  Token::Token(TokenKind kind, SourceRange location, llvm::StringRef value)
+      : kind(kind),
+        location(std::move(location)),
+        value(value.str())
+  {
+  }
+
+  Token::Token(TokenKind kind, SourceRange location, int64_t value)
+      : kind(kind),
+        location(std::move(location)),
+        value(value)
+  {
+  }
+
+  TokenKind Token::getKind() const
+  {
+    return kind;
+  }
+
+  SourceRange Token::getLocation() const
+  {
+    return location;
+  }
+
+  std::string Token::getString() const
+  {
+    return std::get<std::string>(value);
+  }
+
+  int64_t Token::getInt() const
+  {
+    return std::get<int64_t>(value);
+  }
+
+  std::string toString(const Token& obj)
+  {
+    return toString(obj.getKind());
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Token& obj)
+  {
+    return os << obj.getKind();
   }
 }

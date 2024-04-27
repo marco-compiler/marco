@@ -2,10 +2,11 @@
 #define MARCO_FRONTEND_COMPILERINSTANCE_H
 
 #include "marco/AST/AST.h"
-#include "marco/Diagnostic/Diagnostic.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/FrontendAction.h"
 #include "marco/Frontend/SimulationOptions.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -62,11 +63,48 @@ namespace marco::frontend
       bool hasDiagnostics() const;
 
       /// Get the current diagnostics engine.
-      diagnostic::DiagnosticEngine& getDiagnostics() const;
+      clang::DiagnosticsEngine& getDiagnostics();
+
+      /// Get the current diagnostics engine.
+      const clang::DiagnosticsEngine& getDiagnostics() const;
+
+      clang::DiagnosticConsumer& getDiagnosticClient() const;
+
+      /// @name File manager
+      /// {
+
+      bool hasFileManager() const;
+
+      /// Get the file manager.
+      clang::FileManager& getFileManager() const;
+
+      /// Replace the current file manager.
+      void setFileManager(clang::FileManager* value);
+
+      /// @}
+      /// @name Source Manager
+      /// @{
+
+      bool hasSourceManager() const;
+
+      /// Get the source manager.
+      clang::SourceManager& getSourceManager() const;
+
+      /// Replace the current source manager.
+      void setSourceManager(clang::SourceManager* value);
 
       /// }
       /// @name Forwarding methods
       /// {
+
+      LanguageOptions& getLanguageOptions();
+      const LanguageOptions& getLanguageOptions() const;
+
+      clang::DiagnosticOptions& getDiagnosticOptions();
+      const clang::DiagnosticOptions& getDiagnosticOptions() const;
+
+      clang::FileSystemOptions& getFileSystemOpts();
+      const clang::FileSystemOptions& getFileSystemOpts() const;
 
       FrontendOptions& getFrontendOptions();
       const FrontendOptions& getFrontendOptions() const;
@@ -77,9 +115,6 @@ namespace marco::frontend
       SimulationOptions& getSimulationOptions();
       const SimulationOptions& getSimulationOptions() const;
 
-      diagnostic::DiagnosticOptions& getDiagnosticOptions();
-      const diagnostic::DiagnosticOptions& getDiagnosticOptions() const;
-
       /// }
 
       /// Execute the provided action against the compiler's CompilerInvocation
@@ -89,6 +124,59 @@ namespace marco::frontend
       /// @return whether the execution has been successful or not
       bool executeAction(FrontendAction& action);
 
+      /// @name Construction Utility Methods
+      /// @{
+
+      /// Create the diagnostics engine using the invocation's diagnostic
+      /// options and replace any existing one with it.
+      ///
+      /// Note that this routine also replaces the diagnostic client,
+      /// allocating one if one is not provided.
+      ///
+      /// @param client If non-NULL, a diagnostic client that will be
+      /// attached to (and, then, owned by) the DiagnosticsEngine.
+      ///
+      /// @param shouldOwnClient If client is non-NULL, specifies whether the
+      /// diagnostic object should take ownership of the client.
+      void createDiagnostics(
+          clang::DiagnosticConsumer* client = nullptr,
+          bool shouldOwnClient = true);
+
+      /// Create a DiagnosticsEngine object with a the TextDiagnosticPrinter.
+      ///
+      /// If no diagnostic client is provided, this creates a
+      /// DiagnosticConsumer that is owned by the returned diagnostic
+      /// object, if using directly the caller is responsible for
+      /// releasing the returned DiagnosticsEngine's client eventually.
+      ///
+      /// @param langaugeOptions - The language options
+      /// @param diagnosticOptions - The diagnostic options
+      ///
+      /// @param client If non-NULL, a diagnostic client that will be
+      /// attached to (and, then, owned by) the returned DiagnosticsEngine
+      /// object.
+      ///
+      /// @param shouldOwnClient If client is non-NULL, specifies whether the
+      /// diagnostic object should take ownership of the client.
+      ///
+      /// @return The new object on success, or null on failure.
+      static llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
+      createDiagnostics(
+          LanguageOptions* languageOptions,
+          clang::DiagnosticOptions* diagnosticOptions,
+          clang::DiagnosticConsumer* client = nullptr,
+          bool shouldOwnClient = true);
+
+      /// Create the file manager and replace any existing one with it.
+      ///
+      /// @return the new file manager on success, or null on failure.
+      clang::FileManager* createFileManager(
+          llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);
+
+      /// Create the source manager and replace any existing one with it.
+      void createSourceManager(clang::FileManager& fileManager);
+
+      /// }
       /// @name Output Files
       /// {
 
@@ -165,7 +253,13 @@ namespace marco::frontend
       std::shared_ptr<CompilerInvocation> invocation;
 
       /// The diagnostics engine instance.
-      std::unique_ptr<diagnostic::DiagnosticEngine> diagnostics;
+      llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diagnostics;
+
+      /// The file manager.
+      llvm::IntrusiveRefCntPtr<clang::FileManager> fileManager;
+
+      /// The source manager.
+      llvm::IntrusiveRefCntPtr<clang::SourceManager> sourceManager;
 
       /// The list of active output files.
       std::list<OutputFile> outputFiles;

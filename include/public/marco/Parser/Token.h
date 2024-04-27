@@ -1,7 +1,7 @@
 #ifndef MARCO_PARSER_TOKEN_H
 #define MARCO_PARSER_TOKEN_H
 
-#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Location.h"
 #include "llvm/ADT/StringRef.h"
 #include <iostream>
 #include <string>
@@ -161,8 +161,6 @@ namespace marco::parser
   };
 
   std::string toString(const Token& obj);
-
-  std::ostream& operator<<(std::ostream& os, const Token& obj);
 
   llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Token& obj);
 }

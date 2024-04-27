@@ -1,7 +1,8 @@
 #include "marco/VariableFilter/VariableFilter.h"
-#include "marco/Diagnostic/Printer.h"
 #include "marco/VariableFilter/Parser.h"
 #include "marco/VariableFilter/Token.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
@@ -9,17 +10,6 @@
 
 using namespace ::marco;
 using namespace ::marco::vf;
-
-namespace
-{
-  class NullPrinter : public diagnostic::Printer
-  {
-    llvm::raw_ostream& getOutputStream() override
-    {
-      return llvm::nulls();
-    }
-  };
-}
 
 namespace marco
 {
@@ -168,23 +158,46 @@ namespace marco
     });
   }
 
-  std::optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics)
+  std::optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str)
   {
     VariableFilter vf;
-    auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+    auto sourceFile = std::make_shared<SourceFile>("Variables filter");
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
 
-    diagnostic::DiagnosticEngine* actualDiagnostics = diagnostics;
+    clang::SourceManagerForFile sourceManager(sourceFile->getFileName(), str);
 
-    if (actualDiagnostics == nullptr) {
-      actualDiagnostics = new diagnostic::DiagnosticEngine(std::make_unique<NullPrinter>());
-    }
+    auto fileRef = sourceManager.get().getFileManager().getVirtualFileRef(
+        sourceFile->getFileName(), 0, 0);
 
-    Parser parser(vf, actualDiagnostics, sourceFile);
+    sourceManager.get().createFileID(
+        fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
 
-    auto deallocateDiagnosticsOnExit = llvm::make_scope_exit([&]() {
-      if (diagnostics == nullptr) {
-        delete actualDiagnostics;
-      }
+    sourceManager.get().overrideFileContents(fileRef, *buffer);
+
+    clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
+        new clang::DiagnosticOptions();
+
+    diagOpts->ShowColors = true;
+
+    llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
+        new clang::DiagnosticIDs());
+
+    auto* diagClient = new clang::TextDiagnosticPrinter(
+        llvm::errs(), &*diagOpts);
+
+    auto* diagnostics = new clang::DiagnosticsEngine(
+        diagID, &*diagOpts, diagClient);
+
+    diagnostics->setSourceManager(&sourceManager.get());
+    clang::LangOptions langOptions;
+    diagnostics->getClient()->BeginSourceFile(langOptions);
+
+    Parser parser(vf, *diagnostics, sourceManager.get(), sourceFile);
+
+    auto exitFn = llvm::make_scope_exit([&]() {
+      diagnostics->getClient()->EndSourceFile();
+      delete diagnostics;
     });
 
     if (!parser.run()) {

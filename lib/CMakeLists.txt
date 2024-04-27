@@ -7,7 +7,6 @@
 add_subdirectory(Modeling)
 
 add_subdirectory(VariableFilter)
-add_subdirectory(Diagnostic)
 add_subdirectory(AST)
 add_subdirectory(Parser)
 add_subdirectory(Dialect)

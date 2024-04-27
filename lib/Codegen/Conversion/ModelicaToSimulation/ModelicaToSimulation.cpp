@@ -336,7 +336,7 @@ mlir::LogicalResult ModelicaToSimulationConversionPass::processModelOp(
 
   if (!expectedVariablesFilter) {
     getOperation().emitWarning(
-        "Invalid variable filter string. No filtering will take place");
+        "Invalid variables filter string. No filtering will take place.");
 
     variablesFilterInstance = std::make_unique<marco::VariableFilter>();
   } else {
