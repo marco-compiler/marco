@@ -3,6 +3,7 @@
 
 #include "marco/Parser/Location.h"
 #include <string>
+#include <variant>
 
 namespace llvm
 {
