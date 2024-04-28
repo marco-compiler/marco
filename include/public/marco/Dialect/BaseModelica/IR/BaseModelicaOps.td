@@ -14,6 +14,7 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/Interfaces/RuntimeVerifiableOpInterface.td"
 
 //===---------------------------------------------------------------------===//
 // Type constraints
@@ -2641,7 +2642,8 @@ def Modelica_LinspaceOp : BaseModelica_Op<"linspace",
 }
 
 def Modelica_LogOp : BaseModelica_Op<"log",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Natural (base e) logarithm function.";
 

@@ -895,8 +895,9 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
   }
 
-  pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
-  pm.addPass(mlir::createBaseModelicaToCFConversionPass());
+    pm.addPass(mlir::createGenerateRuntimeVerificationPass());
+    pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
+    pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 
   if (ci.getCodeGenOptions().inlining) {
     // Inline the functions with the 'inline' annotation.
