@@ -948,6 +948,7 @@ namespace marco::frontend
       pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
     }
 
+    pm.addPass(mlir::createGenerateRuntimeVerificationPass());
     pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
     pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 
