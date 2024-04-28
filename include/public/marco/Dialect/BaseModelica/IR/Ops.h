@@ -21,6 +21,7 @@
 #include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/Interfaces/RuntimeVerifiableOpInterface.h"
 
 #define GET_OP_FWD_DEFINES
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.h.inc"

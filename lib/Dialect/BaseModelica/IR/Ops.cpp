@@ -7024,6 +7024,14 @@ namespace mlir::bmodelica
 
     return {};
   }
+  
+  void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
+    // get function argument
+    mlir::Value operand = getOperand();
+    mlir::Value ten = builder.create<ConstantOp>(
+        loc, RealAttr::get(getContext(), 10));
+    emitOpError() << "Stampa" << operand;
+  }
 }
 
 //===---------------------------------------------------------------------===//
