@@ -2,6 +2,8 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
@@ -6751,11 +6753,8 @@ namespace mlir::bmodelica
   }
   
   void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
-    // get function argument
-    mlir::Value operand = getOperand();
-    mlir::Value ten = builder.create<ConstantOp>(
-        loc, RealAttr::get(getContext(), 10));
-    emitOpError() << "Stampa" << operand;
+    builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 34));
   }
 }
 
