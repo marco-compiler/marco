@@ -45,6 +45,9 @@ namespace marco::frontend
   {
     public:
       bool beginSourceFilesAction() override;
+
+    protected:
+      std::string flattened;
   };
 
   class EmitBaseModelicaAction : public PreprocessingAction

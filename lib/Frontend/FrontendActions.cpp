@@ -199,33 +199,40 @@ namespace marco::frontend
 
       if (!buffer) {
         auto& diag = ci.getDiagnostics();
+        auto errorCode = llvm::errorToErrorCode(buffer.takeError());
 
         diag.Report(diag.getCustomDiagID(
             clang::DiagnosticsEngine::Fatal,
-            "Unable to open input file ''")) << tempFile->TmpName;
+            "Unable to open '%0'. %1"))
+            << tempFile->TmpName << errorCode.message();
 
-        llvm::consumeError(buffer.takeError());
         return false;
       }
 
-      // Create a virtual file in the file manager.
+      flattened = buffer->get()->getBuffer().str();
+
+      // Overlay the current file system with an in-memory one containing the
+      // Base Modelica source file.
       auto& fileManager = ci.getFileManager();
-      uint64_t fileSize;
 
-      if (auto ec = llvm::sys::fs::file_size(tempFile->TmpName, fileSize)) {
-        // TODO emit error
-        return false;
-      }
+      auto inMemoryFS =
+          llvm::makeIntrusiveRefCnt<llvm::vfs::InMemoryFileSystem>();
 
-      auto fileRef = fileManager.getVirtualFileRef(
-          tempFile->TmpName, static_cast<off_t>(fileSize), 0);
+      inMemoryFS->addFile(
+          tempFile->TmpName, 0,
+          llvm::MemoryBuffer::getMemBuffer(
+              flattened, tempFile->TmpName, false));
 
-      ci.getSourceManager().createFileID(
-          fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
+      auto overlayFS = llvm::makeIntrusiveRefCnt<llvm::vfs::OverlayFileSystem>(
+          fileManager.getVirtualFileSystemPtr());
 
-      ci.getSourceManager().overrideFileContents(
-          fileRef, std::move(*buffer));
+      overlayFS->pushOverlay(inMemoryFS);
+      fileManager.setVirtualFileSystem(overlayFS);
     }
+
+    setCurrentInputs(io::InputFile(
+        tempFile->TmpName,
+        InputKind(io::Language::BaseModelica, io::Format::Source)));
 
     if (auto ec = tempFile->discard()) {
       auto& diag = ci.getDiagnostics();
@@ -236,10 +243,6 @@ namespace marco::frontend
 
       return false;
     }
-
-    setCurrentInputs(io::InputFile(
-        tempFile->TmpName,
-        InputKind(io::Language::BaseModelica, io::Format::Source)));
 
     return resultCode == EXIT_SUCCESS;
   }
@@ -264,11 +267,21 @@ namespace marco::frontend
         fileManager.getBufferForFile(inputFile));
 
     if (!fileBuffer) {
-      // TODO emit error
+      auto& diags = ci.getDiagnostics();
+      auto errorCode = llvm::errorToErrorCode(fileBuffer.takeError());
+
+      if (inputFile != "-") {
+        diags.Report(clang::diag::err_fe_error_reading)
+            << inputFile << errorCode.message();
+      } else {
+        diags.Report(clang::diag::err_fe_error_reading_stdin)
+            << errorCode.message();
+      }
+
       return;
     }
 
-    *os << fileBuffer->get()->getBuffer();
+    *os << fileBuffer->get()->getBuffer().str();
   }
 
   ASTAction::ASTAction(ASTActionKind action)
@@ -308,9 +321,6 @@ namespace marco::frontend
     }
 
     auto sourceFile = std::make_shared<SourceFile>(inputFile);
-
-    ci.getSourceManager().createFileID(
-        *fileRef, clang::SourceLocation(), clang::SrcMgr::C_User);
 
     auto fileBuffer = fileManager.getBufferForFile(*fileRef);
 
