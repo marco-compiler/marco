@@ -6396,13 +6396,13 @@ mlir::OpFoldResult LogOp::fold(FoldAdaptor adaptor) {
   return {};
 }
   
-void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
+void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc) {
   mlir::Value operand = getOperand();
   mlir::Value cons = builder.create<ConstantOp>(
       loc, IntegerAttr::get(builder.getContext(), 0));
 
-  mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, operand, cons);
-  builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Incompatible dimensions"));
+    mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, operand, cons);
+    builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Invalid argument"));
 }
 } // namespace mlir::bmodelica
 
