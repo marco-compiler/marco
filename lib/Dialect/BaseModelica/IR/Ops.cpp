@@ -7033,7 +7033,7 @@ namespace mlir::bmodelica
         loc, IntegerAttr::get(builder.getContext(), 0));
 
     mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, operand, cons);
-    builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Incompatible dimensions"));
+    builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Invalid argument"));
   }
 }
 
