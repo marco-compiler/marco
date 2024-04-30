@@ -6753,8 +6753,12 @@ namespace mlir::bmodelica
   }
   
   void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
-    builder.create<ConstantOp>(
-        loc, IntegerAttr::get(builder.getContext(), 34));
+    mlir::Value operand = getOperand();
+    mlir::Value cons = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+
+    mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, operand, cons);
+    builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Incompatible dimensions"));
   }
 }
 
