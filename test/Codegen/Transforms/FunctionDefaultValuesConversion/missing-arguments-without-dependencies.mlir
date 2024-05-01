@@ -1,38 +1,38 @@
 // RUN: modelica-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
 
 // CHECK-LABEL: @caller
-// CHECK-DAG: %[[x:.*]] = modelica.constant #modelica.int<0>
-// CHECK-DAG: %[[y:.*]] = modelica.constant #modelica.int<1>
-// CHECK-DAG: %[[z:.*]] = modelica.constant #modelica.int<2>
-// CHECK: modelica.call @missingArguments(%[[x]], %[[y]], %[[z]]) : (!modelica.int, !modelica.int, !modelica.int) -> ()
+// CHECK-DAG: %[[x:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-DAG: %[[y:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-DAG: %[[z:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: bmodelica.call @missingArguments(%[[x]], %[[y]], %[[z]]) : (!bmodelica.int, !bmodelica.int, !bmodelica.int) -> ()
 
-modelica.function @missingArguments {
-    modelica.variable @x : !modelica.variable<!modelica.int, input>
-    modelica.variable @y : !modelica.variable<!modelica.int, input>
-    modelica.variable @z : !modelica.variable<!modelica.int, input>
+bmodelica.function @missingArguments {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.default @y {
-        %0 = modelica.constant #modelica.int<1>
-        modelica.yield %0 : !modelica.int
+    bmodelica.default @y {
+        %0 = bmodelica.constant #bmodelica.int<1>
+        bmodelica.yield %0 : !bmodelica.int
     }
 
-    modelica.default @z {
-        %0 = modelica.constant #modelica.int<2>
-        modelica.yield %0 : !modelica.int
+    bmodelica.default @z {
+        %0 = bmodelica.constant #bmodelica.int<2>
+        bmodelica.yield %0 : !bmodelica.int
     }
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.int
-        %1 = modelica.variable_get @y : !modelica.int
-        %2 = modelica.variable_get @z : !modelica.int
-        modelica.print %0 : !modelica.int
-        modelica.print %1 : !modelica.int
-        modelica.print %2 : !modelica.int
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %1 = bmodelica.variable_get @y : !bmodelica.int
+        %2 = bmodelica.variable_get @z : !bmodelica.int
+        bmodelica.print %0 : !bmodelica.int
+        bmodelica.print %1 : !bmodelica.int
+        bmodelica.print %2 : !bmodelica.int
     }
 }
 
 func.func @caller() {
-    %0 = modelica.constant #modelica.int<0>
-    modelica.call @missingArguments(%0) : (!modelica.int) -> ()
+    %0 = bmodelica.constant #bmodelica.int<0>
+    bmodelica.call @missingArguments(%0) : (!bmodelica.int) -> ()
     func.return
 }

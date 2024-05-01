@@ -1,27 +1,27 @@
 // RUN: modelica-opt %s --split-input-file --create-equation-templates --canonicalize | FileCheck %s
 
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[zero:.*]] = modelica.constant #modelica.int<0>
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[zero]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] {
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]
+// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-// CHECK:       modelica.main_model {
-// CHECK-NEXT:      modelica.equation_instance %[[t0]]
+// CHECK:       bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    modelica.main_model {
-        modelica.equation {
-            %0 = modelica.variable_get @x : !modelica.int
-            %1 = modelica.constant #modelica.int<0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+    bmodelica.main_model {
+        bmodelica.equation {
+            %0 = bmodelica.variable_get @x : !bmodelica.int
+            %1 = bmodelica.constant #bmodelica.int<0>
+            %2 = bmodelica.equation_side %0 : tuple<!bmodelica.int>
+            %3 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+            bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
         }
     }
 }

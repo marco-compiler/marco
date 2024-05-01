@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECT_MODELICA_EXPRESSIONPATH_H
-#define MARCO_DIALECT_MODELICA_EXPRESSIONPATH_H
+#ifndef MARCO_DIALECT_BASEMODELICA_EXPRESSIONPATH_H
+#define MARCO_DIALECT_BASEMODELICA_EXPRESSIONPATH_H
 
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   class ExpressionPath
   {
@@ -51,4 +51,4 @@ namespace mlir::modelica
   };
 }
 
-#endif // MARCO_DIALECT_MODELICA_EXPRESSIONPATH_H
+#endif // MARCO_DIALECT_BASEMODELICA_EXPRESSIONPATH_H

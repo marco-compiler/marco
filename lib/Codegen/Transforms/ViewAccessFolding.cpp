@@ -1,20 +1,20 @@
 #include "marco/Codegen/Transforms/ViewAccessFolding.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_VIEWACCESSFOLDINGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ViewAccessFoldingPass
-      : public mlir::modelica::impl::ViewAccessFoldingPassBase<
+      : public mlir::bmodelica::impl::ViewAccessFoldingPassBase<
             ViewAccessFoldingPass>
   {
     public:
@@ -176,7 +176,7 @@ void ViewAccessFoldingPass::runOnOperation()
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createViewAccessFoldingPass()
   {

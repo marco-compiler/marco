@@ -1,8 +1,8 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   LLVMTypeConverter::LLVMTypeConverter(
       mlir::MLIRContext* context,

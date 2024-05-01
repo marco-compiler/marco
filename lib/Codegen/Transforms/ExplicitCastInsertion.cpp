@@ -1,16 +1,16 @@
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EXPLICITCASTINSERTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static void getArgumentTypes(
     mlir::Operation* function,
@@ -177,7 +177,7 @@ namespace
         auto moduleOp = getOperation();
 
         mlir::ConversionTarget target(getContext());
-        target.addLegalDialect<ModelicaDialect>();
+        target.addLegalDialect<BaseModelicaDialect>();
         target.addLegalDialect<mlir::scf::SCFDialect>();
 
         // Create an instance of the symbol table in order to reduce the cost
@@ -232,7 +232,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass()
   {

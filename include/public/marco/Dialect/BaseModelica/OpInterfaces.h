@@ -1,8 +1,8 @@
-#ifndef MARCO_DIALECTS_MODELICA_OPINTERFACES_H
-#define MARCO_DIALECTS_MODELICA_OPINTERFACES_H
+#ifndef MARCO_DIALECTS_BASEMODELICA_OPINTERFACES_H
+#define MARCO_DIALECTS_BASEMODELICA_OPINTERFACES_H
 
-#include "marco/Dialect/Modelica/Attributes.h"
-#include "marco/Dialect/Modelica/VariableAccess.h"
+#include "marco/Dialect/BaseModelica/Attributes.h"
+#include "marco/Dialect/BaseModelica/VariableAccess.h"
 #include "marco/Modeling/DimensionAccess.h"
 #include "marco/Modeling/DimensionAccessAdd.h"
 #include "marco/Modeling/DimensionAccessConstant.h"
@@ -19,9 +19,9 @@
 #include "mlir/IR/SymbolTable.h"
 
 #define GET_OP_FWD_DEFINES
-#include "marco/Dialect/Modelica/Modelica.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelica.h.inc"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   using DimensionAccess = ::marco::modeling::DimensionAccess;
   using DimensionAccessConstant = ::marco::modeling::DimensionAccessConstant;
@@ -78,6 +78,6 @@ namespace mlir::modelica
   };
 }
 
-#include "marco/Dialect/Modelica/ModelicaOpInterfaces.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaOpInterfaces.h.inc"
 
-#endif // MARCO_DIALECTS_MODELICA_OPINTERFACES_H
+#endif // MARCO_DIALECTS_BASEMODELICA_OPINTERFACES_H

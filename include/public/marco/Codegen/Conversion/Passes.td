@@ -144,7 +144,7 @@ def ModelicaToArithConversionPass : Pass<"convert-modelica-to-arith", "mlir::Mod
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::scf::SCFDialect",
@@ -175,7 +175,7 @@ def ModelicaToCFConversionPass : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
@@ -213,7 +213,7 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
         "mlir::func::FuncDialect",
         "mlir::ida::IDADialect",
         "mlir::LLVM::LLVMDialect",
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::memref::MemRefDialect"
     ];
 
@@ -241,7 +241,7 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::ida::IDADialect",
         "mlir::runtime::RuntimeDialect",
         "mlir::arith::ArithDialect",
@@ -272,7 +272,7 @@ def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::M
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::scf::SCFDialect",
         "mlir::memref::MemRefDialect"
@@ -302,7 +302,7 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::vector::VectorDialect"
     ];
@@ -323,7 +323,7 @@ def ModelicaToRuntimeConversionPass : Pass<"convert-modelica-to-runtime", "mlir:
     let summary = "Modelica: conversion to Runtime dialect";
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::runtime::RuntimeDialect",
         "mlir::func::FuncDialect"
     ];

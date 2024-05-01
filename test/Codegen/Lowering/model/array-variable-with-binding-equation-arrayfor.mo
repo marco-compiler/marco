@@ -1,10 +1,10 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.binding_equation @x {
-// CHECK-DAG:       %[[cst0:.*]] = modelica.constant #modelica.int<1234>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[cst0]] : !modelica.int -> <3x!modelica.real>
-// CHECK-NEXT:      modelica.yield %[[array]]
+// CHECK:       bmodelica.binding_equation @x {
+// CHECK-DAG:       %[[cst0:.*]] = bmodelica.constant #bmodelica.int<1234>
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_broadcast %[[cst0]] : !bmodelica.int -> <3x!bmodelica.real>
+// CHECK-NEXT:      bmodelica.yield %[[array]]
 // CHECK-NEXT:  }
 
 model Test

@@ -3,18 +3,18 @@
 // Binding equation for an array parameter.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[el:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[value:.*]] = modelica.array_broadcast %[[el]]
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[el:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.array_broadcast %[[el]]
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, parameter>
 
-    modelica.binding_equation @x {
-      %0 = modelica.constant #modelica.int<0> : !modelica.int
-      %1 = modelica.array_broadcast %0: !modelica.int -> !modelica.array<3x!modelica.int>
-      modelica.yield %1 : !modelica.array<3x!modelica.int>
+    bmodelica.binding_equation @x {
+      %0 = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+      %1 = bmodelica.array_broadcast %0: !bmodelica.int -> !bmodelica.array<3x!bmodelica.int>
+      bmodelica.yield %1 : !bmodelica.array<3x!bmodelica.int>
     }
 }

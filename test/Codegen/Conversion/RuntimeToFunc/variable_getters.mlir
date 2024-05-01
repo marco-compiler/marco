@@ -19,15 +19,15 @@
 
 
 runtime.variable_getter @getter0() -> f64 {
-    %0 = modelica.constant #modelica.real<0.0>
-    %1 = modelica.cast %0 : !modelica.real -> f64
+    %0 = bmodelica.constant #bmodelica.real<0.0>
+    %1 = bmodelica.cast %0 : !bmodelica.real -> f64
     runtime.return %1 : f64
 }
 
 runtime.variable_getter @getter1(%arg0: index, %arg1: index, %arg2: index) -> f64 {
-    %0 = modelica.alloc : <2x3x4x!modelica.real>
-    %1 = modelica.load %0[%arg0, %arg1, %arg2] : !modelica.array<2x3x4x!modelica.real>
-    %2 = modelica.cast %1 : !modelica.real -> f64
+    %0 = bmodelica.alloc : <2x3x4x!bmodelica.real>
+    %1 = bmodelica.load %0[%arg0, %arg1, %arg2] : !bmodelica.array<2x3x4x!bmodelica.real>
+    %2 = bmodelica.cast %1 : !bmodelica.real -> f64
     runtime.return %2 : f64
 }
 

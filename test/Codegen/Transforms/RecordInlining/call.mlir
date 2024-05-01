@@ -3,56 +3,56 @@
 // Input record.
 
 // CHECK-LABEL: @R
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
 // CHECK-LABEL: @Foo
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real, input>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real, input>
-// CHECK: modelica.variable @s : !modelica.variable<!modelica.real, output>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK: bmodelica.variable @s : !bmodelica.variable<!bmodelica.real, output>
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real>
-// CHECK:       modelica.equation {
-// CHECK-DAG:       %[[zero:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @r.x : !modelica.real
-// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @r.y : !modelica.real
-// CHECK:           %[[call:.*]] = modelica.call @Foo(%[[x]], %[[y]]) : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[call]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[zero]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
+// CHECK:       bmodelica.equation {
+// CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.real
+// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.real
+// CHECK:           %[[call:.*]] = bmodelica.call @Foo(%[[x]], %[[y]]) : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[call]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]
+// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.function @Foo {
-    modelica.variable @r : !modelica.variable<!modelica<record @R>, input>
-    modelica.variable @s : !modelica.variable<!modelica.real, output>
+bmodelica.function @Foo {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>, input>
+    bmodelica.variable @s : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @r : !modelica<record @R>
-        %1 = modelica.component_get %0, @x : !modelica<record @R> -> !modelica.real
-        %2 = modelica.component_get %0, @y : !modelica<record @R> -> !modelica.real
-        %3 = modelica.add %1, %2 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @s, %3 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @r : !bmodelica<record @R>
+        %1 = bmodelica.component_get %0, @x : !bmodelica<record @R> -> !bmodelica.real
+        %2 = bmodelica.component_get %0, @y : !bmodelica<record @R> -> !bmodelica.real
+        %3 = bmodelica.add %1, %2 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @s, %3 : !bmodelica.real
     }
 }
 
-modelica.model @Test {
-    modelica.variable @r : !modelica.variable<!modelica<record @R>>
+bmodelica.model @Test {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    modelica.main_model {
-        modelica.equation {
-            %0 = modelica.variable_get @r : !modelica<record @R>
-            %1 = modelica.call @Foo(%0) : (!modelica<record @R>) -> !modelica.real
-            %2 = modelica.constant #modelica.real<0.0>
-            %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            %4 = modelica.equation_side %2 : tuple<!modelica.real>
-            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
+    bmodelica.main_model {
+        bmodelica.equation {
+            %0 = bmodelica.variable_get @r : !bmodelica<record @R>
+            %1 = bmodelica.call @Foo(%0) : (!bmodelica<record @R>) -> !bmodelica.real
+            %2 = bmodelica.constant #bmodelica.real<0.0>
+            %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
+            %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
+            bmodelica.equation_sides %3, %4 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
         }
     }
 }
@@ -62,63 +62,63 @@ modelica.model @Test {
 // Output record.
 
 // CHECK-LABEL: @R
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
 // CHECK-LABEL: @Foo
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real, input>
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real, output>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real, output>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real, output>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real, output>
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real>
-// CHECK:       modelica.equation {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x : !modelica.real
-// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @y : !modelica.real
-// CHECK:           %[[call:.*]]:2 = modelica.call @Foo(%[[x]], %[[y]]) : (!modelica.real, !modelica.real) -> (!modelica.real, !modelica.real)
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[call]]#0
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[call]]#1
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
+// CHECK:       bmodelica.equation {
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.real
+// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y : !bmodelica.real
+// CHECK:           %[[call:.*]]:2 = bmodelica.call @Foo(%[[x]], %[[y]]) : (!bmodelica.real, !bmodelica.real) -> (!bmodelica.real, !bmodelica.real)
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[call]]#0
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[call]]#1
+// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.function @Foo {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @r : !modelica.variable<!modelica<record @R>, output>
+bmodelica.function @Foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @r : !modelica<record @R>
-        %1 = modelica.variable_get @x : !modelica.real
-        %2 = modelica.variable_get @y : !modelica.real
-        modelica.component_set %0, @x, %1 : !modelica<record @R>, !modelica.real
-        modelica.component_set %0, @y, %2 : !modelica<record @R>, !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @r : !bmodelica<record @R>
+        %1 = bmodelica.variable_get @x : !bmodelica.real
+        %2 = bmodelica.variable_get @y : !bmodelica.real
+        bmodelica.component_set %0, @x, %1 : !bmodelica<record @R>, !bmodelica.real
+        bmodelica.component_set %0, @y, %2 : !bmodelica<record @R>, !bmodelica.real
     }
 }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
-    modelica.variable @r : !modelica.variable<!modelica<record @R>>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    modelica.main_model {
-        modelica.equation {
-            %0 = modelica.variable_get @x : !modelica.real
-            %1 = modelica.variable_get @y : !modelica.real
-            %2 = modelica.call @Foo(%0, %1) : (!modelica.real, !modelica.real) -> !modelica<record @R>
-            %3 = modelica.component_get %2, @x : !modelica<record @R> -> !modelica.real
-            %4 = modelica.component_get %2, @y : !modelica<record @R> -> !modelica.real
-            %5 = modelica.equation_side %3 : tuple<!modelica.real>
-            %6 = modelica.equation_side %4 : tuple<!modelica.real>
-            modelica.equation_sides %5, %6 : tuple<!modelica.real>, tuple<!modelica.real>
+    bmodelica.main_model {
+        bmodelica.equation {
+            %0 = bmodelica.variable_get @x : !bmodelica.real
+            %1 = bmodelica.variable_get @y : !bmodelica.real
+            %2 = bmodelica.call @Foo(%0, %1) : (!bmodelica.real, !bmodelica.real) -> !bmodelica<record @R>
+            %3 = bmodelica.component_get %2, @x : !bmodelica<record @R> -> !bmodelica.real
+            %4 = bmodelica.component_get %2, @y : !bmodelica<record @R> -> !bmodelica.real
+            %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
+            %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
+            bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
         }
     }
 }

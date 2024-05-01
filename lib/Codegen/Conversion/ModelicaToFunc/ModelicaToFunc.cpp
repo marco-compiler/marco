@@ -2,7 +2,7 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/Runtime.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -16,7 +16,7 @@ namespace mlir
 }
 
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 /// Get or declare an LLVM function inside the module.
 static mlir::func::FuncOp getOrDeclareRuntimeFunction(
@@ -3497,7 +3497,7 @@ mlir::LogicalResult ModelicaToFuncConversionPass::convertBuiltInFunctions()
   target.addLegalDialect<mlir::func::FuncDialect>();
   target.addLegalDialect<mlir::memref::MemRefDialect>();
 
-  target.addLegalDialect<ModelicaDialect>();
+  target.addLegalDialect<BaseModelicaDialect>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
     return !isNumeric(op.getBase());
@@ -3541,7 +3541,7 @@ mlir::LogicalResult ModelicaToFuncConversionPass::convertBuiltInFunctions()
   target.addIllegalOp<
       PrintOp>();
 
-  mlir::modelica::TypeConverter typeConverter(bitWidth);
+  mlir::bmodelica::TypeConverter typeConverter(bitWidth);
   mlir::SymbolTableCollection symbolTableCollection;
   mlir::RewritePatternSet patterns(&getContext());
 
@@ -3561,14 +3561,14 @@ mlir::LogicalResult ModelicaToFuncConversionPass::convertRawVariables()
   target.addLegalDialect<mlir::arith::ArithDialect>();
   target.addLegalDialect<mlir::memref::MemRefDialect>();
 
-  target.addLegalDialect<ModelicaDialect>();
+  target.addLegalDialect<BaseModelicaDialect>();
 
   target.addIllegalOp<
       RawVariableOp,
       RawVariableGetOp,
       RawVariableSetOp>();
 
-  mlir::modelica::TypeConverter typeConverter(bitWidth);
+  mlir::bmodelica::TypeConverter typeConverter(bitWidth);
   mlir::RewritePatternSet patterns(&getContext());
 
   patterns.insert<
@@ -3601,7 +3601,7 @@ mlir::LogicalResult ModelicaToFuncConversionPass::convertRawFunctions()
     return true;
   });
 
-  mlir::modelica::TypeConverter typeConverter(bitWidth);
+  mlir::bmodelica::TypeConverter typeConverter(bitWidth);
   mlir::RewritePatternSet patterns(&getContext());
 
   populateModelicaToFuncPatterns(

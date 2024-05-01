@@ -1,13 +1,13 @@
-#ifndef MARCO_DIALECT_MODELICA_VARIABLEACCESS_H
-#define MARCO_DIALECT_MODELICA_VARIABLEACCESS_H
+#ifndef MARCO_DIALECT_BASEMODELICA_VARIABLEACCESS_H
+#define MARCO_DIALECT_BASEMODELICA_VARIABLEACCESS_H
 
-#include "marco/Dialect/Modelica/Common.h"
-#include "marco/Dialect/Modelica/EquationPath.h"
+#include "marco/Dialect/BaseModelica/Common.h"
+#include "marco/Dialect/BaseModelica/EquationPath.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include "mlir/IR/BuiltinAttributes.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   using AccessFunction = ::marco::modeling::AccessFunction;
 
@@ -45,4 +45,4 @@ namespace mlir::modelica
   };
 }
 
-#endif // MARCO_DIALECT_MODELICA_VARIABLEACCESS_H
+#endif // MARCO_DIALECT_BASEMODELICA_VARIABLEACCESS_H

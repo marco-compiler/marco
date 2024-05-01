@@ -1,11 +1,11 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-runtime | FileCheck %s
 
-// CHECK-DAG: modelica.global_variable @[[x:.*]] : !modelica.array<!modelica.int>
-// CHECK-DAG: modelica.global_variable @[[y:.*]] : !modelica.array<3x!modelica.int>
+// CHECK-DAG: bmodelica.global_variable @[[x:.*]] : !bmodelica.array<!bmodelica.int>
+// CHECK-DAG: bmodelica.global_variable @[[y:.*]] : !bmodelica.array<3x!bmodelica.int>
 
 module {
-    modelica.model @Test {
-        modelica.variable @x : !modelica.variable<!modelica.int>
-        modelica.variable @y : !modelica.variable<3x!modelica.int>
+    bmodelica.model @Test {
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
+        bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
     }
 }

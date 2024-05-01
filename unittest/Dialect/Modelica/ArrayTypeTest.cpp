@@ -1,13 +1,13 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 TEST(ArrayType, staticShape)
 {
   mlir::MLIRContext context;
-  context.loadDialect<ModelicaDialect>();
+  context.loadDialect<BaseModelicaDialect>();
 
   mlir::Type elementType = IntegerType::get(&context);
   auto arrayType = ArrayType::get({ 3, 5 }, elementType);
@@ -25,7 +25,7 @@ TEST(ArrayType, staticShape)
 TEST(ArrayType, dynamicShape)
 {
   mlir::MLIRContext context;
-  context.loadDialect<ModelicaDialect>();
+  context.loadDialect<BaseModelicaDialect>();
 
   mlir::Type elementType = IntegerType::get(&context);
   auto arrayType = ArrayType::get({ 3, ArrayType::kDynamic }, elementType);

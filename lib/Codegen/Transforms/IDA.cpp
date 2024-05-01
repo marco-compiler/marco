@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/IDA.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
@@ -12,13 +12,13 @@
 
 #define DEBUG_TYPE "ida"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_IDAPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -170,7 +170,7 @@ namespace
           llvm::DenseMap<VariableOp, size_t>& independentVariablesPos,
           llvm::StringRef templateName);
 
-      mlir::modelica::FunctionOp createPartialDerTemplateFromEquation(
+      mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
           mlir::IRRewriter& rewriter,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
@@ -538,7 +538,7 @@ mlir::sundials::VariableGetterOp IDAInstance::createGetterFunction(
     VariableOp variable,
     llvm::StringRef functionName)
 {
-  return ::mlir::modelica::createGetterFunction(
+  return ::mlir::bmodelica::createGetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
@@ -549,7 +549,7 @@ mlir::sundials::VariableSetterOp IDAInstance::createSetterFunction(
     VariableOp variable,
     llvm::StringRef functionName)
 {
-  return ::mlir::modelica::createSetterFunction(
+  return ::mlir::bmodelica::createSetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
@@ -1792,7 +1792,7 @@ IDAInstance::getDerivedVariable(mlir::SymbolRefAttr derivative) const
 
 namespace
 {
-  class IDAPass : public mlir::modelica::impl::IDAPassBase<IDAPass>
+  class IDAPass : public mlir::bmodelica::impl::IDAPassBase<IDAPass>
   {
     public:
       using IDAPassBase::IDAPassBase;
@@ -2500,7 +2500,7 @@ mlir::LogicalResult IDAPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createIDAPass()
   {

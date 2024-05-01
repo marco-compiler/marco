@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
-// CHECK: modelica.pow_ew %{{.*}}, %{{.*}} : (!modelica.array<3x5x!modelica.int>, !modelica.int) -> !modelica.array<3x5x!modelica.int>
+// CHECK: bmodelica.pow_ew %{{.*}}, %{{.*}} : (!bmodelica.array<3x5x!bmodelica.int>, !bmodelica.int) -> !bmodelica.array<3x5x!bmodelica.int>
 
 function Integers
     input Integer[3,5] x;
@@ -12,7 +12,7 @@ algorithm
 end Integers;
 
 // CHECK-LABEL: @Reals
-// CHECK: modelica.pow_ew %{{.*}}, %{{.*}} : (!modelica.array<3x5x!modelica.real>, !modelica.real) -> !modelica.array<3x5x!modelica.real>
+// CHECK: bmodelica.pow_ew %{{.*}}, %{{.*}} : (!bmodelica.array<3x5x!bmodelica.real>, !bmodelica.real) -> !bmodelica.array<3x5x!bmodelica.real>
 
 function Reals
     input Real[3,5] x;
@@ -23,7 +23,7 @@ algorithm
 end Reals;
 
 // CHECK-LABEL: @IntegerReal
-// CHECK: modelica.pow_ew %{{.*}}, %{{.*}} : (!modelica.array<3x5x!modelica.int>, !modelica.real) -> !modelica.array<3x5x!modelica.real>
+// CHECK: bmodelica.pow_ew %{{.*}}, %{{.*}} : (!bmodelica.array<3x5x!bmodelica.int>, !bmodelica.real) -> !bmodelica.array<3x5x!bmodelica.real>
 
 function IntegerReal
     input Integer[3,5] x;
@@ -34,7 +34,7 @@ algorithm
 end IntegerReal;
 
 // CHECK-LABEL: @RealInteger
-// CHECK: modelica.pow_ew %{{.*}}, %{{.*}} : (!modelica.array<3x5x!modelica.real>, !modelica.int) -> !modelica.array<3x5x!modelica.real>
+// CHECK: bmodelica.pow_ew %{{.*}}, %{{.*}} : (!bmodelica.array<3x5x!bmodelica.real>, !bmodelica.int) -> !bmodelica.array<3x5x!bmodelica.real>
 
 function RealInteger
     input Real[3,5] x;

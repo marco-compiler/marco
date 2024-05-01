@@ -14,10 +14,10 @@ def AccessReplacementTestPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createAccessReplacementTestPass()";
+    let constructor = "mlir::bmodelica::createAccessReplacementTestPass()";
 }
 
 def ArrayDeallocationPass : Pass<"array-deallocation", "mlir::ModuleOp">
@@ -29,10 +29,10 @@ def ArrayDeallocationPass : Pass<"array-deallocation", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createArrayDeallocationPass()";
+    let constructor = "mlir::bmodelica::createArrayDeallocationPass()";
 }
 
 def AutomaticDifferentiationPass : Pass<"auto-diff", "mlir::ModuleOp">
@@ -44,10 +44,10 @@ def AutomaticDifferentiationPass : Pass<"auto-diff", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createAutomaticDifferentiationPass()";
+    let constructor = "mlir::bmodelica::createAutomaticDifferentiationPass()";
 }
 
 def BindingEquationConversionPass
@@ -60,10 +60,10 @@ def BindingEquationConversionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createBindingEquationConversionPass()";
+    let constructor = "mlir::bmodelica::createBindingEquationConversionPass()";
 }
 
 def DerivativesAllocationPass
@@ -76,10 +76,10 @@ def DerivativesAllocationPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createDerivativesAllocationPass()";
+    let constructor = "mlir::bmodelica::createDerivativesAllocationPass()";
 }
 
 def EquationAccessSplitPass
@@ -93,10 +93,10 @@ def EquationAccessSplitPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createEquationAccessSplitPass()";
+    let constructor = "mlir::bmodelica::createEquationAccessSplitPass()";
 }
 
 def SingleValuedInductionEliminationPass
@@ -110,32 +110,32 @@ def SingleValuedInductionEliminationPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
     let constructor =
-        "mlir::modelica::createSingleValuedInductionEliminationPass()";
+        "mlir::bmodelica::createSingleValuedInductionEliminationPass()";
 }
 
 def EquationSidesSplitPass
     : Pass<"split-equation-sides", "ModelOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createEquationSidesSplitPass()";
+    let constructor = "mlir::bmodelica::createEquationSidesSplitPass()";
 }
 
 def EquationInductionsExplicitationPass
     : Pass<"explicitate-equation-inductions", "ModelOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
     let constructor =
-        "mlir::modelica::createEquationInductionsExplicitationPass()";
+        "mlir::bmodelica::createEquationInductionsExplicitationPass()";
 }
 
 def FunctionDefaultValuesConversionPass
@@ -150,20 +150,20 @@ def FunctionDefaultValuesConversionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
     let constructor =
-        "mlir::modelica::createFunctionDefaultValuesConversionPass()";
+        "mlir::bmodelica::createFunctionDefaultValuesConversionPass()";
 }
 
 def ViewAccessFoldingPass : Pass<"fold-view-accesses", "ModelOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createViewAccessFoldingPass()";
+    let constructor = "mlir::bmodelica::createViewAccessFoldingPass()";
 }
 
 def EquationTemplatesCreationPass
@@ -177,10 +177,10 @@ def EquationTemplatesCreationPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createEquationTemplatesCreationPass()";
+    let constructor = "mlir::bmodelica::createEquationTemplatesCreationPass()";
 }
 
 def ExplicitCastInsertionPass
@@ -193,11 +193,11 @@ def ExplicitCastInsertionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::scf::SCFDialect"
     ];
 
-    let constructor = "mlir::modelica::createExplicitCastInsertionPass()";
+    let constructor = "mlir::bmodelica::createExplicitCastInsertionPass()";
 }
 
 def ExplicitInitialEquationsInsertionPass
@@ -211,11 +211,11 @@ def ExplicitInitialEquationsInsertionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
     let constructor =
-        "mlir::modelica::createExplicitInitialEquationsInsertionPass()";
+        "mlir::bmodelica::createExplicitInitialEquationsInsertionPass()";
 }
 
 def ExplicitStartValueInsertionPass
@@ -228,20 +228,20 @@ def ExplicitStartValueInsertionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
     let constructor =
-        "mlir::modelica::createExplicitStartValueInsertionPass()";
+        "mlir::bmodelica::createExplicitStartValueInsertionPass()";
 }
 
 def FunctionUnwrapPass : Pass<"function-unwrap", "mlir::ModuleOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createFunctionUnwrapPass()";
+    let constructor = "mlir::bmodelica::createFunctionUnwrapPass()";
 }
 
 def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
@@ -253,7 +253,7 @@ def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::scf::SCFDialect"
@@ -264,7 +264,7 @@ def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
                "Enable the runtime assertions">,
     ];
 
-  let constructor = "mlir::modelica::createFunctionScalarizationPass()";
+  let constructor = "mlir::bmodelica::createFunctionScalarizationPass()";
 }
 
 def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp">
@@ -276,10 +276,10 @@ def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createFunctionInliningPass()";
+    let constructor = "mlir::bmodelica::createFunctionInliningPass()";
 }
 
 def RangeBoundariesInferencePass : Pass<"infer-range-boundaries", "mlir::ModuleOp">
@@ -291,10 +291,10 @@ def RangeBoundariesInferencePass : Pass<"infer-range-boundaries", "mlir::ModuleO
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createRangeBoundariesInferencePass()";
+    let constructor = "mlir::bmodelica::createRangeBoundariesInferencePass()";
 }
 
 def RecordInliningPass : Pass<"inline-records", "mlir::ModuleOp">
@@ -306,10 +306,10 @@ def RecordInliningPass : Pass<"inline-records", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createRecordInliningPass()";
+    let constructor = "mlir::bmodelica::createRecordInliningPass()";
 }
 
 def ModelAlgorithmConversionPass
@@ -322,10 +322,10 @@ def ModelAlgorithmConversionPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::modelica::createModelAlgorithmConversionPass()";
+    let constructor = "mlir::bmodelica::createModelAlgorithmConversionPass()";
 }
 
 def MatchingPass : Pass<"match", "ModelOp">
@@ -337,7 +337,7 @@ def MatchingPass : Pass<"match", "ModelOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
     let options = [
@@ -346,7 +346,7 @@ def MatchingPass : Pass<"match", "ModelOp">
                "Enable the usage of the simplification algorithm">
     ];
 
-    let constructor = "mlir::modelica::createMatchingPass()";
+    let constructor = "mlir::bmodelica::createMatchingPass()";
 }
 
 def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "ModelOp">
@@ -358,10 +358,10 @@ def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "ModelOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createVariablesPromotionPass()";
+    let constructor = "mlir::bmodelica::createVariablesPromotionPass()";
 }
 
 def ReadOnlyVariablesPropagationPass
@@ -375,7 +375,7 @@ def ReadOnlyVariablesPropagationPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
     let options = [
@@ -385,7 +385,7 @@ def ReadOnlyVariablesPropagationPass
                "List of comma-separated variables that must not be propagated">
     ];
 
-    let constructor = "mlir::modelica::createReadOnlyVariablesPropagationPass()";
+    let constructor = "mlir::bmodelica::createReadOnlyVariablesPropagationPass()";
 }
 
 def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
@@ -393,10 +393,10 @@ def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
     let summary = "Compute the SCCs of a model";
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createSCCDetectionPass()";
+    let constructor = "mlir::bmodelica::createSCCDetectionPass()";
 }
 
 def SCCSolvingBySubstitutionPass : Pass<"scc-solving-substitution", "ModelOp">
@@ -408,7 +408,7 @@ def SCCSolvingBySubstitutionPass : Pass<"scc-solving-substitution", "ModelOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
     let options = [
@@ -416,7 +416,7 @@ def SCCSolvingBySubstitutionPass : Pass<"scc-solving-substitution", "ModelOp">
                "Set the maximum number of iterations">
     ];
 
-    let constructor = "mlir::modelica::createSCCSolvingBySubstitutionPass()";
+    let constructor = "mlir::bmodelica::createSCCSolvingBySubstitutionPass()";
 }
 
 def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
@@ -428,7 +428,7 @@ def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::kinsol::KINSOLDialect",
         "mlir::runtime::RuntimeDialect"
     ];
@@ -442,16 +442,16 @@ def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
                "Insert the information for runtime debugging">
     ];
 
-    let constructor = "mlir::modelica::createSCCSolvingWithKINSOLPass()";
+    let constructor = "mlir::bmodelica::createSCCSolvingWithKINSOLPass()";
 }
 
 def SCCAbsenceVerificationPass : Pass<"scc-absence-verification", "mlir::ModuleOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createSCCAbsenceVerificationPass()";
+    let constructor = "mlir::bmodelica::createSCCAbsenceVerificationPass()";
 }
 
 def SchedulingPass : Pass<"schedule", "ModelOp">
@@ -463,16 +463,16 @@ def SchedulingPass : Pass<"schedule", "ModelOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createSchedulingPass()";
+    let constructor = "mlir::bmodelica::createSchedulingPass()";
 }
 
 def ScheduleParallelizationPass : Pass<"schedule-parallelization", "ModelOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
     let options = [
@@ -481,18 +481,18 @@ def ScheduleParallelizationPass : Pass<"schedule-parallelization", "ModelOp">
     ];
 
     let constructor =
-        "mlir::modelica::createScheduleParallelizationPass()";
+        "mlir::bmodelica::createScheduleParallelizationPass()";
 }
 
 def SchedulersInstantiationPass
     : Pass<"schedulers-instantiation", "mlir::ModuleOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::runtime::RuntimeDialect"
     ];
 
-    let constructor = "mlir::modelica::createSchedulersInstantiationPass()";
+    let constructor = "mlir::bmodelica::createSchedulersInstantiationPass()";
 }
 
 def EquationExplicitationPass
@@ -505,12 +505,12 @@ def EquationExplicitationPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::arith::ArithDialect",
         "mlir::scf::SCFDialect"
     ];
 
-    let constructor = "mlir::modelica::createEquationExplicitationPass()";
+    let constructor = "mlir::bmodelica::createEquationExplicitationPass()";
 }
 
 def EquationFunctionLoopHoistingPass
@@ -523,10 +523,10 @@ def EquationFunctionLoopHoistingPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createEquationFunctionLoopHoistingPass()";
+    let constructor = "mlir::bmodelica::createEquationFunctionLoopHoistingPass()";
 }
 
 def EquationExplicitationTestPass
@@ -540,20 +540,20 @@ def EquationExplicitationTestPass
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createEquationExplicitationTestPass()";
+    let constructor = "mlir::bmodelica::createEquationExplicitationTestPass()";
 }
 
 def InitialConditionsSolvingPass
     : Pass<"solve-initial-conditions", "mlir::ModuleOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createInitialConditionsSolvingPass()";
+    let constructor = "mlir::bmodelica::createInitialConditionsSolvingPass()";
 }
 
 def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
@@ -565,12 +565,12 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::runtime::RuntimeDialect",
         "mlir::scf::SCFDialect"
     ];
 
-    let constructor = "mlir::modelica::createEulerForwardPass()";
+    let constructor = "mlir::bmodelica::createEulerForwardPass()";
 }
 
 def IDAPass : Pass<"ida", "mlir::ModuleOp">
@@ -582,7 +582,7 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
+        "mlir::bmodelica::BaseModelicaDialect",
         "mlir::ida::IDADialect",
         "mlir::runtime::RuntimeDialect"
     ];
@@ -598,7 +598,7 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
                "Insert the information for runtime debugging">
     ];
 
-    let constructor = "mlir::modelica::createIDAPass()";
+    let constructor = "mlir::bmodelica::createIDAPass()";
 }
 
 def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp">
@@ -610,10 +610,10 @@ def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createNegateOpDistributionPass()";
+    let constructor = "mlir::bmodelica::createNegateOpDistributionPass()";
 }
 
 def MulOpDistributionPass : Pass<"distribute-mul", "mlir::ModuleOp">
@@ -625,10 +625,10 @@ def MulOpDistributionPass : Pass<"distribute-mul", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createMulOpDistributionPass()";
+    let constructor = "mlir::bmodelica::createMulOpDistributionPass()";
 }
 
 def DivOpDistributionPass : Pass<"distribute-div", "mlir::ModuleOp">
@@ -640,19 +640,19 @@ def DivOpDistributionPass : Pass<"distribute-div", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createDivOpDistributionPass()";
+    let constructor = "mlir::bmodelica::createDivOpDistributionPass()";
 }
 
 def ModelDebugCanonicalizationPass : Pass<"canonicalize-model-for-debug", "ModelOp">
 {
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::bmodelica::BaseModelicaDialect"
     ];
 
-    let constructor = "mlir::modelica::createModelDebugCanonicalizationPass()";
+    let constructor = "mlir::bmodelica::createModelDebugCanonicalizationPass()";
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_PASSES_TD

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/Matching.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
@@ -9,19 +9,19 @@
 
 #define DEBUG_TYPE "matching"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_MATCHINGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
 namespace
 {
   class MatchingPass
-      : public mlir::modelica::impl::MatchingPassBase<MatchingPass>,
+      : public mlir::bmodelica::impl::MatchingPassBase<MatchingPass>,
         public VariableAccessAnalysis::AnalysisProvider
   {
     public:
@@ -332,7 +332,7 @@ mlir::LogicalResult MatchingPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createMatchingPass()
   {

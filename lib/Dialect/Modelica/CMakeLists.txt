@@ -1,4 +1,4 @@
-add_mlir_dialect_library(MLIRModelica
+add_mlir_dialect_library(MLIRBaseModelica
     Attributes.cpp
     AttrInterfaces.cpp
     DefaultValuesDependencyGraph.cpp
@@ -14,7 +14,7 @@ add_mlir_dialect_library(MLIRModelica
     VariablesDimensionsDependencyGraph.cpp
 
     DEPENDS
-    MLIRModelicaIncGen
+    MLIRBaseModelicaIncGen
 
     LINK_COMPONENTS
     Core

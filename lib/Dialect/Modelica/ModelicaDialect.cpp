@@ -1,10 +1,10 @@
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Interfaces/FoldInterfaces.h"
 #include "mlir/Transforms/InliningUtils.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-#include "marco/Dialect/Modelica/ModelicaDialect.cpp.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.cpp.inc"
 
 namespace
 {
@@ -214,20 +214,20 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   //===-------------------------------------------------------------------===//
   // Modelica dialect
   //===-------------------------------------------------------------------===//
 
-  void ModelicaDialect::initialize()
+  void BaseModelicaDialect::initialize()
   {
     registerTypes();
     registerAttributes();
 
     addOperations<
       #define GET_OP_LIST
-      #include "marco/Dialect/Modelica/Modelica.cpp.inc"
+      #include "marco/Dialect/BaseModelica/BaseModelica.cpp.inc"
         >();
 
     addInterfaces<
@@ -267,7 +267,7 @@ namespace mlir::modelica
         ConstantMaterializableBuiltinFloatModel<Float128Type>>(*getContext());
   }
 
-  Operation* ModelicaDialect::materializeConstant(
+  Operation* BaseModelicaDialect::materializeConstant(
       mlir::OpBuilder& builder,
       mlir::Attribute value,
       mlir::Type type,
@@ -278,7 +278,7 @@ namespace mlir::modelica
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
   {
@@ -817,7 +817,7 @@ namespace
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult getWritesMap(
       WritesMap<VariableOp, StartEquationInstanceOp>& writesMap,

@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/ModelAlgorithmConversion.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_MODELALGORITHMCONVERSIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -340,7 +340,7 @@ namespace
 namespace
 {
   class ModelAlgorithmConversionPass
-      : public mlir::modelica::impl::ModelAlgorithmConversionPassBase<
+      : public mlir::bmodelica::impl::ModelAlgorithmConversionPassBase<
             ModelAlgorithmConversionPass>
   {
     public:
@@ -379,7 +379,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createModelAlgorithmConversionPass()
   {

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/FunctionInlining.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/GraphTraits.h"
@@ -7,13 +7,13 @@
 #include "llvm/ADT/SCCIterator.h"
 #include <set>
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_FUNCTIONINLININGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -819,7 +819,7 @@ class FunctionInliner : public mlir::OpRewritePattern<CallOp>
 namespace
 {
   class FunctionInliningPass
-      : public mlir::modelica::impl::FunctionInliningPassBase<
+      : public mlir::bmodelica::impl::FunctionInliningPassBase<
             FunctionInliningPass>
   {
     public:
@@ -931,7 +931,7 @@ void FunctionInliningPass::collectGraphEdges(
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createFunctionInliningPass()
   {

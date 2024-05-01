@@ -3,22 +3,22 @@
 // Binding equation for a scalar variable.
 
 // CHECK-LABEL: @Test
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
-// CHECK-DAG:       %[[lhsValue:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[rhsValue:.*]] = modelica.constant #modelica.int<0>
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[lhsValue]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] {
+// CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.variable_get @x
+// CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.main_model {
-// CHECK-NEXT:      modelica.equation_instance %[[t0]]
+// CHECK:       bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    modelica.binding_equation @x {
-      %0 = modelica.constant #modelica.int<0> : !modelica.int
-      modelica.yield %0 : !modelica.int
+    bmodelica.binding_equation @x {
+      %0 = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+      bmodelica.yield %0 : !bmodelica.int
     }
 }

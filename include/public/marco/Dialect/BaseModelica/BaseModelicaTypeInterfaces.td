@@ -1,20 +1,20 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICATYPEINTERFACES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICATYPEINTERFACES_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICATYPEINTERFACES_TD
+#define MARCO_DIALECTS_BASEMODELICA_MODELICATYPEINTERFACES_TD
 
-include "marco/Dialect/Modelica/ModelicaDialect.td"
+include "marco/Dialect/BaseModelica/BaseModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
 // Modelica type interface definitions
 //===---------------------------------------------------------------------===//
 
-class Modelica_TypeInterface<string name>
+class BaseModelica_TypeInterface<string name>
     : TypeInterface<name>
 {
-    let cppNamespace = "::mlir::modelica";
+    let cppNamespace = "::mlir::bmodelica";
 }
 
-def ElementaryType : Modelica_TypeInterface<"ElementaryType">
+def ElementaryType : BaseModelica_TypeInterface<"ElementaryType">
 {
     let description = [{
         Interface for an elementary type.
@@ -22,7 +22,7 @@ def ElementaryType : Modelica_TypeInterface<"ElementaryType">
 }
 
 def ConstantMaterializableType
-    : Modelica_TypeInterface<"ConstantMaterializableType">
+    : BaseModelica_TypeInterface<"ConstantMaterializableType">
 {
     let description = [{
         Interface for a type for which a constant can be materialized.
@@ -50,7 +50,7 @@ def ConstantMaterializableType
     ];
 }
 
-def IterableTypeInterface : Modelica_TypeInterface<"IterableTypeInterface">
+def IterableTypeInterface : BaseModelica_TypeInterface<"IterableTypeInterface">
 {
     let description = [{
         Interface for an iterable type.
@@ -64,4 +64,4 @@ def IterableTypeInterface : Modelica_TypeInterface<"IterableTypeInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICATYPEINTERFACES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICATYPEINTERFACES_TD

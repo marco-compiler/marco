@@ -1,9 +1,9 @@
 #include "marco/Codegen/Transforms/Modeling/SCCBridge.h"
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   SCCBridge::SCCBridge(
       SCCOp op,
@@ -54,12 +54,12 @@ namespace marco::modeling::dependency
   std::vector<SCCTraits<SCCBridge*>::ElementRef>
   SCCTraits<SCCBridge*>::getElements(const SCC* scc)
   {
-    mlir::modelica::SCCOp sccOp = (*scc)->op;
+    mlir::bmodelica::SCCOp sccOp = (*scc)->op;
     const auto& equationsMap = (*scc)->equationsMap;
     std::vector<ElementRef> result;
 
-    for (mlir::modelica::MatchedEquationInstanceOp equation :
-         sccOp.getOps<mlir::modelica::MatchedEquationInstanceOp>()) {
+    for (mlir::bmodelica::MatchedEquationInstanceOp equation :
+         sccOp.getOps<mlir::bmodelica::MatchedEquationInstanceOp>()) {
       ElementRef equationPtr = equationsMap->lookup(equation);
       assert(equationPtr && "Equation bridge not found");
       result.push_back(equationPtr);
@@ -89,7 +89,7 @@ namespace marco::modeling::dependency
       return {};
     }
 
-    llvm::SmallVector<mlir::modelica::VariableAccess> readAccesses;
+    llvm::SmallVector<mlir::bmodelica::VariableAccess> readAccesses;
 
     if (mlir::failed(equation->op.getReadAccesses(
             readAccesses, symbolTableCollection, *accesses))) {
@@ -98,16 +98,16 @@ namespace marco::modeling::dependency
     }
 
     IndexSet equationIndices = equation->op.getIterationSpace();
-    auto modelOp = (*scc)->op->getParentOfType<mlir::modelica::ModelOp>();
+    auto modelOp = (*scc)->op->getParentOfType<mlir::bmodelica::ModelOp>();
     const auto& matchedEqsWritesMap = *(*scc)->matchedEqsWritesMap;
     const auto& startEqsWritesMap = *(*scc)->startEqsWritesMap;
     const auto& equationsMap = *(*scc)->equationsMap;
 
     std::vector<ElementRef> result;
 
-    for (const mlir::modelica::VariableAccess& readAccess : readAccesses) {
+    for (const mlir::bmodelica::VariableAccess& readAccess : readAccesses) {
       auto variableOp =
-          symbolTableCollection.lookupSymbolIn<mlir::modelica::VariableOp>(
+          symbolTableCollection.lookupSymbolIn<mlir::bmodelica::VariableOp>(
               modelOp, readAccess.getVariable());
 
       assert(variableOp && "Variable not found");
@@ -162,7 +162,7 @@ namespace marco::modeling::dependency
     for (StartEquationInstanceOp startEquation : startEquations) {
       IndexSet startEquationIndices = startEquation.getIterationSpace();
 
-      llvm::SmallVector<mlir::modelica::VariableAccess, 10> startEqAccesses;
+      llvm::SmallVector<mlir::bmodelica::VariableAccess, 10> startEqAccesses;
 
       if (mlir::failed(startEquation.getAccesses(
               startEqAccesses, symbolTableCollection))) {
@@ -170,7 +170,7 @@ namespace marco::modeling::dependency
         return {};
       }
 
-      llvm::SmallVector<mlir::modelica::VariableAccess, 10> startEqReads;
+      llvm::SmallVector<mlir::bmodelica::VariableAccess, 10> startEqReads;
 
       if (mlir::failed(startEquation.getReadAccesses(
               startEqReads, symbolTableCollection, startEqAccesses))) {
@@ -180,7 +180,7 @@ namespace marco::modeling::dependency
 
       for (const auto& startEqRead : startEqReads) {
         auto readVariableOp =
-            symbolTableCollection.lookupSymbolIn<mlir::modelica::VariableOp>(
+            symbolTableCollection.lookupSymbolIn<mlir::bmodelica::VariableOp>(
                 modelOp, startEqRead.getVariable());
 
         assert(readVariableOp != nullptr);

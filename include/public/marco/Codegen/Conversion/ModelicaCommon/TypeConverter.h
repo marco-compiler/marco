@@ -2,12 +2,12 @@
 #define MARCO_CODEGEN_CONVERSION_MODELICACOMMON_TYPECONVERTER_H
 
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 	class TypeConverter : public mlir::TypeConverter
   {
@@ -15,13 +15,13 @@ namespace mlir::modelica
       TypeConverter(unsigned int bitWidth);
 
     private:
-      mlir::Type convertBooleanType(mlir::modelica::BooleanType type);
-      mlir::Type convertIntegerType(mlir::modelica::IntegerType type);
-      mlir::Type convertRealType(mlir::modelica::RealType type);
-      mlir::Type convertArrayType(mlir::modelica::ArrayType type);
+      mlir::Type convertBooleanType(mlir::bmodelica::BooleanType type);
+      mlir::Type convertIntegerType(mlir::bmodelica::IntegerType type);
+      mlir::Type convertRealType(mlir::bmodelica::RealType type);
+      mlir::Type convertArrayType(mlir::bmodelica::ArrayType type);
 
       mlir::Type convertUnrankedArrayType(
-          mlir::modelica::UnrankedArrayType type);
+          mlir::bmodelica::UnrankedArrayType type);
 
     private:
 		  unsigned int bitWidth;

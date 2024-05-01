@@ -8,12 +8,12 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_conversion_library(MLIRModelicaToLLVM
+add_mlir_conversion_library(MLIRBaseModelicaToLLVM
     ${SOURCES}
 
     DEPENDS
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    MLIRModelicaCommonConversion
+    MLIRBaseModelicaCommonConversion
     ${MLIR_LIBS})

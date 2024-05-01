@@ -15,13 +15,13 @@ runtime.deinit_function {
 // Non-empty function.
 
 // CHECK:       func.func @deinit() {
-// CHECK:           %[[cst:.*]] = modelica.constant #modelica.int<0>
-// CHECK:           modelica.print %[[cst]]
+// CHECK:           %[[cst:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK:           bmodelica.print %[[cst]]
 // CHECK:           return
 // CHECK-NEXT:  }
 
 runtime.deinit_function {
-    %0 = modelica.constant #modelica.int<0>
-    modelica.print %0 : !modelica.int
+    %0 = bmodelica.constant #bmodelica.int<0>
+    bmodelica.print %0 : !bmodelica.int
     runtime.yield
 }

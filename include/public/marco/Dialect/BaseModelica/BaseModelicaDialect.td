@@ -1,21 +1,21 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD
-#define MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_BASEMODELICADIALECT_TD
+#define MARCO_DIALECTS_BASEMODELICA_BASEMODELICADIALECT_TD
 
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
-// Modelica dialect
+// Base Modelica dialect
 //===----------------------------------------------------------------------===//
 
-def Modelica_Dialect : Dialect {
-    let name = "modelica";
-    let summary = "MLIR Modelica dialect.";
+def BaseModelica_Dialect : Dialect {
+    let name = "bmodelica";
+    let summary = "MLIR Base Modelica dialect.";
 
     let description = [{
         MLIR Modelica dialect.
     }];
 
-    let cppNamespace = "::mlir::modelica";
+    let cppNamespace = "::mlir::bmodelica";
     let hasConstantMaterializer = 1;
     let useDefaultAttributePrinterParser = 1;
     let useDefaultTypePrinterParser = 1;
@@ -30,4 +30,4 @@ def Modelica_Dialect : Dialect {
     }];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_BASEMODELICADIALECT_TD

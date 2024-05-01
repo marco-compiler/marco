@@ -1,17 +1,17 @@
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Conversion/Passes.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_FUNCTIONSCALARIZATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static unsigned int getVectorizationRank(
     VectorizableOpInterface op, mlir::SymbolTableCollection& symbolTable)
@@ -245,7 +245,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createFunctionScalarizationPass()
   {

@@ -1,11 +1,11 @@
-#ifndef MARCO_DIALECTS_MODELICA_TYPES_H
-#define MARCO_DIALECTS_MODELICA_TYPES_H
+#ifndef MARCO_DIALECTS_BASEMODELICA_TYPES_H
+#define MARCO_DIALECTS_BASEMODELICA_TYPES_H
 
-#include "marco/Dialect/Modelica/TypeInterfaces.h"
+#include "marco/Dialect/BaseModelica/TypeInterfaces.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Types.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   enum class VariabilityProperty
   {
@@ -66,9 +66,9 @@ namespace mlir::modelica
 }
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/Modelica/ModelicaTypes.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaTypes.h.inc"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   //===-------------------------------------------------------------------===//
   // ArrayType
@@ -206,7 +206,7 @@ namespace mlir::modelica
   };
 }
 
-namespace mlir::modelica::detail
+namespace mlir::bmodelica::detail
 {
   /// Checks if the memorySpace has supported Attribute type.
   bool isSupportedMemorySpace(mlir::Attribute memorySpace);
@@ -215,4 +215,4 @@ namespace mlir::modelica::detail
   mlir::Attribute skipDefaultMemorySpace(mlir::Attribute memorySpace);
 }
 
-#endif // MARCO_DIALECTS_MODELICA_TYPES_H
+#endif // MARCO_DIALECTS_BASEMODELICA_TYPES_H

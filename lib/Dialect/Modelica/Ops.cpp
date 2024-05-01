@@ -1,5 +1,5 @@
- #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Dialect/Modelica/Ops.h"
+ #include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/Ops.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -10,7 +10,7 @@
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
@@ -90,7 +90,7 @@ static void printExpression(
 }
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Modelica/Modelica.cpp.inc"
+#include "marco/Dialect/BaseModelica/BaseModelica.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // Iteration space operations
@@ -99,7 +99,7 @@ static void printExpression(
 //===---------------------------------------------------------------------===//
 // RangeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult RangeOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -209,7 +209,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RangeBeginOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor)
   {
@@ -243,7 +243,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RangeEndOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor)
   {
@@ -277,7 +277,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RangeStepOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor)
   {
@@ -311,7 +311,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RangeSizeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult RangeSizeOp::fold(FoldAdaptor adaptor)
   {
@@ -353,7 +353,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AllocaOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult AllocaOp::verify()
   {
@@ -415,7 +415,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AllocOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult AllocOp::verify()
   {
@@ -505,7 +505,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ArrayFromElementsOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult ArrayFromElementsOp::verify()
   {
@@ -653,7 +653,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ArrayBroadcastOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ArrayBroadcastOp::getEffects(
       mlir::SmallVectorImpl<
@@ -733,7 +733,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // FreeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void FreeOp::getEffects(
       mlir::SmallVectorImpl<
@@ -750,7 +750,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ArrayCastOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ArrayCastOp::printExpression(
       llvm::raw_ostream& os,
@@ -830,7 +830,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void DimOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
@@ -906,7 +906,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult LoadOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -1088,7 +1088,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // StoreOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult StoreOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -1289,7 +1289,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void SubscriptionOp::build(
       mlir::OpBuilder& builder,
@@ -1447,7 +1447,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ArrayFillOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ArrayFillOp::getEffects(
       mlir::SmallVectorImpl<
@@ -1464,7 +1464,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ArrayCopyOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ArrayCopyOp::getEffects(
       mlir::SmallVectorImpl<
@@ -1490,7 +1490,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // VariableOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void VariableOp::build(
       mlir::OpBuilder& builder,
@@ -1733,7 +1733,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // VariableGetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void VariableGetOp::build(
       mlir::OpBuilder& builder,
@@ -1862,7 +1862,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // VariableSetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void VariableSetOp::build(
       mlir::OpBuilder& builder,
@@ -1941,7 +1941,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ComponentGetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult ComponentGetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
@@ -1954,7 +1954,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ComponentSetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult ComponentSetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
@@ -1967,7 +1967,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // GlobalVariableOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void GlobalVariableOp::build(
       mlir::OpBuilder& builder,
@@ -1991,7 +1991,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // GlobalVariableGetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void GlobalVariableGetOp::build(
       mlir::OpBuilder& builder,
@@ -2035,7 +2035,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // QualifiedVariableGetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void QualifiedVariableGetOp::build(
       mlir::OpBuilder& builder,
@@ -2076,7 +2076,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 //QualifiedVariableSetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void QualifiedVariableSetOp::build(
       mlir::OpBuilder& builder,
@@ -2121,7 +2121,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ConstantOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult ConstantOp::fold(FoldAdaptor adaptor)
   {
@@ -2211,7 +2211,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // NegateOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult NegateOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -2531,7 +2531,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult AddOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -3028,7 +3028,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AddEWOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult AddEWOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -3452,7 +3452,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SubOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult SubOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -3944,7 +3944,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SubEWOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult SubEWOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -4372,7 +4372,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // MulOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult MulOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -4853,7 +4853,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // MulEWOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult MulEWOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -5315,7 +5315,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DivOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult DivOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -5753,7 +5753,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DivEWOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult DivEWOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6208,7 +6208,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // PowOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult PowOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6431,7 +6431,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // PowEWOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult PowEWOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6680,7 +6680,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EqOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult EqOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6766,7 +6766,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // NotEqOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult NotEqOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6852,7 +6852,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // GtOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult GtOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -6938,7 +6938,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // GteOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult GteOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7024,7 +7024,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // LtOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult LtOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7110,7 +7110,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // LteOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult LteOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7200,7 +7200,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // NotOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult NotOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7319,7 +7319,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AndOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult AndOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7493,7 +7493,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // OrOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult OrOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7667,7 +7667,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SelectOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult SelectOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -7863,7 +7863,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AbsOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult AbsOp::fold(FoldAdaptor adaptor)
   {
@@ -7973,7 +7973,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AcosOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult AcosOp::fold(FoldAdaptor adaptor)
   {
@@ -8131,7 +8131,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AsinOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult AsinOp::fold(FoldAdaptor adaptor)
   {
@@ -8287,7 +8287,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AtanOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult AtanOp::fold(FoldAdaptor adaptor)
   {
@@ -8443,7 +8443,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // Atan2Op
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void Atan2Op::getEffects(
       mlir::SmallVectorImpl<
@@ -8596,7 +8596,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // CeilOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult CeilOp::fold(FoldAdaptor adaptor)
   {
@@ -8706,7 +8706,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // CosOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult CosOp::fold(FoldAdaptor adaptor)
   {
@@ -8853,7 +8853,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // CoshOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult CoshOp::fold(FoldAdaptor adaptor)
   {
@@ -8997,7 +8997,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DiagonalOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void DiagonalOp::getEffects(
       mlir::SmallVectorImpl<
@@ -9044,7 +9044,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DivTruncOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult DivTruncOp::fold(FoldAdaptor adaptor)
   {
@@ -9101,7 +9101,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ExpOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult ExpOp::fold(FoldAdaptor adaptor)
   {
@@ -9244,7 +9244,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // FillOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void FillOp::getEffects(
       mlir::SmallVectorImpl<
@@ -9286,7 +9286,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // FloorOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult FloorOp::fold(FoldAdaptor adaptor)
   {
@@ -9396,7 +9396,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // IdentityOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void IdentityOp::getEffects(
       mlir::SmallVectorImpl<
@@ -9438,7 +9438,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // IntegerOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult IntegerOp::fold(FoldAdaptor adaptor)
   {
@@ -9548,7 +9548,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // LinspaceOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void LinspaceOp::getEffects(
       mlir::SmallVectorImpl<
@@ -9594,7 +9594,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // LogOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult LogOp::fold(FoldAdaptor adaptor)
   {
@@ -9737,7 +9737,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // Log10Op
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult Log10Op::fold(FoldAdaptor adaptor)
   {
@@ -9889,7 +9889,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // MaxOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult MaxOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -10118,7 +10118,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // MinOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult MinOp::inferReturnTypes(
       mlir::MLIRContext* context,
@@ -10347,7 +10347,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ModOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult ModOp::fold(FoldAdaptor adaptor)
   {
@@ -10416,7 +10416,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // NDimsOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void NDimsOp::printExpression(
       llvm::raw_ostream& os,
@@ -10431,7 +10431,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // OnesOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void OnesOp::getEffects(
       mlir::SmallVectorImpl<
@@ -10477,7 +10477,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ProductOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ProductOp::getEffects(
       mlir::SmallVectorImpl<
@@ -10514,7 +10514,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RemOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult RemOp::fold(FoldAdaptor adaptor)
   {
@@ -10571,7 +10571,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SignOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult SignOp::fold(FoldAdaptor adaptor)
   {
@@ -10693,7 +10693,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SinOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult SinOp::fold(FoldAdaptor adaptor)
   {
@@ -10835,7 +10835,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SinhOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult SinhOp::fold(FoldAdaptor adaptor)
   {
@@ -10979,7 +10979,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SizeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult SizeOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -11115,7 +11115,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SqrtOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult SqrtOp::fold(FoldAdaptor adaptor)
   {
@@ -11266,7 +11266,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SumOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void SumOp::getEffects(
       mlir::SmallVectorImpl<
@@ -11303,7 +11303,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SymmetricOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void SymmetricOp::getEffects(
       mlir::SmallVectorImpl<
@@ -11350,7 +11350,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // TanOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult TanOp::fold(FoldAdaptor adaptor)
   {
@@ -11501,7 +11501,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // TanhOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult TanhOp::fold(FoldAdaptor adaptor)
   {
@@ -11650,7 +11650,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // TransposeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void TransposeOp::getEffects(
       mlir::SmallVectorImpl<
@@ -11701,7 +11701,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ZerosOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ZerosOp::getEffects(
       mlir::SmallVectorImpl<
@@ -11747,7 +11747,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ReductionOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult ReductionOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -11985,7 +11985,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // PackageOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void PackageOp::build(
       mlir::OpBuilder& builder,
@@ -12111,7 +12111,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ModelOp::build(
       mlir::OpBuilder& builder,
@@ -12190,7 +12190,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // OperatorRecordOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void OperatorRecordOp::build(
       mlir::OpBuilder& builder,
@@ -12255,7 +12255,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // StartOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableOp StartOp::getVariableOp(mlir::SymbolTableCollection& symbolTable)
   {
@@ -12312,7 +12312,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DefaultOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableOp DefaultOp::getVariableOp(mlir::SymbolTableCollection& symbolTable)
   {
@@ -12324,7 +12324,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DerOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void DerOp::printExpression(
       llvm::raw_ostream& os,
@@ -12339,7 +12339,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // TimeOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void TimeOp::printExpression(
       llvm::raw_ostream& os,
@@ -12352,7 +12352,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // BindingEquationOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableOp BindingEquationOp::getVariableOp(
       mlir::SymbolTableCollection& symbolTable)
@@ -12385,7 +12385,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ForEquationOp::build(
       mlir::OpBuilder& builder,
@@ -12511,7 +12511,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult EquationTemplateOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -14268,7 +14268,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EquationFunctionOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult EquationFunctionOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -14364,7 +14364,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void InitialModelOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
@@ -14403,7 +14403,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void MainModelOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
@@ -14422,7 +14422,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // StartEquationInstanceOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void StartEquationInstanceOp::build(
       mlir::OpBuilder& builder,
@@ -14533,7 +14533,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // EquationInstanceOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void EquationInstanceOp::build(
       mlir::OpBuilder& builder,
@@ -14669,7 +14669,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // MatchedEquationInstanceOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void MatchedEquationInstanceOp::build(
       mlir::OpBuilder& builder,
@@ -14919,7 +14919,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // SCCGroupOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::RegionKind SCCGroupOp::getRegionKind(unsigned index)
   {
@@ -14957,7 +14957,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void SCCOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
@@ -14974,7 +14974,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ScheduledEquationInstanceOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ScheduledEquationInstanceOp::build(
       mlir::OpBuilder& builder,
@@ -15270,7 +15270,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult EquationSideOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -15315,7 +15315,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // AssignmentOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void AssignmentOp::getEffects(
       mlir::SmallVectorImpl<
@@ -15371,7 +15371,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // FunctionOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes()
   {
@@ -15437,7 +15437,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // DerFunctionOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult DerFunctionOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -15470,7 +15470,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RawFunctionOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   RawFunctionOp RawFunctionOp::create(
       mlir::Location location,
@@ -15663,7 +15663,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RawReturnOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::LogicalResult RawReturnOp::verify() {
     auto function = cast<RawFunctionOp>((*this)->getParentOp());
@@ -15694,7 +15694,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RawVariableOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult RawVariableOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -15820,7 +15820,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RawVariableGetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableType RawVariableGetOp::getVariableType()
   {
@@ -15831,7 +15831,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RawVariableSetOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableType RawVariableSetOp::getVariableType()
   {
@@ -15842,7 +15842,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // CallOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void CallOp::build(
       mlir::OpBuilder& builder,
@@ -16264,7 +16264,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ScheduleOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void ScheduleOp::collectSCCGroups(
       llvm::SmallVectorImpl<SCCGroupOp>& SCCGroups)
@@ -16285,7 +16285,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // RunScheduleOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void RunScheduleOp::build(
       mlir::OpBuilder& builder,
@@ -16342,7 +16342,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // ForOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   llvm::SmallVector<mlir::Region*> ForOp::getLoopRegions()
   {
@@ -16477,7 +16477,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // IfOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void IfOp::build(
       mlir::OpBuilder& builder,
@@ -16585,7 +16585,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // WhileOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::ParseResult WhileOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -16659,7 +16659,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // CastOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::OpFoldResult CastOp::fold(FoldAdaptor adaptor)
   {
@@ -16723,7 +16723,7 @@ namespace mlir::modelica
 //===---------------------------------------------------------------------===//
 // PrintOp
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   void PrintOp::getEffects(
       mlir::SmallVectorImpl<

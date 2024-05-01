@@ -1,20 +1,20 @@
 #include "marco/Codegen/Transforms/SingleValuedInductionElimination.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SINGLEVALUEDINDUCTIONELIMINATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class SingleValuedInductionEliminationPass
-      : public mlir::modelica::impl::SingleValuedInductionEliminationPassBase<
+      : public mlir::bmodelica::impl::SingleValuedInductionEliminationPassBase<
             SingleValuedInductionEliminationPass>
   {
     public:
@@ -120,7 +120,7 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
 EquationTemplateOp
 SingleValuedInductionEliminationPass::createReducedTemplate(
     mlir::RewriterBase& rewriter,
-    mlir::modelica::EquationTemplateOp templateOp,
+    mlir::bmodelica::EquationTemplateOp templateOp,
     const MultidimensionalRange& indices,
     const llvm::SmallBitVector& singleValuedInductions)
 {
@@ -169,7 +169,7 @@ SingleValuedInductionEliminationPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSingleValuedInductionEliminationPass()
   {

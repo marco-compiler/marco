@@ -3,7 +3,7 @@
 
 #include "mlir/IR/IRMapping.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   /// Compose the full derivative member name according to the derivative
   /// order. If the order is 1, then it is omitted.

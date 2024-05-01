@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_REFERENCE_H
 #define MARCO_CODEGEN_LOWERING_REFERENCE_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/Builders.h"
 #include <memory>
 

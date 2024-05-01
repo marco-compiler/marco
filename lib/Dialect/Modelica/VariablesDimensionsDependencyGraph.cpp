@@ -1,8 +1,8 @@
-#include "marco/Dialect/Modelica/VariablesDimensionsDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/VariablesDimensionsDependencyGraph.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::set<llvm::StringRef>
   VariablesDimensionsDependencyGraph::getDependencies(VariableOp variable)

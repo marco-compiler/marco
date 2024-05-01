@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/VariablesPromotion.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Modeling/Dependency.h"
@@ -7,18 +7,18 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_VARIABLESPROMOTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class VariablesPromotionPass
-      : public mlir::modelica::impl::VariablesPromotionPassBase<
+      : public mlir::bmodelica::impl::VariablesPromotionPassBase<
           VariablesPromotionPass>,
         public VariableAccessAnalysis::AnalysisProvider
   {
@@ -708,7 +708,7 @@ VariablesPromotionPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createVariablesPromotionPass()
   {

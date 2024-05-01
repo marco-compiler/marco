@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -14,7 +14,7 @@ namespace mlir
 }
 
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {

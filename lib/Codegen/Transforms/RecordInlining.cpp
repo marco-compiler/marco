@@ -1,15 +1,15 @@
 #include "marco/Codegen/Transforms/RecordInlining.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_RECORDINLININGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static std::string getComposedComponentName(
     llvm::StringRef record, llvm::StringRef component)
@@ -1097,7 +1097,7 @@ namespace
 namespace
 {
   class RecordInliningPass
-      : public mlir::modelica::impl::RecordInliningPassBase<
+      : public mlir::bmodelica::impl::RecordInliningPassBase<
             RecordInliningPass>
   {
     public:
@@ -1182,7 +1182,7 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps()
   return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createRecordInliningPass()
   {

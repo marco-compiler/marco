@@ -3,16 +3,16 @@
 // Binding equation for a scalar parameter.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<0> : !modelica.int
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int, parameter>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, parameter>
 
-    modelica.binding_equation @x {
-      %0 = modelica.constant #modelica.int<0> : !modelica.int
-      modelica.yield %0 : !modelica.int
+    bmodelica.binding_equation @x {
+      %0 = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+      bmodelica.yield %0 : !bmodelica.int
     }
 }

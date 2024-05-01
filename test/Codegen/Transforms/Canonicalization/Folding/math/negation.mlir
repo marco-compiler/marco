@@ -3,13 +3,13 @@
 // Integer operand.
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.int<-3>
+// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica.int<-3>
 // CHECK-NEXT: return %[[cst]]
 
-func.func @test() -> (!modelica.int) {
-    %x = modelica.constant #modelica.int<3>
-    %result = modelica.neg %x: !modelica.int -> !modelica.int
-    return %result : !modelica.int
+func.func @test() -> (!bmodelica.int) {
+    %x = bmodelica.constant #bmodelica.int<3>
+    %result = bmodelica.neg %x: !bmodelica.int -> !bmodelica.int
+    return %result : !bmodelica.int
 }
 
 // -----
@@ -17,13 +17,13 @@ func.func @test() -> (!modelica.int) {
 // Real operand.
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = modelica.constant #modelica.real<-3.000000e+00>
+// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica.real<-3.000000e+00>
 // CHECK-NEXT: return %[[cst]]
 
-func.func @test() -> (!modelica.real) {
-    %x = modelica.constant #modelica.real<3.0>
-    %result = modelica.neg %x : !modelica.real -> !modelica.real
-    return %result : !modelica.real
+func.func @test() -> (!bmodelica.real) {
+    %x = bmodelica.constant #bmodelica.real<3.0>
+    %result = bmodelica.neg %x : !bmodelica.real -> !bmodelica.real
+    return %result : !bmodelica.real
 }
 
 // -----
@@ -31,12 +31,12 @@ func.func @test() -> (!modelica.real) {
 // MLIR index operand.
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = modelica.constant -3 : index
+// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3 : index
 // CHECK-NEXT: return %[[cst]]
 
 func.func @test() -> (index) {
-    %x = modelica.constant 3 : index
-    %result = modelica.neg %x : index -> index
+    %x = bmodelica.constant 3 : index
+    %result = bmodelica.neg %x : index -> index
     return %result : index
 }
 
@@ -45,12 +45,12 @@ func.func @test() -> (index) {
 // MLIR integer operand.
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = modelica.constant -3 : i64
+// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3 : i64
 // CHECK-NEXT: return %[[cst]]
 
 func.func @test() -> (i64) {
-    %x = modelica.constant 3 : i64
-    %result = modelica.neg %x : i64 -> i64
+    %x = bmodelica.constant 3 : i64
+    %result = bmodelica.neg %x : i64 -> i64
     return %result : i64
 }
 
@@ -59,11 +59,11 @@ func.func @test() -> (i64) {
 // MLIR float operand.
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = modelica.constant -3.000000e+00 : f64
+// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3.000000e+00 : f64
 // CHECK-NEXT: return %[[cst]]
 
 func.func @test() -> (f64) {
-    %x = modelica.constant 3.0 : f64
-    %result = modelica.neg %x : f64 -> f64
+    %x = bmodelica.constant 3.0 : f64
+    %result = bmodelica.neg %x : f64 -> f64
     return %result : f64
 }

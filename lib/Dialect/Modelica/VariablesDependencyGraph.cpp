@@ -1,10 +1,10 @@
-#include "marco/Dialect/Modelica/VariablesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/VariablesDependencyGraph.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariablesDependencyGraph::Node::Node()
       : graph(nullptr), variable(nullptr)

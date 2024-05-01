@@ -1,8 +1,8 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICATYPES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICATYPES_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICATYPES_TD
+#define MARCO_DIALECTS_BASEMODELICA_MODELICATYPES_TD
 
-include "marco/Dialect/Modelica/ModelicaDialect.td"
-include "marco/Dialect/Modelica/ModelicaTypeInterfaces.td"
+include "marco/Dialect/BaseModelica/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/BaseModelicaTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 
@@ -15,7 +15,7 @@ class Modelica_Type<
     string typeName,
     list<Trait> traits = [],
     string baseCppClass = "::mlir::Type">
-    : TypeDef<Modelica_Dialect, typeName, traits, baseCppClass>
+    : TypeDef<BaseModelica_Dialect, typeName, traits, baseCppClass>
 {
     let mnemonic = ?;
 }
@@ -304,4 +304,4 @@ def RangeType : Modelica_Type<"Range", [IterableTypeInterface]>
     let assemblyFormat = "$inductionType";
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICATYPES_TD

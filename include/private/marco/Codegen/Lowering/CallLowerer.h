@@ -28,26 +28,26 @@ namespace marco::codegen::lowering
       mlir::Value lowerArg(const ast::Expression& expression);
 
       void getCustomFunctionInputVariables(
-          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
-          mlir::modelica::FunctionOp functionOp);
+          llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
+          mlir::bmodelica::FunctionOp functionOp);
 
       void getCustomFunctionInputVariables(
-          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
-          mlir::modelica::DerFunctionOp derFunctionOp);
+          llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
+          mlir::bmodelica::DerFunctionOp derFunctionOp);
 
       void lowerCustomFunctionArgs(
           const ast::Call& call,
-          llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
+          llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
           llvm::SmallVectorImpl<std::string>& argNames,
           llvm::SmallVectorImpl<mlir::Value>& argValues);
 
       void getRecordConstructorInputVariables(
-          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
-          mlir::modelica::RecordOp recordOp);
+          llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
+          mlir::bmodelica::RecordOp recordOp);
 
       void lowerRecordConstructorArgs(
           const ast::Call& call,
-          llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
+          llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
           llvm::SmallVectorImpl<std::string>& argNames,
           llvm::SmallVectorImpl<mlir::Value>& argValues);
 

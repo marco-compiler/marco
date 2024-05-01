@@ -1,9 +1,9 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<5>
-// CHECK-NEXT:      modelica.yield %[[value]] : !modelica.int
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<5>
+// CHECK-NEXT:      bmodelica.yield %[[value]] : !bmodelica.int
 // CHECK-NEXT:  } {each = false, fixed = false}
 
 model Test

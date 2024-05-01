@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Dialect/Modelica/DefaultValuesDependencyGraph.h"
-#include "marco/Dialect/Modelica/VariablesDimensionsDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/DefaultValuesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/VariablesDimensionsDependencyGraph.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -20,7 +20,7 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static bool canBePromoted(ArrayType arrayType)
 {

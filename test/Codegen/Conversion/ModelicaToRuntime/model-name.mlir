@@ -2,6 +2,6 @@
 
 // CHECK: runtime.model_name "Test"
 
-modelica.model @Test {
+bmodelica.model @Test {
 
 }

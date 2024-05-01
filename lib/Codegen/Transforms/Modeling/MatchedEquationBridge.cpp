@@ -1,9 +1,9 @@
 #include "marco/Codegen/Transforms/Modeling/MatchedEquationBridge.h"
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   MatchedEquationBridge::MatchedEquationBridge(
       MatchedEquationInstanceOp op,

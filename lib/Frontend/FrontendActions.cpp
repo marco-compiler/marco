@@ -548,7 +548,7 @@ namespace marco::frontend
 
     // Register the custom dialects.
     mlirDialectRegistry.insert<mlir::modeling::ModelingDialect>();
-    mlirDialectRegistry.insert<mlir::modelica::ModelicaDialect>();
+    mlirDialectRegistry.insert<mlir::bmodelica::BaseModelicaDialect>();
     mlirDialectRegistry.insert<mlir::ida::IDADialect>();
     mlirDialectRegistry.insert<mlir::runtime::RuntimeDialect>();
   }
@@ -581,7 +581,7 @@ namespace marco::frontend
         });
 
     // Load dialects.
-    mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
+    mlirContext->loadDialect<mlir::bmodelica::BaseModelicaDialect>();
     mlirContext->loadDialect<mlir::DLTIDialect>();
     mlirContext->loadDialect<mlir::LLVM::LLVMDialect>();
   }
@@ -837,128 +837,128 @@ namespace marco::frontend
       pm.addPass(mlir::createCanonicalizerPass());
     }
 
-    pm.addPass(mlir::modelica::createAutomaticDifferentiationPass());
+    pm.addPass(mlir::bmodelica::createAutomaticDifferentiationPass());
 
     // Inline the functions marked as "inlinable", in order to enable
     // simplifications for the model solving process.
-    pm.addPass(mlir::modelica::createFunctionInliningPass());
+    pm.addPass(mlir::bmodelica::createFunctionInliningPass());
 
-    pm.addPass(mlir::modelica::createRecordInliningPass());
-    pm.addPass(mlir::modelica::createFunctionUnwrapPass());
+    pm.addPass(mlir::bmodelica::createRecordInliningPass());
+    pm.addPass(mlir::bmodelica::createFunctionUnwrapPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     // Infer the range boundaries for subscriptions.
-    pm.addPass(mlir::modelica::createRangeBoundariesInferencePass());
+    pm.addPass(mlir::bmodelica::createRangeBoundariesInferencePass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     // Make the equations having only one element on its left and right-hand
     // sides.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationSidesSplitPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createEquationSidesSplitPass());
 
     // Add additional inductions in case of equalities between arrays.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationInductionsExplicitationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createEquationInductionsExplicitationPass());
 
     // Fold accesses operating on views.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createViewAccessFoldingPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createViewAccessFoldingPass());
 
     // Lift the equations.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationTemplatesCreationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createEquationTemplatesCreationPass());
 
     // Handle the derivatives.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createDerivativesAllocationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createDerivativesAllocationPass());
 
     // Legalize the model.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createBindingEquationConversionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createBindingEquationConversionPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createExplicitStartValueInsertionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createExplicitStartValueInsertionPass());
 
-    pm.addPass(mlir::modelica::createModelAlgorithmConversionPass());
+    pm.addPass(mlir::bmodelica::createModelAlgorithmConversionPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createExplicitInitialEquationsInsertionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
 
     // Solve the model.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createMatchingPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createMatchingPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createEquationAccessSplitPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createEquationAccessSplitPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSingleValuedInductionEliminationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createSingleValuedInductionEliminationPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSCCDetectionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createSCCDetectionPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createVariablesPromotionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createVariablesPromotionPass());
 
     // Try to solve the cycles by substitution.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSCCSolvingBySubstitutionPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createSCCSolvingBySubstitutionPass());
 
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSingleValuedInductionEliminationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createSingleValuedInductionEliminationPass());
 
     // Apply the selected solver.
     pm.addPass(
         llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
             ci.getSimulationOptions().solver)
-            .Case("euler-forward", mlir::modelica::createEulerForwardPass())
+            .Case("euler-forward", mlir::bmodelica::createEulerForwardPass())
             .Case("ida", createMLIRIDAPass())
-            .Default(mlir::modelica::createEulerForwardPass()));
+            .Default(mlir::bmodelica::createEulerForwardPass()));
 
     // Solve the initial conditions model.
-    pm.addPass(mlir::modelica::createInitialConditionsSolvingPass());
+    pm.addPass(mlir::bmodelica::createInitialConditionsSolvingPass());
 
     // Schedule the equations.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createSchedulingPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createSchedulingPass());
 
     // Explicitate the equations.
-    pm.addPass(mlir::modelica::createEquationExplicitationPass());
+    pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
 
     // Lift loop-independent code from loops of equations.
-    pm.addNestedPass<mlir::modelica::EquationFunctionOp>(
-        mlir::modelica::createEquationFunctionLoopHoistingPass());
+    pm.addNestedPass<mlir::bmodelica::EquationFunctionOp>(
+        mlir::bmodelica::createEquationFunctionLoopHoistingPass());
 
     // Export the unsolved SCCs to KINSOL.
-    pm.addPass(mlir::modelica::createSCCSolvingWithKINSOLPass());
+    pm.addPass(mlir::bmodelica::createSCCSolvingWithKINSOLPass());
 
     // Parallelize the scheduled blocks.
-    pm.addNestedPass<mlir::modelica::ModelOp>(
-        mlir::modelica::createScheduleParallelizationPass());
+    pm.addNestedPass<mlir::bmodelica::ModelOp>(
+        mlir::bmodelica::createScheduleParallelizationPass());
 
     if (ci.getCodeGenOptions().equationsRuntimeScheduling) {
       // Delegate the calls to the equation functions to the runtime library.
-      pm.addPass(mlir::modelica::createSchedulersInstantiationPass());
+      pm.addPass(mlir::bmodelica::createSchedulersInstantiationPass());
     }
 
     // Check that no SCC is left unsolved.
-    pm.addPass(mlir::modelica::createSCCAbsenceVerificationPass());
+    pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
 
     pm.addPass(createMLIRModelicaToRuntimeConversionPass());
 
     pm.addPass(createMLIRFunctionScalarizationPass());
-    pm.addPass(mlir::modelica::createExplicitCastInsertionPass());
+    pm.addPass(mlir::bmodelica::createExplicitCastInsertionPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     if (ci.getCodeGenOptions().cse) {
-      pm.addNestedPass<mlir::modelica::FunctionOp>(
+      pm.addNestedPass<mlir::bmodelica::FunctionOp>(
           mlir::createCSEPass());
 
       pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
     }
 
-    pm.addPass(mlir::modelica::createFunctionDefaultValuesConversionPass());
-    pm.addPass(mlir::modelica::createArrayDeallocationPass());
+    pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
+    pm.addPass(mlir::bmodelica::createArrayDeallocationPass());
     pm.addPass(createMLIRModelicaToCFConversionPass());
 
     if (ci.getCodeGenOptions().inlining) {
@@ -1032,10 +1032,10 @@ namespace marco::frontend
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::modelica::FunctionScalarizationPassOptions options;
+    mlir::bmodelica::FunctionScalarizationPassOptions options;
     options.assertions = ci.getCodeGenOptions().assertions;
 
-    return mlir::modelica::createFunctionScalarizationPass(options);
+    return mlir::bmodelica::createFunctionScalarizationPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
@@ -1043,23 +1043,23 @@ namespace marco::frontend
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::modelica::ReadOnlyVariablesPropagationPassOptions options;
+    mlir::bmodelica::ReadOnlyVariablesPropagationPassOptions options;
     options.modelName = ci.getSimulationOptions().modelName;
 
-    return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
+    return mlir::bmodelica::createReadOnlyVariablesPropagationPass(options);
   }
 
   std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRIDAPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::modelica::IDAPassOptions options;
+    mlir::bmodelica::IDAPassOptions options;
     options.reducedSystem = ci.getSimulationOptions().IDAReducedSystem;
     options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
     options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
     options.debugInformation = ci.getCodeGenOptions().debug;
 
-    return mlir::modelica::createIDAPass(options);
+    return mlir::bmodelica::createIDAPass(options);
   }
 
   std::unique_ptr<mlir::Pass>

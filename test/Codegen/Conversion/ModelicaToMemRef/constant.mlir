@@ -4,12 +4,12 @@
 
 // CHECK-LABEL: @boolean1DArray
 // CHECK: %[[global_get:.*]] = memref.get_global @[[global]] : memref<2xi1>
-// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xi1> to !modelica.array<2x!modelica.bool>
+// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xi1> to !bmodelica.array<2x!bmodelica.bool>
 // CHECK: return %[[cast]]
 
-func.func @boolean1DArray() -> !modelica.array<2x!modelica.bool> {
-    %0 = modelica.constant #modelica.bool_array<[false, true]> : !modelica.array<2x!modelica.bool>
-    func.return %0 : !modelica.array<2x!modelica.bool>
+func.func @boolean1DArray() -> !bmodelica.array<2x!bmodelica.bool> {
+    %0 = bmodelica.constant #bmodelica.bool_array<[false, true]> : !bmodelica.array<2x!bmodelica.bool>
+    func.return %0 : !bmodelica.array<2x!bmodelica.bool>
 }
 
 // -----
@@ -18,12 +18,12 @@ func.func @boolean1DArray() -> !modelica.array<2x!modelica.bool> {
 
 // CHECK-LABEL: @integer1DArray
 // CHECK: %[[global_get:.*]] = memref.get_global @[[global]] : memref<2xi64>
-// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xi64> to !modelica.array<2x!modelica.int>
+// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xi64> to !bmodelica.array<2x!bmodelica.int>
 // CHECK: return %[[cast]]
 
-func.func @integer1DArray() -> !modelica.array<2x!modelica.int> {
-    %0 = modelica.constant #modelica.int_array<[1, 2]> : !modelica.array<2x!modelica.int>
-    func.return %0 : !modelica.array<2x!modelica.int>
+func.func @integer1DArray() -> !bmodelica.array<2x!bmodelica.int> {
+    %0 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    func.return %0 : !bmodelica.array<2x!bmodelica.int>
 }
 
 // -----
@@ -32,12 +32,12 @@ func.func @integer1DArray() -> !modelica.array<2x!modelica.int> {
 
 // CHECK-LABEL: @real1DArray
 // CHECK: %[[global_get:.*]] = memref.get_global @[[global]] : memref<2xf64>
-// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xf64> to !modelica.array<2x!modelica.real>
+// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2xf64> to !bmodelica.array<2x!bmodelica.real>
 // CHECK: return %[[cast]]
 
-func.func @real1DArray() -> !modelica.array<2x!modelica.real> {
-    %0 = modelica.constant #modelica.real_array<[1.0, 2.0]> : !modelica.array<2x!modelica.real>
-    func.return %0 : !modelica.array<2x!modelica.real>
+func.func @real1DArray() -> !bmodelica.array<2x!bmodelica.real> {
+    %0 = bmodelica.constant #bmodelica.real_array<[1.0, 2.0]> : !bmodelica.array<2x!bmodelica.real>
+    func.return %0 : !bmodelica.array<2x!bmodelica.real>
 }
 
 // -----
@@ -47,12 +47,12 @@ func.func @real1DArray() -> !modelica.array<2x!modelica.real> {
 
 // CHECK-LABEL: @integer3DArray
 // CHECK: %[[global_get:.*]] = memref.get_global @[[global]] : memref<2x3x4xi64>
-// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2x3x4xi64> to !modelica.array<2x3x4x!modelica.int>
+// CHECK: %[[cast:.*]] = builtin.unrealized_conversion_cast %[[global_get]] : memref<2x3x4xi64> to !bmodelica.array<2x3x4x!bmodelica.int>
 // CHECK: return %[[cast]]
 
-func.func @integer3DArray() -> !modelica.array<2x3x4x!modelica.int> {
-    %0 = modelica.constant #modelica.int_array<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]> : !modelica.array<2x3x4x!modelica.int>
-    func.return %0 : !modelica.array<2x3x4x!modelica.int>
+func.func @integer3DArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
+    %0 = bmodelica.constant #bmodelica.int_array<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]> : !bmodelica.array<2x3x4x!bmodelica.int>
+    func.return %0 : !bmodelica.array<2x3x4x!bmodelica.int>
 }
 
 // -----
@@ -61,13 +61,13 @@ func.func @integer3DArray() -> !modelica.array<2x3x4x!modelica.int> {
 
 // CHECK-LABEL: @sameValue
 // CHECK: %[[global_get_1:.*]] = memref.get_global @[[global]] : memref<2xi64>
-// CHECK: %[[cast_1:.*]] = builtin.unrealized_conversion_cast %[[global_get_1]] : memref<2xi64> to !modelica.array<2x!modelica.int>
+// CHECK: %[[cast_1:.*]] = builtin.unrealized_conversion_cast %[[global_get_1]] : memref<2xi64> to !bmodelica.array<2x!bmodelica.int>
 // CHECK: %[[global_get_2:.*]] = memref.get_global @[[global]] : memref<2xi64>
-// CHECK: %[[cast_2:.*]] = builtin.unrealized_conversion_cast %[[global_get_2]] : memref<2xi64> to !modelica.array<2x!modelica.int>
+// CHECK: %[[cast_2:.*]] = builtin.unrealized_conversion_cast %[[global_get_2]] : memref<2xi64> to !bmodelica.array<2x!bmodelica.int>
 // CHECK: return %[[cast_1]], %[[cast_2]]
 
-func.func @sameValue() -> (!modelica.array<2x!modelica.int>, !modelica.array<2x!modelica.int>) {
-    %0 = modelica.constant #modelica.int_array<[1, 2]> : !modelica.array<2x!modelica.int>
-    %1 = modelica.constant #modelica.int_array<[1, 2]> : !modelica.array<2x!modelica.int>
-    func.return %0, %1 : !modelica.array<2x!modelica.int>, !modelica.array<2x!modelica.int>
+func.func @sameValue() -> (!bmodelica.array<2x!bmodelica.int>, !bmodelica.array<2x!bmodelica.int>) {
+    %0 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    %1 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    func.return %0, %1 : !bmodelica.array<2x!bmodelica.int>, !bmodelica.array<2x!bmodelica.int>
 }

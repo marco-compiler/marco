@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @inputBooleanScalar
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.bool, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
 
 function inputBooleanScalar
     input Boolean x;
@@ -10,7 +10,7 @@ end inputBooleanScalar;
 
 
 // CHECK-LABEL: @inputIntegerScalar
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.int, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 
 function inputIntegerScalar
     input Integer x;
@@ -19,7 +19,7 @@ end inputIntegerScalar;
 
 
 // CHECK-LABEL: @inputRealScalar
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
 
 function inputRealScalar
     input Real x;
@@ -28,7 +28,7 @@ end inputRealScalar;
 
 
 // CHECK-LABEL: @inputBooleanStaticArray
-// CHECK: modelica.variable @x : !modelica.variable<3x2x!modelica.bool, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.bool, input>
 
 function inputBooleanStaticArray
     input Boolean[3,2] x;
@@ -37,7 +37,7 @@ end inputBooleanStaticArray;
 
 
 // CHECK-LABEL: @inputBooleanDynamicArray
-// CHECK: modelica.variable @x : !modelica.variable<?x?x!modelica.bool, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<?x?x!bmodelica.bool, input>
 
 function inputBooleanDynamicArray
     input Boolean[:,:] x;
@@ -46,8 +46,8 @@ end inputBooleanDynamicArray;
 
 
 // CHECK-LABEL: @inputIntegerStaticArray
-// CHECK: modelica.variable @x
-// CHECK-SAME: !modelica.variable<3x2x!modelica.int, input>
+// CHECK: bmodelica.variable @x
+// CHECK-SAME: !bmodelica.variable<3x2x!bmodelica.int, input>
 
 function inputIntegerStaticArray
     input Integer[3,2] x;
@@ -56,8 +56,8 @@ end inputIntegerStaticArray;
 
 
 // CHECK-LABEL: @inputIntegerDynamicArray
-// CHECK: modelica.variable @x
-// CHECK-SAME: !modelica.variable<?x?x!modelica.int, input>
+// CHECK: bmodelica.variable @x
+// CHECK-SAME: !bmodelica.variable<?x?x!bmodelica.int, input>
 
 function inputIntegerDynamicArray
     input Integer[:,:] x;
@@ -66,7 +66,7 @@ end inputIntegerDynamicArray;
 
 
 // CHECK-LABEL: @inputRealStaticArray
-// CHECK: modelica.variable @x : !modelica.variable<3x2x!modelica.real, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.real, input>
 
 function inputRealStaticArray
     input Real[3,2] x;
@@ -75,7 +75,7 @@ end inputRealStaticArray;
 
 
 // CHECK-LABEL: @inputRealDynamicArray
-// CHECK: modelica.variable @x : !modelica.variable<?x?x!modelica.real, input>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<?x?x!bmodelica.real, input>
 
 function inputRealDynamicArray
     input Real[:,:] x;

@@ -1,29 +1,29 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real>
-// CHECK:       modelica.default @r.x {
-// CHECK-NEXT:      %[[x:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      modelica.yield %[[x]]
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
+// CHECK:       bmodelica.default @r.x {
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-NEXT:      bmodelica.yield %[[x]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.default @r.y {
-// CHECK-NEXT:      %[[y:.*]] = modelica.constant #modelica.real<1.000000e+00>
-// CHECK-NEXT:      modelica.yield %[[y]]
+// CHECK:       bmodelica.default @r.y {
+// CHECK-NEXT:      %[[y:.*]] = bmodelica.constant #bmodelica.real<1.000000e+00>
+// CHECK-NEXT:      bmodelica.yield %[[y]]
 // CHECK-NEXT:  }
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica<record @R>>
+bmodelica.function @Test {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    modelica.default @r {
-        %0 = modelica.constant #modelica.real<0.0>
-        %1 = modelica.constant #modelica.real<1.0>
-        %2 = modelica.record_create %0, %1 : !modelica.real, !modelica.real -> !modelica<record @R>
-        modelica.yield %2 : !modelica<record @R>
+    bmodelica.default @r {
+        %0 = bmodelica.constant #bmodelica.real<0.0>
+        %1 = bmodelica.constant #bmodelica.real<1.0>
+        %2 = bmodelica.record_create %0, %1 : !bmodelica.real, !bmodelica.real -> !bmodelica<record @R>
+        bmodelica.yield %2 : !bmodelica<record @R>
     }
 }

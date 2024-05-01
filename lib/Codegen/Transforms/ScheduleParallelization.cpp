@@ -1,18 +1,18 @@
 #include "marco/Codegen/Transforms/ScheduleParallelization.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCHEDULEPARALLELIZATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ScheduleParallelizationPass
-      : public mlir::modelica::impl::ScheduleParallelizationPassBase<
+      : public mlir::bmodelica::impl::ScheduleParallelizationPassBase<
             ScheduleParallelizationPass>
   {
     public:
@@ -277,7 +277,7 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   return mlir::success();
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createScheduleParallelizationPass()
   {

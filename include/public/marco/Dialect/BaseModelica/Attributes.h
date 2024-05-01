@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
-#define MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
+#ifndef MARCO_DIALECTS_BASEMODELICA_ATTRIBUTES_H
+#define MARCO_DIALECTS_BASEMODELICA_ATTRIBUTES_H
 
-#include "marco/Dialect/Modelica/EquationPath.h"
-#include "marco/Dialect/Modelica/ExpressionPath.h"
-#include "marco/Dialect/Modelica/AttrInterfaces.h"
-#include "marco/Dialect/Modelica/Types.h"
+#include "marco/Dialect/BaseModelica/EquationPath.h"
+#include "marco/Dialect/BaseModelica/ExpressionPath.h"
+#include "marco/Dialect/BaseModelica/AttrInterfaces.h"
+#include "marco/Dialect/BaseModelica/Types.h"
 #include "marco/Dialect/Modeling/Attributes.h"
 #include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/Attributes.h"
@@ -15,7 +15,7 @@
 #include "llvm/ADT/StringRef.h"
 #include <map>
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   using RangeAttr = ::mlir::modeling::RangeAttr;
   using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
@@ -117,6 +117,6 @@ namespace mlir::modelica
 }
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modelica/ModelicaAttributes.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaAttributes.h.inc"
 
-#endif // MARCO_DIALECTS_MODELICA_ATTRIBUTES_H
+#endif // MARCO_DIALECTS_BASEMODELICA_ATTRIBUTES_H

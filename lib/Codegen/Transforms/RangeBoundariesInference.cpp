@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/RangeBoundariesInference.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_RANGEBOUNDARIESINFERENCEPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -82,7 +82,7 @@ namespace
 namespace
 {
   class RangeBoundariesInferencePass
-      : public mlir::modelica::impl::RangeBoundariesInferencePassBase<
+      : public mlir::bmodelica::impl::RangeBoundariesInferencePassBase<
             RangeBoundariesInferencePass>
   {
     public:
@@ -104,7 +104,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createRangeBoundariesInferencePass()
   {

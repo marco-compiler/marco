@@ -2,29 +2,29 @@
 
 // Scalar variable.
 
-// CHECK:       modelica.raw_function @scalarVariable(%{{.*}}: !modelica.int) {
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @scalarVariable(%{{.*}}: !bmodelica.int) {
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @scalarVariable {
-    modelica.variable @x : !modelica.variable<!modelica.int, input>
+bmodelica.function @scalarVariable {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 }
 
 // -----
 
 // Get a scalar variable.
 
-// CHECK:       modelica.raw_function @scalarVariableGet(%[[x:.*]]: !modelica.int) {
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @scalarVariableGet(%[[x:.*]]: !bmodelica.int) {
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @scalarVariableGet {
-    modelica.variable @x : !modelica.variable<!modelica.int, input>
+bmodelica.function @scalarVariableGet {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.algorithm {
-        %1 = modelica.variable_get @x : !modelica.int
-        modelica.print %1 : !modelica.int
+    bmodelica.algorithm {
+        %1 = bmodelica.variable_get @x : !bmodelica.int
+        bmodelica.print %1 : !bmodelica.int
     }
 }
 
@@ -32,32 +32,32 @@ modelica.function @scalarVariableGet {
 
 // Static array.
 
-// CHECK:       modelica.raw_function @staticArray(%{{.*}}: !modelica.array<3x2x!modelica.int>) {
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @staticArray(%{{.*}}: !bmodelica.array<3x2x!bmodelica.int>) {
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @staticArray {
-    modelica.variable @x : !modelica.variable<3x2x!modelica.int, input>
+bmodelica.function @staticArray {
+    bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.int, input>
 }
 
 // -----
 
 // Get a static array.
 
-// CHECK:       modelica.raw_function @staticArrayGet(%[[x:.*]]: !modelica.array<3x2x!modelica.int>) {
-// CHECK:           %[[value:.*]] = modelica.load %[[x]][%{{.*}}, %{{.*}}]
-// CHECK-NEXT:      modelica.print %[[value]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @staticArrayGet(%[[x:.*]]: !bmodelica.array<3x2x!bmodelica.int>) {
+// CHECK:           %[[value:.*]] = bmodelica.load %[[x]][%{{.*}}, %{{.*}}]
+// CHECK-NEXT:      bmodelica.print %[[value]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @staticArrayGet {
-    modelica.variable @x : !modelica.variable<3x2x!modelica.int, input>
+bmodelica.function @staticArrayGet {
+    bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.int, input>
 
-    modelica.algorithm {
-        %1 = modelica.variable_get @x : !modelica.array<3x2x!modelica.int>
+    bmodelica.algorithm {
+        %1 = bmodelica.variable_get @x : !bmodelica.array<3x2x!bmodelica.int>
         %2 = arith.constant 0 : index
-        %3 = modelica.load %1[%2, %2] : !modelica.array<3x2x!modelica.int>
-        modelica.print %3 : !modelica.int
+        %3 = bmodelica.load %1[%2, %2] : !bmodelica.array<3x2x!bmodelica.int>
+        bmodelica.print %3 : !bmodelica.int
     }
 }
 
@@ -65,32 +65,32 @@ modelica.function @staticArrayGet {
 
 // Dynamic array.
 
-// CHECK:       modelica.raw_function @dynamicArray(%{{.*}}: !modelica.array<3x?x!modelica.int>) {
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @dynamicArray(%{{.*}}: !bmodelica.array<3x?x!bmodelica.int>) {
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @dynamicArray {
-    modelica.variable @x : !modelica.variable<3x?x!modelica.int, input>
+bmodelica.function @dynamicArray {
+    bmodelica.variable @x : !bmodelica.variable<3x?x!bmodelica.int, input>
 }
 
 // -----
 
 // Get a dynamic array.
 
-// CHECK:       modelica.raw_function @dynamicArrayGet(%[[x:.*]]: !modelica.array<3x?x!modelica.int>) {
+// CHECK:       bmodelica.raw_function @dynamicArrayGet(%[[x:.*]]: !bmodelica.array<3x?x!bmodelica.int>) {
 // CHECK-NEXT:      %[[index:.*]]= arith.constant 0 : index
-// CHECK-NEXT:      %[[value:.*]] = modelica.load %[[x]][%{{.*}}, %{{.*}}]
-// CHECK-NEXT:      modelica.print %[[value]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.load %[[x]][%{{.*}}, %{{.*}}]
+// CHECK-NEXT:      bmodelica.print %[[value]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @dynamicArrayGet {
-    modelica.variable @x : !modelica.variable<3x?x!modelica.int, input>
+bmodelica.function @dynamicArrayGet {
+    bmodelica.variable @x : !bmodelica.variable<3x?x!bmodelica.int, input>
 
-    modelica.algorithm {
-        %1 = modelica.variable_get @x : !modelica.array<3x?x!modelica.int>
+    bmodelica.algorithm {
+        %1 = bmodelica.variable_get @x : !bmodelica.array<3x?x!bmodelica.int>
         %2 = arith.constant 0 : index
-        %3 = modelica.load %1[%2, %2] : !modelica.array<3x?x!modelica.int>
-        modelica.print %3 : !modelica.int
+        %3 = bmodelica.load %1[%2, %2] : !bmodelica.array<3x?x!bmodelica.int>
+        bmodelica.print %3 : !bmodelica.int
     }
 }

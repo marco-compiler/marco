@@ -1,23 +1,23 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test
-// CHECK: %[[result:.*]] = modelica.constant #modelica.int<5>
+// CHECK: %[[result:.*]] = bmodelica.constant #bmodelica.int<5>
 // CHECK: return %[[result]]
 
-func.func @test() -> !modelica.int {
-    %0 = modelica.constant #modelica.int_range<0, 5, 1>
-    %1 = modelica.range_end %0 : !modelica<range !modelica.int> -> !modelica.int
-    return %1 : !modelica.int
+func.func @test() -> !bmodelica.int {
+    %0 = bmodelica.constant #bmodelica.int_range<0, 5, 1>
+    %1 = bmodelica.range_end %0 : !bmodelica<range !bmodelica.int> -> !bmodelica.int
+    return %1 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @test
-// CHECK: %[[result:.*]] = modelica.constant #modelica.real<1.000000e+01>
+// CHECK: %[[result:.*]] = bmodelica.constant #bmodelica.real<1.000000e+01>
 // CHECK: return %[[result]]
 
-func.func @test() -> !modelica.real {
-    %0 = modelica.constant #modelica.real_range<3.000000e+00, 1.000000e+01, 2.500000e+00>
-    %1 = modelica.range_end %0 : !modelica<range !modelica.real> -> !modelica.real
-    return %1 : !modelica.real
+func.func @test() -> !bmodelica.real {
+    %0 = bmodelica.constant #bmodelica.real_range<3.000000e+00, 1.000000e+01, 2.500000e+00>
+    %1 = bmodelica.range_end %0 : !bmodelica<range !bmodelica.real> -> !bmodelica.real
+    return %1 : !bmodelica.real
 }

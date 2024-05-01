@@ -4,8 +4,8 @@
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @booleanScalarInput(%arg0: !modelica.bool) {
-    modelica.raw_return
+bmodelica.raw_function @booleanScalarInput(%arg0: !bmodelica.bool) {
+    bmodelica.raw_return
 }
 
 // -----
@@ -14,8 +14,8 @@ modelica.raw_function @booleanScalarInput(%arg0: !modelica.bool) {
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @integerScalarInput(%arg0: !modelica.int) {
-    modelica.raw_return
+bmodelica.raw_function @integerScalarInput(%arg0: !bmodelica.int) {
+    bmodelica.raw_return
 }
 
 // -----
@@ -24,8 +24,8 @@ modelica.raw_function @integerScalarInput(%arg0: !modelica.int) {
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @realScalarInput(%arg0: !modelica.real) {
-    modelica.raw_return
+bmodelica.raw_function @realScalarInput(%arg0: !bmodelica.real) {
+    bmodelica.raw_return
 }
 
 // -----
@@ -34,8 +34,8 @@ modelica.raw_function @realScalarInput(%arg0: !modelica.real) {
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @staticArrayInput(%arg0: !modelica.array<5x3x!modelica.int>) {
-    modelica.raw_return
+bmodelica.raw_function @staticArrayInput(%arg0: !bmodelica.array<5x3x!bmodelica.int>) {
+    bmodelica.raw_return
 }
 
 // -----
@@ -44,137 +44,137 @@ modelica.raw_function @staticArrayInput(%arg0: !modelica.array<5x3x!modelica.int
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @dynamicArrayInput(%arg0: !modelica.array<5x?x!modelica.int>) {
-    modelica.raw_return
+bmodelica.raw_function @dynamicArrayInput(%arg0: !bmodelica.array<5x?x!bmodelica.int>) {
+    bmodelica.raw_return
 }
 
 // -----
 
 // CHECK:       func.func @booleanScalarOutput() -> i1 {
-// CHECK-NEXT:      %[[result:.*]] = modelica.constant #modelica.bool<true>
-// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !modelica.bool to i1
+// CHECK-NEXT:      %[[result:.*]] = bmodelica.constant #bmodelica.bool<true>
+// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !bmodelica.bool to i1
 // CHECK-NEXT:      return %[[result_casted]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @booleanScalarOutput() -> !modelica.bool {
-    %0 = modelica.constant #modelica.bool<true>
-    modelica.raw_return %0 : !modelica.bool
+bmodelica.raw_function @booleanScalarOutput() -> !bmodelica.bool {
+    %0 = bmodelica.constant #bmodelica.bool<true>
+    bmodelica.raw_return %0 : !bmodelica.bool
 }
 
 // -----
 
 // CHECK:       func.func @integerScalarOutput() -> i64 {
-// CHECK-NEXT:      %[[result:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !modelica.int to i64
+// CHECK-NEXT:      %[[result:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !bmodelica.int to i64
 // CHECK-NEXT:      return %[[result_casted]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @integerScalarOutput() -> !modelica.int {
-    %0 = modelica.constant #modelica.int<0>
-    modelica.raw_return %0 : !modelica.int
+bmodelica.raw_function @integerScalarOutput() -> !bmodelica.int {
+    %0 = bmodelica.constant #bmodelica.int<0>
+    bmodelica.raw_return %0 : !bmodelica.int
 }
 
 // -----
 
 // CHECK:       func.func @realScalarOutput() -> f64 {
-// CHECK-NEXT:      %[[result:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !modelica.real to f64
+// CHECK-NEXT:      %[[result:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-NEXT:      %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : !bmodelica.real to f64
 // CHECK-NEXT:      return %[[result_casted]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @realScalarOutput() -> !modelica.real {
-    %0 = modelica.constant #modelica.real<0.0>
-    modelica.raw_return %0 : !modelica.real
+bmodelica.raw_function @realScalarOutput() -> !bmodelica.real {
+    %0 = bmodelica.constant #bmodelica.real<0.0>
+    bmodelica.raw_return %0 : !bmodelica.real
 }
 
 // -----
 
 // CHECK:       func.func @staticArrayOutput() -> memref<3x5xi64> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
-// CHECK-NEXT:      %[[x_casted:.*]] = builtin.unrealized_conversion_cast %[[x]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.alloc : <3x5x!bmodelica.int>
+// CHECK-NEXT:      %[[x_casted:.*]] = builtin.unrealized_conversion_cast %[[x]] : !bmodelica.array<3x5x!bmodelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      return %[[x_casted]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @staticArrayOutput() -> !modelica.array<3x5x!modelica.int> {
-    %0 = modelica.alloc : <3x5x!modelica.int>
-    modelica.raw_return %0 : !modelica.array<3x5x!modelica.int>
+bmodelica.raw_function @staticArrayOutput() -> !bmodelica.array<3x5x!bmodelica.int> {
+    %0 = bmodelica.alloc : <3x5x!bmodelica.int>
+    bmodelica.raw_return %0 : !bmodelica.array<3x5x!bmodelica.int>
 }
 
 // -----
 
 // CHECK:       func.func @dynamicArrayOutput() {
 // CHECK-NEXT:      %[[ptr:.*]] = memref.alloca() : memref<memref<3x?xi64>>
-// CHECK-NEXT:      %[[fakeArray:.*]] = modelica.alloc : <3x0x!modelica.int>
-// CHECK-NEXT:      %[[fakeArray_casted_1:.*]] = builtin.unrealized_conversion_cast %[[fakeArray]] : !modelica.array<3x0x!modelica.int> to memref<3x0xi64>
+// CHECK-NEXT:      %[[fakeArray:.*]] = bmodelica.alloc : <3x0x!bmodelica.int>
+// CHECK-NEXT:      %[[fakeArray_casted_1:.*]] = builtin.unrealized_conversion_cast %[[fakeArray]] : !bmodelica.array<3x0x!bmodelica.int> to memref<3x0xi64>
 // CHECK-NEXT:      %[[fakeArray_casted_2:.*]] = memref.cast %[[fakeArray_casted_1]] : memref<3x0xi64> to memref<3x?xi64>
 // CHECK-NEXT:      memref.store %[[fakeArray_casted_2]], %[[ptr]][]
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @dynamicArrayOutput() {
-    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
-    modelica.raw_return
+bmodelica.raw_function @dynamicArrayOutput() {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<3x?x!bmodelica.int, output> {name = "x"}
+    bmodelica.raw_return
 }
 
 // -----
 
 // CHECK:       func.func @scalarOutputVariableGet() -> i64 {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloca : <!modelica.int>
-// CHECK-NEXT:      %[[result:.*]] = modelica.load %[[x]][]
-// CHECK-NEXT:      %[[result_casted:.*]] =  builtin.unrealized_conversion_cast %[[result]] : !modelica.int to i64
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.alloca : <!bmodelica.int>
+// CHECK-NEXT:      %[[result:.*]] = bmodelica.load %[[x]][]
+// CHECK-NEXT:      %[[result_casted:.*]] =  builtin.unrealized_conversion_cast %[[result]] : !bmodelica.int to i64
 // CHECK-NEXT:      return %[[result_casted]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @scalarOutputVariableGet() -> !modelica.int {
-    %0 = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.variable<!modelica.int, output>
-    modelica.raw_return %1 : !modelica.int
+bmodelica.raw_function @scalarOutputVariableGet() -> !bmodelica.int {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.raw_variable_get %0 : !bmodelica.variable<!bmodelica.int, output>
+    bmodelica.raw_return %1 : !bmodelica.int
 }
 
 // -----
 
 // CHECK:       func.func @scalarOutputVariableSet() {
-// CHECK-DAG:       %[[x:.*]] = modelica.alloca : <!modelica.int>
-// CHECK-DAG:       %[[value:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      modelica.store %[[x]][], %[[value]]
+// CHECK-DAG:       %[[x:.*]] = bmodelica.alloca : <!bmodelica.int>
+// CHECK-DAG:       %[[value:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      bmodelica.store %[[x]][], %[[value]]
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @scalarOutputVariableSet() {
-    %0 = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
-    %1 = modelica.constant #modelica.int<0>
-    modelica.raw_variable_set %0, %1 : !modelica.variable<!modelica.int, output>, !modelica.int
-    modelica.raw_return
+bmodelica.raw_function @scalarOutputVariableSet() {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.constant #bmodelica.int<0>
+    bmodelica.raw_variable_set %0, %1 : !bmodelica.variable<!bmodelica.int, output>, !bmodelica.int
+    bmodelica.raw_return
 }
 
 // -----
 
 // CHECK:       func.func @staticArrayOutputVariableGet() -> memref<3x5xi64> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
-// CHECK-NEXT:      %[[result:.*]] = builtin.unrealized_conversion_cast %[[x]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.alloc : <3x5x!bmodelica.int>
+// CHECK-NEXT:      %[[result:.*]] = builtin.unrealized_conversion_cast %[[x]] : !bmodelica.array<3x5x!bmodelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      return %[[result]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @staticArrayOutputVariableGet() -> !modelica.array<3x5x!modelica.int> {
-    %0 = modelica.raw_variable : !modelica.variable<3x5x!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.variable<3x5x!modelica.int, output>
-    modelica.raw_return %1 : !modelica.array<3x5x!modelica.int>
+bmodelica.raw_function @staticArrayOutputVariableGet() -> !bmodelica.array<3x5x!bmodelica.int> {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<3x5x!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.raw_variable_get %0 : !bmodelica.variable<3x5x!bmodelica.int, output>
+    bmodelica.raw_return %1 : !bmodelica.array<3x5x!bmodelica.int>
 }
 
 // -----
 
 // CHECK:       func.func @staticArrayOutputVariableSet() {
-// CHECK-DAG:       %[[x:.*]] = modelica.alloc : <3x5x!modelica.int>
-// CHECK-DAG:       %[[value:.*]] = modelica.alloca : <3x5x!modelica.int>
-// CHECK-NEXT:      modelica.array_copy %[[value]], %[[x]]
+// CHECK-DAG:       %[[x:.*]] = bmodelica.alloc : <3x5x!bmodelica.int>
+// CHECK-DAG:       %[[value:.*]] = bmodelica.alloca : <3x5x!bmodelica.int>
+// CHECK-NEXT:      bmodelica.array_copy %[[value]], %[[x]]
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @staticArrayOutputVariableSet() {
-    %0 = modelica.raw_variable : !modelica.variable<3x5x!modelica.int, output> {name = "x"}
-    %1 = modelica.alloca : <3x5x!modelica.int>
-    modelica.raw_variable_set %0, %1 : !modelica.variable<3x5x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
-    modelica.raw_return
+bmodelica.raw_function @staticArrayOutputVariableSet() {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<3x5x!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.alloca : <3x5x!bmodelica.int>
+    bmodelica.raw_variable_set %0, %1 : !bmodelica.variable<3x5x!bmodelica.int, output>, !bmodelica.array<3x5x!bmodelica.int>
+    bmodelica.raw_return
 }
 
 // -----
@@ -185,29 +185,29 @@ modelica.raw_function @staticArrayOutputVariableSet() {
 // CHECK:           return %[[result]]
 // CHECK-NEXT:  }
 
-modelica.raw_function @dynamicArrayOutputGet() -> !modelica.array<3x?x!modelica.int> {
-    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.variable<3x?x!modelica.int, output>
-    modelica.raw_return %1 : !modelica.array<3x?x!modelica.int>
+bmodelica.raw_function @dynamicArrayOutputGet() -> !bmodelica.array<3x?x!bmodelica.int> {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<3x?x!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.raw_variable_get %0 : !bmodelica.variable<3x?x!bmodelica.int, output>
+    bmodelica.raw_return %1 : !bmodelica.array<3x?x!bmodelica.int>
 }
 
 // -----
 
 // CHECK:       func.func @dynamicArrayOutputSet() {
 // CHECK-NEXT:      %[[ptr:.*]] = memref.alloca() : memref<memref<3x?xi64>>
-// CHECK:           %[[new:.*]] = modelica.alloc : <3x5x!modelica.int>
+// CHECK:           %[[new:.*]] = bmodelica.alloc : <3x5x!bmodelica.int>
 // CHECK-NEXT:      %[[previous:.*]] = memref.load %alloca[] : memref<memref<3x?xi64>>
-// CHECK-NEXT:      %[[previous_casted:.*]] = builtin.unrealized_conversion_cast %[[previous]] : memref<3x?xi64> to !modelica.array<3x?x!modelica.int>
-// CHECK-NEXT:      modelica.free %[[previous_casted]] : <3x?x!modelica.int>
-// CHECK-NEXT:      %[[new_casted_1:.*]] = builtin.unrealized_conversion_cast %[[new]] : !modelica.array<3x5x!modelica.int> to memref<3x5xi64>
+// CHECK-NEXT:      %[[previous_casted:.*]] = builtin.unrealized_conversion_cast %[[previous]] : memref<3x?xi64> to !bmodelica.array<3x?x!bmodelica.int>
+// CHECK-NEXT:      bmodelica.free %[[previous_casted]] : <3x?x!bmodelica.int>
+// CHECK-NEXT:      %[[new_casted_1:.*]] = builtin.unrealized_conversion_cast %[[new]] : !bmodelica.array<3x5x!bmodelica.int> to memref<3x5xi64>
 // CHECK-NEXT:      %[[new_casted_2:.*]] = memref.cast %[[new_casted_1]] : memref<3x5xi64> to memref<3x?xi64>
 // CHECK-NEXT:      memref.store %[[new_casted_2]], %[[ptr]][] : memref<memref<3x?xi64>>
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
-modelica.raw_function @dynamicArrayOutputSet() {
-    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
-    %1 = modelica.alloc : <3x5x!modelica.int>
-    modelica.raw_variable_set %0, %1 : !modelica.variable<3x?x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
-    modelica.raw_return
+bmodelica.raw_function @dynamicArrayOutputSet() {
+    %0 = bmodelica.raw_variable : !bmodelica.variable<3x?x!bmodelica.int, output> {name = "x"}
+    %1 = bmodelica.alloc : <3x5x!bmodelica.int>
+    bmodelica.raw_variable_set %0, %1 : !bmodelica.variable<3x?x!bmodelica.int, output>, !bmodelica.array<3x5x!bmodelica.int>
+    bmodelica.raw_return
 }

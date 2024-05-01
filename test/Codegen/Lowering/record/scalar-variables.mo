@@ -1,9 +1,9 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
-// CHECK:       modelica.record @Test {
-// CHECK-NEXT:      modelica.variable @x : !modelica.variable<!modelica.bool>
-// CHECK-NEXT:      modelica.variable @y : !modelica.variable<!modelica.int>
-// CHECK-NEXT:      modelica.variable @z : !modelica.variable<!modelica.real>
+// CHECK:       bmodelica.record @Test {
+// CHECK-NEXT:      bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool>
+// CHECK-NEXT:      bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
+// CHECK-NEXT:      bmodelica.variable @z : !bmodelica.variable<!bmodelica.real>
 // CHECK-NEXT:  }
 
 record Test

@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
 #include "marco/Codegen/Transforms/SCCDetection.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -8,19 +8,19 @@
 
 #define DEBUG_TYPE "scc-detection"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCCDETECTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
 namespace
 {
   class SCCDetectionPass
-      : public mlir::modelica::impl::SCCDetectionPassBase<SCCDetectionPass>
+      : public mlir::bmodelica::impl::SCCDetectionPassBase<SCCDetectionPass>
   {
     public:
       using SCCDetectionPassBase<SCCDetectionPass>::SCCDetectionPassBase;
@@ -213,7 +213,7 @@ mlir::LogicalResult SCCDetectionPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSCCDetectionPass()
   {

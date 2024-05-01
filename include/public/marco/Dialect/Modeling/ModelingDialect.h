@@ -8,7 +8,7 @@
 
 #include "marco/Dialect/Modeling/ModelingDialect.h.inc"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 
 }

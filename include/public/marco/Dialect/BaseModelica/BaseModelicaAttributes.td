@@ -1,8 +1,8 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICAATTRIBUTES_TD
+#define MARCO_DIALECTS_BASEMODELICA_MODELICAATTRIBUTES_TD
 
-include "marco/Dialect/Modelica/ModelicaDialect.td"
-include "marco/Dialect/Modelica/ModelicaAttrInterfaces.td"
+include "marco/Dialect/BaseModelica/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/BaseModelicaAttrInterfaces.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -14,7 +14,7 @@ include "mlir/IR/BuiltinAttributeInterfaces.td"
 class Modelica_Attr<string name,
                     list<Trait> traits = [],
                     string baseCppClass = "::mlir::Attribute">
-    : AttrDef<Modelica_Dialect, name, traits, baseCppClass>
+    : AttrDef<BaseModelica_Dialect, name, traits, baseCppClass>
 {
     let mnemonic = ?;
 }
@@ -382,4 +382,4 @@ def Modelica_RealRangeAttr : Modelica_Attr<"RealRange",
     ];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICAATTRIBUTES_TD

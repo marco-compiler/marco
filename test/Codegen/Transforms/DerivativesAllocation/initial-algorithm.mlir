@@ -4,19 +4,19 @@
 
 // CHECK: #[[index_set:.*]] = #modeling<index_set {[0,4]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, #[[index_set]]>]
-// CHECK-DAG: modelica.variable @x : !modelica.variable<5x!modelica.real>
-// CHECK-DAG: modelica.variable @der_x : !modelica.variable<5x!modelica.real>
+// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
+// CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<5x!bmodelica.real>
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<5x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
 
-    modelica.algorithm attributes {initial = true} {
-        %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
-        %1 = modelica.constant 3 : index
-        %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
-        %3 = modelica.der %2 : !modelica.real -> !modelica.real
-        modelica.store %0[%1], %3 : !modelica.array<5x!modelica.real>
+    bmodelica.algorithm attributes {initial = true} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.real>
+        %1 = bmodelica.constant 3 : index
+        %2 = bmodelica.load %0[%1] : !bmodelica.array<5x!bmodelica.real>
+        %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
+        bmodelica.store %0[%1], %3 : !bmodelica.array<5x!bmodelica.real>
     }
 }
 
@@ -25,23 +25,23 @@ modelica.model @Test {
 // Check variable usage.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.algorithm attributes {initial = true} {
-// CHECK-DAG:       %[[index:.*]] = modelica.constant 3 : index
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK-NEXT:      %[[load:.*]] = modelica.load %[[der_x]][%[[index]]]
-// CHECK-NEXT:      modelica.store %[[x]][%[[index]]], %[[load]]
+// CHECK:       bmodelica.algorithm attributes {initial = true} {
+// CHECK-DAG:       %[[index:.*]] = bmodelica.constant 3 : index
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK-NEXT:      %[[load:.*]] = bmodelica.load %[[der_x]][%[[index]]]
+// CHECK-NEXT:      bmodelica.store %[[x]][%[[index]]], %[[load]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<5x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
 
-    modelica.algorithm attributes {initial = true} {
-        %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
-        %1 = modelica.constant 3 : index
-        %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
-        %3 = modelica.der %2 : !modelica.real -> !modelica.real
-        modelica.store %0[%1], %3 : !modelica.array<5x!modelica.real>
+    bmodelica.algorithm attributes {initial = true} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.real>
+        %1 = bmodelica.constant 3 : index
+        %2 = bmodelica.load %0[%1] : !bmodelica.array<5x!bmodelica.real>
+        %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
+        bmodelica.store %0[%1], %3 : !bmodelica.array<5x!bmodelica.real>
     }
 }
 
@@ -50,21 +50,21 @@ modelica.model @Test {
 // Check start value.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.start @der_x {
-// CHECK-NEXT:      %[[zero:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[zero]] : !modelica.real -> <5x!modelica.real>
-// CHECK-NEXT:      modelica.yield %[[array]]
+// CHECK:       bmodelica.start @der_x {
+// CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_broadcast %[[zero]] : !bmodelica.real -> <5x!bmodelica.real>
+// CHECK-NEXT:      bmodelica.yield %[[array]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<5x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
 
-    modelica.algorithm attributes {initial = true} {
-        %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
-        %1 = modelica.constant 3 : index
-        %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
-        %3 = modelica.der %2 : !modelica.real -> !modelica.real
-        modelica.store %0[%1], %3 : !modelica.array<5x!modelica.real>
+    bmodelica.algorithm attributes {initial = true} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.real>
+        %1 = bmodelica.constant 3 : index
+        %2 = bmodelica.load %0[%1] : !bmodelica.array<5x!bmodelica.real>
+        %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
+        bmodelica.store %0[%1], %3 : !bmodelica.array<5x!bmodelica.real>
     }
 }
 
@@ -72,16 +72,16 @@ modelica.model @Test {
 
 // Check equations for non-derived indices.
 
-// CHECK-NOT:   modelica.equation_template
+// CHECK-NOT:   bmodelica.equation_template
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<5x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
 
-    modelica.algorithm attributes {initial = true} {
-        %0 = modelica.variable_get @x : !modelica.array<5x!modelica.real>
-        %1 = modelica.constant 3 : index
-        %2 = modelica.load %0[%1] : !modelica.array<5x!modelica.real>
-        %3 = modelica.der %2 : !modelica.real -> !modelica.real
-        modelica.store %0[%1], %3 : !modelica.array<5x!modelica.real>
+    bmodelica.algorithm attributes {initial = true} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.real>
+        %1 = bmodelica.constant 3 : index
+        %2 = bmodelica.load %0[%1] : !bmodelica.array<5x!bmodelica.real>
+        %3 = bmodelica.der %2 : !bmodelica.real -> !bmodelica.real
+        bmodelica.store %0[%1], %3 : !bmodelica.array<5x!bmodelica.real>
     }
 }

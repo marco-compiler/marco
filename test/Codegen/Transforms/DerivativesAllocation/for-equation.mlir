@@ -4,25 +4,25 @@
 
 // CHECK: #[[index_set:.*]] = #modeling<index_set {[3,5][12,14]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#modelica<var_derivative @x, @der_x, #[[index_set]]>]
-// CHECK-DAG: modelica.variable @x : !modelica.variable<10x20x!modelica.real>
-// CHECK-DAG: modelica.variable @der_x : !modelica.variable<10x20x!modelica.real>
+// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<10x20x!bmodelica.real>
+// CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<10x20x!bmodelica.real>
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<10x20x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<10x20x!bmodelica.real>
 
-    %t0 = modelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.array<10x20x!modelica.real>
-        %1 = modelica.load %0[%i0, %i1] : !modelica.array<10x20x!modelica.real>
-        %2 = modelica.der %1 : !modelica.real -> !modelica.real
-        %3 = modelica.constant #modelica.real<3.0>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        %5 = modelica.equation_side %3 : tuple<!modelica.real>
-        modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
+    %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<10x20x!bmodelica.real>
+        %1 = bmodelica.load %0[%i0, %i1] : !bmodelica.array<10x20x!bmodelica.real>
+        %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
+        %3 = bmodelica.constant #bmodelica.real<3.0>
+        %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
+        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
+        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    modelica.main_model {
-        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
     }
 }
 
@@ -31,30 +31,30 @@ modelica.model @Test {
 // Check variable usage.
 
 // CHECK-LABEL: @Test
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]] attributes {id = "t0"} {
-// CHECK:           %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:           %[[subscription:.*]] = modelica.subscription %[[der_x]][%[[i0]], %[[i1]]]
-// CHECK:           %[[load:.*]] = modelica.load %[[subscription]][]
-// CHECK:           %[[lhs:.*]] = modelica.equation_side %[[load]]
-// CHECK:           modelica.equation_sides %[[lhs]], %{{.*}}
+// CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]] attributes {id = "t0"} {
+// CHECK:           %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:           %[[subscription:.*]] = bmodelica.subscription %[[der_x]][%[[i0]], %[[i1]]]
+// CHECK:           %[[load:.*]] = bmodelica.load %[[subscription]][]
+// CHECK:           %[[lhs:.*]] = bmodelica.equation_side %[[load]]
+// CHECK:           bmodelica.equation_sides %[[lhs]], %{{.*}}
 // CHECK-NEXT:  }
-// CHECK:       modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][12,14]>}
+// CHECK:       bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][12,14]>}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<10x20x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<10x20x!bmodelica.real>
 
-    %t0 = modelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.array<10x20x!modelica.real>
-        %1 = modelica.load %0[%i0, %i1] : !modelica.array<10x20x!modelica.real>
-        %2 = modelica.der %1 : !modelica.real -> !modelica.real
-        %3 = modelica.constant #modelica.real<3.0>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        %5 = modelica.equation_side %3 : tuple<!modelica.real>
-        modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
+    %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<10x20x!bmodelica.real>
+        %1 = bmodelica.load %0[%i0, %i1] : !bmodelica.array<10x20x!bmodelica.real>
+        %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
+        %3 = bmodelica.constant #bmodelica.real<3.0>
+        %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
+        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
+        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    modelica.main_model {
-        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
     }
 }
 
@@ -63,27 +63,27 @@ modelica.model @Test {
 // Check start value.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.start @der_x {
-// CHECK-NEXT:      %[[zero:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[zero]] : !modelica.real -> <10x20x!modelica.real>
-// CHECK-NEXT:      modelica.yield %[[array]]
+// CHECK:       bmodelica.start @der_x {
+// CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_broadcast %[[zero]] : !bmodelica.real -> <10x20x!bmodelica.real>
+// CHECK-NEXT:      bmodelica.yield %[[array]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<10x20x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<10x20x!bmodelica.real>
 
-    %t0 = modelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.array<10x20x!modelica.real>
-        %1 = modelica.load %0[%i0, %i1] : !modelica.array<10x20x!modelica.real>
-        %2 = modelica.der %1 : !modelica.real -> !modelica.real
-        %3 = modelica.constant #modelica.real<3.0>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        %5 = modelica.equation_side %3 : tuple<!modelica.real>
-        modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
+    %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<10x20x!bmodelica.real>
+        %1 = bmodelica.load %0[%i0, %i1] : !bmodelica.array<10x20x!bmodelica.real>
+        %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
+        %3 = bmodelica.constant #bmodelica.real<3.0>
+        %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
+        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
+        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    modelica.main_model {
-        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
     }
 }
 
@@ -92,33 +92,33 @@ modelica.model @Test {
 // Check equations for non-derived indices.
 
 // CHECK-LABEL: @Test
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]] {
-// CHECK-DAG:       %[[zero:.*]] = modelica.constant #modelica.real<0.000000e+00>
-// CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK-DAG:       %[[load:.*]] = modelica.load %[[der_x]][%[[i0]], %[[i1]]]
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[load]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[zero]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [%[[i0:.*]], %[[i1:.*]]] {
+// CHECK-DAG:       %[[zero:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00>
+// CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK-DAG:       %[[load:.*]] = bmodelica.load %[[der_x]][%[[i0]], %[[i1]]]
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[load]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]
+// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK-DAG:  modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2][0,19]>}
-// CHECK-DAG:  modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][0,11]>}
-// CHECK-DAG:  modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][15,19]>}
-// CHECK-DAG:  modelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [6,9][0,19]>}
+// CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2][0,19]>}
+// CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][0,11]>}
+// CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][15,19]>}
+// CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [6,9][0,19]>}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<10x20x!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<10x20x!bmodelica.real>
 
-    %t0 = modelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.array<10x20x!modelica.real>
-        %1 = modelica.load %0[%i0, %i1] : !modelica.array<10x20x!modelica.real>
-        %2 = modelica.der %1 : !modelica.real -> !modelica.real
-        %3 = modelica.constant #modelica.real<3.0>
-        %4 = modelica.equation_side %2 : tuple<!modelica.real>
-        %5 = modelica.equation_side %3 : tuple<!modelica.real>
-        modelica.equation_sides %4, %5 : tuple<!modelica.real>, tuple<!modelica.real>
+    %t0 = bmodelica.equation_template inductions = [%i0, %i1] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<10x20x!bmodelica.real>
+        %1 = bmodelica.load %0[%i0, %i1] : !bmodelica.array<10x20x!bmodelica.real>
+        %2 = bmodelica.der %1 : !bmodelica.real -> !bmodelica.real
+        %3 = bmodelica.constant #bmodelica.real<3.0>
+        %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
+        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
+        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    modelica.main_model {
-        modelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
     }
 }

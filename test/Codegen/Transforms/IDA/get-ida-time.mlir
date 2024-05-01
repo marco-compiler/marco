@@ -8,6 +8,6 @@
 // CHECK-NEXT:      runtime.return %[[result]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
+bmodelica.model @Test {
 
 }

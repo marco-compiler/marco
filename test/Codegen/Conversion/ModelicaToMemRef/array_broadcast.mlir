@@ -1,8 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-memref | FileCheck %s
 
 // CHECK-LABEL: @fixedSize
-// CHECK:       %[[value:.*]] = modelica.constant #modelica.int<0>
-// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !modelica.int to i64
+// CHECK:       %[[value:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !bmodelica.int to i64
 // CHECK:       %[[memref:.*]] = memref.alloc() : memref<3xi64>
 
 // CHECK:       %[[zero:.*]] = arith.constant 0 : index
@@ -14,18 +14,18 @@
 // CHECK-NEXT:      memref.store %[[value_casted]], %[[memref]][%[[i0]]]
 // CHECK-NEXT:  }
 
-func.func @fixedSize() -> !modelica.array<3x!modelica.int> {
-    %0 = modelica.constant #modelica.int<0>
-    %1 = modelica.array_broadcast %0 : !modelica.int -> <3x!modelica.int>
-    func.return %1 : !modelica.array<3x!modelica.int>
+func.func @fixedSize() -> !bmodelica.array<3x!bmodelica.int> {
+    %0 = bmodelica.constant #bmodelica.int<0>
+    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> <3x!bmodelica.int>
+    func.return %1 : !bmodelica.array<3x!bmodelica.int>
 }
 
 // -----
 
 // CHECK-LABEL: @dynamicSize
 // CHECK:       %[[dynamicDim0:.*]] = arith.constant 2 : index
-// CHECK:       %[[value:.*]] = modelica.constant #modelica.int<0>
-// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !modelica.int to i64
+// CHECK:       %[[value:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !bmodelica.int to i64
 // CHECK:       %[[memref:.*]] = memref.alloc(%[[dynamicDim0]]) : memref<?xi64>
 
 // CHECK:       %[[zero:.*]] = arith.constant 0 : index
@@ -37,18 +37,18 @@ func.func @fixedSize() -> !modelica.array<3x!modelica.int> {
 // CHECK-NEXT:      memref.store %[[value_casted]], %[[memref]][%[[i0]]]
 // CHECK-NEXT:  }
 
-func.func @dynamicSize() -> !modelica.array<?x!modelica.int> {
+func.func @dynamicSize() -> !bmodelica.array<?x!bmodelica.int> {
     %0 = arith.constant 2 : index
-    %1 = modelica.constant #modelica.int<0>
-    %2 = modelica.array_broadcast %1, %0 : !modelica.int -> <?x!modelica.int>
-    func.return %2 : !modelica.array<?x!modelica.int>
+    %1 = bmodelica.constant #bmodelica.int<0>
+    %2 = bmodelica.array_broadcast %1, %0 : !bmodelica.int -> <?x!bmodelica.int>
+    func.return %2 : !bmodelica.array<?x!bmodelica.int>
 }
 
 // -----
 
 // CHECK-LABEL: @multidimensionalArray
-// CHECK: %[[value:.*]] = modelica.constant #modelica.int<0>
-// CHECK: %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !modelica.int to i64
+// CHECK: %[[value:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK: %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value]] : !bmodelica.int to i64
 // CHECK: %[[memref:.*]] = memref.alloc() : memref<2x3x4xi64>
 
 // CHECK: %[[zero:.*]] = arith.constant 0 : index
@@ -68,16 +68,16 @@ func.func @dynamicSize() -> !modelica.array<?x!modelica.int> {
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-func.func @multidimensionalArray() -> !modelica.array<2x3x4x!modelica.int> {
-    %0 = modelica.constant #modelica.int<0>
-    %1 = modelica.array_broadcast %0 : !modelica.int -> <2x3x4x!modelica.int>
-    func.return %1 : !modelica.array<2x3x4x!modelica.int>
+func.func @multidimensionalArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
+    %0 = bmodelica.constant #bmodelica.int<0>
+    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> <2x3x4x!bmodelica.int>
+    func.return %1 : !bmodelica.array<2x3x4x!bmodelica.int>
 }
 
 // -----
 
 // CHECK-LABEL: @implicitCast
-// CHECK:       %[[value:.*]] = modelica.constant #modelica.int<0>
+// CHECK:       %[[value:.*]] = bmodelica.constant #bmodelica.int<0>
 // CHECK:       %[[memref:.*]] = memref.alloc() : memref<3xf64>
 
 // CHECK:       %[[zero:.*]] = arith.constant 0 : index
@@ -86,15 +86,15 @@ func.func @multidimensionalArray() -> !modelica.array<2x3x4x!modelica.int> {
 // CHECK:       %[[dim0_index:.*]] = arith.constant 0 : index
 // CHECK:       %[[dim0:.*]] = memref.dim %[[memref]], %[[dim0_index]]
 
-// CHECK:       %[[value_real:.*]] = modelica.cast %[[value]] : !modelica.int -> !modelica.real
-// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value_real]] : !modelica.real to f64
+// CHECK:       %[[value_real:.*]] = bmodelica.cast %[[value]] : !bmodelica.int -> !bmodelica.real
+// CHECK:       %[[value_casted:.*]] = builtin.unrealized_conversion_cast %[[value_real]] : !bmodelica.real to f64
 
 // CHECK:       scf.for %[[i0:.*]] = %[[zero]] to %[[dim0]] step %[[one]] {
 // CHECK-NEXT:      memref.store %[[value_casted]], %[[memref]][%[[i0]]]
 // CHECK-NEXT:  }
 
-func.func @implicitCast() -> !modelica.array<3x!modelica.real> {
-    %0 = modelica.constant #modelica.int<0>
-    %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x!modelica.real>
-    func.return %1 : !modelica.array<3x!modelica.real>
+func.func @implicitCast() -> !bmodelica.array<3x!bmodelica.real> {
+    %0 = bmodelica.constant #bmodelica.int<0>
+    %1 = bmodelica.array_broadcast %0 : !bmodelica.int -> !bmodelica.array<3x!bmodelica.real>
+    func.return %1 : !bmodelica.array<3x!bmodelica.real>
 }

@@ -1,19 +1,19 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_ARRAYDEALLOCATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ArrayDeallocationPass
-      : public mlir::modelica::impl::ArrayDeallocationPassBase<
+      : public mlir::bmodelica::impl::ArrayDeallocationPassBase<
           ArrayDeallocationPass>
   {
     public:
@@ -55,7 +55,7 @@ void ArrayDeallocationPass::runOnOperation()
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createArrayDeallocationPass()
   {

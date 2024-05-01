@@ -1,16 +1,16 @@
 #include "marco/Codegen/Transforms/EquationAccessSplit.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EQUATIONACCESSSPLITPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -189,7 +189,7 @@ EquationAccessSplitPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
   return getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createEquationAccessSplitPass()
   {

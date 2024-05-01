@@ -1,11 +1,11 @@
-#include "marco/Dialect/Modelica/OpInterfaces.h"
-#include "marco/Dialect/Modelica/Attributes.h"
+#include "marco/Dialect/BaseModelica/OpInterfaces.h"
+#include "marco/Dialect/BaseModelica/Attributes.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-#include "marco/Dialect/Modelica/ModelicaOpInterfaces.cpp.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaOpInterfaces.cpp.inc"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   uint64_t AdditionalInductions::addIterationSpace(IndexSet iterationSpace)
   {

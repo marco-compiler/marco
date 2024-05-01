@@ -8,18 +8,18 @@
 
 #define DEBUG_TYPE "euler-forward"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EULERFORWARDPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class EulerForwardPass
-      : public mlir::modelica::impl::EulerForwardPassBase<EulerForwardPass>
+      : public mlir::bmodelica::impl::EulerForwardPassBase<EulerForwardPass>
   {
     public:
       using EulerForwardPassBase<EulerForwardPass>::EulerForwardPassBase;
@@ -407,7 +407,7 @@ mlir::LogicalResult EulerForwardPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createEulerForwardPass()
   {

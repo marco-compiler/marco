@@ -37,7 +37,7 @@ namespace marco::codegen::lowering
       using Lowerer::declareVariables;
       using Lowerer::lower;
 
-      mlir::modelica::VariableType getVariableType(
+      mlir::bmodelica::VariableType getVariableType(
           const ast::VariableType& type,
           const ast::TypePrefix& typePrefix);
 

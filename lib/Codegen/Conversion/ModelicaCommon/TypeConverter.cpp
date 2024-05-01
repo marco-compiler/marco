@@ -1,9 +1,9 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   TypeConverter::TypeConverter(unsigned int bitWidth)
     : bitWidth(bitWidth)

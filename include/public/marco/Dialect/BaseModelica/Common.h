@@ -1,9 +1,9 @@
-#ifndef MARCO_DIALECT_MODELICA_COMMON_H
-#define MARCO_DIALECT_MODELICA_COMMON_H
+#ifndef MARCO_DIALECT_BASEMODELICA_COMMON_H
+#define MARCO_DIALECT_BASEMODELICA_COMMON_H
 
 #include "marco/Dialect/Modeling/ModelingDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   using Point = ::mlir::modeling::Point;
   using Range = ::mlir::modeling::Range;
@@ -11,4 +11,4 @@ namespace mlir::modelica
   using IndexSet = ::mlir::modeling::IndexSet;
 }
 
-#endif // MARCO_DIALECT_MODELICA_COMMON_H
+#endif // MARCO_DIALECT_BASEMODELICA_COMMON_H

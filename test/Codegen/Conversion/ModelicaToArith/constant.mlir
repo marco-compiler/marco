@@ -4,12 +4,12 @@
 
 // CHECK-LABEL: @foo
 // CHECK: %[[cst:.*]] = arith.constant true
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i1 to !modelica.bool
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i1 to !bmodelica.bool
 // CHECK: return %[[result]]
 
-func.func @foo() -> !modelica.bool {
-    %0 = modelica.constant #modelica.bool<true>
-    func.return %0 : !modelica.bool
+func.func @foo() -> !bmodelica.bool {
+    %0 = bmodelica.constant #bmodelica.bool<true>
+    func.return %0 : !bmodelica.bool
 }
 
 // -----
@@ -18,12 +18,12 @@ func.func @foo() -> !modelica.bool {
 
 // CHECK-LABEL: @foo
 // CHECK: %[[cst:.*]] = arith.constant 0 : i64
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i64 to !modelica.int
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : i64 to !bmodelica.int
 // CHECK: return %[[result]]
 
-func.func @foo() -> !modelica.int {
-    %0 = modelica.constant #modelica.int<0>
-    func.return %0 : !modelica.int
+func.func @foo() -> !bmodelica.int {
+    %0 = bmodelica.constant #bmodelica.int<0>
+    func.return %0 : !bmodelica.int
 }
 
 // -----
@@ -32,12 +32,12 @@ func.func @foo() -> !modelica.int {
 
 // CHECK-LABEL: @foo
 // CHECK: %[[cst:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f64 to !modelica.real
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[cst]] : f64 to !bmodelica.real
 // CHECK: return %[[result]]
 
-func.func @foo() -> !modelica.real {
-    %0 = modelica.constant #modelica.real<0.0>
-    func.return %0 : !modelica.real
+func.func @foo() -> !bmodelica.real {
+    %0 = bmodelica.constant #bmodelica.real<0.0>
+    func.return %0 : !bmodelica.real
 }
 
 // -----
@@ -49,7 +49,7 @@ func.func @foo() -> !modelica.real {
 // CHECK: return %[[cst]]
 
 func.func @foo() -> index {
-    %0 = modelica.constant 0 : index
+    %0 = bmodelica.constant 0 : index
     func.return %0 : index
 }
 
@@ -62,7 +62,7 @@ func.func @foo() -> index {
 // CHECK: return %[[cst]]
 
 func.func @foo() -> i64 {
-    %0 = modelica.constant 0 : i64
+    %0 = bmodelica.constant 0 : i64
     func.return %0 : i64
 }
 
@@ -75,6 +75,6 @@ func.func @foo() -> i64 {
 // CHECK: return %[[cst]]
 
 func.func @foo() -> f64 {
-    %0 = modelica.constant 0.0 : f64
+    %0 = bmodelica.constant 0.0 : f64
     func.return %0 : f64
 }

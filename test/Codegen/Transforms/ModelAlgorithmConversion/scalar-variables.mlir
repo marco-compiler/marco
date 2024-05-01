@@ -1,45 +1,45 @@
 // RUN: modelica-opt %s --split-input-file --convert-model-algorithms | FileCheck %s
 
 // CHECK:       @Test
-// CHECK:       modelica.start @y {
-// CHECK:           %[[start:.*]] = modelica.constant #modelica.int<[[start_value:.*]]> : !modelica.int
-// CHECK:           modelica.yield %[[start]]
+// CHECK:       bmodelica.start @y {
+// CHECK:           %[[start:.*]] = bmodelica.constant #bmodelica.int<[[start_value:.*]]> : !bmodelica.int
+// CHECK:           bmodelica.yield %[[start]]
 // CHECK-NEXT:  }
-// CHECK:       %[[t0:.*]] = modelica.equation_template inductions = [] {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @y
-// CHECK-DAG:       %[[res:.*]] = modelica.call @Test_algorithm_0(%[[x]]) : (!modelica.int) -> !modelica.int
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[y]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       %[[t0:.*]] = bmodelica.equation_template inductions = [] {
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @y
+// CHECK-DAG:       %[[res:.*]] = bmodelica.call @Test_algorithm_0(%[[x]]) : (!bmodelica.int) -> !bmodelica.int
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[y]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[res]]
+// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       modelica.main_model {
-// CHECK-NEXT:      modelica.equation_instance %[[t0]]
-// CHECK-NEXT:  }
-
-// CHECK:       modelica.function @Test_algorithm_0
-// CHECK-DAG:   modelica.variable @x : !modelica.variable<!modelica.int, input>
-// CHECK-DAG:   modelica.variable @y : !modelica.variable<!modelica.int, output>
-// CHECK:       modelica.default @y {
-// CHECK-NEXT:      %[[default:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      modelica.yield %[[default]]
-// CHECK-NEXT:  }
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %0 = modelica.variable_get @x
-// CHECK-NEXT:      modelica.variable_set @y, %0
+// CHECK:       bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int>
-    modelica.variable @y : !modelica.variable<!modelica.int>
+// CHECK:       bmodelica.function @Test_algorithm_0
+// CHECK-DAG:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
+// CHECK-DAG:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, output>
+// CHECK:       bmodelica.default @y {
+// CHECK-NEXT:      %[[default:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      bmodelica.yield %[[default]]
+// CHECK-NEXT:  }
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %0 = bmodelica.variable_get @x
+// CHECK-NEXT:      bmodelica.variable_set @y, %0
+// CHECK-NEXT:  }
 
-    modelica.start @y {
-        %0 = modelica.constant #modelica.int<0> : !modelica.int
-        modelica.yield %0 : !modelica.int
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
+
+    bmodelica.start @y {
+        %0 = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+        bmodelica.yield %0 : !bmodelica.int
     } {each = false, fixed = false}
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.int
-        modelica.variable_set @y, %0 : !modelica.int
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.int
+        bmodelica.variable_set @y, %0 : !bmodelica.int
     }
 }

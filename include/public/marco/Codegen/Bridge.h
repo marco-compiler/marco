@@ -4,7 +4,7 @@
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Results.h"
 #include "marco/Codegen/Options.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/BuiltinOps.h"
 #include <memory>

@@ -1,20 +1,20 @@
 #include "marco/Codegen/Transforms/FunctionDefaultValuesConversion.h"
-#include "marco/Dialect/Modelica/DefaultValuesDependencyGraph.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/DefaultValuesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_FUNCTIONDEFAULTVALUESCONVERSIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class FunctionDefaultValuesConversionPass
-      : public mlir::modelica::impl::FunctionDefaultValuesConversionPassBase<
+      : public mlir::bmodelica::impl::FunctionDefaultValuesConversionPassBase<
             FunctionDefaultValuesConversionPass>
   {
     public:
@@ -419,7 +419,7 @@ mlir::LogicalResult FunctionDefaultValuesConversionPass::eraseDefaultOps(
       });
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createFunctionDefaultValuesConversionPass()
   {

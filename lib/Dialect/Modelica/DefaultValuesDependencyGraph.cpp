@@ -1,8 +1,8 @@
-#include "marco/Dialect/Modelica/DefaultValuesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/DefaultValuesDependencyGraph.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::set<llvm::StringRef> DefaultValuesDependencyGraph::getDependencies(
       VariableOp variable)

@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECT_MODELICA_EQUATIONPATH_H
-#define MARCO_DIALECT_MODELICA_EQUATIONPATH_H
+#ifndef MARCO_DIALECT_BASEMODELICA_EQUATIONPATH_H
+#define MARCO_DIALECT_BASEMODELICA_EQUATIONPATH_H
 
-#include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "marco/Dialect/BaseModelica/ExpressionPath.h"
 #include "llvm/ADT/ArrayRef.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   class EquationPath
   {
@@ -53,4 +53,4 @@ namespace mlir::modelica
   };
 }
 
-#endif // MARCO_DIALECT_MODELICA_EQUATIONPATH_H
+#endif // MARCO_DIALECT_BASEMODELICA_EQUATIONPATH_H

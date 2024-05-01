@@ -1,22 +1,22 @@
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Threading.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_READONLYVARIABLESPROPAGATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ReadOnlyVariablesPropagationPass
-      : public mlir::modelica::impl::ReadOnlyVariablesPropagationPassBase<
+      : public mlir::bmodelica::impl::ReadOnlyVariablesPropagationPassBase<
             ReadOnlyVariablesPropagationPass>
   {
     public:
@@ -139,7 +139,7 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
       });
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass()
   {

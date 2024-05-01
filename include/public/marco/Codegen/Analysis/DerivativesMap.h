@@ -1,10 +1,10 @@
 #ifndef MARCO_CODEGEN_ANALYSIS_DERIVATIVESMAP_H
 #define MARCO_CODEGEN_ANALYSIS_DERIVATIVESMAP_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "llvm/ADT/DenseMap.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   class DerivativesMap
   {

@@ -3,7 +3,7 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace marco::codegen::lowering
 {
@@ -139,7 +139,7 @@ namespace marco::codegen::lowering
   }
 
   void CallLowerer::getCustomFunctionInputVariables(
-      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+      llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
       FunctionOp functionOp)
   {
     for (VariableOp variableOp : functionOp.getVariables()) {
@@ -150,7 +150,7 @@ namespace marco::codegen::lowering
   }
 
   void CallLowerer::getCustomFunctionInputVariables(
-      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
+      llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
       DerFunctionOp derFunctionOp)
   {
     mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
@@ -226,8 +226,8 @@ namespace marco::codegen::lowering
   }
 
   void CallLowerer::getRecordConstructorInputVariables(
-      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& inputVariables,
-      mlir::modelica::RecordOp recordOp)
+      llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
+      mlir::bmodelica::RecordOp recordOp)
   {
     for (VariableOp variableOp : recordOp.getVariables()) {
       if (variableOp.isInput()) {
@@ -238,7 +238,7 @@ namespace marco::codegen::lowering
 
   void CallLowerer::lowerRecordConstructorArgs(
       const ast::Call& call,
-      llvm::ArrayRef<mlir::modelica::VariableOp> calleeInputs,
+      llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
       llvm::SmallVectorImpl<std::string>& argNames,
       llvm::SmallVectorImpl<mlir::Value>& argValues)
   {

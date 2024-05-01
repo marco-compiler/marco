@@ -3,41 +3,41 @@
 // Propagated array constant.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.equation {
-// CHECK-NEXT:      %[[el0:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[el1:.*]] = modelica.constant #modelica.int<1>
-// CHECK-NEXT:      %[[el2:.*]] = modelica.constant #modelica.int<2>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_from_elements %[[el0]], %[[el1]], %[[el2]]
-// CHECK-NEXT:      %[[lhsValue:.*]] = modelica.load %[[array]][%[[index:.*]]]
-// CHECK-NEXT:      %[[y:.*]] = modelica.variable_get @y
-// CHECK-NEXT:      %[[rhsValue:.*]] = modelica.load %[[y]][%[[index]]]
-// CHECK-NEXT:      %[[lhs:.*]] = modelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       bmodelica.equation {
+// CHECK-NEXT:      %[[el0:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      %[[el1:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-NEXT:      %[[el2:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_from_elements %[[el0]], %[[el1]], %[[el2]]
+// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.load %[[array]][%[[index:.*]]]
+// CHECK-NEXT:      %[[y:.*]] = bmodelica.variable_get @y
+// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.load %[[y]][%[[index]]]
+// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<3x!modelica.int, constant>
-    modelica.variable @y : !modelica.variable<3x!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, constant>
+    bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
 
-    modelica.binding_equation @x {
-        %0 = modelica.constant #modelica.int<0>
-        %1 = modelica.constant #modelica.int<1>
-        %2 = modelica.constant #modelica.int<2>
-        %3 = modelica.array_from_elements %0, %1, %2 : !modelica.int, !modelica.int, !modelica.int -> !modelica.array<3x!modelica.int>
-        modelica.yield %3 : !modelica.array<3x!modelica.int>
+    bmodelica.binding_equation @x {
+        %0 = bmodelica.constant #bmodelica.int<0>
+        %1 = bmodelica.constant #bmodelica.int<1>
+        %2 = bmodelica.constant #bmodelica.int<2>
+        %3 = bmodelica.array_from_elements %0, %1, %2 : !bmodelica.int, !bmodelica.int, !bmodelica.int -> !bmodelica.array<3x!bmodelica.int>
+        bmodelica.yield %3 : !bmodelica.array<3x!bmodelica.int>
     }
 
-    modelica.main_model {
-        modelica.for_equation %i = 0 to 2 {
-            modelica.equation {
-                %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
-                %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
-                %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
-                %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
-                %4 = modelica.equation_side %1 : tuple<!modelica.int>
-                %5 = modelica.equation_side %3 : tuple<!modelica.int>
-                modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    bmodelica.main_model {
+        bmodelica.for_equation %i = 0 to 2 {
+            bmodelica.equation {
+                %0 = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.int>
+                %1 = bmodelica.load %0[%i] : !bmodelica.array<3x!bmodelica.int>
+                %2 = bmodelica.variable_get @y : !bmodelica.array<3x!bmodelica.int>
+                %3 = bmodelica.load %2[%i] : !bmodelica.array<3x!bmodelica.int>
+                %4 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+                %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
+                bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
             }
         }
     }
@@ -48,41 +48,41 @@ modelica.model @Test {
 // Propagated array parameter.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.equation {
-// CHECK-NEXT:      %[[el0:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:      %[[el1:.*]] = modelica.constant #modelica.int<1>
-// CHECK-NEXT:      %[[el2:.*]] = modelica.constant #modelica.int<2>
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_from_elements %[[el0]], %[[el1]], %[[el2]]
-// CHECK-NEXT:      %[[lhsValue:.*]] = modelica.load %[[array]][%[[index:.*]]]
-// CHECK-NEXT:      %[[y:.*]] = modelica.variable_get @y
-// CHECK-NEXT:      %[[rhsValue:.*]] = modelica.load %[[y]][%[[index]]]
-// CHECK-NEXT:      %[[lhs:.*]] = modelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       bmodelica.equation {
+// CHECK-NEXT:      %[[el0:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:      %[[el1:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-NEXT:      %[[el2:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_from_elements %[[el0]], %[[el1]], %[[el2]]
+// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.load %[[array]][%[[index:.*]]]
+// CHECK-NEXT:      %[[y:.*]] = bmodelica.variable_get @y
+// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.load %[[y]][%[[index]]]
+// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
-    modelica.variable @y : !modelica.variable<3x!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, parameter>
+    bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
 
-    modelica.binding_equation @x {
-        %0 = modelica.constant #modelica.int<0>
-        %1 = modelica.constant #modelica.int<1>
-        %2 = modelica.constant #modelica.int<2>
-        %3 = modelica.array_from_elements %0, %1, %2 : !modelica.int, !modelica.int, !modelica.int -> !modelica.array<3x!modelica.int>
-        modelica.yield %3 : !modelica.array<3x!modelica.int>
+    bmodelica.binding_equation @x {
+        %0 = bmodelica.constant #bmodelica.int<0>
+        %1 = bmodelica.constant #bmodelica.int<1>
+        %2 = bmodelica.constant #bmodelica.int<2>
+        %3 = bmodelica.array_from_elements %0, %1, %2 : !bmodelica.int, !bmodelica.int, !bmodelica.int -> !bmodelica.array<3x!bmodelica.int>
+        bmodelica.yield %3 : !bmodelica.array<3x!bmodelica.int>
     }
 
-    modelica.main_model {
-        modelica.for_equation %i = 0 to 2 {
-            modelica.equation {
-                %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
-                %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
-                %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
-                %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
-                %4 = modelica.equation_side %1 : tuple<!modelica.int>
-                %5 = modelica.equation_side %3 : tuple<!modelica.int>
-                modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    bmodelica.main_model {
+        bmodelica.for_equation %i = 0 to 2 {
+            bmodelica.equation {
+                %0 = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.int>
+                %1 = bmodelica.load %0[%i] : !bmodelica.array<3x!bmodelica.int>
+                %2 = bmodelica.variable_get @y : !bmodelica.array<3x!bmodelica.int>
+                %3 = bmodelica.load %2[%i] : !bmodelica.array<3x!bmodelica.int>
+                %4 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+                %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
+                bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
             }
         }
     }

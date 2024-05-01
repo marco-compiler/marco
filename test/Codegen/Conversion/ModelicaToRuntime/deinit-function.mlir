@@ -5,8 +5,8 @@
 // CHECK:   }
 
 module {
-    modelica.model @Test {
-        modelica.variable @x : !modelica.variable<!modelica.real>
-        modelica.variable @y : !modelica.variable<3x!modelica.real>
+    bmodelica.model @Test {
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+        bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.real>
     }
 }

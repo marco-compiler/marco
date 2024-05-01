@@ -8,7 +8,7 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_conversion_library(MLIRModelicaToRuntime
+add_mlir_conversion_library(MLIRBaseModelicaToRuntime
     ${SOURCES}
 
     DEPENDS

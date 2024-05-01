@@ -1,5 +1,5 @@
 #include "marco/Frontend/CompilerInstance.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/DiagnosticHandler.h"
 #include "marco/Frontend/FrontendActions.h"

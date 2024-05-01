@@ -1,60 +1,60 @@
 // RUN: modelica-opt %s --split-input-file --detect-scc --canonicalize-model-for-debug | FileCheck %s
 
-// CHECK-DAG: %[[t0:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
-// CHECK-DAG: %[[t1:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
-// CHECK-DAG: %[[t2:.*]] = modelica.equation_template inductions = [%{{.*}}] attributes {id = "t2"}
-// CHECK:       modelica.main_model {
-// CHECK-NEXT:      modelica.scc {
-// CHECK-NEXT:          modelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #modelica<equation_path [L, 0]>}
-// CHECK-NEXT:          modelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #modelica<equation_path [L, 0]>}
-// CHECK-NEXT:          modelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [3,4]>, path = #modelica<equation_path [L, 0]>}
+// CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+// CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
+// CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t2"}
+// CHECK:       bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.scc {
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<5x!modelica.int>
-    modelica.variable @y : !modelica.variable<5x!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.int>
+    bmodelica.variable @y : !bmodelica.variable<5x!bmodelica.int>
 
     // x[i] = y[i]
-    %t0 = modelica.equation_template inductions = [%i0] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.array<5x!modelica.int>
-        %1 = modelica.load %0[%i0] : !modelica.array<5x!modelica.int>
-        %2 = modelica.variable_get @y : !modelica.array<5x!modelica.int>
-        %3 = modelica.load %2[%i0] : !modelica.array<5x!modelica.int>
-        %4 = modelica.equation_side %1 : tuple<!modelica.int>
-        %5 = modelica.equation_side %3 : tuple<!modelica.int>
-        modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+    %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.int>
+        %1 = bmodelica.load %0[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %2 = bmodelica.variable_get @y : !bmodelica.array<5x!bmodelica.int>
+        %3 = bmodelica.load %2[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %4 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.int>
+        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
     // y[i] = 1 - x[i]
-    %t1 = modelica.equation_template inductions = [%i0] attributes {id = "t1"} {
-        %0 = modelica.variable_get @y : !modelica.array<5x!modelica.int>
-        %1 = modelica.load %0[%i0] : !modelica.array<5x!modelica.int>
-        %2 = modelica.constant #modelica.int<1>
-        %3 = modelica.variable_get @x : !modelica.array<5x!modelica.int>
-        %4 = modelica.load %3[%i0] : !modelica.array<5x!modelica.int>
-        %5 = modelica.sub %2, %4 : (!modelica.int, !modelica.int) -> !modelica.int
-        %6 = modelica.equation_side %1 : tuple<!modelica.int>
-        %7 = modelica.equation_side %5 : tuple<!modelica.int>
-        modelica.equation_sides %6, %7 : tuple<!modelica.int>, tuple<!modelica.int>
+    %t1 = bmodelica.equation_template inductions = [%i0] attributes {id = "t1"} {
+        %0 = bmodelica.variable_get @y : !bmodelica.array<5x!bmodelica.int>
+        %1 = bmodelica.load %0[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %2 = bmodelica.constant #bmodelica.int<1>
+        %3 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.int>
+        %4 = bmodelica.load %3[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %5 = bmodelica.sub %2, %4 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %6 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+        %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
+        bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
     // y[i] = 2 - x[i]
-    %t2 = modelica.equation_template inductions = [%i0] attributes {id = "t2"} {
-        %0 = modelica.variable_get @y : !modelica.array<5x!modelica.int>
-        %1 = modelica.load %0[%i0] : !modelica.array<5x!modelica.int>
-        %2 = modelica.constant #modelica.int<2>
-        %3 = modelica.variable_get @x : !modelica.array<5x!modelica.int>
-        %4 = modelica.load %3[%i0] : !modelica.array<5x!modelica.int>
-        %5 = modelica.sub %2, %4 : (!modelica.int, !modelica.int) -> !modelica.int
-        %6 = modelica.equation_side %1 : tuple<!modelica.int>
-        %7 = modelica.equation_side %5 : tuple<!modelica.int>
-        modelica.equation_sides %6, %7 : tuple<!modelica.int>, tuple<!modelica.int>
+    %t2 = bmodelica.equation_template inductions = [%i0] attributes {id = "t2"} {
+        %0 = bmodelica.variable_get @y : !bmodelica.array<5x!bmodelica.int>
+        %1 = bmodelica.load %0[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %2 = bmodelica.constant #bmodelica.int<2>
+        %3 = bmodelica.variable_get @x : !bmodelica.array<5x!bmodelica.int>
+        %4 = bmodelica.load %3[%i0] : !bmodelica.array<5x!bmodelica.int>
+        %5 = bmodelica.sub %2, %4 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+        %6 = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+        %7 = bmodelica.equation_side %5 : tuple<!bmodelica.int>
+        bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    modelica.main_model {
-        modelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,4]>, path = #modelica<equation_path [L, 0]>} : !modelica.equation
-        modelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #modelica<equation_path [L, 0]>} : !modelica.equation
-        modelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [3,4]>, path = #modelica<equation_path [L, 0]>} : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 }

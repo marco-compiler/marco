@@ -1,188 +1,188 @@
 // RUN: modelica-opt %s --split-input-file --auto-diff | FileCheck %s
 
 // CHECK-LABEL: @var_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, output>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       modelica.variable_set @y, %[[x]]
-// CHECK:       modelica.variable_set @der_y, %[[der_x]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       bmodelica.variable_set @y, %[[x]]
+// CHECK:       bmodelica.variable_set @der_y, %[[der_x]]
 // CHECK:   }
 
-modelica.function @var attributes {derivative = #modelica.derivative<"var_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, output>
+bmodelica.function @var attributes {derivative = #bmodelica.derivative<"var_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        modelica.variable_set @y, %0 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        bmodelica.variable_set @y, %0 : !bmodelica.real
     }
 }
 
 // -----
 
 // CHECK-LABEL: @neg_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, output>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       %[[neg_x:.*]] = modelica.neg %[[x]]
-// CHECK:       %[[neg_der_x:.*]] = modelica.neg %[[der_x]]
-// CHECK:       modelica.variable_set @y, %[[neg_x]]
-// CHECK:       modelica.variable_set @der_y, %[[neg_der_x]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       %[[neg_x:.*]] = bmodelica.neg %[[x]]
+// CHECK:       %[[neg_der_x:.*]] = bmodelica.neg %[[der_x]]
+// CHECK:       bmodelica.variable_set @y, %[[neg_x]]
+// CHECK:       bmodelica.variable_set @der_y, %[[neg_der_x]]
 // CHECK:   }
 
-modelica.function @neg attributes {derivative = #modelica.derivative<"neg_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, output>
+bmodelica.function @neg attributes {derivative = #bmodelica.derivative<"neg_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.neg %0 : !modelica.real -> !modelica.real
-        modelica.variable_set @y, %1 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        %1 = bmodelica.neg %0 : !bmodelica.real -> !bmodelica.real
+        bmodelica.variable_set @y, %1 : !bmodelica.real
     }
 }
 
 // -----
 
 // CHECK-LABEL: @add_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
-// CHECK:       %[[add_x_y:.*]] = modelica.add %[[x]], %[[y]]
-// CHECK:       %[[add_der_x_der_y:.*]] = modelica.add %[[der_x]], %[[der_y]]
-// CHECK:       modelica.variable_set @z, %[[add_x_y]]
-// CHECK:       modelica.variable_set @der_z, %[[add_der_x_der_y]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @z : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = bmodelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = bmodelica.variable_get @der_y
+// CHECK:       %[[add_x_y:.*]] = bmodelica.add %[[x]], %[[y]]
+// CHECK:       %[[add_der_x_der_y:.*]] = bmodelica.add %[[der_x]], %[[der_y]]
+// CHECK:       bmodelica.variable_set @z, %[[add_x_y]]
+// CHECK:       bmodelica.variable_set @der_z, %[[add_der_x_der_y]]
 // CHECK:   }
 
-modelica.function @add attributes {derivative = #modelica.derivative<"add_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @z : !modelica.variable<!modelica.real, output>
+bmodelica.function @add attributes {derivative = #bmodelica.derivative<"add_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.add %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @z, %2 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        %1 = bmodelica.variable_get @y : !bmodelica.real
+        %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @z, %2 : !bmodelica.real
     }
 }
 
 // -----
 
 // CHECK-LABEL: @sub_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
-// CHECK:       %[[sub_x_y:.*]] = modelica.sub %[[x]], %[[y]]
-// CHECK:       %[[sub_der_x_der_y:.*]] = modelica.sub %[[der_x]], %[[der_y]]
-// CHECK:       modelica.variable_set @z, %[[sub_x_y]]
-// CHECK:       modelica.variable_set @der_z, %[[sub_der_x_der_y]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @z : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_z : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = bmodelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = bmodelica.variable_get @der_y
+// CHECK:       %[[sub_x_y:.*]] = bmodelica.sub %[[x]], %[[y]]
+// CHECK:       %[[sub_der_x_der_y:.*]] = bmodelica.sub %[[der_x]], %[[der_y]]
+// CHECK:       bmodelica.variable_set @z, %[[sub_x_y]]
+// CHECK:       bmodelica.variable_set @der_z, %[[sub_der_x_der_y]]
 // CHECK:   }
 
-modelica.function @sub attributes {derivative = #modelica.derivative<"sub_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @z : !modelica.variable<!modelica.real, output>
+bmodelica.function @sub attributes {derivative = #bmodelica.derivative<"sub_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.sub %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @z, %2 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        %1 = bmodelica.variable_get @y : !bmodelica.real
+        %2 = bmodelica.sub %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @z, %2 : !bmodelica.real
     }
 }
 
 // -----
 
 // CHECK-LABEL: @mul_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
-// CHECK:       %[[mul_x_y:.*]] = modelica.mul %[[x]], %[[y]]
-// CHECK:       %[[mul_der_x_y:.*]] = modelica.mul %[[der_x]], %[[y]]
-// CHECK:       %[[mul_x_der_y:.*]] = modelica.mul %[[x]], %[[der_y]]
-// CHECK:       %[[add:.*]] = modelica.add %[[mul_der_x_y]], %[[mul_x_der_y]]
-// CHECK:       modelica.variable_set @z, %[[mul_x_y]]
-// CHECK:       modelica.variable_set @der_z, %[[add]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @z : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_z : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = bmodelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = bmodelica.variable_get @der_y
+// CHECK:       %[[mul_x_y:.*]] = bmodelica.mul %[[x]], %[[y]]
+// CHECK:       %[[mul_der_x_y:.*]] = bmodelica.mul %[[der_x]], %[[y]]
+// CHECK:       %[[mul_x_der_y:.*]] = bmodelica.mul %[[x]], %[[der_y]]
+// CHECK:       %[[add:.*]] = bmodelica.add %[[mul_der_x_y]], %[[mul_x_der_y]]
+// CHECK:       bmodelica.variable_set @z, %[[mul_x_y]]
+// CHECK:       bmodelica.variable_set @der_z, %[[add]]
 // CHECK:   }
 
-modelica.function @mul attributes {derivative = #modelica.derivative<"mul_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @z : !modelica.variable<!modelica.real, output>
+bmodelica.function @mul attributes {derivative = #bmodelica.derivative<"mul_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.mul %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @z, %2 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        %1 = bmodelica.variable_get @y : !bmodelica.real
+        %2 = bmodelica.mul %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @z, %2 : !bmodelica.real
     }
 }
 
 // -----
 
 // CHECK-LABEL: @div_der
-// CHECK:   modelica.variable @x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @z : !modelica.variable<!modelica.real>
-// CHECK:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_y : !modelica.variable<!modelica.real, input>
-// CHECK:   modelica.variable @der_z : !modelica.variable<!modelica.real, output>
-// CHECK:   modelica.algorithm {
-// CHECK:       %[[x:.*]] = modelica.variable_get @x
-// CHECK:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:       %[[der_y:.*]] = modelica.variable_get @der_y
-// CHECK:       %[[div_x_y:.*]] = modelica.div %[[x]], %[[y]]
-// CHECK:       %[[mul_der_x_y:.*]] = modelica.mul %[[der_x]], %[[y]]
-// CHECK:       %[[mul_x_der_y:.*]] = modelica.mul %[[x]], %[[der_y]]
-// CHECK:       %[[sub:.*]] = modelica.sub %[[mul_der_x_y]], %[[mul_x_der_y]]
-// CHECK:       %[[exponent:.*]] = modelica.constant #modelica.real<2.000000e+00>
-// CHECK:       %[[pow:.*]] = modelica.pow %2, %[[exponent]]
-// CHECK:       %[[der_div:.*]] = modelica.div %[[sub]], %[[pow]]
-// CHECK:       modelica.variable_set @z, %[[div_x_y]]
-// CHECK:       modelica.variable_set @der_z, %[[der_div]]
+// CHECK:   bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @z : !bmodelica.variable<!bmodelica.real>
+// CHECK:   bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_y : !bmodelica.variable<!bmodelica.real, input>
+// CHECK:   bmodelica.variable @der_z : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:   bmodelica.algorithm {
+// CHECK:       %[[x:.*]] = bmodelica.variable_get @x
+// CHECK:       %[[der_x:.*]] = bmodelica.variable_get @der_x
+// CHECK:       %[[y:.*]] = bmodelica.variable_get @y
+// CHECK:       %[[der_y:.*]] = bmodelica.variable_get @der_y
+// CHECK:       %[[div_x_y:.*]] = bmodelica.div %[[x]], %[[y]]
+// CHECK:       %[[mul_der_x_y:.*]] = bmodelica.mul %[[der_x]], %[[y]]
+// CHECK:       %[[mul_x_der_y:.*]] = bmodelica.mul %[[x]], %[[der_y]]
+// CHECK:       %[[sub:.*]] = bmodelica.sub %[[mul_der_x_y]], %[[mul_x_der_y]]
+// CHECK:       %[[exponent:.*]] = bmodelica.constant #bmodelica.real<2.000000e+00>
+// CHECK:       %[[pow:.*]] = bmodelica.pow %2, %[[exponent]]
+// CHECK:       %[[der_div:.*]] = bmodelica.div %[[sub]], %[[pow]]
+// CHECK:       bmodelica.variable_set @z, %[[div_x_y]]
+// CHECK:       bmodelica.variable_set @der_z, %[[der_div]]
 // CHECK:   }
 
-modelica.function @div attributes {derivative = #modelica.derivative<"div_der", 1>} {
-    modelica.variable @x : !modelica.variable<!modelica.real, input>
-    modelica.variable @y : !modelica.variable<!modelica.real, input>
-    modelica.variable @z : !modelica.variable<!modelica.real, output>
+bmodelica.function @div attributes {derivative = #bmodelica.derivative<"div_der", 1>} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.real, output>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.real
-        %1 = modelica.variable_get @y : !modelica.real
-        %2 = modelica.div %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @z, %2 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.real
+        %1 = bmodelica.variable_get @y : !bmodelica.real
+        %2 = bmodelica.div %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @z, %2 : !bmodelica.real
     }
 }

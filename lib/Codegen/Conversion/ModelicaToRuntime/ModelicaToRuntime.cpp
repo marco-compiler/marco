@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/ModelicaToRuntime/ModelicaToRuntime.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/VariableFilter/VariableFilter.h"
@@ -13,7 +13,7 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {

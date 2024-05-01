@@ -1,8 +1,8 @@
 #include "marco/Codegen/Transforms/Solvers/SUNDIALS.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::sundials::VariableGetterOp createGetterFunction(
       mlir::OpBuilder& builder,

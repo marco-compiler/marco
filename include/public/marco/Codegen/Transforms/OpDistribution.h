@@ -3,7 +3,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DECL_NEGATEOPDISTRIBUTIONPASS
 #define GEN_PASS_DECL_MULOPDISTRIBUTIONPASS

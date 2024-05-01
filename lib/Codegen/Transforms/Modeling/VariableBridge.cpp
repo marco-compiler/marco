@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/Modeling/VariableBridge.h"
 
-using namespace mlir::modelica;
-using namespace mlir::modelica::bridge;
+using namespace mlir::bmodelica;
+using namespace mlir::bmodelica::bridge;
 
 static IndexSet getNonEmptyIndices(IndexSet indices)
 {
@@ -13,7 +13,7 @@ static IndexSet getNonEmptyIndices(IndexSet indices)
   return std::move(indices);
 }
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   std::unique_ptr<VariableBridge> VariableBridge::build(
       mlir::SymbolRefAttr name,

@@ -5,7 +5,7 @@
 #include "marco/Codegen/BridgeInterface.h"
 #include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/Results.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/Builders.h"
 
 namespace marco::codegen::lowering

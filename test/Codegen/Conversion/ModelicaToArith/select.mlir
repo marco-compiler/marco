@@ -10,12 +10,12 @@
 // CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
 // CHECK:       return %[[result_cast]]
 
-func.func @foo() -> !modelica.int {
-    %condition = modelica.constant #modelica.bool<true>
-    %trueValue = modelica.constant #modelica.int<0>
-    %falseValue = modelica.constant #modelica.int<1>
-    %select = modelica.select (%condition : !modelica.bool), (%trueValue : !modelica.int), (%falseValue : !modelica.int) -> !modelica.int
-    func.return %select : !modelica.int
+func.func @foo() -> !bmodelica.int {
+    %condition = bmodelica.constant #bmodelica.bool<true>
+    %trueValue = bmodelica.constant #bmodelica.int<0>
+    %falseValue = bmodelica.constant #bmodelica.int<1>
+    %select = bmodelica.select (%condition : !bmodelica.bool), (%trueValue : !bmodelica.int), (%falseValue : !bmodelica.int) -> !bmodelica.int
+    func.return %select : !bmodelica.int
 }
 
 // -----
@@ -34,13 +34,13 @@ func.func @foo() -> !modelica.int {
 // CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
 // CHECK:       return %[[result_cast]]
 
-func.func @foo() -> !modelica.int {
-    %condition = modelica.constant #modelica.bool<true>
-    %trueValue0 = modelica.constant #modelica.int<0>
-    %trueValue1 = modelica.constant #modelica.int<1>
-    %falseValue0 = modelica.constant #modelica.int<2>
-    %falseValue1 = modelica.constant #modelica.int<3>
-    %select:2 = modelica.select (%condition : !modelica.bool), (%trueValue0, %trueValue1 : !modelica.int, !modelica.int), (%falseValue0, %falseValue1 : !modelica.int, !modelica.int) -> (!modelica.int, !modelica.int)
-    %result = modelica.add %select#0, %select#1 : (!modelica.int, !modelica.int) -> !modelica.int
-    func.return %result : !modelica.int
+func.func @foo() -> !bmodelica.int {
+    %condition = bmodelica.constant #bmodelica.bool<true>
+    %trueValue0 = bmodelica.constant #bmodelica.int<0>
+    %trueValue1 = bmodelica.constant #bmodelica.int<1>
+    %falseValue0 = bmodelica.constant #bmodelica.int<2>
+    %falseValue1 = bmodelica.constant #bmodelica.int<3>
+    %select:2 = bmodelica.select (%condition : !bmodelica.bool), (%trueValue0, %trueValue1 : !bmodelica.int, !bmodelica.int), (%falseValue0, %falseValue1 : !bmodelica.int, !bmodelica.int) -> (!bmodelica.int, !bmodelica.int)
+    %result = bmodelica.add %select#0, %select#1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    func.return %result : !bmodelica.int
 }

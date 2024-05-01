@@ -1,11 +1,11 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 #define MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "llvm/ADT/STLExtras.h"
 #include <set>
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   class ForwardAD
   {
@@ -18,36 +18,36 @@ namespace mlir::modelica
 
       mlir::LogicalResult createFullDerFunction(
           mlir::OpBuilder& builder,
-          mlir::modelica::FunctionOp functionOp,
+          mlir::bmodelica::FunctionOp functionOp,
           mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::LogicalResult convertPartialDerFunction(
           mlir::OpBuilder& builder,
-          mlir::modelica::DerFunctionOp derFunctionOp,
+          mlir::bmodelica::DerFunctionOp derFunctionOp,
           mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::LogicalResult deriveTree(
           llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::DerivableOpInterface op,
+          mlir::bmodelica::DerivableOpInterface op,
           const llvm::DenseMap<
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::IRMapping& derivatives);
 
-      mlir::modelica::FunctionOp createPartialDerTemplateFunction(
+      mlir::bmodelica::FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
           mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::modelica::DerFunctionOp derFunctionOp);
+          mlir::bmodelica::DerFunctionOp derFunctionOp);
 
-      mlir::modelica::FunctionOp createPartialDerTemplateFunction(
+      mlir::bmodelica::FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
           mlir::SymbolTableCollection& symbolTable,
-          mlir::modelica::FunctionOp functionOp,
+          mlir::bmodelica::FunctionOp functionOp,
           llvm::StringRef derivedFunctionName);
 
-      std::pair<mlir::modelica::FunctionOp, unsigned int> getPartialDerBaseFunction(
-          mlir::modelica::FunctionOp functionOp);
+      std::pair<mlir::bmodelica::FunctionOp, unsigned int> getPartialDerBaseFunction(
+          mlir::bmodelica::FunctionOp functionOp);
 
       mlir::LogicalResult deriveRegion(
           mlir::OpBuilder& builder,
@@ -86,34 +86,34 @@ namespace mlir::modelica
       mlir::LogicalResult createCallOpFullDerivative(
           llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::CallOp callOp,
+          mlir::bmodelica::CallOp callOp,
           mlir::IRMapping& ssaDerivatives);
 
       mlir::LogicalResult createCallOpPartialDerivative(
           llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::CallOp callOp,
+          mlir::bmodelica::CallOp callOp,
           mlir::SymbolTableCollection& symbolTable,
           mlir::IRMapping& ssaDerivatives);
 
       mlir::LogicalResult createTimeOpFullDerivative(
           llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::TimeOp timeOp);
+          mlir::bmodelica::TimeOp timeOp);
 
       mlir::LogicalResult createTimeOpPartialDerivative(
           llvm::SmallVectorImpl<mlir::Value>& results,
           mlir::OpBuilder& builder,
-          mlir::modelica::TimeOp timeOp);
+          mlir::bmodelica::TimeOp timeOp);
 
     private:
       // Keeps track of the operations that have already been derived
       std::set<mlir::Operation*> derivedOps;
 
       // Map each partial derivative template function to its base function
-      llvm::StringMap<mlir::modelica::FunctionOp> partialDerTemplates;
+      llvm::StringMap<mlir::bmodelica::FunctionOp> partialDerTemplates;
 
-      llvm::StringMap<mlir::modelica::FunctionOp> partialDersTemplateCallers;
+      llvm::StringMap<mlir::bmodelica::FunctionOp> partialDersTemplateCallers;
 
       llvm::StringMap<mlir::ArrayAttr> partialDerTemplatesIndependentVars;
   };

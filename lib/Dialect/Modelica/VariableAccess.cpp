@@ -1,9 +1,9 @@
-#include "marco/Dialect/Modelica/VariableAccess.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/VariableAccess.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableAccess::VariableAccess(
       EquationPath path,

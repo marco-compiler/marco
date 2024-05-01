@@ -10,7 +10,7 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_conversion_library(MLIRModelicaCommonConversion
+add_mlir_conversion_library(MLIRBaseModelicaCommonConversion
     ${SOURCES}
 
     DEPENDS

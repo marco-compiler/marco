@@ -1,16 +1,16 @@
-#include "marco/Dialect/Modelica/Attributes.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/Attributes.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace mlir
 {
   template<>
-  struct FieldParser<mlir::modelica::EquationPath>
+  struct FieldParser<mlir::bmodelica::EquationPath>
   {
-    static FailureOr<mlir::modelica::EquationPath>
+    static FailureOr<mlir::bmodelica::EquationPath>
     parse(mlir::AsmParser& parser)
     {
       EquationPath::EquationSide side = EquationPath::LEFT;
@@ -44,7 +44,7 @@ namespace mlir
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const mlir::modelica::EquationPath& path)
+      const mlir::bmodelica::EquationPath& path)
   {
     printer << "[";
 
@@ -63,9 +63,9 @@ namespace mlir
   }
 
   template<>
-  struct FieldParser<mlir::modelica::EquationScheduleDirection>
+  struct FieldParser<mlir::bmodelica::EquationScheduleDirection>
   {
-    static FailureOr<mlir::modelica::EquationScheduleDirection>
+    static FailureOr<mlir::bmodelica::EquationScheduleDirection>
     parse(mlir::AsmParser& parser)
     {
       EquationScheduleDirection direction =
@@ -87,7 +87,7 @@ namespace mlir
 
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
-      const mlir::modelica::EquationScheduleDirection& direction)
+      const mlir::bmodelica::EquationScheduleDirection& direction)
   {
     switch (direction) {
       case EquationScheduleDirection::Any:
@@ -116,24 +116,24 @@ namespace mlir
 //===----------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
-#include "marco/Dialect/Modelica/ModelicaAttributes.cpp.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaAttributes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // ModelicaDialect
 //===----------------------------------------------------------------------===//
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
-  void ModelicaDialect::registerAttributes()
+  void BaseModelicaDialect::registerAttributes()
   {
     addAttributes<
       #define GET_ATTRDEF_LIST
-      #include "marco/Dialect/Modelica/ModelicaAttributes.cpp.inc"
+      #include "marco/Dialect/BaseModelica/BaseModelicaAttributes.cpp.inc"
     >();
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::Attribute getAttr(mlir::Type type, int64_t value)
   {

@@ -1,32 +1,32 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<5x3x!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<5x3x!modelica.real>
-// CHECK:       modelica.equation {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @r.x : !modelica.array<5x3x!modelica.real>
-// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @r.y : !modelica.array<5x3x!modelica.real>
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[y]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<5x3x!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<5x3x!bmodelica.real>
+// CHECK:       bmodelica.equation {
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.array<5x3x!bmodelica.real>
+// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.array<5x3x!bmodelica.real>
+// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
+// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y]]
+// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<3x!modelica.real>
-    modelica.variable @y : !modelica.variable<3x!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.real>
 }
 
-modelica.model @Test {
-    modelica.variable @r : !modelica.variable<5x!modelica<record @R>>
+bmodelica.model @Test {
+    bmodelica.variable @r : !bmodelica.variable<5x!bmodelica<record @R>>
 
-    modelica.main_model {
-        modelica.equation {
-            %0 = modelica.variable_get @r : !modelica.array<5x!modelica<record @R>>
-            %1 = modelica.component_get %0, @x : !modelica.array<5x!modelica<record @R>> -> !modelica.array<5x3x!modelica.real>
-            %2 = modelica.component_get %0, @y : !modelica.array<5x!modelica<record @R>> -> !modelica.array<5x3x!modelica.real>
-            %3 = modelica.equation_side %1 : tuple<!modelica.array<5x3x!modelica.real>>
-            %4 = modelica.equation_side %2 : tuple<!modelica.array<5x3x!modelica.real>>
-            modelica.equation_sides %3, %4 : tuple<!modelica.array<5x3x!modelica.real>>, tuple<!modelica.array<5x3x!modelica.real>>
+    bmodelica.main_model {
+        bmodelica.equation {
+            %0 = bmodelica.variable_get @r : !bmodelica.array<5x!bmodelica<record @R>>
+            %1 = bmodelica.component_get %0, @x : !bmodelica.array<5x!bmodelica<record @R>> -> !bmodelica.array<5x3x!bmodelica.real>
+            %2 = bmodelica.component_get %0, @y : !bmodelica.array<5x!bmodelica<record @R>> -> !bmodelica.array<5x3x!bmodelica.real>
+            %3 = bmodelica.equation_side %1 : tuple<!bmodelica.array<5x3x!bmodelica.real>>
+            %4 = bmodelica.equation_side %2 : tuple<!bmodelica.array<5x3x!bmodelica.real>>
+            bmodelica.equation_sides %3, %4 : tuple<!bmodelica.array<5x3x!bmodelica.real>>, tuple<!bmodelica.array<5x3x!bmodelica.real>>
         }
     }
 }

@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
-// CHECK: modelica.mul %{{.*}}, %{{.*}} : (!modelica.int, !modelica.int) -> !modelica.int
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
 
 function Integers
     input Integer x;
@@ -12,7 +12,7 @@ algorithm
 end Integers;
 
 // CHECK-LABEL: @Reals
-// CHECK: modelica.mul %{{.*}}, %{{.*}} : (!modelica.real, !modelica.real) -> !modelica.real
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
 
 function Reals
     input Real x;
@@ -23,7 +23,7 @@ algorithm
 end Reals;
 
 // CHECK-LABEL: @IntegerReal
-// CHECK: modelica.mul %{{.*}}, %{{.*}} : (!modelica.int, !modelica.real) -> !modelica.real
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
 
 function IntegerReal
     input Integer x;
@@ -34,7 +34,7 @@ algorithm
 end IntegerReal;
 
 // CHECK-LABEL: @RealInteger
-// CHECK: modelica.mul %{{.*}}, %{{.*}} : (!modelica.real, !modelica.int) -> !modelica.real
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
 
 function RealInteger
     input Real x;

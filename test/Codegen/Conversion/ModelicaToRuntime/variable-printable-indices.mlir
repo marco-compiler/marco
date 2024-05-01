@@ -5,8 +5,8 @@
 // CHECK: runtime.printable_indices [true]
 
 module {
-    modelica.model @Test {
-        modelica.variable @x : !modelica.variable<!modelica.real>
+    bmodelica.model @Test {
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     }
 }
 
@@ -18,7 +18,7 @@ module {
 // CHECK: runtime.printable_indices [#[[index_set]]]
 
 module {
-    modelica.model @Test {
-        modelica.variable @x : !modelica.variable<3x2x!modelica.real>
+    bmodelica.model @Test {
+        bmodelica.variable @x : !bmodelica.variable<3x2x!bmodelica.real>
     }
 }

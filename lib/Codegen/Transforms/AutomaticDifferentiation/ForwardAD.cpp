@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "llvm/ADT/STLExtras.h"
 #include <queue>
 
 using namespace ::marco;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 {
@@ -53,7 +53,7 @@ static bool isFullDerivative(
   return false;
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   bool ForwardAD::isDerived(mlir::Operation* op) const
   {
@@ -772,7 +772,7 @@ namespace mlir::modelica
   mlir::LogicalResult ForwardAD::createTimeOpFullDerivative(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::modelica::TimeOp timeOp)
+      mlir::bmodelica::TimeOp timeOp)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 1));
@@ -784,7 +784,7 @@ namespace mlir::modelica
   mlir::LogicalResult ForwardAD::createTimeOpPartialDerivative(
       llvm::SmallVectorImpl<mlir::Value>& results,
       mlir::OpBuilder& builder,
-      mlir::modelica::TimeOp timeOp)
+      mlir::bmodelica::TimeOp timeOp)
   {
     auto derivedOp = builder.create<ConstantOp>(
         timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 0));

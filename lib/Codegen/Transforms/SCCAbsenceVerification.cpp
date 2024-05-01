@@ -1,13 +1,13 @@
 #include "marco/Codegen/Transforms/SCCAbsenceVerification.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCCABSENCEVERIFICATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -39,7 +39,7 @@ void SCCAbsenceVerification::runOnOperation()
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSCCAbsenceVerificationPass()
   {

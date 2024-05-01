@@ -1,19 +1,19 @@
 #include "marco/Codegen/Transforms/ModelDebugCanonicalization.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_MODELDEBUGCANONICALIZATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ModelDebugCanonicalizationPass
-      : public mlir::modelica::impl::ModelDebugCanonicalizationPassBase<
+      : public mlir::bmodelica::impl::ModelDebugCanonicalizationPassBase<
             ModelDebugCanonicalizationPass>
   {
     public:
@@ -129,7 +129,7 @@ void ModelDebugCanonicalizationPass::sortEquations(
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createModelDebugCanonicalizationPass()
   {

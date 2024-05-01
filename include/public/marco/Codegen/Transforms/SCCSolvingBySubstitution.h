@@ -5,7 +5,7 @@
 #include "llvm/ADT/StringRef.h"
 #include <string>
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DECL_SCCSOLVINGBYSUBSTITUTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"

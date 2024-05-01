@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECTS_MODELICA_OPS_H
-#define MARCO_DIALECTS_MODELICA_OPS_H
+#ifndef MARCO_DIALECTS_BASEMODELICA_OPS_H
+#define MARCO_DIALECTS_BASEMODELICA_OPS_H
 
-#include "marco/Dialect/Modelica/Attributes.h"
-#include "marco/Dialect/Modelica/OpInterfaces.h"
-#include "marco/Dialect/Modelica/Types.h"
-#include "marco/Dialect/Modelica/VariableAccess.h"
+#include "marco/Dialect/BaseModelica/Attributes.h"
+#include "marco/Dialect/BaseModelica/OpInterfaces.h"
+#include "marco/Dialect/BaseModelica/Types.h"
+#include "marco/Dialect/BaseModelica/VariableAccess.h"
 #include "marco/Dialect/Modeling/Attributes.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -22,9 +22,9 @@
 #include "mlir/Dialect/Bufferization/IR/AllocationOpInterface.h"
 
 #define GET_OP_FWD_DEFINES
-#include "marco/Dialect/Modelica/Modelica.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelica.h.inc"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Modelica/Modelica.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelica.h.inc"
 
-#endif // MARCO_DIALECTS_MODELICA_OPS_H
+#endif // MARCO_DIALECTS_BASEMODELICA_OPS_H

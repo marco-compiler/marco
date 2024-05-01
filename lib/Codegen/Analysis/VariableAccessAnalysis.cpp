@@ -1,8 +1,8 @@
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   VariableAccessAnalysis::VariableAccessAnalysis(EquationTemplateOp op)
       : equationTemplate(op)

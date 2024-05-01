@@ -1,27 +1,27 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICAOPINTERFACES_TD
+#define MARCO_DIALECTS_BASEMODELICA_MODELICAOPINTERFACES_TD
 
-include "marco/Dialect/Modelica/ModelicaDialect.td"
+include "marco/Dialect/BaseModelica/BaseModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
 // Modelica op interface definitions
 //===---------------------------------------------------------------------===//
 
-class Modelica_OpInterface<string name>
+class BaseModelica_OpInterface<string name>
     : OpInterface<name>
 {
-    let cppNamespace = "::mlir::modelica";
+    let cppNamespace = "::mlir::bmodelica";
 }
 
-def ClassInterface : Modelica_OpInterface<"ClassInterface">
+def ClassInterface : BaseModelica_OpInterface<"ClassInterface">
 {
     let description = [{
         Interface for a Modelica class.
     }];
 }
 
-def VectorizableOpInterface : Modelica_OpInterface<"VectorizableOpInterface">
+def VectorizableOpInterface : BaseModelica_OpInterface<"VectorizableOpInterface">
 {
     let description = [{
         Interface for a vectorizable operation.
@@ -46,7 +46,7 @@ def VectorizableOpInterface : Modelica_OpInterface<"VectorizableOpInterface">
 }
 
 def EquationInstanceInterface
-    : Modelica_OpInterface<"EquationInstanceInterface">
+    : BaseModelica_OpInterface<"EquationInstanceInterface">
 {
     let methods = [
         InterfaceMethod<
@@ -61,7 +61,7 @@ def EquationInstanceInterface
 }
 
 def EquationExpressionOpInterface
-    : Modelica_OpInterface<"EquationExpressionOpInterface">
+    : BaseModelica_OpInterface<"EquationExpressionOpInterface">
 {
     let description = [{
         This interface is used to represent an operation that can be used to
@@ -142,7 +142,7 @@ def EquationExpressionOpInterface
     ];
 }
 
-def InvertibleOpInterface : Modelica_OpInterface<"InvertibleOpInterface">
+def InvertibleOpInterface : BaseModelica_OpInterface<"InvertibleOpInterface">
 {
     let description = [{
         This interface is used to abstract an operation that can be propagated
@@ -160,7 +160,7 @@ def InvertibleOpInterface : Modelica_OpInterface<"InvertibleOpInterface">
     ];
 }
 
-def DistributableOpInterface : Modelica_OpInterface<"DistributableOpInterface">
+def DistributableOpInterface : BaseModelica_OpInterface<"DistributableOpInterface">
 {
     let description = [{
         Interface for an distributable operation.
@@ -176,7 +176,7 @@ def DistributableOpInterface : Modelica_OpInterface<"DistributableOpInterface">
     ];
 }
 
-def NegateOpDistributionInterface : Modelica_OpInterface<"NegateOpDistributionInterface">
+def NegateOpDistributionInterface : BaseModelica_OpInterface<"NegateOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the NegateOp to be distributed among its operands.
@@ -192,7 +192,7 @@ def NegateOpDistributionInterface : Modelica_OpInterface<"NegateOpDistributionIn
     ];
 }
 
-def MulOpDistributionInterface : Modelica_OpInterface<"MulOpDistributionInterface">
+def MulOpDistributionInterface : BaseModelica_OpInterface<"MulOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the MulOp to be distributed among its operands.
@@ -209,7 +209,7 @@ def MulOpDistributionInterface : Modelica_OpInterface<"MulOpDistributionInterfac
     ];
 }
 
-def DivOpDistributionInterface : Modelica_OpInterface<"DivOpDistributionInterface">
+def DivOpDistributionInterface : BaseModelica_OpInterface<"DivOpDistributionInterface">
 {
     let description = [{
         Interface to describe an operation that can accept the DivOp to be distributed among its operands.
@@ -226,7 +226,7 @@ def DivOpDistributionInterface : Modelica_OpInterface<"DivOpDistributionInterfac
     ];
 }
 
-def DerivableOpInterface : Modelica_OpInterface<"DerivableOpInterface">
+def DerivableOpInterface : BaseModelica_OpInterface<"DerivableOpInterface">
 {
     let description = [{
         Interface to describe an operation that can be traversed while
@@ -256,4 +256,4 @@ def DerivableOpInterface : Modelica_OpInterface<"DerivableOpInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICAOPINTERFACES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICAOPINTERFACES_TD

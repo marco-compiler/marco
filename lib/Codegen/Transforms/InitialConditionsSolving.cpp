@@ -1,19 +1,19 @@
 #include "marco/Codegen/Transforms/InitialConditionsSolving.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_INITIALCONDITIONSSOLVINGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class InitialConditionsSolvingPass
-      : public mlir::modelica::impl::InitialConditionsSolvingPassBase<
+      : public mlir::bmodelica::impl::InitialConditionsSolvingPassBase<
             InitialConditionsSolvingPass>
   {
     public:
@@ -222,7 +222,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   return mlir::success();
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createInitialConditionsSolvingPass()
   {

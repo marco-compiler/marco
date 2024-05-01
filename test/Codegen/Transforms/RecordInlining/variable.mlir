@@ -1,20 +1,20 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
 // CHECK-LABEL: @R
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica<record @R>>
+bmodelica.function @Test {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 }
 
 // -----
@@ -22,33 +22,33 @@ modelica.function @Test {
 // Nested records.
 
 // CHECK-LABEL: @R1
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
 // CHECK-LABEL: @R2
-// CHECK: modelica.variable @r1.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r1.y : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r2.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r2.y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @r1.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r1.y : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r2.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r2.y : !bmodelica.variable<!bmodelica.real>
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.r1.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.r1.y : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.r2.x : !modelica.variable<!modelica.real>
-// CHECK: modelica.variable @r.r2.y : !modelica.variable<!modelica.real>
+// CHECK: bmodelica.variable @r.r1.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.r1.y : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.r2.x : !bmodelica.variable<!bmodelica.real>
+// CHECK: bmodelica.variable @r.r2.y : !bmodelica.variable<!bmodelica.real>
 
-modelica.record @R1 {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R1 {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.record @R2 {
-    modelica.variable @r1 : !modelica.variable<!modelica<record @R1>>
-    modelica.variable @r2 : !modelica.variable<!modelica<record @R1>>
+bmodelica.record @R2 {
+    bmodelica.variable @r1 : !bmodelica.variable<!bmodelica<record @R1>>
+    bmodelica.variable @r2 : !bmodelica.variable<!bmodelica<record @R1>>
 }
 
-modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica<record @R2>>
+bmodelica.function @Test {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R2>>
 }
 
 // -----
@@ -56,16 +56,16 @@ modelica.function @Test {
 // Array of records.
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<3x4x5x!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<3x4x5x!modelica.real>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<3x4x5x!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<3x4x5x!bmodelica.real>
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @y : !modelica.variable<!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-modelica.function @Test {
-    modelica.variable @r : !modelica.variable<3x4x5x!modelica<record @R>>
+bmodelica.function @Test {
+    bmodelica.variable @r : !bmodelica.variable<3x4x5x!bmodelica<record @R>>
 }
 
 // -----
@@ -73,14 +73,14 @@ modelica.function @Test {
 // Record composed by arrays.
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @r.x : !modelica.variable<3x!modelica.real>
-// CHECK: modelica.variable @r.y : !modelica.variable<4x!modelica.real>
+// CHECK: bmodelica.variable @r.x : !bmodelica.variable<3x!bmodelica.real>
+// CHECK: bmodelica.variable @r.y : !bmodelica.variable<4x!bmodelica.real>
 
-modelica.record @R {
-    modelica.variable @x : !modelica.variable<3x!modelica.real>
-    modelica.variable @y : !modelica.variable<4x!modelica.real>
+bmodelica.record @R {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.real>
+    bmodelica.variable @y : !bmodelica.variable<4x!bmodelica.real>
 }
 
-modelica.function @Test {
-    modelica.variable @r : !modelica.variable<!modelica<record @R>>
+bmodelica.function @Test {
+    bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 }

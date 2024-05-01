@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/AccessReplacementTest.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_ACCESSREPLACEMENTTESTPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 using EquationsMap = llvm::StringMap<EquationInstanceOp>;
 
@@ -106,7 +106,7 @@ namespace
 namespace
 {
   class AccessReplacementTestPass
-      : public mlir::modelica::impl::AccessReplacementTestPassBase<
+      : public mlir::bmodelica::impl::AccessReplacementTestPassBase<
             AccessReplacementTestPass>
   {
     public:
@@ -142,7 +142,7 @@ namespace
   };
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createAccessReplacementTestPass()
   {

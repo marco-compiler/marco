@@ -1,5 +1,5 @@
 #include "marco/Codegen/Lowering/LoweringContext.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -26,7 +26,7 @@ namespace marco::codegen::lowering
       : builder(&context),
         options(std::move(options))
   {
-    context.loadDialect<mlir::modelica::ModelicaDialect>();
+    context.loadDialect<mlir::bmodelica::BaseModelicaDialect>();
   }
 
   mlir::OpBuilder& LoweringContext::getBuilder()

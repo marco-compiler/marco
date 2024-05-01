@@ -1,9 +1,9 @@
 #include "marco/Codegen/Transforms/Modeling/EquationBridge.h"
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   EquationBridge::EquationBridge(
       EquationInstanceOp op,
@@ -86,7 +86,7 @@ namespace marco::modeling::matching
   std::unique_ptr<AccessFunction>
   EquationTraits<EquationBridge*>::getAccessFunction(
       mlir::MLIRContext* context,
-      const mlir::modelica::VariableAccess& access)
+      const mlir::bmodelica::VariableAccess& access)
   {
     const AccessFunction& accessFunction = access.getAccessFunction();
 

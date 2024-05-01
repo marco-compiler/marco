@@ -1,9 +1,9 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace marco::codegen
 {

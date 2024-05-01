@@ -3,27 +3,27 @@
 
 // Static output arrays can be promoted.
 
-// CHECK-CALLEE: modelica.raw_function @callee
-// CHECK-CALLEE-SAME: (%[[x:.*]]: !modelica.array<3x!modelica.int>) -> !modelica.array<?x!modelica.int>
-// CHECK-CALLEE: %[[y:.*]] = modelica.raw_variable %{{.*}} : !modelica.variable<?x!modelica.int, output>
-// CHECK-CALLEE: %[[y_value:.*]] = modelica.raw_variable_get %[[y]]
-// CHECK-CALLEE: modelica.raw_return %[[y_value]]
+// CHECK-CALLEE: bmodelica.raw_function @callee
+// CHECK-CALLEE-SAME: (%[[x:.*]]: !bmodelica.array<3x!bmodelica.int>) -> !bmodelica.array<?x!bmodelica.int>
+// CHECK-CALLEE: %[[y:.*]] = bmodelica.raw_variable %{{.*}} : !bmodelica.variable<?x!bmodelica.int, output>
+// CHECK-CALLEE: %[[y_value:.*]] = bmodelica.raw_variable_get %[[y]]
+// CHECK-CALLEE: bmodelica.raw_return %[[y_value]]
 
-modelica.function @callee {
-    modelica.variable @x : !modelica.variable<3x!modelica.int, output>
+bmodelica.function @callee {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, output>
 
-    modelica.variable @y : !modelica.variable<?x!modelica.int, output> [fixed] {
+    bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.int, output> [fixed] {
         %0 = arith.constant 2 : index
-        modelica.yield %0 : index
+        bmodelica.yield %0 : index
     }
 }
 
 // CHECK-CALLER: func.func @caller
-// CHECK-CALLER: %[[x:.*]] = modelica.alloc : <3x!modelica.int>
-// CHECK-CALLER: %[[y:.*]] = modelica.call @callee(%[[x]]) : (!modelica.array<3x!modelica.int>) -> !modelica.array<?x!modelica.int>
+// CHECK-CALLER: %[[x:.*]] = bmodelica.alloc : <3x!bmodelica.int>
+// CHECK-CALLER: %[[y:.*]] = bmodelica.call @callee(%[[x]]) : (!bmodelica.array<3x!bmodelica.int>) -> !bmodelica.array<?x!bmodelica.int>
 // CHECK-CALLER: return %[[x]], %[[y]]
 
-func.func @caller() -> (!modelica.array<3x!modelica.int>, !modelica.array<?x!modelica.int>) {
-    %0:2 = modelica.call @callee() : () -> (!modelica.array<3x!modelica.int>, !modelica.array<?x!modelica.int>)
-    return %0#0, %0#1 : !modelica.array<3x!modelica.int>, !modelica.array<?x!modelica.int>
+func.func @caller() -> (!bmodelica.array<3x!bmodelica.int>, !bmodelica.array<?x!bmodelica.int>) {
+    %0:2 = bmodelica.call @callee() : () -> (!bmodelica.array<3x!bmodelica.int>, !bmodelica.array<?x!bmodelica.int>)
+    return %0#0, %0#1 : !bmodelica.array<3x!bmodelica.int>, !bmodelica.array<?x!bmodelica.int>
 }

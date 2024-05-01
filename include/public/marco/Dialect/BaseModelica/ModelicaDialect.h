@@ -1,17 +1,17 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICADIALECT_H
-#define MARCO_DIALECTS_MODELICA_MODELICADIALECT_H
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICADIALECT_H
+#define MARCO_DIALECTS_BASEMODELICA_MODELICADIALECT_H
 
-#include "marco/Dialect/Modelica/Attributes.h"
-#include "marco/Dialect/Modelica/Common.h"
-#include "marco/Dialect/Modelica/OpInterfaces.h"
-#include "marco/Dialect/Modelica/Ops.h"
-#include "marco/Dialect/Modelica/Types.h"
+#include "marco/Dialect/BaseModelica/Attributes.h"
+#include "marco/Dialect/BaseModelica/Common.h"
+#include "marco/Dialect/BaseModelica/OpInterfaces.h"
+#include "marco/Dialect/BaseModelica/Ops.h"
+#include "marco/Dialect/BaseModelica/Types.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h.inc"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   using DimensionAccess = ::marco::modeling::DimensionAccess;
   using DimensionAccessConstant = ::marco::modeling::DimensionAccessConstant;
@@ -133,4 +133,4 @@ namespace mlir::modelica
       mlir::SymbolTableCollection& symbolTableCollection);
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_H
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICADIALECT_H

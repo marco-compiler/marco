@@ -1,24 +1,24 @@
 // RUN: modelica-opt %s --split-input-file --function-default-values-conversion | FileCheck %s
 
 // CHECK-LABEL: @caller
-// CHECK: %[[default:.*]] = modelica.constant #modelica.int<0>
-// CHECK: modelica.call @scalarDefaultValue(%[[default]]) : (!modelica.int) -> ()
+// CHECK: %[[default:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK: bmodelica.call @scalarDefaultValue(%[[default]]) : (!bmodelica.int) -> ()
 
-modelica.function @scalarDefaultValue {
-    modelica.variable @x : !modelica.variable<!modelica.int, input>
+bmodelica.function @scalarDefaultValue {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.default @x {
-        %0 = modelica.constant #modelica.int<0>
-        modelica.yield %0 : !modelica.int
+    bmodelica.default @x {
+        %0 = bmodelica.constant #bmodelica.int<0>
+        bmodelica.yield %0 : !bmodelica.int
     }
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.int
-        modelica.print %0 : !modelica.int
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.int
+        bmodelica.print %0 : !bmodelica.int
     }
 }
 
 func.func @caller() {
-    modelica.call @scalarDefaultValue() : () -> ()
+    bmodelica.call @scalarDefaultValue() : () -> ()
     func.return
 }

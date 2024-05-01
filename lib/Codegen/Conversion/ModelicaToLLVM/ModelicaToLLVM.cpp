@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -19,7 +19,7 @@ namespace mlir
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -507,7 +507,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   llvmLoweringOptions.dataLayout.reset(dataLayout);
-  mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+  mlir::bmodelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
   mlir::RewritePatternSet patterns(&getContext());
   patterns.insert<CallOpLowering>(typeConverter);
@@ -537,7 +537,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   llvmLoweringOptions.dataLayout.reset(dataLayout);
 
-  mlir::modelica::LLVMTypeConverter typeConverter(
+  mlir::bmodelica::LLVMTypeConverter typeConverter(
       &getContext(), llvmLoweringOptions, bitWidth);
 
   mlir::RewritePatternSet patterns(&getContext());
@@ -559,7 +559,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeRuntime()
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   llvmLoweringOptions.dataLayout.reset(dataLayout);
 
-  mlir::modelica::LLVMTypeConverter typeConverter(
+  mlir::bmodelica::LLVMTypeConverter typeConverter(
       &getContext(), llvmLoweringOptions, bitWidth);
 
   mlir::RewritePatternSet patterns(&getContext());

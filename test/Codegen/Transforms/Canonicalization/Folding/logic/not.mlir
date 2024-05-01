@@ -1,23 +1,23 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<false>
-    %result = modelica.not %x : !modelica.bool -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<false>
+    %result = bmodelica.not %x : !bmodelica.bool -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }
 
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<true>
-    %result = modelica.not %x : !modelica.bool -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<true>
+    %result = bmodelica.not %x : !bmodelica.bool -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }

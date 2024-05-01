@@ -7,6 +7,6 @@
 // CHECK-NEXT:      ida.free @ida_main
 // CHECK-NEXT:  }
 
-modelica.model @Test {
+bmodelica.model @Test {
 
 }

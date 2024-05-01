@@ -1,8 +1,8 @@
-#include "marco/Dialect/Modelica/EquationPath.h"
+#include "marco/Dialect/BaseModelica/EquationPath.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   EquationPath::Guard::Guard(EquationPath& path)
       : ExpressionPath::Guard(path.expressionPath)

@@ -1,9 +1,9 @@
-#ifndef MARCO_DIALECT_MODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H
-#define MARCO_DIALECT_MODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H
+#ifndef MARCO_DIALECT_BASEMODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H
+#define MARCO_DIALECT_BASEMODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H
 
-#include "marco/Dialect/Modelica/VariablesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/VariablesDependencyGraph.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   /// Directed graph representing the dependencies among the variables with
   /// respect to the usage of variables for the computation of the dynamic
@@ -15,4 +15,4 @@ namespace mlir::modelica
   };
 }
 
-#endif // MARCO_DIALECT_MODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H
+#endif // MARCO_DIALECT_BASEMODELICA_VARIABLESDIMENSIONSDEPENDENCYGRAPH_H

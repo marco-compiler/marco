@@ -1,18 +1,18 @@
 #include "marco/Codegen/Transforms/ExplicitInitialEquationsInsertion.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EXPLICITINITIALEQUATIONSINSERTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
   class ExplicitInitialEquationsInsertionPass
-      : public mlir::modelica::impl::ExplicitInitialEquationsInsertionPassBase<
+      : public mlir::bmodelica::impl::ExplicitInitialEquationsInsertionPassBase<
             ExplicitInitialEquationsInsertionPass>
   {
     public:
@@ -160,7 +160,7 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createExplicitInitialEquationsInsertionPass()
   {

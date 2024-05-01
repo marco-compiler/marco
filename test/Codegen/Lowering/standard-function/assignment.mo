@@ -1,11 +1,11 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
-// CHECK-DAG: modelica.variable @x : !modelica.variable<!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.variable<!modelica.int, output>
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
-// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
+// CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, output>
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.int
+// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function variableCopy
@@ -17,11 +17,11 @@ end variableCopy;
 
 
 // CHECK-LABEL: @arrayCopy
-// CHECK-DAG: modelica.variable @x : !modelica.variable<?x!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.variable<?x!modelica.int, output>
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.array<?x!modelica.int>
-// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<?x!bmodelica.int, input>
+// CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.int, output>
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.array<?x!bmodelica.int>
+// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function arrayCopy
@@ -33,10 +33,10 @@ end arrayCopy;
 
 
 // CHECK-LABEL: @constantOutput
-// CHECK: modelica.variable @x : !modelica.variable<!modelica.int, output>
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %[[const:.*]] = modelica.constant #modelica.int<10>
-// CHECK-NEXT:      modelica.variable_set @x, %[[const]]
+// CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, output>
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %[[const:.*]] = bmodelica.constant #bmodelica.int<10>
+// CHECK-NEXT:      bmodelica.variable_set @x, %[[const]]
 // CHECK-NEXT:  }
 
 function constantOutput
@@ -47,11 +47,11 @@ end constantOutput;
 
 
 // CHECK-LABEL: @castIntegerToReal
-// CHECK-DAG: modelica.variable @x : !modelica.variable<!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.variable<!modelica.real, output>
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
-// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
+// CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.int
+// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
 // CHECK-NEXT:  }
 
 function castIntegerToReal

@@ -2,6 +2,6 @@
 
 // CHECK: text
 
-modelica.model @M {
+bmodelica.model @M {
 
 }

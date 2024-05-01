@@ -1,13 +1,13 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODELING_SCCBRIDGE_H
 #define MARCO_CODEGEN_TRANSFORMS_MODELING_SCCBRIDGE_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/VariableBridge.h"
 #include "marco/Codegen/Transforms/Modeling/MatchedEquationBridge.h"
 #include "llvm/ADT/DenseMap.h"
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   class SCCBridge
   {
@@ -47,10 +47,10 @@ namespace mlir::modelica::bridge
 namespace marco::modeling::dependency
 {
   template<>
-  struct SCCTraits<::mlir::modelica::bridge::SCCBridge*>
+  struct SCCTraits<::mlir::bmodelica::bridge::SCCBridge*>
   {
-    using SCC = ::mlir::modelica::bridge::SCCBridge*;
-    using ElementRef = ::mlir::modelica::bridge::MatchedEquationBridge*;
+    using SCC = ::mlir::bmodelica::bridge::SCCBridge*;
+    using ElementRef = ::mlir::bmodelica::bridge::MatchedEquationBridge*;
 
     static std::vector<ElementRef> getElements(const SCC* scc);
 

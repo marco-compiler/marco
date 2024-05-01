@@ -1,13 +1,13 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
-// CHECK:       modelica.start @r::@x {
-// CHECK-NEXT:      %[[x_value:.*]] = modelica.constant #modelica.real<1.000000e+00>
-// CHECK-NEXT:      modelica.yield %[[x_value]]
+// CHECK:       bmodelica.start @r::@x {
+// CHECK-NEXT:      %[[x_value:.*]] = bmodelica.constant #bmodelica.real<1.000000e+00>
+// CHECK-NEXT:      bmodelica.yield %[[x_value]]
 // CHECK-NEXT:  }
 
-// CHECK:       modelica.start @r::@y {
-// CHECK-NEXT:      %[[y_value:.*]] = modelica.constant #modelica.real<2.000000e+00>
-// CHECK-NEXT:      modelica.yield %[[y_value]]
+// CHECK:       bmodelica.start @r::@y {
+// CHECK-NEXT:      %[[y_value:.*]] = bmodelica.constant #bmodelica.real<2.000000e+00>
+// CHECK-NEXT:      bmodelica.yield %[[y_value]]
 // CHECK-NEXT:  }
 
 model M

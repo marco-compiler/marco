@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/ModelicaToVector/ModelicaToVector.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/Dialect/Vector/Transforms/VectorTransforms.h"
@@ -15,7 +15,7 @@ namespace mlir
 }
 
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static mlir::Value readVectorFromMemRef(
     mlir::OpBuilder& builder, mlir::Location loc, mlir::Value memRef)
@@ -606,7 +606,7 @@ namespace
         mlir::ConversionTarget target(getContext());
 
         target.addLegalDialect<mlir::BuiltinDialect>();
-        target.addLegalDialect<ModelicaDialect>();
+        target.addLegalDialect<BaseModelicaDialect>();
         target.addLegalDialect<mlir::arith::ArithDialect>();
         target.addLegalDialect<mlir::vector::VectorDialect>();
 

@@ -1,4 +1,4 @@
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Bridge.h"
@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
   mlir::registerAllDialects(registry);
 
   registry.insert<mlir::modeling::ModelingDialect>();
-	registry.insert<mlir::modelica::ModelicaDialect>();
+	registry.insert<mlir::bmodelica::BaseModelicaDialect>();
   registry.insert<mlir::ida::IDADialect>();
   registry.insert<mlir::runtime::RuntimeDialect>();
 

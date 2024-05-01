@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/SCCSolvingWithKINSOL.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
@@ -11,13 +11,13 @@
 
 #define DEBUG_TYPE "scc-solving-with-kinsol"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCCSOLVINGWITHKINSOLPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -137,7 +137,7 @@ namespace
           llvm::DenseMap<VariableOp, size_t>& variablesPos,
           llvm::StringRef templateName);
 
-      mlir::modelica::FunctionOp createPartialDerTemplateFromEquation(
+      mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
           mlir::RewriterBase& rewriter,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
@@ -350,7 +350,7 @@ mlir::sundials::VariableGetterOp KINSOLInstance::createGetterFunction(
     VariableOp variable,
     llvm::StringRef functionName)
 {
-  return ::mlir::modelica::createGetterFunction(
+  return ::mlir::bmodelica::createGetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
@@ -361,7 +361,7 @@ mlir::sundials::VariableSetterOp KINSOLInstance::createSetterFunction(
     VariableOp variable,
     llvm::StringRef functionName)
 {
-  return ::mlir::modelica::createSetterFunction(
+  return ::mlir::bmodelica::createSetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
@@ -799,7 +799,7 @@ mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
   return mlir::success();
 }
 
-mlir::modelica::FunctionOp
+mlir::bmodelica::FunctionOp
 KINSOLInstance::createPartialDerTemplateFromEquation(
     mlir::RewriterBase& rewriter,
     mlir::ModuleOp moduleOp,
@@ -1149,7 +1149,7 @@ std::string KINSOLInstance::getKINSOLFunctionName(llvm::StringRef name) const
 namespace
 {
   class SCCSolvingWithKINSOLPass
-      : public mlir::modelica::impl::SCCSolvingWithKINSOLPassBase<
+      : public mlir::bmodelica::impl::SCCSolvingWithKINSOLPassBase<
             SCCSolvingWithKINSOLPass>
   {
     public:
@@ -1609,7 +1609,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSCCSolvingWithKINSOLPass()
   {

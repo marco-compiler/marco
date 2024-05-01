@@ -1,51 +1,51 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<false>
-    %y = modelica.constant #modelica.bool<false>
-    %result = modelica.and %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<false>
+    %y = bmodelica.constant #bmodelica.bool<false>
+    %result = bmodelica.and %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }
 
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<false>
-    %y = modelica.constant #modelica.bool<true>
-    %result = modelica.and %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<false>
+    %y = bmodelica.constant #bmodelica.bool<true>
+    %result = bmodelica.and %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }
 
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<true>
-    %y = modelica.constant #modelica.bool<false>
-    %result = modelica.and %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<true>
+    %y = bmodelica.constant #bmodelica.bool<false>
+    %result = bmodelica.and %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }
 
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func.func @test() -> (!modelica.bool) {
-    %x = modelica.constant #modelica.bool<true>
-    %y = modelica.constant #modelica.bool<true>
-    %result = modelica.and %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
-    return %result : !modelica.bool
+func.func @test() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica.bool<true>
+    %y = bmodelica.constant #bmodelica.bool<true>
+    %result = bmodelica.and %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
+    return %result : !bmodelica.bool
 }

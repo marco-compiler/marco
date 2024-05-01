@@ -1,43 +1,43 @@
 // RUN: modelica-opt %s --split-input-file --schedule-parallelization | FileCheck %s
 
-// CHECK:       modelica.schedule @schedule {
-// CHECK-NEXT:      modelica.main_model {
-// CHECK-NEXT:          modelica.parallel_schedule_blocks {
-// CHECK-NEXT:              modelica.schedule_block {
-// CHECK-NEXT:                  modelica.equation_call @equation_0
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [], writtenVariables = [#modelica.var<@y>]}
+// CHECK:       bmodelica.schedule @schedule {
+// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
+// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:                  bmodelica.equation_call @equation_0
+// CHECK-NEXT:              } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
 // CHECK-NEXT:          }
-// CHECK-NEXT:          modelica.parallel_schedule_blocks {
-// CHECK-NEXT:              modelica.schedule_block {
-// CHECK-NEXT:                  modelica.equation_call @equation_1
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [#modelica.var<@y>], writtenVariables = [#modelica.var<@x>]}
+// CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
+// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:                  bmodelica.equation_call @equation_1
+// CHECK-NEXT:              } {parallelizable = true, readVariables = [#bmodelica.var<@y>], writtenVariables = [#bmodelica.var<@x>]}
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
 module {
-    modelica.model @Test {
-        modelica.variable @x : !modelica.variable<!modelica.int>
-        modelica.variable @y : !modelica.variable<!modelica.int>
+    bmodelica.model @Test {
+        bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
+        bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
 
-        modelica.schedule @schedule {
-            modelica.main_model {
-                modelica.schedule_block {
-                    modelica.equation_call @equation_0
-                } {parallelizable = true, readVariables = [], writtenVariables = [#modelica.var<@y>]}
+        bmodelica.schedule @schedule {
+            bmodelica.main_model {
+                bmodelica.schedule_block {
+                    bmodelica.equation_call @equation_0
+                } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
 
-                modelica.schedule_block {
-                    modelica.equation_call @equation_1
-                } {parallelizable = true, readVariables = [#modelica.var<@y>], writtenVariables = [#modelica.var<@x>]}
+                bmodelica.schedule_block {
+                    bmodelica.equation_call @equation_1
+                } {parallelizable = true, readVariables = [#bmodelica.var<@y>], writtenVariables = [#bmodelica.var<@x>]}
             }
         }
     }
 
-    modelica.equation_function @equation_0() {
-        modelica.yield
+    bmodelica.equation_function @equation_0() {
+        bmodelica.yield
     }
 
-    modelica.equation_function @equation_1() {
-        modelica.yield
+    bmodelica.equation_function @equation_1() {
+        bmodelica.yield
     }
 }

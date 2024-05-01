@@ -1,31 +1,31 @@
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Dialect/Modelica/Types.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/Types.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::detail;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::detail;
 
 //===---------------------------------------------------------------------===//
 // Tablegen type definitions
 //===---------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
-#include "marco/Dialect/Modelica/ModelicaTypes.cpp.inc"
+#include "marco/Dialect/BaseModelica/BaseModelicaTypes.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // ModelicaDialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
-  void ModelicaDialect::registerTypes()
+  void BaseModelicaDialect::registerTypes()
   {
     addTypes<
       #define GET_TYPEDEF_LIST
-      #include "marco/Dialect/Modelica/ModelicaTypes.cpp.inc"
+      #include "marco/Dialect/BaseModelica/BaseModelicaTypes.cpp.inc"
     >();
   }
 }
@@ -34,7 +34,7 @@ namespace mlir::modelica
 // BooleanType
 //===---------------------------------------------------------------------===//
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::Value BooleanType::materializeBoolConstant(
       mlir::OpBuilder& builder, mlir::Location loc, bool value) const
@@ -61,7 +61,7 @@ namespace mlir::modelica
 // IntegerType
 //===---------------------------------------------------------------------===//
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::Value IntegerType::materializeBoolConstant(
       mlir::OpBuilder& builder, mlir::Location loc, bool value) const
@@ -86,7 +86,7 @@ namespace mlir::modelica
 // RealType
 //===---------------------------------------------------------------------===//
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   mlir::Value RealType::materializeBoolConstant(
       mlir::OpBuilder& builder, mlir::Location loc, bool value) const
@@ -107,7 +107,7 @@ namespace mlir::modelica
   }
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   //===-------------------------------------------------------------------===//
   // BaseArrayType
@@ -691,7 +691,7 @@ namespace mlir::modelica
   }
 }
 
-namespace mlir::modelica::detail
+namespace mlir::bmodelica::detail
 {
   bool isSupportedMemorySpace(mlir::Attribute memorySpace)
   {

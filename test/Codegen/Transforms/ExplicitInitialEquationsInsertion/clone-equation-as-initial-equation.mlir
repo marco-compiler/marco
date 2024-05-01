@@ -1,23 +1,23 @@
 // RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
-// CHECK: %[[t0:.*]] = modelica.equation_template inductions = [] attributes {id = "t0"}
-// CHECK: modelica.initial_model
-// CHECK-NEXT: modelica.equation_instance %[[t0]]
-// CHECK: modelica.main_model
-// CHECK-NEXT: modelica.equation_instance %[[t0]]
+// CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
+// CHECK: bmodelica.initial_model
+// CHECK-NEXT: bmodelica.equation_instance %[[t0]]
+// CHECK: bmodelica.main_model
+// CHECK-NEXT: bmodelica.equation_instance %[[t0]]
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    %t0 = modelica.equation_template inductions = [] attributes {id = "t0"} {
-        %0 = modelica.variable_get @x : !modelica.int
-        %1 = modelica.constant #modelica.int<0>
-        %lhs = modelica.equation_side %0 : tuple<!modelica.int>
-        %rhs = modelica.equation_side %1 : tuple<!modelica.int>
-        modelica.equation_sides %lhs, %rhs : tuple<!modelica.int>, tuple<!modelica.int>
+    %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
+        %0 = bmodelica.variable_get @x : !bmodelica.int
+        %1 = bmodelica.constant #bmodelica.int<0>
+        %lhs = bmodelica.equation_side %0 : tuple<!bmodelica.int>
+        %rhs = bmodelica.equation_side %1 : tuple<!bmodelica.int>
+        bmodelica.equation_sides %lhs, %rhs : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    modelica.main_model {
-        modelica.equation_instance %t0 : !modelica.equation
+    bmodelica.main_model {
+        bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }

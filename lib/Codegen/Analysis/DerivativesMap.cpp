@@ -1,8 +1,8 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   DerivativesMap::DerivativesMap(ModelOp modelOp)
       : modelOp(modelOp),

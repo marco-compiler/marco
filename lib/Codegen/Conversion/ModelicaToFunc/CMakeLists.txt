@@ -8,7 +8,7 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_conversion_library(MLIRModelicaToFunc
+add_mlir_conversion_library(MLIRBaseModelicaToFunc
     ${SOURCES}
 
     DEPENDS
@@ -16,6 +16,6 @@ add_mlir_conversion_library(MLIRModelicaToFunc
 
     LINK_LIBS PUBLIC
     marco::codegen
-    MLIRModelicaCommonConversion
+    MLIRBaseModelicaCommonConversion
     MLIRIDAToFunc
     ${MLIR_LIBS})

@@ -1,8 +1,8 @@
 #include "marco/Codegen/Lowering/Reference.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 
 using namespace ::marco::codegen::lowering;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace marco::codegen::lowering
 {

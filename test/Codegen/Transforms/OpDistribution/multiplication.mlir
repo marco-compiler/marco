@@ -1,131 +1,131 @@
 // RUN: modelica-opt %s --split-input-file --distribute-mul --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @add
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[mul1:.*]] = modelica.mul %[[arg1]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.add %[[mul0]], %[[mul1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[mul1:.*]] = bmodelica.mul %[[arg1]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.add %[[mul0]], %[[mul1]]
 // CHECK: return %[[res]]
 
-func.func @add(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.add %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @add(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.add %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @add_ew
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[mul1:.*]] = modelica.mul %[[arg1]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.add_ew %[[mul0]], %[[mul1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[mul1:.*]] = bmodelica.mul %[[arg1]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.add_ew %[[mul0]], %[[mul1]]
 // CHECK: return %[[res]]
 
-func.func @add_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.add_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @add_ew(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.add_ew %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @sub
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[mul1:.*]] = modelica.mul %[[arg1]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.sub %[[mul0]], %[[mul1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[mul1:.*]] = bmodelica.mul %[[arg1]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.sub %[[mul0]], %[[mul1]]
 // CHECK: return %[[res]]
 
-func.func @sub(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.sub %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @sub(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.sub %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @sub_ew
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[mul1:.*]] = modelica.mul %[[arg1]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.sub_ew %[[mul0]], %[[mul1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[mul1:.*]] = bmodelica.mul %[[arg1]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.sub_ew %[[mul0]], %[[mul1]]
 // CHECK: return %[[res]]
 
-func.func @sub_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.sub_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @sub_ew(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.sub_ew %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @mul
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.mul %[[mul0]], %[[arg1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.mul %[[mul0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func.func @mul(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.mul %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @mul(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @mul_ew
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.mul_ew %[[mul0]], %[[arg1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.mul_ew %[[mul0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func.func @mul_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.mul_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @mul_ew(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.mul_ew %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @div
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.div %[[mul0]], %[[arg1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.div %[[mul0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func.func @div(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.div %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @div(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.div %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }
 
 // -----
 
 // CHECK-LABEL: @div_ew
-// CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.int) -> !modelica.int
-// CHECK-NEXT: %[[factor:.*]] = modelica.constant #modelica.int<2>
-// CHECK: %[[mul0:.*]] = modelica.mul %[[arg0]], %[[factor]]
-// CHECK: %[[res:.*]] = modelica.div_ew %[[mul0]], %[[arg1]]
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
+// CHECK-NEXT: %[[factor:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK: %[[mul0:.*]] = bmodelica.mul %[[arg0]], %[[factor]]
+// CHECK: %[[res:.*]] = bmodelica.div_ew %[[mul0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func.func @div_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
-    %0 = modelica.div_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
-    %1 = modelica.constant #modelica.int<2>
-    %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
-    return %2 : !modelica.int
+func.func @div_ew(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.int {
+    %0 = bmodelica.div_ew %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    %1 = bmodelica.constant #bmodelica.int<2>
+    %2 = bmodelica.mul %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %2 : !bmodelica.int
 }

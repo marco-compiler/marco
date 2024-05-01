@@ -1,22 +1,22 @@
 #include "marco/Codegen/Transforms/Scheduling.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/Scheduling.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCHEDULINGPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
 namespace
 {
   class SchedulingPass
-      : public mlir::modelica::impl::SchedulingPassBase<SchedulingPass>
+      : public mlir::bmodelica::impl::SchedulingPassBase<SchedulingPass>
   {
     public:
       using SchedulingPassBase<SchedulingPass>::SchedulingPassBase;
@@ -552,7 +552,7 @@ mlir::LogicalResult SchedulingPass::addStartEquations(
   return mlir::success();
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSchedulingPass()
   {

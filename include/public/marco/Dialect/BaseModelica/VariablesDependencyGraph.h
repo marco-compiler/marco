@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECT_MODELICA_VARIABLESDEPENDENCYGRAPH_H
-#define MARCO_DIALECT_MODELICA_VARIABLESDEPENDENCYGRAPH_H
+#ifndef MARCO_DIALECT_BASEMODELICA_VARIABLESDEPENDENCYGRAPH_H
+#define MARCO_DIALECT_BASEMODELICA_VARIABLESDEPENDENCYGRAPH_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include <set>
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   class VariablesDependencyGraph
   {
@@ -91,42 +91,42 @@ namespace mlir::modelica
 namespace llvm
 {
   template<>
-  struct DenseMapInfo<::mlir::modelica::VariablesDependencyGraph::Node>
+  struct DenseMapInfo<::mlir::bmodelica::VariablesDependencyGraph::Node>
   {
-    static inline ::mlir::modelica::VariablesDependencyGraph::Node
+    static inline ::mlir::bmodelica::VariablesDependencyGraph::Node
     getEmptyKey()
     {
       return {nullptr, nullptr};
     }
 
-    static inline ::mlir::modelica::VariablesDependencyGraph::Node
+    static inline ::mlir::bmodelica::VariablesDependencyGraph::Node
     getTombstoneKey()
     {
       return {nullptr, nullptr};
     }
 
     static unsigned getHashValue(
-        const ::mlir::modelica::VariablesDependencyGraph::Node& val)
+        const ::mlir::bmodelica::VariablesDependencyGraph::Node& val)
     {
       return std::hash<mlir::Operation*>{}(val.variable);
     }
 
     static bool isEqual(
-        const ::mlir::modelica::VariablesDependencyGraph::Node& lhs,
-        const ::mlir::modelica::VariablesDependencyGraph::Node& rhs)
+        const ::mlir::bmodelica::VariablesDependencyGraph::Node& lhs,
+        const ::mlir::bmodelica::VariablesDependencyGraph::Node& rhs)
     {
       return lhs.graph == rhs.graph && lhs.variable == rhs.variable;
     }
   };
 
   template<>
-  struct GraphTraits<const ::mlir::modelica::VariablesDependencyGraph*>
+  struct GraphTraits<const ::mlir::bmodelica::VariablesDependencyGraph*>
   {
-    using GraphType = const ::mlir::modelica::VariablesDependencyGraph*;
-    using NodeRef = ::mlir::modelica::VariablesDependencyGraph::Node;
+    using GraphType = const ::mlir::bmodelica::VariablesDependencyGraph*;
+    using NodeRef = ::mlir::bmodelica::VariablesDependencyGraph::Node;
 
     using ChildIteratorType =
-        std::set<::mlir::modelica::VariablesDependencyGraph::Node>
+        std::set<::mlir::bmodelica::VariablesDependencyGraph::Node>
             ::const_iterator;
 
     static NodeRef getEntryNode(const GraphType& graph)
@@ -157,10 +157,10 @@ namespace llvm
     }
 
     // There is no need for a dedicated class for the arcs.
-    using EdgeRef = ::mlir::modelica::VariablesDependencyGraph::Node;
+    using EdgeRef = ::mlir::bmodelica::VariablesDependencyGraph::Node;
 
     using ChildEdgeIteratorType =
-        std::set<::mlir::modelica::VariablesDependencyGraph::Node>::const_iterator;
+        std::set<::mlir::bmodelica::VariablesDependencyGraph::Node>::const_iterator;
 
     static ChildEdgeIteratorType child_edge_begin(NodeRef node)
     {
@@ -184,4 +184,4 @@ namespace llvm
   };
 }
 
-#endif // MARCO_DIALECT_MODELICA_VARIABLESDEPENDENCYGRAPH_H
+#endif // MARCO_DIALECT_BASEMODELICA_VARIABLESDEPENDENCYGRAPH_H

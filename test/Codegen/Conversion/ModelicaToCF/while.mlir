@@ -1,31 +1,31 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf --canonicalize --cse | FileCheck %s
 
-// CHECK:      modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.int) {
+// CHECK:      bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.int) {
 // CHECK:           br ^[[while_condition:.*]]
 // CHECK-NEXT: ^[[while_condition]]:
 // CHECK:           cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
 // CHECK-NEXT: ^[[while_body]]:
-// CHECK-NEXT:      modelica.print %[[y]]
+// CHECK-NEXT:      bmodelica.print %[[y]]
 // CHECK-NEXT:      br ^[[while_condition]]
 // CHECK-NEXT: ^[[while_out]]:
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT: }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.int, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.while {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.while {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } do {
-            %1 = modelica.variable_get @y : !modelica.int
-            modelica.print %1 : !modelica.int
+            %1 = bmodelica.variable_get @y : !bmodelica.int
+            bmodelica.print %1 : !bmodelica.int
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }

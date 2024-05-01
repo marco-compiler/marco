@@ -3,7 +3,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 TEST(TypeConverterTest, array)
 {

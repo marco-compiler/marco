@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/SchedulersInstantiation.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCHEDULERSINSTANTIATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -505,7 +505,7 @@ SchedulersInstantiationPass::createWrapperFunction(
   return wrapperFunction;
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSchedulersInstantiationPass()
   {

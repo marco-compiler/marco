@@ -1,8 +1,8 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @foo
-// CHECK: modelica.ndims
-// CHECK-SAME: <?x?x!modelica.int> -> !modelica.int
+// CHECK: bmodelica.ndims
+// CHECK-SAME: <?x?x!bmodelica.int> -> !bmodelica.int
 
 function foo
     input Integer[:,:] x;

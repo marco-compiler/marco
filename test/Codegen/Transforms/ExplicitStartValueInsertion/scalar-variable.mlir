@@ -4,76 +4,76 @@
 
 // Modelica Boolean type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.bool<false> : !modelica.bool
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.bool<false> : !bmodelica.bool
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.bool>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool>
 }
 
 // -----
 
 // Modelica Integer type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<0> : !modelica.int
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 }
 
 // -----
 
 // Modelica Real type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.real<0.000000e+00> : !modelica.real
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.real<0.000000e+00> : !bmodelica.real
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
 }
 
 // -----
 
 // Built-in integer type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant 0 : i64
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant 0 : i64
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<i64>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<i64>
 }
 
 // -----
 
 // Built-in f32 type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant 0.000000e+00 : f32
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant 0.000000e+00 : f32
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<f32>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<f32>
 }
 
 // -----
 
 // Built-in f64 type.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant 0.000000e+00 : f64
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant 0.000000e+00 : f64
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<f64>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<f64>
 }

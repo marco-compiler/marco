@@ -13,4 +13,4 @@ class IDA_TypeInterface<string name> : TypeInterface<name>
     let cppNamespace = "::mlir::ida";
 }
 
-#endif // MARCO_DIALECTS_MODELICA_IDAINTERFACES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_IDAINTERFACES_TD

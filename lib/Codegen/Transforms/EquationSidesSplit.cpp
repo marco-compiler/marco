@@ -1,14 +1,14 @@
 #include "marco/Codegen/Transforms/EquationSidesSplit.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EQUATIONSIDESSPLITPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace
 {
@@ -122,7 +122,7 @@ mlir::LogicalResult EquationSidesSplitPass::processModelOp(ModelOp modelOp)
   return applyPartialConversion(modelOp, target, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createEquationSidesSplitPass()
   {

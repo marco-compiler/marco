@@ -3,7 +3,7 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DECL_FUNCTIONUNWRAPPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"

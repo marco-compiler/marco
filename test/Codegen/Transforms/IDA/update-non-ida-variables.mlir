@@ -6,6 +6,6 @@
 // CHECK-NEXT:      runtime.return
 // CHECK-NEXT:  }
 
-modelica.model @Test {
+bmodelica.model @Test {
 
 }

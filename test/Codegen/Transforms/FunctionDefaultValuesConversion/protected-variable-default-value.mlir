@@ -2,26 +2,26 @@
 
 // Scalar variable.
 
-// CHECK:       modelica.function @foo {
-// CHECK:           modelica.algorithm {
-// CHECK-NEXT:          %[[default:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:          modelica.variable_set @x, %[[default]]
-// CHECK-NEXT:          %[[non_default:.*]] = modelica.constant #modelica.int<1>
-// CHECK-NEXT:          modelica.variable_set @x, %[[non_default]]
+// CHECK:       bmodelica.function @foo {
+// CHECK:           bmodelica.algorithm {
+// CHECK-NEXT:          %[[default:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:          bmodelica.variable_set @x, %[[default]]
+// CHECK-NEXT:          %[[non_default:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-NEXT:          bmodelica.variable_set @x, %[[non_default]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    modelica.default @x {
-        %0 = modelica.constant #modelica.int<0>
-        modelica.yield %0 : !modelica.int
+    bmodelica.default @x {
+        %0 = bmodelica.constant #bmodelica.int<0>
+        bmodelica.yield %0 : !bmodelica.int
     }
 
-    modelica.algorithm {
-        %0 = modelica.constant #modelica.int<1>
-        modelica.variable_set @x, %0 : !modelica.int
+    bmodelica.algorithm {
+        %0 = bmodelica.constant #bmodelica.int<1>
+        bmodelica.variable_set @x, %0 : !bmodelica.int
     }
 }
 
@@ -29,26 +29,26 @@ modelica.function @foo {
 
 // Array variable.
 
-// CHECK:       modelica.function @foo {
-// CHECK:           modelica.algorithm {
-// CHECK-NEXT:          %[[default:.*]] = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
-// CHECK-NEXT:          modelica.variable_set @x, %[[default]]
-// CHECK-NEXT:          %[[non_default:.*]] = modelica.constant #modelica.int_array<[1, 1, 1]> : !modelica.array<3x!modelica.int>
-// CHECK-NEXT:          modelica.variable_set @x, %[[non_default]]
+// CHECK:       bmodelica.function @foo {
+// CHECK:           bmodelica.algorithm {
+// CHECK-NEXT:          %[[default:.*]] = bmodelica.constant #bmodelica.int_array<[0, 0, 0]> : !bmodelica.array<3x!bmodelica.int>
+// CHECK-NEXT:          bmodelica.variable_set @x, %[[default]]
+// CHECK-NEXT:          %[[non_default:.*]] = bmodelica.constant #bmodelica.int_array<[1, 1, 1]> : !bmodelica.array<3x!bmodelica.int>
+// CHECK-NEXT:          bmodelica.variable_set @x, %[[non_default]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<3x!modelica.int>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
 
-    modelica.default @x {
-        %0 = modelica.constant #modelica.int_array<[0, 0, 0]> : !modelica.array<3x!modelica.int>
-        modelica.yield %0 : !modelica.array<3x!modelica.int>
+    bmodelica.default @x {
+        %0 = bmodelica.constant #bmodelica.int_array<[0, 0, 0]> : !bmodelica.array<3x!bmodelica.int>
+        bmodelica.yield %0 : !bmodelica.array<3x!bmodelica.int>
     }
 
-    modelica.algorithm {
-        %0 = modelica.constant #modelica.int_array<[1, 1, 1]> : !modelica.array<3x!modelica.int>
-        modelica.variable_set @x, %0 : !modelica.array<3x!modelica.int>
+    bmodelica.algorithm {
+        %0 = bmodelica.constant #bmodelica.int_array<[1, 1, 1]> : !bmodelica.array<3x!bmodelica.int>
+        bmodelica.variable_set @x, %0 : !bmodelica.array<3x!bmodelica.int>
     }
 }
 
@@ -56,18 +56,18 @@ modelica.function @foo {
 
 // Missing algorithm.
 
-// CHECK:       modelica.function @foo {
-// CHECK:           modelica.algorithm {
-// CHECK-NEXT:          %[[default:.*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:          modelica.variable_set @x, %[[default]]
+// CHECK:       bmodelica.function @foo {
+// CHECK:           bmodelica.algorithm {
+// CHECK-NEXT:          %[[default:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-NEXT:          bmodelica.variable_set @x, %[[default]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.int>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    modelica.default @x {
-        %0 = modelica.constant #modelica.int<0>
-        modelica.yield %0 : !modelica.int
+    bmodelica.default @x {
+        %0 = bmodelica.constant #bmodelica.int<0>
+        bmodelica.yield %0 : !bmodelica.int
     }
 }

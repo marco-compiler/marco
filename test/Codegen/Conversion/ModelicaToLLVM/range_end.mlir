@@ -1,13 +1,13 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-llvm | FileCheck %s
 
 // CHECK-LABEL: @foo
-// CHECK-SAME: (%[[range:.*]]: !modelica<range !modelica.int>)
-// CHECK: %[[range_casted:.*]] = builtin.unrealized_conversion_cast %[[range]] : !modelica<range !modelica.int> to !llvm.struct<(i64, i64, i64)>
+// CHECK-SAME: (%[[range:.*]]: !bmodelica<range !bmodelica.int>)
+// CHECK: %[[range_casted:.*]] = builtin.unrealized_conversion_cast %[[range]] : !bmodelica<range !bmodelica.int> to !llvm.struct<(i64, i64, i64)>
 // CHECK: %[[result:.*]] = llvm.extractvalue %[[range_casted]][1]
-// CHECK: %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : i64 to !modelica.int
+// CHECK: %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : i64 to !bmodelica.int
 // CHECK: return %[[result_casted]]
 
-func.func @foo(%arg0: !modelica<range !modelica.int>) -> !modelica.int {
-    %0 = modelica.range_end %arg0 : !modelica<range !modelica.int> -> !modelica.int
-    func.return %0 : !modelica.int
+func.func @foo(%arg0: !bmodelica<range !bmodelica.int>) -> !bmodelica.int {
+    %0 = bmodelica.range_end %arg0 : !bmodelica<range !bmodelica.int> -> !bmodelica.int
+    func.return %0 : !bmodelica.int
 }

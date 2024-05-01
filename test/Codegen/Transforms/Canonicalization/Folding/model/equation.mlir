@@ -3,25 +3,25 @@
 // Check that constants get materialized inside the parent equation.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.equation {
-// CHECK-NEXT:      %[[cst:.*]] = modelica.constant #modelica.real<5.000000e+00>
-// CHECK-NEXT:      %[[lhs:.*]] = modelica.equation_side %[[cst]]
-// CHECK-NEXT:      %[[rhs:.*]] = modelica.equation_side %[[cst]]
-// CHECK-NEXT:      modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK:       bmodelica.equation {
+// CHECK-NEXT:      %[[cst:.*]] = bmodelica.constant #bmodelica.real<5.000000e+00>
+// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[cst]]
+// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[cst]]
+// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.main_model {
-        modelica.equation {
-            %0 = modelica.constant #modelica.real<1.0>
-            %1 = modelica.constant #modelica.real<4.0>
-            %2 = modelica.constant #modelica.real<2.0>
-            %3 = modelica.constant #modelica.real<3.0>
-            %4 = modelica.add %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-            %5 = modelica.add %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
-            %6 = modelica.equation_side %4 : tuple<!modelica.real>
-            %7 = modelica.equation_side %5 : tuple<!modelica.real>
-            modelica.equation_sides %6, %7 : tuple<!modelica.real>, tuple<!modelica.real>
+bmodelica.model @Test {
+    bmodelica.main_model {
+        bmodelica.equation {
+            %0 = bmodelica.constant #bmodelica.real<1.0>
+            %1 = bmodelica.constant #bmodelica.real<4.0>
+            %2 = bmodelica.constant #bmodelica.real<2.0>
+            %3 = bmodelica.constant #bmodelica.real<3.0>
+            %4 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+            %5 = bmodelica.add %2, %3 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+            %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
+            %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
+            bmodelica.equation_sides %6, %7 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
         }
     }
 }

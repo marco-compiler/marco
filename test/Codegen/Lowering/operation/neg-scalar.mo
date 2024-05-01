@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integer
-// CHECK: modelica.neg %{{.*}} : !modelica.int -> !modelica.int
+// CHECK: bmodelica.neg %{{.*}} : !bmodelica.int -> !bmodelica.int
 
 function Integers
     input Integer x;
@@ -11,7 +11,7 @@ algorithm
 end Integers;
 
 // CHECK-LABEL: @Real
-// CHECK: modelica.neg %{{.*}} : !modelica.real -> !modelica.real
+// CHECK: bmodelica.neg %{{.*}} : !bmodelica.real -> !bmodelica.real
 
 function Reals
     input Real x;

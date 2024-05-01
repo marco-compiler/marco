@@ -3,7 +3,7 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 namespace marco::codegen::lowering
 {

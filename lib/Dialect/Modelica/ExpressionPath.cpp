@@ -1,9 +1,9 @@
-#include "marco/Dialect/Modelica/ExpressionPath.h"
+#include "marco/Dialect/BaseModelica/ExpressionPath.h"
 #include "llvm/ADT/ArrayRef.h"
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   ExpressionPath::Guard::Guard(ExpressionPath& path)
       : path(&path), size(path.size())

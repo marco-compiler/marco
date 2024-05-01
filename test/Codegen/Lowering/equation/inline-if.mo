@@ -1,12 +1,12 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
-// CHECK: modelica.equation
-// CHECK-DAG: %[[condition:.*]] = modelica.gt
-// CHECK-DAG: %[[trueValue:.*]] = modelica.constant #modelica.int<1>
-// CHECK-DAG: %[[falseValue:.*]] = modelica.constant #modelica.int<0>
-// CHECK: %[[select:.*]] = modelica.select (%[[condition]] : !modelica.bool), (%[[trueValue]] : !modelica.int), (%[[falseValue]] : !modelica.int) -> !modelica.int
-// CHECK: %[[rhs:.*]] = modelica.equation_side %[[select]]
-// CHECK: modelica.equation_sides %{{.*}}, %[[rhs]]
+// CHECK: bmodelica.equation
+// CHECK-DAG: %[[condition:.*]] = bmodelica.gt
+// CHECK-DAG: %[[trueValue:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-DAG: %[[falseValue:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK: %[[select:.*]] = bmodelica.select (%[[condition]] : !bmodelica.bool), (%[[trueValue]] : !bmodelica.int), (%[[falseValue]] : !bmodelica.int) -> !bmodelica.int
+// CHECK: %[[rhs:.*]] = bmodelica.equation_side %[[select]]
+// CHECK: bmodelica.equation_sides %{{.*}}, %[[rhs]]
 
 model M1
 	Real x;

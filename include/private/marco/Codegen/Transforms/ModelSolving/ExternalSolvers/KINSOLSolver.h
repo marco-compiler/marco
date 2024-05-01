@@ -141,7 +141,7 @@ namespace marco::codegen
           mlir::ValueRange equationVariables,
           llvm::StringRef templateName);
 
-      mlir::modelica::FunctionOp createPartialDerTemplateFromEquation(
+      mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
           mlir::OpBuilder& builder,
           const marco::codegen::Equation& equation,
           mlir::ValueRange originalVariables,

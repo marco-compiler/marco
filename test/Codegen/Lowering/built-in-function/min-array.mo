@@ -1,8 +1,8 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @foo
-// CHECK: modelica.min
-// CHECK-SAME: !modelica.array<?x?x!modelica.real> -> !modelica.real
+// CHECK: bmodelica.min
+// CHECK-SAME: !bmodelica.array<?x?x!bmodelica.real> -> !bmodelica.real
 
 function foo
     input Real[:,:] x;

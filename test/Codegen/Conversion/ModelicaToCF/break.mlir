@@ -1,68 +1,68 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf --canonicalize --cse | FileCheck %s
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool) {
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool) {
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.while {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.while {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } do {
-            modelica.break
+            bmodelica.break
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }
 
 // -----
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.bool) {
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.bool) {
 // CHECK:           cf.br ^[[while_condition:.*]]
 // CHECK-NEXT:  ^[[while_condition]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[if:.*]], ^[[out:.*]]
 // CHECK-NEXT:  ^[[if]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[out]], ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK:           modelica.print %[[y]]
+// CHECK:           bmodelica.print %[[y]]
 // CHECK:           cf.br ^[[while_condition]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK-NEXT:      modelica.print
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.bool, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.bool, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.while {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.while {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } do {
-            %1 = modelica.variable_get @y : !modelica.bool
+            %1 = bmodelica.variable_get @y : !bmodelica.bool
 
-            modelica.if (%1 : !modelica.bool) {
-                modelica.break
+            bmodelica.if (%1 : !bmodelica.bool) {
+                bmodelica.break
             }
 
-            modelica.print %1 : !modelica.bool
+            bmodelica.print %1 : !bmodelica.bool
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }
 
 // -----
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.bool, %[[z:.*]]: !modelica.bool) {
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.bool, %[[z:.*]]: !bmodelica.bool) {
 // CHECK:           cf.br ^[[while_1_condition:.*]]
 // CHECK-NEXT:  ^[[while_1_condition]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[while_2_condition:.*]], ^[[out:.*]]
@@ -71,87 +71,87 @@ modelica.function @foo {
 // CHECK-NEXT:  ^[[if]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[while_2_out]], ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK-NEXT:      modelica.print %[[z]]
+// CHECK-NEXT:      bmodelica.print %[[z]]
 // CHECK-NEXT:      cf.br ^[[while_2_condition]]
 // CHECK-NEXT:  ^[[while_2_out]]:
-// CHECK-NEXT:      modelica.print %[[y]]
+// CHECK-NEXT:      bmodelica.print %[[y]]
 // CHECK-NEXT:      cf.br ^[[while_1_condition]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.bool, input>
-    modelica.variable @z : !modelica.variable<!modelica.bool, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.bool, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.while {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.while {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } do {
-            %1 = modelica.variable_get @y : !modelica.bool
+            %1 = bmodelica.variable_get @y : !bmodelica.bool
 
-            modelica.while {
-                modelica.condition (%1 : !modelica.bool)
+            bmodelica.while {
+                bmodelica.condition (%1 : !bmodelica.bool)
             } do {
-                %2 = modelica.variable_get @z : !modelica.bool
+                %2 = bmodelica.variable_get @z : !bmodelica.bool
 
-                modelica.if (%2 : !modelica.bool) {
-                    modelica.break
+                bmodelica.if (%2 : !bmodelica.bool) {
+                    bmodelica.break
                 }
 
-                modelica.print %2 : !modelica.bool
+                bmodelica.print %2 : !bmodelica.bool
             }
 
-            modelica.print %1 : !modelica.bool
+            bmodelica.print %1 : !bmodelica.bool
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }
 
 // -----
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.int, %[[z:.*]]: !modelica.int) {
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.int, %[[z:.*]]: !bmodelica.int) {
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_body:.*]], ^[[out:.*]]
 // CHECK-NEXT:  ^[[for_body]]:
-// CHECK-NEXT:      modelica.print %[[y]]
+// CHECK-NEXT:      bmodelica.print %[[y]]
 // CHECK-NEXT:      cf.br ^[[out]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.int, input>
-    modelica.variable @z : !modelica.variable<!modelica.int, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.for condition {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.for condition {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } body {
-            %1 = modelica.variable_get @y : !modelica.int
-            modelica.print %1 : !modelica.int
-            modelica.break
+            %1 = bmodelica.variable_get @y : !bmodelica.int
+            bmodelica.print %1 : !bmodelica.int
+            bmodelica.break
         } step {
-            %1 = modelica.variable_get @z : !modelica.int
-            modelica.print %1 : !modelica.int
-            modelica.yield
+            %1 = bmodelica.variable_get @z : !bmodelica.int
+            bmodelica.print %1 : !bmodelica.int
+            bmodelica.yield
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }
 
 // -----
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.bool, %[[z:.*]]: !modelica.bool, %[[t:.*]]: !modelica.int) {
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.bool, %[[z:.*]]: !bmodelica.bool, %[[t:.*]]: !bmodelica.int) {
 // CHECK:           cf.br ^[[while_condition:.*]]
 // CHECK-NEXT:  ^[[while_condition]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_condition:.*]], ^[[out:.*]]
@@ -160,58 +160,58 @@ modelica.function @foo {
 // CHECK-NEXT:  ^[[if]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_out:.*]], ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK-NEXT:      modelica.print %[[z]]
-// CHECK-NEXT:      modelica.print %[[t]]
+// CHECK-NEXT:      bmodelica.print %[[z]]
+// CHECK-NEXT:      bmodelica.print %[[t]]
 // CHECK-NEXT:      cf.br ^[[for_condition]]
 // CHECK-NEXT:  ^[[for_out]]:
-// CHECK-NEXT:      modelica.print %[[y]]
+// CHECK-NEXT:      bmodelica.print %[[y]]
 // CHECK-NEXT:      cf.br ^[[while_condition]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.bool, input>
-    modelica.variable @z : !modelica.variable<!modelica.bool, input>
-    modelica.variable @t : !modelica.variable<!modelica.int, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @t : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.while {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.while {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } do {
-            %1 = modelica.variable_get @y : !modelica.bool
+            %1 = bmodelica.variable_get @y : !bmodelica.bool
 
-            modelica.for condition {
-                modelica.condition (%1 : !modelica.bool)
+            bmodelica.for condition {
+                bmodelica.condition (%1 : !bmodelica.bool)
             } body {
-                %2 = modelica.variable_get @z : !modelica.bool
+                %2 = bmodelica.variable_get @z : !bmodelica.bool
 
-                modelica.if (%2 : !modelica.bool) {
-                    modelica.break
+                bmodelica.if (%2 : !bmodelica.bool) {
+                    bmodelica.break
                 }
 
-                modelica.print %2 : !modelica.bool
-                modelica.yield
+                bmodelica.print %2 : !bmodelica.bool
+                bmodelica.yield
             } step {
-                %2 = modelica.variable_get @t : !modelica.int
-                modelica.print %2 : !modelica.int
-                modelica.yield
+                %2 = bmodelica.variable_get @t : !bmodelica.int
+                bmodelica.print %2 : !bmodelica.int
+                bmodelica.yield
             }
 
-            modelica.print %1 : !modelica.bool
+            bmodelica.print %1 : !bmodelica.bool
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }
 
 // -----
 
-// CHECK:       modelica.raw_function @foo(%[[x:.*]]: !modelica.bool, %[[y:.*]]: !modelica.bool, %[[z:.*]]: !modelica.bool, %[[t:.*]]: !modelica.int, %[[k:.*]]: !modelica.int, %[[l:.*]]: !modelica.int) {
+// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: !bmodelica.bool, %[[y:.*]]: !bmodelica.bool, %[[z:.*]]: !bmodelica.bool, %[[t:.*]]: !bmodelica.int, %[[k:.*]]: !bmodelica.int, %[[l:.*]]: !bmodelica.int) {
 // CHECK:           cf.br ^[[for_1_condition:.*]]
 // CHECK-NEXT:  ^[[for_1_condition]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_2_condition:.*]], ^[[out:.*]]
@@ -220,59 +220,59 @@ modelica.function @foo {
 // CHECK-NEXT:  ^[[if]]:
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_2_out:.*]], ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK-NEXT:      modelica.print %[[z]]
-// CHECK-NEXT:      modelica.print %[[t]]
+// CHECK-NEXT:      bmodelica.print %[[z]]
+// CHECK-NEXT:      bmodelica.print %[[t]]
 // CHECK-NEXT:      cf.br ^[[for_2_condition]]
 // CHECK-NEXT:  ^[[for_2_out]]:
-// CHECK-NEXT:      modelica.print %[[y]]
-// CHECK-NEXT:      modelica.print %[[k]]
+// CHECK-NEXT:      bmodelica.print %[[y]]
+// CHECK-NEXT:      bmodelica.print %[[k]]
 // CHECK-NEXT:      cf.br ^[[for_1_condition]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK-NEXT:      modelica.print %[[x]]
-// CHECK-NEXT:      modelica.raw_return
+// CHECK-NEXT:      bmodelica.print %[[x]]
+// CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-modelica.function @foo {
-    modelica.variable @x : !modelica.variable<!modelica.bool, input>
-    modelica.variable @y : !modelica.variable<!modelica.bool, input>
-    modelica.variable @z : !modelica.variable<!modelica.bool, input>
-    modelica.variable @t : !modelica.variable<!modelica.int, input>
-    modelica.variable @k : !modelica.variable<!modelica.int, input>
-    modelica.variable @l : !modelica.variable<!modelica.int, input>
+bmodelica.function @foo {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @y : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @z : !bmodelica.variable<!bmodelica.bool, input>
+    bmodelica.variable @t : !bmodelica.variable<!bmodelica.int, input>
+    bmodelica.variable @k : !bmodelica.variable<!bmodelica.int, input>
+    bmodelica.variable @l : !bmodelica.variable<!bmodelica.int, input>
 
-    modelica.algorithm {
-        %0 = modelica.variable_get @x : !modelica.bool
+    bmodelica.algorithm {
+        %0 = bmodelica.variable_get @x : !bmodelica.bool
 
-        modelica.for condition {
-            modelica.condition (%0 : !modelica.bool)
+        bmodelica.for condition {
+            bmodelica.condition (%0 : !bmodelica.bool)
         } body {
-            %1 = modelica.variable_get @y : !modelica.bool
+            %1 = bmodelica.variable_get @y : !bmodelica.bool
 
-            modelica.for condition {
-                modelica.condition (%1 : !modelica.bool)
+            bmodelica.for condition {
+                bmodelica.condition (%1 : !bmodelica.bool)
             } body {
-                %2 = modelica.variable_get @z : !modelica.bool
+                %2 = bmodelica.variable_get @z : !bmodelica.bool
 
-                modelica.if (%2 : !modelica.bool) {
-                    modelica.break
+                bmodelica.if (%2 : !bmodelica.bool) {
+                    bmodelica.break
                 }
 
-                modelica.print %2 : !modelica.bool
-                modelica.yield
+                bmodelica.print %2 : !bmodelica.bool
+                bmodelica.yield
             } step {
-                %2 = modelica.variable_get @t : !modelica.int
-                modelica.print %2 : !modelica.int
-                modelica.yield
+                %2 = bmodelica.variable_get @t : !bmodelica.int
+                bmodelica.print %2 : !bmodelica.int
+                bmodelica.yield
             }
 
-            modelica.print %1 : !modelica.bool
-            modelica.yield
+            bmodelica.print %1 : !bmodelica.bool
+            bmodelica.yield
         } step {
-            %1 = modelica.variable_get @k : !modelica.int
-            modelica.print %1 : !modelica.int
-            modelica.yield
+            %1 = bmodelica.variable_get @k : !bmodelica.int
+            bmodelica.print %1 : !bmodelica.int
+            bmodelica.yield
         }
 
-        modelica.print %0 : !modelica.bool
+        bmodelica.print %0 : !bmodelica.bool
     }
 }

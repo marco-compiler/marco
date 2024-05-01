@@ -2,7 +2,7 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -10,14 +10,14 @@
 
 #define DEBUG_TYPE "scc-solving-by-substitution"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_SCCSOLVINGBYSUBSTITUTIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
-using namespace ::mlir::modelica::bridge;
+using namespace ::mlir::bmodelica;
+using namespace ::mlir::bmodelica::bridge;
 
 namespace
 {
@@ -37,7 +37,7 @@ using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 namespace
 {
   class SCCSolvingBySubstitutionPass
-      : public mlir::modelica::impl::SCCSolvingBySubstitutionPassBase<
+      : public mlir::bmodelica::impl::SCCSolvingBySubstitutionPassBase<
             SCCSolvingBySubstitutionPass>,
         public VariableAccessAnalysis::AnalysisProvider
   {
@@ -695,7 +695,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass()
   {

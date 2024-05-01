@@ -1,20 +1,20 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICAATTRINTERFACES_TD
-#define MARCO_DIALECTS_MODELICA_MODELICAATTRINTERFACES_TD
+#ifndef MARCO_DIALECTS_BASEMODELICA_MODELICAATTRINTERFACES_TD
+#define MARCO_DIALECTS_BASEMODELICA_MODELICAATTRINTERFACES_TD
 
-include "marco/Dialect/Modelica/ModelicaDialect.td"
+include "marco/Dialect/BaseModelica/BaseModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
 // Modelica attribute interface definitions
 //===---------------------------------------------------------------------===//
 
-class Modelica_AttrInterface<string name>
+class BaseModelica_AttrInterface<string name>
     : AttrInterface<name>
 {
-    let cppNamespace = "::mlir::modelica";
+    let cppNamespace = "::mlir::bmodelica";
 }
 
-def RangeAttrInterface : Modelica_AttrInterface<"RangeAttrInterface">
+def RangeAttrInterface : BaseModelica_AttrInterface<"RangeAttrInterface">
 {
     let description = [{
         Interface for a range.
@@ -28,4 +28,4 @@ def RangeAttrInterface : Modelica_AttrInterface<"RangeAttrInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICAATTRINTERFACES_TD
+#endif // MARCO_DIALECTS_BASEMODELICA_MODELICAATTRINTERFACES_TD

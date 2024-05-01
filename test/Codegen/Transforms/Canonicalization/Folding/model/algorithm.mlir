@@ -3,18 +3,18 @@
 // Check that constants get materialized inside the parent equation.
 
 // CHECK-LABEL: @Test
-// CHECK:       modelica.algorithm {
-// CHECK-NEXT:      %[[cst:.*]] = modelica.constant #modelica.real<3.000000e+00>
-// CHECK-NEXT:      modelica.variable_set @x, %[[cst]]
+// CHECK:       bmodelica.algorithm {
+// CHECK-NEXT:      %[[cst:.*]] = bmodelica.constant #bmodelica.real<3.000000e+00>
+// CHECK-NEXT:      bmodelica.variable_set @x, %[[cst]]
 // CHECK-NEXT:  }
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<!modelica.real>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
 
-    modelica.algorithm {
-        %0 = modelica.constant #modelica.real<1.0>
-        %1 = modelica.constant #modelica.real<2.0>
-        %2 = modelica.add %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-        modelica.variable_set @x, %2 : !modelica.real
+    bmodelica.algorithm {
+        %0 = bmodelica.constant #bmodelica.real<1.0>
+        %1 = bmodelica.constant #bmodelica.real<2.0>
+        %2 = bmodelica.add %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+        bmodelica.variable_set @x, %2 : !bmodelica.real
     }
 }

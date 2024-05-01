@@ -2,12 +2,12 @@
 
 // Uninitialized array variable.
 
-// CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<0> : !modelica.int
-// CHECK-NEXT:      %[[array:.*]] = modelica.array_broadcast %[[value]]
-// CHECK-NEXT:      modelica.yield %[[array]]
+// CHECK:       bmodelica.start @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<0> : !bmodelica.int
+// CHECK-NEXT:      %[[array:.*]] = bmodelica.array_broadcast %[[value]]
+// CHECK-NEXT:      bmodelica.yield %[[array]]
 // CHECK-NEXT:  } {each = false, fixed = false, implicit = true}
 
-modelica.model @Test {
-    modelica.variable @x : !modelica.variable<3x!modelica.int>
+bmodelica.model @Test {
+    bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
 }

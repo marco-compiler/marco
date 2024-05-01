@@ -1,15 +1,15 @@
 #include "marco/Codegen/Transforms/EquationTemplatesCreation.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
 #define GEN_PASS_DEF_EQUATIONTEMPLATESCREATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::mlir::modelica;
+using namespace ::mlir::bmodelica;
 
 static std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank,
@@ -298,7 +298,7 @@ EquationTemplatesCreationPass::createTemplates(ModelOp modelOp)
   return applyPatternsAndFoldGreedily(modelOp, std::move(patterns), config);
 }
 
-namespace mlir::modelica
+namespace mlir::bmodelica
 {
   std::unique_ptr<mlir::Pass> createEquationTemplatesCreationPass()
   {

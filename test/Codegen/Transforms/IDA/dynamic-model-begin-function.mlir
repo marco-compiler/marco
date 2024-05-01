@@ -7,7 +7,7 @@
 // CHECK:           ida.create @ida_main
 // CHECK-NEXT:  }
 
-modelica.model @Test {
+bmodelica.model @Test {
 
 }
 
@@ -20,7 +20,7 @@ modelica.model @Test {
 // CHECK:           %[[state_ida:.*]] = ida.add_state_variable @ida_main {derivativeGetter = @{{.*}}, derivativeSetter = @{{.*}}, dimensions = [1], stateGetter = @{{.*}}, stateSetter = @{{.*}}}
 // CHECK-NEXT:  }
 
-modelica.model @Test attributes {derivatives_map = [#modelica<var_derivative @x, @der_x>]} {
-    modelica.variable @x : !modelica.variable<!modelica.real>
-    modelica.variable @der_x : !modelica.variable<!modelica.real>
+bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
+    bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real>
 }

@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @outputBooleanScalar
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.bool, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.bool, output>
 
 function outputBooleanScalar
     output Boolean y;
@@ -10,7 +10,7 @@ end outputBooleanScalar;
 
 
 // CHECK-LABEL: @outputIntegerScalar
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.int, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, output>
 
 function outputIntegerScalar
     output Integer y;
@@ -19,7 +19,7 @@ end outputIntegerScalar;
 
 
 // CHECK-LABEL: @outputRealScalar
-// CHECK: modelica.variable @y : !modelica.variable<!modelica.real, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 
 function outputRealScalar
     output Real y;
@@ -28,7 +28,7 @@ end outputRealScalar;
 
 
 // CHECK-LABEL: @outputBooleanStaticArray
-// CHECK: modelica.variable @y : !modelica.variable<3x2x!modelica.bool, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<3x2x!bmodelica.bool, output>
 
 function outputBooleanStaticArray
     output Boolean[3,2] y;
@@ -37,7 +37,7 @@ end outputBooleanStaticArray;
 
 
 // CHECK-LABEL: @outputBooleanDynamicArray
-// CHECK: modelica.variable @y : !modelica.variable<?x?x!modelica.bool, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<?x?x!bmodelica.bool, output>
 
 function outputBooleanDynamicArray
     output Boolean[:,:] y;
@@ -46,7 +46,7 @@ end outputBooleanDynamicArray;
 
 
 // CHECK-LABEL: @outputIntegerStaticArray
-// CHECK: modelica.variable @y : !modelica.variable<3x2x!modelica.int, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<3x2x!bmodelica.int, output>
 
 function outputIntegerStaticArray
     output Integer[3,2] y;
@@ -55,7 +55,7 @@ end outputIntegerStaticArray;
 
 
 // CHECK-LABEL: @outputIntegerDynamicArray
-// CHECK: modelica.variable @y : !modelica.variable<?x?x!modelica.int, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<?x?x!bmodelica.int, output>
 
 function outputIntegerDynamicArray
     output Integer[:,:] y;
@@ -64,7 +64,7 @@ end outputIntegerDynamicArray;
 
 
 // CHECK-LABEL: @outputRealStaticArray
-// CHECK: modelica.variable @y : !modelica.variable<3x2x!modelica.real, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<3x2x!bmodelica.real, output>
 
 function outputRealStaticArray
     output Real[3,2] y;
@@ -73,7 +73,7 @@ end outputRealStaticArray;
 
 
 // CHECK-LABEL: @outputRealDynamicArray
-// CHECK: modelica.variable @y : !modelica.variable<?x?x!modelica.real, output>
+// CHECK: bmodelica.variable @y : !bmodelica.variable<?x?x!bmodelica.real, output>
 
 function outputRealDynamicArray
     output Real[:,:] y;
@@ -82,11 +82,11 @@ end outputRealDynamicArray;
 
 
 // CHECK-LABEL: @sizeDependingOnIntegerInput
-// CHECK: modelica.variable @n : !modelica.variable<!modelica.int, input>
-// CHECK:       modelica.variable @y : !modelica.variable<?x!modelica.real, output> [fixed] {
-// CHECK-NEXT:      %[[n:.*]] = modelica.variable_get @n
-// CHECK-NEXT:      %[[size:.*]] = modelica.cast %[[n]] : !modelica.int -> index
-// CHECK-NEXT:      modelica.yield %[[size]]
+// CHECK: bmodelica.variable @n : !bmodelica.variable<!bmodelica.int, input>
+// CHECK:       bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.real, output> [fixed] {
+// CHECK-NEXT:      %[[n:.*]] = bmodelica.variable_get @n
+// CHECK-NEXT:      %[[size:.*]] = bmodelica.cast %[[n]] : !bmodelica.int -> index
+// CHECK-NEXT:      bmodelica.yield %[[size]]
 // CHECK-NEXT:  }
 
 function sizeDependingOnIntegerInput
@@ -97,10 +97,10 @@ end sizeDependingOnIntegerInput;
 
 
 // CHECK-LABEL: @defaultValue
-// CHECK:       modelica.variable @x : !modelica.variable<!modelica.int, output>
-// CHECK-NEXT:  modelica.default @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<10>
-// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK:       bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, output>
+// CHECK-NEXT:  bmodelica.default @x {
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<10>
+// CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  }
 
 function defaultValue

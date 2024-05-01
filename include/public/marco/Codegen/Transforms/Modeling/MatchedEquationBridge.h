@@ -1,12 +1,12 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODELING_MATCHEDEQUATIONBRIDGE_H
 #define MARCO_CODEGEN_TRANSFORMS_MODELING_MATCHEDEQUATIONBRIDGE_H
 
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"
 
-namespace mlir::modelica::bridge
+namespace mlir::bmodelica::bridge
 {
   class MatchedEquationBridge
   {
@@ -45,9 +45,9 @@ namespace mlir::modelica::bridge
 namespace marco::modeling::dependency
 {
   template<>
-  struct EquationTraits<::mlir::modelica::bridge::MatchedEquationBridge*>
+  struct EquationTraits<::mlir::bmodelica::bridge::MatchedEquationBridge*>
   {
-    using Equation = ::mlir::modelica::bridge::MatchedEquationBridge*;
+    using Equation = ::mlir::bmodelica::bridge::MatchedEquationBridge*;
     using Id = mlir::Operation*;
 
     static Id getId(const Equation* equation);
@@ -56,8 +56,8 @@ namespace marco::modeling::dependency
 
     static IndexSet getIterationRanges(const Equation* equation);
 
-    using VariableType = ::mlir::modelica::bridge::VariableBridge*;
-    using VariableAccess = mlir::modelica::VariableAccess;
+    using VariableType = ::mlir::bmodelica::bridge::VariableBridge*;
+    using VariableAccess = mlir::bmodelica::VariableAccess;
     using AccessProperty = VariableAccess;
 
     static std::vector<Access<VariableType, AccessProperty>>

@@ -1,8 +1,3 @@
-#include "marco/Dialect/Modelica/TypeInterfaces.h"
+#include "marco/Dialect/BaseModelica/TypeInterfaces.h"
 
-#include "marco/Dialect/Modelica/ModelicaTypeInterfaces.cpp.inc"
-
-namespace mlir::modelica
-{
-
-}
+#include "marco/Dialect/BaseModelica/BaseModelicaTypeInterfaces.cpp.inc"

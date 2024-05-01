@@ -2,6 +2,6 @@
 
 // CHECK: llvm.mlir.global internal constant @modelName
 
-modelica.model @M {
+bmodelica.model @M {
 
 }
