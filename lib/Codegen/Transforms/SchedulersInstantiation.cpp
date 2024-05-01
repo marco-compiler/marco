@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/SchedulersInstantiation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 
 namespace mlir::modelica
 {
@@ -59,7 +59,7 @@ namespace
           llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
           llvm::ArrayRef<ScheduleBlockOp> blocks);
 
-      mlir::simulation::SchedulerOp declareScheduler(
+      mlir::runtime::SchedulerOp declareScheduler(
           mlir::OpBuilder& builder,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
@@ -83,7 +83,7 @@ namespace
           llvm::function_ref<mlir::Block*(
               mlir::OpBuilder&, mlir::Location)> createEndFn);
 
-      mlir::simulation::EquationFunctionOp createWrapperFunction(
+      mlir::runtime::EquationFunctionOp createWrapperFunction(
           mlir::OpBuilder& builder,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
@@ -184,7 +184,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processInitialModelOp(
       [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc) -> mlir::Block* {
     mlir::OpBuilder::InsertionGuard guard(nestedBuilder);
     nestedBuilder.setInsertionPointToEnd(moduleOp.getBody());
-    auto beginFn = nestedBuilder.create<mlir::simulation::ICModelBeginOp>(loc);
+    auto beginFn = nestedBuilder.create<mlir::runtime::ICModelBeginOp>(loc);
     return nestedBuilder.createBlock(&beginFn.getBodyRegion());
   };
 
@@ -192,7 +192,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processInitialModelOp(
       [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc) -> mlir::Block* {
     mlir::OpBuilder::InsertionGuard guard(nestedBuilder);
     nestedBuilder.setInsertionPointToEnd(moduleOp.getBody());
-    auto endFn = nestedBuilder.create<mlir::simulation::ICModelEndOp>(loc);
+    auto endFn = nestedBuilder.create<mlir::runtime::ICModelEndOp>(loc);
     return nestedBuilder.createBlock(&endFn.getBodyRegion());
   };
 
@@ -223,7 +223,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processMainModelOp(
         nestedBuilder.setInsertionPointToEnd(moduleOp.getBody());
 
         auto beginFn =
-            nestedBuilder.create<mlir::simulation::DynamicModelBeginOp>(loc);
+            nestedBuilder.create<mlir::runtime::DynamicModelBeginOp>(loc);
 
         return nestedBuilder.createBlock(&beginFn.getBodyRegion());
       };
@@ -234,7 +234,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processMainModelOp(
         nestedBuilder.setInsertionPointToEnd(moduleOp.getBody());
 
         auto endFn =
-            nestedBuilder.create<mlir::simulation::DynamicModelEndOp>(loc);
+            nestedBuilder.create<mlir::runtime::DynamicModelEndOp>(loc);
 
         return nestedBuilder.createBlock(&endFn.getBodyRegion());
       };
@@ -297,7 +297,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
     rewriter.createBlock(&newScheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(newScheduleOp.getBody());
 
-    mlir::simulation::SchedulerOp schedulerOp = declareScheduler(
+    mlir::runtime::SchedulerOp schedulerOp = declareScheduler(
         rewriter, symbolTableCollection, moduleOp, parallelOp.getLoc(),
         schedulerBaseName);
 
@@ -317,7 +317,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
       return mlir::failure();
     }
 
-    rewriter.create<mlir::simulation::SchedulerRunOp>(
+    rewriter.create<mlir::runtime::SchedulerRunOp>(
         parallelOp.getLoc(), schedulerOp.getSymName());
 
     for (ScheduleBlockOp block : blocks) {
@@ -392,7 +392,7 @@ void SchedulersInstantiationPass::mergeVariableAccesses(
   std::sort(readVariables.begin(), readVariables.end(), sortFn);
 }
 
-mlir::simulation::SchedulerOp SchedulersInstantiationPass::declareScheduler(
+mlir::runtime::SchedulerOp SchedulersInstantiationPass::declareScheduler(
     mlir::OpBuilder& builder,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
@@ -403,7 +403,7 @@ mlir::simulation::SchedulerOp SchedulersInstantiationPass::declareScheduler(
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   auto schedulerOp =
-      builder.create<mlir::simulation::SchedulerOp>(loc, baseName);
+      builder.create<mlir::runtime::SchedulerOp>(loc, baseName);
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(schedulerOp);
   return schedulerOp;
@@ -431,7 +431,7 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
   mlir::Block* beginFnBody = createBeginFn(builder, loc);
   builder.setInsertionPointToStart(beginFnBody);
 
-  builder.create<mlir::simulation::SchedulerCreateOp>(loc, schedulerName);
+  builder.create<mlir::runtime::SchedulerCreateOp>(loc, schedulerName);
 
   for (EquationCallOp callOp : equationCallOps) {
     MultidimensionalRangeAttr ranges = nullptr;
@@ -440,14 +440,14 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
       ranges = callOp.getIndicesAttr();
     }
 
-    mlir::simulation::EquationFunctionOp wrapperFunction =
+    mlir::runtime::EquationFunctionOp wrapperFunction =
         createWrapperFunction(builder, symbolTableCollection, moduleOp, callOp);
 
     if (!wrapperFunction) {
       return mlir::failure();
     }
 
-    builder.create<mlir::simulation::SchedulerAddEquationOp>(
+    builder.create<mlir::runtime::SchedulerAddEquationOp>(
         callOp.getLoc(), schedulerName, wrapperFunction.getSymName(), ranges,
         callOp.getParallelizable());
   }
@@ -465,11 +465,11 @@ mlir::LogicalResult SchedulersInstantiationPass::destroyScheduler(
   mlir::OpBuilder::InsertionGuard guard(builder);
   mlir::Block* endFnBody = createEndFn(builder, loc);
   builder.setInsertionPointToStart(endFnBody);
-  builder.create<mlir::simulation::SchedulerDestroyOp>(loc, schedulerName);
+  builder.create<mlir::runtime::SchedulerDestroyOp>(loc, schedulerName);
   return mlir::success();
 }
 
-mlir::simulation::EquationFunctionOp
+mlir::runtime::EquationFunctionOp
 SchedulersInstantiationPass::createWrapperFunction(
     mlir::OpBuilder& builder,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -487,7 +487,7 @@ SchedulersInstantiationPass::createWrapperFunction(
 
   std::string functionName = callOp.getCallee().str() + "_wrapper";
 
-  auto wrapperFunction = builder.create<mlir::simulation::EquationFunctionOp>(
+  auto wrapperFunction = builder.create<mlir::runtime::EquationFunctionOp>(
       callOp.getLoc(), functionName, numOfInductions);
 
   symbolTableCollection.getSymbolTable(moduleOp).insert(wrapperFunction);
@@ -501,7 +501,7 @@ SchedulersInstantiationPass::createWrapperFunction(
   builder.create<CallOp>(
       callOp.getLoc(), equationFunctionOp, wrapperFunction.getArguments());
 
-  builder.create<mlir::simulation::ReturnOp>(callOp.getLoc(), std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(callOp.getLoc(), std::nullopt);
   return wrapperFunction;
 }
 

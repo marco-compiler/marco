@@ -3,7 +3,7 @@
 // Empty model.
 
 // CHECK: ida.instance @ida_main
-// CHECK:       simulation.dynamic_model_end {
+// CHECK:       runtime.dynamic_model_end {
 // CHECK-NEXT:      ida.free @ida_main
 // CHECK-NEXT:  }
 

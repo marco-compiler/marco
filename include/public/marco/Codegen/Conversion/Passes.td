@@ -243,7 +243,7 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
-        "mlir::simulation::SimulationDialect",
+        "mlir::runtime::RuntimeDialect",
         "mlir::arith::ArithDialect",
         "mlir::LLVM::LLVMDialect"
     ];
@@ -316,15 +316,15 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to Simulation
+// Modelica to Runtime
 //===---------------------------------------------------------------------===//
 
-def ModelicaToSimulationConversionPass : Pass<"convert-modelica-to-simulation", "mlir::ModuleOp"> {
-    let summary = "Modelica: conversion to Simulation dialect";
+def ModelicaToRuntimeConversionPass : Pass<"convert-modelica-to-runtime", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to Runtime dialect";
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::simulation::SimulationDialect",
+        "mlir::runtime::RuntimeDialect",
         "mlir::func::FuncDialect"
     ];
 
@@ -334,15 +334,15 @@ def ModelicaToSimulationConversionPass : Pass<"convert-modelica-to-simulation", 
                "Set a print filter for the variables of the simulation">,
     ];
 
-    let constructor = "mlir::createModelicaToSimulationConversionPass()";
+    let constructor = "mlir::createModelicaToRuntimeConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Simulation to Func
+// Runtime to Func
 //===---------------------------------------------------------------------===//
 
-def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::ModuleOp"> {
-    let summary = "Simulation: conversion to Func dialect";
+def RuntimeToFuncConversionPass : Pass<"convert-runtime-to-func", "mlir::ModuleOp"> {
+    let summary = "Runtime: conversion to Func dialect";
 
     let description = [{
         // TODO
@@ -355,16 +355,16 @@ def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::M
         "mlir::LLVM::LLVMDialect"
     ];
 
-    let constructor = "mlir::createSimulationToFuncConversionPass()";
+    let constructor = "mlir::createRuntimeToFuncConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Simulation to LLVM
+// Runtime to LLVM
 //===---------------------------------------------------------------------===//
 
-def SimulationToLLVMConversionPass
-    : Pass<"convert-simulation-to-llvm", "mlir::ModuleOp"> {
-    let summary = "Simulation: conversion to LLVM dialect";
+def RuntimeToLLVMConversionPass
+    : Pass<"convert-runtime-to-llvm", "mlir::ModuleOp"> {
+    let summary = "Runtime: conversion to LLVM dialect";
 
     let description = [{
         // TODO
@@ -382,7 +382,7 @@ def SimulationToLLVMConversionPass
                "Specify the data layout">
     ];
 
-    let constructor = "mlir::createSimulationToLLVMConversionPass()";
+    let constructor = "mlir::createRuntimeToLLVMConversionPass()";
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

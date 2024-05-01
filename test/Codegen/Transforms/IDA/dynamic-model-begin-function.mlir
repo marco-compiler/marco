@@ -3,7 +3,7 @@
 // Empty model.
 
 // CHECK: ida.instance @ida_main
-// CHECK:       simulation.dynamic_model_begin {
+// CHECK:       runtime.dynamic_model_begin {
 // CHECK:           ida.create @ida_main
 // CHECK-NEXT:  }
 
@@ -16,7 +16,7 @@ modelica.model @Test {
 // Check variables.
 
 // CHECK: ida.instance @ida_main
-// CHECK:       simulation.dynamic_model_begin {
+// CHECK:       runtime.dynamic_model_begin {
 // CHECK:           %[[state_ida:.*]] = ida.add_state_variable @ida_main {derivativeGetter = @{{.*}}, derivativeSetter = @{{.*}}, dimensions = [1], stateGetter = @{{.*}}, stateSetter = @{{.*}}}
 // CHECK-NEXT:  }
 

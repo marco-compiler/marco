@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/IDA.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Transforms/Solvers/SUNDIALS.h"
@@ -2343,7 +2343,7 @@ mlir::LogicalResult IDAPass::createInitMainSolversFunction(
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
   auto functionOp =
-      rewriter.create<mlir::simulation::DynamicModelBeginOp>(loc);
+      rewriter.create<mlir::runtime::DynamicModelBeginOp>(loc);
 
   rewriter.createBlock(&functionOp.getBodyRegion());
   rewriter.setInsertionPointToStart(functionOp.getBody());
@@ -2369,7 +2369,7 @@ mlir::LogicalResult IDAPass::createDeinitMainSolversFunction(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = builder.create<mlir::simulation::DynamicModelEndOp>(loc);
+  auto functionOp = builder.create<mlir::runtime::DynamicModelEndOp>(loc);
   builder.createBlock(&functionOp.getBodyRegion());
   builder.setInsertionPointToStart(functionOp.getBody());
 
@@ -2389,7 +2389,7 @@ mlir::LogicalResult IDAPass::createCalcICFunction(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+  auto functionOp = builder.create<mlir::runtime::FunctionOp>(
       loc, "calcIC",
       builder.getFunctionType(std::nullopt, std::nullopt));
 
@@ -2400,7 +2400,7 @@ mlir::LogicalResult IDAPass::createCalcICFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2413,7 +2413,7 @@ mlir::LogicalResult IDAPass::createUpdateIDAVariablesFunction(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+  auto functionOp = builder.create<mlir::runtime::FunctionOp>(
       loc, "updateIDAVariables",
       builder.getFunctionType(std::nullopt, std::nullopt));
 
@@ -2424,7 +2424,7 @@ mlir::LogicalResult IDAPass::createUpdateIDAVariablesFunction(
     return mlir::failure();
   }
 
-  builder.create<mlir::simulation::ReturnOp>(loc, std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(loc, std::nullopt);
   return mlir::success();
 }
 
@@ -2441,7 +2441,7 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
   // Create the function.
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
+  auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateNonIDAVariables",
       rewriter.getFunctionType(std::nullopt, std::nullopt));
 
@@ -2468,7 +2468,7 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
     rewriter.create<RunScheduleOp>(modelOp.getLoc(), scheduleOp);
   }
 
-  rewriter.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
   return mlir::success();
 }
 
@@ -2481,7 +2481,7 @@ mlir::LogicalResult IDAPass::createGetIDATimeFunction(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+  auto functionOp = builder.create<mlir::runtime::FunctionOp>(
       loc, "getIDATime",
       builder.getFunctionType(std::nullopt, builder.getF64Type()));
 
@@ -2489,7 +2489,7 @@ mlir::LogicalResult IDAPass::createGetIDATimeFunction(
   builder.setInsertionPointToStart(entryBlock);
 
   mlir::Value time = idaInstance->getCurrentTime(builder, loc);
-  builder.create<mlir::simulation::ReturnOp>(loc, time);
+  builder.create<mlir::runtime::ReturnOp>(loc, time);
   return mlir::success();
 }
 

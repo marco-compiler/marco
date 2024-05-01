@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/EulerForward.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -141,7 +141,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   // Create the function running the schedule.
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
+  auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateNonStateVariables",
       rewriter.getFunctionType(std::nullopt, std::nullopt));
 
@@ -170,7 +170,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   }
 
   rewriter.setInsertionPointToEnd(entryBlock);
-  rewriter.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
   return mlir::success();
 }
 
@@ -232,7 +232,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   symbolTableCollection.getSymbolTable(moduleOp).insert(timeStepVariable);
 
   // Create the function called by the runtime library.
-  auto functionOp = builder.create<mlir::simulation::FunctionOp>(
+  auto functionOp = builder.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "updateStateVariables",
       builder.getFunctionType(builder.getF64Type(), std::nullopt));
 
@@ -395,7 +395,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   }
 
   // Terminate the function.
-  builder.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  builder.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
 
   return mlir::success();
 }

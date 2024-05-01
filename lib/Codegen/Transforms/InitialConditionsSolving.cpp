@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/InitialConditionsSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 
 namespace mlir::modelica
 {
@@ -178,7 +178,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   // Create the function running the schedule.
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto functionOp = rewriter.create<mlir::simulation::FunctionOp>(
+  auto functionOp = rewriter.create<mlir::runtime::FunctionOp>(
       modelOp.getLoc(), "solveICModel",
       rewriter.getFunctionType(std::nullopt, std::nullopt));
 
@@ -213,7 +213,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   }
 
   rewriter.setInsertionPointToEnd(entryBlock);
-  rewriter.create<mlir::simulation::ReturnOp>(modelOp.getLoc(), std::nullopt);
+  rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
 
   for (InitialModelOp initialModelOp : initialModelOps) {
     rewriter.eraseOp(initialModelOp);

@@ -179,7 +179,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRModelicaToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToMemRefConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToSimulationConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRModelicaToRuntimeConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRModelicaToVectorConversionPass();
 
       std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
@@ -188,8 +188,8 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRKINSOLToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
 
-      std::unique_ptr<mlir::Pass> createMLIRSimulationToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRSimulationToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRRuntimeToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRRuntimeToLLVMConversionPass();
 
       /// }
       /// @name MLIR built-in passes.

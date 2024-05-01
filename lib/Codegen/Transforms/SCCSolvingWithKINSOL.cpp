@@ -2,7 +2,7 @@
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/KINSOL/KINSOLDialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Solvers/SUNDIALS.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
@@ -1289,7 +1289,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialModelOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::simulation::ICModelBeginOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::ICModelBeginOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
       };
 
@@ -1297,7 +1297,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialModelOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::simulation::ICModelEndOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::ICModelEndOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
   };
 
@@ -1329,7 +1329,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processMainModelOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::simulation::ICModelBeginOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::ICModelBeginOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
       };
 
@@ -1337,7 +1337,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processMainModelOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::simulation::ICModelEndOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::ICModelEndOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
       };
 

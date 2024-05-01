@@ -2,8 +2,8 @@
 
 // Empty model.
 
-// CHECK:       simulation.function @updateNonStateVariables() {
-// CHECK:           simulation.return
+// CHECK:       runtime.function @updateNonStateVariables() {
+// CHECK:           runtime.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

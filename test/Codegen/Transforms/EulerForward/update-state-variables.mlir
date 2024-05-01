@@ -2,8 +2,8 @@
 
 // Empty model.
 
-// CHECK:       simulation.function @updateStateVariables(%[[timeStep:.*]]: f64) {
-// CHECK:           simulation.return
+// CHECK:       runtime.function @updateStateVariables(%[[timeStep:.*]]: f64) {
+// CHECK:           runtime.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

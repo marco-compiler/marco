@@ -3,7 +3,7 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -478,9 +478,9 @@ namespace
           return signalPassFailure();
         }
 
-        if (mlir::failed(legalizeSimulation())) {
+        if (mlir::failed(legalizeRuntime())) {
           mlir::emitError(getOperation().getLoc())
-              << "Legalization of Simulation dialect failed";
+              << "Legalization of Runtime dialect failed";
 
           return signalPassFailure();
         }
@@ -491,7 +491,7 @@ namespace
 
       mlir::LogicalResult convertOperations();
 
-      mlir::LogicalResult legalizeSimulation();
+      mlir::LogicalResult legalizeRuntime();
   };
 }
 
@@ -551,7 +551,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
-mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeSimulation()
+mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeRuntime()
 {
   auto module = getOperation();
   mlir::ConversionTarget target(getContext());

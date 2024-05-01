@@ -2,8 +2,8 @@
 
 // Empty model.
 
-// CHECK:       simulation.function @updateNonIDAVariables() {
-// CHECK-NEXT:      simulation.return
+// CHECK:       runtime.function @updateNonIDAVariables() {
+// CHECK-NEXT:      runtime.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

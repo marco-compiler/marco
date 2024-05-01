@@ -3,9 +3,9 @@
 // Empty model.
 
 // CHECK: ida.instance @ida_main
-// CHECK:       simulation.function @calcIC() {
+// CHECK:       runtime.function @calcIC() {
 // CHECK:           ida.calc_ic @ida_main
-// CHECK:           simulation.return
+// CHECK:           runtime.return
 // CHECK-NEXT:  }
 
 modelica.model @Test {

@@ -430,7 +430,7 @@ def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::kinsol::KINSOLDialect",
-        "mlir::simulation::SimulationDialect"
+        "mlir::runtime::RuntimeDialect"
     ];
 
     let options = [
@@ -489,7 +489,7 @@ def SchedulersInstantiationPass
 {
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::simulation::SimulationDialect"
+        "mlir::runtime::RuntimeDialect"
     ];
 
     let constructor = "mlir::modelica::createSchedulersInstantiationPass()";
@@ -566,7 +566,7 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::simulation::SimulationDialect",
+        "mlir::runtime::RuntimeDialect",
         "mlir::scf::SCFDialect"
     ];
 
@@ -584,7 +584,7 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp">
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
-        "mlir::simulation::SimulationDialect"
+        "mlir::runtime::RuntimeDialect"
     ];
 
     let options = [

@@ -5,7 +5,7 @@
 #include "marco/Codegen/Verifier.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modeling/ModelingDialect.h"
-#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/Parser.h"
@@ -550,7 +550,7 @@ namespace marco::frontend
     mlirDialectRegistry.insert<mlir::modeling::ModelingDialect>();
     mlirDialectRegistry.insert<mlir::modelica::ModelicaDialect>();
     mlirDialectRegistry.insert<mlir::ida::IDADialect>();
-    mlirDialectRegistry.insert<mlir::simulation::SimulationDialect>();
+    mlirDialectRegistry.insert<mlir::runtime::RuntimeDialect>();
   }
 
   void CodeGenAction::registerMLIRExtensions()
@@ -944,7 +944,7 @@ namespace marco::frontend
     // Check that no SCC is left unsolved.
     pm.addPass(mlir::modelica::createSCCAbsenceVerificationPass());
 
-    pm.addPass(createMLIRModelicaToSimulationConversionPass());
+    pm.addPass(createMLIRModelicaToRuntimeConversionPass());
 
     pm.addPass(createMLIRFunctionScalarizationPass());
     pm.addPass(mlir::modelica::createExplicitCastInsertionPass());
@@ -974,7 +974,7 @@ namespace marco::frontend
     pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
     pm.addPass(createMLIRIDAToFuncConversionPass());
     pm.addPass(createMLIRKINSOLToFuncConversionPass());
-    pm.addPass(createMLIRSimulationToFuncConversionPass());
+    pm.addPass(createMLIRRuntimeToFuncConversionPass());
 
     if (ci.getCodeGenOptions().omp) {
       // Use OpenMP for parallel loops.
@@ -1007,7 +1007,7 @@ namespace marco::frontend
     pm.addPass(createMLIRModelicaToLLVMConversionPass());
     pm.addPass(createMLIRIDAToLLVMConversionPass());
     pm.addPass(createMLIRKINSOLToLLVMConversionPass());
-    pm.addPass(createMLIRSimulationToLLVMConversionPass());
+    pm.addPass(createMLIRRuntimeToLLVMConversionPass());
 
     // Convert the non-LLVM operations that may have been introduced by the
     // last conversions.
@@ -1130,14 +1130,14 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToSimulationConversionPass()
+  CodeGenAction::createMLIRModelicaToRuntimeConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToSimulationConversionPassOptions options;
+    mlir::ModelicaToRuntimeConversionPassOptions options;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
 
-    return mlir::createModelicaToSimulationConversionPass(options);
+    return mlir::createModelicaToRuntimeConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
@@ -1192,18 +1192,18 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRSimulationToFuncConversionPass()
+  CodeGenAction::createMLIRRuntimeToFuncConversionPass()
   {
-    return mlir::createSimulationToFuncConversionPass();
+    return mlir::createRuntimeToFuncConversionPass();
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRSimulationToLLVMConversionPass()
+  CodeGenAction::createMLIRRuntimeToLLVMConversionPass()
   {
-    mlir::SimulationToLLVMConversionPassOptions options;
+    mlir::RuntimeToLLVMConversionPassOptions options;
     options.dataLayout = getDataLayout().getStringRepresentation();
 
-    return mlir::createSimulationToLLVMConversionPass(options);
+    return mlir::createRuntimeToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
