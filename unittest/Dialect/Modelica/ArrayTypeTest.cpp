@@ -1,6 +1,6 @@
-#include "gtest/gtest.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "gmock/gmock.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "gtest/gtest.h"
 
 using namespace ::mlir::bmodelica;
 

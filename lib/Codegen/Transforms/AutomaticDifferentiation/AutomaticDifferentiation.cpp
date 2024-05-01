@@ -1,9 +1,9 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/STLExtras.h"
 
 namespace mlir::bmodelica

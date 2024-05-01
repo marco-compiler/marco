@@ -1,6 +1,6 @@
-#include "marco/Codegen/Transforms/Modeling/Bridge.h"
 #include "marco/Codegen/Transforms/SCCDetection.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Codegen/Transforms/Modeling/Bridge.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/EquationFunctionLoopHoisting.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Dialect/Bufferization/Transforms/Transforms.h"
 #include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Transforms/LoopInvariantCodeMotionUtils.h"

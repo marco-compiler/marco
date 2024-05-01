@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/DerivativesAllocation.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/Threading.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <mutex>

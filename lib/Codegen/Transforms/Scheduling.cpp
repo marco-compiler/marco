@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/Scheduling.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/Bridge.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "marco/Modeling/Scheduling.h"
 
 namespace mlir::bmodelica

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/OpDistribution.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 
 namespace mlir::bmodelica

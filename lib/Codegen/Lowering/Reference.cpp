@@ -1,5 +1,5 @@
 #include "marco/Codegen/Lowering/Reference.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 
 using namespace ::marco::codegen::lowering;
 using namespace ::mlir::bmodelica;

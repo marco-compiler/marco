@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_SOLVERS_SUNDIALS_H
 #define MARCO_CODEGEN_TRANSFORMS_SOLVERS_SUNDIALS_H
 
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "marco/Dialect/SUNDIALS/SUNDIALSDialect.h"
 
 namespace mlir::bmodelica

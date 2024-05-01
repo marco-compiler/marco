@@ -4,9 +4,9 @@
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Results.h"
 #include "marco/Codegen/Options.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
-#include "mlir/IR/MLIRContext.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/MLIRContext.h"
 #include <memory>
 
 namespace marco::codegen::lowering

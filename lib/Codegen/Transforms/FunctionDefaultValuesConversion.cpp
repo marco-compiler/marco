@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/FunctionDefaultValuesConversion.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "marco/Dialect/BaseModelica/DefaultValuesDependencyGraph.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica

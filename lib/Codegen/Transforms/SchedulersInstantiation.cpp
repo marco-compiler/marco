@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/SchedulersInstantiation.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 
 namespace mlir::bmodelica

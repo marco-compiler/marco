@@ -1,9 +1,9 @@
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Conversion/Passes.h"
 
 namespace mlir::bmodelica
 {

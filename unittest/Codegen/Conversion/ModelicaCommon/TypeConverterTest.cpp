@@ -1,5 +1,5 @@
 #include "gmock/gmock.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 

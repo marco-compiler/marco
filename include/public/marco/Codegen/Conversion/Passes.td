@@ -133,10 +133,10 @@ def KINSOLToLLVMConversionPass
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to Arith
+// Base Modelica to Arith
 //===---------------------------------------------------------------------===//
 
-def ModelicaToArithConversionPass : Pass<"convert-modelica-to-arith", "mlir::ModuleOp"> {
+def BaseModelicaToArithConversionPass : Pass<"convert-bmodelica-to-arith", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to Arith dialect";
 
     let description = [{
@@ -160,14 +160,14 @@ def ModelicaToArithConversionPass : Pass<"convert-modelica-to-arith", "mlir::Mod
                "Specify the data layout">
     ];
 
-    let constructor = "mlir::createModelicaToArithConversionPass()";
+    let constructor = "mlir::createBaseModelicaToArithConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to CF
+// Base Modelica to CF
 //===---------------------------------------------------------------------===//
 
-def ModelicaToCFConversionPass : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
+def BaseModelicaToCFConversionPass : Pass<"convert-bmodelica-to-cf", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to CF dialect";
 
     let description = [{
@@ -193,14 +193,14 @@ def ModelicaToCFConversionPass : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"
                "Specify the data layout">
     ];
 
-    let constructor = "mlir::createModelicaToCFConversionPass()";
+    let constructor = "mlir::createBaseModelicaToCFConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to Func
+// Base Modelica to Func
 //===---------------------------------------------------------------------===//
 
-def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::ModuleOp"> {
+def BaseModelicaToFuncConversionPass : Pass<"convert-bmodelica-to-func", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to Func dialect";
 
     let description = [{
@@ -226,14 +226,14 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
                "Enable the runtime assertions">
     ];
 
-    let constructor = "mlir::createModelicaToFuncConversionPass()";
+    let constructor = "mlir::createBaseModelicaToFuncConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to LLVM
+// Base Modelica to LLVM
 //===---------------------------------------------------------------------===//
 
-def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
+def BaseModelicaToLLVMConversionPass : Pass<"convert-bmodelica-to-llvm", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to LLVM dialect";
 
     let description = [{
@@ -257,14 +257,14 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
                "Specify the data layout">
     ];
 
-    let constructor = "mlir::createModelicaToLLVMConversionPass()";
+    let constructor = "mlir::createBaseModelicaToLLVMConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to MemRef
+// Base Modelica to MemRef
 //===---------------------------------------------------------------------===//
 
-def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::ModuleOp"> {
+def BaseModelicaToMemRefConversionPass : Pass<"convert-bmodelica-to-memref", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to MemRef dialect";
 
     let description = [{
@@ -287,14 +287,14 @@ def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::M
                "Specify the data layout">
     ];
 
-    let constructor = "mlir::createModelicaToMemRefConversionPass()";
+    let constructor = "mlir::createBaseModelicaToMemRefConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to Vector
+// Base Modelica to Vector
 //===---------------------------------------------------------------------===//
 
-def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::ModuleOp"> {
+def BaseModelicaToVectorConversionPass : Pass<"convert-bmodelica-to-vector", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to Vector dialect";
 
     let description = [{
@@ -312,14 +312,14 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
                "Specify the bit-width for the simulation data">,
     ];
 
-    let constructor = "mlir::createModelicaToVectorConversionPass()";
+    let constructor = "mlir::createBaseModelicaToVectorConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//
-// Modelica to Runtime
+// Base Modelica to Runtime
 //===---------------------------------------------------------------------===//
 
-def ModelicaToRuntimeConversionPass : Pass<"convert-modelica-to-runtime", "mlir::ModuleOp"> {
+def BaseModelicaToRuntimeConversionPass : Pass<"convert-bmodelica-to-runtime", "mlir::ModuleOp"> {
     let summary = "Modelica: conversion to Runtime dialect";
 
     let dependentDialects = [
@@ -334,7 +334,7 @@ def ModelicaToRuntimeConversionPass : Pass<"convert-modelica-to-runtime", "mlir:
                "Set a print filter for the variables of the simulation">,
     ];
 
-    let constructor = "mlir::createModelicaToRuntimeConversionPass()";
+    let constructor = "mlir::createBaseModelicaToRuntimeConversionPass()";
 }
 
 //===---------------------------------------------------------------------===//

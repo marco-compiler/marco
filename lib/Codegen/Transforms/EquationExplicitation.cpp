@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/EquationExplicitation.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

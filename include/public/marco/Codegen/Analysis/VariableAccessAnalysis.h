@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_ANALYSIS_VARIABLEACCESSANALYSIS_H
 #define MARCO_CODEGEN_ANALYSIS_VARIABLEACCESSANALYSIS_H
 
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Pass/AnalysisManager.h"
 
 namespace mlir::bmodelica

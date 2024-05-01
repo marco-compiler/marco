@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Threading.h"
 #include "llvm/ADT/DenseSet.h"

@@ -174,13 +174,13 @@ namespace marco::frontend
       /// @name Conversion passes.
       /// {
 
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToArithConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToCFConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToMemRefConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToRuntimeConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRModelicaToVectorConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToArithConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToCFConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToMemRefConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToRuntimeConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToVectorConversionPass();
 
       std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();

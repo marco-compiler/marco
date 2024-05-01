@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/EquationAccessSplit.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::bmodelica

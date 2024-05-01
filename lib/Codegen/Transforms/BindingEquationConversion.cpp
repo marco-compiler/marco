@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/BindingEquationConversion.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica

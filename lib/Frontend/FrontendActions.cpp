@@ -944,7 +944,7 @@ namespace marco::frontend
     // Check that no SCC is left unsolved.
     pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
 
-    pm.addPass(createMLIRModelicaToRuntimeConversionPass());
+    pm.addPass(createMLIRBaseModelicaToRuntimeConversionPass());
 
     pm.addPass(createMLIRFunctionScalarizationPass());
     pm.addPass(mlir::bmodelica::createExplicitCastInsertionPass());
@@ -959,17 +959,17 @@ namespace marco::frontend
 
     pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
     pm.addPass(mlir::bmodelica::createArrayDeallocationPass());
-    pm.addPass(createMLIRModelicaToCFConversionPass());
+    pm.addPass(createMLIRBaseModelicaToCFConversionPass());
 
     if (ci.getCodeGenOptions().inlining) {
       // Inline the functions with the 'inline' annotation.
       pm.addPass(mlir::createInlinerPass());
     }
 
-    pm.addPass(createMLIRModelicaToVectorConversionPass());
-    pm.addPass(createMLIRModelicaToArithConversionPass());
-    pm.addPass(createMLIRModelicaToFuncConversionPass());
-    pm.addPass(createMLIRModelicaToMemRefConversionPass());
+    pm.addPass(createMLIRBaseModelicaToVectorConversionPass());
+    pm.addPass(createMLIRBaseModelicaToArithConversionPass());
+    pm.addPass(createMLIRBaseModelicaToFuncConversionPass());
+    pm.addPass(createMLIRBaseModelicaToMemRefConversionPass());
 
     pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
     pm.addPass(createMLIRIDAToFuncConversionPass());
@@ -985,7 +985,7 @@ namespace marco::frontend
     // Try to fold constants and run again the Modelica -> Arith conversion
     // pass to convert the new constants.
     pm.addPass(mlir::createCanonicalizerPass());
-    pm.addPass(createMLIRModelicaToArithConversionPass());
+    pm.addPass(createMLIRBaseModelicaToArithConversionPass());
 
     pm.addNestedPass<mlir::func::FuncOp>(
         createMLIRVectorToSCFConversionPass());
@@ -1004,7 +1004,7 @@ namespace marco::frontend
     pm.addPass(mlir::createConvertControlFlowToLLVMPass());
 
     // Convert the MARCO dialects to LLVM dialect.
-    pm.addPass(createMLIRModelicaToLLVMConversionPass());
+    pm.addPass(createMLIRBaseModelicaToLLVMConversionPass());
     pm.addPass(createMLIRIDAToLLVMConversionPass());
     pm.addPass(createMLIRKINSOLToLLVMConversionPass());
     pm.addPass(createMLIRRuntimeToLLVMConversionPass());
@@ -1063,24 +1063,24 @@ namespace marco::frontend
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToArithConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToArithConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToArithConversionPassOptions options;
+    mlir::BaseModelicaToArithConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
     options.assertions = ci.getCodeGenOptions().assertions;
     options.dataLayout = getDataLayout().getStringRepresentation();
 
-    return mlir::createModelicaToArithConversionPass(options);
+    return mlir::createBaseModelicaToArithConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToCFConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToCFConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToCFConversionPassOptions options;
+    mlir::BaseModelicaToCFConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
 
     options.outputArraysPromotion =
@@ -1088,67 +1088,67 @@ namespace marco::frontend
 
     options.dataLayout = getDataLayout().getStringRepresentation();
 
-    return mlir::createModelicaToCFConversionPass(options);
+    return mlir::createBaseModelicaToCFConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToFuncConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToFuncConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToFuncConversionPassOptions options;
+    mlir::BaseModelicaToFuncConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
     options.dataLayout = getDataLayout().getStringRepresentation();
     options.assertions = ci.getCodeGenOptions().assertions;
 
-    return mlir::createModelicaToFuncConversionPass(options);
+    return mlir::createBaseModelicaToFuncConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToLLVMConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToLLVMConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToLLVMConversionPassOptions options;
+    mlir::BaseModelicaToLLVMConversionPassOptions options;
     options.assertions = ci.getCodeGenOptions().assertions;
     options.dataLayout = getDataLayout().getStringRepresentation();
 
-    return mlir::createModelicaToLLVMConversionPass(options);
+    return mlir::createBaseModelicaToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToMemRefConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToMemRefConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToMemRefConversionPassOptions options;
+    mlir::BaseModelicaToMemRefConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
     options.assertions = ci.getCodeGenOptions().assertions;
     options.dataLayout = getDataLayout().getStringRepresentation();
 
-    return mlir::createModelicaToMemRefConversionPass(options);
+    return mlir::createBaseModelicaToMemRefConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToRuntimeConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToRuntimeConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToRuntimeConversionPassOptions options;
+    mlir::BaseModelicaToRuntimeConversionPassOptions options;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
 
-    return mlir::createModelicaToRuntimeConversionPass(options);
+    return mlir::createBaseModelicaToRuntimeConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRModelicaToVectorConversionPass()
+  CodeGenAction::createMLIRBaseModelicaToVectorConversionPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::ModelicaToVectorConversionPassOptions options;
+    mlir::BaseModelicaToVectorConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
 
-    return mlir::createModelicaToVectorConversionPass(options);
+    return mlir::createBaseModelicaToVectorConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass>

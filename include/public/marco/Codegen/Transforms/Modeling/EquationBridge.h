@@ -1,9 +1,9 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODELING_EQUATIONBRIDGE_H
 #define MARCO_CODEGEN_TRANSFORMS_MODELING_EQUATIONBRIDGE_H
 
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Codegen/Analysis/VariableAccessAnalysis.h"
 #include "marco/Codegen/Transforms/Modeling/VariableBridge.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "llvm/ADT/DenseMap.h"
 
 namespace mlir::bmodelica::bridge

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 
 namespace mlir::bmodelica

@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/AccessReplacementTest.h"
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::bmodelica

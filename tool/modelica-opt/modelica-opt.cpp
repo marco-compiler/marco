@@ -1,12 +1,12 @@
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
-#include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
-#include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
 int main(int argc, char* argv[])

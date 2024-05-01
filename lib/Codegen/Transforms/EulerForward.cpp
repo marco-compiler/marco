@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/EulerForward.h"
 #include "marco/Dialect/Runtime/RuntimeDialect.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"

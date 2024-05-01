@@ -1,7 +1,7 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_VARIABLESDEPENDENCYGRAPH_H
 #define MARCO_DIALECT_BASEMODELICA_VARIABLESDEPENDENCYGRAPH_H
 
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include <set>
 
 namespace mlir::bmodelica

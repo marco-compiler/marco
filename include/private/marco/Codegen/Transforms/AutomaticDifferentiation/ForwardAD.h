@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 #define MARCO_CODEGEN_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "llvm/ADT/STLExtras.h"
 #include <set>
 

@@ -1,8 +1,8 @@
-#include "marco/Dialect/BaseModelica/ModelicaDialect.h"
 #include "marco/Dialect/BaseModelica/Types.h"
+#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::bmodelica;
