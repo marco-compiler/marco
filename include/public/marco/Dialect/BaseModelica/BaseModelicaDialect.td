@@ -12,7 +12,7 @@ def BaseModelica_Dialect : Dialect {
     let summary = "MLIR Base Modelica dialect.";
 
     let description = [{
-        MLIR Modelica dialect.
+        MLIR Base Modelica dialect.
     }];
 
     let cppNamespace = "::mlir::bmodelica";
