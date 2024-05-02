@@ -38,6 +38,8 @@ int main(int argc, char* argv[])
 
   // Register the passes defined by MARCO.
   marco::codegen::registerConversionPasses();
+  marco::codegen::registerModelicaToArithConversionPass();
+  marco::codegen::registerModelicaToCFConversionPass();
 
   mlir::bmodelica::registerModelicaPasses();
   mlir::runtime::registerRuntimePasses();
