@@ -1,5 +1,14 @@
+<<<<<<< HEAD:lib/Dialect/BaseModelica/IR/Ops.cpp
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+=======
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/Ops.h"
+#include "marco/Dialect/Modelica/Types.h"
+#include "mlir/IR/Types.h"
+#include "mlir/Interfaces/CastInterfaces.h"
+#include "mlir/Interfaces/FunctionImplementation.h"
+>>>>>>> b444dadf (Added proper runtime verification for LogOp, instrumented PassManager for debugging):lib/Dialect/Modelica/Ops.cpp
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -7029,11 +7038,17 @@ namespace mlir::bmodelica
   
   void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
     mlir::Value operand = getOperand();
-    mlir::Value cons = builder.create<ConstantOp>(
-        loc, IntegerAttr::get(builder.getContext(), 0));
+    // convert operand to arith-compatible type
+    mlir::Value argCast = builder.create<CastOp>(
+        loc, builder.getI64Type(), operand);
 
-    mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, operand, cons);
-    builder.create<mlir::cf::AssertOp>(loc,condition,builder.getStringAttr("Invalid argument"));
+    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+        loc, builder.getI64IntegerAttr(0));
+    mlir::Value condition = builder.create<mlir::arith::CmpIOp>(
+        loc, mlir::arith::CmpIPredicate::slt, argCast, zero);
+
+    builder.create<mlir::cf::AssertOp>(
+        loc, condition, builder.getStringAttr("Invalid argument"));
   }
 }
 

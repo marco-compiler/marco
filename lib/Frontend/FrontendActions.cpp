@@ -758,8 +758,13 @@ void CodeGenAction::setMLIRModuleDataLayout() {
       ->setAttr(dlSpecAttrName, mlir::cast<mlir::Attribute>(dlSpecAttr));
 }
 
-void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
-  CompilerInstance &ci = getInstance();
+  void CodeGenAction::buildMLIRLoweringPipeline(
+      mlir::PassManager& pm)
+  {
+    CompilerInstance& ci = getInstance();
+
+    // enable crash reproduction for debug purposes
+    pm.enableCrashReproducerGeneration("/home/nicolasbenatti/SynologyDrive/Polimi/mag_2o_anno/cto/project/input/repr.mlir", false);
 
   if (!ci.getCodeGenOptions().debug) {
     // Remove the debug information if a non-debuggable executable has been
