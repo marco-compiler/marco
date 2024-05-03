@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --allocate-derivatives | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --derivatives-materialization | FileCheck %s
 
 // Check variable declaration and derivatives map.
 

@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/DerivativesAllocation.h"
+#include "marco/Codegen/Transforms/DerivativesMaterialization.h"
 #include "marco/Codegen/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
 #include "mlir/IR/Threading.h"
@@ -7,7 +7,7 @@
 
 namespace mlir::bmodelica
 {
-#define GEN_PASS_DEF_DERIVATIVESALLOCATIONPASS
+#define GEN_PASS_DEF_DERIVATIVESMATERIALIZATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
@@ -21,12 +21,13 @@ namespace
     std::mutex derivativesMutex;
   };
 
-  class DerivativesAllocationPass
-      : public impl::DerivativesAllocationPassBase<DerivativesAllocationPass>
+  class DerivativesMaterializationPass
+      : public impl::DerivativesMaterializationPassBase<
+            DerivativesMaterializationPass>
   {
     public:
-      using DerivativesAllocationPassBase<DerivativesAllocationPass>
-          ::DerivativesAllocationPassBase;
+      using DerivativesMaterializationPassBase<DerivativesMaterializationPass>
+          ::DerivativesMaterializationPassBase;
 
       void runOnOperation() override;
 
@@ -87,7 +88,7 @@ namespace
   };
 }
 
-void DerivativesAllocationPass::runOnOperation()
+void DerivativesMaterializationPass::runOnOperation()
 {
   if (mlir::failed(processModelOp(getOperation()))) {
     return signalPassFailure();
@@ -96,7 +97,7 @@ void DerivativesAllocationPass::runOnOperation()
   markAnalysesPreserved<DerivativesMap>();
 }
 
-mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
+mlir::LogicalResult DerivativesMaterializationPass::processModelOp(ModelOp modelOp)
 {
   mlir::SymbolTableCollection symbolTableCollection;
 
@@ -175,7 +176,7 @@ mlir::LogicalResult DerivativesAllocationPass::processModelOp(ModelOp modelOp)
   return mlir::success();
 }
 
-DerivativesMap& DerivativesAllocationPass::getDerivativesMap()
+DerivativesMap& DerivativesMaterializationPass::getDerivativesMap()
 {
   if (auto analysis = getCachedAnalysis<DerivativesMap>()) {
     return *analysis;
@@ -327,7 +328,7 @@ static void collectDerOps(
   }
 }
 
-mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
+mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
     llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
@@ -407,7 +408,7 @@ mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
   return mlir::success();
 }
 
-mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
+mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
     llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
@@ -422,7 +423,7 @@ mlir::LogicalResult DerivativesAllocationPass::collectDerivedIndices(
 }
 
 mlir::LogicalResult
-DerivativesAllocationPass::collectDerivedIndicesInAlgorithmRegion(
+DerivativesMaterializationPass::collectDerivedIndicesInAlgorithmRegion(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
     llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
@@ -476,7 +477,7 @@ static std::string getDerivativeName(mlir::SymbolRefAttr variableName)
   return result;
 }
 
-mlir::LogicalResult DerivativesAllocationPass::createDerivativeVariables(
+mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
     DerivativesMap& derivativesMap,
@@ -627,7 +628,7 @@ namespace
   };
 }
 
-mlir::LogicalResult DerivativesAllocationPass::removeDerOps(
+mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
     mlir::SymbolTableCollection& symbolTableCollection,
     const DerivativesMap& derivativesMap,
     MutexCollection& mutexCollection,
@@ -643,7 +644,7 @@ mlir::LogicalResult DerivativesAllocationPass::removeDerOps(
       equationInstanceOp.getTemplate(), std::move(patterns));
 }
 
-mlir::LogicalResult DerivativesAllocationPass::removeDerOps(
+mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
     mlir::SymbolTableCollection& symbolTableCollection,
     const DerivativesMap& derivativesMap,
     MutexCollection& mutexCollection,
@@ -742,7 +743,7 @@ static mlir::LogicalResult createMainEquations(
 }
 
 mlir::LogicalResult
-DerivativesAllocationPass::createStartOpsAndDummyEquations(
+DerivativesMaterializationPass::createStartOpsAndDummyEquations(
     ModelOp modelOp,
     mlir::SymbolTableCollection& symbolTableCollection,
     const llvm::DenseSet<mlir::SymbolRefAttr>& derivedVariables,
@@ -798,8 +799,8 @@ DerivativesAllocationPass::createStartOpsAndDummyEquations(
 
 namespace mlir::bmodelica
 {
-  std::unique_ptr<mlir::Pass> createDerivativesAllocationPass()
+  std::unique_ptr<mlir::Pass> createDerivativesMaterializationPass()
   {
-    return std::make_unique<DerivativesAllocationPass>();
+    return std::make_unique<DerivativesMaterializationPass>();
   }
 }

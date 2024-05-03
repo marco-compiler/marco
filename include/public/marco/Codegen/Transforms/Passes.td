@@ -66,8 +66,8 @@ def BindingEquationConversionPass
     let constructor = "mlir::bmodelica::createBindingEquationConversionPass()";
 }
 
-def DerivativesAllocationPass
-    : Pass<"allocate-derivatives", "ModelOp">
+def DerivativesMaterializationPass
+    : Pass<"derivatives-materialization", "ModelOp">
 {
     let summary = "Create the variables for the derivatives.";
 
@@ -79,7 +79,8 @@ def DerivativesAllocationPass
         "mlir::bmodelica::BaseModelicaDialect",
     ];
 
-    let constructor = "mlir::bmodelica::createDerivativesAllocationPass()";
+    let constructor =
+        "mlir::bmodelica::createDerivativesMaterializationPass()";
 }
 
 def EquationAccessSplitPass

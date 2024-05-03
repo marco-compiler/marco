@@ -868,9 +868,9 @@ namespace marco::frontend
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
         mlir::bmodelica::createEquationTemplatesCreationPass());
 
-    // Handle the derivatives.
+    // Materialize the derivatives.
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createDerivativesAllocationPass());
+        mlir::bmodelica::createDerivativesMaterializationPass());
 
     // Legalize the model.
     pm.addNestedPass<mlir::bmodelica::ModelOp>(

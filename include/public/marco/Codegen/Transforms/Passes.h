@@ -5,7 +5,7 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/BindingEquationConversion.h"
-#include "marco/Codegen/Transforms/DerivativesAllocation.h"
+#include "marco/Codegen/Transforms/DerivativesMaterialization.h"
 #include "marco/Codegen/Transforms/EquationAccessSplit.h"
 #include "marco/Codegen/Transforms/EquationExplicitation.h"
 #include "marco/Codegen/Transforms/EquationExplicitationTest.h"
