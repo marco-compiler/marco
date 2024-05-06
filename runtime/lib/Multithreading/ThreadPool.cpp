@@ -36,8 +36,6 @@ namespace marco::runtime
     }
 
     threads.clear();
-
-    completionCondition.notify_all();
   }
 
   unsigned int ThreadPool::getNumOfThreads() const
