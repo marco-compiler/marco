@@ -153,12 +153,32 @@ namespace marco::runtime
             std::cerr << ", ";
           }
 
-          uint64_t chunkSize =  getEquationsChunkSize(chunksGroup[i]);
+          uint64_t chunkSize = getEquationsChunkSize(chunksGroup[i]);
           std::cerr << chunkSize;
           totalSize += chunkSize;
         }
 
         std::cerr << "]" << std::endl;
+
+        for (const auto& chunk : chunksGroup) {
+          std::cerr << "    - Function: "
+                    << reinterpret_cast<void*>(chunk.first.function)
+                    << std::endl;
+
+          std::cerr << "    - Range: ";
+
+          assert(chunksGroup[i].second.size() % 2 == 0);
+          size_t rank = chunk.second.size() / 2;
+
+          for (size_t dim = 0; dim < rank; ++dim) {
+            auto lowerBound = chunk.second[dim * 2];
+            auto upperBound = chunk.second[dim * 2 + 1];
+            std::cerr << "[" << lowerBound << ", " << upperBound << ")";
+          }
+
+          std::cerr << std::endl;
+        }
+
         std::cerr << "  - Total size: " << totalSize << std::endl;
       }
 
@@ -173,6 +193,10 @@ namespace marco::runtime
 
       if (marco::runtime::simulation::getOptions().debug) {
         std::cerr << "[Scheduler] Partitioning equation" << std::endl;
+
+        std::cerr << "  - Function: "
+                  << reinterpret_cast<void*>(equation.function) << std::endl;
+
         std::cerr << "  - Ranges: ";
 
         for (const auto& range : equation.indices) {
@@ -181,11 +205,12 @@ namespace marco::runtime
 
         std::cerr << std::endl;
         std::cerr << "  - Flat size: " << flatSize << std::endl;
-        std::cerr << "  - Remaining space: " << remainingSpace << std::endl;
 
         std::cerr << "  - Independent indices: "
                   << (equation.independentIndices ? "true" : "false")
                   << std::endl;
+
+        std::cerr << "  - Remaining space: " << remainingSpace << std::endl;
       }
 
       if (equation.independentIndices) {
@@ -341,6 +366,11 @@ namespace marco::runtime
           if (flatSize >= chunksGroupMaxSize) {
             // Independent chunks group exceeding the maximum number of
             // equations inside a chunk.
+            if (marco::runtime::simulation::getOptions().debug) {
+              std::cerr << "[Scheduler] Equation independently exceeds the "
+                           "maximum size for a group" << std::endl;
+            }
+
             std::vector<ThreadEquationsChunk> independentChunksGroup;
             independentChunksGroup.emplace_back(equation, ranges);
             threadEquationsChunks.push_back(std::move(independentChunksGroup));
