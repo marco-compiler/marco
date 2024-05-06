@@ -17,7 +17,11 @@ namespace marco::runtime
     public:
       ThreadPool();
 
+      ThreadPool(const ThreadPool& other) = delete;
+
       ~ThreadPool();
+
+      ThreadPool& operator=(const ThreadPool& other) = delete;
 
       unsigned int getNumOfThreads() const;
 
