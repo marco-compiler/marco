@@ -111,10 +111,6 @@ namespace marco::runtime
   {
     assert(!initialized && "Scheduler already initialized");
 
-    if (marco::runtime::simulation::getOptions().debug) {
-      std::cerr << "[Scheduler] Initializing" << std::endl;
-    }
-
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
     int64_t chunksFactor = simulation::getOptions().equationsChunksFactor;
@@ -130,11 +126,13 @@ namespace marco::runtime
         (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
 
     if (marco::runtime::simulation::getOptions().debug) {
-      std::cerr << "[Scheduler] Number of threads: " << numOfThreads
+      std::cerr << "[Scheduler] Initializing" << std::endl
+                << "  - Number of equations: " << numOfScalarEquations
                 << std::endl
-                << "[Scheduler] Chunks factor: " << chunksFactor << std::endl
-                << "[Scheduler] Number of chunks: " << numOfChunks << std::endl
-                << "[Scheduler] Max size of chunks group: " << chunksGroupMaxSize
+                << "  - Number of threads: " << numOfThreads << std::endl
+                << "  - Chunks factor: " << chunksFactor << std::endl
+                << "  - Number of chunks: " << numOfChunks << std::endl
+                << "  - Max size of chunks group: " << chunksGroupMaxSize
                 << std::endl;
     }
 
