@@ -3,6 +3,7 @@
 #include "marco/Runtime/Simulation/Options.h"
 #include <atomic>
 #include <cassert>
+#include <iostream>
 #include <optional>
 
 using namespace ::marco::runtime;
@@ -14,6 +15,24 @@ static ThreadPool& getSchedulersThreadPool()
 {
   static ThreadPool instance;
   return instance;
+}
+
+static uint64_t getEquationsChunkSize(
+    const Scheduler::ThreadEquationsChunk& chunk)
+{
+  int64_t result = 1;
+
+  assert(chunk.second.size() % 2 == 0);
+  size_t rank = chunk.second.size() / 2;
+
+  for (size_t dim = 0; dim < rank; ++dim) {
+    auto lowerBound = chunk.second[dim * 2];
+    auto upperBound = chunk.second[dim * 2 + 1];
+    auto size = upperBound - lowerBound;
+    result *= size;
+  }
+
+  return result;
 }
 
 namespace marco::runtime
@@ -38,6 +57,21 @@ namespace marco::runtime
 
     for (uint64_t dim = 0; dim < rank; ++dim) {
       indices.emplace_back(ranges[dim * 2], ranges[dim * 2 + 1]);
+    }
+
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[Scheduler] New equation added" << std::endl;
+      std::cerr << "  - Rank: " << rank << std::endl;
+
+      if (rank != 0) {
+        std::cerr << "  - Ranges: ";
+
+        for (uint64_t i = 0; i < rank; ++i) {
+          std::cerr << "[" << indices[i].begin << ", " << indices[i].end << ")";
+        }
+
+        std::cerr << std::endl;
+      }
     }
 
     equations.emplace_back(function, std::move(indices), independentIndices);
@@ -77,6 +111,10 @@ namespace marco::runtime
   {
     assert(!initialized && "Scheduler already initialized");
 
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[Scheduler] Initializing" << std::endl;
+    }
+
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
     int64_t chunksFactor = simulation::getOptions().equationsChunksFactor;
@@ -91,10 +129,41 @@ namespace marco::runtime
     size_t chunksGroupMaxSize =
         (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
 
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[Scheduler] Number of threads: " << numOfThreads
+                << std::endl
+                << "[Scheduler] Chunks factor: " << chunksFactor << std::endl
+                << "[Scheduler] Number of chunks: " << numOfChunks << std::endl
+                << "[Scheduler] Max size of chunks group: " << chunksGroupMaxSize
+                << std::endl;
+    }
+
     std::vector<ThreadEquationsChunk> chunksGroup;
     size_t chunksGroupSize = 0;
 
     auto pushChunksGroupFn = [&]() {
+      if (marco::runtime::simulation::getOptions().debug) {
+        std::cerr << "[Scheduler] Adding chunks group" << std::endl;
+        std::cerr << "  - Number of chunks: " << chunksGroup.size()
+                  << std::endl;
+
+        uint64_t totalSize = 0;
+        std::cerr << "  - Chunks sizes: [";
+
+        for (size_t i = 0, e = chunksGroup.size(); i < e; ++i) {
+          if (i != 0) {
+            std::cerr << ", ";
+          }
+
+          uint64_t chunkSize =  getEquationsChunkSize(chunksGroup[i]);
+          std::cerr << chunkSize;
+          totalSize += chunkSize;
+        }
+
+        std::cerr << "]" << std::endl;
+        std::cerr << "  - Total size: " << totalSize << std::endl;
+      }
+
       threadEquationsChunks.push_back(std::move(chunksGroup));
       chunksGroup.clear();
       chunksGroupSize = 0;
@@ -103,6 +172,23 @@ namespace marco::runtime
     for (const Equation& equation : equations) {
       uint64_t flatSize = getFlatSize(equation.indices);
       size_t remainingSpace = chunksGroupMaxSize - chunksGroupSize;
+
+      if (marco::runtime::simulation::getOptions().debug) {
+        std::cerr << "[Scheduler] Partitioning equation" << std::endl;
+        std::cerr << "  - Ranges: ";
+
+        for (const auto& range : equation.indices) {
+          std::cerr << "[" << range.begin << ", " << range.end << ")";
+        }
+
+        std::cerr << std::endl;
+        std::cerr << "  - Flat size: " << flatSize << std::endl;
+        std::cerr << "  - Remaining space: " << remainingSpace << std::endl;
+
+        std::cerr << "  - Independent indices: "
+                  << (equation.independentIndices ? "true" : "false")
+                  << std::endl;
+      }
 
       if (equation.independentIndices) {
         uint64_t equationFlatIndex = 0;
@@ -284,6 +370,13 @@ namespace marco::runtime
                }) && "Not all the equations are scheduled exactly once");
 
     initialized = true;
+
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[Scheduler] Initialized" << std::endl;
+
+      std::cerr << "  - Number of chunks groups: "
+                << threadEquationsChunks.size() << std::endl;
+    }
   }
 
   bool Scheduler::checkEquationScheduledExactlyOnce(

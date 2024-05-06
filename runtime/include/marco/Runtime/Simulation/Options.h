@@ -7,6 +7,8 @@ namespace marco::runtime::simulation
 {
   struct Options
   {
+    bool debug = false;
+
     double startTime = 0;
     double endTime = 10;
 

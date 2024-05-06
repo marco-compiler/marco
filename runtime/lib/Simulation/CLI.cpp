@@ -14,6 +14,8 @@ namespace marco::runtime::simulation
   void CommandLineOptions::printCommandLineOptions(
       std::ostream& os) const
   {
+    os << "  --debug                      Enable the debug messages." << std::endl;
+
     os << "  --start-time=<value>         Set the start time (in seconds)." << std::endl;
     os << "  --end-time=<value>           Set the end time (in seconds)." << std::endl;
     os << "  --equations-chunks-factor    Set the amount of equation chunks each thread would process in a perfectly balanced scenario." << std::endl;
@@ -22,6 +24,8 @@ namespace marco::runtime::simulation
   void CommandLineOptions::parseCommandLineOptions(
       const argh::parser& options) const
   {
+    getOptions().debug = options["debug"];
+
     options("start-time") >> getOptions().startTime;
     options("end-time") >> getOptions().endTime;
     options("equations-chunks-factor") >> getOptions().equationsChunksFactor;
