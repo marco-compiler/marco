@@ -9,7 +9,7 @@
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[value]]
 // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.initial_model {
+// CHECK:       bmodelica.initial {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 
@@ -34,7 +34,7 @@ bmodelica.model @Test {
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[value]]
 // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.initial_model {
+// CHECK:       bmodelica.initial {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
 // CHECK-NEXT:  }
 
@@ -63,7 +63,7 @@ bmodelica.model @Test {
 // CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[array_load]]
 // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.initial_model {
+// CHECK:       bmodelica.initial {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
 // CHECK-NEXT:  }
 

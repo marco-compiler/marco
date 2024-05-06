@@ -1165,12 +1165,12 @@ namespace
           mlir::ModuleOp moduleOp,
           ModelOp modelOp);
 
-      mlir::LogicalResult processInitialModelOp(
+      mlir::LogicalResult processInitialOp(
           mlir::RewriterBase& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
-          InitialModelOp initialModelOp);
+          InitialOp initialOp);
 
       mlir::LogicalResult processDynamicOp(
           mlir::RewriterBase& rewriter,
@@ -1258,10 +1258,10 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
     ModelOp modelOp)
 {
   for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
-    for (InitialModelOp initialModelOp : scheduleOp.getOps<InitialModelOp>()) {
-      if (mlir::failed(processInitialModelOp(
+    for (InitialOp initialOp : scheduleOp.getOps<InitialOp>()) {
+      if (mlir::failed(processInitialOp(
               rewriter, symbolTableCollection, moduleOp, modelOp,
-              initialModelOp))) {
+              initialOp))) {
         return mlir::failure();
       }
     }
@@ -1278,12 +1278,12 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
   return mlir::success();
 }
 
-mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialModelOp(
+mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
-    InitialModelOp initialModelOp)
+    InitialOp initialOp)
 {
   auto createBeginFn =
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
@@ -1303,7 +1303,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialModelOp(
 
   llvm::SmallVector<SCCOp> SCCs;
 
-  for (SCCOp scc : initialModelOp.getOps<SCCOp>()) {
+  for (SCCOp scc : initialOp.getOps<SCCOp>()) {
     SCCs.push_back(scc);
   }
 

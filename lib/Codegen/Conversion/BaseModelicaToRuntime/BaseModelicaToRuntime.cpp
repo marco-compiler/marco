@@ -55,7 +55,7 @@ namespace
       mlir::LogicalResult convertScheduleBodyOp(
           mlir::RewriterBase& rewriter,
           mlir::IRMapping& mapping,
-          InitialModelOp op);
+          InitialOp op);
 
       mlir::LogicalResult convertScheduleBodyOp(
           mlir::RewriterBase& rewriter,
@@ -450,7 +450,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertSchedules(
 mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
-    InitialModelOp op)
+    InitialOp op)
 {
   for (auto& nestedOp : op.getOps()) {
     if (auto parallelScheduleBlocksOp =
@@ -514,8 +514,8 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::IRMapping& mapping,
     mlir::Operation* op)
 {
-  if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-    return convertScheduleBodyOp(rewriter, mapping, initialModelOp);
+  if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+    return convertScheduleBodyOp(rewriter, mapping, initialOp);
   }
 
   if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(op)) {

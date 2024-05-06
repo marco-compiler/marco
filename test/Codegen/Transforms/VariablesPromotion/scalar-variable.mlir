@@ -6,7 +6,7 @@
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, parameter>
 // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
-// CHECK: bmodelica.initial_model
+// CHECK: bmodelica.initial
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NOT: bmodelica.dynamic

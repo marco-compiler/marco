@@ -15,11 +15,11 @@ namespace marco::codegen::lowering
       const ast::EquationSection& equationSection)
   {
     if (equationSection.isInitial()) {
-      auto initialModelOp = builder().create<InitialModelOp>(
+      auto initialOp = builder().create<InitialOp>(
           loc(equationSection.getLocation()));
 
       mlir::Block* bodyBlock =
-          builder().createBlock(&initialModelOp.getBodyRegion());
+          builder().createBlock(&initialOp.getBodyRegion());
 
       builder().setInsertionPointToStart(bodyBlock);
 
@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
         lower(*equationSection.getEquation(i));
       }
 
-      builder().setInsertionPointAfter(initialModelOp);
+      builder().setInsertionPointAfter(initialOp);
     } else {
       auto dynamicOp = builder().create<DynamicOp>(
           loc(equationSection.getLocation()));

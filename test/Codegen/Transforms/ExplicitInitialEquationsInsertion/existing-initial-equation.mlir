@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
 // CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
-// CHECK: bmodelica.initial_model
+// CHECK: bmodelica.initial
 // CHECK-NEXT: bmodelica.equation_instance %[[t0]]
 // CHECK: bmodelica.dynamic
 // CHECK-NEXT: bmodelica.equation_instance %[[t0]]

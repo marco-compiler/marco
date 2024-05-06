@@ -6,7 +6,7 @@
 // CHECK-DAG: %[[t3:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t3"}
 
 // CHECK:       bmodelica.schedule @ic {
-// CHECK-NEXT:      bmodelica.initial_model {
+// CHECK-NEXT:      bmodelica.initial {
 // CHECK-NEXT:          bmodelica.scc {
 // CHECK-NEXT:              bmodelica.scheduled_equation_instance %2 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
 // CHECK-NEXT:          }
@@ -62,7 +62,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.schedule @ic {
-        bmodelica.initial_model {
+        bmodelica.initial {
             bmodelica.start_equation_instance %t0 : !bmodelica.equation
             bmodelica.scc {
                 bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation

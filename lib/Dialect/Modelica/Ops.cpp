@@ -12060,21 +12060,21 @@ namespace
     mlir::LogicalResult matchAndRewrite(
         ModelOp op, mlir::PatternRewriter& rewriter) const override
     {
-      llvm::SmallVector<InitialModelOp> initialModelOps;
+      llvm::SmallVector<InitialOp> initialOps;
 
-      for (InitialModelOp initialModelOp : op.getOps<InitialModelOp>()) {
-        initialModelOps.push_back(initialModelOp);
+      for (InitialOp initialOp : op.getOps<InitialOp>()) {
+        initialOps.push_back(initialOp);
       }
 
-      if (initialModelOps.size() <= 1) {
+      if (initialOps.size() <= 1) {
         return mlir::failure();
       }
 
-      for (size_t i = 1, e = initialModelOps.size(); i < e; ++i) {
-        rewriter.mergeBlocks(initialModelOps[i].getBody(),
-                             initialModelOps[0].getBody());
+      for (size_t i = 1, e = initialOps.size(); i < e; ++i) {
+        rewriter.mergeBlocks(initialOps[i].getBody(),
+                             initialOps[0].getBody());
 
-        rewriter.eraseOp(initialModelOps[i]);
+        rewriter.eraseOp(initialOps[i]);
       }
 
       return mlir::success();
@@ -12138,7 +12138,7 @@ namespace mlir::bmodelica
   {
     getCanonicalizationPatterns(patterns, context);
     EquationTemplateOp::getCanonicalizationPatterns(patterns, context);
-    InitialModelOp::getCanonicalizationPatterns(patterns, context);
+    InitialOp::getCanonicalizationPatterns(patterns, context);
     DynamicOp::getCanonicalizationPatterns(patterns, context);
     SCCOp::getCanonicalizationPatterns(patterns, context);
   }
@@ -12152,8 +12152,8 @@ namespace mlir::bmodelica
 
   void ModelOp::collectInitialSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
-    for (InitialModelOp initialModelOp : getOps<InitialModelOp>()) {
-      initialModelOp.collectSCCs(SCCs);
+    for (InitialOp initialOp : getOps<InitialOp>()) {
+      initialOp.collectSCCs(SCCs);
     }
   }
 
@@ -14342,17 +14342,17 @@ namespace mlir::bmodelica
 }
 
 //===---------------------------------------------------------------------===//
-// InitialModelOp
+// InitialOp
 
 namespace
 {
   struct EmptyInitialModelPattern
-      : public mlir::OpRewritePattern<InitialModelOp>
+      : public mlir::OpRewritePattern<InitialOp>
   {
-    using mlir::OpRewritePattern<InitialModelOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<InitialOp>::OpRewritePattern;
 
     mlir::LogicalResult matchAndRewrite(
-        InitialModelOp op, mlir::PatternRewriter& rewriter) const override
+        InitialOp op, mlir::PatternRewriter& rewriter) const override
     {
       if (op.getBody()->empty()) {
         rewriter.eraseOp(op);
@@ -14366,13 +14366,13 @@ namespace
 
 namespace mlir::bmodelica
 {
-  void InitialModelOp::getCanonicalizationPatterns(
+  void InitialOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {
     patterns.add<EmptyInitialModelPattern>(context);
   }
 
-  void InitialModelOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  void InitialOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
     for (SCCOp scc : getOps<SCCOp>()) {
       SCCs.push_back(scc);

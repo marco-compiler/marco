@@ -631,11 +631,11 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       if (shouldCreateInitialEquations) {
         rewriter.setInsertionPoint(equationOp->getParentOfType<DynamicOp>());
 
-        auto initialModelOp =
-            rewriter.create<InitialModelOp>(modelOp.getLoc());
+        auto initialOp =
+            rewriter.create<InitialOp>(modelOp.getLoc());
 
-        rewriter.createBlock(&initialModelOp.getBodyRegion());
-        rewriter.setInsertionPointToStart(initialModelOp.getBody());
+        rewriter.createBlock(&initialOp.getBodyRegion());
+        rewriter.setInsertionPointToStart(initialOp.getBody());
 
         if (!writingEquationIndices.empty()) {
           // Get the indices of the equation that actually writes the scalar

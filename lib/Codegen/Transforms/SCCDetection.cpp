@@ -160,9 +160,9 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
   rewriter.setInsertionPointToEnd(modelOp.getBody());
 
   if (initial) {
-    auto initialModelOp = rewriter.create<InitialModelOp>(modelOp.getLoc());
-    rewriter.createBlock(&initialModelOp.getBodyRegion());
-    rewriter.setInsertionPointToStart(initialModelOp.getBody());
+    auto initialOp = rewriter.create<InitialOp>(modelOp.getLoc());
+    rewriter.createBlock(&initialOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(initialOp.getBody());
   } else {
     auto dynamicOp = rewriter.create<DynamicOp>(modelOp.getLoc());
     rewriter.createBlock(&dynamicOp.getBodyRegion());

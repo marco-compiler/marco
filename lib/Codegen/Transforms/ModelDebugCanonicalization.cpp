@@ -36,12 +36,12 @@ void ModelDebugCanonicalizationPass::runOnOperation()
   ModelOp modelOp = getOperation();
 
   // Sort the SCCs and their equations.
-  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<DynamicOp> dynamicOps;
 
-  for (InitialModelOp initialModelOp : modelOp.getOps<InitialModelOp>()) {
+  for (InitialOp initialOp : modelOp.getOps<InitialOp>()) {
     llvm::SmallVector<SCCOp> SCCs;
-    initialModelOp.collectSCCs(SCCs);
+    initialOp.collectSCCs(SCCs);
     sortSCCs(SCCs);
   }
 

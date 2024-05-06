@@ -205,9 +205,9 @@ namespace
         rewriter.setInsertionPointToEnd(modelOp.getBody());
 
         if (op.getInitial()) {
-          auto initialModelOp = rewriter.create<InitialModelOp>(loc);
-          rewriter.createBlock(&initialModelOp.getBodyRegion());
-          rewriter.setInsertionPointToStart(initialModelOp.getBody());
+          auto initialOp = rewriter.create<InitialOp>(loc);
+          rewriter.createBlock(&initialOp.getBodyRegion());
+          rewriter.setInsertionPointToStart(initialOp.getBody());
         } else {
           auto dynamicOp = rewriter.create<DynamicOp>(loc);
           rewriter.createBlock(&dynamicOp.getBodyRegion());

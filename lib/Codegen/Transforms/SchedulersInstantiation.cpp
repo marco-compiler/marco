@@ -29,12 +29,12 @@ namespace
           mlir::ModuleOp moduleOp,
           ScheduleOp scheduleOp);
 
-      mlir::LogicalResult processInitialModelOp(
+      mlir::LogicalResult processInitialOp(
           mlir::IRRewriter& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ScheduleOp scheduleOp,
-          InitialModelOp initialModelOp);
+          InitialOp initialOp);
 
       mlir::LogicalResult processDynamicOp(
           mlir::IRRewriter& rewriter,
@@ -118,12 +118,12 @@ mlir::LogicalResult SchedulersInstantiationPass::processScheduleOp(
     mlir::ModuleOp moduleOp,
     ScheduleOp scheduleOp)
 {
-  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
-    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-      initialModelOps.push_back(initialModelOp);
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+      initialOps.push_back(initialOp);
       continue;
     }
 
@@ -133,10 +133,10 @@ mlir::LogicalResult SchedulersInstantiationPass::processScheduleOp(
     }
   }
 
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    if (mlir::failed(processInitialModelOp(
+  for (InitialOp initialOp : initialOps) {
+    if (mlir::failed(processInitialOp(
             rewriter, symbolTableCollection, moduleOp, scheduleOp,
-            initialModelOp))) {
+            initialOp))) {
       return mlir::failure();
     }
   }
@@ -165,18 +165,18 @@ static void collectEquationCallBlocks(
   }
 }
 
-mlir::LogicalResult SchedulersInstantiationPass::processInitialModelOp(
+mlir::LogicalResult SchedulersInstantiationPass::processInitialOp(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ScheduleOp scheduleOp,
-    InitialModelOp initialModelOp)
+    InitialOp initialOp)
 {
   auto modelOp = scheduleOp->getParentOfType<ModelOp>();
   llvm::SmallVector<ParallelScheduleBlocksOp> parallelOps;
 
   for (ParallelScheduleBlocksOp parallelOp :
-       initialModelOp.getOps<ParallelScheduleBlocksOp>()) {
+       initialOp.getOps<ParallelScheduleBlocksOp>()) {
     parallelOps.push_back(parallelOp);
   }
 

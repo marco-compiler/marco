@@ -30,10 +30,10 @@ namespace
           ModelOp modelOp,
           ScheduleOp scheduleOp);
 
-      mlir::LogicalResult processInitialModelOp(
+      mlir::LogicalResult processInitialOp(
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
-          InitialModelOp initialModelOp);
+          InitialOp initialOp);
 
       mlir::LogicalResult processDynamicOp(
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -65,12 +65,12 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
     ModelOp modelOp,
     ScheduleOp scheduleOp)
 {
-  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
-    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-      initialModelOps.push_back(initialModelOp);
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+      initialOps.push_back(initialOp);
       continue;
     }
 
@@ -80,9 +80,9 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
     }
   }
 
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    if (mlir::failed(processInitialModelOp(
-            symbolTableCollection, modelOp, initialModelOp))) {
+  for (InitialOp initialOp : initialOps) {
+    if (mlir::failed(processInitialOp(
+            symbolTableCollection, modelOp, initialOp))) {
       return mlir::failure();
     }
   }
@@ -97,14 +97,14 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
   return mlir::success();
 }
 
-mlir::LogicalResult ScheduleParallelizationPass::processInitialModelOp(
+mlir::LogicalResult ScheduleParallelizationPass::processInitialOp(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
-    InitialModelOp initialModelOp)
+    InitialOp initialOp)
 {
   llvm::SmallVector<ScheduleBlockOp> blocks;
 
-  for (auto& op : llvm::make_early_inc_range(initialModelOp.getOps())) {
+  for (auto& op : llvm::make_early_inc_range(initialOp.getOps())) {
     if (auto blockOp = mlir::dyn_cast<ScheduleBlockOp>(op)) {
       if (blockOp.getParallelizable()) {
         blocks.push_back(blockOp);

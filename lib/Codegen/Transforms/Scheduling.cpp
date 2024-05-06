@@ -48,7 +48,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           ScheduleOp scheduleOp,
-          llvm::ArrayRef<InitialModelOp> initialModelOps);
+          llvm::ArrayRef<InitialOp> initialOps);
 
       mlir::LogicalResult processMainModel(
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -131,12 +131,12 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(
     ModelOp modelOp,
     ScheduleOp scheduleOp)
 {
-  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
-    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-      initialModelOps.push_back(initialModelOp);
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+      initialOps.push_back(initialOp);
       continue;
     }
 
@@ -147,7 +147,7 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(
   }
 
   if (mlir::failed(processInitialModel(
-          symbolTableCollection, modelOp, scheduleOp, initialModelOps))) {
+          symbolTableCollection, modelOp, scheduleOp, initialOps))) {
     return mlir::failure();
   }
 
@@ -163,17 +163,17 @@ mlir::LogicalResult SchedulingPass::processInitialModel(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     ScheduleOp scheduleOp,
-    llvm::ArrayRef<InitialModelOp> initialModelOps)
+    llvm::ArrayRef<InitialOp> initialOps)
 {
   // Collect the start equations and the SCCs.
   llvm::SmallVector<StartEquationInstanceOp> startEquations;
   llvm::SmallVector<SCCOp> SCCs;
 
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    initialModelOp.collectSCCs(SCCs);
+  for (InitialOp initialOp : initialOps) {
+    initialOp.collectSCCs(SCCs);
 
     for (StartEquationInstanceOp startEquation :
-         initialModelOp.getOps<StartEquationInstanceOp>()) {
+         initialOp.getOps<StartEquationInstanceOp>()) {
       startEquations.push_back(startEquation);
     }
   }
@@ -185,9 +185,9 @@ mlir::LogicalResult SchedulingPass::processInitialModel(
   auto createContainerFn =
       [](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    auto initialModelOp = builder.create<InitialModelOp>(loc);
-    builder.createBlock(&initialModelOp.getBodyRegion());
-    return initialModelOp.getBody();
+    auto initialOp = builder.create<InitialOp>(loc);
+    builder.createBlock(&initialOp.getBodyRegion());
+    return initialOp.getBody();
   };
 
   if (mlir::failed(schedule(
@@ -197,8 +197,8 @@ mlir::LogicalResult SchedulingPass::processInitialModel(
   }
 
   // Erase the old equations containers.
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    initialModelOp.erase();
+  for (InitialOp initialOp : initialOps) {
+    initialOp.erase();
   }
 
   return mlir::success();

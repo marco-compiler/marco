@@ -203,9 +203,9 @@ mlir::LogicalResult EquationExplicitationPass::processScheduleOp(
   llvm::SmallVector<SCCOp> SCCs;
 
   for (auto& op : scheduleOp.getOps()) {
-    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-      initialModelOp.collectEquations(startEquations);
-      initialModelOp.collectSCCs(SCCs);
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+      initialOp.collectEquations(startEquations);
+      initialOp.collectSCCs(SCCs);
       continue;
     }
 

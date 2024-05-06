@@ -104,7 +104,7 @@ static mlir::LogicalResult addStartEquationsToSchedule(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
-    InitialModelOp initialModelOp,
+    InitialOp initialOp,
     llvm::ArrayRef<StartOp> startOps)
 {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -129,7 +129,7 @@ static mlir::LogicalResult addStartEquationsToSchedule(
     IndexSet variableIndices =
         variableOp.getIndices().getCanonicalRepresentation();
 
-    rewriter.setInsertionPointToStart(initialModelOp.getBody());
+    rewriter.setInsertionPointToStart(initialOp.getBody());
 
     if (variableIndices.empty()) {
       rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
@@ -153,7 +153,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
 {
   mlir::IRRewriter rewriter(&getContext());
   llvm::SmallVector<StartOp> unfixedStartOps;
-  llvm::SmallVector<InitialModelOp> initialModelOps;
+  llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<SCCOp> SCCs;
 
   for (auto& op : modelOp.getOps()) {
@@ -165,14 +165,14 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
       continue;
     }
 
-    if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
-      initialModelOps.push_back(initialModelOp);
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
+      initialOps.push_back(initialOp);
       continue;
     }
   }
 
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    initialModelOp.collectSCCs(SCCs);
+  for (InitialOp initialOp : initialOps) {
+    initialOp.collectSCCs(SCCs);
   }
 
   // Create the function running the schedule.
@@ -193,12 +193,12 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
     rewriter.createBlock(&scheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(scheduleOp.getBody());
 
-    auto initialModelOp = rewriter.create<InitialModelOp>(modelOp.getLoc());
-    rewriter.createBlock(&initialModelOp.getBodyRegion());
-    rewriter.setInsertionPointToStart(initialModelOp.getBody());
+    auto initialOp = rewriter.create<InitialOp>(modelOp.getLoc());
+    rewriter.createBlock(&initialOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(initialOp.getBody());
 
     if (mlir::failed(addStartEquationsToSchedule(
-            rewriter, symbolTableCollection, modelOp, initialModelOp,
+            rewriter, symbolTableCollection, modelOp, initialOp,
             unfixedStartOps))) {
       return mlir::failure();
     }
@@ -215,8 +215,8 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   rewriter.setInsertionPointToEnd(entryBlock);
   rewriter.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
 
-  for (InitialModelOp initialModelOp : initialModelOps) {
-    rewriter.eraseOp(initialModelOp);
+  for (InitialOp initialOp : initialOps) {
+    rewriter.eraseOp(initialOp);
   }
 
   return mlir::success();

@@ -46,9 +46,9 @@ void ExplicitInitialEquationsInsertionPass::cloneEquationsAsInitialEquations(
   for (DynamicOp dynamicOp : modelOp.getOps<DynamicOp>()) {
     builder.setInsertionPoint(dynamicOp);
 
-    auto initialModelOp = builder.create<InitialModelOp>(modelOp.getLoc());
-    builder.createBlock(&initialModelOp.getBodyRegion());
-    builder.setInsertionPointToStart(initialModelOp.getBody());
+    auto initialOp = builder.create<InitialOp>(modelOp.getLoc());
+    builder.createBlock(&initialOp.getBodyRegion());
+    builder.setInsertionPointToStart(initialOp.getBody());
 
     for (auto& childOp : dynamicOp.getOps()) {
       if (mlir::isa<EquationInstanceInterface>(childOp)) {
@@ -140,9 +140,9 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     // Create the equation instance.
     builder.setInsertionPointAfter(templateOp);
 
-    auto initialModelOp = builder.create<InitialModelOp>(modelOp.getLoc());
-    builder.createBlock(&initialModelOp.getBodyRegion());
-    builder.setInsertionPointToStart(initialModelOp.getBody());
+    auto initialOp = builder.create<InitialOp>(modelOp.getLoc());
+    builder.createBlock(&initialOp.getBodyRegion());
+    builder.setInsertionPointToStart(initialOp.getBody());
 
     if (variableType.isScalar()) {
       builder.create<EquationInstanceOp>(loc, templateOp);
