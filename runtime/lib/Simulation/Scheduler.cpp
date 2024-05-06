@@ -222,7 +222,7 @@ namespace marco::runtime
           uint64_t beginFlatIndex = equationFlatIndex;
 
           uint64_t endFlatIndex = std::min(
-              beginFlatIndex +static_cast<uint64_t>(remainingSpace),
+              beginFlatIndex + static_cast<uint64_t>(remainingSpace),
               flatSize);
 
           assert(endFlatIndex > 0);
@@ -240,6 +240,33 @@ namespace marco::runtime
           assert(beginIndices.size() == equationRank);
           assert(endIndices.size() == equationRank);
 
+          if (marco::runtime::simulation::getOptions().debug) {
+            std::cerr << "    - Begin indices: [";
+
+            size_t rank = beginIndices.size();
+
+            for (size_t dim = 0; dim < rank; ++dim) {
+              if (dim != 0) {
+                std::cerr << ", ";
+              }
+
+              std::cerr << beginIndices[dim];
+            }
+
+             std::cerr << "]" << std::endl;
+             std::cerr << "      End indices: [";
+
+             for (size_t dim = 0; dim < rank; ++dim) {
+               if (dim != 0) {
+                 std::cerr << ", ";
+               }
+
+               std::cerr << endIndices[dim];
+             }
+
+             std::cerr << "]" << std::endl;
+          }
+
           std::vector<std::vector<int64_t>> unwrappingBeginIndices;
           std::vector<std::vector<int64_t>> unwrappingEndIndices;
 
@@ -256,6 +283,11 @@ namespace marco::runtime
           }
 
           if (increasingDimension) {
+            if (marco::runtime::simulation::getOptions().debug) {
+              std::cerr << "    - Increasing dimension: "
+                        << *increasingDimension << std::endl;
+            }
+
             std::vector<int64_t> currentBeginIndices(beginIndices);
             std::vector<int64_t> currentEndIndices(beginIndices);
             currentEndIndices.back() = equation.indices.back().end - 1;
@@ -266,13 +298,17 @@ namespace marco::runtime
             for (size_t i = 0, e = equationRank - *increasingDimension - 2;
                  i < e; ++i) {
               currentBeginIndices[equationRank - i - 1] = 0;
-              ++currentBeginIndices[equationRank - i - 2];
 
               currentEndIndices[equationRank - i - 2] =
-                  equation.indices[equationRank - i - 2].end;
+                  equation.indices[equationRank - i - 2].end - 1;
 
-              unwrappingBeginIndices.push_back(currentBeginIndices);
-              unwrappingEndIndices.push_back(currentEndIndices);
+              if (currentBeginIndices[equationRank - i - 2] + 1 !=
+                  equation.indices[equationRank - i - 2].end) {
+                ++currentBeginIndices[equationRank - i - 2];
+
+                unwrappingBeginIndices.push_back(currentBeginIndices);
+                unwrappingEndIndices.push_back(currentEndIndices);
+              }
             }
 
             currentBeginIndices[*increasingDimension + 1] = 0;
@@ -311,11 +347,45 @@ namespace marco::runtime
             unwrappingBeginIndices.push_back(currentBeginIndices);
             unwrappingEndIndices.push_back(currentEndIndices);
           } else {
+            std::cerr << "    - Increasing dimension not found" << std::endl;
             unwrappingBeginIndices.push_back(std::move(beginIndices));
             unwrappingEndIndices.push_back(std::move(endIndices));
           }
 
           assert(unwrappingBeginIndices.size() == unwrappingEndIndices.size());
+
+          if (marco::runtime::simulation::getOptions().debug) {
+            for (size_t unwrappingIndex = 0;
+                 unwrappingIndex < unwrappingBeginIndices.size();
+                 ++unwrappingIndex) {
+              std::cerr << "    - #" << unwrappingIndex
+                        << " Unwrapping begin indices: [";
+
+              size_t rank = unwrappingBeginIndices[unwrappingIndex].size();
+
+              for (size_t dim = 0; dim < rank; ++dim) {
+                if (dim != 0) {
+                  std::cerr << ", ";
+                }
+
+                std::cerr << unwrappingBeginIndices[unwrappingIndex][dim];
+              }
+
+              std::cerr << "]" << std::endl;
+              std::cerr << "      #" << unwrappingIndex
+                        <<" Unwrapping end indices:   [";
+
+              for (size_t dim = 0; dim < rank; ++dim) {
+                if (dim != 0) {
+                  std::cerr << ", ";
+                }
+
+                std::cerr << unwrappingEndIndices[unwrappingIndex][dim];
+              }
+
+              std::cerr << "]" << std::endl;
+            }
+          }
 
           for (size_t i = 0, e = unwrappingBeginIndices.size(); i < e; ++i) {
             std::vector<int64_t> ranges;
@@ -397,6 +467,16 @@ namespace marco::runtime
                  return checkEquationScheduledExactlyOnce(equation);
                }) && "Not all the equations are scheduled exactly once");
 
+    assert(std::all_of(
+        threadEquationsChunks.begin(), threadEquationsChunks.end(),
+        [&](const std::vector<ThreadEquationsChunk>& group) {
+          return std::all_of(
+              group.begin(), group.end(),
+              [&](const ThreadEquationsChunk& chunk) {
+                return checkEquationIndicesExistence(chunk);
+              });
+        }) && "Some nonexistent equation indices have been scheduled");
+
     initialized = true;
 
     if (marco::runtime::simulation::getOptions().debug) {
@@ -449,6 +529,29 @@ namespace marco::runtime
       }
 
       if (chunksCount != 1) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool Scheduler::checkEquationIndicesExistence(
+      const ThreadEquationsChunk& chunk) const
+  {
+    const auto& equationIndices = chunk.first.indices;
+    assert(chunk.second.size() % 2 == 0);
+    size_t rank = chunk.second.size() / 2;
+
+    for (size_t dim = 0; dim < rank; ++dim) {
+      auto lowerBound = chunk.second[dim * 2];
+      auto upperBound = chunk.second[dim * 2 + 1];
+
+      if (lowerBound < equationIndices[dim].begin) {
+        return false;
+      }
+
+      if (upperBound > equationIndices[dim].end) {
         return false;
       }
     }

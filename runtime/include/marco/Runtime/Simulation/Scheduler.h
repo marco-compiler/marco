@@ -25,6 +25,12 @@ namespace marco::runtime
             bool independentIndices);
       };
 
+      // A chunk of equations to be processed by a thread.
+      // A chunk is composed of:
+      //   - the equation descriptor.
+      //   - the ranges information to be passed to the equation function.
+      using ThreadEquationsChunk = std::pair<Equation, std::vector<int64_t>>;
+
       void addEquation(
           EquationFunction function,
           uint64_t rank,
@@ -39,18 +45,13 @@ namespace marco::runtime
       [[maybe_unused, nodiscard]] bool checkEquationScheduledExactlyOnce(
           const Equation& equation) const;
 
+      [[maybe_unused, nodiscard]] bool checkEquationIndicesExistence(
+          const ThreadEquationsChunk& chunk) const;
+
     private:
       bool initialized{false};
       std::vector<Equation> equations;
 
-    public:
-      // A chunk of equations to be processed by a thread.
-      // A chunk is composed of:
-      //   - the equation descriptor.
-      //   - the ranges information to be passed to the equation function.
-      using ThreadEquationsChunk = std::pair<Equation, std::vector<int64_t>>;
-
-    private:
       // The list of chunks the threads will process. Each thread elaborates
       // one chunk at a time.
       // The information is computed only once during the initialization to
