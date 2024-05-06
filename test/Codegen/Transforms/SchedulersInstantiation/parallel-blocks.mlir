@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --schedulers-instantiation | FileCheck %s
 
 // CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
 // CHECK-NEXT:              bmodelica.schedule_block {
 // CHECK-NEXT:                  runtime.scheduler_run @[[scheduler:.*]]
@@ -37,7 +37,7 @@ module {
         bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
         bmodelica.schedule @schedule {
-            bmodelica.main_model {
+            bmodelica.dynamic {
                 bmodelica.parallel_schedule_blocks {
                     bmodelica.schedule_block {
                         bmodelica.equation_call @equation_0

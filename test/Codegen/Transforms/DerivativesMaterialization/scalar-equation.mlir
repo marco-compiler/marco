@@ -20,7 +20,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }
@@ -49,7 +49,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }
@@ -75,7 +75,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }
@@ -118,7 +118,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
         bmodelica.equation_instance %t1 : !bmodelica.equation
     }
@@ -173,7 +173,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
         bmodelica.equation_instance %t1 : !bmodelica.equation
     }
@@ -215,7 +215,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
         bmodelica.equation_instance %t1 : !bmodelica.equation
     }
@@ -250,7 +250,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }
@@ -287,7 +287,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }

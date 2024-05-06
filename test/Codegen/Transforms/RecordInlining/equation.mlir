@@ -19,7 +19,7 @@ bmodelica.record @R {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica<record @R>
             %1 = bmodelica.component_get %0, @x : !bmodelica<record @R> -> !bmodelica.real
@@ -53,7 +53,7 @@ bmodelica.record @R {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica<record @R>
             %1 = bmodelica.component_get %0, @x : !bmodelica<record @R> -> !bmodelica.real
@@ -93,7 +93,7 @@ bmodelica.model @Test {
     bmodelica.variable @r1 : !bmodelica.variable<!bmodelica<record @R>>
     bmodelica.variable @r2 : !bmodelica.variable<!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r1 : !bmodelica<record @R>
             %1 = bmodelica.variable_get @r2 : !bmodelica<record @R>

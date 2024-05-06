@@ -9,7 +9,7 @@
 // CHECK: bmodelica.initial_model
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NOT: bmodelica.main_model
+// CHECK-NOT: bmodelica.dynamic
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
@@ -31,7 +31,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }

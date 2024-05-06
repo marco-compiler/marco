@@ -36,12 +36,12 @@ namespace
           ScheduleOp scheduleOp,
           InitialModelOp initialModelOp);
 
-      mlir::LogicalResult processMainModelOp(
+      mlir::LogicalResult processDynamicOp(
           mlir::IRRewriter& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
           mlir::ModuleOp moduleOp,
           ScheduleOp scheduleOp,
-          MainModelOp mainModelOp);
+          DynamicOp dynamicOp);
 
       mlir::LogicalResult processParallelOps(
           mlir::RewriterBase& rewriter,
@@ -119,7 +119,7 @@ mlir::LogicalResult SchedulersInstantiationPass::processScheduleOp(
     ScheduleOp scheduleOp)
 {
   llvm::SmallVector<InitialModelOp> initialModelOps;
-  llvm::SmallVector<MainModelOp> mainModelOps;
+  llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
     if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
@@ -127,8 +127,8 @@ mlir::LogicalResult SchedulersInstantiationPass::processScheduleOp(
       continue;
     }
 
-    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
-      mainModelOps.push_back(mainModelOp);
+    if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(op)) {
+      dynamicOps.push_back(dynamicOp);
       continue;
     }
   }
@@ -141,10 +141,10 @@ mlir::LogicalResult SchedulersInstantiationPass::processScheduleOp(
     }
   }
 
-  for (MainModelOp mainModelOp : mainModelOps) {
-    if (mlir::failed(processMainModelOp(
+  for (DynamicOp dynamicOp : dynamicOps) {
+    if (mlir::failed(processDynamicOp(
             rewriter, symbolTableCollection, moduleOp, scheduleOp,
-            mainModelOp))) {
+            dynamicOp))) {
       return mlir::failure();
     }
   }
@@ -202,18 +202,18 @@ mlir::LogicalResult SchedulersInstantiationPass::processInitialModelOp(
       createBeginFn, createEndFn);
 }
 
-mlir::LogicalResult SchedulersInstantiationPass::processMainModelOp(
+mlir::LogicalResult SchedulersInstantiationPass::processDynamicOp(
     mlir::IRRewriter& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
     ScheduleOp scheduleOp,
-    MainModelOp mainModelOp)
+    DynamicOp dynamicOp)
 {
   auto modelOp = scheduleOp->getParentOfType<ModelOp>();
   llvm::SmallVector<ParallelScheduleBlocksOp> parallelOps;
 
   for (ParallelScheduleBlocksOp parallelOp :
-       mainModelOp.getOps<ParallelScheduleBlocksOp>()) {
+       dynamicOp.getOps<ParallelScheduleBlocksOp>()) {
     parallelOps.push_back(parallelOp);
   }
 

@@ -8,14 +8,14 @@
 // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
-// CHECK:       bmodelica.main_model {
+// CHECK:       bmodelica.dynamic {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @x : !bmodelica.int
             %1 = bmodelica.constant #bmodelica.int<0>

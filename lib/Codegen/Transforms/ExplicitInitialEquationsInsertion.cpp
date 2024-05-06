@@ -43,14 +43,14 @@ void ExplicitInitialEquationsInsertionPass::cloneEquationsAsInitialEquations(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
-  for (MainModelOp mainModelOp : modelOp.getOps<MainModelOp>()) {
-    builder.setInsertionPoint(mainModelOp);
+  for (DynamicOp dynamicOp : modelOp.getOps<DynamicOp>()) {
+    builder.setInsertionPoint(dynamicOp);
 
     auto initialModelOp = builder.create<InitialModelOp>(modelOp.getLoc());
     builder.createBlock(&initialModelOp.getBodyRegion());
     builder.setInsertionPointToStart(initialModelOp.getBody());
 
-    for (auto& childOp : mainModelOp.getOps()) {
+    for (auto& childOp : dynamicOp.getOps()) {
       if (mlir::isa<EquationInstanceInterface>(childOp)) {
         builder.clone(childOp);
       }

@@ -4,7 +4,7 @@
 // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
 // CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.scc {
 // CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t1]] {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NEXT:          }
@@ -42,7 +42,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.schedule @schedule {
-        bmodelica.main_model {
+        bmodelica.dynamic {
             bmodelica.scc {
                 bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
             }

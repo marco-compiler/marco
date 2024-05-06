@@ -104,9 +104,9 @@ namespace
       // Create the container for the equations.
       rewriter.setInsertionPointAfter(templateOp);
 
-      auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
-      rewriter.createBlock(&mainModelOp.getBodyRegion());
-      rewriter.setInsertionPointToStart(mainModelOp.getBody());
+      auto dynamicOp = rewriter.create<DynamicOp>(modelOp.getLoc());
+      rewriter.createBlock(&dynamicOp.getBodyRegion());
+      rewriter.setInsertionPointToStart(dynamicOp.getBody());
 
       if (auto indices = variableOp.getIndices(); !indices.empty()) {
         for (const MultidimensionalRange& range : llvm::make_range(

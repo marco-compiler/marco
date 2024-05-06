@@ -35,10 +35,10 @@ namespace
           ModelOp modelOp,
           InitialModelOp initialModelOp);
 
-      mlir::LogicalResult processMainModelOp(
+      mlir::LogicalResult processDynamicOp(
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
-          MainModelOp mainModelOp);
+          DynamicOp dynamicOp);
 
       mlir::LogicalResult parallelizeBlocks(
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -66,7 +66,7 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
     ScheduleOp scheduleOp)
 {
   llvm::SmallVector<InitialModelOp> initialModelOps;
-  llvm::SmallVector<MainModelOp> mainModelOps;
+  llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
     if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
@@ -74,8 +74,8 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
       continue;
     }
 
-    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
-      mainModelOps.push_back(mainModelOp);
+    if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(op)) {
+      dynamicOps.push_back(dynamicOp);
       continue;
     }
   }
@@ -87,9 +87,9 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
     }
   }
 
-  for (MainModelOp mainModelOp : mainModelOps) {
-    if (mlir::failed(processMainModelOp(
-            symbolTableCollection, modelOp, mainModelOp))) {
+  for (DynamicOp dynamicOp : dynamicOps) {
+    if (mlir::failed(processDynamicOp(
+            symbolTableCollection, modelOp, dynamicOp))) {
       return mlir::failure();
     }
   }
@@ -130,14 +130,14 @@ mlir::LogicalResult ScheduleParallelizationPass::processInitialModelOp(
   return parallelizeBlocks(symbolTableCollection, modelOp, blocks);
 }
 
-mlir::LogicalResult ScheduleParallelizationPass::processMainModelOp(
+mlir::LogicalResult ScheduleParallelizationPass::processDynamicOp(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
-    MainModelOp mainModelOp)
+    DynamicOp dynamicOp)
 {
   llvm::SmallVector<ScheduleBlockOp> blocks;
 
-  for (auto& op : llvm::make_early_inc_range(mainModelOp.getOps())) {
+  for (auto& op : llvm::make_early_inc_range(dynamicOp.getOps())) {
     if (auto blockOp = mlir::dyn_cast<ScheduleBlockOp>(op)) {
       if (blockOp.getParallelizable()) {
         blocks.push_back(blockOp);

@@ -29,11 +29,11 @@ namespace marco::codegen::lowering
 
       builder().setInsertionPointAfter(initialModelOp);
     } else {
-      auto mainModelOp = builder().create<MainModelOp>(
+      auto dynamicOp = builder().create<DynamicOp>(
           loc(equationSection.getLocation()));
 
       mlir::Block* bodyBlock =
-          builder().createBlock(&mainModelOp.getBodyRegion());
+          builder().createBlock(&dynamicOp.getBodyRegion());
 
       builder().setInsertionPointToStart(bodyBlock);
 
@@ -41,7 +41,7 @@ namespace marco::codegen::lowering
         lower(*equationSection.getEquation(i));
       }
 
-      builder().setInsertionPointAfter(mainModelOp);
+      builder().setInsertionPointAfter(dynamicOp);
     }
   }
 }

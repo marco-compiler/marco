@@ -45,7 +45,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         // CHECK: bmodelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2]>}
         bmodelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2]>, replace_indices = #modeling<index_set {[0,2]}>, replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
 
@@ -106,7 +106,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %8, %9 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         // CHECK: bmodelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [0,2][10,13]>}
         bmodelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [0,2][10,13]>, replace_indices = #modeling<index_set {[0,2][10,13]}>, replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
 

@@ -19,7 +19,7 @@ bmodelica.record @R {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<5x!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica.array<5x!bmodelica<record @R>>
             %1 = bmodelica.component_get %0, @x : !bmodelica.array<5x!bmodelica<record @R>> -> !bmodelica.array<5x3x!bmodelica.real>

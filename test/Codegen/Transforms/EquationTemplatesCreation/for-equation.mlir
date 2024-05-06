@@ -8,14 +8,14 @@
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[zero]]
 // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.main_model {
+// CHECK:       bmodelica.dynamic {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
 // CHECK-NEXT:  }
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.for_equation %i = 0 to 2 {
             bmodelica.equation {
                 %0 = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.int>

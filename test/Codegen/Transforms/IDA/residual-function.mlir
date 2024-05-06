@@ -23,7 +23,7 @@ module {
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
         }
 
-        bmodelica.main_model {
+        bmodelica.dynamic {
             bmodelica.scc {
                 bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [R, 0]>} : !bmodelica.equation
             }
@@ -60,7 +60,7 @@ module {
             bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
         }
 
-        bmodelica.main_model {
+        bmodelica.dynamic {
             bmodelica.scc {
                 bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, path = #bmodelica<equation_path [R, 0]>} : !bmodelica.equation
             }

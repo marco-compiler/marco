@@ -5,7 +5,7 @@
 // CHECK-DAG: #[[index_set_2:.*]] = #modeling<index_set {[4,9]}>
 
 // CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
 // CHECK-NEXT:              bmodelica.schedule_block {
 // CHECK-NEXT:                  bmodelica.equation_call @equation_0
@@ -24,7 +24,7 @@ module {
         bmodelica.variable @x : !bmodelica.variable<10x!bmodelica.int>
 
         bmodelica.schedule @schedule {
-            bmodelica.main_model {
+            bmodelica.dynamic {
                 bmodelica.schedule_block {
                     bmodelica.equation_call @equation_0
                 } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@x, #modeling<index_set {[0,3]}>>]}

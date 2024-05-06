@@ -209,8 +209,8 @@ mlir::LogicalResult EquationExplicitationPass::processScheduleOp(
       continue;
     }
 
-    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
-      mainModelOp.collectSCCs(SCCs);
+    if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(op)) {
+      dynamicOp.collectSCCs(SCCs);
       continue;
     }
   }

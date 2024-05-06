@@ -8,7 +8,7 @@
 // CHECK:       %[[i0:.*]] = bmodelica.constant 1 : index
 // CHECK:       bmodelica.load %{{.*}}[%[[i0:.*]], %[[i1]]]
 
-// CHECK:       bmodelica.main_model {
+// CHECK:       bmodelica.dynamic {
 // CHECK-DAG:       bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 
@@ -24,7 +24,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %3, %4 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0][0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [1,1][0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }

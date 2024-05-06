@@ -29,7 +29,7 @@ bmodelica.model @Test {
     bmodelica.variable @b : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @c : !bmodelica.variable<!bmodelica.real>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @a : !bmodelica.real
             %1 = bmodelica.variable_get @b : !bmodelica.real

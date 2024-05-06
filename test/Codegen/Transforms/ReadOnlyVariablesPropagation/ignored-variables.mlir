@@ -28,7 +28,7 @@ bmodelica.model @Test {
         bmodelica.yield %0 : !bmodelica.int
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @x : !bmodelica.int
             %1 = bmodelica.variable_get @y : !bmodelica.int

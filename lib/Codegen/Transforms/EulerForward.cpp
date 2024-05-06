@@ -156,12 +156,12 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
     rewriter.createBlock(&scheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(scheduleOp.getBody());
 
-    auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
-    rewriter.createBlock(&mainModelOp.getBodyRegion());
-    rewriter.setInsertionPointToStart(mainModelOp.getBody());
+    auto dynamicOp = rewriter.create<DynamicOp>(modelOp.getLoc());
+    rewriter.createBlock(&dynamicOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(dynamicOp.getBody());
 
     for (SCCOp scc : SCCs) {
-      scc->moveBefore(mainModelOp.getBody(), mainModelOp.getBody()->end());
+      scc->moveBefore(dynamicOp.getBody(), dynamicOp.getBody()->end());
     }
 
     // Call the schedule.
@@ -296,9 +296,9 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
     builder.createBlock(&scheduleOp.getBodyRegion());
     builder.setInsertionPointToStart(scheduleOp.getBody());
 
-    auto mainModelOp = builder.create<MainModelOp>(scheduleOp.getLoc());
-    builder.createBlock(&mainModelOp.getBodyRegion());
-    builder.setInsertionPointToStart(mainModelOp.getBody());
+    auto dynamicOp = builder.create<DynamicOp>(scheduleOp.getLoc());
+    builder.createBlock(&dynamicOp.getBodyRegion());
+    builder.setInsertionPointToStart(dynamicOp.getBody());
 
     for (const auto& [stateVariable, derivativeVariable] :
          llvm::zip(stateVariables, derivativeVariables)) {
@@ -368,7 +368,7 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
       builder.create<YieldOp>(equationFuncOp.getLoc());
 
       // Create the schedule blocks and the calls to the equation function.
-      builder.setInsertionPointToEnd(mainModelOp.getBody());
+      builder.setInsertionPointToEnd(dynamicOp.getBody());
 
       IndexSet indices =
           stateVariable.getIndices().getCanonicalRepresentation();

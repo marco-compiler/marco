@@ -28,7 +28,7 @@ bmodelica.model @Test {
         bmodelica.yield %3 : !bmodelica.array<3x!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.for_equation %i = 0 to 2 {
             bmodelica.equation {
                 %0 = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.int>
@@ -73,7 +73,7 @@ bmodelica.model @Test {
         bmodelica.yield %3 : !bmodelica.array<3x!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.for_equation %i = 0 to 2 {
             bmodelica.equation {
                 %0 = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.int>

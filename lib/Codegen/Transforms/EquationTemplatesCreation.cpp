@@ -88,7 +88,7 @@ namespace
         mlir::Operation* templateInsertionPoint = op->getParentOp();
 
         while (templateInsertionPoint &&
-               !mlir::isa<MainModelOp, InitialModelOp>(
+               !mlir::isa<DynamicOp, InitialModelOp>(
                    templateInsertionPoint)) {
           templateInsertionPoint = templateInsertionPoint->getParentOp();
         }
@@ -125,7 +125,7 @@ namespace
 
         while (instanceInsertionPoint &&
                instanceInsertionPoint->getParentOp() &&
-               !mlir::isa<MainModelOp, InitialModelOp>(
+               !mlir::isa<DynamicOp, InitialModelOp>(
                    instanceInsertionPoint->getParentOp())) {
           instanceInsertionPoint = instanceInsertionPoint->getParentOp();
         }

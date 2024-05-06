@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --equation-explicitation | FileCheck %s
 
 // CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.schedule_block {
 // CHECK-NEXT:              bmodelica.equation_call @[[eq0:.*]]
 // CHECK-NEXT:          } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
@@ -46,7 +46,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.schedule @schedule {
-        bmodelica.main_model {
+        bmodelica.dynamic {
             bmodelica.scc {
                 bmodelica.scheduled_equation_instance %t0 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
             }

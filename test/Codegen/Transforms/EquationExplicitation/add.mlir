@@ -27,7 +27,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0, 0]>} : !bmodelica.equation
     }
 }
@@ -61,7 +61,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0, 1]>} : !bmodelica.equation
     }
 }

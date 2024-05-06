@@ -3421,8 +3421,8 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
         template<typename Equation>
         void collectMainEquations(llvm::SmallVectorImpl<Equation>& equations)
         {
-            for (MainModelOp mainModelOp : getOps<MainModelOp>()) {
-                mainModelOp.collectEquations(equations);
+            for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
+                dynamicOp.collectEquations(equations);
             }
         }
 
@@ -3671,7 +3671,7 @@ def BaseModelica_BindingEquationOp : BaseModelica_Op<"binding_equation",
 }
 
 def BaseModelica_ForEquationOp : BaseModelica_Op<"for_equation",
-    [ParentOneOf<["MainModelOp", "InitialModelOp", "ForEquationOp"]>,
+    [ParentOneOf<["DynamicOp", "InitialModelOp", "ForEquationOp"]>,
     NoTerminator]>
 {
     let summary = "Loop defining more equation through a for loop.";
@@ -4023,7 +4023,7 @@ def BaseModelica_InitialModelOp : BaseModelica_Op<"initial_model",
     }];
 }
 
-def BaseModelica_MainModelOp : BaseModelica_Op<"main_model",
+def BaseModelica_DynamicOp : BaseModelica_Op<"dynamic",
     [ParentOneOf<["ModelOp", "ScheduleOp"]>,
     SingleBlock,
     NoTerminator]>
@@ -4127,7 +4127,7 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
 }
 
 def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
-    [ParentOneOf<["InitialModelOp", "MainModelOp"]>,
+    [ParentOneOf<["InitialModelOp", "DynamicOp"]>,
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
@@ -4179,7 +4179,7 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
 }
 
 def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_instance",
-    [ParentOneOf<["InitialModelOp", "MainModelOp", "SCCOp"]>,
+    [ParentOneOf<["InitialModelOp", "DynamicOp", "SCCOp"]>,
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
@@ -4266,7 +4266,7 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
 }
 
 def BaseModelica_SCCGroupOp : BaseModelica_Op<"scc_group",
-    [ParentOneOf<["ModelOp", "ScheduleOp", "InitialModelOp", "MainModelOp"]>,
+    [ParentOneOf<["ModelOp", "ScheduleOp", "InitialModelOp", "DynamicOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     SingleBlock,
     NoTerminator]>
@@ -4289,7 +4289,7 @@ def BaseModelica_SCCGroupOp : BaseModelica_Op<"scc_group",
 }
 
 def BaseModelica_SCCOp : BaseModelica_Op<"scc",
-    [ParentOneOf<["InitialModelOp", "MainModelOp", "ScheduleOp", "SCCGroupOp"]>,
+    [ParentOneOf<["InitialModelOp", "DynamicOp", "ScheduleOp", "SCCGroupOp"]>,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     SingleBlock,
     NoTerminator]>
@@ -4409,7 +4409,7 @@ def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equati
 }
 
 def BaseModelica_EquationOp : BaseModelica_Op<"equation",
-    [ParentOneOf<["MainModelOp", "InitialModelOp", "ForEquationOp"]>,
+    [ParentOneOf<["DynamicOp", "InitialModelOp", "ForEquationOp"]>,
     SingleBlock]>
 {
     let summary = "Equation.";
@@ -5005,7 +5005,7 @@ def BaseModelica_ScheduleOp : BaseModelica_Op<"schedule",
 }
 
 def BaseModelica_ScheduleBlockOp : BaseModelica_Op<"schedule_block",
-    [ParentOneOf<["InitialModelOp", "MainModelOp", "ParallelScheduleBlocksOp"]>,
+    [ParentOneOf<["InitialModelOp", "DynamicOp", "ParallelScheduleBlocksOp"]>,
     SingleBlock,
     NoTerminator,
     IsolatedFromAbove]>
@@ -5032,7 +5032,7 @@ def BaseModelica_ScheduleBlockOp : BaseModelica_Op<"schedule_block",
 }
 
 def BaseModelica_ParallelScheduleBlocksOp : BaseModelica_Op<"parallel_schedule_blocks",
-    [ParentOneOf<["InitialModelOp", "MainModelOp"]>,
+    [ParentOneOf<["InitialModelOp", "DynamicOp"]>,
     SingleBlock,
     NoTerminator,
     IsolatedFromAbove]>

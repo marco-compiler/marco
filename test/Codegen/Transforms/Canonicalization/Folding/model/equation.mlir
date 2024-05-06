@@ -11,7 +11,7 @@
 // CHECK-NEXT:  }
 
 bmodelica.model @Test {
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.constant #bmodelica.real<1.0>
             %1 = bmodelica.constant #bmodelica.real<4.0>

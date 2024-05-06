@@ -726,9 +726,9 @@ static mlir::LogicalResult createMainEquations(
 
   builder.setInsertionPointAfter(equationTemplateOp);
 
-  auto mainModelOp = builder.create<MainModelOp>(modelOp.getLoc());
-  builder.createBlock(&mainModelOp.getBodyRegion());
-  builder.setInsertionPointToStart(mainModelOp.getBody());
+  auto dynamicOp = builder.create<DynamicOp>(modelOp.getLoc());
+  builder.createBlock(&dynamicOp.getBodyRegion());
+  builder.setInsertionPointToStart(dynamicOp.getBody());
 
   for (const MultidimensionalRange& range :
        llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {

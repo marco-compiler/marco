@@ -19,7 +19,7 @@ bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<3x4x5x!bmodelica.int>
     bmodelica.variable @y : !bmodelica.variable<3x4x5x!bmodelica.int>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @x : !bmodelica.array<3x4x5x!bmodelica.int>
             %1 = bmodelica.variable_get @y : !bmodelica.array<3x4x5x!bmodelica.int>

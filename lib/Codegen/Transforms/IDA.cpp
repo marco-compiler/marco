@@ -1943,9 +1943,9 @@ mlir::LogicalResult IDAPass::processModelOp(ModelOp modelOp)
     return mlir::failure();
   }
 
-  for (MainModelOp mainModelOp :
-       llvm::make_early_inc_range(modelOp.getOps<MainModelOp>())) {
-    rewriter.eraseOp(mainModelOp);
+  for (DynamicOp dynamicOp :
+       llvm::make_early_inc_range(modelOp.getOps<DynamicOp>())) {
+    rewriter.eraseOp(dynamicOp);
   }
 
   return mlir::success();
@@ -2455,12 +2455,12 @@ mlir::LogicalResult IDAPass::createUpdateNonIDAVariablesFunction(
     rewriter.createBlock(&scheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(scheduleOp.getBody());
 
-    auto mainModelOp = rewriter.create<MainModelOp>(modelOp.getLoc());
-    rewriter.createBlock(&mainModelOp.getBodyRegion());
-    rewriter.setInsertionPointToStart(mainModelOp.getBody());
+    auto dynamicOp = rewriter.create<DynamicOp>(modelOp.getLoc());
+    rewriter.createBlock(&dynamicOp.getBodyRegion());
+    rewriter.setInsertionPointToStart(dynamicOp.getBody());
 
     for (SCCOp scc : internalSCCs) {
-      scc->moveBefore(mainModelOp.getBody(), mainModelOp.getBody()->end());
+      scc->moveBefore(dynamicOp.getBody(), dynamicOp.getBody()->end());
     }
 
     // Call the schedule.

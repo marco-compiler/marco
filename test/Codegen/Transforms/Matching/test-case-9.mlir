@@ -146,7 +146,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]]

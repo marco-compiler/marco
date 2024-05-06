@@ -45,7 +45,7 @@ bmodelica.function @Foo {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica<record @R>
             %1 = bmodelica.call @Foo(%0) : (!bmodelica<record @R>) -> !bmodelica.real
@@ -109,7 +109,7 @@ bmodelica.model @Test {
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @x : !bmodelica.real
             %1 = bmodelica.variable_get @y : !bmodelica.real

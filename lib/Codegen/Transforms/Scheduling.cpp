@@ -54,7 +54,7 @@ namespace
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
           ScheduleOp scheduleOp,
-          llvm::ArrayRef<MainModelOp> mainModelOps);
+          llvm::ArrayRef<DynamicOp> dynamicOps);
 
       mlir::LogicalResult schedule(
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -132,7 +132,7 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(
     ScheduleOp scheduleOp)
 {
   llvm::SmallVector<InitialModelOp> initialModelOps;
-  llvm::SmallVector<MainModelOp> mainModelOps;
+  llvm::SmallVector<DynamicOp> dynamicOps;
 
   for (auto& op : scheduleOp.getOps()) {
     if (auto initialModelOp = mlir::dyn_cast<InitialModelOp>(op)) {
@@ -140,8 +140,8 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(
       continue;
     }
 
-    if (auto mainModelOp = mlir::dyn_cast<MainModelOp>(op)) {
-      mainModelOps.push_back(mainModelOp);
+    if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(op)) {
+      dynamicOps.push_back(dynamicOp);
       continue;
     }
   }
@@ -152,7 +152,7 @@ mlir::LogicalResult SchedulingPass::processScheduleOp(
   }
 
   if (mlir::failed(processMainModel(
-          symbolTableCollection, modelOp, scheduleOp, mainModelOps))) {
+          symbolTableCollection, modelOp, scheduleOp, dynamicOps))) {
     return mlir::failure();
   }
 
@@ -208,13 +208,13 @@ mlir::LogicalResult SchedulingPass::processMainModel(
     mlir::SymbolTableCollection& symbolTableCollection,
     ModelOp modelOp,
     ScheduleOp scheduleOp,
-    llvm::ArrayRef<MainModelOp> mainModelOps)
+    llvm::ArrayRef<DynamicOp> dynamicOps)
 {
   // Collect the SCCs.
   llvm::SmallVector<SCCOp> SCCs;
 
-  for (MainModelOp mainModelOp : mainModelOps) {
-    mainModelOp.collectSCCs(SCCs);
+  for (DynamicOp dynamicOp : dynamicOps) {
+    dynamicOp.collectSCCs(SCCs);
   }
 
   if (SCCs.empty()) {
@@ -224,9 +224,9 @@ mlir::LogicalResult SchedulingPass::processMainModel(
   auto createContainerFn =
       [](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    auto mainModelOp = builder.create<MainModelOp>(loc);
-    builder.createBlock(&mainModelOp.getBodyRegion());
-    return mainModelOp.getBody();
+    auto dynamicOp = builder.create<DynamicOp>(loc);
+    builder.createBlock(&dynamicOp.getBodyRegion());
+    return dynamicOp.getBody();
   };
 
   if (mlir::failed(schedule(
@@ -236,8 +236,8 @@ mlir::LogicalResult SchedulingPass::processMainModel(
   }
 
   // Erase the old equations containers.
-  for (MainModelOp mainModelOp : mainModelOps) {
-    mainModelOp.erase();
+  for (DynamicOp dynamicOp : dynamicOps) {
+    dynamicOp.erase();
   }
 
   return mlir::success();

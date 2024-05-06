@@ -20,7 +20,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %3, %4 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 }
@@ -66,7 +66,7 @@ bmodelica.model @Test {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 }
@@ -77,7 +77,7 @@ bmodelica.model @Test {
 
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
 // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
-// CHECK: bmodelica.main_model
+// CHECK: bmodelica.dynamic
 // CHECK: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 
 bmodelica.model @Test {
@@ -93,7 +93,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %3, %4 : tuple<!bmodelica.int>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 }
@@ -155,7 +155,7 @@ bmodelica.model @Test {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
@@ -172,7 +172,7 @@ bmodelica.model @Test {
 // CHECK: bmodelica.initial_model
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NOT: bmodelica.main_model
+// CHECK-NOT: bmodelica.dynamic
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
@@ -200,7 +200,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
@@ -220,7 +220,7 @@ bmodelica.model @Test {
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NOT: bmodelica.main_model
+// CHECK-NOT: bmodelica.dynamic
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
@@ -265,7 +265,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
@@ -280,7 +280,7 @@ bmodelica.model @Test {
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int>
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
 // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
-// CHECK: bmodelica.main_model
+// CHECK: bmodelica.dynamic
 // CHECK: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
 
 bmodelica.model @Test {
@@ -298,7 +298,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
 }
@@ -313,7 +313,7 @@ bmodelica.model @Test {
 // CHECK: bmodelica.initial_model
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NOT: bmodelica.main_model
+// CHECK-NOT: bmodelica.dynamic
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.real>
@@ -338,7 +338,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %3, %4 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }
@@ -351,7 +351,7 @@ bmodelica.model @Test {
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.real>
 // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
 // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
-// CHECK: bmodelica.main_model
+// CHECK: bmodelica.dynamic
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>}
 // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
 
@@ -378,7 +378,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %3, %4 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
     }

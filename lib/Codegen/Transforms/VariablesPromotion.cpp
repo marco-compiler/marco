@@ -629,7 +629,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       }
 
       if (shouldCreateInitialEquations) {
-        rewriter.setInsertionPoint(equationOp->getParentOfType<MainModelOp>());
+        rewriter.setInsertionPoint(equationOp->getParentOfType<DynamicOp>());
 
         auto initialModelOp =
             rewriter.create<InitialModelOp>(modelOp.getLoc());

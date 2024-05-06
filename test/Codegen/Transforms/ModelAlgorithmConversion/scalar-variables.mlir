@@ -13,7 +13,7 @@
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[res]]
 // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.main_model {
+// CHECK:       bmodelica.dynamic {
 // CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
 // CHECK-NEXT:  }
 

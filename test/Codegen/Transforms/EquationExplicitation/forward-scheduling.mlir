@@ -4,7 +4,7 @@
 // CHECK-DAG: #[[index_set_1:.*]] = #modeling<index_set {[1,9]}>
 
 // CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.main_model {
+// CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.schedule_block {
 // CHECK-NEXT:              bmodelica.equation_call @[[eq:.*]] {indices = #modeling<multidim_range [0,8]>}
 // CHECK-NEXT:          } {parallelizable = true, readVariables = [#bmodelica.var<@x, #[[index_set_0]]>], writtenVariables = [#bmodelica.var<@x, #[[index_set_1]]>]}
@@ -39,7 +39,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.schedule @schedule {
-        bmodelica.main_model {
+        bmodelica.dynamic {
             bmodelica.scc {
                 bmodelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, iteration_directions = [#bmodelica<equation_schedule_direction forward>], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
             }

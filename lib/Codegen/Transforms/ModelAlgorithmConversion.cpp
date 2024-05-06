@@ -209,9 +209,9 @@ namespace
           rewriter.createBlock(&initialModelOp.getBodyRegion());
           rewriter.setInsertionPointToStart(initialModelOp.getBody());
         } else {
-          auto mainModelOp = rewriter.create<MainModelOp>(loc);
-          rewriter.createBlock(&mainModelOp.getBodyRegion());
-          rewriter.setInsertionPointToStart(mainModelOp.getBody());
+          auto dynamicOp = rewriter.create<DynamicOp>(loc);
+          rewriter.createBlock(&dynamicOp.getBodyRegion());
+          rewriter.setInsertionPointToStart(dynamicOp.getBody());
         }
 
         for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {

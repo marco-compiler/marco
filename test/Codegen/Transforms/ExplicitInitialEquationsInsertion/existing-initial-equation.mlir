@@ -3,7 +3,7 @@
 // CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 // CHECK: bmodelica.initial_model
 // CHECK-NEXT: bmodelica.equation_instance %[[t0]]
-// CHECK: bmodelica.main_model
+// CHECK: bmodelica.dynamic
 // CHECK-NEXT: bmodelica.equation_instance %[[t0]]
 
 bmodelica.model @Test {
@@ -17,7 +17,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %lhs, %rhs : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation_instance %t0 : !bmodelica.equation
     }
 }

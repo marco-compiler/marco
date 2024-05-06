@@ -12089,21 +12089,21 @@ namespace
     mlir::LogicalResult matchAndRewrite(
         ModelOp op, mlir::PatternRewriter& rewriter) const override
     {
-      llvm::SmallVector<MainModelOp> mainModelOps;
+      llvm::SmallVector<DynamicOp> dynamicOps;
 
-      for (MainModelOp mainModelOp : op.getOps<MainModelOp>()) {
-        mainModelOps.push_back(mainModelOp);
+      for (DynamicOp dynamicOp : op.getOps<DynamicOp>()) {
+        dynamicOps.push_back(dynamicOp);
       }
 
-      if (mainModelOps.size() <= 1) {
+      if (dynamicOps.size() <= 1) {
         return mlir::failure();
       }
 
-      for (size_t i = 1, e = mainModelOps.size(); i < e; ++i) {
-        rewriter.mergeBlocks(mainModelOps[i].getBody(),
-                             mainModelOps[0].getBody());
+      for (size_t i = 1, e = dynamicOps.size(); i < e; ++i) {
+        rewriter.mergeBlocks(dynamicOps[i].getBody(),
+                             dynamicOps[0].getBody());
 
-        rewriter.eraseOp(mainModelOps[i]);
+        rewriter.eraseOp(dynamicOps[i]);
       }
 
       return mlir::success();
@@ -12139,7 +12139,7 @@ namespace mlir::bmodelica
     getCanonicalizationPatterns(patterns, context);
     EquationTemplateOp::getCanonicalizationPatterns(patterns, context);
     InitialModelOp::getCanonicalizationPatterns(patterns, context);
-    MainModelOp::getCanonicalizationPatterns(patterns, context);
+    DynamicOp::getCanonicalizationPatterns(patterns, context);
     SCCOp::getCanonicalizationPatterns(patterns, context);
   }
 
@@ -12159,8 +12159,8 @@ namespace mlir::bmodelica
 
   void ModelOp::collectMainSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
-    for (MainModelOp mainModelOp : getOps<MainModelOp>()) {
-      mainModelOp.collectSCCs(SCCs);
+    for (DynamicOp dynamicOp : getOps<DynamicOp>()) {
+      dynamicOp.collectSCCs(SCCs);
     }
   }
 
@@ -14381,17 +14381,17 @@ namespace mlir::bmodelica
 }
 
 //===---------------------------------------------------------------------===//
-// MainModelOp
+// DynamicOp
 
 namespace
 {
   struct EmptyMainModelPattern
-      : public mlir::OpRewritePattern<MainModelOp>
+      : public mlir::OpRewritePattern<DynamicOp>
   {
-    using mlir::OpRewritePattern<MainModelOp>::OpRewritePattern;
+    using mlir::OpRewritePattern<DynamicOp>::OpRewritePattern;
 
     mlir::LogicalResult matchAndRewrite(
-        MainModelOp op, mlir::PatternRewriter& rewriter) const override
+        DynamicOp op, mlir::PatternRewriter& rewriter) const override
     {
       if (op.getBody()->empty()) {
         rewriter.eraseOp(op);
@@ -14405,13 +14405,13 @@ namespace
 
 namespace mlir::bmodelica
 {
-  void MainModelOp::getCanonicalizationPatterns(
+  void DynamicOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {
     patterns.add<EmptyMainModelPattern>(context);
   }
 
-  void MainModelOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
+  void DynamicOp::collectSCCs(llvm::SmallVectorImpl<SCCOp>& SCCs)
   {
     for (SCCOp scc : getOps<SCCOp>()) {
       SCCs.push_back(scc);

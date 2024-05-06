@@ -26,7 +26,7 @@ bmodelica.record @R {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<3x!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica.array<3x!bmodelica<record @R>>
             %1 = bmodelica.constant 0 : index
@@ -70,7 +70,7 @@ bmodelica.record @R {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<3x5x!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica.array<3x5x!bmodelica<record @R>>
             %1 = bmodelica.constant 0 : index
@@ -195,7 +195,7 @@ bmodelica.function @Foo {
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<3x!bmodelica<record @R>>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @r : !bmodelica.array<3x!bmodelica<record @R>>
             %1 = bmodelica.constant 0 : index
@@ -241,7 +241,7 @@ bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
-    bmodelica.main_model {
+    bmodelica.dynamic {
         bmodelica.equation {
             %0 = bmodelica.variable_get @x : !bmodelica.real
             %1 = bmodelica.variable_get @y : !bmodelica.real
