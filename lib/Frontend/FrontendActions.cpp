@@ -941,7 +941,6 @@ namespace marco::frontend
       pm.addPass(mlir::bmodelica::createSchedulersInstantiationPass());
     }
 
-    /*
     // Check that no SCC is left unsolved.
     pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
 
@@ -1026,7 +1025,6 @@ namespace marco::frontend
         mlir::createCanonicalizerPass());
 
     pm.addPass(mlir::LLVM::createLegalizeForExportPass());
-    */
   }
 
   std::unique_ptr<mlir::Pass>
