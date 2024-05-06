@@ -167,7 +167,7 @@ namespace marco::runtime
 
           std::cerr << "    - Range: ";
 
-          assert(chunksGroup[i].second.size() % 2 == 0);
+          assert(chunk.second.size() % 2 == 0);
           size_t rank = chunk.second.size() / 2;
 
           for (size_t dim = 0; dim < rank; ++dim) {
