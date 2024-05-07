@@ -24,9 +24,16 @@ namespace marco::runtime::profiling
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
-    std::cerr << "Time spent on command-line arguments processing: " << commandLineArgs.totalElapsedTime() << " ms\n";
-    std::cerr << "Time spent on initialization: " << initialization.totalElapsedTime() << " ms\n";
-    std::cerr << "Time spent on values printing: " << printing.totalElapsedTime() << " ms\n";
+    std::cerr << "Time spent on command-line arguments processing: "
+              << commandLineArgs.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent on initialization: "
+              << initialization.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent on values printing: "
+              << printing.totalElapsedTime<std::milli>() << " ms" << std::endl;
   }
 
   SimulationProfiler& simulationProfiler()

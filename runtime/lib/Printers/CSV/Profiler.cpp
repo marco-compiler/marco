@@ -25,10 +25,21 @@ namespace marco::runtime::profiling
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
-    std::cerr << "Time spent on printing boolean values: " << booleanValues.totalElapsedTime() << " ms" << std::endl;
-    std::cerr << "Time spent on printing integer values: " << integerValues.totalElapsedTime() << " ms" << std::endl;
-    std::cerr << "Time spent on printing float values: " << floatValues.totalElapsedTime() << " ms" << std::endl;
-    std::cerr << "Time spent on printing strings: " << stringValues.totalElapsedTime() << " ms" << std::endl;
+    std::cerr << "Time spent on printing boolean values: "
+              << booleanValues.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent on printing integer values: "
+              << integerValues.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent on printing float values: "
+              << floatValues.totalElapsedTime<std::milli>() << " ns"
+              << std::endl;
+
+    std::cerr << "Time spent on printing strings: "
+              << stringValues.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
   }
 
   PrintProfiler& printProfiler()

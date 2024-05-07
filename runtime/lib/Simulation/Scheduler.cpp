@@ -53,17 +53,36 @@ void SchedulerProfiler::print() const
   std::lock_guard<std::mutex> lockGuard(mutex);
 
   std::cerr << "Time spent on adding the equations: "
-            << addEquation.totalElapsedTime() << " ms" << std::endl;
+            << addEquation.totalElapsedTime<std::milli>() << " ms"
+            << std::endl;
 
   std::cerr << "Time spent on initialization: "
-            << initialization.totalElapsedTime() << " ms" << std::endl;
+            << initialization.totalElapsedTime<std::milli>() << " ms"
+            << std::endl;
 
   std::cerr << "Time spent on 'run' method: "
-            << run.totalElapsedTime() << " ms" << std::endl;
+            << run.totalElapsedTime<std::milli>()<< " ms" << std::endl;
 
   for (size_t i = 0, e = chunksGroups.size(); i < e; ++i) {
-    std::cerr << "Time spent by thread #" << i << " in processing equations: "
-              << chunksGroups[i]->totalElapsedTime() << " ms" << std::endl;
+    auto chunksGroupsCounter = chunksGroupsCounters[i];
+
+    double averageChunksGroupTime =
+        chunksGroups[i]->totalElapsedTime<std::nano>() /
+            static_cast<double>(chunksGroupsCounter);
+
+    std::cerr << "\n";
+
+    std::cerr << "Time (total) spent by thread #" << i
+              << " in processing equations: "
+              << chunksGroups[i]->totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time (average) spent by thread #" << i
+              << " in processing equations: " << averageChunksGroupTime
+              << " ns" << std::endl;
+
+    std::cerr << "Number of chunks groups processed: "
+              << chunksGroupsCounter << std::endl;
   }
 }
 
@@ -211,7 +230,7 @@ namespace marco::runtime
     unsigned int numOfThreads = threadPool.getNumOfThreads();
     std::atomic_size_t chunksGroupIndex = 0;
 
-    for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
+    for (unsigned int thread = 0; thread < 1; ++thread) {
       threadPool.async([this, thread, &chunksGroupIndex]() {
         size_t assignedChunksGroup;
 

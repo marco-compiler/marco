@@ -33,19 +33,20 @@ namespace marco::runtime::profiling
     accumulatedTime_ = duration_values<nanoseconds>::zero();
   }
 
-  double Timer::totalElapsedTime() const
+  nanoseconds Timer::elapsed() const
+  {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+        steady_clock::now() - start_);
+  }
+
+  std::chrono::nanoseconds Timer::totalElapsed() const
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
     if (running_) {
-      return static_cast<double>((accumulatedTime_ + elapsed()).count()) / 1e6;
+      return accumulatedTime_ + elapsed();
     }
 
-    return static_cast<double>(accumulatedTime_.count()) / 1e6;
-  }
-
-  nanoseconds Timer::elapsed() const
-  {
-    return steady_clock::now() - start_;
+    return accumulatedTime_;
   }
 }

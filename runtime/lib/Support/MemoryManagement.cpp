@@ -91,7 +91,7 @@ namespace marco::runtime::profiling
     private:
       double time() const
       {
-        return timer.totalElapsedTime();
+        return timer.totalElapsedTime<std::milli>();
       }
 
     private:

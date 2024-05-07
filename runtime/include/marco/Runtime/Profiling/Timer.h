@@ -21,10 +21,17 @@ namespace marco::runtime::profiling
 
       void reset();
 
-      double totalElapsedTime() const;
+      template<typename Period = std::nano, typename Rep = double>
+      Rep totalElapsedTime() const
+      {
+        auto casted = static_cast<std::chrono::duration<Rep, Period>>(totalElapsed());
+        return casted.count();
+      }
 
     private:
       std::chrono::nanoseconds elapsed() const;
+
+      std::chrono::nanoseconds totalElapsed() const;
 
     private:
       int running_ = 0;
