@@ -6404,11 +6404,13 @@ void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location
 
   mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
       loc, builder.getI64IntegerAttr(0));
+
   mlir::Value condition = builder.create<mlir::arith::CmpIOp>(
       loc, mlir::arith::CmpIPredicate::sgt, argCast, zero);
 
   builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr("Invalid argument"));
+      loc, condition, builder.getStringAttr(
+        "Model error: Argument of log outside the domain. It should be > 0"));
 }
 } // namespace mlir::bmodelica
 
