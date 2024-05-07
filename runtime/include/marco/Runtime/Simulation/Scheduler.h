@@ -28,6 +28,8 @@ namespace marco::runtime
       profiling::Timer addEquation;
       profiling::Timer initialization;
       profiling::Timer run;
+      int64_t sequentialRuns;
+      int64_t multithreadedRuns;
       std::vector<int64_t> chunksGroupsCounters;
       std::vector<std::unique_ptr<profiling::Timer>> chunksGroups;
 
@@ -58,6 +60,12 @@ namespace marco::runtime
       //   - the ranges information to be passed to the equation function.
       using ThreadEquationsChunk = std::pair<Equation, std::vector<int64_t>>;
 
+      enum class RunStrategy
+      {
+        Sequential,
+        Multithreaded
+      };
+
       Scheduler();
 
       void addEquation(
@@ -77,6 +85,14 @@ namespace marco::runtime
       [[maybe_unused, nodiscard]] bool checkEquationIndicesExistence(
           const ThreadEquationsChunk& chunk) const;
 
+      void runSequential();
+
+      void runSequentialWithCalibration();
+
+      void runMultithreaded();
+
+      void runMultithreadedWithCalibration();
+
     private:
       int64_t identifier{0};
       bool initialized{false};
@@ -87,6 +103,11 @@ namespace marco::runtime
       // The information is computed only once during the initialization to
       // save time during the simulation.
       std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
+
+      int64_t runsCounter = 0;
+      int64_t sequentialRunsMinTime{0};
+      int64_t multithreadedRunsMinTime{0};
+      RunStrategy runStrategy{RunStrategy::Sequential};
 
 #ifdef MARCO_PROFILING
       // Profiling.

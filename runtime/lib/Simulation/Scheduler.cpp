@@ -42,6 +42,8 @@ void SchedulerProfiler::reset()
   addEquation.reset();
   initialization.reset();
   run.reset();
+  sequentialRuns = 0;
+  multithreadedRuns = 0;
 
   for (auto& chunksGroup : chunksGroups) {
     chunksGroup->reset();
@@ -62,6 +64,12 @@ void SchedulerProfiler::print() const
 
   std::cerr << "Time spent on 'run' method: "
             << run.totalElapsedTime<std::milli>()<< " ms" << std::endl;
+
+  std::cerr << "Number of sequential executions: " << sequentialRuns
+            << std::endl;
+
+  std::cerr << "Number of multithreaded executions: " << multithreadedRuns
+            << std::endl;
 
   for (size_t i = 0, e = chunksGroups.size(); i < e; ++i) {
     auto chunksGroupsCounter = chunksGroupsCounters[i];
@@ -92,6 +100,9 @@ void SchedulerProfiler::print() const
 #define SCHEDULER_PROFILER_RUN_START profiler->run.start()
 #define SCHEDULER_PROFILER_RUN_STOP profiler->run.stop()
 
+#define SCHEDULER_PROFILER_INCREMENT_SEQUENTIAL_RUNS_COUNTER ++profiler->sequentialRuns
+#define SCHEDULER_PROFILER_INCREMENT_MULTITHREADED_RUNS_COUNTER ++profiler->multithreadedRuns
+
 #define SCHEDULER_PROFILER_INITIALIZATION_START profiler->initialization.start()
 #define SCHEDULER_PROFILER_INITIALIZATION_STOP profiler->initialization.stop()
 
@@ -110,6 +121,9 @@ void SchedulerProfiler::print() const
 
 #define SCHEDULER_PROFILER_RUN_START SCHEDULER_PROFILER_DO_NOTHING
 #define SCHEDULER_PROFILER_RUN_STOP SCHEDULER_PROFILER_DO_NOTHING
+
+#define SCHEDULER_PROFILER_INCREMENT_SEQUENTIAL_RUNS_COUNTER SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_INCREMENT_MULTITHREADED_RUNS_COUNTER SCHEDULER_PROFILER_DO_NOTHING
 
 #define SCHEDULER_PROFILER_INITIALIZATION_START SCHEDULER_PROFILER_DO_NOTHING
 #define SCHEDULER_PROFILER_INITIALIZATION_STOP SCHEDULER_PROFILER_DO_NOTHING
@@ -216,41 +230,6 @@ namespace marco::runtime
 
     equations.emplace_back(function, std::move(indices), independentIndices);
     SCHEDULER_PROFILER_ADD_EQUATION_STOP;
-  }
-
-  void Scheduler::run()
-  {
-    SCHEDULER_PROFILER_RUN_START;
-
-    if (!initialized) {
-      initialize();
-    }
-
-    ThreadPool& threadPool = getSchedulersThreadPool();
-    unsigned int numOfThreads = threadPool.getNumOfThreads();
-    std::atomic_size_t chunksGroupIndex = 0;
-
-    for (unsigned int thread = 0; thread < 1; ++thread) {
-      threadPool.async([this, thread, &chunksGroupIndex]() {
-        size_t assignedChunksGroup;
-
-        while ((assignedChunksGroup = chunksGroupIndex++) <
-               threadEquationsChunks.size()) {
-          SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread);
-          const auto& chunksGroup = threadEquationsChunks[assignedChunksGroup];
-
-          for (const ThreadEquationsChunk& chunk : chunksGroup) {
-            const Equation& equation = chunk.first;
-            const auto& ranges = chunk.second;
-            equation.function(ranges.data());
-          }
-          SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread);
-        }
-      });
-    }
-
-    threadPool.wait();
-    SCHEDULER_PROFILER_RUN_STOP;
   }
 
   void Scheduler::initialize()
@@ -711,6 +690,130 @@ namespace marco::runtime
     }
 
     return true;
+  }
+
+  void Scheduler::run()
+  {
+    SCHEDULER_PROFILER_RUN_START;
+
+    if (!initialized) {
+      initialize();
+    }
+
+    int64_t calibrationRuns =
+        marco::runtime::simulation::getOptions().schedulerCalibrationRuns;
+
+    bool isSequentialCalibrationRun = runsCounter < calibrationRuns;
+
+    bool isMultithreadedCalibrationRun =
+        runsCounter >= calibrationRuns &&
+        runsCounter < calibrationRuns * 2;
+
+    if (isSequentialCalibrationRun) {
+      runSequentialWithCalibration();
+    } else if (isMultithreadedCalibrationRun) {
+      runMultithreadedWithCalibration();
+
+      bool isLastCalibrationRound = runsCounter == (calibrationRuns * 2 - 1);
+
+      if (isLastCalibrationRound) {
+        runStrategy = sequentialRunsMinTime < multithreadedRunsMinTime
+            ? RunStrategy::Sequential : RunStrategy::Multithreaded;
+
+        if (runStrategy == RunStrategy::Sequential) {
+          std::cerr << "[Scheduler " << identifier << "] SEQUENTIAL\n";
+        } else {
+          std::cerr << "[Scheduler " << identifier << "] MULTITHREADED\n";
+        }
+      }
+    } else {
+      if (runStrategy == RunStrategy::Sequential) {
+        runSequential();
+      } else {
+        runMultithreaded();
+      }
+    }
+
+    ++runsCounter;
+    SCHEDULER_PROFILER_RUN_STOP;
+  }
+
+  void Scheduler::runSequential()
+  {
+    SCHEDULER_PROFILER_INCREMENT_SEQUENTIAL_RUNS_COUNTER;
+
+    for (const auto& chunksGroup : threadEquationsChunks) {
+      SCHEDULER_PROFILER_CHUNKS_GROUP_START(0);
+
+      for (const ThreadEquationsChunk& chunk : chunksGroup) {
+        const Equation& equation = chunk.first;
+        const auto& ranges = chunk.second;
+        equation.function(ranges.data());
+      }
+
+      SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(0);
+    }
+  }
+
+  void Scheduler::runSequentialWithCalibration()
+  {
+    // Measure the time spent on a sequential computation.
+    using namespace std::chrono;
+
+    auto start = steady_clock::now();
+    runSequential();
+    auto end = steady_clock::now();
+    auto elapsed = duration_cast<nanoseconds>(end - start).count();
+
+    if (sequentialRunsMinTime == 0 || elapsed < sequentialRunsMinTime) {
+      sequentialRunsMinTime = elapsed;
+    }
+  }
+
+  void Scheduler::runMultithreaded()
+  {
+    SCHEDULER_PROFILER_INCREMENT_MULTITHREADED_RUNS_COUNTER;
+
+    ThreadPool& threadPool = getSchedulersThreadPool();
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
+    std::atomic_size_t chunksGroupIndex = 0;
+
+    for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
+      threadPool.async([this, thread, &chunksGroupIndex]() {
+        size_t assignedChunksGroup;
+
+        while ((assignedChunksGroup = chunksGroupIndex++) <
+               threadEquationsChunks.size()) {
+          SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread);
+          const auto& chunksGroup = threadEquationsChunks[assignedChunksGroup];
+
+          for (const ThreadEquationsChunk& chunk : chunksGroup) {
+            const Equation& equation = chunk.first;
+            const auto& ranges = chunk.second;
+            equation.function(ranges.data());
+          }
+
+          SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread);
+        }
+      });
+    }
+
+    threadPool.wait();
+  }
+
+  void Scheduler::runMultithreadedWithCalibration()
+  {
+    // Measure the time spent on a multithreaded computation.
+    using namespace std::chrono;
+
+    auto start = steady_clock::now();
+    runMultithreaded();
+    auto end = steady_clock::now();
+    auto elapsed = duration_cast<nanoseconds>(end - start).count();
+
+    if (multithreadedRunsMinTime == 0 || elapsed < multithreadedRunsMinTime) {
+      multithreadedRunsMinTime = elapsed;
+    }
   }
 }
 

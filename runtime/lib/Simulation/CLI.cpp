@@ -14,11 +14,12 @@ namespace marco::runtime::simulation
   void CommandLineOptions::printCommandLineOptions(
       std::ostream& os) const
   {
-    os << "  --debug                      Enable the debug messages." << std::endl;
+    os << "  --debug                        Enable the debug messages." << std::endl;
 
-    os << "  --start-time=<value>         Set the start time (in seconds)." << std::endl;
-    os << "  --end-time=<value>           Set the end time (in seconds)." << std::endl;
-    os << "  --equations-chunks-factor    Set the amount of equation chunks each thread would process in a perfectly balanced scenario." << std::endl;
+    os << "  --start-time=<value>           Set the start time (in seconds)." << std::endl;
+    os << "  --end-time=<value>             Set the end time (in seconds)." << std::endl;
+    os << "  --equations-chunks-factor      Set the amount of equation chunks each thread would process in a perfectly balanced scenario." << std::endl;
+    os << "  --scheduler-calibration-runs   Set the amount of sequential and multithreaded executions used to decide the executino policy" << std::endl;
   }
 
   void CommandLineOptions::parseCommandLineOptions(
@@ -29,6 +30,7 @@ namespace marco::runtime::simulation
     options("start-time") >> getOptions().startTime;
     options("end-time") >> getOptions().endTime;
     options("equations-chunks-factor") >> getOptions().equationsChunksFactor;
+    options("scheduler-calibration-runs") >> getOptions().schedulerCalibrationRuns;
   }
 
   std::unique_ptr<cli::Category> getCLIOptions()

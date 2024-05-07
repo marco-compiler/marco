@@ -17,6 +17,11 @@ namespace marco::runtime::simulation
     // In other words, it is the amount of chunks each thread would process in
     // a perfectly balanced scenario.
     int64_t equationsChunksFactor = 10;
+
+    // The number of steps to be executed by the scheduler, first in sequential
+    // and then multithreaded mode, to decide on the execution strategy of the
+    // scheduler itself.
+    int64_t schedulerCalibrationRuns = 10;
   };
 
   Options& getOptions();
