@@ -2,6 +2,7 @@
 #define MARCO_RUNTIME_PROFILING_PROFILING_H
 
 #include "marco/Runtime/Profiling/Profiler.h"
+#include <memory>
 
 namespace marco::runtime
 {
