@@ -4,6 +4,8 @@ using namespace ::std::chrono;
 
 namespace marco::runtime::profiling
 {
+  Timer::Timer() = default;
+
   void Timer::start()
   {
     std::lock_guard<std::mutex> lockGuard(mutex);

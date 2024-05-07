@@ -9,6 +9,12 @@ namespace marco::runtime::profiling
   class Timer
   {
     public:
+      Timer();
+
+      Timer(const Timer& other) = delete;
+
+      Timer& operator=(const Timer& other) = delete;
+
       void start();
 
       void stop();
