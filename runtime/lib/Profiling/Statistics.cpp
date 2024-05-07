@@ -8,6 +8,11 @@ namespace marco::runtime::profiling
     profilers.push_back(&profiler);
   }
 
+  void Statistics::registerProfiler(std::shared_ptr<Profiler> profiler)
+  {
+    sharedProfilers.push_back(profiler);
+  }
+
   void Statistics::reset()
   {
     for (const auto& profiler : profilers) {
@@ -23,6 +28,12 @@ namespace marco::runtime::profiling
     printHeader(lineWidth, "Runtime statistics");
 
     for (const auto& profiler : profilers) {
+      printProfilerTitle(lineWidth, profiler->getName());
+      profiler->print();
+      std::cerr << "\n";
+    }
+
+    for (const auto& profiler : sharedProfilers) {
       printProfilerTitle(lineWidth, profiler->getName());
       profiler->print();
       std::cerr << "\n";

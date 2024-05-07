@@ -10,6 +10,7 @@ namespace marco::runtime::profiling
   {
     public:
       void registerProfiler(Profiler& profiler);
+      void registerProfiler(std::shared_ptr<Profiler> profiler);
 
       void reset();
 
@@ -26,6 +27,7 @@ namespace marco::runtime::profiling
 
     private:
       std::vector<Profiler*> profilers;
+      std::vector<std::shared_ptr<Profiler>> sharedProfilers;
   };
 }
 

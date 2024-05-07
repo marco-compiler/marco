@@ -25,4 +25,9 @@ namespace marco::runtime
   {
     ::statistics().registerProfiler(profiler);
   }
+
+  void registerProfiler(std::shared_ptr<Profiler> profiler)
+  {
+    ::statistics().registerProfiler(profiler);
+  }
 }

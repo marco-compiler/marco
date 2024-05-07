@@ -6,6 +6,7 @@
 namespace marco::runtime
 {
   void registerProfiler(profiling::Profiler& profiler);
+  void registerProfiler(std::shared_ptr<profiling::Profiler> profiler);
 
   void profilingInit();
   void printProfilingStats();
