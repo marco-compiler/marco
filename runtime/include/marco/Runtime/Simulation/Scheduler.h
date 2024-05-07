@@ -16,6 +16,8 @@ namespace marco::runtime
     public:
       SchedulerProfiler(int64_t schedulerId);
 
+      void createChunksGroupCounters(size_t amount);
+
       void createChunksGroupTimers(size_t amount);
 
       void reset() override;
@@ -26,6 +28,7 @@ namespace marco::runtime
       profiling::Timer addEquation;
       profiling::Timer initialization;
       profiling::Timer run;
+      std::vector<int64_t> chunksGroupsCounters;
       std::vector<std::unique_ptr<profiling::Timer>> chunksGroups;
 
       mutable std::mutex mutex;

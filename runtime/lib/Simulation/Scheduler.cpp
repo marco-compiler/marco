@@ -20,6 +20,12 @@ SchedulerProfiler::SchedulerProfiler(int64_t schedulerId)
 {
 }
 
+void SchedulerProfiler::createChunksGroupCounters(size_t amount)
+{
+  chunksGroupsCounters.clear();
+  chunksGroupsCounters.resize(amount, 0);
+}
+
 void SchedulerProfiler::createChunksGroupTimers(size_t amount)
 {
   chunksGroups.clear();
@@ -70,7 +76,10 @@ void SchedulerProfiler::print() const
 #define SCHEDULER_PROFILER_INITIALIZATION_START profiler->initialization.start()
 #define SCHEDULER_PROFILER_INITIALIZATION_STOP profiler->initialization.stop()
 
-#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) profiler->chunksGroups[thread]->start()
+#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) \
+    profiler->chunksGroups[thread]->start();          \
+    profiler->chunksGroupsCounters[thread]++
+
 #define SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread) profiler->chunksGroups[thread]->stop()
 
 #else
@@ -149,6 +158,7 @@ namespace marco::runtime
     unsigned int numOfThreads = threadPool.getNumOfThreads();
 
     profiler = std::make_shared<SchedulerProfiler>(identifier);
+    profiler->createChunksGroupCounters(numOfThreads);
     profiler->createChunksGroupTimers(numOfThreads);
 
     registerProfiler(profiler);
