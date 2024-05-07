@@ -2,6 +2,7 @@
 #define MARCO_RUNTIME_PROFILING_STATISTICS_H
 
 #include "marco/Runtime/Profiling/Profiler.h"
+#include <memory>
 #include <vector>
 
 namespace marco::runtime::profiling
