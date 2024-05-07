@@ -18,6 +18,10 @@ namespace marco::runtime::profiling
     for (const auto& profiler : profilers) {
       profiler->reset();
     }
+
+    for (const auto& profiler : sharedProfilers) {
+      profiler->reset();
+    }
   }
 
   void Statistics::print() const
