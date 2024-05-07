@@ -495,7 +495,10 @@ namespace marco::runtime
             unwrappingBeginIndices.push_back(currentBeginIndices);
             unwrappingEndIndices.push_back(currentEndIndices);
           } else {
-            std::cerr << "    - Increasing dimension not found" << std::endl;
+            if (marco::runtime::simulation::getOptions().debug) {
+              std::cerr << "    - Increasing dimension not found" << std::endl;
+            }
+
             unwrappingBeginIndices.push_back(std::move(beginIndices));
             unwrappingEndIndices.push_back(std::move(endIndices));
           }
