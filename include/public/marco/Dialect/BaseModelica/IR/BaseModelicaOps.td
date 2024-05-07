@@ -2227,8 +2227,19 @@ def BaseModelica_AbsOp : BaseModelica_Op<"abs",
     let hasFolder = 1;
 }
 
+<<<<<<< HEAD:include/public/marco/Dialect/BaseModelica/IR/BaseModelicaOps.td
 def Modelica_AcosOp : BaseModelica_Op<"acos",
     [NoMemoryEffect]>
+=======
+def Modelica_AcosOp : Modelica_Op<"acos",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface,
+                              ["getHoistingKind", "buildDealloc"]>,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+>>>>>>> 9d05874a (Implemented runtime verification for Log10Op, acosOp, DivTruncOp):include/public/marco/Dialect/Modelica/Modelica.td
 {
     let summary = "Trigonometric inverse cosine function.";
 
@@ -2253,8 +2264,19 @@ def Modelica_AcosOp : BaseModelica_Op<"acos",
     let hasFolder = 1;
 }
 
+<<<<<<< HEAD:include/public/marco/Dialect/BaseModelica/IR/BaseModelicaOps.td
 def Modelica_AsinOp : BaseModelica_Op<"asin",
     [NoMemoryEffect]>
+=======
+def Modelica_AsinOp : Modelica_Op<"asin",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<AllocationOpInterface,
+                              ["getHoistingKind", "buildDealloc"]>,
+    DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+>>>>>>> 9d05874a (Implemented runtime verification for Log10Op, acosOp, DivTruncOp):include/public/marco/Dialect/Modelica/Modelica.td
 {
     let summary = "Trigonometric inverse sine function";
 
@@ -2439,7 +2461,13 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
     }];
 }
 
+<<<<<<< HEAD:include/public/marco/Dialect/BaseModelica/IR/BaseModelicaOps.td
 def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc", []>
+=======
+def Modelica_DivTruncOp : Modelica_Op<"div_trunc",
+    [DeclareOpInterfaceMethods<EquationExpressionOpInterface, ["printExpression"]>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+>>>>>>> 9d05874a (Implemented runtime verification for Log10Op, acosOp, DivTruncOp):include/public/marco/Dialect/Modelica/Modelica.td
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2645,7 +2673,8 @@ def Modelica_LogOp : BaseModelica_Op<"log",
 }
 
 def Modelica_Log10Op : BaseModelica_Op<"log10",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Base 10 logarithm function.";
 
