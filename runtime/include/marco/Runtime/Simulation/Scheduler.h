@@ -2,12 +2,36 @@
 #define MARCO_RUNTIME_SIMULATION_SCHEDULER_H
 
 #include "marco/Runtime/Modeling/MultidimensionalRange.h"
+#include "marco/Runtime/Profiling/Profiling.h"
+#include "marco/Runtime/Profiling/Timer.h"
 #include "marco/Runtime/Support/Mangling.h"
 #include <cstdint>
 #include <vector>
 
 namespace marco::runtime
 {
+#ifdef MARCO_PROFILING
+  class SchedulerProfiler : public profiling::Profiler
+  {
+    public:
+      SchedulerProfiler(int64_t schedulerId);
+
+      void createChunksGroupTimers(size_t amount);
+
+      void reset() override;
+
+      void print() const override;
+
+    public:
+      profiling::Timer addEquation;
+      profiling::Timer initialization;
+      profiling::Timer run;
+      std::vector<std::unique_ptr<profiling::Timer>> chunksGroups;
+
+      mutable std::mutex mutex;
+  };
+#endif
+
   class Scheduler
   {
     public:
@@ -31,6 +55,8 @@ namespace marco::runtime
       //   - the ranges information to be passed to the equation function.
       using ThreadEquationsChunk = std::pair<Equation, std::vector<int64_t>>;
 
+      Scheduler();
+
       void addEquation(
           EquationFunction function,
           uint64_t rank,
@@ -49,6 +75,7 @@ namespace marco::runtime
           const ThreadEquationsChunk& chunk) const;
 
     private:
+      int64_t identifier{0};
       bool initialized{false};
       std::vector<Equation> equations;
 
@@ -57,6 +84,11 @@ namespace marco::runtime
       // The information is computed only once during the initialization to
       // save time during the simulation.
       std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
+
+#ifdef MARCO_PROFILING
+      // Profiling.
+      std::shared_ptr<SchedulerProfiler> profiler;
+#endif
   };
 }
 

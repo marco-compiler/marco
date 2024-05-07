@@ -8,6 +8,99 @@
 
 using namespace ::marco::runtime;
 
+//===---------------------------------------------------------------------===//
+// Profiling
+//===---------------------------------------------------------------------===//
+
+#ifdef MARCO_PROFILING
+#include "marco/Runtime/Simulation/Profiler.h"
+
+SchedulerProfiler::SchedulerProfiler(int64_t schedulerId)
+    : Profiler("Scheduler " + std::to_string(schedulerId))
+{
+}
+
+void SchedulerProfiler::createChunksGroupTimers(size_t amount)
+{
+  chunksGroups.clear();
+
+  for (size_t i = 0; i < amount; ++i) {
+    chunksGroups.push_back(std::make_unique<profiling::Timer>());
+  }
+}
+
+void SchedulerProfiler::reset()
+{
+  std::lock_guard<std::mutex> lockGuard(mutex);
+
+  addEquation.reset();
+  initialization.reset();
+  run.reset();
+
+  for (auto& chunksGroup : chunksGroups) {
+    chunksGroup->reset();
+  }
+}
+
+void SchedulerProfiler::print() const
+{
+  std::lock_guard<std::mutex> lockGuard(mutex);
+
+  std::cerr << "Time spent on adding the equations: "
+            << addEquation.totalElapsedTime() << " ms" << std::endl;
+
+  std::cerr << "Time spent on initialization: "
+            << initialization.totalElapsedTime() << " ms" << std::endl;
+
+  std::cerr << "Time spent on 'run' method: "
+            << run.totalElapsedTime() << " ms" << std::endl;
+
+  for (size_t i = 0, e = chunksGroups.size(); i < e; ++i) {
+    std::cerr << "Time spent by thread #" << i << " in processing equations: "
+              << chunksGroups[i]->totalElapsedTime() << " ms" << std::endl;
+  }
+}
+
+#define SCHEDULER_PROFILER_ADD_EQUATION_START profiler->addEquation.start()
+#define SCHEDULER_PROFILER_ADD_EQUATION_STOP profiler->addEquation.stop()
+
+#define SCHEDULER_PROFILER_RUN_START profiler->run.start()
+#define SCHEDULER_PROFILER_RUN_STOP profiler->run.stop()
+
+#define SCHEDULER_PROFILER_INITIALIZATION_START profiler->initialization.start()
+#define SCHEDULER_PROFILER_INITIALIZATION_STOP profiler->initialization.stop()
+
+#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) profiler->chunksGroups[thread]->start()
+#define SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread) profiler->chunksGroups[thread]->stop()
+
+#else
+
+#define SCHEDULER_PROFILER_DO_NOTHING static_assert(true)
+
+#define SCHEDULER_PROFILER_ADD_EQUATION_START SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_ADD_EQUATION_STOP SCHEDULER_PROFILER_DO_NOTHING
+
+#define SCHEDULER_PROFILER_RUN_START SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_RUN_STOP SCHEDULER_PROFILER_DO_NOTHING
+
+#define SCHEDULER_PROFILER_INITIALIZATION_START SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_INITIALIZATION_STOP SCHEDULER_PROFILER_DO_NOTHING
+
+#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread) SCHEDULER_PROFILER_DO_NOTHING
+
+#endif
+
+//===---------------------------------------------------------------------===//
+// Scheduler
+//===---------------------------------------------------------------------===//
+
+static int64_t getUniqueSchedulerIdentifier()
+{
+  static int64_t identifier = 0;
+  return identifier++;
+}
+
 // The thread pool is shared by all the schedulers.
 // Having multiple ones would waste resources in instantiating new thread
 // groups which would anyway be used one at a time.
@@ -47,12 +140,28 @@ namespace marco::runtime
   {
   }
 
+  Scheduler::Scheduler()
+  {
+    identifier = getUniqueSchedulerIdentifier();
+
+#ifdef MARCO_PROFILING
+    ThreadPool& threadPool = getSchedulersThreadPool();
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
+
+    profiler = std::make_shared<SchedulerProfiler>(identifier);
+    profiler->createChunksGroupTimers(numOfThreads);
+
+    registerProfiler(profiler);
+#endif
+  }
+
   void Scheduler::addEquation(
       EquationFunction function,
       uint64_t rank,
       int64_t* ranges,
       bool independentIndices)
   {
+    SCHEDULER_PROFILER_ADD_EQUATION_START;
     std::vector<Range> indices;
 
     for (uint64_t dim = 0; dim < rank; ++dim) {
@@ -60,7 +169,9 @@ namespace marco::runtime
     }
 
     if (marco::runtime::simulation::getOptions().debug) {
-      std::cerr << "[Scheduler] New equation added" << std::endl;
+      std::cerr << "[Scheduler " << identifier << "] New equation added"
+                << std::endl;
+
       std::cerr << "  - Rank: " << rank << std::endl;
 
       if (rank != 0) {
@@ -75,10 +186,13 @@ namespace marco::runtime
     }
 
     equations.emplace_back(function, std::move(indices), independentIndices);
+    SCHEDULER_PROFILER_ADD_EQUATION_STOP;
   }
 
   void Scheduler::run()
   {
+    SCHEDULER_PROFILER_RUN_START;
+
     if (!initialized) {
       initialize();
     }
@@ -88,11 +202,12 @@ namespace marco::runtime
     std::atomic_size_t chunksGroupIndex = 0;
 
     for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
-      threadPool.async([&]() {
+      threadPool.async([this, thread, &chunksGroupIndex]() {
         size_t assignedChunksGroup;
 
         while ((assignedChunksGroup = chunksGroupIndex++) <
                threadEquationsChunks.size()) {
+          SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread);
           const auto& chunksGroup = threadEquationsChunks[assignedChunksGroup];
 
           for (const ThreadEquationsChunk& chunk : chunksGroup) {
@@ -100,15 +215,18 @@ namespace marco::runtime
             const auto& ranges = chunk.second;
             equation.function(ranges.data());
           }
+          SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread);
         }
       });
     }
 
     threadPool.wait();
+    SCHEDULER_PROFILER_RUN_STOP;
   }
 
   void Scheduler::initialize()
   {
+    SCHEDULER_PROFILER_INITIALIZATION_START;
     assert(!initialized && "Scheduler already initialized");
 
     ThreadPool& threadPool = getSchedulersThreadPool();
@@ -126,7 +244,7 @@ namespace marco::runtime
         (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
 
     if (marco::runtime::simulation::getOptions().debug) {
-      std::cerr << "[Scheduler] Initializing" << std::endl
+      std::cerr << "[Scheduler " << identifier << "] Initializing" << std::endl
                 << "  - Number of equations: " << numOfScalarEquations
                 << std::endl
                 << "  - Number of threads: " << numOfThreads << std::endl
@@ -141,7 +259,7 @@ namespace marco::runtime
 
     auto pushChunksGroupFn = [&]() {
       if (marco::runtime::simulation::getOptions().debug) {
-        std::cerr << "[Scheduler] Adding chunks group" << std::endl;
+        std::cerr << "[Scheduler " << identifier << "] Adding chunks group" << std::endl;
         std::cerr << "  - Number of chunks: " << chunksGroup.size()
                   << std::endl;
 
@@ -192,7 +310,8 @@ namespace marco::runtime
       size_t remainingSpace = chunksGroupMaxSize - chunksGroupSize;
 
       if (marco::runtime::simulation::getOptions().debug) {
-        std::cerr << "[Scheduler] Partitioning equation" << std::endl;
+        std::cerr << "[Scheduler " << identifier << "] Partitioning equation"
+                  << std::endl;
 
         std::cerr << "  - Function: "
                   << reinterpret_cast<void*>(equation.function) << std::endl;
@@ -437,8 +556,9 @@ namespace marco::runtime
             // Independent chunks group exceeding the maximum number of
             // equations inside a chunk.
             if (marco::runtime::simulation::getOptions().debug) {
-              std::cerr << "[Scheduler] Equation independently exceeds the "
-                           "maximum size for a group" << std::endl;
+              std::cerr << "[Scheduler " << identifier
+                        << "] Equation independently exceeds the maximum size "
+                           "for a group" << std::endl;
             }
 
             std::vector<ThreadEquationsChunk> independentChunksGroup;
@@ -480,11 +600,13 @@ namespace marco::runtime
     initialized = true;
 
     if (marco::runtime::simulation::getOptions().debug) {
-      std::cerr << "[Scheduler] Initialized" << std::endl;
+      std::cerr << "[Scheduler " << identifier << "] Initialized" << std::endl;
 
       std::cerr << "  - Number of chunks groups: "
                 << threadEquationsChunks.size() << std::endl;
     }
+
+    SCHEDULER_PROFILER_INITIALIZATION_STOP;
   }
 
   bool Scheduler::checkEquationScheduledExactlyOnce(
