@@ -16,7 +16,7 @@ The build type is set to `Release` in order to allow for faster build and execut
 The `LLVM_INSTALL_PATH` variable must be set to the desired installation path.
 
 ```bash
-git clone https://github.com/modelica-polimi/llvm-project.git
+git clone https://github.com/marco-compiler/llvm-project.git
 cd llvm-project
 git checkout marco-llvm
 mkdir build && cd build
