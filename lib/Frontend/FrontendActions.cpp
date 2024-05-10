@@ -350,6 +350,18 @@ namespace marco::frontend
     }
 
     ast = std::move(*cls);
+
+    if (!ci.getFrontendOptions().omcBypass) {
+      // Remove the outer package.
+      auto* root = ast->cast<ast::Root>();
+      assert(root->getInnerClasses().size() == 1);
+      assert(root->getInnerClasses()[0]->isa<ast::Package>());
+      auto* package = root->getInnerClasses()[0]->cast<ast::Package>();
+      auto newRoot = std::make_unique<ast::Root>(root->getLocation());
+      newRoot->setInnerClasses(package->getInnerClasses());
+      ast = std::move(newRoot);
+    }
+
     return true;
   }
 
@@ -1044,8 +1056,17 @@ namespace marco::frontend
     CompilerInstance& ci = getInstance();
 
     mlir::bmodelica::ReadOnlyVariablesPropagationPassOptions options;
-    options.modelName = ci.getSimulationOptions().modelName;
+    std::string modelName = ci.getSimulationOptions().modelName;
 
+    if (!ci.getFrontendOptions().omcBypass) {
+      auto pos = modelName.find_last_of('.');
+
+      if (pos != std::string::npos) {
+        modelName = llvm::StringRef(modelName).drop_front(pos).str();
+      }
+    }
+
+    options.modelName = modelName;
     return mlir::bmodelica::createReadOnlyVariablesPropagationPass(options);
   }
 
