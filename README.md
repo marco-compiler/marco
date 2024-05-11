@@ -54,3 +54,6 @@ Additional parameters can be also be provided when running the simulation. Their
 ### `modelica-opt`
 The `modelica-opt` executable is intended to be used mainly for debugging purposes.
 It accepts only MLIR code and applies the user-requested pipeline of transformations, thus allowing the user to check their correct behaviour.
+
+## How to contribute
+Contributions are welcome and encouraged, both in the form of pull requests and issues reporting bugs, errors, or possible improvements.
