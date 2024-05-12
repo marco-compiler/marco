@@ -1,5 +1,6 @@
 #include "marco/Runtime/Support/BuiltInFunctions.h"
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 

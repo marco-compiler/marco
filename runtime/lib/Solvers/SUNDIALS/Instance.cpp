@@ -1,6 +1,7 @@
 #ifdef SUNDIALS_ENABLE
 
 #include "marco/Runtime/Solvers/SUNDIALS/Instance.h"
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 

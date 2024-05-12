@@ -1,6 +1,7 @@
 #include "marco/Runtime/Simulation/Scheduler.h"
 #include "marco/Runtime/Multithreading/ThreadPool.h"
 #include "marco/Runtime/Simulation/Options.h"
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <iostream>

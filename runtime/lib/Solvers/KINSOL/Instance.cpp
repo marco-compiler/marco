@@ -5,6 +5,7 @@
 #include "marco/Runtime/Solvers/KINSOL/Profiler.h"
 #include "marco/Runtime/Support/MemoryManagement.h"
 #include "kinsol/kinsol.h"
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <functional>

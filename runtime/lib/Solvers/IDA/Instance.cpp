@@ -5,6 +5,7 @@
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
 #include "marco/Runtime/Simulation/Options.h"
 #include "marco/Runtime/Support/MemoryManagement.h"
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <functional>
