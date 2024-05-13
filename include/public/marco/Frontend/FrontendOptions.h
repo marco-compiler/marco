@@ -63,6 +63,8 @@ namespace marco::frontend
 
     std::string variablesFilter;
 
+    bool printModelInfo = false;
+
     // Whether to print statistics when the compilation finishes.
     bool printStatistics = false;
 

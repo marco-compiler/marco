@@ -32,6 +32,7 @@ set(SOURCES
     ModelAlgorithmConversion.cpp
     ModelDebugCanonicalization.cpp
     OpDistribution.cpp
+    PrintModelInfo.cpp
     RangeBoundariesInference.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp

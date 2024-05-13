@@ -329,6 +329,17 @@ def ModelAlgorithmConversionPass
     let constructor = "mlir::bmodelica::createModelAlgorithmConversionPass()";
 }
 
+def PrintModelInfoPass : Pass<"print-model-info", "mlir::ModuleOp">
+{
+    let summary = "Print model information";
+
+    let description = [{
+        Print model information on stderr.
+    }];
+
+    let constructor = "mlir::bmodelica::createPrintModelInfoPass()";
+}
+
 def MatchingPass : Pass<"match", "ModelOp">
 {
     let summary = "Perform the matching process on a model";

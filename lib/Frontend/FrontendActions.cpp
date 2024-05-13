@@ -896,6 +896,10 @@ namespace marco::frontend
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
         mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
 
+    if (ci.getFrontendOptions().printModelInfo) {
+      pm.addPass(mlir::bmodelica::createPrintModelInfoPass());
+    }
+
     // Solve the model.
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
         mlir::bmodelica::createMatchingPass());

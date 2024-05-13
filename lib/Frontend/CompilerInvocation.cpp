@@ -98,6 +98,7 @@ static void parseFrontendArgs(
   options.outputFile = args.getLastArgValue(options::OPT_o);
   options.showHelp = args.hasArg(options::OPT_help);
   options.showVersion = args.hasArg(options::OPT_version);
+  options.printModelInfo = args.hasArg(options::OPT_print_model_info);
   options.printStatistics = args.hasArg(options::OPT_print_statistics);
 
   options.multithreading = args.hasFlag(
