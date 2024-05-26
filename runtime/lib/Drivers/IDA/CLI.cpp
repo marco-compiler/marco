@@ -15,8 +15,6 @@ namespace marco::runtime::sundials::ida
   void CommandLineOptions::printCommandLineOptions(
       std::ostream& os) const
   {
-    os << "  --debug                                Enable the debug messages." << std::endl;
-
     os << "  --time-step=<value>                    Set the time step (in seconds)." << std::endl;
 
     os << "  --ida-equations-chunks-factor          Set the factor which, once multiplied by the threads count, determines the number of equation chunks" << std::endl;
@@ -47,8 +45,6 @@ namespace marco::runtime::sundials::ida
   void CommandLineOptions::parseCommandLineOptions(
       const argh::parser& options) const
   {
-    getOptions().debug = options["debug"];
-
     getOptions().equidistantTimeGrid = static_cast<bool>(
         options("time-step") >> getOptions().timeStep);
 

@@ -9,8 +9,6 @@ namespace marco::runtime::sundials::kinsol
 {
   struct Options
   {
-    bool debug = false;
-
     // Relative tolerance is intended as the difference between the values
     // computed through the n-th and the (n+1)-th order BDF method, divided by
     // the absolute value given by the (n+1)-th order BDF method.

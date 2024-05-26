@@ -9,7 +9,6 @@ namespace marco::runtime::sundials::ida
 {
   struct Options
   {
-    bool debug = false;
     double timeStep = 0.1;
     bool equidistantTimeGrid = false;
 

@@ -31,7 +31,7 @@ namespace marco::runtime::sundials::ida
     // Initially there is no variable in the instance.
     variableOffsets.push_back(0);
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Instance created" << std::endl;
     }
   }
@@ -49,7 +49,7 @@ namespace marco::runtime::sundials::ida
       SUNMatDestroy(sparseMatrix);
     }
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Instance destroyed" << std::endl;
     }
   }
@@ -58,7 +58,7 @@ namespace marco::runtime::sundials::ida
   {
     startTime = time;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Start time set to " << startTime << std::endl;
     }
   }
@@ -67,7 +67,7 @@ namespace marco::runtime::sundials::ida
   {
     endTime = time;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] End time set to " << endTime << std::endl;
     }
   }
@@ -77,7 +77,7 @@ namespace marco::runtime::sundials::ida
     assert(step > 0);
     timeStep = step;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Time step set to " << timeStep << std::endl;
     }
   }
@@ -89,7 +89,7 @@ namespace marco::runtime::sundials::ida
       VariableSetter setterFunction,
       const char* name)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Adding algebraic variable";
 
       if (name != nullptr) {
@@ -122,7 +122,7 @@ namespace marco::runtime::sundials::ida
     // Return the index of the variable.
     Variable id = getNumOfArrayVariables() - 1;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << rank << std::endl;
       std::cerr << "  - Dimensions: [";
@@ -154,7 +154,7 @@ namespace marco::runtime::sundials::ida
       VariableSetter derivativeSetterFunction,
       const char* name)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Adding state variable";
 
       if (name != nullptr) {
@@ -193,7 +193,7 @@ namespace marco::runtime::sundials::ida
     Variable id = getNumOfArrayVariables() - 1;
     stateVariablesMapping[id] = derivativeVariablesGetters.size() - 1;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << rank << std::endl;
       std::cerr << "  - Dimensions: [";
@@ -229,7 +229,7 @@ namespace marco::runtime::sundials::ida
       AccessFunction writeAccess,
       const char* stringRepresentation)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Adding equation";
 
       if (stringRepresentation != nullptr) {
@@ -256,7 +256,7 @@ namespace marco::runtime::sundials::ida
     // Return the index of the equation.
     Equation id = getNumOfVectorizedEquations() - 1;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << equationRank << std::endl;
       std::cerr << "  - Ranges: [";
@@ -283,7 +283,7 @@ namespace marco::runtime::sundials::ida
       Variable variable,
       AccessFunction accessFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Adding access information" << std::endl;
       std::cerr << "  - Equation: " << equation << std::endl;
       std::cerr << "  - Variable: " << variable << std::endl;
@@ -308,7 +308,7 @@ namespace marco::runtime::sundials::ida
       Equation equation,
       ResidualFunction residualFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Setting residual function for equation " << equation
                 << ". Address: " << reinterpret_cast<void*>(residualFunction)
                 << std::endl;
@@ -326,7 +326,7 @@ namespace marco::runtime::sundials::ida
       Variable variable,
       JacobianFunction jacobianFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Setting jacobian function for equation " << equation
                 << " and variable " << variable << ". Address: "
                 << reinterpret_cast<void*>(jacobianFunction) << std::endl;
@@ -347,7 +347,7 @@ namespace marco::runtime::sundials::ida
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Performing initialization" << std::endl;
     }
 
@@ -460,7 +460,7 @@ namespace marco::runtime::sundials::ida
       equationsProcessingOrder[i] = i;
     }
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Equations processing order: [";
 
       for (size_t i = 0, e = equationsProcessingOrder.size(); i < e; ++i) {
@@ -534,7 +534,7 @@ namespace marco::runtime::sundials::ida
               }) && "Not all the derivative setters have been set");
 
     // Reserve the space for data of the jacobian matrix.
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Reserving space for the data of the Jacobian matrix"
                 << std::endl;
     }
@@ -560,7 +560,7 @@ namespace marco::runtime::sundials::ida
             equationIndices.data(),
             writtenVariableIndices.data());
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "    Variable indices: ";
           printIndices(writtenVariableIndices);
           std::cerr << std::endl;
@@ -579,7 +579,7 @@ namespace marco::runtime::sundials::ida
 
         jacobianMatrixData[scalarEquationIndex].resize(jacobianColumns.size());
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "  - Equation " << eq << std::endl;
           std::cerr << "    Equation indices: ";
           printIndices(equationIndices);
@@ -669,7 +669,7 @@ namespace marco::runtime::sundials::ida
 
     initialized = true;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Initialization completed" << std::endl;
     }
 
@@ -890,7 +890,7 @@ namespace marco::runtime::sundials::ida
 
     IDA_PROFILER_RESIDUALS_STOP;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Residuals function called" << std::endl;
       std::cerr << "Variables:" << std::endl;
       instance->printVariablesVector(variables);
@@ -1012,7 +1012,7 @@ namespace marco::runtime::sundials::ida
 
     IDA_PROFILER_PARTIAL_DERIVATIVES_STOP;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Jacobian matrix function called" << std::endl;
       std::cerr << "Time: " << time << std::endl;
       std::cerr << "Alpha: " << alpha << std::endl;
@@ -1264,7 +1264,7 @@ namespace marco::runtime::sundials::ida
       N_Vector algebraicAndStateVariablesVector,
       N_Vector derivativeVariablesVector)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Copying variables from MARCO" << std::endl;
     }
 
@@ -1292,7 +1292,7 @@ namespace marco::runtime::sundials::ida
         auto value = static_cast<realtype>(getterFn(varIndices.data()));
         varsPtr[offset] = value;
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "Got var " << var << " ";
           printIndices(varIndices);
           std::cerr << " with value " << std::fixed << std::setprecision(9)
@@ -1311,7 +1311,7 @@ namespace marco::runtime::sundials::ida
 
           dersPtr[offset] = derValue;
 
-          if (getOptions().debug) {
+          if (marco::runtime::simulation::getOptions().debug) {
             std::cerr << "Got der(var " << var << ") ";
             printIndices(varIndices);
             std::cerr << " with value " << std::fixed << std::setprecision(9)
@@ -1328,7 +1328,7 @@ namespace marco::runtime::sundials::ida
       N_Vector algebraicAndStateVariablesVector,
       N_Vector derivativeVariablesVector)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[IDA] Copying variables into MARCO" << std::endl;
     }
 
@@ -1355,7 +1355,7 @@ namespace marco::runtime::sundials::ida
         auto setterFn = algebraicAndStateVariablesSetters[var];
         auto value = static_cast<double>(varsPtr[offset]);
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "Setting var " << var << " ";
           printIndices(varIndices);
           std::cerr << " to " << value << std::endl;
@@ -1377,7 +1377,7 @@ namespace marco::runtime::sundials::ida
 
           auto derValue = static_cast<double>(dersPtr[offset]);
 
-          if (getOptions().debug) {
+          if (marco::runtime::simulation::getOptions().debug) {
             std::cerr << "Setting der(var " << var << ") ";
             printIndices(varIndices);
             std::cerr << " to " << derValue << std::endl;

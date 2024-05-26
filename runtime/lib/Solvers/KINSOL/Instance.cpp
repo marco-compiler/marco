@@ -3,7 +3,7 @@
 #include "marco/Runtime/Solvers/KINSOL/Instance.h"
 #include "marco/Runtime/Solvers/KINSOL/Options.h"
 #include "marco/Runtime/Solvers/KINSOL/Profiler.h"
-#include "marco/Runtime/Support/MemoryManagement.h"
+#include "marco/Runtime/Simulation/Options.h"
 #include "kinsol/kinsol.h"
 #include <algorithm>
 #include <atomic>
@@ -27,7 +27,7 @@ namespace marco::runtime::sundials::kinsol
     // Initially there is no variable in the instance.
     variableOffsets.push_back(0);
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Instance created" << std::endl;
     }
   }
@@ -43,7 +43,7 @@ namespace marco::runtime::sundials::kinsol
       SUNMatDestroy(sparseMatrix);
     }
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Instance destroyed" << std::endl;
     }
   }
@@ -55,7 +55,7 @@ namespace marco::runtime::sundials::kinsol
       VariableSetter setterFunction,
       const char* name)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Adding algebraic variable";
 
       if (name != nullptr) {
@@ -88,7 +88,7 @@ namespace marco::runtime::sundials::kinsol
     // Return the index of the variable.
     Variable id = getNumOfArrayVariables() - 1;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << rank << std::endl;
       std::cerr << "  - Dimensions: [";
@@ -118,7 +118,7 @@ namespace marco::runtime::sundials::kinsol
       AccessFunction writeAccess,
       const char* stringRepresentation)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Adding equation";
 
       if (stringRepresentation != nullptr) {
@@ -145,7 +145,7 @@ namespace marco::runtime::sundials::kinsol
     // Return the index of the equation.
     Equation id = getNumOfVectorizedEquations() - 1;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "  - ID: " << id << std::endl;
       std::cerr << "  - Rank: " << equationRank << std::endl;
       std::cerr << "  - Ranges: [";
@@ -172,7 +172,7 @@ namespace marco::runtime::sundials::kinsol
       Variable variable,
       AccessFunction accessFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Adding access information" << std::endl;
       std::cerr << "  - Equation: " << equation << std::endl;
       std::cerr << "  - Variable: " << variable << std::endl;
@@ -197,7 +197,7 @@ namespace marco::runtime::sundials::kinsol
       Equation equation,
       ResidualFunction residualFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Setting residual function for equation " << equation
                 << ". Address: " << reinterpret_cast<void*>(residualFunction)
                 << std::endl;
@@ -215,7 +215,7 @@ namespace marco::runtime::sundials::kinsol
       Variable variable,
       JacobianFunction jacobianFunction)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Setting jacobian function for equation " << equation
                 << " and variable " << variable << ". Address: "
                 << reinterpret_cast<void*>(jacobianFunction) << std::endl;
@@ -236,7 +236,7 @@ namespace marco::runtime::sundials::kinsol
   {
     assert(!initialized && "KINSOL instance has already been initialized");
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Performing initialization" << std::endl;
     }
 
@@ -319,7 +319,7 @@ namespace marco::runtime::sundials::kinsol
       equationsProcessingOrder[i] = i;
     }
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Equations processing order: [";
 
       for (size_t i = 0, e = equationsProcessingOrder.size(); i < e; ++i) {
@@ -376,7 +376,7 @@ namespace marco::runtime::sundials::kinsol
                }) && "Not all the variable setters have been set");
 
     // Reserve the space for data of the jacobian matrix.
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Reserving space for the data of the Jacobian matrix"
                 << std::endl;
     }
@@ -402,7 +402,7 @@ namespace marco::runtime::sundials::kinsol
             equationIndices.data(),
             writtenVariableIndices.data());
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "    Variable indices: ";
           printIndices(writtenVariableIndices);
           std::cerr << std::endl;
@@ -421,7 +421,7 @@ namespace marco::runtime::sundials::kinsol
 
         jacobianMatrixData[scalarEquationIndex].resize(jacobianColumns.size());
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "  - Equation " << eq << std::endl;
           std::cerr << "    Equation indices: ";
           printIndices(equationIndices);
@@ -491,7 +491,7 @@ namespace marco::runtime::sundials::kinsol
 
     initialized = true;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Initialization completed" << std::endl;
     }
 
@@ -504,6 +504,10 @@ namespace marco::runtime::sundials::kinsol
       if (!initialize()) {
         return false;
       }
+    }
+
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[KINSOL] Computing solution" << std::endl;
     }
 
     if (getNumOfScalarEquations() == 0) {
@@ -582,7 +586,7 @@ namespace marco::runtime::sundials::kinsol
 
     KINSOL_PROFILER_RESIDUALS_STOP;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Residuals function called" << std::endl;
       std::cerr << "Variables:" << std::endl;
       instance->printVariablesVector(variables);
@@ -699,7 +703,7 @@ namespace marco::runtime::sundials::kinsol
 
     KINSOL_PROFILER_PARTIAL_DERIVATIVES_STOP;
 
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Jacobian matrix function called" << std::endl;
       std::cerr << "Variables:" << std::endl;
       instance->printVariablesVector(variables);
@@ -938,7 +942,7 @@ namespace marco::runtime::sundials::kinsol
 
   void KINSOLInstance::copyVariablesFromMARCO(N_Vector variables)
   {
-    if (getOptions().debug) {
+    if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[KINSOL] Copying variables from MARCO" << std::endl;
     }
 
@@ -965,7 +969,7 @@ namespace marco::runtime::sundials::kinsol
         auto value = static_cast<realtype>(getterFn(varIndices.data()));
         varsPtr[offset] = value;
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "Got var " << var << " ";
           printIndices(varIndices);
           std::cerr << " with value " << std::fixed << std::setprecision(9)
@@ -979,8 +983,8 @@ namespace marco::runtime::sundials::kinsol
 
   void KINSOLInstance::copyVariablesIntoMARCO(N_Vector variables)
   {
-    if (getOptions().debug) {
-      std::cerr << "[IDA] Copying variables into MARCO" << std::endl;
+    if (marco::runtime::simulation::getOptions().debug) {
+      std::cerr << "[KINSOL] Copying variables into MARCO" << std::endl;
     }
 
     KINSOL_PROFILER_COPY_VARS_INTO_MARCO_START;
@@ -1005,7 +1009,7 @@ namespace marco::runtime::sundials::kinsol
         auto setterFn = variableSetters[var];
         auto value = static_cast<double>(varsPtr[offset]);
 
-        if (getOptions().debug) {
+        if (marco::runtime::simulation::getOptions().debug) {
           std::cerr << "Setting var " << var << " ";
           printIndices(varIndices);
           std::cerr << " to " << value << std::endl;
