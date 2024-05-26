@@ -153,12 +153,13 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value> values;
     lowerValues(array, values);
 
-    auto arrayType = ArrayType::get(shape, elementType);
+    auto tensorType = mlir::RankedTensorType::get(shape, elementType);
     mlir::Location location = loc(array.getLocation());
-    mlir::Value result = builder().create<ArrayFromElementsOp>(
-        location, arrayType, values);
 
-    return Reference::memory(builder(), result);
+    mlir::Value result = builder().create<TensorFromElementsOp>(
+        location, tensorType, values);
+
+    return Reference::tensor(builder(), result);
   }
 
   Results ArrayGeneratorLowerer::lower(const ast::ArrayForGenerator& array)
@@ -170,23 +171,29 @@ namespace marco::codegen::lowering
     llvm::SmallVector<int64_t, 3> shape;
     computeShape(array, shape);
 
-    auto arrayType = ArrayType::get(shape, elementType);
+    auto tensorType = mlir::RankedTensorType::get(shape, elementType);
     mlir::Location location = loc(array.getLocation());
 
     const ast::Expression *topLevel = array.getValue();
+
     if (!topLevel->isa<ast::ArrayGenerator>()) {
-      // Lower as a broadcast
+      // Lower as a broadcast.
       mlir::Location nodeLoc = loc(topLevel->getLocation());
       mlir::Value elem = lower(*topLevel)[0].get(nodeLoc);
-      mlir::Value result = builder().create<ArrayBroadcastOp>(location, arrayType, elem);
-      return Reference::memory(builder(), result);
+
+      mlir::Value result = builder().create<TensorBroadcastOp>(
+          location, tensorType, elem);
+
+      return Reference::tensor(builder(), result);
     }
 
-    // Flatten out all values
+    // Flatten out all values.
     llvm::SmallVector<mlir::Value> values;
     lowerValues(array, values);
-    mlir::Value result = builder().create<ArrayFromElementsOp>(
-        location, arrayType, values);
-    return Reference::memory(builder(), result);
+
+    mlir::Value result = builder().create<TensorFromElementsOp>(
+        location, tensorType, values);
+
+    return Reference::tensor(builder(), result);
   }
 }

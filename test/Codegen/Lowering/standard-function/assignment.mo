@@ -2,17 +2,20 @@
 
 // CHECK-LABEL: @variableCopy
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
-// CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, output>
+// CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int, output>
 // CHECK:       bmodelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.int
-// CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
+// CHECK-DAG:       %[[one:.*]] = bmodelica.constant #bmodelica<int 1>
+// CHECK-DAG:       %[[minus_one:.*]] = bmodelica.constant -1 : index
+// CHECK-DAG:       %[[index:.*]] = bmodelica.add %[[one]], %[[minus_one]]
+// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.int
+// CHECK-NEXT:      bmodelica.variable_set @y[%[[index]]], %[[x]]
 // CHECK-NEXT:  }
 
 function variableCopy
     input Integer x;
-    output Integer y;
+    output Integer[3] y;
 algorithm
-    y := x;
+    y[1] := x;
 end variableCopy;
 
 
@@ -20,7 +23,7 @@ end variableCopy;
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<?x!bmodelica.int, input>
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<?x!bmodelica.int, output>
 // CHECK:       bmodelica.algorithm {
-// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.array<?x!bmodelica.int>
+// CHECK-NEXT:      %[[x:.*]] = bmodelica.variable_get @x : tensor<?x!bmodelica.int>
 // CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
 // CHECK-NEXT:  }
 
@@ -35,7 +38,7 @@ end arrayCopy;
 // CHECK-LABEL: @constantOutput
 // CHECK: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, output>
 // CHECK:       bmodelica.algorithm {
-// CHECK-NEXT:      %[[const:.*]] = bmodelica.constant #bmodelica.int<10>
+// CHECK-NEXT:      %[[const:.*]] = bmodelica.constant #bmodelica<int 10>
 // CHECK-NEXT:      bmodelica.variable_set @x, %[[const]]
 // CHECK-NEXT:  }
 
@@ -46,7 +49,7 @@ algorithm
 end constantOutput;
 
 
-// CHECK-LABEL: @castIntegerToReal
+// CHECK-LABEL: @implicitCastIntegerToReal
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
 // CHECK-DAG: bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 // CHECK:       bmodelica.algorithm {
@@ -54,9 +57,9 @@ end constantOutput;
 // CHECK-NEXT:      bmodelica.variable_set @y, %[[x]]
 // CHECK-NEXT:  }
 
-function castIntegerToReal
+function implicitCastIntegerToReal
     input Integer x;
     output Real y;
 algorithm
     y := x;
-end castIntegerToReal;
+end implicitCastIntegerToReal;

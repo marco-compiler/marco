@@ -175,15 +175,21 @@ static void parseCodegenArgs(
 
   if (options.optLevel.getSpeedupLevel() > 1) {
     options.outputArraysPromotion = true;
+    options.heapToStackPromotion = true;
     options.readOnlyVariablesPropagation = true;
     options.variablesToParametersPromotion = true;
     options.inlining = true;
     options.cse = true;
+    options.loopFusion = true;
+    options.loopCoalescing = true;
+    options.loopTiling = true;
   }
 
   if (options.optLevel.getSizeLevel() > 0) {
     options.debug = false;
     options.cse = true;
+    options.loopFusion = true;
+    options.loopCoalescing = true;
   }
 
   if (options.optLevel.getSizeLevel() > 1) {

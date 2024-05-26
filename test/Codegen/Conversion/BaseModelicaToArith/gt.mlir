@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith | FileCheck %s
 
-// Integer operands
+// Integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.bool
@@ -17,7 +17,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.boo
 
 // -----
 
-// Real operands
+// Real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.bool
@@ -34,7 +34,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.b
 
 // -----
 
-// Integer and real operands
+// Integer and real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.bool
@@ -52,7 +52,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmodelica.bo
 
 // -----
 
-// Real and integer operands
+// Real and integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.bool
@@ -70,7 +70,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmodelica.bo
 
 // -----
 
-// MLIR index operands
+// MLIR index operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> i1
@@ -84,7 +84,7 @@ func.func @foo(%arg0 : index, %arg1 : index) -> i1 {
 
 // -----
 
-// MLIR integer operands
+// MLIR integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: i64, %[[arg1:.*]]: i64) -> i1
@@ -98,7 +98,7 @@ func.func @foo(%arg0 : i64, %arg1 : i64) -> i1 {
 
 // -----
 
-// MLIR float operands
+// MLIR float operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: f64, %[[arg1:.*]]: f64) -> i1

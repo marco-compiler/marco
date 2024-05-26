@@ -24,6 +24,7 @@ namespace marco::runtime::profiling
         std::lock_guard<std::mutex> lockGuard(mutex);
 
         mallocCalls = 0;
+        reallocCalls = 0;
         freeCalls = 0;
         totalHeapMemory = 0;
         currentHeapMemory = 0;
@@ -36,11 +37,12 @@ namespace marco::runtime::profiling
         std::lock_guard<std::mutex> lockGuard(mutex);
 
         std::cerr << "Number of 'malloc' invocations: " << mallocCalls << "\n";
+        std::cerr << "Number of 'realloc' invocations: " << reallocCalls << "\n";
         std::cerr << "Number of 'free' invocations: " << freeCalls << "\n";
 
-        if (mallocCalls > freeCalls) {
+        if (mallocCalls > reallocCalls + freeCalls) {
           std::cerr << "[Warning] Possible memory leak detected\n";
-        } else if (mallocCalls < freeCalls) {
+        } else if (mallocCalls + reallocCalls < freeCalls) {
           std::cerr << "[Warning] Possible double 'free' detected\n";
         }
 
@@ -58,6 +60,24 @@ namespace marco::runtime::profiling
         totalHeapMemory += bytes;
         currentHeapMemory += bytes;
         sizes[address] = bytes;
+
+        if (currentHeapMemory > peakHeapMemory) {
+          peakHeapMemory = currentHeapMemory;
+        }
+      }
+
+      void realloc(void* previous, void* current, int64_t bytes)
+      {
+        std::lock_guard<std::mutex> lockGuard(mutex);
+
+        ++reallocCalls;
+
+        totalHeapMemory -= sizes[previous];
+        currentHeapMemory -= sizes[previous];
+
+        totalHeapMemory += bytes;
+        currentHeapMemory += bytes;
+        sizes[current] = bytes;
 
         if (currentHeapMemory > peakHeapMemory) {
           peakHeapMemory = currentHeapMemory;
@@ -96,6 +116,7 @@ namespace marco::runtime::profiling
 
     private:
       size_t mallocCalls;
+      size_t reallocCalls;
       size_t freeCalls;
       int64_t totalHeapMemory;
       int64_t currentHeapMemory;
@@ -118,64 +139,50 @@ namespace
 
 #endif
 
-void* heapAlloc(int64_t sizeInBytes)
+void* marco_malloc(int64_t sizeInBytes)
 {
-  #ifdef MARCO_PROFILING
+#ifdef MARCO_PROFILING
   ::profiler().startTimer();
-  #endif
+#endif
 
   void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
 
-  #ifdef MARCO_PROFILING
+#ifdef MARCO_PROFILING
   ::profiler().stopTimer();
   ::profiler().malloc(result, sizeInBytes);
-  #endif
+#endif
 
   return result;
 }
 
-namespace
+void* marco_realloc(void* ptr, int64_t sizeInBytes)
 {
-  void* heapAlloc_pvoid(int64_t sizeInBytes)
-  {
-    return heapAlloc(sizeInBytes);
-  }
+#ifdef MARCO_PROFILING
+  ::profiler().startTimer();
+#endif
+
+  void* result = sizeInBytes == 0 ? nullptr : std::realloc(ptr, sizeInBytes);
+
+#ifdef MARCO_PROFILING
+  ::profiler().stopTimer();
+  ::profiler().realloc(ptr, result, sizeInBytes);
+#endif
+
+  return result;
 }
 
-RUNTIME_FUNC_DEF(heapAlloc, PTR(void), int64_t)
-
-void* _mlir_memref_to_llvm_alloc(int64_t sizeInBytes)
+void marco_free(void* ptr)
 {
-  return heapAlloc(sizeInBytes);
-}
-
-void heapFree(void* ptr)
-{
-  #ifdef MARCO_PROFILING
+#ifdef MARCO_PROFILING
   ::profiler().free(ptr);
   ::profiler().startTimer();
-  #endif
+#endif
 
   if (ptr != nullptr) {
     std::free(ptr);
   }
 
-  #ifdef MARCO_PROFILING
+#ifdef MARCO_PROFILING
   ::profiler().stopTimer();
-  #endif
-}
-
-namespace
-{
-  void heapFree_void(void* ptr)
-  {
-    heapFree(ptr);
-  }
-}
-
-RUNTIME_FUNC_DEF(heapFree, void, PTR(void))
-
-void _mlir_memref_to_llvm_free(void* ptr)
-{
-  heapFree(ptr);
+#endif
 }

@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @sizeArray
 // CHECK: bmodelica.size
-// CHECK-SAME: !bmodelica.array<?x?x!bmodelica.real> -> !bmodelica.array<2x!bmodelica.int>
+// CHECK-SAME: tensor<?x?x!bmodelica.real> -> tensor<2x!bmodelica.int>
 
 function sizeArray
     input Real[:,:] x;
@@ -13,7 +13,7 @@ end sizeArray;
 
 // CHECK-LABEL: @sizeDimension
 // CHECK: bmodelica.size
-// CHECK-SAME: (!bmodelica.array<?x?x!bmodelica.real>, index) -> !bmodelica.int
+// CHECK-SAME: (tensor<?x?x!bmodelica.real>, index) -> !bmodelica.int
 
 function sizeDimension
     input Real[:,:] x;

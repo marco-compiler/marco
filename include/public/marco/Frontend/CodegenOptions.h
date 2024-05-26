@@ -16,11 +16,15 @@ namespace marco::frontend
     bool assertions = true;
     bool inlining = false;
     bool outputArraysPromotion = false;
+    bool heapToStackPromotion = false;
     bool readOnlyVariablesPropagation = false;
     bool variablesToParametersPromotion = false;
     bool cse = false;
     bool equationsRuntimeScheduling = false;
     bool omp = false;
+    bool loopFusion = false;
+    bool loopCoalescing = false;
+    bool loopTiling = false;
 
     unsigned int bitWidth = 64;
 

@@ -1,11 +1,11 @@
-#ifndef MARCO_CODEGEN_CONVERSION_MODELICACOMMON_LLVMTYPECONVERTER_H
-#define MARCO_CODEGEN_CONVERSION_MODELICACOMMON_LLVMTYPECONVERTER_H
+#ifndef MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_LLVMTYPECONVERTER_H
+#define MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_LLVMTYPECONVERTER_H
 
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/IR/BuiltinDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica
@@ -14,9 +14,8 @@ namespace mlir::bmodelica
   {
     public:
       LLVMTypeConverter(
-        mlir::MLIRContext* context,
-        const mlir::LowerToLLVMOptions& options,
-        unsigned int bitWidth);
+          mlir::MLIRContext* context,
+          const mlir::LowerToLLVMOptions& options);
 
     private:
       mlir::Type forwardConversion(mlir::Type type);
@@ -24,10 +23,9 @@ namespace mlir::bmodelica
       mlir::Type convertRangeType(mlir::bmodelica::RangeType type);
 
     private:
-      unsigned int bitWidth;
       mlir::bmodelica::TypeConverter baseTypeConverter;
       mlir::LLVMTypeConverter llvmTypeConverter;
   };
 }
 
-#endif // MARCO_CODEGEN_CONVERSION_MODELICACOMMON_LLVMTYPECONVERTER_H
+#endif // MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_LLVMTYPECONVERTER_H

@@ -6,10 +6,8 @@ namespace mlir::bmodelica
 {
   LLVMTypeConverter::LLVMTypeConverter(
       mlir::MLIRContext* context,
-      const mlir::LowerToLLVMOptions& options,
-      unsigned int bitWidth)
+      const mlir::LowerToLLVMOptions& options)
       : mlir::LLVMTypeConverter(context, options),
-        baseTypeConverter(bitWidth),
         llvmTypeConverter(context, options)
   {
     addConversion([&](BooleanType type) {

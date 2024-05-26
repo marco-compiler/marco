@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.ndims
-// CHECK-SAME: <?x?x!bmodelica.int> -> !bmodelica.int
+// CHECK-SAME: tensor<?x?x!bmodelica.int> -> !bmodelica.int
 
 function foo
     input Integer[:,:] x;

@@ -24,7 +24,8 @@ module {
 // CHECK:       bmodelica.global_variable @[[var:.*]] : !bmodelica.array<2x3x!bmodelica.int>
 // CHECK:       runtime.variable_getter @[[getter:.*]](%[[i0:.*]]: index, %[[i1:.*]]: index) -> f64 {
 // CHECK:           %[[get:.*]] = bmodelica.global_variable_get @[[var]]
-// CHECK:           %[[load:.*]] = bmodelica.load %[[get]][%[[i0]], %[[i1]]]
+// CHECK:           %[[tensor:.*]] = bmodelica.array_to_tensor %[[get]]
+// CHECK:           %[[load:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i0]], %[[i1]]]
 // CHECK:           %[[cast:.*]] = bmodelica.cast %[[load]] : !bmodelica.int -> f64
 // CHECK-NEXT:      runtime.return %[[cast]]
 // CHECK-NEXT:  }

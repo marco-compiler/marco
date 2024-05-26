@@ -1,43 +1,6 @@
 set(SOURCES
-    Lowering/AlgorithmLowerer.cpp
-    Lowering/ArrayGeneratorLowerer.cpp
-    Lowering/AssignmentStatementLowerer.cpp
-    Lowering/BreakStatementLowerer.cpp
-    Lowering/CallLowerer.cpp
-    Lowering/ClassDependencyGraph.cpp
-    Lowering/ClassPath.cpp
-    Lowering/ClassLowerer.cpp
-    Lowering/ComponentReferenceLowerer.cpp
-    Lowering/ConstantLowerer.cpp
-    Lowering/EqualityEquationLowerer.cpp
-    Lowering/EquationLowerer.cpp
-    Lowering/EquationSectionLowerer.cpp
-    Lowering/ExpressionLowerer.cpp
-    Lowering/ForEquationLowerer.cpp
-    Lowering/ForStatementLowerer.cpp
-    Lowering/IfEquationLowerer.cpp
-    Lowering/IfStatementLowerer.cpp
-    Lowering/Lowerer.cpp
-    Lowering/LoweringContext.cpp
-    Lowering/ModelLowerer.cpp
-    Lowering/OperationLowerer.cpp
-    Lowering/PackageLowerer.cpp
-    Lowering/PartialDerFunctionLowerer.cpp
-    Lowering/Reference.cpp
-    Lowering/Results.cpp
-    Lowering/RecordLowerer.cpp
-    Lowering/ReturnStatementLowerer.cpp
-    Lowering/StandardFunctionLowerer.cpp
-    Lowering/StatementLowerer.cpp
-    Lowering/SubscriptLowerer.cpp
-    Lowering/TupleLowerer.cpp
-    Lowering/Verifier.cpp
-    Lowering/WhenEquationLowerer.cpp
-    Lowering/WhenStatementLowerer.cpp
-    Lowering/WhileStatementLowerer.cpp
-    Bridge.cpp
     Runtime.cpp
-    Options.cpp)
+    Verifier.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
@@ -48,11 +11,7 @@ marco_add_library(codegen
     ${SOURCES}
 
     LINK_LIBS PUBLIC
-    marco::ast
-    marco::modeling
-    marco::variableFilter
     ${MLIR_LIBS})
 
-add_subdirectory(Analysis)
 add_subdirectory(Conversion)
-add_subdirectory(Transforms)
+add_subdirectory(Lowering)

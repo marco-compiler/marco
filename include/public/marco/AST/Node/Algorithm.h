@@ -27,6 +27,10 @@ namespace marco::ast
 
       llvm::json::Value toJSON() const override;
 
+      bool isInitial() const;
+
+      void setInitial(bool value);
+
       size_t size() const;
 
       bool empty() const;
@@ -40,6 +44,7 @@ namespace marco::ast
       void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
+      bool initial{false};
       llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
 	};
 }

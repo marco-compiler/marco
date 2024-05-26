@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/SUNDIALSToFunc/SUNDIALSToFunc.h"
-#include "marco/Dialect/SUNDIALS/SUNDIALSDialect.h"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

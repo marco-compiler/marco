@@ -2,10 +2,10 @@
 
 // CHECK:       %[[condition:.*]] = bmodelica.eq
 // CHECK:       bmodelica.if (%[[condition]] : !bmodelica.bool) {
-// CHECK-NEXT:      %[[if_value:.*]] = bmodelica.constant #bmodelica.int<1>
+// CHECK-NEXT:      %[[if_value:.*]] = bmodelica.constant #bmodelica<int 1>
 // CHECK-NEXT:      bmodelica.variable_set @y, %[[if_value]]
 // CHECK-NEXT:  } else {
-// CHECK-NEXT:      %[[else_value:.*]] = bmodelica.constant #bmodelica.int<2>
+// CHECK-NEXT:      %[[else_value:.*]] = bmodelica.constant #bmodelica<int 2>
 // CHECK-NEXT:      bmodelica.variable_set @y, %[[else_value]]
 // CHECK-NEXT:  }
 

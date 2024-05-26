@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_CONVERSION_IDACOMMON_LLVMTYPECONVERTER_H
 #define MARCO_CODEGEN_CONVERSION_IDACOMMON_LLVMTYPECONVERTER_H
 
-#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/IDA/IR/IDADialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinDialect.h"

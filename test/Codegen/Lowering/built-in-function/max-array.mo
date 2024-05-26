@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.max
-// CHECK-SAME: !bmodelica.array<?x?x!bmodelica.real> -> !bmodelica.real
+// CHECK-SAME: tensor<?x?x!bmodelica.real> -> !bmodelica.real
 
 function foo
     input Real[:,:] x;

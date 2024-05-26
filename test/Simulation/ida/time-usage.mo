@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=TimeUsage --variable-filter="time;x;der(x)" --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir %s
+// RUN: marco %s --omc-bypass --model=TimeUsage --variable-filter="time;x;der(x)" --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir -L %llvm_lib_dir -Wl,-rpath,%llvm_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=4 | FileCheck %s
 
 // CHECK: "time","x"

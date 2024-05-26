@@ -151,12 +151,12 @@ namespace marco::codegen::lowering
       if (annotation->hasDerivativeAnnotation()) {
         auto derivativeAnnotation = annotation->getDerivativeAnnotation();
 
-        auto derivativeAttribute = DerivativeAttr::get(
+        auto derivativeAttribute = FunctionDerivativeAttr::get(
             builder().getContext(),
             derivativeAnnotation.getName(),
             derivativeAnnotation.getOrder());
 
-        functionOp->setAttr("derivative", derivativeAttribute);
+        functionOp.setDerivativeAttr(derivativeAttribute);
       }
     }
 
@@ -167,6 +167,11 @@ namespace marco::codegen::lowering
 
     // Lower the body.
     lowerClassBody(function);
+
+    // Create the algorithms.
+    for (const auto& algorithm : function.getAlgorithms()) {
+      lower(*algorithm->cast<ast::Algorithm>());
+    }
 
     // Special handling of record constructors.
     if (isRecordConstructor(function)) {

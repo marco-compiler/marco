@@ -15,4 +15,5 @@ add_mlir_conversion_library(MLIRBaseModelicaToRuntime
     MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
-    ${MLIR_LIBS})
+    ${MLIR_LIBS}
+    marco::variableFilter)

@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf --canonicalize --cse | FileCheck %s
 
-// CHECK:       bmodelica.raw_function @foo(%{{.*}}: !bmodelica.int) -> !bmodelica.int {
+// CHECK:       bmodelica.raw_function @foo(%{{.*}}: i64) -> i64 {
 // CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_else:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
 // CHECK-NEXT:      bmodelica.raw_variable_set
@@ -14,22 +14,22 @@
 // CHECK-NEXT:  }
 
 bmodelica.function @foo {
-    bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, input>
-    bmodelica.variable @y : !bmodelica.variable<!bmodelica.int, output>
+    bmodelica.variable @x : !bmodelica.variable<i64, input>
+    bmodelica.variable @y : !bmodelica.variable<i64, output>
 
     bmodelica.algorithm {
-        %2 = bmodelica.variable_get @x : !bmodelica.int
-        %3 = bmodelica.constant #bmodelica.int<0>
+        %2 = bmodelica.variable_get @x : i64
+        %3 = arith.constant 0 : i64
 
-        %4 = bmodelica.eq %2, %3 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
+        %4 = bmodelica.eq %2, %3 : (i64, i64) -> i1
 
-        bmodelica.if (%4 : !bmodelica.bool) {
-            %5 = bmodelica.constant #bmodelica.int<1>
-            bmodelica.variable_set @y, %5 : !bmodelica.int
-            bmodelica.print %5 : !bmodelica.int
+        bmodelica.if (%4 : i1) {
+            %5 = arith.constant 1 : i64
+            bmodelica.variable_set @y, %5 : i64
+            bmodelica.print %5 : i64
         } else {
-            %5 = bmodelica.constant #bmodelica.int<2>
-            bmodelica.variable_set @y, %5 : !bmodelica.int
+            %5 = arith.constant 2 : i64
+            bmodelica.variable_set @y, %5 : i64
         }
     }
 }

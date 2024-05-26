@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
-#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/IDA/IR/IDADialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -325,11 +325,5 @@ namespace mlir
   std::unique_ptr<mlir::Pass> createIDAToFuncConversionPass()
   {
     return std::make_unique<IDAToFuncConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createIDAToFuncConversionPass(
-      const IDAToFuncConversionPassOptions& options)
-  {
-    return std::make_unique<IDAToFuncConversionPass>(options);
   }
 }

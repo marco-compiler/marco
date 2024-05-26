@@ -2,8 +2,8 @@
 
 // CHECK: bmodelica.equation
 // CHECK-DAG: %[[condition:.*]] = bmodelica.gt
-// CHECK-DAG: %[[trueValue:.*]] = bmodelica.constant #bmodelica.int<1>
-// CHECK-DAG: %[[falseValue:.*]] = bmodelica.constant #bmodelica.int<0>
+// CHECK-DAG: %[[trueValue:.*]] = bmodelica.constant #bmodelica<int 1>
+// CHECK-DAG: %[[falseValue:.*]] = bmodelica.constant #bmodelica<int 0>
 // CHECK: %[[select:.*]] = bmodelica.select (%[[condition]] : !bmodelica.bool), (%[[trueValue]] : !bmodelica.int), (%[[falseValue]] : !bmodelica.int) -> !bmodelica.int
 // CHECK: %[[rhs:.*]] = bmodelica.equation_side %[[select]]
 // CHECK: bmodelica.equation_sides %{{.*}}, %[[rhs]]

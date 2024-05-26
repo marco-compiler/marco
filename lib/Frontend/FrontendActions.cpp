@@ -1,19 +1,27 @@
 #include "marco/Frontend/FrontendActions.h"
-#include "marco/Codegen/Bridge.h"
+#include "marco/Codegen/Lowering/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
-#include "marco/Codegen/Transforms/Passes.h"
 #include "marco/Codegen/Verifier.h"
-#include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Modeling/ModelingDialect.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
+#include "marco/Dialect/BaseModelica/Transforms/Passes.h"
+#include "marco/Dialect/IDA/IR/IDADialect.h"
+#include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
+#include "marco/Dialect/Modeling/IR/ModelingDialect.h"
+#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
+#include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/Parser.h"
 #include "mlir/Conversion/Passes.h"
+#include "mlir/Dialect/Affine/Passes.h"
+#include "mlir/Dialect/Bufferization/Pipelines/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/DLTI/DLTI.h"
-#include "mlir/Dialect/Func/Extensions/InlinerExtension.h"
-#include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
+#include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -23,6 +31,7 @@
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
+#include "mlir/InitAllExtensions.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -456,6 +465,7 @@ namespace marco::frontend
       : ASTAction(ASTActionKind::Parse),
         action(action)
   {
+    registerMLIRDialects();
     registerMLIRExtensions();
   }
 
@@ -559,15 +569,24 @@ namespace marco::frontend
     mlir::registerAllDialects(mlirDialectRegistry);
 
     // Register the custom dialects.
-    mlirDialectRegistry.insert<mlir::modeling::ModelingDialect>();
-    mlirDialectRegistry.insert<mlir::bmodelica::BaseModelicaDialect>();
-    mlirDialectRegistry.insert<mlir::ida::IDADialect>();
-    mlirDialectRegistry.insert<mlir::runtime::RuntimeDialect>();
+    mlirDialectRegistry.insert<
+        mlir::modeling::ModelingDialect,
+        mlir::bmodelica::BaseModelicaDialect,
+        mlir::ida::IDADialect,
+        mlir::kinsol::KINSOLDialect,
+        mlir::runtime::RuntimeDialect>();
   }
 
   void CodeGenAction::registerMLIRExtensions()
   {
-    mlir::func::registerInlinerExtension(mlirDialectRegistry);
+    mlir::registerAllExtensions(mlirDialectRegistry);
+
+    // Register the extensions of custom dialects.
+    mlir::bmodelica::registerAllDialectInterfaceImplementations(
+        mlirDialectRegistry);
+
+    mlir::runtime::registerAllDialectInterfaceImplementations(
+        mlirDialectRegistry);
   }
 
   void CodeGenAction::createMLIRContext()
@@ -667,9 +686,6 @@ namespace marco::frontend
 
       sourceMgr.AddNewSourceBuffer(std::move(*fileBuffer), llvm::SMLoc());
 
-      // Register the dialects that can be parsed.
-      registerMLIRDialects();
-
       // Parse the module.
       mlir::OwningOpRef<mlir::ModuleOp> module =
           mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &getMLIRContext());
@@ -693,8 +709,7 @@ namespace marco::frontend
       }
 
       // Convert the AST to MLIR.
-      codegen::CodegenOptions options;
-      marco::codegen::lowering::Bridge bridge(getMLIRContext(), options);
+      marco::codegen::lowering::Bridge bridge(getMLIRContext());
       bridge.lower(*ast->cast<ast::Root>());
 
       mlirModule = std::move(bridge.getMLIRModule());
@@ -850,6 +865,7 @@ namespace marco::frontend
     }
 
     pm.addPass(mlir::bmodelica::createAutomaticDifferentiationPass());
+    pm.addPass(mlir::bmodelica::createDerivativeChainRulePass());
 
     // Inline the functions marked as "inlinable", in order to enable
     // simplifications for the model solving process.
@@ -920,6 +936,10 @@ namespace marco::frontend
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
         mlir::bmodelica::createSCCSolvingBySubstitutionPass());
 
+    // Simplify the possibly complex accesses introduced by equations
+    // substitutions.
+    pm.addPass(mlir::createCanonicalizerPass());
+
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
         mlir::bmodelica::createSingleValuedInductionEliminationPass());
 
@@ -946,7 +966,7 @@ namespace marco::frontend
         mlir::bmodelica::createEquationFunctionLoopHoistingPass());
 
     // Export the unsolved SCCs to KINSOL.
-    pm.addPass(mlir::bmodelica::createSCCSolvingWithKINSOLPass());
+    pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
 
     // Parallelize the scheduled blocks.
     pm.addNestedPass<mlir::bmodelica::ModelOp>(
@@ -967,6 +987,8 @@ namespace marco::frontend
     pm.addPass(mlir::createCanonicalizerPass());
 
     if (ci.getCodeGenOptions().cse) {
+      pm.addPass(mlir::createCanonicalizerPass());
+
       pm.addNestedPass<mlir::bmodelica::FunctionOp>(
           mlir::createCSEPass());
 
@@ -974,64 +996,91 @@ namespace marco::frontend
     }
 
     pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
-    pm.addPass(mlir::bmodelica::createArrayDeallocationPass());
-    pm.addPass(createMLIRBaseModelicaToCFConversionPass());
+    pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 
     if (ci.getCodeGenOptions().inlining) {
       // Inline the functions with the 'inline' annotation.
       pm.addPass(mlir::createInlinerPass());
     }
 
-    pm.addPass(createMLIRBaseModelicaToVectorConversionPass());
-    pm.addPass(createMLIRBaseModelicaToArithConversionPass());
-    pm.addPass(createMLIRBaseModelicaToFuncConversionPass());
-    pm.addPass(createMLIRBaseModelicaToMemRefConversionPass());
-
+    // Lower to MLIR core dialects.
+    pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
     pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
-    pm.addPass(createMLIRIDAToFuncConversionPass());
-    pm.addPass(createMLIRKINSOLToFuncConversionPass());
-    pm.addPass(createMLIRRuntimeToFuncConversionPass());
+    pm.addPass(mlir::createIDAToFuncConversionPass());
+    pm.addPass(mlir::createKINSOLToFuncConversionPass());
+    pm.addPass(mlir::createRuntimeToFuncConversionPass());
+    pm.addPass(mlir::createCanonicalizerPass());
 
-    if (ci.getCodeGenOptions().omp) {
-      // Use OpenMP for parallel loops.
-      pm.addNestedPass<mlir::func::FuncOp>(
-          mlir::createConvertSCFToOpenMPPass());
+    // Recreate structured control flow whenever possible.
+    pm.addPass(mlir::createLiftControlFlowToSCFPass());
+
+    // Generalize linalg operations.
+    pm.addPass(mlir::createLinalgGeneralizeNamedOpsPass());
+
+    // Perform bufferization.
+    pm.addPass(createMLIROneShotBufferizePass());
+
+    if (ci.getCodeGenOptions().outputArraysPromotion) {
+      pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
     }
 
-    // Try to fold constants and run again the Modelica -> Arith conversion
-    // pass to convert the new constants.
-    pm.addPass(mlir::createCanonicalizerPass());
-    pm.addPass(createMLIRBaseModelicaToArithConversionPass());
+    // Lower the linalg dialect.
+    pm.addPass(mlir::createConvertLinalgToAffineLoopsPass());
 
-    pm.addNestedPass<mlir::func::FuncOp>(
-        createMLIRVectorToSCFConversionPass());
+    // Optimize loops.
+    if (ci.getCodeGenOptions().loopFusion) {
+      pm.addNestedPass<mlir::func::FuncOp>(mlir::affine::createLoopFusionPass());
 
-    pm.addPass(createMLIRVectorToLLVMConversionPass());
-    pm.addPass(createMLIRArithToLLVMConversionPass());
+      // Try to get rid of privatized memrefs that may have been introduced by
+      // the loop fusion pass.
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::affine::createAffineScalarReplacementPass());
+    }
+
+    if (ci.getCodeGenOptions().loopCoalescing) {
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::affine::createLoopCoalescingPass());
+    }
+
+    if (ci.getCodeGenOptions().loopTiling) {
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::affine::createLoopTilingPass());
+    }
+
+    if (ci.getCodeGenOptions().heapToStackPromotion) {
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::bufferization::createPromoteBuffersToStackPass());
+    }
+
+    // Buffer deallocations placements must be performed after loop
+    // optimizations because they may introduce additional heap allocations.
+    buildMLIRBufferDeallocationPipeline(pm);
+    pm.addPass(mlir::createBufferizationToMemRefPass());
+
+    // Convert the raw variables.
+    // This must be performed only after the insertion of buffer deallocations,
+    // so that the indirection level introduced by dynamically-sized
+    // variables does not interfere.
+    pm.addPass(mlir::createBaseModelicaRawVariablesConversionPass());
+
+    // Lower to LLVM dialect.
+    pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
     pm.addPass(mlir::memref::createExpandStridedMetadataPass());
     pm.addPass(mlir::createLowerAffinePass());
-    pm.addPass(createMLIRArithToLLVMConversionPass());
-    pm.addPass(createMLIRMemRefToLLVMConversionPass());
     pm.addPass(mlir::createConvertSCFToCFPass());
 
-    pm.addPass(createMLIRFuncToLLVMConversionPass(true));
-    pm.addPass(createMLIRFuncToLLVMConversionPass(false));
+    // Perform the default conversions towards LLVM dialect.
+    pm.addPass(mlir::createConvertToLLVMPass());
 
-    pm.addPass(mlir::createConvertControlFlowToLLVMPass());
-
-    // Convert the MARCO dialects to LLVM dialect.
-    pm.addPass(createMLIRBaseModelicaToLLVMConversionPass());
-    pm.addPass(createMLIRIDAToLLVMConversionPass());
-    pm.addPass(createMLIRKINSOLToLLVMConversionPass());
-    pm.addPass(createMLIRRuntimeToLLVMConversionPass());
-
-    // Convert the non-LLVM operations that may have been introduced by the
-    // last conversions.
-    pm.addNestedPass<mlir::func::FuncOp>(
-        createMLIRArithToLLVMConversionPass());
-
-    pm.addPass(createMLIRFuncToLLVMConversionPass(false));
-    pm.addPass(mlir::createConvertControlFlowToLLVMPass());
+    // The conversion of the support dialects to LLVM must be performed
+    // separately because it requires a symbol table for efficiency reasons.
+    // If MLIR will ever provide a SymbolTableCollection within the ToLLVM
+    // conversion infrastructure, or if such information will be embedded in
+    // the symbol table operations, then this separation will be not needed
+    // anymore.
+    pm.addPass(mlir::createIDAToLLVMConversionPass());
+    pm.addPass(mlir::createKINSOLToLLVMConversionPass());
+    pm.addPass(mlir::createRuntimeToLLVMConversionPass());
 
     // Finalization passes.
     pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
@@ -1040,6 +1089,7 @@ namespace marco::frontend
     pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
         mlir::createCanonicalizerPass());
 
+    pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
     pm.addPass(mlir::LLVM::createLegalizeForExportPass());
   }
 
@@ -1087,71 +1137,17 @@ namespace marco::frontend
     return mlir::bmodelica::createIDAPass(options);
   }
 
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToArithConversionPass()
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRSCCSolvingWithKINSOLPass()
   {
     CompilerInstance& ci = getInstance();
 
-    mlir::BaseModelicaToArithConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.assertions = ci.getCodeGenOptions().assertions;
-    options.dataLayout = getDataLayout().getStringRepresentation();
+    mlir::bmodelica::SCCSolvingWithKINSOLPassOptions options;
+    // TODO create options for KINSOL
+    options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
+    options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
+    options.debugInformation = ci.getCodeGenOptions().debug;
 
-    return mlir::createBaseModelicaToArithConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToCFConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::BaseModelicaToCFConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-
-    options.outputArraysPromotion =
-        ci.getCodeGenOptions().outputArraysPromotion;
-
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createBaseModelicaToCFConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToFuncConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::BaseModelicaToFuncConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-    options.assertions = ci.getCodeGenOptions().assertions;
-
-    return mlir::createBaseModelicaToFuncConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToLLVMConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::BaseModelicaToLLVMConversionPassOptions options;
-    options.assertions = ci.getCodeGenOptions().assertions;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createBaseModelicaToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToMemRefConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::BaseModelicaToMemRefConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.assertions = ci.getCodeGenOptions().assertions;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createBaseModelicaToMemRefConversionPass(options);
+    return mlir::bmodelica::createSCCSolvingWithKINSOLPass(options);
   }
 
   std::unique_ptr<mlir::Pass>
@@ -1165,109 +1161,18 @@ namespace marco::frontend
     return mlir::createBaseModelicaToRuntimeConversionPass(options);
   }
 
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRBaseModelicaToVectorConversionPass()
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIROneShotBufferizePass()
   {
-    CompilerInstance& ci = getInstance();
+    mlir::bufferization::OneShotBufferizationOptions options;
+    options.bufferizeFunctionBoundaries = true;
 
-    mlir::BaseModelicaToVectorConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-
-    return mlir::createBaseModelicaToVectorConversionPass(options);
+    return mlir::bufferization::createOneShotBufferizePass(options);
   }
 
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRIDAToFuncConversionPass()
+  void CodeGenAction::buildMLIRBufferDeallocationPipeline(mlir::OpPassManager& pm)
   {
-    CompilerInstance& ci = getInstance();
-
-    mlir::IDAToFuncConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-
-    return mlir::createIDAToFuncConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRIDAToLLVMConversionPass()
-  {
-    mlir::IDAToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createIDAToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRKINSOLToFuncConversionPass()
-  {
-    CompilerInstance& ci = getInstance();
-
-    mlir::KINSOLToFuncConversionPassOptions options;
-    options.bitWidth = ci.getCodeGenOptions().bitWidth;
-
-    return mlir::createKINSOLToFuncConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
-  {
-    mlir::KINSOLToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createKINSOLToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRRuntimeToFuncConversionPass()
-  {
-    return mlir::createRuntimeToFuncConversionPass();
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRRuntimeToLLVMConversionPass()
-  {
-    mlir::RuntimeToLLVMConversionPassOptions options;
-    options.dataLayout = getDataLayout().getStringRepresentation();
-
-    return mlir::createRuntimeToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRArithToLLVMConversionPass()
-  {
-    mlir::ArithToLLVMConversionPassOptions options;
-    return mlir::createArithToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv)
-  {
-    mlir::ConvertFuncToLLVMPassOptions options;
-    options.useBarePtrCallConv = useBarePtrCallConv;
-
-    return mlir::createConvertFuncToLLVMPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRMemRefToLLVMConversionPass()
-  {
-    mlir::FinalizeMemRefToLLVMConversionPassOptions options;
-    options.useGenericFunctions = true;
-
-    return mlir::createFinalizeMemRefToLLVMConversionPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRVectorToLLVMConversionPass()
-  {
-    mlir::ConvertVectorToLLVMPassOptions options;
-    return mlir::createConvertVectorToLLVMPass(options);
-  }
-
-  std::unique_ptr<mlir::Pass>
-  CodeGenAction::createMLIRVectorToSCFConversionPass()
-  {
-    mlir::VectorTransferToSCFOptions options;
-    return mlir::createConvertVectorToSCFPass(options);
+    mlir::bufferization::BufferDeallocationPipelineOptions options;
+    mlir::bufferization::buildBufferDeallocationPipeline(pm, options);
   }
 
   void CodeGenAction::registerMLIRToLLVMIRTranslations()

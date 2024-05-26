@@ -153,12 +153,17 @@ namespace marco::codegen::lowering
       llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
       DerFunctionOp derFunctionOp)
   {
-    mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+    auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-    while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
-      derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
-          derFunctionOp.getDerivedFunction(),
-          derivedFunctionOp);
+    mlir::Operation* derivedFunctionOp = resolveSymbol(
+        moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+
+    while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
+      auto baseDerFunctionOp =
+          mlir::cast_if_present<DerFunctionOp>(derivedFunctionOp);
+
+      derivedFunctionOp = resolveSymbol(
+          moduleOp, getSymbolTable(), baseDerFunctionOp.getDerivedFunction());
     }
 
     assert(derivedFunctionOp && "Derived function not found");
@@ -320,8 +325,8 @@ namespace marco::codegen::lowering
       mlir::FunctionType functionType = functionOp.getFunctionType();
 
       for (mlir::Type type : functionType.getInputs()) {
-        if (auto arrayType = type.dyn_cast<ArrayType>()) {
-          ranks.push_back(arrayType.getRank());
+        if (auto shapedType = type.dyn_cast<mlir::ShapedType>()) {
+          ranks.push_back(shapedType.getRank());
         } else {
           ranks.push_back(0);
         }
@@ -331,12 +336,17 @@ namespace marco::codegen::lowering
     }
 
     if (auto derFunctionOp = mlir::dyn_cast<DerFunctionOp>(op)) {
-      mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+      auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-      while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
-        derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
-            derFunctionOp.getDerivedFunction(),
-            derivedFunctionOp);
+      mlir::Operation* derivedFunctionOp = resolveSymbol(
+          moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+
+      while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
+        auto baseDerFunctionOp = mlir::cast<DerFunctionOp>(derivedFunctionOp);
+
+        derivedFunctionOp = resolveSymbol(
+            moduleOp, getSymbolTable(),
+            baseDerFunctionOp.getDerivedFunction());
       }
 
       assert(derivedFunctionOp && "Derived function not found");
@@ -345,8 +355,8 @@ namespace marco::codegen::lowering
       mlir::FunctionType functionType = functionOp.getFunctionType();
 
       for (mlir::Type type : functionType.getInputs()) {
-        if (auto arrayType = type.dyn_cast<ArrayType>()) {
-          ranks.push_back(arrayType.getRank());
+        if (auto shapedType = type.dyn_cast<mlir::ShapedType>()) {
+          ranks.push_back(shapedType.getRank());
         } else {
           ranks.push_back(0);
         }
@@ -370,12 +380,16 @@ namespace marco::codegen::lowering
     }
 
     if (auto derFunctionOp = mlir::dyn_cast<DerFunctionOp>(op)) {
-      mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+      auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-      while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
-        derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
-            derFunctionOp.getDerivedFunction(),
-            derivedFunctionOp);
+      mlir::Operation* derivedFunctionOp = resolveSymbol(
+          moduleOp, getSymbolTable(), derFunctionOp.getDerivedFunction());
+
+      while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
+        auto baseDerFunctionOp = mlir::cast<DerFunctionOp>(derivedFunctionOp);
+
+        derivedFunctionOp = resolveSymbol(
+            moduleOp, getSymbolTable(), baseDerFunctionOp.getDerivedFunction());
       }
 
       assert(derivedFunctionOp && "Derived function not found");
@@ -402,13 +416,13 @@ namespace marco::codegen::lowering
     for (size_t argIndex = 0, e = args.size(); argIndex < e; ++argIndex) {
       mlir::Value arg = args[argIndex];
       mlir::Type argType = arg.getType();
-      auto argArrayType = argType.dyn_cast<ArrayType>();
+      auto argShapedType = argType.dyn_cast<mlir::ShapedType>();
 
       int64_t argExpectedRank = expectedArgRanks[argIndex];
       int64_t argActualRank = 0;
 
-      if (argArrayType) {
-        argActualRank = argArrayType.getRank();
+      if (argShapedType) {
+        argActualRank = argShapedType.getRank();
       }
 
       if (argIndex == 0) {
@@ -417,7 +431,7 @@ namespace marco::codegen::lowering
         // can be also specialized by the other arguments if initially unknown.
 
         for (int64_t i = 0; i < argActualRank - argExpectedRank; ++i) {
-          dimensions.push_back(argArrayType.getDimSize(i));
+          dimensions.push_back(argShapedType.getDimSize(i));
         }
       } else {
         // The rank difference must match with the one given by the first
@@ -429,11 +443,11 @@ namespace marco::codegen::lowering
         }
 
         for (int64_t i = 0; i < argActualRank - argExpectedRank; ++i) {
-          int64_t dimension = argArrayType.getDimSize(i);
+          int64_t dimension = argShapedType.getDimSize(i);
 
           // If the dimension is dynamic, then no further checks or
           // specializations are possible.
-          if (dimension == ArrayType::kDynamic) {
+          if (dimension == mlir::ShapedType::kDynamic) {
             continue;
           }
 
@@ -441,14 +455,14 @@ namespace marco::codegen::lowering
           // also the dimension of the other arguments must match (when that's
           // fixed too).
 
-          if (dimensions[i] != ArrayType::kDynamic &&
+          if (dimensions[i] != mlir::ShapedType::kDynamic &&
               dimensions[i] != dimension) {
             return false;
           }
 
           // If the dimension determined by the first argument is dynamic, then
           // set it to a required size.
-          if (dimensions[i] == ArrayType::kDynamic) {
+          if (dimensions[i] == mlir::ShapedType::kDynamic) {
             dimensions[i] = dimension;
           }
         }
@@ -459,18 +473,18 @@ namespace marco::codegen::lowering
       llvm::SmallVector<int64_t, 3> shape;
       shape.append(dimensions);
 
-      if (auto arrayType = scalarizedResultType.dyn_cast<ArrayType>()) {
-        auto previousShape = arrayType.getShape();
+      if (auto shapedType = scalarizedResultType.dyn_cast<mlir::ShapedType>()) {
+        auto previousShape = shapedType.getShape();
         shape.append(previousShape.begin(), previousShape.end());
 
         inferredResultTypes.push_back(
-            ArrayType::get(shape, arrayType.getElementType()));
+            mlir::RankedTensorType::get(shape, shapedType.getElementType()));
       } else {
         if (shape.empty()) {
           inferredResultTypes.push_back(scalarizedResultType);
         } else {
           inferredResultTypes.push_back(
-              ArrayType::get(shape, scalarizedResultType));
+              mlir::RankedTensorType::get(shape, scalarizedResultType));
         }
       }
     }
@@ -986,9 +1000,10 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    auto resultType = ArrayType::get(
-        {ArrayType::kDynamic, ArrayType::kDynamic},
-        IntegerType::get(builder().getContext()));
+    llvm::SmallVector<int64_t, 2> shape(2, mlir::ShapedType::kDynamic);
+
+    auto resultType = mlir::RankedTensorType::get(
+        shape, IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<DiagonalOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -1079,7 +1094,7 @@ namespace marco::codegen::lowering
       shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
     }
 
-    auto resultType = ArrayType::get(shape, value.getType());
+    auto resultType = mlir::RankedTensorType::get(shape, value.getType());
 
     mlir::Value result = builder().create<FillOp>(
         loc(call.getLocation()), resultType, value);
@@ -1129,9 +1144,10 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    auto resultType = ArrayType::get(
-        {ArrayType::kDynamic, ArrayType::kDynamic},
-        IntegerType::get(builder().getContext()));
+    llvm::SmallVector<int64_t, 2> shape(2, mlir::ShapedType::kDynamic);
+
+    auto resultType = mlir::RankedTensorType::get(
+        shape, IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<IdentityOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -1181,8 +1197,8 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 3> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    auto resultType = ArrayType::get(
-        ArrayType::kDynamic, RealType::get(builder().getContext()));
+    auto resultType = mlir::RankedTensorType::get(
+        mlir::ShapedType::kDynamic, RealType::get(builder().getContext()));
 
     mlir::Value result = builder().create<LinspaceOp>(
         loc(call.getLocation()), resultType, args[0], args[1], args[2]);
@@ -1281,7 +1297,7 @@ namespace marco::codegen::lowering
     lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType =
-        args[0].getType().cast<ArrayType>().getElementType();
+        args[0].getType().cast<mlir::ShapedType>().getElementType();
 
     mlir::Value result = builder().create<MaxOp>(
         loc(call.getLocation()), resultType, args);
@@ -1334,7 +1350,7 @@ namespace marco::codegen::lowering
     lowerBuiltInFunctionArgs(call, args);
 
     mlir::Type resultType =
-        args[0].getType().cast<ArrayType>().getElementType();
+        args[0].getType().cast<mlir::ShapedType>().getElementType();
 
     mlir::Value result = builder().create<MinOp>(
         loc(call.getLocation()), resultType, args);
@@ -1411,9 +1427,10 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
+    llvm::SmallVector<int64_t, 1> shape(
+        args.size(), mlir::ShapedType::kDynamic);
 
-    auto resultType = ArrayType::get(
+    auto resultType = mlir::RankedTensorType::get(
         shape, IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<OnesOp>(
@@ -1443,8 +1460,8 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    auto argArrayType = args[0].getType().cast<ArrayType>();
-    mlir::Type resultType = argArrayType.getElementType();
+    auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+    mlir::Type resultType = argShapedType.getElementType();
 
     mlir::Value result = builder().create<ProductOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -1571,8 +1588,8 @@ namespace marco::codegen::lowering
     lowerBuiltInFunctionArgs(call, args);
 
     if (args.size() == 1) {
-      mlir::Type resultType = ArrayType::get(
-          args[0].getType().cast<ArrayType>().getRank(),
+      mlir::Type resultType = mlir::RankedTensorType::get(
+          args[0].getType().cast<mlir::ShapedType>().getRank(),
           IntegerType::get(builder().getContext()));
 
       mlir::Value result = builder().create<SizeOp>(
@@ -1648,8 +1665,8 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    auto argArrayType = args[0].getType().cast<ArrayType>();
-    mlir::Type resultType = argArrayType.getElementType();
+    auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+    mlir::Type resultType = argShapedType.getElementType();
 
     mlir::Value result = builder().create<SumOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -1755,10 +1772,12 @@ namespace marco::codegen::lowering
     lowerBuiltInFunctionArgs(call, args);
 
     llvm::SmallVector<int64_t, 2> shape;
-    auto argArrayType = args[0].getType().cast<ArrayType>();
-    shape.push_back(argArrayType.getDimSize(1));
-    shape.push_back(argArrayType.getDimSize(0));
-    auto resultType = ArrayType::get(shape, argArrayType.getElementType());
+    auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+    shape.push_back(argShapedType.getDimSize(1));
+    shape.push_back(argShapedType.getDimSize(0));
+
+    auto resultType = mlir::RankedTensorType::get(
+        shape, argShapedType.getElementType());
 
     mlir::Value result = builder().create<TransposeOp>(
         loc(call.getLocation()), resultType, args[0]);
@@ -1776,9 +1795,10 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> args;
     lowerBuiltInFunctionArgs(call, args);
 
-    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamic);
+    llvm::SmallVector<int64_t, 1> shape(
+        args.size(), mlir::ShapedType::kDynamic);
 
-    auto resultType = ArrayType::get(
+    auto resultType = mlir::RankedTensorType::get(
         shape, IntegerType::get(builder().getContext()));
 
     mlir::Value result = builder().create<ZerosOp>(

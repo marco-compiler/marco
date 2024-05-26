@@ -12,7 +12,8 @@ namespace marco::ast
   }
 
   Algorithm::Algorithm(const Algorithm& other)
-      : ASTNode(other)
+      : ASTNode(other),
+        initial(other.initial)
   {
     setStatements(other.statements);
   }
@@ -28,6 +29,7 @@ namespace marco::ast
   {
     llvm::json::Object result;
 
+    result["initial"] = initial;
     llvm::SmallVector<llvm::json::Value> statementsJson;
 
     for (const auto& statement : statements) {
@@ -38,6 +40,16 @@ namespace marco::ast
 
     addJSONProperties(result);
     return result;
+  }
+
+  bool Algorithm::isInitial() const
+  {
+    return initial;
+  }
+
+  void Algorithm::setInitial(bool value)
+  {
+    initial = value;
   }
 
   size_t Algorithm::size() const

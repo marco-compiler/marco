@@ -1,18 +1,18 @@
-#ifndef MARCO_CODEGEN_CONVERSION_MODELICACOMMON_TYPECONVERTER_H
-#define MARCO_CODEGEN_CONVERSION_MODELICACOMMON_TYPECONVERTER_H
+#ifndef MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H
+#define MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H
 
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
-#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/IDA/IR/IDADialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica
 {
-	class TypeConverter : public mlir::TypeConverter
+  class TypeConverter : public mlir::TypeConverter
   {
-		public:
-      TypeConverter(unsigned int bitWidth);
+    public:
+      TypeConverter();
 
     private:
       mlir::Type convertBooleanType(mlir::bmodelica::BooleanType type);
@@ -23,9 +23,8 @@ namespace mlir::bmodelica
       mlir::Type convertUnrankedArrayType(
           mlir::bmodelica::UnrankedArrayType type);
 
-    private:
-		  unsigned int bitWidth;
-	};
+      mlir::Type convertTensorType(mlir::TensorType type);
+  };
 }
 
-#endif // MARCO_CODEGEN_CONVERSION_MODELICACOMMON_TYPECONVERTER_H
+#endif // MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H

@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.linspace
-// CHECK-SAME: (!bmodelica.int, !bmodelica.int, !bmodelica.int) -> !bmodelica.array<?x!bmodelica.real>
+// CHECK-SAME: (!bmodelica.int, !bmodelica.int, !bmodelica.int) -> tensor<?x!bmodelica.real>
 
 function foo
     input Integer start;

@@ -1,8 +1,8 @@
 #include "marco/Codegen/Conversion/BaseModelicaToMemRef/BaseModelicaToMemRef.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
-#include "marco/Codegen/Conversion/BaseModelicaCommon/Utils.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -13,8 +13,25 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
-using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
+
+namespace
+{
+  class BaseModelicaToMemRefConversionPass
+      : public mlir::impl::BaseModelicaToMemRefConversionPassBase<
+            BaseModelicaToMemRefConversionPass>
+  {
+    public:
+      using BaseModelicaToMemRefConversionPassBase<
+          BaseModelicaToMemRefConversionPass>
+        ::BaseModelicaToMemRefConversionPassBase;
+
+      void runOnOperation() override;
+
+    private:
+      mlir::LogicalResult convertOperations();
+  };
+}
 
 namespace
 {
@@ -42,7 +59,8 @@ namespace
           return {};
         }
 
-        if (auto booleanArrayAttr = values.dyn_cast<BooleanArrayAttr>()) {
+        if (auto booleanArrayAttr =
+                values.dyn_cast<DenseBooleanElementsAttr>()) {
           auto elementType = this->getTypeConverter()->convertType(
               booleanArrayAttr.getType().cast<ArrayType>().getElementType());
 
@@ -52,7 +70,8 @@ namespace
               tensorType, booleanArrayAttr.getValues());
         }
 
-        if (auto integerArrayAttr = values.dyn_cast<IntegerArrayAttr>()) {
+        if (auto integerArrayAttr =
+                values.dyn_cast<DenseIntegerElementsAttr>()) {
           llvm::SmallVector<int64_t> casted;
 
           for (const auto& value : integerArrayAttr.getValues()) {
@@ -66,12 +85,13 @@ namespace
           return mlir::DenseIntElementsAttr::get(tensorType, casted);
         }
 
-        if (auto realArrayAttr = values.dyn_cast<RealArrayAttr>()) {
+        if (auto realArrayAttr = values.dyn_cast<DenseRealElementsAttr>()) {
           llvm::SmallVector<double> casted;
 
           for (const auto& value : realArrayAttr.getValues()) {
             casted.push_back(value.convertToDouble());
           }
+
           auto elementType = this->getTypeConverter()->convertType(
               realArrayAttr.getType().cast<ArrayType>().getElementType());
 
@@ -105,129 +125,6 @@ namespace
     }
   };
 
-  struct AssignmentOpScalarCastPattern
-      : public ModelicaOpRewritePattern<AssignmentOp>
-  {
-    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult match(AssignmentOp op) const override
-    {
-      if (!isNumeric(op.getValue())) {
-        return mlir::failure();
-      }
-
-      mlir::Type valueType = op.getValue().getType();
-
-      mlir::Type elementType =
-          op.getDestination().getType().cast<ArrayType>().getElementType();
-
-      return mlir::LogicalResult::success(valueType != elementType);
-    }
-
-    void rewrite(
-        AssignmentOp op,
-        mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-
-      mlir::Type elementType =
-          op.getDestination().getType().cast<ArrayType>().getElementType();
-
-      mlir::Value value =
-          rewriter.create<CastOp>(loc, elementType, op.getValue());
-
-      rewriter.replaceOpWithNewOp<AssignmentOp>(
-          op, op.getDestination(), value);
-    }
-  };
-
-  struct AssignmentOpScalarLowering
-      : public ModelicaOpConversionPattern<AssignmentOp>
-  {
-    using ModelicaOpConversionPattern<AssignmentOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult match(AssignmentOp op) const override
-    {
-      if (!isNumeric(op.getValue())) {
-        return mlir::failure();
-      }
-
-      mlir::Type valueType = op.getValue().getType();
-
-      mlir::Type elementType =
-          op.getDestination().getType().cast<ArrayType>().getElementType();
-
-      return mlir::LogicalResult::success(valueType == elementType);
-    }
-
-    void rewrite(
-        AssignmentOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(
-          op, adaptor.getValue(), adaptor.getDestination());
-    }
-  };
-
-  struct AssignmentOpArrayLowering
-      : public ModelicaOpRewritePattern<AssignmentOp>
-  {
-    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        AssignmentOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-
-      if (!op.getValue().getType().isa<ArrayType>()) {
-        return rewriter.notifyMatchFailure(op, "Source value is not an array");
-      }
-
-      mlir::Value destination = op.getDestination();
-
-      assert(destination.getType().isa<ArrayType>());
-      auto arrayType = destination.getType().cast<ArrayType>();
-
-      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(0));
-
-      mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(1));
-
-      llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayType.getRank(), zero);
-      llvm::SmallVector<mlir::Value, 3> upperBounds;
-      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
-
-      for (unsigned int i = 0, e = arrayType.getRank(); i < e; ++i) {
-        mlir::Value dim = rewriter.create<mlir::arith::ConstantOp>(
-            loc, rewriter.getIndexAttr(i));
-
-        upperBounds.push_back(rewriter.create<DimOp>(loc, destination, dim));
-      }
-
-      // Create nested loops in order to iterate on each dimension of the
-      // array.
-      mlir::scf::buildLoopNest(
-          rewriter, loc, lowerBounds, upperBounds, steps,
-          [&](mlir::OpBuilder& nestedBuilder, mlir::Location,
-              mlir::ValueRange position) {
-            mlir::Value value =
-                rewriter.create<LoadOp>(loc, op.getValue(), position);
-
-            value = rewriter.create<CastOp>(
-                value.getLoc(),
-                op.getDestination().getType().cast<ArrayType>().getElementType(),
-                value);
-
-            rewriter.create<StoreOp>(loc, value, op.getDestination(), position);
-          });
-
-      rewriter.eraseOp(op);
-      return mlir::success();
-    }
-  };
-
   class ConstantOpArrayLowering
       : public ModelicaOpConversionPattern<ConstantOp>
   {
@@ -250,7 +147,11 @@ namespace
 
         auto memRefType =
             getTypeConverter()->convertType(op.getResult().getType())
-                .cast<mlir::MemRefType>();
+                .dyn_cast<mlir::MemRefType>();
+
+        if (!memRefType) {
+          return rewriter.notifyMatchFailure(op, "Incompatible result");
+        }
 
         mlir::Attribute denseAttr = getDenseAttr(
             memRefType.getShape(), op.getValue().cast<mlir::Attribute>());
@@ -311,6 +212,48 @@ namespace
 
     private:
       mlir::SymbolTableCollection* symbolTableCollection;
+  };
+
+  class ArrayToTensorOpLowering
+      : public ModelicaOpConversionPattern<ArrayToTensorOp>
+  {
+    using ModelicaOpConversionPattern<ArrayToTensorOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ArrayToTensorOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto tensorType = getTypeConverter()->convertType(
+          op.getResult().getType());
+
+      rewriter.replaceOpWithNewOp<mlir::bufferization::ToTensorOp>(
+          op, tensorType, adaptor.getArray(), true, true);
+
+      return mlir::success();
+    }
+  };
+
+  class TensorToArrayOpLowering
+      : public ModelicaOpConversionPattern<TensorToArrayOp>
+  {
+    using ModelicaOpConversionPattern<TensorToArrayOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        TensorToArrayOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto memrefType = getTypeConverter()->convertType(
+          op.getResult().getType());
+
+      rewriter.replaceOpWithNewOp<mlir::bufferization::ToMemrefOp>(
+          op, memrefType, adaptor.getTensor());
+
+      return mlir::success();
+    }
   };
 
   class GlobalVariableOpLowering
@@ -805,266 +748,118 @@ namespace
           op, adaptor.getSource(), adaptor.getDestination());
     }
   };
-
-  struct FillOpLowering : public ModelicaOpRewritePattern<FillOp>
-  {
-    using ModelicaOpRewritePattern<FillOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        FillOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      rewriter.replaceOpWithNewOp<ArrayBroadcastOp>(
-          op, op.getResult().getType(), op.getValue(), std::nullopt);
-
-      return mlir::success();
-    }
-  };
-
-  struct NDimsOpLowering : public ModelicaOpRewritePattern<NDimsOp>
-  {
-    using ModelicaOpRewritePattern<NDimsOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        NDimsOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-      auto arrayType = op.getArray().getType().cast<ArrayType>();
-      mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(arrayType.getRank()));
-
-      if (auto resultType = op.getResult().getType();
-          result.getType() != resultType) {
-        result = rewriter.create<CastOp>(loc, resultType, result);
-      }
-
-      rewriter.replaceOp(op, result);
-      return mlir::success();
-    }
-  };
-
-  struct SizeOpDimensionLowering : public ModelicaOpRewritePattern<SizeOp>
-  {
-    using ModelicaOpRewritePattern<SizeOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        SizeOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-
-      if (!op.hasDimension()) {
-        return rewriter.notifyMatchFailure(op, "No index specified");
-      }
-
-      mlir::Value index = op.getDimension();
-
-      if (!index.getType().isa<mlir::IndexType>()) {
-        index = rewriter.create<CastOp>(loc, rewriter.getIndexType(), index);
-      }
-
-      mlir::Value result = rewriter.create<DimOp>(loc, op.getArray(), index);
-
-      if (auto resultType = op.getResult().getType();
-          result.getType() != resultType) {
-        result = rewriter.create<CastOp>(loc, resultType, result);
-      }
-
-      rewriter.replaceOp(op, result);
-      return mlir::success();
-    }
-  };
-
-  struct SizeOpArrayLowering : public ModelicaOpRewritePattern<SizeOp>
-  {
-    using ModelicaOpRewritePattern<SizeOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        SizeOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      mlir::Location loc = op->getLoc();
-
-      if (op.hasDimension()) {
-        return rewriter.notifyMatchFailure(op, "Index specified");
-      }
-
-      assert(op.getResult().getType().isa<ArrayType>());
-      auto resultArrayType = op.getResult().getType().cast<ArrayType>();
-
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(
-          op, resultArrayType, std::nullopt);
-
-      // Iterate on each dimension
-      mlir::Value zeroValue = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(0));
-
-      auto arrayType = op.getArray().getType().cast<ArrayType>();
-
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(arrayType.getRank()));
-
-      mlir::Value step = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getIndexAttr(1));
-
-      auto loop = rewriter.create<mlir::scf::ForOp>(
-          loc, zeroValue, rank, step);
-
-      {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointToStart(loop.getBody());
-
-        // Get the size of the current dimension
-        mlir::Value dimensionSize = rewriter.create<SizeOp>(
-            loc,
-            resultArrayType.getElementType(),
-            op.getArray(),
-            loop.getInductionVar());
-
-        // Store it into the result array
-        rewriter.create<StoreOp>(
-            loc, dimensionSize, result, loop.getInductionVar());
-      }
-
-      return mlir::success();
-    }
-  };
 }
 
-static void populateModelicaToMemRefPatterns(
-    mlir::RewritePatternSet& patterns,
-    mlir::MLIRContext* context,
-    mlir::TypeConverter& typeConverter,
-    mlir::SymbolTableCollection& symbolTableCollection)
+void BaseModelicaToMemRefConversionPass::runOnOperation()
 {
-  patterns.insert<
-      ArrayCastOpLowering>(typeConverter, context);
-
-  patterns.insert<
-      AssignmentOpScalarCastPattern,
-      AssignmentOpArrayLowering>(context);
-
-  patterns.insert<
-      AssignmentOpScalarLowering>(typeConverter, context);
-
-  patterns.insert<
-      ConstantOpArrayLowering,
-      GlobalVariableOpLowering>(typeConverter, context, symbolTableCollection);
-
-  patterns.insert<
-      GlobalVariableGetOpLowering>(typeConverter, context);
-
-  patterns.insert<
-      AllocaOpLowering,
-      AllocOpLowering>(typeConverter, context);
-
-  patterns.insert<
-      ArrayFromElementsOpLowering,
-      ArrayBroadcastOpLowering>(context);
-
-  patterns.insert<
-      FreeOpLowering,
-      DimOpLowering,
-      SubscriptionOpLowering,
-      LoadOpLowering,
-      StoreOpLowering>(typeConverter, context);
-
-  patterns.insert<
-      ArrayFillOpLowering,
-      ArrayCopyOpDifferentTypeLowering>(context);
-
-  patterns.insert<
-      ArrayCopyOpSameTypeLowering>(typeConverter, context);
-
-  patterns.insert<
-      FillOpLowering,
-      NDimsOpLowering,
-      SizeOpDimensionLowering,
-      SizeOpArrayLowering>(context);
+  if (mlir::failed(convertOperations())) {
+    return signalPassFailure();
+  }
 }
 
-namespace
+mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations()
 {
-  class BaseModelicaToMemRefConversionPass
-      : public mlir::impl::BaseModelicaToMemRefConversionPassBase<
-          BaseModelicaToMemRefConversionPass>
-  {
-    public:
-      using BaseModelicaToMemRefConversionPassBase
-        ::BaseModelicaToMemRefConversionPassBase;
+  mlir::ModuleOp module = getOperation();
+  mlir::ConversionTarget target(getContext());
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(convertOperations())) {
-          mlir::emitError(getOperation().getLoc())
-              << "Modelica to MemRef conversion failed";
+  target.addIllegalOp<ArrayCastOp>();
 
-          return signalPassFailure();
-        }
-      }
+  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+    return !op.getResult().getType().isa<ArrayType>();
+  });
 
-    private:
-      mlir::LogicalResult convertOperations()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
+  target.addIllegalOp<
+      ArrayToTensorOp,
+      TensorToArrayOp>();
 
-        target.addIllegalOp<
-            ArrayCastOp,
-            AssignmentOp>();
+  target.addIllegalOp<
+      GlobalVariableOp,
+      GlobalVariableGetOp,
+      AllocaOp,
+      AllocOp,
+      ArrayFromElementsOp,
+      ArrayBroadcastOp,
+      FreeOp,
+      DimOp,
+      SubscriptionOp,
+      LoadOp,
+      StoreOp,
+      ArrayFillOp,
+      ArrayCopyOp>();
 
-        target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
-          return !op.getResult().getType().isa<ArrayType>();
-        });
+  target.addIllegalOp<
+      FillOp,
+      NDimsOp,
+      SizeOp>();
 
-        target.addIllegalOp<
-            GlobalVariableOp,
-            GlobalVariableGetOp,
-            AllocaOp,
-            AllocOp,
-            ArrayFromElementsOp,
-            ArrayBroadcastOp,
-            FreeOp,
-            DimOp,
-            SubscriptionOp,
-            LoadOp,
-            StoreOp,
-            ArrayFillOp,
-            ArrayCopyOp>();
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
 
-        target.addIllegalOp<
-            FillOp,
-            NDimsOp,
-            SizeOp>();
+  TypeConverter typeConverter;
 
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
+  typeConverter.addConversion([](mlir::IndexType type) {
+    return type;
+  });
 
-        TypeConverter typeConverter(bitWidth);
+  mlir::RewritePatternSet patterns(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
 
-        typeConverter.addConversion([](mlir::IndexType type) {
-          return type;
-        });
+  populateBaseModelicaToMemRefConversionPatterns(
+      patterns, &getContext(), typeConverter, symbolTableCollection);
 
-        mlir::RewritePatternSet patterns(&getContext());
-        mlir::SymbolTableCollection symbolTableCollection;
-
-        populateModelicaToMemRefPatterns(
-            patterns, &getContext(), typeConverter, symbolTableCollection);
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
-  };
+  return applyPartialConversion(module, target, std::move(patterns));
 }
 
 namespace mlir
 {
+  void populateBaseModelicaToMemRefConversionPatterns(
+      mlir::RewritePatternSet& patterns,
+      mlir::MLIRContext* context,
+      mlir::TypeConverter& typeConverter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    patterns.insert<
+        ArrayCastOpLowering>(typeConverter, context);
+
+    patterns.insert<
+        ConstantOpArrayLowering>(typeConverter, context, symbolTableCollection);
+
+    patterns.insert<
+        ArrayToTensorOpLowering,
+        TensorToArrayOpLowering>(typeConverter, context);
+
+    patterns.insert<
+        GlobalVariableOpLowering>(typeConverter, context, symbolTableCollection);
+
+    patterns.insert<
+        GlobalVariableGetOpLowering>(typeConverter, context);
+
+    patterns.insert<
+        AllocaOpLowering,
+        AllocOpLowering>(typeConverter, context);
+
+    patterns.insert<
+        ArrayFromElementsOpLowering,
+        ArrayBroadcastOpLowering>(context);
+
+    patterns.insert<
+        FreeOpLowering,
+        DimOpLowering,
+        SubscriptionOpLowering,
+        LoadOpLowering,
+        StoreOpLowering>(typeConverter, context);
+
+    patterns.insert<
+        ArrayFillOpLowering,
+        ArrayCopyOpDifferentTypeLowering>(context);
+
+    patterns.insert<
+        ArrayCopyOpSameTypeLowering>(typeConverter, context);
+  }
+
   std::unique_ptr<mlir::Pass> createBaseModelicaToMemRefConversionPass()
   {
     return std::make_unique<BaseModelicaToMemRefConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createBaseModelicaToMemRefConversionPass(
-      const BaseModelicaToMemRefConversionPassOptions& options)
-  {
-    return std::make_unique<BaseModelicaToMemRefConversionPass>(options);
   }
 }

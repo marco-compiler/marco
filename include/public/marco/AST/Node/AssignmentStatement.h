@@ -6,6 +6,7 @@
 namespace marco::ast
 {
   class Expression;
+  class Tuple;
 
   class AssignmentStatement : public Statement
   {
@@ -25,9 +26,9 @@ namespace marco::ast
 
       llvm::json::Value toJSON() const override;
 
-      Expression* getDestinations();
+      Tuple* getDestinations();
 
-      const Expression* getDestinations() const;
+      const Tuple* getDestinations() const;
 
       void setDestinations(std::unique_ptr<ASTNode> nodes);
 

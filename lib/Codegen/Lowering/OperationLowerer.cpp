@@ -408,7 +408,7 @@ namespace marco::codegen::lowering
     assert(!args.empty());
 
     mlir::Value array = args[0];
-    assert(array.getType().isa<ArrayType>());
+    assert(array.getType().isa<mlir::ShapedType>());
 
     llvm::SmallVector<mlir::Value> indices;
 
@@ -416,10 +416,10 @@ namespace marco::codegen::lowering
       indices.push_back(args[i]);
     }
 
-    mlir::Value result = builder().create<SubscriptionOp>(
+    mlir::Value result = builder().create<TensorViewOp>(
         location, array, indices);
 
-    return Reference::memory(builder(), result);
+    return Reference::tensor(builder(), result);
   }
 
   Results OperationLowerer::powerOf(const ast::Operation& operation)

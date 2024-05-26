@@ -34,8 +34,8 @@ namespace marco::codegen::lowering
 
       mlir::Type baseType = parentType;
 
-      if (auto parentArrayType = parentType.dyn_cast<ArrayType>()) {
-        baseType = parentArrayType.getElementType();
+      if (auto parentShapedType = parentType.dyn_cast<mlir::ShapedType>()) {
+        baseType = parentShapedType.getElementType();
       }
 
       if (auto recordType = mlir::dyn_cast<RecordType>(baseType)) {
@@ -47,22 +47,22 @@ namespace marco::codegen::lowering
 
         llvm::SmallVector<int64_t, 3> shape;
 
-        if (auto parentTypeArrayType = parentType.dyn_cast<ArrayType>()) {
-          for (int64_t inheritedDimension : parentTypeArrayType.getShape()) {
+        if (auto parentShapedType = parentType.dyn_cast<mlir::ShapedType>()) {
+          for (int64_t inheritedDimension : parentShapedType.getShape()) {
             shape.push_back(inheritedDimension);
           }
         }
 
         mlir::Type componentType = variableOp.getVariableType().unwrap();
 
-        if (auto componentArrayType = componentType.dyn_cast<ArrayType>()) {
-          for (int64_t componentDimension : componentArrayType.getShape()) {
+        if (auto componentShapedType = componentType.dyn_cast<mlir::ShapedType>()) {
+          for (int64_t componentDimension : componentShapedType.getShape()) {
             shape.push_back(componentDimension);
           }
 
-          componentType = componentArrayType.withShape(shape);
+          componentType = componentShapedType.clone(shape).cast<mlir::Type>();
         } else if (!shape.empty()) {
-          componentType = ArrayType::get(shape, componentType);
+          componentType = mlir::RankedTensorType::get(shape, componentType);
         }
 
         result = Reference::component(
@@ -82,17 +82,18 @@ namespace marco::codegen::lowering
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
       Result index = lower(*entry.getSubscript(i))[0];
-      indices.push_back(index.get(index.getLoc()));
+      mlir::Value indexValue = index.get(index.getLoc());
+      indices.push_back(indexValue);
     }
 
     if (!indices.empty()) {
       mlir::Location location = loc(entry.getLocation());
       mlir::Value array = current.get(loc(entry.getLocation()));
 
-      mlir::Value result = builder().create<SubscriptionOp>(
+      mlir::Value result = builder().create<TensorViewOp>(
           location, array, indices);
 
-      return Reference::memory(builder(), result);
+      return Reference::tensor(builder(), result);
     }
 
     return current;

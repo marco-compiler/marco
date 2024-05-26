@@ -1,7 +1,6 @@
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -456,7 +455,7 @@ namespace
           mangling.getPointerType(mangling.getIntegerType(64)));
 
       // Rank.
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(
                    op.getEquationRanges().getValue().rank()));
 
@@ -529,7 +528,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // Rank.
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(op.getDimensions().size()));
 
       args.push_back(rank);
@@ -855,7 +854,8 @@ mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations()
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
+  // TODO
+  // llvmLoweringOptions.dataLayout.reset(dataLayout);
 
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
   mlir::RewritePatternSet patterns(&getContext());
@@ -872,10 +872,6 @@ mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations()
       SolveOpLowering,
       FreeOpLowering>(typeConverter, symbolTableCollection);
 
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
-
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
@@ -884,11 +880,5 @@ namespace mlir
   std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass()
   {
     return std::make_unique<KINSOLToLLVMConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass(
-      const KINSOLToLLVMConversionPassOptions& options)
-  {
-    return std::make_unique<KINSOLToLLVMConversionPass>(options);
   }
 }

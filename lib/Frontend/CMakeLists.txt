@@ -25,17 +25,12 @@ set(MLIR_LIBS
 marco_add_library(frontend
     ${SOURCES}
 
-    DEPENDS
-    marco::ast
-    marco::parser
-    marco::codegen
-    marco::variableFilter
-
     LINK_LIBS
     marco::ast
     marco::parser
     marco::codegen
     marco::IO
+    marco::Lowering
     marco::variableFilter
     ${MLIR_LIBS}
 
@@ -44,9 +39,8 @@ marco_add_library(frontend
     Support)
 
 clang_target_link_libraries(frontend
-  PRIVATE
-  clangBasic
-  clangDriver
-)
+    PRIVATE
+    clangBasic
+    clangDriver)
 
 mlir_check_all_link_libraries(frontend)

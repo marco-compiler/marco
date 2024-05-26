@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
 
-// Integer operands
+// Integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.int
@@ -17,7 +17,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.int
 
 // -----
 
-// Real operands
+// Real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.real
@@ -34,7 +34,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.r
 
 // -----
 
-// Integer and real operands
+// Integer and real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.real
@@ -52,7 +52,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmodelica.re
 
 // -----
 
-// Real and integer operands
+// Real and integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.real
@@ -70,181 +70,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmodelica.re
 
 // -----
 
-// Scalar and array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.array<3x?x!bmodelica.real>) -> !bmodelica.array<3x?x!bmodelica.real>
-// CHECK-DAG:   %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.real to f64
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg1_dim0:.*]] = bmodelica.dim %[[arg1]], %[[c0]]
-// CHECK-DAG:   %[[arg1_dim1:.*]] = bmodelica.dim %[[arg1]], %[[c1]]
-// CHECK-DAG:   %[[result:.*]] = bmodelica.alloc %[[arg1_dim1]] : <3x?x!bmodelica.real>
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg1_dim0]] step %[[c1]] {
-// CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg1_dim1]] step %[[c1]] {
-// CHECK:               %[[array_value:.*]] = bmodelica.load %[[arg1]][%[[index_0]], %[[index_1]]]
-// CHECK:               %[[array_value_casted:.*]] = builtin.unrealized_conversion_cast %[[array_value]] : !bmodelica.real to f64
-// CHECK:               %[[mul:.*]] = arith.mulf %[[arg0_casted]], %[[array_value_casted]]
-// CHECK:               %[[mul_casted:.*]] = builtin.unrealized_conversion_cast %[[mul]] : f64 to !bmodelica.real
-// CHECK:               bmodelica.store %[[result]][%[[index_0]], %[[index_1]]], %[[mul_casted]]
-// CHECK:           }
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.array<3x?x!bmodelica.real>) -> !bmodelica.array<3x?x!bmodelica.real> {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.real, !bmodelica.array<3x?x!bmodelica.real>) -> !bmodelica.array<3x?x!bmodelica.real>
-    func.return %0 : !bmodelica.array<3x?x!bmodelica.real>
-}
-
-// -----
-
-// 1D array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<?x!bmodelica.real>, %[[arg1:.*]]: !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.real
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim0:.*]] = bmodelica.dim %[[arg0]], %[[c0]]
-// CHECK-DAG:   %[[arg1_dim0:.*]] = bmodelica.dim %[[arg1]], %[[c0]]
-// CHECK-DAG:   %[[dim0_cmp:.*]] = arith.cmpi eq, %[[arg0_dim0]], %[[arg1_dim0]]
-// CHECK-DAG:   cf.assert %[[dim0_cmp]]
-// CHECK-DAG:   %[[zero:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK:       %[[result:.*]] = scf.for %[[index_0:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] iter_args(%[[acc:.*]] = %[[zero]]) -> (f64) {
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.load %[[arg0]][%[[index_0]]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.load %[[arg1]][%[[index_0]]]
-// CHECK-DAG:       %[[lhs_casted:.*]] = builtin.unrealized_conversion_cast %[[lhs]] : !bmodelica.real to f64
-// CHECK-DAG:       %[[rhs_casted:.*]] = builtin.unrealized_conversion_cast %[[rhs]] : !bmodelica.real to f64
-// CHECK:           %[[mul:.*]] = arith.mulf %[[lhs_casted]], %[[rhs_casted]] : f64
-// CHECK:           %[[add:.*]] = arith.addf %[[mul]], %[[acc]] : f64
-// CHECK:           %[[add_casted_1:.*]] = builtin.unrealized_conversion_cast %[[add]] : f64 to !bmodelica.real
-// CHECK:           %[[add_casted_2:.*]] = builtin.unrealized_conversion_cast %[[add_casted_1]] : !bmodelica.real to f64
-// CHECK:           scf.yield %[[add_casted_2]] : f64
-// CHECK:       }
-// CHECK:       %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : f64 to !bmodelica.real
-// CHECK:       return %[[result_casted]]
-
-func.func @foo(%arg0 : !bmodelica.array<?x!bmodelica.real>, %arg1 : !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.real {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.array<?x!bmodelica.real>, !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.real
-    func.return %0 : !bmodelica.real
-}
-
-// -----
-
-// 2D array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<3x?x!bmodelica.real>, %[[arg1:.*]]: !bmodelica.array<?x5x!bmodelica.real>) -> !bmodelica.array<3x5x!bmodelica.real>
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim0:.*]] = bmodelica.dim %[[arg0]], %[[c0]]
-// CHECK-DAG:   %[[arg0_dim1:.*]] = bmodelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[arg1_dim0:.*]] = bmodelica.dim %[[arg1]], %[[c0]]
-// CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim0]]
-// CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = bmodelica.alloc : <3x5x!bmodelica.real>
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] {
-// CHECK:           %[[arg1_dim1:.*]] = bmodelica.dim %[[arg1]], %[[c1]]
-// CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[arg1_dim1]] step %[[c1]] {
-// CHECK:               %[[zero:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK:               %[[cross_product:.*]] = scf.for %[[index_2:.*]] = %[[c0]] to %[[arg0_dim1]] step %[[c1]] iter_args(%[[acc:.*]] = %[[zero]]) -> (f64) {
-// CHECK-DAG:               %[[lhs:.*]] = bmodelica.load %[[arg0]][%[[index_0]], %[[index_2]]]
-// CHECK-DAG:               %[[rhs:.*]] = bmodelica.load %[[arg1]][%[[index_2]], %[[index_1]]]
-// CHECK-DAG:               %[[lhs_casted:.*]] = builtin.unrealized_conversion_cast %[[lhs]] : !bmodelica.real to f64
-// CHECK-DAG:               %[[rhs_casted:.*]] = builtin.unrealized_conversion_cast %[[rhs]] : !bmodelica.real to f64
-// CHECK:                   %[[mul:.*]] = arith.mulf %[[lhs_casted]], %[[rhs_casted]] : f64
-// CHECK:                   %[[add:.*]] = arith.addf %[[mul]], %[[acc]] : f64
-// CHECK:                   %[[add_casted_1:.*]] = builtin.unrealized_conversion_cast %[[add]] : f64 to !bmodelica.real
-// CHECK:                   %[[add_casted_2:.*]] = builtin.unrealized_conversion_cast %[[add_casted_1]] : !bmodelica.real to f64
-// CHECK:                   scf.yield %[[add_casted_2]] : f64
-// CHECK:               }
-// CHECK:               %[[cross_product_casted:.*]] = builtin.unrealized_conversion_cast %[[cross_product]] : f64 to !bmodelica.real
-// CHECK:               bmodelica.store %[[result]][%[[index_0]], %[[index_1]]], %[[cross_product_casted]]
-// CHECK:           }
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !bmodelica.array<3x?x!bmodelica.real>, %arg1 : !bmodelica.array<?x5x!bmodelica.real>) -> !bmodelica.array<3x5x!bmodelica.real> {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.array<3x?x!bmodelica.real>, !bmodelica.array<?x5x!bmodelica.real>) -> !bmodelica.array<3x5x!bmodelica.real>
-    func.return %0 : !bmodelica.array<3x5x!bmodelica.real>
-}
-
-// -----
-
-// 1D array and 2D array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<?x!bmodelica.real>, %[[arg1:.*]]: !bmodelica.array<?x3x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real>
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim0:.*]] = bmodelica.dim %[[arg0]], %[[c0]]
-// CHECK-DAG:   %[[arg1_dim0:.*]] = bmodelica.dim %[[arg1]], %[[c0]]
-// CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim0]], %[[arg1_dim0]]
-// CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = bmodelica.alloc : <3x!bmodelica.real>
-// CHECK-DAG:   %[[result_dim0:.*]] = bmodelica.dim %[[result]], %[[c0]]
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
-// CHECK-DAG:       %[[zero:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK:           %[[cross_product:.*]] = scf.for %[[index_1:.*]] = %[[c0]] to %[[arg0_dim0]] step %[[c1]] iter_args(%[[acc:.*]] = %[[zero]]) -> (f64) {
-// CHECK-DAG:           %[[lhs:.*]] = bmodelica.load %[[arg0]][%[[index_1]]]
-// CHECK-DAG:           %[[rhs:.*]] = bmodelica.load %[[arg1]][%[[index_1]], %[[index_0]]]
-// CHECK-DAG:           %[[lhs_casted:.*]] = builtin.unrealized_conversion_cast %[[lhs]] : !bmodelica.real to f64
-// CHECK-DAG:           %[[rhs_casted:.*]] = builtin.unrealized_conversion_cast %[[rhs]] : !bmodelica.real to f64
-// CHECK:               %[[mul:.*]] = arith.mulf %[[lhs_casted]], %[[rhs_casted]] : f64
-// CHECK:               %[[add:.*]] = arith.addf %[[mul]], %[[acc]] : f64
-// CHECK:               %[[add_casted_1:.*]] = builtin.unrealized_conversion_cast %[[add]] : f64 to !bmodelica.real
-// CHECK:               %[[add_casted_2:.*]] = builtin.unrealized_conversion_cast %[[add_casted_1]] : !bmodelica.real to f64
-// CHECK:               scf.yield %[[add_casted_2]] : f64
-// CHECK:           }
-// CHECK:           %[[cross_product_casted:.*]] = builtin.unrealized_conversion_cast %[[cross_product]] : f64 to !bmodelica.real
-// CHECK:           bmodelica.store %[[result]][%[[index_0]]], %[[cross_product_casted]]
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !bmodelica.array<?x!bmodelica.real>, %arg1 : !bmodelica.array<?x3x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real> {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.array<?x!bmodelica.real>, !bmodelica.array<?x3x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real>
-    func.return %0 : !bmodelica.array<3x!bmodelica.real>
-}
-
-// -----
-
-// 2D array and 1D array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<3x?x!bmodelica.real>, %[[arg1:.*]]: !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real>
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim1:.*]] = bmodelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[arg1_dim0:.*]] = bmodelica.dim %[[arg1]], %[[c0]]
-// CHECK-DAG:   %[[common_dim_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim0]]
-// CHECK-DAG:   cf.assert %[[common_dim_cmp]]
-// CHECK-DAG:   %[[result:.*]] = bmodelica.alloc : <3x!bmodelica.real>
-// CHECK-DAG:   %[[result_dim0:.*]] = bmodelica.dim %[[result]], %[[c0]]
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
-// CHECK-DAG:       %[[zero:.*]] = arith.constant 0.000000e+00 : f64
-// CHECK:           %[[cross_product:.*]] = scf.for %[[index_1:.*]] = %[[c0]] to %[[arg0_dim1]] step %[[c1]] iter_args(%[[acc:.*]] = %[[zero]]) -> (f64) {
-// CHECK-DAG:           %[[lhs:.*]] = bmodelica.load %[[arg0]][%[[index_0]], %[[index_1]]]
-// CHECK-DAG:           %[[rhs:.*]] = bmodelica.load %[[arg1]][%[[index_1]]]
-// CHECK-DAG:           %[[lhs_casted:.*]] = builtin.unrealized_conversion_cast %[[lhs]] : !bmodelica.real to f64
-// CHECK-DAG:           %[[rhs_casted:.*]] = builtin.unrealized_conversion_cast %[[rhs]] : !bmodelica.real to f64
-// CHECK:               %[[mul:.*]] = arith.mulf %[[lhs_casted]], %[[rhs_casted]] : f64
-// CHECK:               %[[add:.*]] = arith.addf %[[mul]], %[[acc]] : f64
-// CHECK:               %[[add_casted_1:.*]] = builtin.unrealized_conversion_cast %[[add]] : f64 to !bmodelica.real
-// CHECK:               %[[add_casted_2:.*]] = builtin.unrealized_conversion_cast %[[add_casted_1]] : !bmodelica.real to f64
-// CHECK:               scf.yield %[[add_casted_2]] : f64
-// CHECK:           }
-// CHECK:           %[[cross_product_casted:.*]] = builtin.unrealized_conversion_cast %[[cross_product]] : f64 to !bmodelica.real
-// CHECK:           bmodelica.store %[[result]][%[[index_0]]], %[[cross_product_casted]]
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !bmodelica.array<3x?x!bmodelica.real>, %arg1 : !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real> {
-    %0 = bmodelica.mul %arg0, %arg1 : (!bmodelica.array<3x?x!bmodelica.real>, !bmodelica.array<?x!bmodelica.real>) -> !bmodelica.array<3x!bmodelica.real>
-    func.return %0 : !bmodelica.array<3x!bmodelica.real>
-}
-
-// -----
-
-// MLIR index operands
+// MLIR index operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> index
@@ -258,7 +84,7 @@ func.func @foo(%arg0 : index, %arg1 : index) -> index {
 
 // -----
 
-// MLIR integer operands
+// MLIR integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: i64, %[[arg1:.*]]: i64) -> i64
@@ -272,7 +98,7 @@ func.func @foo(%arg0 : i64, %arg1 : i64) -> i64 {
 
 // -----
 
-// MLIR float operands
+// MLIR float operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: f64, %[[arg1:.*]]: f64) -> f64

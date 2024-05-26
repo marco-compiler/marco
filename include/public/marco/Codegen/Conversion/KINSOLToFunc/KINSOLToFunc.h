@@ -12,9 +12,6 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
   std::unique_ptr<mlir::Pass> createKINSOLToFuncConversionPass();
-
-  std::unique_ptr<mlir::Pass> createKINSOLToFuncConversionPass(
-      const KINSOLToFuncConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_KINSOLTOFUNC_KINSOLTOFUNC_H

@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/KINSOLToFunc/KINSOLToFunc.h"
 #include "marco/Codegen/Conversion/KINSOLCommon/LLVMTypeConverter.h"
-#include "marco/Dialect/KINSOL/KINSOLDialect.h"
+#include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -319,11 +319,5 @@ namespace mlir
   std::unique_ptr<mlir::Pass> createKINSOLToFuncConversionPass()
   {
     return std::make_unique<KINSOLToFuncConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createKINSOLToFuncConversionPass(
-      const KINSOLToFuncConversionPassOptions& options)
-  {
-    return std::make_unique<KINSOLToFuncConversionPass>(options);
   }
 }

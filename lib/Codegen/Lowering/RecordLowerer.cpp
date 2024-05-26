@@ -78,6 +78,44 @@ namespace marco::codegen::lowering
     // Lower the body.
     lowerClassBody(record);
 
+    // Create the algorithms.
+    llvm::SmallVector<const ast::Algorithm*> initialAlgorithms;
+    llvm::SmallVector<const ast::Algorithm*> algorithms;
+
+    for (const auto& algorithm : record.getAlgorithms()) {
+      if (algorithm->cast<ast::Algorithm>()->isInitial()) {
+        initialAlgorithms.push_back(algorithm->cast<ast::Algorithm>());
+      } else {
+        algorithms.push_back(algorithm->cast<ast::Algorithm>());
+      }
+    }
+
+    if (!initialAlgorithms.empty()) {
+      auto initialOp =
+          builder().create<InitialOp>(loc(record.getLocation()));
+
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().createBlock(&initialOp.getBodyRegion());
+      builder().setInsertionPointToStart(initialOp.getBody());
+
+      for (const auto& algorithm : initialAlgorithms) {
+        lower(*algorithm);
+      }
+    }
+
+    if (!algorithms.empty()) {
+      auto dynamicOp =
+          builder().create<DynamicOp>(loc(record.getLocation()));
+
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().createBlock(&dynamicOp.getBodyRegion());
+      builder().setInsertionPointToStart(dynamicOp.getBody());
+
+      for (const auto& algorithm : algorithms) {
+        lower(*algorithm);
+      }
+    }
+
     // Lower the inner classes.
     for (const auto& innerClassNode : record.getInnerClasses()) {
       lower(*innerClassNode->cast<ast::Class>());

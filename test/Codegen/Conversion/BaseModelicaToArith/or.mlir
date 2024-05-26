@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --cse | FileCheck %s
 
-// Boolean operands
+// Boolean operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.bool, %[[arg1:.*]]: !bmodelica.bool) -> !bmodelica.bool
@@ -20,7 +20,7 @@ func.func @foo(%arg0 : !bmodelica.bool, %arg1 : !bmodelica.bool) -> !bmodelica.b
 
 // -----
 
-// Integer operands
+// Integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.bool
@@ -40,7 +40,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.boo
 
 // -----
 
-// Real operands
+// Real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.bool
@@ -60,7 +60,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.real) -> !bmodelica.b
 
 // -----
 
-// Integer and real operands
+// Integer and real operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.real) -> !bmodelica.bool
@@ -81,7 +81,7 @@ func.func @foo(%arg0 : !bmodelica.int, %arg1 : !bmodelica.real) -> !bmodelica.bo
 
 // -----
 
-// Real and integer operands
+// Real and integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.bool
@@ -102,43 +102,7 @@ func.func @foo(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmodelica.bo
 
 // -----
 
-// Boolean array operands
-
-// CHECK-LABEL: @foo
-// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<3x?x!bmodelica.bool>, %[[arg1:.*]]: !bmodelica.array<3x?x!bmodelica.bool>) -> !bmodelica.array<3x?x!bmodelica.bool>
-// CHECK-DAG:   %[[c0:.*]] = arith.constant 0 : index
-// CHECK-DAG:   %[[c1:.*]] = arith.constant 1 : index
-// CHECK-DAG:   %[[arg0_dim1:.*]] = bmodelica.dim %[[arg0]], %[[c1]]
-// CHECK-DAG:   %[[arg1_dim1:.*]] = bmodelica.dim %[[arg1]], %[[c1]]
-// CHECK-DAG:   %[[dim1_cmp:.*]] = arith.cmpi eq, %[[arg0_dim1]], %[[arg1_dim1]]
-// CHECK-DAG:   cf.assert %[[dim1_cmp]]
-// CHECK-DAG:   %[[result:.*]] = bmodelica.alloc %[[arg0_dim1]] : <3x?x!bmodelica.bool>
-// CHECK-DAG:   %[[result_dim0:.*]] = bmodelica.dim %[[result]], %[[c0]]
-// CHECK-DAG:   %[[result_dim1:.*]] = bmodelica.dim %[[result]], %[[c1]]
-// CHECK:       scf.for %[[index_0:.*]] = %[[c0]] to %[[result_dim0]] step %[[c1]] {
-// CHECK:           scf.for %[[index_1:.*]] = %[[c0]] to %[[result_dim1]] step %[[c1]] {
-// CHECK-DAG:           %[[false:.*]] = arith.constant false
-// CHECK-DAG:           %[[lhs:.*]] = bmodelica.load %[[arg0]][%[[index_0]], %[[index_1]]]
-// CHECK-DAG:           %[[rhs:.*]] = bmodelica.load %[[arg1]][%[[index_0]], %[[index_1]]]
-// CHECK-DAG:           %[[lhs_casted:.*]] = builtin.unrealized_conversion_cast %[[lhs]] : !bmodelica.bool to i1
-// CHECK-DAG:           %[[rhs_casted:.*]] = builtin.unrealized_conversion_cast %[[rhs]] : !bmodelica.bool to i1
-// CHECK-DAG:           %[[lhs_ne:.*]] = arith.cmpi ne, %[[lhs_casted]], %[[false]] : i1
-// CHECK-DAG:           %[[rhs_ne:.*]] = arith.cmpi ne, %[[rhs_casted]], %[[false]] : i1
-// CHECK:               %[[or:.*]] = arith.ori %[[lhs_ne]], %[[rhs_ne]] : i1
-// CHECK:               %[[or_casted:.*]] = builtin.unrealized_conversion_cast %[[or]] : i1 to !bmodelica.bool
-// CHECK:               bmodelica.store %[[result]][%[[index_0]], %[[index_1]]], %[[or_casted]]
-// CHECK:           }
-// CHECK:       }
-// CHECK:       return %[[result]]
-
-func.func @foo(%arg0 : !bmodelica.array<3x?x!bmodelica.bool>, %arg1 : !bmodelica.array<3x?x!bmodelica.bool>) -> !bmodelica.array<3x?x!bmodelica.bool> {
-    %0 = bmodelica.or %arg0, %arg1 : (!bmodelica.array<3x?x!bmodelica.bool>, !bmodelica.array<3x?x!bmodelica.bool>) -> !bmodelica.array<3x?x!bmodelica.bool>
-    func.return %0 : !bmodelica.array<3x?x!bmodelica.bool>
-}
-
-// -----
-
-// MLIR index operands
+// MLIR index operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> i1
@@ -155,7 +119,7 @@ func.func @foo(%arg0 : index, %arg1 : index) -> i1 {
 
 // -----
 
-// MLIR integer operands
+// MLIR integer operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: i64, %[[arg1:.*]]: i64) -> i1
@@ -172,7 +136,7 @@ func.func @foo(%arg0 : i64, %arg1 : i64) -> i1 {
 
 // -----
 
-// MLIR float operands
+// MLIR float operands.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: f64, %[[arg1:.*]]: f64) -> i1

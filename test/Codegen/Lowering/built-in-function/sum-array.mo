@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.sum
-// CHECK-SAME: !bmodelica.array<?x!bmodelica.int> -> !bmodelica.int
+// CHECK-SAME: tensor<?x!bmodelica.int> -> !bmodelica.int
 
 function foo
     input Integer[:] x;

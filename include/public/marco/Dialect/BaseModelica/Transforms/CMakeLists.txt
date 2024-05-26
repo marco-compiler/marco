@@ -1,0 +1,5 @@
+set(LLVM_TARGET_DEFINITIONS Passes.td)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name Modelica)
+add_public_tablegen_target(MLIRBaseModelicaTransformsIncGen)
+
+add_mlir_doc(Passes ModelicaPasses ./ -gen-pass-doc)

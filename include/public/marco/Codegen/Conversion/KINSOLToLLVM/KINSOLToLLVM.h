@@ -12,9 +12,6 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
   std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass();
-
-  std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass(
-      const KINSOLToLLVMConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_KINSOLTOLLVM_KINSOLTOLLVM_H

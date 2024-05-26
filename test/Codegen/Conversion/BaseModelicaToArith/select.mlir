@@ -11,9 +11,9 @@
 // CHECK:       return %[[result_cast]]
 
 func.func @foo() -> !bmodelica.int {
-    %condition = bmodelica.constant #bmodelica.bool<true>
-    %trueValue = bmodelica.constant #bmodelica.int<0>
-    %falseValue = bmodelica.constant #bmodelica.int<1>
+    %condition = bmodelica.constant #bmodelica<bool true>
+    %trueValue = bmodelica.constant #bmodelica<int 0>
+    %falseValue = bmodelica.constant #bmodelica<int 1>
     %select = bmodelica.select (%condition : !bmodelica.bool), (%trueValue : !bmodelica.int), (%falseValue : !bmodelica.int) -> !bmodelica.int
     func.return %select : !bmodelica.int
 }
@@ -35,11 +35,11 @@ func.func @foo() -> !bmodelica.int {
 // CHECK:       return %[[result_cast]]
 
 func.func @foo() -> !bmodelica.int {
-    %condition = bmodelica.constant #bmodelica.bool<true>
-    %trueValue0 = bmodelica.constant #bmodelica.int<0>
-    %trueValue1 = bmodelica.constant #bmodelica.int<1>
-    %falseValue0 = bmodelica.constant #bmodelica.int<2>
-    %falseValue1 = bmodelica.constant #bmodelica.int<3>
+    %condition = bmodelica.constant #bmodelica<bool true>
+    %trueValue0 = bmodelica.constant #bmodelica<int 0>
+    %trueValue1 = bmodelica.constant #bmodelica<int 1>
+    %falseValue0 = bmodelica.constant #bmodelica<int 2>
+    %falseValue1 = bmodelica.constant #bmodelica<int 3>
     %select:2 = bmodelica.select (%condition : !bmodelica.bool), (%trueValue0, %trueValue1 : !bmodelica.int, !bmodelica.int), (%falseValue0, %falseValue1 : !bmodelica.int, !bmodelica.int) -> (!bmodelica.int, !bmodelica.int)
     %result = bmodelica.add %select#0, %select#1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
     func.return %result : !bmodelica.int

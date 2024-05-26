@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/RuntimeToFunc/RuntimeToFunc.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -1218,6 +1218,10 @@ namespace
           FunctionOp op,
           mlir::PatternRewriter& rewriter) const override
       {
+        if (op.isDeclaration()) {
+          return rewriter.notifyMatchFailure(op, "Declaration");
+        }
+
         auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
         rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1369,14 +1373,7 @@ mlir::LogicalResult RuntimeToFuncConversionPass::convertOps()
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<
-      ModelNameOp,
-      NumberOfVariablesOp,
-      VariableNamesOp,
-      VariableRanksOp,
-      PrintableIndicesOp,
-      DerivativesMapOp,
       VariableGetterOp,
-      VariableGettersOp,
       InitFunctionOp,
       DeinitFunctionOp,
       ICModelBeginOp,
@@ -1384,8 +1381,11 @@ mlir::LogicalResult RuntimeToFuncConversionPass::convertOps()
       DynamicModelBeginOp,
       DynamicModelEndOp,
       EquationFunctionOp,
-      FunctionOp,
       ReturnOp>();
+
+  target.addDynamicallyLegalOp<FunctionOp>([](FunctionOp op) {
+    return op.isDeclaration();
+  });
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
@@ -1394,14 +1394,7 @@ mlir::LogicalResult RuntimeToFuncConversionPass::convertOps()
   mlir::RewritePatternSet patterns(&getContext());
 
   patterns.insert<
-      ModelNameOpLowering,
-      NumberOfVariablesOpLowering,
-      VariableNamesOpLowering,
-      VariableRanksOpLowering,
-      PrintableIndicesOpLowering,
-      DerivativesMapOpLowering,
       VariableGetterOpLowering,
-      VariableGettersOpLowering,
       InitFunctionOpLowering,
       DeinitFunctionOpLowering,
       ICModelBeginOpLowering,

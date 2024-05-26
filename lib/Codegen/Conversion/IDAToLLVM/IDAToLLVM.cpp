@@ -1,7 +1,6 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -453,7 +452,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // Start time.
-      mlir::Value startTime = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value startTime = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getF64FloatAttr(op.getTime().convertToDouble()));
 
       args.push_back(startTime);
@@ -497,7 +496,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // End time.
-      mlir::Value endTime = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value endTime = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getF64FloatAttr(op.getTime().convertToDouble()));
 
       args.push_back(endTime);
@@ -589,7 +588,7 @@ namespace
           mangling.getPointerType(mangling.getIntegerType(64)));
 
       // Rank.
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(
                    op.getEquationRanges().getValue().rank()));
 
@@ -662,7 +661,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // Rank.
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(op.getDimensions().size()));
 
       args.push_back(rank);
@@ -748,7 +747,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // Rank.
-      mlir::Value rank = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(op.getDimensions().size()));
 
       args.push_back(rank);
@@ -1133,22 +1132,25 @@ namespace marco::codegen
       : public mlir::impl::IDAToLLVMConversionPassBase<IDAToLLVMConversionPass>
   {
     public:
-      using IDAToLLVMConversionPassBase::IDAToLLVMConversionPassBase;
+      using IDAToLLVMConversionPassBase<IDAToLLVMConversionPass>
+          ::IDAToLLVMConversionPassBase;
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(convertOperations())) {
-          mlir::emitError(
-              getOperation().getLoc(),
-              "Error in converting the IDA operations");
-
-          return signalPassFailure();
-        }
-      }
+      void runOnOperation() override;
 
     private:
       mlir::LogicalResult convertOperations();
   };
+}
+
+void IDAToLLVMConversionPass::runOnOperation()
+{
+  if (mlir::failed(convertOperations())) {
+    mlir::emitError(
+        getOperation().getLoc(),
+        "Error in converting the IDA operations");
+
+    return signalPassFailure();
+  }
 }
 
 mlir::LogicalResult IDAToLLVMConversionPass::convertOperations()
@@ -1160,7 +1162,6 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations()
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
 
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
   mlir::RewritePatternSet patterns(&getContext());
@@ -1183,10 +1184,6 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations()
       FreeOpLowering,
       PrintStatisticsOpLowering>(typeConverter, symbolTableCollection);
 
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
-
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
@@ -1195,11 +1192,5 @@ namespace mlir
   std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass()
   {
     return std::make_unique<IDAToLLVMConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass(
-      const IDAToLLVMConversionPassOptions& options)
-  {
-    return std::make_unique<IDAToLLVMConversionPass>(options);
   }
 }

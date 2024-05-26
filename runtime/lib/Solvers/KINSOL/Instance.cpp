@@ -446,9 +446,6 @@ namespace marco::runtime::sundials::kinsol
     // Compute the equation chunks for each thread.
     computeThreadChunks();
 
-    // Initialize the values of the variables living inside KINSOL.
-    copyVariablesFromMARCO(variablesVector);
-
     // Create and initialize the memory for KINSOL.
     kinsolMemory = KINCreate(ctx);
 
@@ -514,6 +511,9 @@ namespace marco::runtime::sundials::kinsol
       // KINSOL has nothing to solve.
       return true;
     }
+
+    // Update the values of the variables living inside KINSOL.
+    copyVariablesFromMARCO(variablesVector);
 
     auto solveRetVal = KINSol(
         kinsolMemory, variablesVector, KIN_LINESEARCH,
@@ -1417,7 +1417,7 @@ static uint64_t kinsolAddVariable_i64(
 RUNTIME_FUNC_DEF(kinsolAddVariable, uint64_t, PTR(void), uint64_t, PTR(uint64_t), PTR(void), PTR(void), PTR(void))
 
 //===---------------------------------------------------------------------===//
-// idaAddVariableAccess
+// kinsolAddVariableAccess
 
 static void kinsolAddVariableAccess_void(
     void* instance,

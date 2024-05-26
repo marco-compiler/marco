@@ -2,7 +2,7 @@
 
 // CHECK-LABEL: @foo
 // CHECK: bmodelica.identity
-// CHECK-SAME: !bmodelica.int -> !bmodelica.array<?x?x!bmodelica.int>
+// CHECK-SAME: !bmodelica.int -> tensor<?x?x!bmodelica.int>
 
 function foo
     input Integer x;

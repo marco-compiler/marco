@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
-// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.array<3x5x!bmodelica.int>) -> !bmodelica.array<3x5x!bmodelica.int>
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, tensor<3x5x!bmodelica.int>) -> tensor<3x5x!bmodelica.int>
 
 function Integers
     input Integer x;
@@ -12,7 +12,7 @@ algorithm
 end Integers;
 
 // CHECK-LABEL: @Reals
-// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, !bmodelica.array<3x5x!bmodelica.real>) -> !bmodelica.array<3x5x!bmodelica.real>
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, tensor<3x5x!bmodelica.real>) -> tensor<3x5x!bmodelica.real>
 
 function Reals
     input Real x;
@@ -23,7 +23,7 @@ algorithm
 end Reals;
 
 // CHECK-LABEL: @IntegerReal
-// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.array<3x5x!bmodelica.real>) -> !bmodelica.array<3x5x!bmodelica.real>
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.int, tensor<3x5x!bmodelica.real>) -> tensor<3x5x!bmodelica.real>
 
 function IntegerReal
     input Integer x;
@@ -34,7 +34,7 @@ algorithm
 end IntegerReal;
 
 // CHECK-LABEL: @RealInteger
-// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, !bmodelica.array<3x5x!bmodelica.int>) -> !bmodelica.array<3x5x!bmodelica.real>
+// CHECK: bmodelica.mul %{{.*}}, %{{.*}} : (!bmodelica.real, tensor<3x5x!bmodelica.int>) -> tensor<3x5x!bmodelica.real>
 
 function RealInteger
     input Real x;

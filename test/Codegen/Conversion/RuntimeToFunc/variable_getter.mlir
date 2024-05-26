@@ -8,7 +8,7 @@
 // CHECK-NEXT:  }
 
 runtime.variable_getter @getter() -> f64 {
-    %0 = bmodelica.constant #bmodelica.real<0.0>
+    %0 = bmodelica.constant #bmodelica<real 0.0>
     %1 = bmodelica.cast %0 : !bmodelica.real -> f64
     runtime.return %1 : f64
 }

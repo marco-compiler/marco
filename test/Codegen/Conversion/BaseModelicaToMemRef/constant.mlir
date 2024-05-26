@@ -8,7 +8,7 @@
 // CHECK: return %[[cast]]
 
 func.func @boolean1DArray() -> !bmodelica.array<2x!bmodelica.bool> {
-    %0 = bmodelica.constant #bmodelica.bool_array<[false, true]> : !bmodelica.array<2x!bmodelica.bool>
+    %0 = bmodelica.constant #bmodelica.dense_bool<[false, true]> : !bmodelica.array<2x!bmodelica.bool>
     func.return %0 : !bmodelica.array<2x!bmodelica.bool>
 }
 
@@ -22,7 +22,7 @@ func.func @boolean1DArray() -> !bmodelica.array<2x!bmodelica.bool> {
 // CHECK: return %[[cast]]
 
 func.func @integer1DArray() -> !bmodelica.array<2x!bmodelica.int> {
-    %0 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    %0 = bmodelica.constant #bmodelica.dense_int<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
     func.return %0 : !bmodelica.array<2x!bmodelica.int>
 }
 
@@ -36,7 +36,7 @@ func.func @integer1DArray() -> !bmodelica.array<2x!bmodelica.int> {
 // CHECK: return %[[cast]]
 
 func.func @real1DArray() -> !bmodelica.array<2x!bmodelica.real> {
-    %0 = bmodelica.constant #bmodelica.real_array<[1.0, 2.0]> : !bmodelica.array<2x!bmodelica.real>
+    %0 = bmodelica.constant #bmodelica.dense_real<[1.0, 2.0]> : !bmodelica.array<2x!bmodelica.real>
     func.return %0 : !bmodelica.array<2x!bmodelica.real>
 }
 
@@ -51,7 +51,7 @@ func.func @real1DArray() -> !bmodelica.array<2x!bmodelica.real> {
 // CHECK: return %[[cast]]
 
 func.func @integer3DArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
-    %0 = bmodelica.constant #bmodelica.int_array<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]> : !bmodelica.array<2x3x4x!bmodelica.int>
+    %0 = bmodelica.constant #bmodelica.dense_int<[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]> : !bmodelica.array<2x3x4x!bmodelica.int>
     func.return %0 : !bmodelica.array<2x3x4x!bmodelica.int>
 }
 
@@ -67,7 +67,7 @@ func.func @integer3DArray() -> !bmodelica.array<2x3x4x!bmodelica.int> {
 // CHECK: return %[[cast_1]], %[[cast_2]]
 
 func.func @sameValue() -> (!bmodelica.array<2x!bmodelica.int>, !bmodelica.array<2x!bmodelica.int>) {
-    %0 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
-    %1 = bmodelica.constant #bmodelica.int_array<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    %0 = bmodelica.constant #bmodelica.dense_int<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
+    %1 = bmodelica.constant #bmodelica.dense_int<[1, 2]> : !bmodelica.array<2x!bmodelica.int>
     func.return %0, %1 : !bmodelica.array<2x!bmodelica.int>, !bmodelica.array<2x!bmodelica.int>
 }

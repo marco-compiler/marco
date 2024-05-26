@@ -5,8 +5,7 @@ using namespace ::mlir::bmodelica;
 
 namespace mlir::bmodelica
 {
-  TypeConverter::TypeConverter(unsigned int bitWidth)
-    : bitWidth(bitWidth)
+  TypeConverter::TypeConverter()
   {
     addConversion([](mlir::Type type) {
       return type;
@@ -32,8 +31,8 @@ namespace mlir::bmodelica
       return convertUnrankedArrayType(type);
     });
 
-    addConversion([&](mlir::IndexType type) {
-      return type;
+    addConversion([&](mlir::TensorType type) {
+      return convertTensorType(type);
     });
 
     addTargetMaterialization(
@@ -74,25 +73,12 @@ namespace mlir::bmodelica
 
   mlir::Type TypeConverter::convertIntegerType(IntegerType type)
   {
-    return mlir::IntegerType::get(type.getContext(), bitWidth);
+    return mlir::IntegerType::get(type.getContext(), 64);
   }
 
   mlir::Type TypeConverter::convertRealType(RealType type)
   {
-    if (bitWidth == 16) {
-      return mlir::Float16Type::get(type.getContext());
-    }
-
-    if (bitWidth == 32) {
-      return mlir::Float32Type::get(type.getContext());
-    }
-
-    if (bitWidth == 64) {
-      return mlir::Float64Type::get(type.getContext());
-    }
-
-    llvm_unreachable("Unsupported bit-width for real type");
-    return {};
+    return mlir::Float64Type::get(type.getContext());
   }
 
   mlir::Type TypeConverter::convertArrayType(ArrayType type)
@@ -106,5 +92,10 @@ namespace mlir::bmodelica
   {
     auto elementType = convertType(type.getElementType());
     return mlir::UnrankedMemRefType::get(elementType, type.getMemorySpace());
+  }
+
+  mlir::Type TypeConverter::convertTensorType(mlir::TensorType type)
+  {
+    return type.clone(convertType(type.getElementType()));
   }
 }

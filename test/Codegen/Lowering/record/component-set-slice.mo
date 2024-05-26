@@ -2,9 +2,8 @@
 
 // CHECK:       bmodelica.function @Foo {
 // CHECK:           bmodelica.algorithm {
-// CHECK-DAG:           %[[r:.*]] = bmodelica.variable_get @r : !bmodelica.array<3x!bmodelica<record @R>>
-// CHECK-DAG:           %[[x:.*]] = bmodelica.variable_get @x : !bmodelica.array<3x!bmodelica.real>
-// CHECK-NEXT:          bmodelica.component_set %[[r]], @x, %[[x]] : !bmodelica.array<3x!bmodelica<record @R>>, !bmodelica.array<3x!bmodelica.real>
+// CHECK:               %[[x:.*]] = bmodelica.variable_get @x : tensor<3x!bmodelica.real>
+// CHECK-NEXT:          bmodelica.variable_component_set %[[x]], @r::@x[] : tensor<3x!bmodelica.real>
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

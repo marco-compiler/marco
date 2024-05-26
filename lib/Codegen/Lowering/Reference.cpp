@@ -1,5 +1,5 @@
 #include "marco/Codegen/Lowering/Reference.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 
 using namespace ::marco::codegen::lowering;
 using namespace ::mlir::bmodelica;
@@ -27,7 +27,10 @@ namespace marco::codegen::lowering
 
       virtual mlir::Value get(mlir::Location loc) const = 0;
 
-      virtual void set(mlir::Location loc, mlir::Value value) = 0;
+      virtual void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) = 0;
 
     protected:
       mlir::OpBuilder* builder;
@@ -62,7 +65,10 @@ namespace
         return reference;
       }
 
-      void set(mlir::Location loc, mlir::Value value) override
+      void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) override
       {
         llvm_unreachable("Can't assign value to SSA operand");
       }
@@ -71,31 +77,29 @@ namespace
       mlir::Value reference;
   };
 
-  class MemoryReference : public Reference::Impl
+  class TensorReference : public Reference::Impl
   {
     public:
-      MemoryReference(
+      TensorReference(
           mlir::OpBuilder& builder, mlir::Value value)
           : Reference::Impl(builder, value.getLoc()),
             reference(value)
       {
-        assert(reference.getType().isa<ArrayType>());
+        assert(reference.getType().isa<mlir::TensorType>());
       }
 
       std::unique_ptr<Reference::Impl> clone() override
       {
-        return std::make_unique<MemoryReference>(*this);
+        return std::make_unique<TensorReference>(*this);
       }
 
       mlir::Value get(mlir::Location loc) const override
       {
-        auto arrayType = reference.getType().cast<ArrayType>();
+        auto tensorType = reference.getType().cast<mlir::TensorType>();
 
-        // We can load the value only if it's a pointer to a scalar.
-        // Otherwise, return the array.
-
-        if (arrayType.getShape().empty()) {
-          return builder->create<LoadOp>(loc, reference);
+        if (tensorType.getShape().empty()) {
+          return builder->create<TensorExtractOp>(
+              loc, reference, std::nullopt);
         }
 
         return reference;
@@ -106,9 +110,12 @@ namespace
         return reference;
       }
 
-      void set(mlir::Location loc, mlir::Value value) override
+      void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) override
       {
-        builder->create<AssignmentOp>(loc, reference, value);
+        llvm_unreachable("Not implemented");
       }
 
     private:
@@ -144,9 +151,12 @@ namespace
         llvm_unreachable("Variables have no SSA value");
       }
 
-      void set(mlir::Location loc, mlir::Value value) override
+      void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) override
       {
-        builder->create<VariableSetOp>(loc, name, value);
+        builder->create<VariableSetOp>(loc, name, indices, value);
       }
 
     private:
@@ -186,9 +196,12 @@ namespace
         llvm_unreachable("Variable components have no SSA value");
       }
 
-      void set(mlir::Location loc, mlir::Value value) override
+      void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) override
       {
-        builder->create<ComponentSetOp>(loc, parent, componentName, value);
+        llvm_unreachable("Records are not supposed to be modified");
       }
 
     private:
@@ -220,7 +233,10 @@ namespace
         llvm_unreachable("No reference for the 'time' variable");
       }
 
-      void set(mlir::Location loc, mlir::Value value) override
+      void set(
+          mlir::Location loc,
+          mlir::ValueRange indices,
+          mlir::Value value) override
       {
         llvm_unreachable("Can't write into the 'time' variable");
       }
@@ -266,9 +282,9 @@ namespace marco::codegen::lowering
     return Reference(std::make_unique<SSAReference>(builder, value));
   }
 
-  Reference Reference::memory(mlir::OpBuilder& builder,  mlir::Value value)
+  Reference Reference::tensor(mlir::OpBuilder& builder, mlir::Value value)
   {
-    return Reference(std::make_unique<MemoryReference>(builder, value));
+    return Reference(std::make_unique<TensorReference>(builder, value));
   }
 
   Reference Reference::variable(
@@ -312,8 +328,11 @@ namespace marco::codegen::lowering
     return impl->getReference();
   }
 
-  void Reference::set(mlir::Location loc, mlir::Value value)
+  void Reference::set(
+      mlir::Location loc,
+      mlir::ValueRange indices,
+      mlir::Value value)
   {
-    impl->set(loc, value);
+    impl->set(loc, indices, value);
   }
 }

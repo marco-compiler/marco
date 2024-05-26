@@ -169,40 +169,21 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
       std::unique_ptr<mlir::Pass> createMLIRIDAPass();
+      std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
 
       /// }
       /// @name Conversion passes.
       /// {
 
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToArithConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToCFConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToMemRefConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToRuntimeConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToVectorConversionPass();
-
-      std::unique_ptr<mlir::Pass> createMLIRIDAToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRIDAToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createMLIRKINSOLToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRKINSOLToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createMLIRRuntimeToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRRuntimeToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass>
+      createMLIRBaseModelicaToRuntimeConversionPass();
 
       /// }
       /// @name MLIR built-in passes.
       /// {
 
-      std::unique_ptr<mlir::Pass> createMLIRArithToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass>
-      createMLIRFuncToLLVMConversionPass(bool useBarePtrCallConv);
-
-      std::unique_ptr<mlir::Pass> createMLIRMemRefToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRVectorToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMLIRVectorToSCFConversionPass();
+      std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass();
+      void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager& pm);
 
       /// }
       /// @name LLVM-IR

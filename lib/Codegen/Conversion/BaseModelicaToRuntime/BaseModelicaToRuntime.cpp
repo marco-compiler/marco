@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/BaseModelicaToRuntime/BaseModelicaToRuntime.h"
-#include "marco/Codegen/Analysis/DerivativesMap.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -222,7 +222,7 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation()
   }
 }
 
-DerivativesMap&  BaseModelicaToRuntimeConversionPass::getDerivativesMap(
+DerivativesMap& BaseModelicaToRuntimeConversionPass::getDerivativesMap(
     ModelOp modelOp)
 {
   if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
@@ -295,7 +295,7 @@ BaseModelicaToRuntimeConversionPass::addMissingRuntimeFunctions(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::processModelOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::processModelOp(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
@@ -395,7 +395,7 @@ static std::string flattenScheduleName(mlir::SymbolRefAttr name)
   return result;
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertSchedules(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertSchedules(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
@@ -447,7 +447,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertSchedules(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
     InitialOp op)
@@ -478,7 +478,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
     DynamicOp op)
@@ -509,7 +509,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
     mlir::Operation* op)
@@ -526,7 +526,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
     ParallelScheduleBlocksOp op)
@@ -547,7 +547,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
     mlir::RewriterBase& rewriter,
     mlir::IRMapping& mapping,
     ScheduleBlockOp op)
@@ -559,7 +559,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertScheduleBodyOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createModelNameOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createModelNameOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp)
@@ -573,7 +573,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createModelNameOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createNumOfVariablesOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createNumOfVariablesOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
@@ -590,7 +590,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createNumOfVariablesOp
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableNamesOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableNamesOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
@@ -611,7 +611,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableNamesOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableRanksOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableRanksOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
@@ -738,7 +738,7 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createDerivativesMapOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createDerivativesMapOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
@@ -781,7 +781,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createDerivativesMapOp
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableGetters(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableGetters(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp,
@@ -813,8 +813,8 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableGetters(
 
     mlir::Value result = getOp;
 
-    if (result.getType().isa<ArrayType>()) {
-      result = builder.create<LoadOp>(
+    if (result.getType().isa<mlir::TensorType>()) {
+      result = builder.create<TensorExtractOp>(
           result.getLoc(), result, getterOp.getIndices());
     }
 
@@ -833,7 +833,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createVariableGetters(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createInitFunction(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createInitFunction(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
@@ -856,7 +856,8 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createInitFunction(
     VariableType variableType = variable.getVariableType();
 
     auto constantMaterializableElementType =
-        variableType.getElementType().dyn_cast<ConstantMaterializableType>();
+        variableType.getElementType()
+            .dyn_cast<ConstantMaterializableTypeInterface>();
 
     if (!constantMaterializableElementType) {
       return mlir::failure();
@@ -866,15 +867,15 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createInitFunction(
         constantMaterializableElementType.materializeIntConstant(
             rewriter, variable.getLoc(), 0);
 
-    if (variableType.isScalar()) {
-      rewriter.create<QualifiedVariableSetOp>(
-          variable.getLoc(), variable, zeroValue);
-    } else {
-      mlir::Value destination = rewriter.create<QualifiedVariableGetOp>(
-          variable.getLoc(), variable);
-
-      rewriter.create<ArrayFillOp>(destination.getLoc(), destination, zeroValue);
+    if (!variableType.isScalar()) {
+      zeroValue = rewriter.create<TensorBroadcastOp>(
+          zeroValue.getLoc(),
+          variable.getVariableType().toTensorType(),
+          zeroValue);
     }
+
+    rewriter.create<QualifiedVariableSetOp>(
+        variable.getLoc(), variable, zeroValue);
   }
 
   rewriter.setInsertionPointToEnd(&initFunctionOp.getBodyRegion().back());
@@ -897,7 +898,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createInitFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createDeinitFunction(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createDeinitFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     ModelOp modelOp)
@@ -917,7 +918,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createDeinitFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::declareGlobalVariables(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::declareGlobalVariables(
     mlir::OpBuilder& builder,
     mlir::SymbolTableCollection& symbolTableCollection,
     mlir::ModuleOp moduleOp,
@@ -993,10 +994,16 @@ namespace
         mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
             op.getLoc(), getGlobalVariable(variableOp));
 
-        if (auto arrayType = replacement.getType().dyn_cast<ArrayType>();
-            arrayType && arrayType.isScalar()) {
+        auto arrayType = replacement.getType().cast<ArrayType>();
+
+        if (arrayType.isScalar()) {
           replacement = rewriter.create<LoadOp>(
               replacement.getLoc(), replacement, std::nullopt);
+        } else if (op.getResult().getType().isa<mlir::TensorType>()) {
+          replacement = rewriter.create<ArrayToTensorOp>(
+              replacement.getLoc(),
+              variableOp.getVariableType().toTensorType(),
+              replacement);
         }
 
         rewriter.replaceOp(op, replacement);
@@ -1020,22 +1027,44 @@ namespace
       mlir::Value globalVariable = rewriter.create<GlobalVariableGetOp>(
           op.getLoc(), getGlobalVariable(variableOp));
 
-      mlir::Value storedValue = op.getValue();
-      auto arrayType = globalVariable.getType().cast<ArrayType>();
+      mlir::Value writtenValue = op.getValue();
+      auto variableArrayType = globalVariable.getType().cast<ArrayType>();
 
-      if (!arrayType.isScalar()) {
-        return mlir::failure();
+      if (variableArrayType.isScalar()) {
+        if (mlir::Type expectedType = variableArrayType.getElementType();
+            writtenValue.getType() != expectedType) {
+          writtenValue = rewriter.create<CastOp>(
+              writtenValue.getLoc(), expectedType, writtenValue);
+        }
+
+        rewriter.create<StoreOp>(
+            op.getLoc(), writtenValue, globalVariable, std::nullopt);
+      } else {
+        if (writtenValue.getType().isa<mlir::TensorType>()) {
+          writtenValue = rewriter.create<TensorToArrayOp>(
+              writtenValue.getLoc(), globalVariable.getType(), writtenValue);
+        }
+
+        mlir::Value destination = globalVariable;
+        auto indices = op.getIndices();
+
+        if (!indices.empty()) {
+          destination = rewriter.create<SubscriptionOp>(
+              op.getLoc(), destination, indices);
+        }
+
+        auto destinationShapedType =
+            destination.getType().cast<mlir::ShapedType>();
+
+        if (destinationShapedType.getShape().empty()) {
+          rewriter.create<StoreOp>(
+              op.getLoc(), writtenValue, destination, std::nullopt);
+        } else {
+          rewriter.create<ArrayCopyOp>(op.getLoc(), writtenValue, destination);
+        }
       }
 
-      if (mlir::Type expectedType = arrayType.getElementType();
-          storedValue.getType() != expectedType) {
-        storedValue = rewriter.create<CastOp>(
-            storedValue.getLoc(), expectedType, storedValue);
-      }
-
-      rewriter.replaceOpWithNewOp<StoreOp>(
-          op, storedValue, globalVariable, std::nullopt);
-
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };
@@ -1088,7 +1117,7 @@ target.addDynamicallyLegalOp<QualifiedVariableSetOp>(
   return mlir::applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
-GlobalVariableOp  BaseModelicaToRuntimeConversionPass::declareTimeVariable(
+GlobalVariableOp BaseModelicaToRuntimeConversionPass::declareTimeVariable(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection)
@@ -1105,7 +1134,7 @@ GlobalVariableOp  BaseModelicaToRuntimeConversionPass::declareTimeVariable(
   return globalVariableOp;
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createTimeGetterOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeGetterOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -1137,7 +1166,7 @@ mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createTimeGetterOp(
   return mlir::success();
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::createTimeSetterOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeSetterOp(
     mlir::OpBuilder& builder,
     mlir::ModuleOp moduleOp,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -1194,7 +1223,7 @@ namespace
   };
 }
 
-mlir::LogicalResult  BaseModelicaToRuntimeConversionPass::convertTimeOp(
+mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertTimeOp(
     mlir::ModuleOp moduleOp)
 {
   mlir::RewritePatternSet patterns(moduleOp.getContext());

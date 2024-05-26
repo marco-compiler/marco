@@ -1,7 +1,7 @@
 #include "marco/Codegen/Conversion/BaseModelicaToCF/BaseModelicaToCF.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
-#include "marco/Dialect/BaseModelica/DefaultValuesDependencyGraph.h"
-#include "marco/Dialect/BaseModelica/VariablesDimensionsDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/DefaultValuesDependencyGraph.h"
+#include "marco/Dialect/BaseModelica/IR/VariablesDimensionsDependencyGraph.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -22,21 +22,12 @@ namespace mlir
 
 using namespace ::mlir::bmodelica;
 
-static bool canBePromoted(ArrayType arrayType)
-{
-  return arrayType.hasStaticShape();
-}
-
 namespace
 {
   class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
   {
     public:
-      CFGLowering(mlir::MLIRContext* context, bool outputArraysPromotion)
-          : mlir::OpRewritePattern<FunctionOp>(context),
-            outputArraysPromotion(outputArraysPromotion)
-      {
-      }
+      using mlir::OpRewritePattern<FunctionOp>::OpRewritePattern;
 
       mlir::LogicalResult matchAndRewrite(
           FunctionOp op, mlir::PatternRewriter& rewriter) const override
@@ -168,29 +159,15 @@ namespace
         llvm::SmallVectorImpl<VariableOp>& outputVariables,
         llvm::SmallVectorImpl<VariableOp>& protectedVariables) const
       {
-        // Keep the promoted variables in a separate list, so that they can be
-        // then appended to the list of input ones.
-        llvm::SmallVector<VariableOp> promotedVariables;
-
         for (VariableOp variableOp : functionOp.getVariables()) {
           if (variableOp.isInput()) {
             inputVariables.push_back(variableOp);
           } else if (variableOp.isOutput()) {
-            mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
-
-            if (auto arrayType = unwrappedType.dyn_cast<ArrayType>();
-                arrayType && outputArraysPromotion && canBePromoted(arrayType)) {
-              promotedVariables.push_back(variableOp);
-            } else {
-              outputVariables.push_back(variableOp);
-            }
+            outputVariables.push_back(variableOp);
           } else {
             protectedVariables.push_back(variableOp);
           }
         }
-
-        // Append the promoted output variables to the list of input variables.
-        inputVariables.append(promotedVariables);
       }
 
       RawVariableOp createVariable(
@@ -235,10 +212,11 @@ namespace
 
         return rewriter.create<RawVariableOp>(
             variableOp.getLoc(),
+            variableOp.getVariableType().toTensorType(),
             variableOp.getSymName(),
-            variableOp.getVariableType(),
             variableOp.getDimensionsConstraints(),
-            constraints);
+            constraints,
+            variableOp.isOutput());
       }
 
       /// Replace the references to the symbol of a variable with references to
@@ -269,8 +247,46 @@ namespace
           assert(it != outputAndProtectedVars.end());
           RawVariableOp rawVariableOp = it->getValue();
 
-          rewriter.replaceOpWithNewOp<RawVariableSetOp>(
-              op, rawVariableOp, op.getValue());
+          mlir::Value value = op.getValue();
+
+          if (auto indices = op.getIndices(); !indices.empty()) {
+            mlir::Value tensor = rewriter.create<RawVariableGetOp>(
+                op.getLoc(), rawVariableOp);
+
+            mlir::Type tensorElementType =
+                tensor.getType().cast<mlir::TensorType>().getElementType();
+
+            if (value.getType() != tensorElementType) {
+              value = rewriter.create<CastOp>(
+                  op.getLoc(), tensorElementType, value);
+            }
+
+            tensor = rewriter.create<TensorInsertOp>(
+                op.getLoc(), value, tensor, indices);
+
+            rewriter.replaceOpWithNewOp<RawVariableSetOp>(
+                op, rawVariableOp, tensor);
+          } else {
+            auto rawVariableTensorType =
+                rawVariableOp.getVariable().getType().cast<mlir::TensorType>();
+
+            if (rawVariableTensorType.getShape().empty()) {
+              mlir::Type elementType = rawVariableTensorType.getElementType();
+
+              if (value.getType() != elementType) {
+                value = rewriter.create<CastOp>(
+                    op.getLoc(), elementType, value);
+              }
+            } else {
+              if (value.getType() != rawVariableTensorType) {
+                value = rewriter.create<CastOp>(
+                    op.getLoc(), rawVariableTensorType, value);
+              }
+            }
+
+            rewriter.replaceOpWithNewOp<RawVariableSetOp>(
+                op, rawVariableOp, value);
+          }
         });
       }
 
@@ -364,10 +380,12 @@ namespace
 
         rewriter.setInsertionPoint(conditionOp);
 
-        mlir::Value conditionValue = rewriter.create<CastOp>(
-            conditionOp.getCondition().getLoc(),
-            rewriter.getI1Type(),
-            conditionOp.getCondition());
+        mlir::Value conditionValue = conditionOp.getCondition();
+
+        if (conditionValue.getType() != rewriter.getI1Type()) {
+          conditionValue = rewriter.create<CastOp>(
+              conditionValue.getLoc(), rewriter.getI1Type(), conditionValue);
+        }
 
         rewriter.create<mlir::cf::CondBranchOp>(
             conditionOp->getLoc(),
@@ -440,8 +458,12 @@ namespace
         rewriter.inlineRegionBefore(op.getThenRegion(), continuation);
         rewriter.setInsertionPointToEnd(currentBlock);
 
-        mlir::Value conditionValue = rewriter.create<CastOp>(
-            op.getCondition().getLoc(), rewriter.getI1Type(), op.getCondition());
+        mlir::Value conditionValue = op.getCondition();
+
+        if (conditionValue.getType() != rewriter.getI1Type()) {
+          conditionValue = rewriter.create<CastOp>(
+              conditionValue.getLoc(), rewriter.getI1Type(), conditionValue);
+        }
 
         if (op.getElseRegion().empty()) {
           // Branch to the "then" region or to the continuation block according
@@ -536,10 +558,12 @@ namespace
         auto conditionOp = mlir::cast<ConditionOp>(
             conditionLast->getTerminator());
 
-        mlir::Value conditionValue = rewriter.create<CastOp>(
-            conditionOp->getLoc(),
-            rewriter.getI1Type(),
-            conditionOp.getCondition());
+        mlir::Value conditionValue = conditionOp.getCondition();
+
+        if (conditionValue.getType() != rewriter.getI1Type()) {
+          conditionValue = rewriter.create<CastOp>(
+              conditionOp.getLoc(), rewriter.getI1Type(), conditionValue);
+        }
 
         rewriter.create<mlir::cf::CondBranchOp>(
             op->getLoc(),
@@ -608,9 +632,6 @@ namespace
 
         return mlir::success();
       }
-
-    private:
-      bool outputArraysPromotion;
   };
 }
 
@@ -627,9 +648,7 @@ namespace
       void runOnOperation() override;
 
     private:
-      mlir::LogicalResult convertModelicaToCFG(mlir::ModuleOp moduleOp);
-
-      mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp);
+      mlir::LogicalResult convertBaseModelicaToCFG(mlir::ModuleOp moduleOp);
   };
 }
 
@@ -637,26 +656,16 @@ void BaseModelicaToCFConversionPass::runOnOperation()
 {
   mlir::ModuleOp moduleOp = getOperation();
 
-  if (mlir::failed(convertModelicaToCFG(moduleOp))) {
-    mlir::emitError(
-        getOperation().getLoc(),
-        "Can't compute CFG of Modelica functions");
-
+  if (mlir::failed(convertBaseModelicaToCFG(moduleOp))) {
     return signalPassFailure();
-  }
-
-  if (outputArraysPromotion) {
-    if (mlir::failed(promoteCallResults(moduleOp))) {
-      return signalPassFailure();
-    }
   }
 }
 
-mlir::LogicalResult BaseModelicaToCFConversionPass::convertModelicaToCFG(
+mlir::LogicalResult BaseModelicaToCFConversionPass::convertBaseModelicaToCFG(
     mlir::ModuleOp moduleOp)
 {
   mlir::RewritePatternSet patterns(&getContext());
-  patterns.add<CFGLowering>(&getContext(), outputArraysPromotion);
+  patterns.add<CFGLowering>(&getContext());
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
@@ -665,71 +674,10 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::convertModelicaToCFG(
       moduleOp, std::move(patterns), config);
 }
 
-mlir::LogicalResult BaseModelicaToCFConversionPass::promoteCallResults(
-    mlir::ModuleOp moduleOp)
-{
-  mlir::OpBuilder builder(moduleOp);
-
-  moduleOp.walk([&](CallOp callOp) {
-    builder.setInsertionPoint(callOp);
-
-    llvm::SmallVector<mlir::Value> args;
-
-    for (mlir::Value arg : callOp.getArgs()) {
-      args.push_back(arg);
-    }
-
-    llvm::SmallVector<mlir::Type> resultTypes;
-    llvm::DenseMap<size_t, size_t> resultsMap;
-    size_t newResultsCounter = 0;
-
-    for (const auto& result : llvm::enumerate(callOp->getResults())) {
-      mlir::Type resultType = result.value().getType();
-
-      if (auto arrayType = resultType.dyn_cast<ArrayType>();
-          arrayType && canBePromoted(arrayType)) {
-        // Allocate the array inside the caller body.
-        mlir::Value array = builder.create<AllocOp>(
-            callOp.getLoc(), arrayType, std::nullopt);
-
-        // Add the array to the arguments.
-        args.push_back(array);
-
-        // Replace the usages of the old result.
-        result.value().replaceAllUsesWith(array);
-      } else {
-        resultTypes.push_back(resultType);
-        resultsMap[newResultsCounter++] = result.index();
-      }
-    }
-
-    // Create the new function call.
-    auto newCallOp = builder.create<CallOp>(
-        callOp.getLoc(), callOp.getCallee(), resultTypes, args);
-
-    // Replace the non-promoted old results.
-    for (size_t i = 0; i < newResultsCounter; ++i) {
-      callOp.getResult(resultsMap[i])
-          .replaceAllUsesWith(newCallOp.getResult(i));
-    }
-
-    // Erase the old function call.
-    callOp.erase();
-  });
-
-  return mlir::success();
-}
-
 namespace mlir
 {
   std::unique_ptr<mlir::Pass> createBaseModelicaToCFConversionPass()
   {
     return std::make_unique<BaseModelicaToCFConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createBaseModelicaToCFConversionPass(
-      const BaseModelicaToCFConversionPassOptions& options)
-  {
-    return std::make_unique<BaseModelicaToCFConversionPass>(options);
   }
 }

@@ -259,10 +259,23 @@ namespace marco::parser
 
     while (!lookahead[0].isa<TokenKind::End>() &&
         !lookahead[0].isa<TokenKind::Annotation>()) {
-      if (lookahead[0].isa<TokenKind::Equation>() ||
-          lookahead[0].isa<TokenKind::Initial>()) {
+      if (lookahead[0].isa<TokenKind::Initial>() &&
+          lookahead[1].isa<TokenKind::Equation>()) {
         TRY(section, parseEquationSection());
         equationSections.push_back(std::move(*section));
+        continue;
+      }
+
+      if (lookahead[0].isa<TokenKind::Equation>()) {
+        TRY(section, parseEquationSection());
+        equationSections.push_back(std::move(*section));
+        continue;
+      }
+
+      if (lookahead[0].isa<TokenKind::Initial>() &&
+          lookahead[1].isa<TokenKind::Algorithm>()) {
+        TRY(algorithm, parseAlgorithmSection());
+        algorithms.push_back(std::move(*algorithm));
         continue;
       }
 

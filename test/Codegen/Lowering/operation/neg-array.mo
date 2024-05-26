@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integer
-// CHECK: bmodelica.neg %{{.*}} : !bmodelica.array<3x5x!bmodelica.int> -> !bmodelica.array<3x5x!bmodelica.int>
+// CHECK: bmodelica.neg %{{.*}} : tensor<3x5x!bmodelica.int> -> tensor<3x5x!bmodelica.int>
 
 function Integers
     input Integer[3,5] x;
@@ -11,7 +11,7 @@ algorithm
 end Integers;
 
 // CHECK-LABEL: @Real
-// CHECK: bmodelica.neg %{{.*}} : !bmodelica.array<3x5x!bmodelica.real> -> !bmodelica.array<3x5x!bmodelica.real>
+// CHECK: bmodelica.neg %{{.*}} : tensor<3x5x!bmodelica.real> -> tensor<3x5x!bmodelica.real>
 
 function Reals
     input Real[3,5] x;

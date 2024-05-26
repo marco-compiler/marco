@@ -1,14 +1,10 @@
 #include "marco/Codegen/Conversion/BaseModelicaToLLVM/BaseModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/LLVMTypeConverter.h"
-#include "marco/Codegen/Conversion/BaseModelicaCommon/Utils.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
-#include "marco/Dialect/IDA/IDADialect.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
-#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir
@@ -17,53 +13,15 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
-using namespace ::marco;
-using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
 namespace
 {
-  /// Generic rewrite pattern that provides some utility functions.
-  template<typename Op>
-  class ModelicaOpRewritePattern : public mlir::OpRewritePattern<Op>
-  {
-    public:
-      using mlir::OpRewritePattern<Op>::OpRewritePattern;
-  };
-
-  /// Generic conversion pattern that provides some utility functions.
-  template<typename Op>
-  class ModelicaOpConversionPattern : public mlir::ConvertOpToLLVMPattern<Op>
-  {
-    public:
-      using mlir::ConvertOpToLLVMPattern<Op>::ConvertOpToLLVMPattern;
-
-      mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value) const
-      {
-        mlir::Type type = this->getTypeConverter()->convertType(value.getType());
-        return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
-      }
-
-      void materializeTargetConversion(mlir::OpBuilder& builder, llvm::SmallVectorImpl<mlir::Value>& values) const
-      {
-        for (auto& value : values) {
-          value = materializeTargetConversion(builder, value);
-        }
-      }
-  };
-}
-
-//===---------------------------------------------------------------------===//
-// Range operations
-//===---------------------------------------------------------------------===//
-
-namespace
-{
   class ConstantOpRangeLowering
-      : public ModelicaOpConversionPattern<ConstantOp>
+      : public mlir::ConvertOpToLLVMPattern<ConstantOp>
   {
     public:
-      using ModelicaOpConversionPattern<ConstantOp>::ModelicaOpConversionPattern;
+      using mlir::ConvertOpToLLVMPattern<ConstantOp>::ConvertOpToLLVMPattern;
 
       mlir::LogicalResult matchAndRewrite(
           ConstantOp op,
@@ -73,7 +31,7 @@ namespace
         mlir::Location loc = op.getLoc();
 
         if (!op.getResult().getType().isa<RangeType>()) {
-          return mlir::failure();
+          return rewriter.notifyMatchFailure(op, "Incompatible attribute");
         }
 
         auto structType =
@@ -155,10 +113,10 @@ namespace
   };
 
   class RangeOpLowering
-      : public ModelicaOpConversionPattern<RangeOp>
+      : public mlir::ConvertOpToLLVMPattern<RangeOp>
   {
     public:
-      using ModelicaOpConversionPattern<RangeOp>::ModelicaOpConversionPattern;
+      using mlir::ConvertOpToLLVMPattern<RangeOp>::ConvertOpToLLVMPattern;
 
       mlir::LogicalResult matchAndRewrite(
           RangeOp op,
@@ -210,10 +168,9 @@ namespace
   };
 
   struct RangeBeginOpLowering
-      : public ModelicaOpConversionPattern<RangeBeginOp>
+      : public mlir::ConvertOpToLLVMPattern<RangeBeginOp>
   {
-      using ModelicaOpConversionPattern<RangeBeginOp>
-          ::ModelicaOpConversionPattern;
+      using mlir::ConvertOpToLLVMPattern<RangeBeginOp>::ConvertOpToLLVMPattern;
 
       mlir::LogicalResult matchAndRewrite(
           RangeBeginOp op,
@@ -228,10 +185,9 @@ namespace
   };
 
   struct RangeEndOpLowering
-      : public ModelicaOpConversionPattern<RangeEndOp>
+      : public mlir::ConvertOpToLLVMPattern<RangeEndOp>
   {
-      using ModelicaOpConversionPattern<RangeEndOp>
-          ::ModelicaOpConversionPattern;
+      using mlir::ConvertOpToLLVMPattern<RangeEndOp>::ConvertOpToLLVMPattern;
 
       mlir::LogicalResult matchAndRewrite(
           RangeEndOp op,
@@ -245,11 +201,9 @@ namespace
       }
   };
 
-  struct RangeStepOpLowering
-      : public ModelicaOpConversionPattern<RangeStepOp>
+  struct RangeStepOpLowering : public mlir::ConvertOpToLLVMPattern<RangeStepOp>
   {
-      using ModelicaOpConversionPattern<RangeStepOp>
-          ::ModelicaOpConversionPattern;
+      using mlir::ConvertOpToLLVMPattern<RangeStepOp>::ConvertOpToLLVMPattern;
 
       mlir::LogicalResult matchAndRewrite(
           RangeStepOp op,
@@ -264,261 +218,36 @@ namespace
   };
 }
 
-//===---------------------------------------------------------------------===//
-// Cast operations
-//===---------------------------------------------------------------------===//
-
 namespace
 {
-  class CastOpIntegerLowering : public ModelicaOpConversionPattern<CastOp>
-  {
-    using ModelicaOpConversionPattern<CastOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(CastOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      if (!adaptor.getValue().getType().isa<mlir::IntegerType>()) {
-        return rewriter.notifyMatchFailure(op, "Source is not an IntegerType");
-      }
-
-      auto loc = op.getLoc();
-
-      mlir::Type source = adaptor.getValue().getType();
-      mlir::Type destination = getTypeConverter()->convertType(op.getResult().getType());
-
-      if (source == destination) {
-        rewriter.replaceOp(op, adaptor.getValue());
-        return mlir::success();
-      }
-
-      if (destination.isa<mlir::IntegerType>()) {
-        mlir::Value result = adaptor.getValue();
-
-        if (result.getType().getIntOrFloatBitWidth() < destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::ExtSIOp>(loc, destination, result);
-        } else if (result.getType().getIntOrFloatBitWidth() > destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::TruncIOp>(loc, destination, result);
-        }
-
-        rewriter.replaceOp(op, result);
-        return mlir::success();
-      }
-
-      if (destination.isa<mlir::FloatType>()) {
-        mlir::Value result = adaptor.getValue();
-
-        if (result.getType().getIntOrFloatBitWidth() < destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::ExtSIOp>(
-              loc, rewriter.getIntegerType(destination.getIntOrFloatBitWidth()), result);
-        } else if (result.getType().getIntOrFloatBitWidth() > destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::TruncIOp>(
-              loc, rewriter.getIntegerType(destination.getIntOrFloatBitWidth()), result);
-        }
-
-        result = rewriter.create<mlir::arith::SIToFPOp>(loc, destination, result);
-        rewriter.replaceOp(op, result);
-
-        return mlir::success();
-      }
-
-      return rewriter.notifyMatchFailure(op, "Unknown cast");
-    }
-  };
-
-  class CastOpFloatLowering : public ModelicaOpConversionPattern<CastOp>
-  {
-    using ModelicaOpConversionPattern<CastOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(CastOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      if (!adaptor.getValue().getType().isa<mlir::FloatType>()) {
-        return rewriter.notifyMatchFailure(op, "Source is not a FloatType");
-      }
-
-      auto loc = op.getLoc();
-
-      mlir::Type source = adaptor.getValue().getType();
-      mlir::Type destination = getTypeConverter()->convertType(op.getResult().getType());
-
-      if (source == destination) {
-        rewriter.replaceOp(op, adaptor.getValue());
-        return mlir::success();
-      }
-
-      if (destination.isa<mlir::IntegerType>()) {
-        mlir::Value result = adaptor.getValue();
-
-        result = rewriter.create<mlir::arith::FPToSIOp>(
-            loc, rewriter.getIntegerType(result.getType().getIntOrFloatBitWidth()), result);
-
-        if (result.getType().getIntOrFloatBitWidth() < destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::ExtSIOp>(
-              loc, rewriter.getIntegerType(destination.getIntOrFloatBitWidth()), result);
-        } else if (result.getType().getIntOrFloatBitWidth() > destination.getIntOrFloatBitWidth()) {
-          result = rewriter.create<mlir::arith::TruncIOp>(
-              loc, rewriter.getIntegerType(destination.getIntOrFloatBitWidth()), result);
-        }
-
-        rewriter.replaceOp(op, result);
-        return mlir::success();
-      }
-
-      return rewriter.notifyMatchFailure(op, "Unknown cast");
-    }
-  };
-}
-
-//===---------------------------------------------------------------------===//
-// Runtime functions operations
-//===---------------------------------------------------------------------===//
-
-namespace
-{
-  template<typename Op>
-  class RuntimeOpConversionPattern : public ModelicaOpConversionPattern<Op>
+  class BaseModelicaToLLVMConversionPass
+      : public mlir::impl::BaseModelicaToLLVMConversionPassBase<
+            BaseModelicaToLLVMConversionPass>
   {
     public:
-      using ModelicaOpConversionPattern<Op>::ModelicaOpConversionPattern;
+      using BaseModelicaToLLVMConversionPassBase<
+          BaseModelicaToLLVMConversionPass>
+          ::BaseModelicaToLLVMConversionPassBase;
 
-    protected:
-      mlir::Value promote(
-        mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value) const
-      {
-        auto one = builder.create<mlir::LLVM::ConstantOp>(
-            loc, this->getIndexType(), builder.getIndexAttr(1));
-
-        auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
-
-        auto allocated = builder.create<mlir::LLVM::AllocaOp>(
-            loc, ptrType, value.getType(), one);
-
-        builder.create<mlir::LLVM::StoreOp>(loc, value, allocated);
-
-        mlir::Value opaquePtr = builder.create<mlir::LLVM::BitcastOp>(
-            loc,
-            mlir::LLVM::LLVMPointerType::get(builder.getContext()),
-            allocated);
-
-        return opaquePtr;
-      }
-  };
-
-  struct CallOpLowering : public RuntimeOpConversionPattern<CallOp>
-  {
-    using RuntimeOpConversionPattern<CallOp>::RuntimeOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        CallOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      mlir::Location loc = op.getLoc();
-      llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-      if (mlir::failed(getTypeConverter()->convertTypes(
-              op.getResultTypes(), resultTypes))) {
-        return mlir::failure();
-      }
-
-      llvm::SmallVector<mlir::Value, 3> args;
-
-      for (mlir::Value arg : adaptor.getArgs()) {
-        if (arg.getType().isa<mlir::LLVM::LLVMStructType>()) {
-          args.push_back(promote(rewriter, loc, arg));
-        } else {
-          args.push_back(arg);
-        }
-      }
-
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-          op, resultTypes, op.getCallee().getLeafReference(), args);
-
-      return mlir::success();
-    }
-  };
-}
-
-static void populateBaseModelicaToLLVMPatterns(
-		mlir::RewritePatternSet& patterns,
-		mlir::LLVMTypeConverter& typeConverter)
-{
-  // Range operations.
-  patterns.insert<
-      ConstantOpRangeLowering,
-      RangeOpLowering,
-      RangeBeginOpLowering,
-      RangeEndOpLowering,
-      RangeStepOpLowering>(typeConverter);
-
-  // Cast operations.
-  patterns.insert<
-      CastOpIntegerLowering,
-      CastOpFloatLowering>(typeConverter);
-}
-
-namespace
-{
-  class BaseModelicaToLLVMConversionPass : public mlir::impl::BaseModelicaToLLVMConversionPassBase<BaseModelicaToLLVMConversionPass>
-  {
-    public:
-      using BaseModelicaToLLVMConversionPassBase::BaseModelicaToLLVMConversionPassBase;
-
-      void runOnOperation() override
-      {
-        if (mlir::failed(convertCallOps())) {
-          mlir::emitError(getOperation().getLoc())
-              << "Modelica to LLVM conversion failed";
-
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(convertOperations())) {
-          mlir::emitError(getOperation().getLoc())
-              << "Modelica to LLVM conversion failed";
-
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(legalizeRuntime())) {
-          mlir::emitError(getOperation().getLoc())
-              << "Legalization of Runtime dialect failed";
-
-          return signalPassFailure();
-        }
-      }
+      void runOnOperation() override;
 
     private:
-      mlir::LogicalResult convertCallOps();
-
       mlir::LogicalResult convertOperations();
-
-      mlir::LogicalResult legalizeRuntime();
   };
 }
 
-mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertCallOps()
+void BaseModelicaToLLVMConversionPass::runOnOperation()
 {
-  auto moduleOp = getOperation();
-  mlir::SymbolTableCollection symbolTable;
-  mlir::ConversionTarget target(getContext());
-
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
-
-  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
-  mlir::bmodelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<CallOpLowering>(typeConverter);
-
-  return applyPartialConversion(moduleOp, target, std::move(patterns));
+  if (mlir::failed(convertOperations())) {
+    return signalPassFailure();
+  }
 }
 
 mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations()
 {
-  auto moduleOp = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
+  target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
   target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
     return !op.getResult().getType().isa<RangeType>();
@@ -530,59 +259,62 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations()
       RangeEndOp,
       RangeStepOp>();
 
-  target.addIllegalOp<
-      DerOp,
-      CastOp>();
-
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
-
-  mlir::bmodelica::LLVMTypeConverter typeConverter(
-      &getContext(), llvmLoweringOptions, bitWidth);
+  LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
-
-  populateBaseModelicaToLLVMPatterns(patterns, typeConverter);
-
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
+  populateBaseModelicaToLLVMConversionPatterns(patterns, typeConverter);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
-mlir::LogicalResult BaseModelicaToLLVMConversionPass::legalizeRuntime()
+namespace
 {
-  auto module = getOperation();
-  mlir::ConversionTarget target(getContext());
+  struct BaseModelicaToLLVMDialectInterface
+      : public mlir::ConvertToLLVMPatternInterface
+  {
+    using ConvertToLLVMPatternInterface::ConvertToLLVMPatternInterface;
 
-  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
+    void loadDependentDialects(mlir::MLIRContext* context) const final
+    {
+      context->loadDialect<mlir::LLVM::LLVMDialect>();
+    }
 
-  mlir::bmodelica::LLVMTypeConverter typeConverter(
-      &getContext(), llvmLoweringOptions, bitWidth);
-
-  mlir::RewritePatternSet patterns(&getContext());
-
-  populateBaseModelicaToLLVMPatterns(patterns, typeConverter);
-
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
-
-  return applyPartialConversion(module, target, std::move(patterns));
+    void populateConvertToLLVMConversionPatterns(
+        mlir::ConversionTarget& target,
+        mlir::LLVMTypeConverter& typeConverter,
+        mlir::RewritePatternSet &patterns) const final
+    {
+      populateBaseModelicaToLLVMConversionPatterns(patterns, typeConverter);
+    }
+  };
 }
 
 namespace mlir
 {
+  void populateBaseModelicaToLLVMConversionPatterns(
+      mlir::RewritePatternSet& patterns,
+      mlir::LLVMTypeConverter& typeConverter)
+  {
+    // Range operations.
+    patterns.insert<
+        ConstantOpRangeLowering,
+        RangeOpLowering,
+        RangeBeginOpLowering,
+        RangeEndOpLowering,
+        RangeStepOpLowering>(typeConverter);
+  }
+
   std::unique_ptr<mlir::Pass> createBaseModelicaToLLVMConversionPass()
   {
     return std::make_unique<BaseModelicaToLLVMConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createBaseModelicaToLLVMConversionPass(
-      const BaseModelicaToLLVMConversionPassOptions& options)
+  void registerConvertBaseModelicaToLLVMInterface(mlir::DialectRegistry& registry)
   {
-    return std::make_unique<BaseModelicaToLLVMConversionPass>(options);
+    registry.addExtension(
+        +[](mlir::MLIRContext* context, BaseModelicaDialect* dialect) {
+          dialect->addInterfaces<BaseModelicaToLLVMDialectInterface>();
+        });
   }
 }

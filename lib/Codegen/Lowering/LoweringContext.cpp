@@ -1,5 +1,5 @@
 #include "marco/Codegen/Lowering/LoweringContext.h"
-#include "marco/Dialect/BaseModelica/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -21,10 +21,8 @@ namespace marco::codegen::lowering
     }
   }
 
-  LoweringContext::LoweringContext(
-      mlir::MLIRContext& context, CodegenOptions options)
-      : builder(&context),
-        options(std::move(options))
+  LoweringContext::LoweringContext(mlir::MLIRContext& context)
+      : builder(&context)
   {
     context.loadDialect<mlir::bmodelica::BaseModelicaDialect>();
   }
@@ -32,16 +30,6 @@ namespace marco::codegen::lowering
   mlir::OpBuilder& LoweringContext::getBuilder()
   {
     return builder;
-  }
-
-  CodegenOptions& LoweringContext::getOptions()
-  {
-    return options;
-  }
-
-  const CodegenOptions& LoweringContext::getOptions() const
-  {
-    return options;
   }
 
   mlir::SymbolTableCollection& LoweringContext::getSymbolTable()

@@ -345,10 +345,14 @@ namespace marco::modeling
             llvm::SmallVector<ScheduledEquation> SCC;
 
             for (const auto& equation : sccElements) {
+              llvm::SmallVector<scheduling::Direction> directions(
+                  EquationTraits::getNumOfIterationVars(&equation),
+                  scheduling::Direction::Unknown);
+
               SCC.push_back(ScheduledEquation(
                   equation,
                   EquationTraits::getIterationRanges(&equation),
-                  scheduling::Direction::Unknown));
+                  directions));
             }
 
             result.emplace_back(std::move(SCC));

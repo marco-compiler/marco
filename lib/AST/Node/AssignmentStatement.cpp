@@ -36,16 +36,16 @@ namespace marco::ast
     return result;
   }
 
-  Expression* AssignmentStatement::getDestinations()
+  Tuple* AssignmentStatement::getDestinations()
   {
     assert(destinations != nullptr && "Destinations not set");
-    return destinations->cast<Expression>();
+    return destinations->cast<Tuple>();
   }
 
-  const Expression* AssignmentStatement::getDestinations() const
+  const Tuple* AssignmentStatement::getDestinations() const
   {
     assert(destinations != nullptr && "Destinations not set");
-    return destinations->cast<Expression>();
+    return destinations->cast<Tuple>();
   }
 
   void AssignmentStatement::setDestinations(std::unique_ptr<ASTNode> node)

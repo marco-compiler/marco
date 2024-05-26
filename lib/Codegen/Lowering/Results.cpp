@@ -24,9 +24,12 @@ namespace marco::codegen::lowering
     return reference.get(loc);
   }
 
-  void Result::set(mlir::Location loc, mlir::Value value)
+  void Result::set(
+      mlir::Location loc,
+      mlir::ValueRange indices,
+      mlir::Value value)
   {
-    reference.set(loc, value);
+    reference.set(loc, indices, value);
   }
 
   Results::Results() = default;

@@ -99,7 +99,7 @@ end sizeDependingOnIntegerInput;
 // CHECK-LABEL: @defaultValue
 // CHECK:       bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, output>
 // CHECK-NEXT:  bmodelica.default @x {
-// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica.int<10>
+// CHECK-NEXT:      %[[value:.*]] = bmodelica.constant #bmodelica<int 10>
 // CHECK-NEXT:      bmodelica.yield %[[value]]
 // CHECK-NEXT:  }
 

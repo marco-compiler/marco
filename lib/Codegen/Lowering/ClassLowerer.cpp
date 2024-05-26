@@ -71,7 +71,7 @@ namespace marco::codegen::lowering
 
     llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
 
-    if (auto arrayType = variableType.unwrap().dyn_cast<ArrayType>()) {
+    if (auto shapedType = variableType.unwrap().dyn_cast<mlir::ShapedType>()) {
       for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
            ++dim) {
         const ast::ArrayDimension* dimension = (*variable.getType())[dim];
@@ -208,11 +208,6 @@ namespace marco::codegen::lowering
     // Create the equations.
     for (const auto& section : cls.getEquationSections()) {
       lower(*section->cast<ast::EquationSection>());
-    }
-
-    // Create the algorithms.
-    for (const auto& algorithm : cls.getAlgorithms()) {
-      lower(*algorithm->cast<ast::Algorithm>());
     }
   }
 

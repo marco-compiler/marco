@@ -1,8 +1,9 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
-#include "marco/Dialect/Runtime/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
 #include "marco/Codegen/Runtime.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 
 namespace mlir
@@ -353,7 +354,7 @@ namespace
         rank = ranges->getValue().rank();
       }
 
-      mlir::Value rankValue = rewriter.create<mlir::arith::ConstantOp>(
+      mlir::Value rankValue = rewriter.create<mlir::LLVM::ConstantOp>(
           loc, rewriter.getI64IntegerAttr(rank));
 
       args.push_back(rankValue);
@@ -373,7 +374,7 @@ namespace
 
       // Independent indices property.
       mlir::Value independentIndices =
-          rewriter.create<mlir::arith::ConstantOp>(
+          rewriter.create<mlir::LLVM::ConstantOp>(
               loc, rewriter.getBoolAttr(op.getIndependentIndices()));
 
       args.push_back(independentIndices);
@@ -428,6 +429,149 @@ namespace
       return mlir::success();
     }
   };
+
+  class FunctionOpLowering : public mlir::ConvertOpToLLVMPattern<FunctionOp>
+  {
+    public:
+      using mlir::ConvertOpToLLVMPattern<FunctionOp>::ConvertOpToLLVMPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          FunctionOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        if (!op.isDeclaration()) {
+          return rewriter.notifyMatchFailure(op, "Not a declaration");
+        }
+
+        llvm::SmallVector<mlir::Type> argTypes;
+
+        mlir::Type resultType =
+            mlir::LLVM::LLVMVoidType::get(rewriter.getContext());
+
+        assert(op.getResultTypes().size() <= 1);
+
+        if (!op.getResultTypes().empty()) {
+          resultType = getTypeConverter()->convertType(op.getResultTypes()[0]);
+        }
+
+        for (mlir::Type argType : op.getArgumentTypes()) {
+          if (argType.isa<mlir::MemRefType, mlir::UnrankedMemRefType>()) {
+            argTypes.push_back(
+                mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
+          } else {
+            argTypes.push_back(getTypeConverter()->convertType(argType));
+          }
+        }
+
+        rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
+            op, op.getSymName(),
+            mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
+
+        return mlir::success();
+      }
+  };
+
+  class CallOpLowering : public mlir::ConvertOpToLLVMPattern<CallOp>
+  {
+    public:
+      using mlir::ConvertOpToLLVMPattern<CallOp>::ConvertOpToLLVMPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          CallOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Location loc = op.getLoc();
+
+        // Determine the result type.
+        mlir::Type resultType =
+            mlir::LLVM::LLVMVoidType::get(rewriter.getContext());
+
+        assert(op.getResultTypes().size() <= 1);
+
+        if (!op.getResultTypes().empty()) {
+          resultType = getTypeConverter()->convertType(op.getResultTypes()[0]);
+        }
+
+        // Save stack position before promoting the memref descriptors.
+        auto stackSaveOp =
+            rewriter.create<mlir::LLVM::StackSaveOp>(loc, getVoidPtrType());
+
+        // Determine the arguments.
+        llvm::SmallVector<mlir::Value> promotedArgs;
+
+        for (auto [originalArg, adaptorArg] :
+             llvm::zip(op.getArgs(), adaptor.getArgs())) {
+          mlir::Type originalArgType = originalArg.getType();
+
+          if (!originalArgType.isa<
+                  mlir::MemRefType, mlir::UnrankedMemRefType>()) {
+            promotedArgs.push_back(adaptorArg);
+            continue;
+          }
+
+          // The argument is a memref (ranked or unranked).
+          mlir::Value memRef = adaptorArg;
+
+          if (auto memRefType =
+                  originalArg.getType().dyn_cast<mlir::MemRefType>()) {
+            // Promote the ranked memrefs to unranked ones.
+            memRef = makeUnranked(rewriter, loc, memRef, memRefType);
+          }
+
+          // Promote the unranked descriptors to the stack.
+          auto one = rewriter.create<mlir::LLVM::ConstantOp>(
+              loc, getIndexType(), rewriter.getIndexAttr(1));
+
+          auto ptrType =
+              mlir::LLVM::LLVMPointerType::get(rewriter.getContext());
+
+          auto allocated = rewriter.create<mlir::LLVM::AllocaOp>(
+              loc, ptrType, memRef.getType(), one);
+
+          rewriter.create<mlir::LLVM::StoreOp>(loc, memRef, allocated);
+          promotedArgs.push_back(allocated);
+        }
+
+        // Replace the call.
+        llvm::SmallVector<mlir::Type> promotedArgTypes;
+
+        for (mlir::Value promotedArg : promotedArgs) {
+          promotedArgTypes.push_back(promotedArg.getType());
+        }
+
+        rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
+            op,
+            mlir::LLVM::LLVMFunctionType::get(resultType, promotedArgTypes),
+            op.getCallee(), promotedArgs);
+
+        // Restore the stack.
+        rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSaveOp);
+
+        return mlir::success();
+      }
+
+      mlir::Value makeUnranked(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value ranked,
+          mlir::MemRefType type) const
+      {
+        auto rank = builder.create<mlir::LLVM::ConstantOp>(
+            loc, getIndexType(), type.getRank());
+
+        mlir::Value ptr = getTypeConverter()->promoteOneMemRefDescriptor(
+            loc, ranked, builder);
+
+        auto unrankedType = mlir::UnrankedMemRefType::get(
+            type.getElementType(), type.getMemorySpace());
+
+        return mlir::UnrankedMemRefDescriptor::pack(
+            builder, loc, *getTypeConverter(), unrankedType,
+            mlir::ValueRange{rank, ptr});
+      }
+  };
 }
 
 mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps()
@@ -435,40 +579,54 @@ mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps()
   mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
-  target.addIllegalDialect<mlir::runtime::RuntimeDialect>();
+  target.addIllegalOp<
+      SchedulerOp,
+      SchedulerCreateOp,
+      SchedulerDestroyOp,
+      SchedulerAddEquationOp,
+      SchedulerRunOp>();
+
+  target.addDynamicallyLegalOp<FunctionOp>([](FunctionOp op) {
+    return !op.isDeclaration();
+  });
+
+  target.addIllegalOp<FunctionOp, CallOp>();
+
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+  target.addLegalDialect<mlir::memref::MemRefDialect>();
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-  llvmLoweringOptions.dataLayout.reset(dataLayout);
 
   mlir::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
-  patterns.insert<
-      SchedulerOpLowering,
-      SchedulerCreateOpLowering,
-      SchedulerDestroyOpLowering,
-      SchedulerAddEquationOpLowering,
-      SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
-
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
+  populateRuntimeToLLVMPatterns(patterns, typeConverter, symbolTableCollection);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir
 {
+  void populateRuntimeToLLVMPatterns(
+      mlir::RewritePatternSet& patterns,
+      mlir::LLVMTypeConverter& typeConverter,
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    patterns.insert<
+        SchedulerOpLowering,
+        SchedulerCreateOpLowering,
+        SchedulerDestroyOpLowering,
+        SchedulerAddEquationOpLowering,
+        SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
+
+    patterns.insert<
+        FunctionOpLowering,
+        CallOpLowering>(typeConverter);
+  }
+
   std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass()
   {
     return std::make_unique<RuntimeToLLVMConversionPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass(
-      const RuntimeToLLVMConversionPassOptions& options)
-  {
-    return std::make_unique<RuntimeToLLVMConversionPass>(options);
   }
 }

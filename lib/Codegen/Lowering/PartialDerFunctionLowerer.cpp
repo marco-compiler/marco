@@ -32,7 +32,8 @@ namespace marco::codegen::lowering
     }
 
     builder().create<DerFunctionOp>(
-        location, function.getName(), derivedFunctionName,
+        location, function.getName(),
+        mlir::SymbolRefAttr::get(builder().getContext(), derivedFunctionName),
         builder().getArrayAttr(independentVariables));
   }
 
