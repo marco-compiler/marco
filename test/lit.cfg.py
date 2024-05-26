@@ -45,6 +45,9 @@ config.substitutions.append(('%runtime_lib_dir', config.marco_runtime_lib_dir))
 if config.marco_runtime_found == "1":
     config.available_features.add("runtime-library")
 
+# Set the path containing the LLVM libraries.
+config.substitutions.append(("%llvm_lib_dir", config.llvm_libs_dir))
+
 # Check if the IDA solver is enabled.
 if config.marco_runtime_ida_enabled == "ON":
     config.available_features.add("runtime-ida")
