@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_OPS_H
-#define MARCO_DIALECTS_BASEMODELICA_IR_OPS_H
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_OPS_H
+#define MARCO_DIALECT_BASEMODELICA_IR_OPS_H
 
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/OpInterfaces.h"
@@ -26,4 +26,4 @@
 #define GET_OP_CLASSES
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.h.inc"
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_OPS_H
+#endif // MARCO_DIALECT_BASEMODELICA_IR_OPS_H

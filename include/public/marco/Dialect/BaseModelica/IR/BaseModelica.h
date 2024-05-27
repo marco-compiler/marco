@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICADIALECT_H
-#define MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICADIALECT_H
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICA_H
+#define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICA_H
 
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/Common.h"
@@ -155,4 +155,4 @@ namespace mlir::bmodelica
       mlir::SymbolTableCollection& symbolTableCollection);
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICADIALECT_H
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICA_H
