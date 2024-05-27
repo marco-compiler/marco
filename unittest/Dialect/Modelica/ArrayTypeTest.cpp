@@ -1,4 +1,4 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

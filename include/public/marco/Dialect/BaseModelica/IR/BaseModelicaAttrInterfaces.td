@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_MODELICAATTRINTERFACES_TD
-#define MARCO_DIALECTS_BASEMODELICA_IR_MODELICAATTRINTERFACES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_MODELICAATTRINTERFACES_TD
+#define MARCO_DIALECT_BASEMODELICA_IR_MODELICAATTRINTERFACES_TD
 
-include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
@@ -28,4 +28,4 @@ def RangeAttrInterface : BaseModelica_AttrInterface<"RangeAttrInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICAATTRINTERFACES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAATTRINTERFACES_TD

@@ -1,7 +1,7 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "llvm/ADT/STLExtras.h"
 
 namespace mlir::bmodelica::ad::forward

@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/BaseModelicaToTensor/BaseModelicaToTensor.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/DialectConversion.h"

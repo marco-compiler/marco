@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/RangeBoundariesInference.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 

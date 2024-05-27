@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/DerivableOpInterfaceImpl.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 
 using namespace ::mlir::bmodelica;

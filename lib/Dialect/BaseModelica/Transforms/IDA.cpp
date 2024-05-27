@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/IDA.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/BaseModelica/Transforms/Solvers/SUNDIALS.h"

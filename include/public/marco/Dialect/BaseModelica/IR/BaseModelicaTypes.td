@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPES_TD
-#define MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPES_TD
+#define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPES_TD
 
-include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
@@ -305,4 +305,4 @@ def RangeType : BaseModelica_Type<"Range", [IterableTypeInterface]>
     let assemblyFormat = "$inductionType";
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPES_TD

@@ -1,9 +1,9 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_VARIABLEBRIDGE_H
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_VARIABLEBRIDGE_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
-#include "marco/Modeling/IndexSet.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Modeling/Dependency.h"
+#include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/Matching.h"
 #include "mlir/IR/BuiltinAttributes.h"
 

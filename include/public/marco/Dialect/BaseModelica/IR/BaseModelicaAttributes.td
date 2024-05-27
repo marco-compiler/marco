@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_MODELICAATTRIBUTES_TD
-#define MARCO_DIALECTS_BASEMODELICA_IR_MODELICAATTRIBUTES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAATTRIBUTES_TD
+#define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAATTRIBUTES_TD
 
-include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaAttrInterfaces.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
@@ -386,4 +386,4 @@ def BaseModelica_RealRangeAttr : BaseModelica_Attr<"RealRange",
     ];
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICAATTRIBUTES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAATTRIBUTES_TD

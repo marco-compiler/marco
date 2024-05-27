@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/BaseModelicaToMemRef/BaseModelicaToMemRef.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"

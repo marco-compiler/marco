@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -119,7 +119,7 @@ namespace mlir
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// ModelicaDialect
+// BaseModelicaDialect
 //===----------------------------------------------------------------------===//
 
 namespace mlir::bmodelica

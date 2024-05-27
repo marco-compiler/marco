@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/ExplicitStartValueInsertion.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
 namespace mlir::bmodelica
 {

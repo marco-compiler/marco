@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_ATTRIBUTES_H
-#define MARCO_DIALECTS_BASEMODELICA_IR_ATTRIBUTES_H
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_ATTRIBUTES_H
+#define MARCO_DIALECT_BASEMODELICA_IR_ATTRIBUTES_H
 
 #include "marco/Dialect/BaseModelica/IR/EquationPath.h"
 #include "marco/Dialect/BaseModelica/IR/ExpressionPath.h"
@@ -119,4 +119,4 @@ namespace mlir::bmodelica
 #define GET_ATTRDEF_CLASSES
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.h.inc"
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_ATTRIBUTES_H
+#endif // MARCO_DIALECT_BASEMODELICA_IR_ATTRIBUTES_H

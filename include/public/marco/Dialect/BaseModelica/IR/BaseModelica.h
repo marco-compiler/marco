@@ -9,7 +9,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h.inc"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h.inc"
 
 namespace mlir::bmodelica
 {

@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/SCCDetection.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingWithKINSOL.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
 #include "marco/Dialect/Runtime/IR/RuntimeDialect.h"

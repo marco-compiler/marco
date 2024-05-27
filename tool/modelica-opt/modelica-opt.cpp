@@ -1,6 +1,6 @@
 #include "marco/Dialect/IDA/IR/IDADialect.h"
 #include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/Runtime/IR/RuntimeDialect.h"

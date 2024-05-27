@@ -1,10 +1,10 @@
 #include "marco/Codegen/Conversion/BaseModelicaToLLVM/BaseModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/LLVMTypeConverter.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir

@@ -1,10 +1,10 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Interfaces/FoldInterfaces.h"
 #include "mlir/Transforms/InliningUtils.h"
 
 using namespace ::mlir::bmodelica;
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.cpp.inc"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.cpp.inc"
 
 namespace
 {
@@ -113,11 +113,7 @@ namespace mlir::bmodelica
   {
     registerTypes();
     registerAttributes();
-
-    addOperations<
-      #define GET_OP_LIST
-      #include "marco/Dialect/BaseModelica/IR/BaseModelica.cpp.inc"
-        >();
+    registerOperations();
 
     addInterfaces<
         //ModelicaOpAsmDialectInterface,

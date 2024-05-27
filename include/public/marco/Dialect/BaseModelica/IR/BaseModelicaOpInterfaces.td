@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_MODELICAOPINTERFACES_TD
-#define MARCO_DIALECTS_BASEMODELICA_IR_MODELICAOPINTERFACES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPINTERFACES_TD
+#define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPINTERFACES_TD
 
-include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
@@ -274,4 +274,4 @@ def DerivableOpInterface : BaseModelica_OpInterface<"DerivableOpInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICAOPINTERFACES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPINTERFACES_TD

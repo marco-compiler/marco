@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
 using namespace ::mlir::bmodelica;
 

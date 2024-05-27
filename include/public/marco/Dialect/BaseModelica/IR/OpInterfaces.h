@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_OPINTERFACES_H
-#define MARCO_DIALECTS_BASEMODELICA_IR_OPINTERFACES_H
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_OPINTERFACES_H
+#define MARCO_DIALECT_BASEMODELICA_IR_OPINTERFACES_H
 
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
@@ -18,8 +18,6 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/SymbolTable.h"
 #include <optional>
-
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h.inc"
 
 namespace mlir::bmodelica
 {
@@ -123,4 +121,4 @@ namespace mlir::bmodelica
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.h.inc"
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_OPINTERFACES_H
+#endif // MARCO_DIALECT_BASEMODELICA_IR_OPINTERFACES_H

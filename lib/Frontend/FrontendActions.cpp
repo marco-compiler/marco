@@ -2,7 +2,7 @@
 #include "marco/Codegen/Lowering/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Verifier.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/IDADialect.h"

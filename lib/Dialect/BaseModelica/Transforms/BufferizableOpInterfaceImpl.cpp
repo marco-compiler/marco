@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/BufferizableOpInterfaceImpl.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 
 using namespace ::mlir::bmodelica;

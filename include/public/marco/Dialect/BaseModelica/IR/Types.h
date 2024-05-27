@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_TYPES_H
-#define MARCO_DIALECTS_BASEMODELICA_IR_TYPES_H
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_TYPES_H
+#define MARCO_DIALECT_BASEMODELICA_IR_TYPES_H
 
 #include "marco/Dialect/BaseModelica/IR/TypeInterfaces.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -215,4 +215,4 @@ namespace mlir::bmodelica::detail
   mlir::Attribute skipDefaultMemorySpace(mlir::Attribute memorySpace);
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_TYPES_H
+#endif // MARCO_DIALECT_BASEMODELICA_IR_TYPES_H

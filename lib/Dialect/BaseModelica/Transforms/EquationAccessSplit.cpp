@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationAccessSplit.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

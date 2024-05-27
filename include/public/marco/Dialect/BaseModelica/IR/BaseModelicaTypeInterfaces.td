@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD
-#define MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD
+#define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD
 
-include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
@@ -78,4 +78,4 @@ def IterableTypeInterface : BaseModelica_TypeInterface<"IterableTypeInterface">
     ];
 }
 
-#endif // MARCO_DIALECTS_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICATYPEINTERFACES_TD

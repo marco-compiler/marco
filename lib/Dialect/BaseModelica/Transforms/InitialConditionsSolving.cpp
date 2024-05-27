@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/InitialConditionsSolving.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
 
 namespace mlir::bmodelica

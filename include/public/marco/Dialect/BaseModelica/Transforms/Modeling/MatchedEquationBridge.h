@@ -1,8 +1,8 @@
 #ifndef MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_MATCHEDEQUATIONBRIDGE_H
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_MATCHEDEQUATIONBRIDGE_H
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"
 

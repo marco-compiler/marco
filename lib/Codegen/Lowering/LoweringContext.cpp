@@ -1,5 +1,5 @@
 #include "marco/Codegen/Lowering/LoweringContext.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;

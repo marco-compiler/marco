@@ -1,10 +1,10 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelicaDialect.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
-#include "mlir/Interfaces/FunctionImplementation.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/MapVector.h"
@@ -12,6 +12,28 @@
 #include <cmath>
 
 using namespace ::mlir::bmodelica;
+
+//===---------------------------------------------------------------------===//
+// BaseModelica Dialect
+//===---------------------------------------------------------------------===//
+
+namespace mlir::bmodelica
+{
+  void BaseModelicaDialect::registerOperations()
+  {
+    addOperations<
+#define GET_OP_LIST
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
+        >();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// BaseModelica Operations
+//===---------------------------------------------------------------------===//
+
+#define GET_OP_CLASSES
+#include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
 
 namespace
 {
@@ -74,9 +96,6 @@ static mlir::LogicalResult cleanEquationTemplates(
 
   return mlir::success();
 }
-
-#define GET_OP_CLASSES
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // Iteration space operations
