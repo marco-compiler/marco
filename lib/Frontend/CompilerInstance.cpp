@@ -36,14 +36,6 @@ namespace marco::frontend
   {
     clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
         new clang::DiagnosticOptions();
-
-    /*
-    diagnostics = std::make_unique<clang::DiagnosticsEngine>(
-        llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs()),
-        std::move(diagOpts),
-        new TextDiagnosticPrinter(llvm::errs(), diagOpts.get())
-    );
-     */
   }
 
   CompilerInstance::~CompilerInstance()
