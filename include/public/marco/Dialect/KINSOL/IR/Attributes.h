@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_KINSOL_IR_ATTRIBUTES_H
-#define MARCO_DIALECTS_KINSOL_IR_ATTRIBUTES_H
+#ifndef MARCO_DIALECT_KINSOL_IR_ATTRIBUTES_H
+#define MARCO_DIALECT_KINSOL_IR_ATTRIBUTES_H
 
 #include "marco/Dialect/Modeling/IR/Attributes.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -22,4 +22,4 @@ namespace mlir::kinsol
 #define GET_ATTRDEF_CLASSES
 #include "marco/Dialect/KINSOL/IR/KINSOLAttributes.h.inc"
 
-#endif // MARCO_DIALECTS_KINSOL_IR_ATTRIBUTES_H
+#endif // MARCO_DIALECT_KINSOL_IR_ATTRIBUTES_H

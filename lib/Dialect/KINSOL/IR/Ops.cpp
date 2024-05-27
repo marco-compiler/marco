@@ -8,7 +8,7 @@ using namespace ::mlir;
 using namespace ::mlir::kinsol;
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOL.cpp.inc"
+#include "marco/Dialect/KINSOL/IR/KINSOLOps.cpp.inc"
 
 namespace mlir::kinsol
 {

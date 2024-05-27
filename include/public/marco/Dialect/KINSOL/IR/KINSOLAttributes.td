@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_KINSOL_IR_KINSOLATTRIBUTES_TD
-#define MARCO_DIALECTS_KINSOL_IR_KINSOLATTRIBUTES_TD
+#ifndef MARCO_DIALECT_KINSOL_IR_KINSOLATTRIBUTES_TD
+#define MARCO_DIALECT_KINSOL_IR_KINSOLATTRIBUTES_TD
 
-include "marco/Dialect/KINSOL/IR/KINSOLDialect.td"
+include "marco/Dialect/KINSOL/IR/KINSOL.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 
@@ -15,4 +15,4 @@ class KINSOL_Attr<string name, string attrMnemonic>
     let mnemonic = attrMnemonic;
 }
 
-#endif // MARCO_DIALECTS_KINSOL_IR_KINSOLATTRIBUTES_TD
+#endif // MARCO_DIALECT_KINSOL_IR_KINSOLATTRIBUTES_TD

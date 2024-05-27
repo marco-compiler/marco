@@ -1,5 +1,5 @@
 #include "marco/Dialect/KINSOL/IR/Types.h"
-#include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
+#include "marco/Dialect/KINSOL/IR/KINSOL.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::kinsol;

@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/KINSOLToFunc/KINSOLToFunc.h"
 #include "marco/Codegen/Conversion/KINSOLCommon/LLVMTypeConverter.h"
-#include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
+#include "marco/Dialect/KINSOL/IR/KINSOL.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

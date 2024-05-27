@@ -1,8 +1,8 @@
-#include "marco/Dialect/KINSOL/IR/KINSOLDialect.h"
+#include "marco/Dialect/KINSOL/IR/KINSOL.h"
 
 using namespace ::mlir::kinsol;
 
-#include "marco/Dialect/KINSOL/IR/KINSOLDialect.cpp.inc"
+#include "marco/Dialect/KINSOL/IR/KINSOL.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // KINSOL dialect
@@ -14,7 +14,7 @@ namespace mlir::kinsol
   {
     addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/KINSOL/IR/KINSOL.cpp.inc"
+#include "marco/Dialect/KINSOL/IR/KINSOLOps.cpp.inc"
         >();
 
     addTypes<

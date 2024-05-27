@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_KINSOL_IR_OPS_H
-#define MARCO_DIALECTS_KINSOL_IR_OPS_H
+#ifndef MARCO_DIALECT_KINSOL_IR_OPS_H
+#define MARCO_DIALECT_KINSOL_IR_OPS_H
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -14,6 +14,6 @@
 #include "marco/Dialect/KINSOL/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/KINSOL/IR/KINSOL.h.inc"
+#include "marco/Dialect/KINSOL/IR/KINSOLOps.h.inc"
 
-#endif // MARCO_DIALECTS_KINSOL_IR_OPS_H
+#endif // MARCO_DIALECT_KINSOL_IR_OPS_H

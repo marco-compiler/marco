@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_KINSOL_IR_KINSOLTYPES_TD
-#define MARCO_DIALECTS_KINSOL_IR_KINSOLTYPES_TD
+#ifndef MARCO_DIALECT_KINSOL_IR_KINSOLTYPES_TD
+#define MARCO_DIALECT_KINSOL_IR_KINSOLTYPES_TD
 
-include "marco/Dialect/KINSOL/IR/KINSOLDialect.td"
+include "marco/Dialect/KINSOL/IR/KINSOL.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
@@ -41,4 +41,4 @@ def VariableType : KINSOL_Type<"Variable", "variable">
     }];
 }
 
-#endif // MARCO_DIALECTS_KINSOL_IR_KINSOLTYPES_TD
+#endif // MARCO_DIALECT_KINSOL_IR_KINSOLTYPES_TD
