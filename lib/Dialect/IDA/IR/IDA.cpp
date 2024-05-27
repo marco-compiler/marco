@@ -1,8 +1,8 @@
-#include "marco/Dialect/IDA/IR/IDADialect.h"
+#include "marco/Dialect/IDA/IR/IDA.h"
 
 using namespace ::mlir::ida;
 
-#include "marco/Dialect/IDA/IR/IDADialect.cpp.inc"
+#include "marco/Dialect/IDA/IR/IDA.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // IDA dialect
@@ -14,7 +14,7 @@ namespace mlir::ida
   {
     addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/IDA/IR/IDA.cpp.inc"
+#include "marco/Dialect/IDA/IR/IDAOps.cpp.inc"
         >();
 
     addTypes<

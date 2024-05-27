@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_IDA_IR_IDAATTRIBUTES_TD
-#define MARCO_DIALECTS_IDA_IR_IDAATTRIBUTES_TD
+#ifndef MARCO_DIALECT_IDA_IR_IDAATTRIBUTES_TD
+#define MARCO_DIALECT_IDA_IR_IDAATTRIBUTES_TD
 
-include "marco/Dialect/IDA/IR/IDADialect.td"
+include "marco/Dialect/IDA/IR/IDA.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 
@@ -15,4 +15,4 @@ class IDA_Attr<string name, string attrMnemonic>
     let mnemonic = attrMnemonic;
 }
 
-#endif // MARCO_DIALECTS_IDA_IR_IDAATTRIBUTES_TD
+#endif // MARCO_DIALECT_IDA_IR_IDAATTRIBUTES_TD

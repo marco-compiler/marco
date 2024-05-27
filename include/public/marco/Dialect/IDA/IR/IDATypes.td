@@ -1,12 +1,12 @@
-#ifndef MARCO_DIALECTS_IDA_IR_IDATYPES_TD
-#define MARCO_DIALECTS_IDA_IR_IDATYPES_TD
+#ifndef MARCO_DIALECT_IDA_IR_IDATYPES_TD
+#define MARCO_DIALECT_IDA_IR_IDATYPES_TD
 
-include "marco/Dialect/IDA/IR/IDADialect.td"
+include "marco/Dialect/IDA/IR/IDA.td"
 include "mlir/IR/OpBase.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // IDA type definitions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 class IDA_Type<string name, string typeMnemonic>
     : TypeDef<IDA_Dialect, name> {
@@ -40,4 +40,4 @@ def VariableType : IDA_Type<"Variable", "variable">
     }];
 }
 
-#endif // MARCO_DIALECTS_IDA_IR_IDATYPES_TD
+#endif // MARCO_DIALECT_IDA_IR_IDATYPES_TD

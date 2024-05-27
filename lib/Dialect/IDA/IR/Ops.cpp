@@ -8,7 +8,7 @@ using namespace ::mlir;
 using namespace ::mlir::ida;
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/IDA/IR/IDA.cpp.inc"
+#include "marco/Dialect/IDA/IR/IDAOps.cpp.inc"
 
 namespace mlir::ida
 {

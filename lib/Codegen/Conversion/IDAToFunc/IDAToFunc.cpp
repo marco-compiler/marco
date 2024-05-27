@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
-#include "marco/Dialect/IDA/IR/IDADialect.h"
+#include "marco/Dialect/IDA/IR/IDA.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

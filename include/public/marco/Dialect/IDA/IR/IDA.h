@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_IDA_IR_IDADIALECT_H
-#define MARCO_DIALECTS_IDA_IR_IDADIALECT_H
+#ifndef MARCO_DIALECT_IDA_IR_IDA_H
+#define MARCO_DIALECT_IDA_IR_IDA_H
 
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"
 #include "marco/Dialect/IDA/IR/Attributes.h"
@@ -8,6 +8,6 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
-#include "marco/Dialect/IDA/IR/IDADialect.h.inc"
+#include "marco/Dialect/IDA/IR/IDA.h.inc"
 
-#endif // MARCO_DIALECTS_IDA_IR_IDADIALECT_H
+#endif // MARCO_DIALECT_IDA_IR_IDA_H
