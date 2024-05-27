@@ -1,12 +1,11 @@
-#include "marco/Dialect/Modeling/IR/ModelingDialect.h"
+#include "marco/Dialect/Modeling/IR/Modeling.h"
 #include "marco/Dialect/Modeling/IR/Ops.h"
 #include "marco/Dialect/Modeling/IR/Attributes.h"
-#include "marco/Dialect/Modeling/IR/Types.h"
 #include "mlir/IR/DialectImplementation.h"
 
 using namespace ::mlir::modeling;
 
-#include "marco/Dialect/Modeling/IR/ModelingDialect.cpp.inc"
+#include "marco/Dialect/Modeling/IR/Modeling.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // Modeling dialect
@@ -47,12 +46,7 @@ namespace mlir::modeling
 
     addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/Modeling/IR/Modeling.cpp.inc"
-        >();
-
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include "marco/Dialect/Modeling/IR/ModelingTypes.cpp.inc"
+#include "marco/Dialect/Modeling/IR/ModelingOps.cpp.inc"
         >();
 
     addInterfaces<

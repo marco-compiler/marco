@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_MODELING_IR_ATTRIBUTES_H
-#define MARCO_DIALECTS_MODELING_IR_ATTRIBUTES_H
+#ifndef MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H
+#define MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H
 
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/Attributes.h"
@@ -91,4 +91,4 @@ namespace mlir
       const std::optional<mlir::modeling::IndexSet>& indexSet);
 }
 
-#endif // MARCO_DIALECTS_MODELING_IR_ATTRIBUTES_H
+#endif // MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H

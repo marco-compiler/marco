@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_MODELING_IR_MODELINGATTRIBUTES_TD
-#define MARCO_DIALECTS_MODELING_IR_MODELINGATTRIBUTES_TD
+#ifndef MARCO_DIALECT_MODELING_IR_MODELINGATTRIBUTES_TD
+#define MARCO_DIALECT_MODELING_IR_MODELINGATTRIBUTES_TD
 
-include "marco/Dialect/Modeling/IR/ModelingDialect.td"
+include "marco/Dialect/Modeling/IR/Modeling.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
@@ -69,4 +69,4 @@ def Modeling_IndexSetAttr : Modeling_Attr<"IndexSet">
     let assemblyFormat = "$value";
 }
 
-#endif // MARCO_DIALECTS_MODELING_IR_MODELINGATTRIBUTES_TD
+#endif // MARCO_DIALECT_MODELING_IR_MODELINGATTRIBUTES_TD

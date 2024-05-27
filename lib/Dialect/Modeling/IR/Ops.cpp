@@ -1,4 +1,4 @@
-#include "marco/Dialect/Modeling/IR/ModelingDialect.h"
+#include "marco/Dialect/Modeling/IR/Modeling.h"
 #include "marco/Dialect/Modeling/IR/Ops.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -7,4 +7,4 @@
 using namespace ::mlir::modeling;
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Modeling/IR/Modeling.cpp.inc"
+#include "marco/Dialect/Modeling/IR/ModelingOps.cpp.inc"

@@ -1,17 +1,27 @@
-#ifndef MARCO_DIALECTS_MODELING_IR_MODELING_TD
-#define MARCO_DIALECTS_MODELING_IR_MODELING_TD
+#ifndef MARCO_DIALECT_MODELING_IR_MODELING_TD
+#define MARCO_DIALECT_MODELING_IR_MODELING_TD
 
-include "marco/Dialect/Modeling/IR/ModelingAttributes.td"
-include "marco/Dialect/Modeling/IR/ModelingTypes.td"
-include "marco/Dialect/Modeling/IR/ModelingDialect.td"
-include "mlir/IR/SymbolInterfaces.td"
-include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/IR/OpBase.td"
 
-//===---------------------------------------------------------------------===//
-// Modeling operation definitions
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+// Modelica dialect
+//===----------------------------------------------------------------------===//
 
-class Modeling_Op<string mnemonic, list<Trait> traits = []> :
-    Op<Modeling_Dialect, mnemonic, traits>;
+def Modeling_Dialect : Dialect
+{
+    let name = "modeling";
+    let summary = "MLIR Modeling dialect.";
 
-#endif // MARCO_DIALECTS_MODELING_IR_MODELING_TD
+    let description = [{
+        MLIR Modeling dialect.
+    }];
+
+    let cppNamespace = "::mlir::modeling";
+    let useDefaultAttributePrinterParser = 1;
+
+    let extraClassDeclaration = [{
+        void registerAttributes();
+    }];
+}
+
+#endif // MARCO_DIALECT_MODELING_IR_MODELING_TD
