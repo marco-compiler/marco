@@ -2,7 +2,7 @@
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"

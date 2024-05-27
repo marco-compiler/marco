@@ -8,7 +8,7 @@
 #include "marco/Dialect/IDA/IR/IDA.h"
 #include "marco/Dialect/KINSOL/IR/KINSOL.h"
 #include "marco/Dialect/Modeling/IR/Modeling.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Frontend/CompilerInstance.h"

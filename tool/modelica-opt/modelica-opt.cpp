@@ -3,7 +3,7 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"

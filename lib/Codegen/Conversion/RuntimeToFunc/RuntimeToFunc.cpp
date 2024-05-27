@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/RuntimeToFunc/RuntimeToFunc.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

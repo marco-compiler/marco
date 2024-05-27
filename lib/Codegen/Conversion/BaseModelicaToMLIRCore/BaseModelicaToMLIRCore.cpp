@@ -7,7 +7,7 @@
 #include "marco/Codegen/Conversion/BaseModelicaToRuntimeCall/BaseModelicaToRuntimeCall.h"
 #include "marco/Codegen/Conversion/BaseModelicaToTensor/BaseModelicaToTensor.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"

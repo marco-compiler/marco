@@ -1,14 +1,19 @@
-add_mlir_dialect(Runtime runtime)
 add_mlir_doc(Runtime Runtime Dialects/ -gen-dialect-doc)
 
-set(LLVM_TARGET_DEFINITIONS Runtime.td)
+set(LLVM_TARGET_DEFINITIONS RuntimeAttributes.td)
 mlir_tablegen(RuntimeAttributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(RuntimeAttributes.cpp.inc -gen-attrdef-defs)
 add_public_tablegen_target(MLIRRuntimeAttributesIncGen)
-add_dependencies(MLIRRuntimeIncGen MLIRRuntimeAttributesIncGen)
 
-set(LLVM_TARGET_DEFINITIONS RuntimeInterfaces.td)
-mlir_tablegen(RuntimeInterfaces.h.inc -gen-op-interface-decls)
-mlir_tablegen(RuntimeInterfaces.cpp.inc -gen-op-interface-defs)
-add_public_tablegen_target(MLIRRuntimeInterfacesIncGen)
-add_dependencies(MLIRRuntimeIncGen MLIRRuntimeInterfacesIncGen)
+set(LLVM_TARGET_DEFINITIONS RuntimeOps.td)
+mlir_tablegen(RuntimeOps.h.inc -gen-op-decls)
+mlir_tablegen(RuntimeOps.cpp.inc -gen-op-defs)
+add_public_tablegen_target(MLIRRuntimeOpsIncGen)
+
+set(LLVM_TARGET_DEFINITIONS Runtime.td)
+mlir_tablegen(Runtime.h.inc -gen-dialect-decls -dialect=runtime)
+mlir_tablegen(Runtime.cpp.inc -gen-dialect-defs -dialect=runtime)
+add_public_tablegen_target(MLIRRuntimeIncGen)
+
+add_dependencies(MLIRRuntimeIncGen MLIRRuntimeAttributesIncGen)
+add_dependencies(MLIRRuntimeIncGen MLIRRuntimeOpsIncGen)

@@ -1,5 +1,5 @@
 #include "marco/Dialect/Runtime/IR/Attributes.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::runtime;

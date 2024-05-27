@@ -1,5 +1,5 @@
 #include "marco/Dialect/Runtime/IR/Ops.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/OpImplementation.h"
@@ -7,7 +7,7 @@
 using namespace ::mlir::runtime;
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Runtime/IR/Runtime.cpp.inc"
+#include "marco/Dialect/Runtime/IR/RuntimeOps.cpp.inc"
 
 //===---------------------------------------------------------------------===//
 // InitFunctionOp

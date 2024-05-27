@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_RUNTIME_OPS_H
-#define MARCO_DIALECTS_RUNTIME_OPS_H
+#ifndef MARCO_DIALECT_RUNTIME_OPS_H
+#define MARCO_DIALECT_RUNTIME_OPS_H
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -12,9 +12,8 @@
 #include "mlir/Interfaces/FunctionInterfaces.h"
 
 #include "marco/Dialect/Runtime/IR/Attributes.h"
-#include "marco/Dialect/Runtime/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/Runtime/IR/Runtime.h.inc"
+#include "marco/Dialect/Runtime/IR/RuntimeOps.h.inc"
 
-#endif // MARCO_DIALECTS_RUNTIME_OPS_H
+#endif // MARCO_DIALECT_RUNTIME_OPS_H

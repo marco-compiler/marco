@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_RUNTIME_ATTRIBUTES_H
-#define MARCO_DIALECTS_RUNTIME_ATTRIBUTES_H
+#ifndef MARCO_DIALECT_RUNTIME_ATTRIBUTES_H
+#define MARCO_DIALECT_RUNTIME_ATTRIBUTES_H
 
 #include "marco/Dialect/Modeling/IR/Attributes.h"
 #include "mlir/IR/Attributes.h"
@@ -25,4 +25,4 @@ namespace mlir::runtime
 #define GET_ATTRDEF_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeAttributes.h.inc"
 
-#endif // MARCO_DIALECTS_RUNTIME_ATTRIBUTES_H
+#endif // MARCO_DIALECT_RUNTIME_ATTRIBUTES_H

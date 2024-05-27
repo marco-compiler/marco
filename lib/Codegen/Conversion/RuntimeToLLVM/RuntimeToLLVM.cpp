@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Codegen/Runtime.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"

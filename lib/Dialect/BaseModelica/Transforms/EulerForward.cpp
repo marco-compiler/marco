@@ -1,5 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/EulerForward.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

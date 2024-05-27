@@ -4,7 +4,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/BaseModelica/Transforms/Solvers/SUNDIALS.h"
 #include "marco/Dialect/IDA/IR/IDA.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"

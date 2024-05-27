@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/InitialConditionsSolving.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 
 namespace mlir::bmodelica
 {

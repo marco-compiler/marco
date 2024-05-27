@@ -1,5 +1,5 @@
 #include "marco/Dialect/Runtime/Transforms/BufferizableOpInterfaceImpl.h"
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
 
 using namespace ::mlir::runtime;

@@ -1,8 +1,8 @@
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.h"
+#include "marco/Dialect/Runtime/IR/Runtime.h"
 
 using namespace ::mlir::runtime;
 
-#include "marco/Dialect/Runtime/IR/RuntimeDialect.cpp.inc"
+#include "marco/Dialect/Runtime/IR/Runtime.cpp.inc"
 
 namespace
 {
@@ -53,12 +53,7 @@ namespace mlir::runtime
 
     addOperations<
 #define GET_OP_LIST
-#include "marco/Dialect/Runtime/IR/Runtime.cpp.inc"
-        >();
-
-    addTypes<
-#define GET_TYPEDEF_LIST
-#include "marco/Dialect/Runtime/IR/RuntimeTypes.cpp.inc"
+#include "marco/Dialect/Runtime/IR/RuntimeOps.cpp.inc"
         >();
 
     addInterface<RuntimeOpAsmDialectInterface>();

@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
-#define MARCO_DIALECTS_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
+#ifndef MARCO_DIALECT_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
+#define MARCO_DIALECT_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
 
-include "marco/Dialect/Runtime/IR/RuntimeDialect.td"
+include "marco/Dialect/Runtime/IR/Runtime.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
@@ -137,4 +137,4 @@ def DerivativeAttr
 def DerivativesListAttr
     : TypedArrayAttrBase<DerivativeAttr, "Derivative array attribute">;
 
-#endif // MARCO_DIALECTS_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
+#endif // MARCO_DIALECT_RUNTIME_IR_RUNTIMEATTRIBUTES_TD
