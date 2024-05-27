@@ -195,6 +195,10 @@ namespace marco::frontend
       return false;
     }
 
+    if (!createTarget()) {
+      return false;
+    }
+
     if (act.beginSourceFiles(*this, getFrontendOptions().inputs)) {
       if (llvm::Error err = act.execute()) {
         consumeError(std::move(err));
@@ -467,5 +471,36 @@ namespace marco::frontend
     }
 
     return std::make_unique<llvm::buffer_unique_ostream>(std::move(os));
+  }
+
+  bool CompilerInstance::hasTarget() const
+  {
+    return target != nullptr;
+  }
+
+  clang::TargetInfo& CompilerInstance::getTarget() const
+  {
+    assert(target && "Compiler instance has no target!");
+    return *target;
+  }
+
+  llvm::IntrusiveRefCntPtr<clang::TargetInfo>
+  CompilerInstance::getTargetPtr() const
+  {
+    assert(target && "Compiler instance has no target!");
+    return target;
+  }
+
+  void CompilerInstance::setTarget(clang::TargetInfo* value)
+  {
+    target = value;
+  }
+
+  bool CompilerInstance::createTarget()
+  {
+    setTarget(clang::TargetInfo::CreateTargetInfo(
+        getDiagnostics(), getInvocation().getTargetOptionsPtr()));
+
+    return true;
   }
 }

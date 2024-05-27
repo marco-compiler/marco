@@ -7,6 +7,7 @@
 #include "marco/Frontend/SimulationOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -247,6 +248,22 @@ namespace marco::frontend
       }
 
       /// }
+      /// @name Target Info
+      /// {
+
+      bool hasTarget() const;
+
+      clang::TargetInfo& getTarget() const;
+
+      llvm::IntrusiveRefCntPtr<clang::TargetInfo> getTargetPtr() const;
+
+      /// Replace the current Target.
+      void setTarget(clang::TargetInfo* value);
+
+      /// Create the target based on current options.
+      bool createTarget();
+
+      /// }
 
     private:
       /// The options used in this compiler instance.
@@ -254,6 +271,9 @@ namespace marco::frontend
 
       /// The diagnostics engine instance.
       llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diagnostics;
+
+      /// The target being compiled for.
+      llvm::IntrusiveRefCntPtr<clang::TargetInfo> target;
 
       /// The file manager.
       llvm::IntrusiveRefCntPtr<clang::FileManager> fileManager;

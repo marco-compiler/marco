@@ -1,7 +1,9 @@
 #include "marco/Frontend/CompilerInvocation.h"
 #include "mlir/IR/Diagnostics.h"
 #include "clang/Driver/Options.h"
+#include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/StringRef.h"
@@ -14,18 +16,318 @@
 #include "llvm/Support/Process.h"
 
 using namespace ::marco;
-using namespace ::marco::frontend;
-using namespace ::marco::io;
-using namespace clang::driver;
+using namespace ::clang;
+using namespace driver;
+using namespace options;
+using namespace llvm::opt;
+
+// Code taken from clang.
+// Unfortunately the code is private and the only wait to reuse the
+// infrastructure is by copy-pasting.
+
+//===----------------------------------------------------------------------===//
+// Normalizers
+//===----------------------------------------------------------------------===//
+
+using ArgumentConsumer = CompilerInvocation::ArgumentConsumer;
+
+#define SIMPLE_ENUM_VALUE_TABLE
+#include "clang/Driver/Options.inc"
+#undef SIMPLE_ENUM_VALUE_TABLE
+
+static std::optional<bool> normalizeSimpleFlag(OptSpecifier Opt,
+                                               unsigned TableIndex,
+                                               const ArgList &Args,
+                                               DiagnosticsEngine &Diags) {
+  if (Args.hasArg(Opt))
+    return true;
+  return std::nullopt;
+}
+
+static std::optional<bool> normalizeSimpleNegativeFlag(OptSpecifier Opt,
+                                                       unsigned,
+                                                       const ArgList &Args,
+                                                       DiagnosticsEngine &) {
+  if (Args.hasArg(Opt))
+    return false;
+  return std::nullopt;
+}
+
+/// The tblgen-erated code passes in a fifth parameter of an arbitrary type, but
+/// denormalizeSimpleFlags never looks at it. Avoid bloating compile-time with
+/// unnecessary template instantiations and just ignore it with a variadic
+/// argument.
+static void denormalizeSimpleFlag(ArgumentConsumer Consumer,
+                                  const Twine &Spelling, Option::OptionClass,
+                                  unsigned, /*T*/...) {
+  Consumer(Spelling);
+}
+
+template <typename T> static constexpr bool is_uint64_t_convertible() {
+  return !std::is_same_v<T, uint64_t> && llvm::is_integral_or_enum<T>::value;
+}
+
+template <typename T,
+         std::enable_if_t<!is_uint64_t_convertible<T>(), bool> = false>
+static auto makeFlagToValueNormalizer(T Value) {
+  return [Value](OptSpecifier Opt, unsigned, const ArgList &Args,
+                 DiagnosticsEngine &) -> std::optional<T> {
+    if (Args.hasArg(Opt))
+      return Value;
+    return std::nullopt;
+  };
+}
+
+template <typename T,
+         std::enable_if_t<is_uint64_t_convertible<T>(), bool> = false>
+static auto makeFlagToValueNormalizer(T Value) {
+  return makeFlagToValueNormalizer(uint64_t(Value));
+}
+
+static auto makeBooleanOptionNormalizer(bool Value, bool OtherValue,
+                                        OptSpecifier OtherOpt) {
+  return [Value, OtherValue,
+          OtherOpt](OptSpecifier Opt, unsigned, const ArgList &Args,
+                    DiagnosticsEngine &) -> std::optional<bool> {
+    if (const Arg *A = Args.getLastArg(Opt, OtherOpt)) {
+      return A->getOption().matches(Opt) ? Value : OtherValue;
+    }
+    return std::nullopt;
+  };
+}
+
+static auto makeBooleanOptionDenormalizer(bool Value) {
+  return [Value](ArgumentConsumer Consumer, const Twine &Spelling,
+                 Option::OptionClass, unsigned, bool KeyPath) {
+    if (KeyPath == Value)
+      Consumer(Spelling);
+  };
+}
+
+static void denormalizeStringImpl(ArgumentConsumer Consumer,
+                                  const Twine &Spelling,
+                                  Option::OptionClass OptClass, unsigned,
+                                  const Twine &Value) {
+  switch (OptClass) {
+    case Option::SeparateClass:
+    case Option::JoinedOrSeparateClass:
+    case Option::JoinedAndSeparateClass:
+      Consumer(Spelling);
+      Consumer(Value);
+      break;
+    case Option::JoinedClass:
+    case Option::CommaJoinedClass:
+      Consumer(Spelling + Value);
+      break;
+    default:
+      llvm_unreachable("Cannot denormalize an option with option class "
+                       "incompatible with string denormalization.");
+  }
+}
+
+template <typename T>
+static void denormalizeString(ArgumentConsumer Consumer, const Twine &Spelling,
+                              Option::OptionClass OptClass, unsigned TableIndex,
+                              T Value) {
+  denormalizeStringImpl(Consumer, Spelling, OptClass, TableIndex, Twine(Value));
+}
+
+static std::optional<SimpleEnumValue>
+findValueTableByName(const SimpleEnumValueTable &Table, StringRef Name) {
+  for (int I = 0, E = Table.Size; I != E; ++I)
+    if (Name == Table.Table[I].Name)
+      return Table.Table[I];
+
+  return std::nullopt;
+}
+
+static std::optional<SimpleEnumValue>
+findValueTableByValue(const SimpleEnumValueTable &Table, unsigned Value) {
+  for (int I = 0, E = Table.Size; I != E; ++I)
+    if (Value == Table.Table[I].Value)
+      return Table.Table[I];
+
+  return std::nullopt;
+}
+
+static std::optional<unsigned> normalizeSimpleEnum(OptSpecifier Opt,
+                                                   unsigned TableIndex,
+                                                   const ArgList &Args,
+                                                   DiagnosticsEngine &Diags) {
+  assert(TableIndex < SimpleEnumValueTablesSize);
+  const SimpleEnumValueTable &Table = SimpleEnumValueTables[TableIndex];
+
+  auto *Arg = Args.getLastArg(Opt);
+  if (!Arg)
+    return std::nullopt;
+
+  StringRef ArgValue = Arg->getValue();
+  if (auto MaybeEnumVal = findValueTableByName(Table, ArgValue))
+    return MaybeEnumVal->Value;
+
+  Diags.Report(diag::err_drv_invalid_value)
+      << Arg->getAsString(Args) << ArgValue;
+  return std::nullopt;
+}
+
+static void denormalizeSimpleEnumImpl(ArgumentConsumer Consumer,
+                                      const Twine &Spelling,
+                                      Option::OptionClass OptClass,
+                                      unsigned TableIndex, unsigned Value) {
+  assert(TableIndex < SimpleEnumValueTablesSize);
+  const SimpleEnumValueTable &Table = SimpleEnumValueTables[TableIndex];
+  if (auto MaybeEnumVal = findValueTableByValue(Table, Value)) {
+    denormalizeString(Consumer, Spelling, OptClass, TableIndex,
+                      MaybeEnumVal->Name);
+  } else {
+    llvm_unreachable("The simple enum value was not correctly defined in "
+                     "the tablegen option description");
+  }
+}
+
+template <typename T>
+static void denormalizeSimpleEnum(ArgumentConsumer Consumer,
+                                  const Twine &Spelling,
+                                  Option::OptionClass OptClass,
+                                  unsigned TableIndex, T Value) {
+  return denormalizeSimpleEnumImpl(Consumer, Spelling, OptClass, TableIndex,
+                                   static_cast<unsigned>(Value));
+}
+
+static std::optional<std::string> normalizeString(OptSpecifier Opt,
+                                                  int TableIndex,
+                                                  const ArgList &Args,
+                                                  DiagnosticsEngine &Diags) {
+  auto *Arg = Args.getLastArg(Opt);
+  if (!Arg)
+    return std::nullopt;
+  return std::string(Arg->getValue());
+}
+
+template <typename IntTy>
+static std::optional<IntTy> normalizeStringIntegral(OptSpecifier Opt, int,
+                                                    const ArgList &Args,
+                                                    DiagnosticsEngine &Diags) {
+  auto *Arg = Args.getLastArg(Opt);
+  if (!Arg)
+    return std::nullopt;
+  IntTy Res;
+  if (StringRef(Arg->getValue()).getAsInteger(0, Res)) {
+    Diags.Report(diag::err_drv_invalid_int_value)
+        << Arg->getAsString(Args) << Arg->getValue();
+    return std::nullopt;
+  }
+  return Res;
+}
+
+static std::optional<std::vector<std::string>>
+normalizeStringVector(OptSpecifier Opt, int, const ArgList &Args,
+                      DiagnosticsEngine &) {
+  return Args.getAllArgValues(Opt);
+}
+
+static void denormalizeStringVector(ArgumentConsumer Consumer,
+                                    const Twine &Spelling,
+                                    Option::OptionClass OptClass,
+                                    unsigned TableIndex,
+                                    const std::vector<std::string> &Values) {
+  switch (OptClass) {
+    case Option::CommaJoinedClass: {
+      std::string CommaJoinedValue;
+      if (!Values.empty()) {
+        CommaJoinedValue.append(Values.front());
+        for (const std::string &Value : llvm::drop_begin(Values, 1)) {
+          CommaJoinedValue.append(",");
+          CommaJoinedValue.append(Value);
+        }
+      }
+      denormalizeString(Consumer, Spelling, Option::OptionClass::JoinedClass,
+                        TableIndex, CommaJoinedValue);
+      break;
+    }
+    case Option::JoinedClass:
+    case Option::SeparateClass:
+    case Option::JoinedOrSeparateClass:
+      for (const std::string &Value : Values)
+        denormalizeString(Consumer, Spelling, OptClass, TableIndex, Value);
+      break;
+    default:
+      llvm_unreachable("Cannot denormalize an option with option class "
+                       "incompatible with string vector denormalization.");
+  }
+}
+
+static std::optional<std::string> normalizeTriple(OptSpecifier Opt,
+                                                  int TableIndex,
+                                                  const ArgList &Args,
+                                                  DiagnosticsEngine &Diags) {
+  auto *Arg = Args.getLastArg(Opt);
+  if (!Arg)
+    return std::nullopt;
+  return llvm::Triple::normalize(Arg->getValue());
+}
+
+template <typename T, typename U>
+static T mergeForwardValue(T KeyPath, U Value) {
+  return static_cast<T>(Value);
+}
+
+template <typename T, typename U> static T mergeMaskValue(T KeyPath, U Value) {
+  return KeyPath | Value;
+}
+
+template <typename T> static T extractForwardValue(T KeyPath) {
+  return KeyPath;
+}
+
+template <typename T, typename U, U Value>
+static T extractMaskValue(T KeyPath) {
+  return ((KeyPath & Value) == Value) ? static_cast<T>(Value) : T();
+}
+
+#define PARSE_OPTION_WITH_MARSHALLING(                                         \
+    ARGS, DIAGS, PREFIX_TYPE, SPELLING, ID, KIND, GROUP, ALIAS, ALIASARGS,     \
+    FLAGS, VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE,         \
+    ALWAYS_EMIT, KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE,         \
+    NORMALIZER, DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                  \
+  if ((VISIBILITY)&options::CC1Option) {                                       \
+    KEYPATH = MERGER(KEYPATH, DEFAULT_VALUE);                                  \
+    if (IMPLIED_CHECK)                                                         \
+      KEYPATH = MERGER(KEYPATH, IMPLIED_VALUE);                                \
+    if (SHOULD_PARSE)                                                          \
+      if (auto MaybeValue = NORMALIZER(OPT_##ID, TABLE_INDEX, ARGS, DIAGS))    \
+        KEYPATH =                                                              \
+            MERGER(KEYPATH, static_cast<decltype(KEYPATH)>(*MaybeValue));      \
+  }
+
+// Capture the extracted value as a lambda argument to avoid potential issues
+// with lifetime extension of the reference.
+#define GENERATE_OPTION_WITH_MARSHALLING(                                      \
+    CONSUMER, PREFIX_TYPE, SPELLING, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, \
+    VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE, ALWAYS_EMIT,   \
+    KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE, NORMALIZER,          \
+    DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                              \
+  if ((VISIBILITY)&options::CC1Option) {                                       \
+    [&](const auto &Extracted) {                                               \
+      if (ALWAYS_EMIT ||                                                       \
+          (Extracted !=                                                        \
+           static_cast<decltype(KEYPATH)>((IMPLIED_CHECK) ? (IMPLIED_VALUE)    \
+                                                          : (DEFAULT_VALUE)))) \
+        DENORMALIZER(CONSUMER, SPELLING, Option::KIND##Class, TABLE_INDEX,     \
+                     Extracted);                                               \
+    }(EXTRACTOR(KEYPATH));                                                     \
+  }
 
 //===---------------------------------------------------------------------===//
 // CompilerInvocation
 //===---------------------------------------------------------------------===//
 
 /// Tweak the frontend configuration based on the frontend action
-static void setUpFrontendBasedOnAction(FrontendOptions& options)
+static void setUpFrontendBasedOnAction(
+    marco::frontend::FrontendOptions& options)
 {
-  assert(options.programAction != InvalidAction && "Frontend action not set!");
+  assert(options.programAction != marco::frontend::InvalidAction &&
+         "Frontend action not set!");
 }
 
 static bool parseDiagnosticArgs(
@@ -38,11 +340,51 @@ static bool parseDiagnosticArgs(
       diagnosticOptions, args, diags, defaultDiagColor);
 }
 
+static bool parseTargetArgs(
+    clang::TargetOptions& targetOptions,
+    llvm::opt::ArgList& args,
+    clang::DiagnosticsEngine& diags)
+{
+  using namespace options;
+  using namespace llvm::opt;
+
+  unsigned numErrorsBefore = diags.getNumErrors();
+  clang::TargetOptions* TargetOpts = &targetOptions;
+
+#define TARGET_OPTION_WITH_MARSHALLING(...)                                    \
+  PARSE_OPTION_WITH_MARSHALLING(args, diags, __VA_ARGS__)
+#include "clang/Driver/Options.inc"
+#undef TARGET_OPTION_WITH_MARSHALLING
+
+  if (llvm::opt::Arg* A = args.getLastArg(options::OPT_target_sdk_version_EQ)) {
+    llvm::VersionTuple Version;
+    if (Version.tryParse(A->getValue()))
+      diags.Report(clang::diag::err_drv_invalid_value)
+          << A->getAsString(args) << A->getValue();
+    else
+      targetOptions.SDKVersion = Version;
+  }
+
+  if (Arg *A =
+          args.getLastArg(options::OPT_darwin_target_variant_sdk_version_EQ)) {
+    llvm::VersionTuple Version;
+    if (Version.tryParse(A->getValue()))
+      diags.Report(clang::diag::err_drv_invalid_value)
+          << A->getAsString(args) << A->getValue();
+    else
+      targetOptions.DarwinTargetVariantSDKVersion = Version;
+  }
+
+  return diags.getNumErrors() == numErrorsBefore;
+}
+
 static void parseFrontendArgs(
-    FrontendOptions& options,
+    marco::frontend::FrontendOptions& options,
     llvm::opt::ArgList& args,
     clang::DiagnosticsEngine& diagnostics)
 {
+  using namespace ::marco::frontend;
+
   // Default action
   options.programAction = EmitObject;
 
@@ -117,7 +459,7 @@ static void parseFrontendArgs(
 
   for (size_t i = 0, e = inputs.size(); i != e; ++i) {
     options.inputs.emplace_back(
-        inputs[i], InputKind::getFromFullFileName(inputs[i]));
+        inputs[i], marco::io::InputKind::getFromFullFileName(inputs[i]));
   }
 
   setUpFrontendBasedOnAction(options);
@@ -139,7 +481,7 @@ static void parseFrontendArgs(
 }
 
 static void parseCodegenArgs(
-    CodegenOptions& options,
+    marco::frontend::CodegenOptions& options,
     llvm::opt::ArgList& args,
     clang::DiagnosticsEngine& diagnostics)
 {
@@ -249,7 +591,7 @@ static void parseCodegenArgs(
     options.bitWidth = numericValue.getSExtValue();
   }
 
-  // Cross-compilation options
+  // Target-specific options.
 
   if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target)) {
     llvm::StringRef value = arg->getValue();
@@ -274,7 +616,7 @@ static void parseCodegenArgs(
 }
 
 static void parseSimulationArgs(
-    SimulationOptions& options,
+    marco::frontend::SimulationOptions& options,
     llvm::opt::ArgList& args,
     clang::DiagnosticsEngine& diagnostics)
 {
@@ -330,6 +672,7 @@ namespace marco::frontend
 {
   CompilerInvocationBase::CompilerInvocationBase()
       : languageOptions(llvm::makeIntrusiveRefCnt<LanguageOptions>()),
+        targetOptions(std::make_shared<clang::TargetOptions>()),
         diagnosticOptions(
             llvm::makeIntrusiveRefCnt<clang::DiagnosticOptions>()),
         fileSystemOptions(std::make_shared<clang::FileSystemOptions>()),
@@ -351,6 +694,7 @@ namespace marco::frontend
   {
     if (this != &other) {
       languageOptions = makeIntrusiveRefCntCopy(other.getLanguageOptions());
+      targetOptions = makeSharedCopy(other.getTargetOptions());
 
       diagnosticOptions =
           makeIntrusiveRefCntCopy(other.getDiagnosticOptions());
@@ -369,6 +713,7 @@ namespace marco::frontend
   {
     if (this != &other) {
       languageOptions = other.languageOptions;
+      targetOptions = other.targetOptions;
       diagnosticOptions = other.diagnosticOptions;
       fileSystemOptions = other.fileSystemOptions;
       frontendOptions = other.frontendOptions;
@@ -394,6 +739,25 @@ namespace marco::frontend
   {
     assert(languageOptions && "Compiler invocation has no language options");
     return *languageOptions;
+  }
+
+  clang::TargetOptions& CompilerInvocationBase::getTargetOptions()
+  {
+    assert(targetOptions && "Compiler invocation has no target options");
+    return *targetOptions;
+  }
+
+  const clang::TargetOptions& CompilerInvocationBase::getTargetOptions() const
+  {
+    assert(targetOptions && "Compiler invocation has no target options");
+    return *targetOptions;
+  }
+
+  std::shared_ptr<clang::TargetOptions>
+  CompilerInvocationBase::getTargetOptionsPtr()
+  {
+    assert(targetOptions && "Compiler invocation has no target options");
+    return targetOptions;
   }
 
   clang::DiagnosticOptions& CompilerInvocationBase::getDiagnosticOptions()
@@ -501,6 +865,10 @@ namespace marco::frontend
     }
 
     if (!parseDiagnosticArgs(res.getDiagnosticOptions(), args, &diagnostics)) {
+      return false;
+    }
+
+    if (!parseTargetArgs(res.getTargetOptions(), args, diagnostics)) {
       return false;
     }
 

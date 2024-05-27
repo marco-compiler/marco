@@ -1043,8 +1043,7 @@ namespace marco::frontend
     }
 
     if (ci.getCodeGenOptions().loopTiling) {
-      pm.addNestedPass<mlir::func::FuncOp>(
-          mlir::affine::createLoopTilingPass());
+      pm.addNestedPass<mlir::func::FuncOp>(createMLIRLoopTilingPass());
     }
 
     if (ci.getCodeGenOptions().heapToStackPromotion) {
@@ -1173,6 +1172,17 @@ namespace marco::frontend
   {
     mlir::bufferization::BufferDeallocationPipelineOptions options;
     mlir::bufferization::buildBufferDeallocationPipeline(pm, options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRLoopTilingPass()
+  {
+    auto& ci = getInstance();
+
+    if (auto cacheLineSize = ci.getTarget().getCPUCacheLineSize()) {
+      return mlir::affine::createLoopTilingPass(*cacheLineSize);
+    }
+
+    return mlir::affine::createLoopTilingPass();
   }
 
   void CodeGenAction::registerMLIRToLLVMIRTranslations()

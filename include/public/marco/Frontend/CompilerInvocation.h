@@ -8,6 +8,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileSystemOptions.h"
+#include "clang/Basic/TargetOptions.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Support/VirtualFileSystem.h"
@@ -20,6 +21,9 @@ namespace marco::frontend
     private:
       /// Options controlling the language variant.
       llvm::IntrusiveRefCntPtr<LanguageOptions> languageOptions;
+
+      /// Options controlling the target.
+      std::shared_ptr<clang::TargetOptions> targetOptions;
 
       /// Options controlling the diagnostic engine.
       llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOptions;
@@ -66,6 +70,12 @@ namespace marco::frontend
       LanguageOptions& getLanguageOptions();
 
       const LanguageOptions& getLanguageOptions() const;
+
+      clang::TargetOptions& getTargetOptions();
+
+      const clang::TargetOptions& getTargetOptions() const;
+
+      std::shared_ptr<clang::TargetOptions> getTargetOptionsPtr();
 
       clang::DiagnosticOptions& getDiagnosticOptions();
 
