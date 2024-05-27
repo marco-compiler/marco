@@ -592,27 +592,12 @@ static void parseCodegenArgs(
   }
 
   // Target-specific options.
-
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target)) {
-    llvm::StringRef value = arg->getValue();
-    options.target = value.str();
-  } else {
-    // Default: native compilation
-    options.target = llvm::sys::getDefaultTargetTriple();
-  }
-
   if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_mcpu_EQ)) {
     llvm::StringRef value = arg->getValue();
     options.cpu = value.str();
-
-    if (options.cpu == "native") {
-      // Get the host CPU name
-      options.cpu = llvm::sys::getHostCPUName().str();
-    }
-  } else {
-    // Default: native compilation
-    options.cpu = llvm::sys::getHostCPUName().str();
   }
+
+  options.features = args.getAllArgValues(options::OPT_target_feature);
 }
 
 static void parseSimulationArgs(

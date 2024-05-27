@@ -425,8 +425,6 @@ namespace marco::frontend
     printOption(os, "Read-only variables propagation", codegenOptions.readOnlyVariablesPropagation);
     printOption(os, "CSE", codegenOptions.cse);
     printOption(os, "OpenMP", codegenOptions.omp);
-    printOption(os, "Target triple", codegenOptions.target);
-    printOption(os, "Target cpu", codegenOptions.cpu);
     os << "\n";
 
     const SimulationOptions& simulationOptions = ci.getSimulationOptions();
@@ -505,7 +503,7 @@ namespace marco::frontend
   bool CodeGenAction::setUpTargetMachine()
   {
     CompilerInstance& ci = getInstance();
-    const std::string& triple = ci.getCodeGenOptions().target;
+    const std::string& triple = ci.getTarget().getTriple().str();
 
     // Get the LLVM target.
     std::string targetError;
@@ -532,15 +530,14 @@ namespace marco::frontend
     llvm::CodeGenOptLevel optLevel = mapOptimizationLevelToCodeGenLevel(
         codegenOptions.optLevel, codegenOptions.debug);
 
-    std::string features;
+    std::string cpu = ci.getCodeGenOptions().cpu;
+    std::string features = llvm::join(ci.getCodeGenOptions().features, ",");
 
     auto relocationModel =
         std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
 
     targetMachine.reset(target->createTargetMachine(
-        triple, ci.getCodeGenOptions().cpu,
-        features, llvm::TargetOptions(),
-        relocationModel,
+        triple, cpu, features, llvm::TargetOptions(), relocationModel,
         std::nullopt, optLevel));
 
     if (!targetMachine) {

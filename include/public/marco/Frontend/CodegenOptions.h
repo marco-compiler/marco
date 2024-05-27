@@ -3,6 +3,7 @@
 
 #include "llvm/Passes/OptimizationLevel.h"
 #include <string>
+#include <vector>
 
 namespace marco::frontend
 {
@@ -28,8 +29,8 @@ namespace marco::frontend
 
     unsigned int bitWidth = 64;
 
-    std::string target = "unknown";
     std::string cpu = "generic";
+    std::vector<std::string> features;
   };
 }
 
