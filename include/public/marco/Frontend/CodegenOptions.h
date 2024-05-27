@@ -1,6 +1,7 @@
 #ifndef MARCO_FRONTEND_CODEGENOPTIONS_H
 #define MARCO_FRONTEND_CODEGENOPTIONS_H
 
+#include "clang/Basic/CodeGenOptions.h"
 #include "llvm/Passes/OptimizationLevel.h"
 #include <string>
 #include <vector>
@@ -9,7 +10,9 @@ namespace marco::frontend
 {
   /// Code generation operations.
   /// The default values are for compiling without optimizations.
-  struct CodegenOptions
+  /// The class extends the language options for C / C++ to enable the
+  /// integration with clang's diagnostics infrastructure.
+  struct CodegenOptions : public clang::CodeGenOptions
   {
     llvm::OptimizationLevel optLevel = llvm::OptimizationLevel::O0;
 

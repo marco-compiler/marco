@@ -247,6 +247,11 @@ namespace marco::frontend
         return *outputStream;
       }
 
+      std::unique_ptr<llvm::raw_pwrite_stream> takeOutputStream()
+      {
+        return std::move(outputStream);
+      }
+
       /// }
       /// @name Target Info
       /// {

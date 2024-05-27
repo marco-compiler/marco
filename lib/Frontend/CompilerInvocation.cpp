@@ -642,6 +642,32 @@ static void parseSimulationArgs(
       options.IDAJacobianOneSweep);
 }
 
+static bool fixupInvocation(
+    marco::frontend::CompilerInvocation& invocation,
+    clang::DiagnosticsEngine& diags,
+    const llvm::opt::ArgList& args)
+{
+  auto numErrorsBefore = diags.getNumErrors();
+
+  auto& LangOpts = invocation.getLanguageOptions();
+  auto& CodeGenOpts = invocation.getCodeGenOptions();
+  auto& TargetOpts = invocation.getTargetOptions();
+
+  CodeGenOpts.XRayInstrumentFunctions = LangOpts.XRayInstrument;
+  CodeGenOpts.XRayAlwaysEmitCustomEvents = LangOpts.XRayAlwaysEmitCustomEvents;
+  CodeGenOpts.XRayAlwaysEmitTypedEvents = LangOpts.XRayAlwaysEmitTypedEvents;
+
+  LangOpts.SanitizeCoverage = CodeGenOpts.hasSanitizeCoverage();
+  LangOpts.ForceEmitVTables = CodeGenOpts.ForceEmitVTables;
+  LangOpts.SpeculativeLoadHardening = CodeGenOpts.SpeculativeLoadHardening;
+  LangOpts.CurrentModule = LangOpts.ModuleName;
+
+  CodeGenOpts.CodeModel = TargetOpts.CodeModel;
+  CodeGenOpts.LargeDataThreshold = TargetOpts.LargeDataThreshold;
+
+  return diags.getNumErrors() == numErrorsBefore;
+}
+
 namespace {
   template <class T> std::shared_ptr<T> makeSharedCopy(const T &X) {
     return std::make_shared<T>(X);
@@ -860,6 +886,8 @@ namespace marco::frontend
     parseFrontendArgs(res.getFrontendOptions(), args, diagnostics);
     parseCodegenArgs(res.getCodeGenOptions(), args, diagnostics);
     parseSimulationArgs(res.getSimulationOptions(), args, diagnostics);
+
+    fixupInvocation(res, diagnostics, args);
 
     return numOfErrors == diagnostics.getNumErrors();
   }

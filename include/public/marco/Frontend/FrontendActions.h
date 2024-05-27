@@ -7,6 +7,7 @@
 #include "marco/IO/InputFile.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
+#include "clang/CodeGen/BackendUtil.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace marco::frontend
@@ -206,6 +207,14 @@ namespace marco::frontend
       /// Run the optimization (aka middle-end) pipeline on the LLVM module
       /// associated with this action.
       void runOptimizationPipeline();
+
+      /// }
+      /// @name Backend
+      /// {
+
+      void emitBackendOutput(
+          clang::BackendAction backendAction,
+          std::unique_ptr<llvm::raw_pwrite_stream> os);
 
       /// }
 

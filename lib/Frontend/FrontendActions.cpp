@@ -33,6 +33,7 @@
 #include "mlir/Transforms/Passes.h"
 #include "mlir/InitAllExtensions.h"
 #include "clang/Basic/DiagnosticFrontend.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -73,51 +74,6 @@ static llvm::CodeGenOptLevel mapOptimizationLevelToCodeGenLevel(
 
   assert(level == llvm::OptimizationLevel::O3);
   return llvm::CodeGenOptLevel::Aggressive;
-}
-
-/// Generate target-specific machine-code or assembly file from the input LLVM
-/// module.
-///
-/// @param diags        Diagnostics engine for reporting errors
-/// @param tm           Target machine to aid the code-gen pipeline set-up
-/// @param act          Backend act to run (assembly vs machine-code generation)
-/// @param llvmModule   LLVM module to lower to assembly/machine-code
-/// @param os           Output stream to emit the generated code to
-static void generateMachineCodeOrAssemblyImpl(
-    clang::DiagnosticsEngine& diags,
-    llvm::TargetMachine& tm,
-    llvm::CodeGenFileType fileType,
-    llvm::Module& llvmModule,
-    llvm::raw_pwrite_stream& os)
-{
-  // Set-up the pass manager, i.e create an LLVM code-gen pass pipeline.
-  // Currently only the legacy pass manager is supported.
-  // TODO: Switch to the new PM once it's available in the backend.
-  llvm::legacy::PassManager codeGenPasses;
-
-  codeGenPasses.add(
-      llvm::createTargetTransformInfoWrapperPass(tm.getTargetIRAnalysis()));
-
-  llvm::Triple triple(llvmModule.getTargetTriple());
-
-  std::unique_ptr<llvm::TargetLibraryInfoImpl> tlii =
-      std::make_unique<llvm::TargetLibraryInfoImpl>(triple);
-
-  assert(tlii && "Failed to create TargetLibraryInfo");
-  codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
-
-  if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, fileType)) {
-    diags.Report(diags.getCustomDiagID(
-        clang::DiagnosticsEngine::Fatal,
-        "TargetMachine can't emit a file of this type"));
-
-    return;
-  }
-
-  // Run the passes.
-  codeGenPasses.run(llvmModule);
-
-  os.flush();
 }
 
 namespace marco::frontend
@@ -1342,6 +1298,20 @@ namespace marco::frontend
     mpm.run(*llvmModule, mam);
   }
 
+  void CodeGenAction::emitBackendOutput(
+      clang::BackendAction backendAction,
+      std::unique_ptr<llvm::raw_pwrite_stream> os)
+  {
+    auto& ci = getInstance();
+    clang::HeaderSearchOptions headerSearchOptions;
+
+    EmitBackendOutput(
+        ci.getDiagnostics(), headerSearchOptions, ci.getCodeGenOptions(),
+        ci.getTarget().getTargetOpts(), ci.getLanguageOptions(),
+        ci.getTarget().getDataLayoutString(), llvmModule.get(), backendAction,
+        ci.getFileManager().getVirtualFileSystemPtr(), std::move(os));
+  }
+
   EmitMLIRAction::EmitMLIRAction()
       : CodeGenAction(CodeGenActionKind::GenerateMLIR)
   {
@@ -1431,11 +1401,12 @@ namespace marco::frontend
                 false, ci.getSimulationOptions().modelName, "ll"))) {
         return;
       }
+    } else {
+      os = ci.takeOutputStream();
     }
 
     // Emit LLVM-IR.
-    llvmModule->print(
-        ci.isOutputStreamNull() ? *os : ci.getOutputStream(), nullptr);
+    emitBackendOutput(clang::BackendAction::Backend_EmitLL, std::move(os));
   }
 
   EmitBitcodeAction::EmitBitcodeAction()
@@ -1455,20 +1426,12 @@ namespace marco::frontend
                 true, ci.getSimulationOptions().modelName, "bc"))) {
         return;
       }
+    } else {
+      os = ci.takeOutputStream();
     }
 
     // Emit the bitcode.
-    llvm::PassBuilder pb(targetMachine.get());
-
-    llvm::ModuleAnalysisManager mam;
-    pb.registerModuleAnalyses(mam);
-
-    llvm::ModulePassManager mpm;
-
-    mpm.addPass(llvm::BitcodeWriterPass(
-        ci.isOutputStreamNull() ? *os : ci.getOutputStream()));
-
-    mpm.run(*llvmModule, mam);
+    emitBackendOutput(clang::BackendAction::Backend_EmitBC, std::move(os));
   }
 
   EmitAssemblyAction::EmitAssemblyAction()
@@ -1488,13 +1451,13 @@ namespace marco::frontend
                 false, ci.getSimulationOptions().modelName, "s"))) {
         return;
       }
+    } else {
+      os = ci.takeOutputStream();
     }
 
     // Emit the assembly code.
-    generateMachineCodeOrAssemblyImpl(
-        ci.getDiagnostics(), *targetMachine,
-        llvm::CodeGenFileType::AssemblyFile, *llvmModule,
-        ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+    emitBackendOutput(
+        clang::BackendAction::Backend_EmitAssembly, std::move(os));
   }
 
   EmitObjAction::EmitObjAction()
@@ -1514,12 +1477,11 @@ namespace marco::frontend
                 true, ci.getSimulationOptions().modelName, "o"))) {
         return;
       }
+    } else {
+      os = ci.takeOutputStream();
     }
 
     // Emit the object file.
-    generateMachineCodeOrAssemblyImpl(
-        ci.getDiagnostics(), *targetMachine,
-        llvm::CodeGenFileType::ObjectFile, *llvmModule,
-        ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+    emitBackendOutput(clang::BackendAction::Backend_EmitObj, std::move(os));
   }
 }
