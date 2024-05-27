@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD
-#define MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD
+#ifndef MARCO_DIALECT_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD
+#define MARCO_DIALECT_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD
 
-include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.td"
+include "marco/Dialect/SUNDIALS/IR/SUNDIALS.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 
@@ -15,4 +15,4 @@ class SUNDIALS_Attr<string name, string attrMnemonic>
     let mnemonic = attrMnemonic;
 }
 
-#endif // MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD
+#endif // MARCO_DIALECT_SUNDIALS_IR_SUNDIALSATTRIBUTES_TD

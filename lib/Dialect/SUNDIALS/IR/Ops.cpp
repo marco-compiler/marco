@@ -8,7 +8,7 @@ using namespace ::mlir;
 using namespace ::mlir::sundials;
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.cpp.inc"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALSOps.cpp.inc"
 
 namespace mlir::sundials
 {

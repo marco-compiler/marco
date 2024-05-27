@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSDIALECT_H
-#define MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSDIALECT_H
+#ifndef MARCO_DIALECT_SUNDIALS_IR_SUNDIALS_H
+#define MARCO_DIALECT_SUNDIALS_IR_SUNDIALS_H
 
 #include "mlir/IR/Dialect.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
@@ -7,6 +7,6 @@
 #include "marco/Dialect/SUNDIALS/IR/Ops.h"
 #include "marco/Dialect/SUNDIALS/IR/Types.h"
 
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h.inc"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h.inc"
 
-#endif // MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSDIALECT_H
+#endif // MARCO_DIALECT_SUNDIALS_IR_SUNDIALS_H

@@ -1,8 +1,7 @@
 add_mlir_dialect_library(MLIRSUNDIALS
     Attributes.cpp
-    SUNDIALSDialect.cpp
-    Interfaces.cpp
     Ops.cpp
+    SUNDIALS.cpp
     Types.cpp
 
     DEPENDS

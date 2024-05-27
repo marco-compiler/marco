@@ -1,7 +1,7 @@
-#ifndef MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSTYPES_TD
-#define MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSTYPES_TD
+#ifndef MARCO_DIALECT_SUNDIALS_IR_SUNDIALSTYPES_TD
+#define MARCO_DIALECT_SUNDIALS_IR_SUNDIALSTYPES_TD
 
-include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.td"
+include "marco/Dialect/SUNDIALS/IR/SUNDIALS.td"
 include "mlir/IR/OpBase.td"
 
 //===---------------------------------------------------------------------===//
@@ -32,4 +32,4 @@ def VariableType : SUNDIALS_Type<"Variable", "variable">
     }];
 }
 
-#endif // MARCO_DIALECTS_SUNDIALS_IR_SUNDIALSTYPES_TD
+#endif // MARCO_DIALECT_SUNDIALS_IR_SUNDIALSTYPES_TD

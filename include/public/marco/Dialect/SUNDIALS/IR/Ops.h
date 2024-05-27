@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_SUNDIALS_IR_OPS_H
-#define MARCO_DIALECTS_SUNDIALS_IR_OPS_H
+#ifndef MARCO_DIALECT_SUNDIALS_IR_OPS_H
+#define MARCO_DIALECT_SUNDIALS_IR_OPS_H
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -14,6 +14,6 @@
 #include "marco/Dialect/SUNDIALS/IR/Types.h"
 
 #define GET_OP_CLASSES
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h.inc"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALSOps.h.inc"
 
-#endif // MARCO_DIALECTS_SUNDIALS_IR_OPS_H
+#endif // MARCO_DIALECT_SUNDIALS_IR_OPS_H

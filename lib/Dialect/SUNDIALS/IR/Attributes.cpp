@@ -1,5 +1,5 @@
 #include "marco/Dialect/SUNDIALS/IR/Attributes.h"
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::sundials;

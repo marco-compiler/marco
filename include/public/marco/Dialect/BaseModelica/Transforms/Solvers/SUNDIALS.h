@@ -2,7 +2,7 @@
 #define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_SOLVERS_SUNDIALS_H
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h"
 
 namespace mlir::bmodelica
 {

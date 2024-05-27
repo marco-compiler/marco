@@ -1,14 +1,25 @@
-add_mlir_dialect(SUNDIALS sundials)
 add_mlir_doc(SUNDIALS SUNDIALS Dialects/ -gen-dialect-doc)
 
-set(LLVM_TARGET_DEFINITIONS SUNDIALS.td)
+set(LLVM_TARGET_DEFINITIONS SUNDIALSAttributes.td)
 mlir_tablegen(SUNDIALSAttributes.h.inc -gen-attrdef-decls)
 mlir_tablegen(SUNDIALSAttributes.cpp.inc -gen-attrdef-defs)
 add_public_tablegen_target(MLIRSUNDIALSAttributesIncGen)
-add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSAttributesIncGen)
 
-set(LLVM_TARGET_DEFINITIONS SUNDIALSInterfaces.td)
-mlir_tablegen(SUNDIALSInterfaces.h.inc -gen-op-interface-decls)
-mlir_tablegen(SUNDIALSInterfaces.cpp.inc -gen-op-interface-defs)
-add_public_tablegen_target(MLIRSUNDIALSInterfacesIncGen)
-add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSInterfacesIncGen)
+set(LLVM_TARGET_DEFINITIONS SUNDIALSTypes.td)
+mlir_tablegen(SUNDIALSTypes.h.inc -gen-typedef-decls -typedefs-dialect=sundials)
+mlir_tablegen(SUNDIALSTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=sundials)
+add_public_tablegen_target(MLIRSUNDIALSTypesIncGen)
+
+set(LLVM_TARGET_DEFINITIONS SUNDIALSOps.td)
+mlir_tablegen(SUNDIALSOps.h.inc -gen-op-decls)
+mlir_tablegen(SUNDIALSOps.cpp.inc -gen-op-defs)
+add_public_tablegen_target(MLIRSUNDIALSOpsIncGen)
+
+set(LLVM_TARGET_DEFINITIONS SUNDIALS.td)
+mlir_tablegen(SUNDIALS.h.inc -gen-dialect-decls -dialect=sundials)
+mlir_tablegen(SUNDIALS.cpp.inc -gen-dialect-defs -dialect=sundials)
+add_public_tablegen_target(MLIRSUNDIALSIncGen)
+
+add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSAttributesIncGen)
+add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSTypesIncGen)
+add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSOpsIncGen)

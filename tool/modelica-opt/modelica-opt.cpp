@@ -6,7 +6,7 @@
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
-#include "marco/Dialect/SUNDIALS/IR/SUNDIALSDialect.h"
+#include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h"
 #include "marco/Codegen/Lowering/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "mlir/InitAllDialects.h"
