@@ -4794,6 +4794,25 @@ namespace mlir::bmodelica
 
     return mlir::success();
   }
+
+  void DivOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value operand = getOperand(1);
+    // convert operand to arith-compatible type
+    mlir::Value argCast = builder.create<CastOp>(
+        loc, builder.getF64Type(), operand);
+
+    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+        loc, builder.getF64FloatAttr(0));
+  
+    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
+        loc, mlir::arith::CmpFPredicate::ONE, argCast, zero);
+
+    builder.create<mlir::cf::AssertOp>(
+        loc, condition, builder.getStringAttr(
+          "Model error: division by zero"));
+  }
 }
 
 //===---------------------------------------------------------------------===//
