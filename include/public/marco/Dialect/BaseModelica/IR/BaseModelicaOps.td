@@ -1814,7 +1814,8 @@ def BaseModelica_DivOp : BaseModelica_Op<"div",
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Division.";
 
