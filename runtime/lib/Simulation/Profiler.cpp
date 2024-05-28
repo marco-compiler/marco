@@ -17,6 +17,8 @@ namespace marco::runtime::profiling
 
     commandLineArgs.reset();
     initialization.reset();
+    initialModel.reset();
+    dynamicModel.reset();
     printing.reset();
   }
 
@@ -30,6 +32,14 @@ namespace marco::runtime::profiling
 
     std::cerr << "Time spent on initialization: "
               << initialization.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent solving the initial model: "
+              << initialModel.totalElapsedTime<std::milli>() << " ms"
+              << std::endl;
+
+    std::cerr << "Time spent solving the dynamic model: "
+              << dynamicModel.totalElapsedTime<std::milli>() << " ms"
               << std::endl;
 
     std::cerr << "Time spent on values printing: "

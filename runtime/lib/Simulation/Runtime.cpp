@@ -255,15 +255,20 @@ namespace
   simulation.getPrinter()->simulationBegin();
 
   // Compute the initial conditions and print their values.
+  SIMULATION_PROFILER_INITIAL_MODEL_START;
   icModelBegin();
   solveICModel();
   icModelEnd();
+  SIMULATION_PROFILER_INITIAL_MODEL_STOP;
+
   simulation.getPrinter()->printValues();
 
   // Solve the dynamic model.
+  SIMULATION_PROFILER_DYNAMIC_MODEL_START;
   dynamicModelBegin();
   int result = driver->run();
   dynamicModelEnd();
+  SIMULATION_PROFILER_DYNAMIC_MODEL_STOP;
 
   // Tell the printer that the simulation has finished.
   simulation.getPrinter()->simulationEnd();

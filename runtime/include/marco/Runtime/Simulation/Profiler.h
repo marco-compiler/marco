@@ -21,6 +21,8 @@ namespace marco::runtime::profiling
     public:
       Timer commandLineArgs;
       Timer initialization;
+      Timer initialModel;
+      Timer dynamicModel;
       Timer printing;
 
       mutable std::mutex mutex;
@@ -35,6 +37,12 @@ namespace marco::runtime::profiling
 #define SIMULATION_PROFILER_INIT_START ::marco::runtime::profiling::simulationProfiler().initialization.start()
 #define SIMULATION_PROFILER_INIT_STOP ::marco::runtime::profiling::simulationProfiler().initialization.stop()
 
+#define SIMULATION_PROFILER_INITIAL_MODEL_START ::marco::runtime::profiling::simulationProfiler().initialModel.start()
+#define SIMULATION_PROFILER_INITIAL_MODEL_STOP ::marco::runtime::profiling::simulationProfiler().initialModel.stop()
+
+#define SIMULATION_PROFILER_DYNAMIC_MODEL_START ::marco::runtime::profiling::simulationProfiler().dynamicModel.start()
+#define SIMULATION_PROFILER_DYNAMIC_MODEL_STOP ::marco::runtime::profiling::simulationProfiler().dynamicModel.stop()
+
 #define SIMULATION_PROFILER_PRINTING_START ::marco::runtime::profiling::simulationProfiler().printing.start()
 #define SIMULATION_PROFILER_PRINTING_STOP ::marco::runtime::profiling::simulationProfiler().printing.stop()
 
@@ -47,6 +55,12 @@ namespace marco::runtime::profiling
 
 #define SIMULATION_PROFILER_INIT_START SIMULATION_PROFILER_DO_NOTHING
 #define SIMULATION_PROFILER_INIT_STOP SIMULATION_PROFILER_DO_NOTHING
+
+#define SIMULATION_PROFILER_INITIAL_MODEL_START SIMULATION_PROFILER_DO_NOTHING
+#define SIMULATION_PROFILER_INITIAL_MODEL_STOP SIMULATION_PROFILER_DO_NOTHING
+
+#define SIMULATION_PROFILER_DYNAMIC_MODEL_START SIMULATION_PROFILER_DO_NOTHING
+#define SIMULATION_PROFILER_DYNAMIC_MODEL_STOP SIMULATION_PROFILER_DO_NOTHING
 
 #define SIMULATION_PROFILER_PRINTING_START SIMULATION_PROFILER_DO_NOTHING
 #define SIMULATION_PROFILER_PRINTING_STOP SIMULATION_PROFILER_DO_NOTHING
