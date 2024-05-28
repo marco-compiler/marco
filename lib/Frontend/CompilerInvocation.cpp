@@ -592,7 +592,7 @@ static void parseCodegenArgs(
   }
 
   // Target-specific options.
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_mcpu_EQ)) {
+  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target_cpu)) {
     llvm::StringRef value = arg->getValue();
     options.cpu = value.str();
   }
