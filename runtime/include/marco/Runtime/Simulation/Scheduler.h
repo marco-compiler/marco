@@ -16,9 +16,9 @@ namespace marco::runtime
     public:
       SchedulerProfiler(int64_t schedulerId);
 
-      void createChunksGroupCounters(size_t amount);
+      void createPartitionsGroupsCounters(size_t amount);
 
-      void createChunksGroupTimers(size_t amount);
+      void createPartitionsGroupsTimers(size_t amount);
 
       void reset() override;
 
@@ -30,8 +30,8 @@ namespace marco::runtime
       profiling::Timer run;
       int64_t sequentialRuns{0};
       int64_t multithreadedRuns{0};
-      std::vector<int64_t> chunksGroupsCounters;
-      std::vector<std::unique_ptr<profiling::Timer>> chunksGroups;
+      std::vector<int64_t> partitionsGroupsCounters;
+      std::vector<std::unique_ptr<profiling::Timer>> partitionsGroups;
 
       mutable std::mutex mutex;
   };
@@ -54,11 +54,10 @@ namespace marco::runtime
             bool independentIndices);
       };
 
-      // A chunk of equations to be processed by a thread.
-      // A chunk is composed of:
+      // An equation partition is composed of:
       //   - the equation descriptor.
       //   - the ranges information to be passed to the equation function.
-      using ThreadEquationsChunk = std::pair<Equation, std::vector<int64_t>>;
+      using EquationPartition = std::pair<Equation, std::vector<int64_t>>;
 
       enum class RunStrategy
       {
@@ -83,7 +82,7 @@ namespace marco::runtime
           const Equation& equation) const;
 
       [[maybe_unused, nodiscard]] bool checkEquationIndicesExistence(
-          const ThreadEquationsChunk& chunk) const;
+          const EquationPartition& equationPartition) const;
 
       void runSequential();
 
@@ -98,13 +97,18 @@ namespace marco::runtime
       bool initialized{false};
       std::vector<Equation> equations;
 
-      std::vector<ThreadEquationsChunk> sequentialSchedule;
+      // The list of equation partitions to be executed in case of sequential
+      // execution policy.
+      // The information is computed only once during the initialization.
+      std::vector<EquationPartition> sequentialSchedule;
 
-      // The list of chunks the threads will process. Each thread elaborates
-      // one chunk at a time.
-      // The information is computed only once during the initialization to
-      // save time during the simulation.
-      std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
+      // A group of equation partitions.
+      using EquationsGroup = std::vector<EquationPartition>;
+
+      // The list of equations groups the threads will process. Each thread
+      // processes one group at a time.
+      // The information is computed only once during the initialization.
+      std::vector<EquationsGroup> multithreadedSchedule;
 
       int64_t runsCounter{0};
       int64_t sequentialRunsMinTime{0};

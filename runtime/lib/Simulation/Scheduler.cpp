@@ -21,18 +21,18 @@ SchedulerProfiler::SchedulerProfiler(int64_t schedulerId)
 {
 }
 
-void SchedulerProfiler::createChunksGroupCounters(size_t amount)
+void SchedulerProfiler::createPartitionsGroupsCounters(size_t amount)
 {
-  chunksGroupsCounters.clear();
-  chunksGroupsCounters.resize(amount, 0);
+  partitionsGroupsCounters.clear();
+  partitionsGroupsCounters.resize(amount, 0);
 }
 
-void SchedulerProfiler::createChunksGroupTimers(size_t amount)
+void SchedulerProfiler::createPartitionsGroupsTimers(size_t amount)
 {
-  chunksGroups.clear();
+  partitionsGroups.clear();
 
   for (size_t i = 0; i < amount; ++i) {
-    chunksGroups.push_back(std::make_unique<profiling::Timer>());
+    partitionsGroups.push_back(std::make_unique<profiling::Timer>());
   }
 }
 
@@ -46,8 +46,8 @@ void SchedulerProfiler::reset()
   sequentialRuns = 0;
   multithreadedRuns = 0;
 
-  for (auto& chunksGroup : chunksGroups) {
-    chunksGroup->reset();
+  for (auto& partitionsGroup : partitionsGroups) {
+    partitionsGroup->reset();
   }
 }
 
@@ -72,26 +72,26 @@ void SchedulerProfiler::print() const
   std::cerr << "Number of multithreaded executions: " << multithreadedRuns
             << std::endl;
 
-  for (size_t i = 0, e = chunksGroups.size(); i < e; ++i) {
-    auto chunksGroupsCounter = chunksGroupsCounters[i];
+  for (size_t i = 0, e = partitionsGroups.size(); i < e; ++i) {
+    auto partitionsGroupsCounter = partitionsGroupsCounters[i];
 
-    double averageChunksGroupTime =
-        chunksGroups[i]->totalElapsedTime<std::nano>() /
-            static_cast<double>(chunksGroupsCounter);
+    double averagePartitionsGroupTime =
+        partitionsGroups[i]->totalElapsedTime<std::nano>() /
+            static_cast<double>(partitionsGroupsCounter);
 
     std::cerr << "\n";
 
     std::cerr << "Time (total) spent by thread #" << i
               << " in processing equations: "
-              << chunksGroups[i]->totalElapsedTime<std::milli>() << " ms"
+              << partitionsGroups[i]->totalElapsedTime<std::milli>() << " ms"
               << std::endl;
 
     std::cerr << "Time (average) spent by thread #" << i
-              << " in processing equations: " << averageChunksGroupTime
+              << " in processing equations: " << averagePartitionsGroupTime
               << " ns" << std::endl;
 
-    std::cerr << "Number of chunks groups processed: "
-              << chunksGroupsCounter << std::endl;
+    std::cerr << "Number of partitions groups processed: "
+              << partitionsGroupsCounter << std::endl;
   }
 }
 
@@ -107,11 +107,11 @@ void SchedulerProfiler::print() const
 #define SCHEDULER_PROFILER_INITIALIZATION_START profiler->initialization.start()
 #define SCHEDULER_PROFILER_INITIALIZATION_STOP profiler->initialization.stop()
 
-#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) \
-    profiler->chunksGroups[thread]->start();          \
-    profiler->chunksGroupsCounters[thread]++
+#define SCHEDULER_PROFILER_PARTITIONS_GROUP_START(thread) \
+    profiler->partitionsGroups[thread]->start();          \
+    profiler->partitionsGroupsCounters[thread]++
 
-#define SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread) profiler->chunksGroups[thread]->stop()
+#define SCHEDULER_PROFILER_PARTITIONS_GROUP_STOP(thread) profiler->partitionsGroups[thread]->stop()
 
 #else
 
@@ -129,8 +129,8 @@ void SchedulerProfiler::print() const
 #define SCHEDULER_PROFILER_INITIALIZATION_START SCHEDULER_PROFILER_DO_NOTHING
 #define SCHEDULER_PROFILER_INITIALIZATION_STOP SCHEDULER_PROFILER_DO_NOTHING
 
-#define SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread) SCHEDULER_PROFILER_DO_NOTHING
-#define SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread) SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_PARTITIONS_GROUP_START(thread) SCHEDULER_PROFILER_DO_NOTHING
+#define SCHEDULER_PROFILER_PARTITIONS_GROUP_STOP(thread) SCHEDULER_PROFILER_DO_NOTHING
 
 #endif
 
@@ -153,17 +153,17 @@ static ThreadPool& getSchedulersThreadPool()
   return instance;
 }
 
-static uint64_t getEquationsChunkSize(
-    const Scheduler::ThreadEquationsChunk& chunk)
+static uint64_t getEquationPartitionFlatSize(
+    const Scheduler::EquationPartition& partition)
 {
   int64_t result = 1;
 
-  assert(chunk.second.size() % 2 == 0);
-  size_t rank = chunk.second.size() / 2;
+  assert(partition.second.size() % 2 == 0);
+  size_t rank = partition.second.size() / 2;
 
   for (size_t dim = 0; dim < rank; ++dim) {
-    auto lowerBound = chunk.second[dim * 2];
-    auto upperBound = chunk.second[dim * 2 + 1];
+    auto lowerBound = partition.second[dim * 2];
+    auto upperBound = partition.second[dim * 2 + 1];
     auto size = upperBound - lowerBound;
     result *= size;
   }
@@ -192,8 +192,8 @@ namespace marco::runtime
     unsigned int numOfThreads = threadPool.getNumOfThreads();
 
     profiler = std::make_shared<SchedulerProfiler>(identifier);
-    profiler->createChunksGroupCounters(numOfThreads);
-    profiler->createChunksGroupTimers(numOfThreads);
+    profiler->createPartitionsGroupsCounters(numOfThreads);
+    profiler->createPartitionsGroupsTimers(numOfThreads);
 
     registerProfiler(profiler);
 #endif
@@ -253,8 +253,8 @@ namespace marco::runtime
     // Compute the multithreaded schedule.
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
-    int64_t chunksFactor = simulation::getOptions().equationsChunksFactor;
-    int64_t numOfChunks = numOfThreads * chunksFactor;
+    int64_t partitionsFactor = simulation::getOptions().equationsPartitioningFactor;
+    int64_t numOfPartitions = numOfThreads * partitionsFactor;
 
     uint64_t numOfScalarEquations = 0;
 
@@ -262,57 +262,61 @@ namespace marco::runtime
       numOfScalarEquations += getFlatSize(equation.indices);
     }
 
-    size_t chunksGroupMaxSize =
-        (numOfScalarEquations + numOfChunks - 1) / numOfChunks;
+    size_t partitionsGroupMaxFlatSize =
+        (numOfScalarEquations + numOfPartitions - 1) / numOfPartitions;
 
     if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[Scheduler " << identifier << "] Initializing" << std::endl
                 << "  - Number of equations: " << numOfScalarEquations
                 << std::endl
                 << "  - Number of threads: " << numOfThreads << std::endl
-                << "  - Chunks factor: " << chunksFactor << std::endl
-                << "  - Number of chunks: " << numOfChunks << std::endl
-                << "  - Max size of chunks group: " << chunksGroupMaxSize
-                << std::endl;
+                << "  - Partitioning factor: " << partitionsFactor << std::endl
+                << "  - Number of partitions: " << numOfPartitions << std::endl
+                << "  - Max flat size of each partitions group: "
+                << partitionsGroupMaxFlatSize << std::endl;
     }
 
-    std::vector<ThreadEquationsChunk> chunksGroup;
-    size_t chunksGroupSize = 0;
+    EquationsGroup partitionsGroup;
+    size_t partitionsGroupFlatSize = 0;
 
-    auto pushChunksGroupFn = [&]() {
+    auto pushPartitionsGroupFn = [&]() {
       if (marco::runtime::simulation::getOptions().debug) {
-        std::cerr << "[Scheduler " << identifier << "] Adding chunks group" << std::endl;
-        std::cerr << "  - Number of chunks: " << chunksGroup.size()
+        std::cerr << "[Scheduler " << identifier
+                  << "] Adding equation partitions group" << std::endl;
+
+        std::cerr << "  - Number of partitions: " << partitionsGroup.size()
                   << std::endl;
 
         uint64_t totalSize = 0;
-        std::cerr << "  - Chunks sizes: [";
+        std::cerr << "  - Equation partition flat sizes: [";
 
-        for (size_t i = 0, e = chunksGroup.size(); i < e; ++i) {
+        for (size_t i = 0, e = partitionsGroup.size(); i < e; ++i) {
           if (i != 0) {
             std::cerr << ", ";
           }
 
-          uint64_t chunkSize = getEquationsChunkSize(chunksGroup[i]);
-          std::cerr << chunkSize;
-          totalSize += chunkSize;
+          uint64_t partitionFlatSize =
+              getEquationPartitionFlatSize(partitionsGroup[i]);
+
+          std::cerr << partitionFlatSize;
+          totalSize += partitionFlatSize;
         }
 
         std::cerr << "]" << std::endl;
 
-        for (const auto& chunk : chunksGroup) {
+        for (const auto& partition : partitionsGroup) {
           std::cerr << "    - Function: "
-                    << reinterpret_cast<void*>(chunk.first.function)
+                    << reinterpret_cast<void*>(partition.first.function)
                     << std::endl;
 
           std::cerr << "    - Range: ";
 
-          assert(chunk.second.size() % 2 == 0);
-          size_t rank = chunk.second.size() / 2;
+          assert(partition.second.size() % 2 == 0);
+          size_t rank = partition.second.size() / 2;
 
           for (size_t dim = 0; dim < rank; ++dim) {
-            auto lowerBound = chunk.second[dim * 2];
-            auto upperBound = chunk.second[dim * 2 + 1];
+            auto lowerBound = partition.second[dim * 2];
+            auto upperBound = partition.second[dim * 2 + 1];
             std::cerr << "[" << lowerBound << ", " << upperBound << ")";
           }
 
@@ -322,14 +326,16 @@ namespace marco::runtime
         std::cerr << "  - Total size: " << totalSize << std::endl;
       }
 
-      threadEquationsChunks.push_back(std::move(chunksGroup));
-      chunksGroup.clear();
-      chunksGroupSize = 0;
+      multithreadedSchedule.push_back(std::move(partitionsGroup));
+      partitionsGroup.clear();
+      partitionsGroupFlatSize = 0;
     };
 
     for (const Equation& equation : equations) {
       uint64_t flatSize = getFlatSize(equation.indices);
-      size_t remainingSpace = chunksGroupMaxSize - chunksGroupSize;
+
+      size_t remainingSpace =
+          partitionsGroupMaxFlatSize - partitionsGroupFlatSize;
 
       if (marco::runtime::simulation::getOptions().debug) {
         std::cerr << "[Scheduler " << identifier << "] Partitioning equation"
@@ -358,7 +364,7 @@ namespace marco::runtime
         uint64_t equationFlatIndex = 0;
         size_t equationRank = equation.indices.size();
 
-        // Divide the ranges into chunks.
+        // Divide the ranges.
         while (equationFlatIndex < flatSize) {
           uint64_t beginFlatIndex = equationFlatIndex;
 
@@ -543,20 +549,20 @@ namespace marco::runtime
               ranges.push_back(currentEndIndices[j] + 1);
             }
 
-            chunksGroup.emplace_back(equation, ranges);
+            partitionsGroup.emplace_back(equation, ranges);
           }
 
-          // Move to the next chunks.
+          // Move to the next partition.
           endFlatIndex = getFlatIndex(
               unwrappingEndIndices.back(), equation.indices);
 
           equationFlatIndex = endFlatIndex + 1;
 
-          // Create a new chunks group if necessary.
-          chunksGroupSize += equationFlatIndex - beginFlatIndex;
+          // Create a new equations group if necessary.
+          partitionsGroupFlatSize += equationFlatIndex - beginFlatIndex;
 
-          if (chunksGroupSize >= chunksGroupMaxSize) {
-            pushChunksGroupFn();
+          if (partitionsGroupFlatSize >= partitionsGroupMaxFlatSize) {
+            pushPartitionsGroupFn();
           }
         }
       } else {
@@ -569,41 +575,43 @@ namespace marco::runtime
         }
 
         if (flatSize <= remainingSpace) {
-          // There is still space in the current chunks group.
-          chunksGroup.emplace_back(equation, ranges);
-          chunksGroupSize += flatSize;
+          // There is still space in the current group.
+          partitionsGroup.emplace_back(equation, ranges);
+          partitionsGroupFlatSize += flatSize;
 
-          if (chunksGroupSize >= chunksGroupMaxSize) {
-            pushChunksGroupFn();
+          if (partitionsGroupFlatSize >= partitionsGroupMaxFlatSize) {
+            pushPartitionsGroupFn();
           }
         } else {
-          if (flatSize >= chunksGroupMaxSize) {
-            // Independent chunks group exceeding the maximum number of
-            // equations inside a chunk.
+          if (flatSize >= partitionsGroupMaxFlatSize) {
+            // Independent equations exceeding the maximum number of
+            // equations inside a group.
             if (marco::runtime::simulation::getOptions().debug) {
               std::cerr << "[Scheduler " << identifier
                         << "] Equation independently exceeds the maximum size "
                            "for a group" << std::endl;
             }
 
-            std::vector<ThreadEquationsChunk> independentChunksGroup;
-            independentChunksGroup.emplace_back(equation, ranges);
-            threadEquationsChunks.push_back(std::move(independentChunksGroup));
-          } else {
-            pushChunksGroupFn();
-            chunksGroup.emplace_back(equation, ranges);
-            chunksGroupSize += flatSize;
+            EquationsGroup independentEquationsGroup;
+            independentEquationsGroup.emplace_back(equation, ranges);
 
-            if (chunksGroupSize >= chunksGroupMaxSize) {
-              pushChunksGroupFn();
+            multithreadedSchedule.push_back(
+                std::move(independentEquationsGroup));
+          } else {
+            pushPartitionsGroupFn();
+            partitionsGroup.emplace_back(equation, ranges);
+            partitionsGroupFlatSize += flatSize;
+
+            if (partitionsGroupFlatSize >= partitionsGroupMaxFlatSize) {
+              pushPartitionsGroupFn();
             }
           }
         }
       }
     }
 
-    if (chunksGroupSize != 0) {
-      pushChunksGroupFn();
+    if (partitionsGroupFlatSize != 0) {
+      pushPartitionsGroupFn();
     }
 
     assert(std::all_of(
@@ -613,12 +621,12 @@ namespace marco::runtime
                }) && "Not all the equations are scheduled exactly once");
 
     assert(std::all_of(
-        threadEquationsChunks.begin(), threadEquationsChunks.end(),
-        [&](const std::vector<ThreadEquationsChunk>& group) {
+        multithreadedSchedule.begin(), multithreadedSchedule.end(),
+        [&](const EquationsGroup& group) {
           return std::all_of(
               group.begin(), group.end(),
-              [&](const ThreadEquationsChunk& chunk) {
-                return checkEquationIndicesExistence(chunk);
+              [&](const EquationPartition& partition) {
+                return checkEquationIndicesExistence(partition);
               });
         }) && "Some nonexistent equation indices have been scheduled");
 
@@ -627,8 +635,11 @@ namespace marco::runtime
     if (marco::runtime::simulation::getOptions().debug) {
       std::cerr << "[Scheduler " << identifier << "] Initialized" << std::endl;
 
-      std::cerr << "  - Number of chunks groups: "
-                << threadEquationsChunks.size() << std::endl;
+      std::cerr << "  - Sequential schedule size: "
+                << sequentialSchedule.size() << std::endl;
+
+      std::cerr << "  - Multithreaded schedule size: "
+                << multithreadedSchedule.size() << std::endl;
     }
 
     SCHEDULER_PROFILER_INITIALIZATION_STOP;
@@ -652,21 +663,21 @@ namespace marco::runtime
         indices.push_back((*it)[dim]);
       }
 
-      size_t chunksCount = 0;
+      size_t count = 0;
 
-      for (const auto& chunksGroup : threadEquationsChunks) {
-        chunksCount += std::count_if(
-            chunksGroup.begin(), chunksGroup.end(),
-            [&](const ThreadEquationsChunk& chunk) {
-              if (chunk.first.function != equation.function) {
+      for (const EquationsGroup& equationsGroup : multithreadedSchedule) {
+        count += std::count_if(
+            equationsGroup.begin(), equationsGroup.end(),
+            [&](const EquationPartition& partition) {
+              if (partition.first.function != equation.function) {
                 return false;
               }
 
               bool containsPoint = true;
 
               for (size_t dim = 0; dim < rank && containsPoint; ++dim) {
-                if (!(indices[dim] >= chunk.second[dim * 2] &&
-                      indices[dim] < chunk.second[dim * 2 + 1])) {
+                if (!(indices[dim] >= partition.second[dim * 2] &&
+                      indices[dim] < partition.second[dim * 2 + 1])) {
                   containsPoint = false;
                 }
               }
@@ -675,7 +686,7 @@ namespace marco::runtime
             });
       }
 
-      if (chunksCount != 1) {
+      if (count != 1) {
         return false;
       }
     }
@@ -684,15 +695,15 @@ namespace marco::runtime
   }
 
   bool Scheduler::checkEquationIndicesExistence(
-      const ThreadEquationsChunk& chunk) const
+      const EquationPartition& partition) const
   {
-    const auto& equationIndices = chunk.first.indices;
-    assert(chunk.second.size() % 2 == 0);
-    size_t rank = chunk.second.size() / 2;
+    const auto& equationIndices = partition.first.indices;
+    assert(partition.second.size() % 2 == 0);
+    size_t rank = partition.second.size() / 2;
 
     for (size_t dim = 0; dim < rank; ++dim) {
-      auto lowerBound = chunk.second[dim * 2];
-      auto upperBound = chunk.second[dim * 2 + 1];
+      auto lowerBound = partition.second[dim * 2];
+      auto upperBound = partition.second[dim * 2 + 1];
 
       if (lowerBound < equationIndices[dim].begin) {
         return false;
@@ -759,15 +770,15 @@ namespace marco::runtime
   void Scheduler::runSequential()
   {
     SCHEDULER_PROFILER_INCREMENT_SEQUENTIAL_RUNS_COUNTER;
-    SCHEDULER_PROFILER_CHUNKS_GROUP_START(0);
+    SCHEDULER_PROFILER_PARTITIONS_GROUP_START(0);
 
-    for (const auto& chunk : sequentialSchedule) {
-      const Equation& equation = chunk.first;
-      const auto& ranges = chunk.second;
+    for (const EquationPartition& partition : sequentialSchedule) {
+      const Equation& equation = partition.first;
+      const auto& ranges = partition.second;
       equation.function(ranges.data());
     }
 
-    SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(0);
+    SCHEDULER_PROFILER_PARTITIONS_GROUP_STOP(0);
   }
 
   void Scheduler::runSequentialWithCalibration()
@@ -791,24 +802,26 @@ namespace marco::runtime
 
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
-    std::atomic_size_t chunksGroupIndex = 0;
+    std::atomic_size_t equationsGroupIndex = 0;
 
     for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
-      threadPool.async([this, thread, &chunksGroupIndex]() {
-        size_t assignedChunksGroup;
+      threadPool.async([this, thread, &equationsGroupIndex]() {
+        size_t assignedEquationsGroup;
 
-        while ((assignedChunksGroup = chunksGroupIndex++) <
-               threadEquationsChunks.size()) {
-          SCHEDULER_PROFILER_CHUNKS_GROUP_START(thread);
-          const auto& chunksGroup = threadEquationsChunks[assignedChunksGroup];
+        while ((assignedEquationsGroup = equationsGroupIndex++) <
+               multithreadedSchedule.size()) {
+          SCHEDULER_PROFILER_PARTITIONS_GROUP_START(thread);
 
-          for (const ThreadEquationsChunk& chunk : chunksGroup) {
-            const Equation& equation = chunk.first;
-            const auto& ranges = chunk.second;
+          const auto& equationsGroup =
+              multithreadedSchedule[assignedEquationsGroup];
+
+          for (const EquationPartition& partition : equationsGroup) {
+            const Equation& equation = partition.first;
+            const auto& ranges = partition.second;
             equation.function(ranges.data());
           }
 
-          SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(thread);
+          SCHEDULER_PROFILER_PARTITIONS_GROUP_STOP(thread);
         }
       });
     }
