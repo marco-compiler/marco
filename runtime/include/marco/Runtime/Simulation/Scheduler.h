@@ -106,7 +106,7 @@ namespace marco::runtime
       // save time during the simulation.
       std::vector<std::vector<ThreadEquationsChunk>> threadEquationsChunks;
 
-      int64_t runsCounter = 0;
+      int64_t runsCounter{0};
       int64_t sequentialRunsMinTime{0};
       int64_t multithreadedRunsMinTime{0};
       RunStrategy runStrategy{RunStrategy::Sequential};
