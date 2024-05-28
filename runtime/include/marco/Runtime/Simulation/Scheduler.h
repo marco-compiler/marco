@@ -28,8 +28,8 @@ namespace marco::runtime
       profiling::Timer addEquation;
       profiling::Timer initialization;
       profiling::Timer run;
-      int64_t sequentialRuns;
-      int64_t multithreadedRuns;
+      int64_t sequentialRuns{0};
+      int64_t multithreadedRuns{0};
       std::vector<int64_t> chunksGroupsCounters;
       std::vector<std::unique_ptr<profiling::Timer>> chunksGroups;
 
