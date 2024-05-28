@@ -720,6 +720,16 @@ namespace marco::runtime
       if (isLastCalibrationRound) {
         runStrategy = sequentialRunsMinTime < multithreadedRunsMinTime
             ? RunStrategy::Sequential : RunStrategy::Multithreaded;
+
+        if (marco::runtime::simulation::getOptions().debug) {
+          if (runStrategy == RunStrategy::Sequential) {
+            std::cerr << "[Scheduler " << identifier
+                      << "] Execution policy: sequential" << std::endl;
+          } else if (runStrategy == RunStrategy::Multithreaded) {
+            std::cerr << "[Scheduler " << identifier
+                      << "] Execution policy: multithreaded" << std::endl;
+          }
+        }
       }
     } else {
       if (runStrategy == RunStrategy::Sequential) {
