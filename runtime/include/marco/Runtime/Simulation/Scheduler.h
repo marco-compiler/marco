@@ -98,6 +98,8 @@ namespace marco::runtime
       bool initialized{false};
       std::vector<Equation> equations;
 
+      std::vector<ThreadEquationsChunk> sequentialSchedule;
+
       // The list of chunks the threads will process. Each thread elaborates
       // one chunk at a time.
       // The information is computed only once during the initialization to

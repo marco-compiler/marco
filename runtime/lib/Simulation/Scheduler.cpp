@@ -238,6 +238,19 @@ namespace marco::runtime
     SCHEDULER_PROFILER_INITIALIZATION_START;
     assert(!initialized && "Scheduler already initialized");
 
+    // Compute the sequential schedule.
+    for (const Equation& equation : equations) {
+      std::vector<int64_t> functionArgs;
+
+      for (const auto& range : equation.indices) {
+        functionArgs.push_back(range.begin);
+        functionArgs.push_back(range.end);
+      }
+
+      sequentialSchedule.emplace_back(equation, functionArgs);
+    }
+
+    // Compute the multithreaded schedule.
     ThreadPool& threadPool = getSchedulersThreadPool();
     unsigned int numOfThreads = threadPool.getNumOfThreads();
     int64_t chunksFactor = simulation::getOptions().equationsChunksFactor;
@@ -746,18 +759,15 @@ namespace marco::runtime
   void Scheduler::runSequential()
   {
     SCHEDULER_PROFILER_INCREMENT_SEQUENTIAL_RUNS_COUNTER;
+    SCHEDULER_PROFILER_CHUNKS_GROUP_START(0);
 
-    for (const auto& chunksGroup : threadEquationsChunks) {
-      SCHEDULER_PROFILER_CHUNKS_GROUP_START(0);
-
-      for (const ThreadEquationsChunk& chunk : chunksGroup) {
-        const Equation& equation = chunk.first;
-        const auto& ranges = chunk.second;
-        equation.function(ranges.data());
-      }
-
-      SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(0);
+    for (const auto& chunk : sequentialSchedule) {
+      const Equation& equation = chunk.first;
+      const auto& ranges = chunk.second;
+      equation.function(ranges.data());
     }
+
+    SCHEDULER_PROFILER_CHUNKS_GROUP_STOP(0);
   }
 
   void Scheduler::runSequentialWithCalibration()
