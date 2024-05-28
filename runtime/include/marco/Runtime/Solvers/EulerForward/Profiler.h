@@ -19,7 +19,6 @@ namespace marco::runtime::profiling
       void print() const override;
 
     public:
-      Timer initialConditions;
       Timer stateVariables;
       Timer nonStateVariables;
 
@@ -29,9 +28,6 @@ namespace marco::runtime::profiling
   EulerForwardProfiler& eulerForwardProfiler();
 }
 
-#define EULER_FORWARD_PROFILER_IC_START ::marco::runtime::profiling::eulerForwardProfiler().initialConditions.start();
-#define EULER_FORWARD_PROFILER_IC_STOP ::marco::runtime::profiling::eulerForwardProfiler().initialConditions.stop();
-
 #define EULER_FORWARD_PROFILER_STATEVAR_START ::marco::runtime::profiling::eulerForwardProfiler().stateVariables.start();
 #define EULER_FORWARD_PROFILER_STATEVAR_STOP ::marco::runtime::profiling::eulerForwardProfiler().stateVariables.stop();
 
@@ -39,9 +35,6 @@ namespace marco::runtime::profiling
 #define EULER_FORWARD_PROFILER_NONSTATEVAR_STOP ::marco::runtime::profiling::eulerForwardProfiler().nonStateVariables.stop();
 
 #else
-
-#define EULER_FORWARD_PROFILER_IC_START static_assert(true)
-#define EULER_FORWARD_PROFILER_IC_STOP static_assert(true)
 
 #define EULER_FORWARD_PROFILER_STATEVAR_START static_assert(true)
 #define EULER_FORWARD_PROFILER_STATEVAR_STOP static_assert(true)
