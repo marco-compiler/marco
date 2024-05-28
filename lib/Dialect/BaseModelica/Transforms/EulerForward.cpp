@@ -1,7 +1,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/EulerForward.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
 
@@ -49,6 +49,24 @@ namespace
           mlir::ModuleOp moduleOp,
           ModelOp modelOp,
           llvm::ArrayRef<VariableOp> variableOps);
+
+      mlir::LogicalResult createRangedStateVariableUpdateBlocks(
+          mlir::OpBuilder& builder,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          DynamicOp dynamicOp,
+          VariableOp stateVariable,
+          VariableOp derivativeVariable,
+          GlobalVariableOp timeStepVariable);
+
+      mlir::LogicalResult createMonolithicStateVariableUpdateBlock(
+          mlir::OpBuilder& builder,
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::ModuleOp moduleOp,
+          DynamicOp dynamicOp,
+          VariableOp stateVariable,
+          VariableOp derivativeVariable,
+          GlobalVariableOp timeStepVariable);
 
       mlir::LogicalResult cleanModelOp(ModelOp modelOp);
   };
@@ -173,46 +191,6 @@ mlir::LogicalResult EulerForwardPass::createUpdateNonStateVariablesFunction(
   return mlir::success();
 }
 
-static void createStateUpdateFunctionCall(
-    mlir::OpBuilder& builder,
-    VariableOp stateVariable,
-    VariableOp derivativeVariable,
-    MultidimensionalRangeAttr ranges,
-    EquationFunctionOp equationFuncOp)
-{
-  llvm::SmallVector<mlir::Attribute> writtenVarAttrs;
-  llvm::SmallVector<mlir::Attribute> readVarAttrs;
-
-  IndexSet variableIndices;
-
-  if (ranges) {
-    variableIndices += ranges.getValue();
-  }
-
-  writtenVarAttrs.push_back(VariableAttr::get(
-      builder.getContext(),
-      mlir::SymbolRefAttr::get(stateVariable.getSymNameAttr()),
-      IndexSetAttr::get(builder.getContext(), variableIndices)));
-
-  readVarAttrs.push_back(VariableAttr::get(
-      builder.getContext(),
-      mlir::SymbolRefAttr::get(derivativeVariable.getSymNameAttr()),
-      IndexSetAttr::get(builder.getContext(), variableIndices)));
-
-  auto blockOp = builder.create<ScheduleBlockOp>(
-      stateVariable.getLoc(),
-      true,
-      builder.getArrayAttr(writtenVarAttrs),
-      builder.getArrayAttr(readVarAttrs));
-
-  builder.createBlock(&blockOp.getBodyRegion());
-  builder.setInsertionPointToStart(blockOp.getBody());
-
-  builder.create<EquationCallOp>(
-      equationFuncOp.getLoc(), equationFuncOp.getSymName(),
-      ranges, true);
-}
-
 mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
     mlir::OpBuilder& builder,
     mlir::SymbolTableCollection& symbolTableCollection,
@@ -286,60 +264,17 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
 
     for (const auto& [stateVariable, derivativeVariable] :
          llvm::zip(stateVariables, derivativeVariables)) {
-      // Create the equation function.
-      builder.setInsertionPointToEnd(moduleOp.getBody());
-      auto variableType = stateVariable.getVariableType();
-
-      auto equationFuncOp = builder.create<EquationFunctionOp>(
-          stateVariable.getLoc(), "euler_state_update",
-          variableType.getRank());
-
-      symbolTableCollection.getSymbolTable(moduleOp).insert(equationFuncOp);
-      mlir::Block* equationFuncBody = equationFuncOp.addEntryBlock();
-      builder.setInsertionPointToStart(equationFuncBody);
-
-      mlir::Value timeStep = builder.create<GlobalVariableGetOp>(
-          stateVariable.getLoc(), timeStepVariable);
-
-      timeStep = builder.create<LoadOp>(
-          timeStep.getLoc(), timeStep, std::nullopt);
-
-      mlir::Value state = builder.create<QualifiedVariableGetOp>(
-          equationFuncOp.getLoc(), stateVariable);
-
-      mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
-          equationFuncOp.getLoc(), derivativeVariable);
-
-      mlir::Value mulOp = builder.create<MulOp>(
-          equationFuncOp.getLoc(), timeStep, derivative);
-
-      mlir::Value addOp = builder.create<AddOp>(
-          equationFuncOp.getLoc(), state, mulOp);
-
-      builder.create<QualifiedVariableSetOp>(
-          equationFuncOp.getLoc(), stateVariable, addOp);
-
-      builder.setInsertionPointToEnd(equationFuncBody);
-      builder.create<YieldOp>(equationFuncOp.getLoc());
-
-      // Create the schedule blocks and the calls to the equation function.
-      builder.setInsertionPointToEnd(dynamicOp.getBody());
-
-      IndexSet indices =
-          stateVariable.getIndices().getCanonicalRepresentation();
-
-      if (indices.empty()) {
-        createStateUpdateFunctionCall(
-            builder, stateVariable, derivativeVariable, nullptr,
-            equationFuncOp);
+      if (rangedStateUpdateFunctions) {
+        if (mlir::failed(createRangedStateVariableUpdateBlocks(
+                builder, symbolTableCollection, moduleOp, dynamicOp,
+                stateVariable, derivativeVariable, timeStepVariable))) {
+          return mlir::failure();
+        }
       } else {
-        for (const MultidimensionalRange& range : llvm::make_range(
-                 indices.rangesBegin(), indices.rangesEnd())) {
-
-          createStateUpdateFunctionCall(
-              builder, stateVariable, derivativeVariable,
-              MultidimensionalRangeAttr::get(&getContext(), range),
-              equationFuncOp);
+        if (mlir::failed(createMonolithicStateVariableUpdateBlock(
+                builder, symbolTableCollection, moduleOp, dynamicOp,
+                stateVariable, derivativeVariable, timeStepVariable))) {
+          return mlir::failure();
         }
       }
     }
@@ -351,6 +286,272 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
 
   // Terminate the function.
   builder.create<mlir::runtime::ReturnOp>(modelOp.getLoc(), std::nullopt);
+
+  return mlir::success();
+}
+
+static std::pair<mlir::ArrayAttr, mlir::ArrayAttr>
+getStateUpdateBlockVarWriteReadAttrs(
+    mlir::OpBuilder& builder,
+    VariableOp stateVariable,
+    VariableOp derivativeVariable,
+    MultidimensionalRangeAttr ranges)
+{
+  llvm::SmallVector<mlir::Attribute> writtenVarAttrs;
+  llvm::SmallVector<mlir::Attribute> readVarAttrs;
+
+  IndexSet indices;
+
+  if (ranges) {
+    indices += ranges.getValue();
+  }
+
+  writtenVarAttrs.push_back(VariableAttr::get(
+      builder.getContext(),
+      mlir::SymbolRefAttr::get(stateVariable.getSymNameAttr()),
+      IndexSetAttr::get(builder.getContext(), indices)));
+
+  readVarAttrs.push_back(VariableAttr::get(
+      builder.getContext(),
+      mlir::SymbolRefAttr::get(derivativeVariable.getSymNameAttr()),
+      IndexSetAttr::get(builder.getContext(), indices)));
+
+  return std::make_pair(
+      builder.getArrayAttr(writtenVarAttrs),
+      builder.getArrayAttr(readVarAttrs));
+}
+
+static void createStateUpdateFunctionCall(
+    mlir::OpBuilder& builder,
+    VariableOp stateVariable,
+    VariableOp derivativeVariable,
+    MultidimensionalRangeAttr ranges,
+    EquationFunctionOp equationFuncOp)
+{
+  mlir::ArrayAttr writtenVars;
+  mlir::ArrayAttr readVars;
+
+  std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
+      builder, stateVariable, derivativeVariable, ranges);
+
+  auto blockOp = builder.create<ScheduleBlockOp>(
+      stateVariable.getLoc(), true, writtenVars, readVars);
+
+  builder.createBlock(&blockOp.getBodyRegion());
+  builder.setInsertionPointToStart(blockOp.getBody());
+
+  builder.create<EquationCallOp>(
+      equationFuncOp.getLoc(), equationFuncOp.getSymName(),
+      ranges, true);
+}
+
+mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
+    mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    DynamicOp dynamicOp,
+    VariableOp stateVariable,
+    VariableOp derivativeVariable,
+    GlobalVariableOp timeStepVariable)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  // Create the equation function.
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  auto variableType = stateVariable.getVariableType();
+  int64_t variableRank = variableType.getRank();
+
+  auto equationFuncOp = builder.create<EquationFunctionOp>(
+      stateVariable.getLoc(),
+      "euler_state_update_" + stateVariable.getSymName().str(),
+      variableRank);
+
+  symbolTableCollection.getSymbolTable(moduleOp).insert(equationFuncOp);
+  mlir::Block* equationFuncBody = equationFuncOp.addEntryBlock();
+  builder.setInsertionPointToStart(equationFuncBody);
+
+  mlir::Value timeStep = builder.create<GlobalVariableGetOp>(
+      stateVariable.getLoc(), timeStepVariable);
+
+  timeStep = builder.create<LoadOp>(
+      timeStep.getLoc(), timeStep, std::nullopt);
+
+  auto getNewScalarStateFn =
+      [&](mlir::OpBuilder& nestedBuilder,
+          mlir::Location nestedLoc,
+          mlir::Value scalarState,
+          mlir::Value scalarDerivative) -> mlir::Value {
+    mlir::Value result = nestedBuilder.create<MulOp>(
+        nestedLoc, scalarDerivative.getType(), scalarDerivative,
+        timeStep);
+
+    result = nestedBuilder.create<AddOp>(
+        nestedLoc, scalarState.getType(), scalarState, result);
+
+    return result;
+  };
+
+  if (variableRank == 0) {
+    // Scalar variable.
+    mlir::Value state = builder.create<QualifiedVariableGetOp>(
+        equationFuncOp.getLoc(), stateVariable);
+
+    mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
+        equationFuncOp.getLoc(), derivativeVariable);
+
+    mlir::Value updatedState = getNewScalarStateFn(
+        builder, equationFuncOp.getLoc(), state, derivative);
+
+    builder.create<QualifiedVariableSetOp>(
+        equationFuncOp.getLoc(), stateVariable, updatedState);
+  } else {
+    // Array variable.
+    mlir::Value state = builder.create<QualifiedVariableGetOp>(
+        equationFuncOp.getLoc(),
+        stateVariable.getVariableType().toArrayType(),
+        getSymbolRefFromRoot(stateVariable));
+
+    mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
+        equationFuncOp.getLoc(),
+        derivativeVariable.getVariableType().toArrayType(),
+        getSymbolRefFromRoot(derivativeVariable));
+
+    llvm::SmallVector<mlir::Value> lowerBounds;
+    llvm::SmallVector<mlir::Value> upperBounds;
+    llvm::SmallVector<int64_t> steps(variableRank, 1);
+
+    for (int64_t dim = 0; dim < variableRank; ++dim) {
+      lowerBounds.push_back(equationFuncOp.getLowerBound(dim));
+      upperBounds.push_back(equationFuncOp.getUpperBound(dim));
+    }
+
+    mlir::affine::buildAffineLoopNest(
+        builder, equationFuncOp.getLoc(), lowerBounds, upperBounds, steps,
+        [&](mlir::OpBuilder& nestedBuilder, mlir::Location nestedLoc,
+            mlir::ValueRange indices) {
+          mlir::Value scalarState = nestedBuilder.create<LoadOp>(
+              nestedLoc, state, indices);
+
+          mlir::Value scalarDerivative = nestedBuilder.create<LoadOp>(
+              nestedLoc, derivative, indices);
+
+          mlir::Value updatedScalarState = getNewScalarStateFn(
+              nestedBuilder, nestedLoc, scalarState, scalarDerivative);
+
+          nestedBuilder.create<StoreOp>(
+              nestedLoc, updatedScalarState, state, indices);
+        });
+  }
+
+  builder.setInsertionPointToEnd(equationFuncBody);
+  builder.create<YieldOp>(equationFuncOp.getLoc());
+
+  // Create the schedule blocks and the calls to the equation function.
+  builder.setInsertionPointToEnd(dynamicOp.getBody());
+
+  IndexSet indices =
+      stateVariable.getIndices().getCanonicalRepresentation();
+
+  if (indices.empty()) {
+    createStateUpdateFunctionCall(
+        builder, stateVariable, derivativeVariable, nullptr,
+        equationFuncOp);
+  } else {
+    for (const MultidimensionalRange& range : llvm::make_range(
+             indices.rangesBegin(), indices.rangesEnd())) {
+
+      createStateUpdateFunctionCall(
+          builder, stateVariable, derivativeVariable,
+          MultidimensionalRangeAttr::get(&getContext(), range),
+          equationFuncOp);
+    }
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
+    mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTableCollection,
+    mlir::ModuleOp moduleOp,
+    DynamicOp dynamicOp,
+    VariableOp stateVariable,
+    VariableOp derivativeVariable,
+    GlobalVariableOp timeStepVariable)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  // Create the equation function.
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+  auto variableType = stateVariable.getVariableType();
+
+  auto funcOp = builder.create<RawFunctionOp>(
+      stateVariable.getLoc(),
+      "euler_state_update_" + stateVariable.getSymName().str(),
+      builder.getFunctionType(std::nullopt, std::nullopt));
+
+  symbolTableCollection.getSymbolTable(moduleOp).insert(funcOp);
+
+  mlir::Block* funcBody = funcOp.addEntryBlock();
+  builder.setInsertionPointToStart(funcBody);
+
+  mlir::Value timeStep = builder.create<GlobalVariableGetOp>(
+      stateVariable.getLoc(), timeStepVariable);
+
+  timeStep = builder.create<LoadOp>(
+      timeStep.getLoc(), timeStep, std::nullopt);
+
+  mlir::Value state = builder.create<QualifiedVariableGetOp>(
+      funcOp.getLoc(), stateVariable);
+
+  mlir::Value derivative = builder.create<QualifiedVariableGetOp>(
+      funcOp.getLoc(), derivativeVariable);
+
+  mlir::Value mulOp = builder.create<MulOp>(
+      funcOp.getLoc(), timeStep, derivative);
+
+  mlir::Value addOp = builder.create<AddOp>(
+      funcOp.getLoc(), state, mulOp);
+
+  builder.create<QualifiedVariableSetOp>(
+      funcOp.getLoc(), stateVariable, addOp);
+
+  builder.setInsertionPointToEnd(funcBody);
+  builder.create<RawReturnOp>(funcOp.getLoc());
+
+  // Create the schedule block and call the function.
+  builder.setInsertionPointToEnd(dynamicOp.getBody());
+
+  mlir::ArrayAttr writtenVars;
+  mlir::ArrayAttr readVars;
+
+  int64_t variableRank = variableType.getRank();
+
+  if (variableRank == 0) {
+    std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
+        builder, stateVariable, derivativeVariable, nullptr);
+  } else {
+    for (int64_t dim = 0; dim < variableType.getRank(); ++dim) {
+      llvm::SmallVector<Range> ranges;
+
+      for (int64_t dimSize : variableType.getShape()) {
+        assert(dimSize != mlir::ShapedType::kDynamic);
+        ranges.push_back(Range(0, dimSize));
+      }
+
+      std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
+          builder, stateVariable, derivativeVariable,
+          MultidimensionalRangeAttr::get(builder.getContext(),
+                                         MultidimensionalRange(ranges)));
+    }
+  }
+
+  auto blockOp = builder.create<ScheduleBlockOp>(
+      stateVariable.getLoc(), true, writtenVars, readVars);
+
+  builder.createBlock(&blockOp.getBodyRegion());
+  builder.setInsertionPointToStart(blockOp.getBody());
+  builder.create<CallOp>(funcOp.getLoc(), funcOp);
 
   return mlir::success();
 }
@@ -367,5 +568,11 @@ namespace mlir::bmodelica
   std::unique_ptr<mlir::Pass> createEulerForwardPass()
   {
     return std::make_unique<EulerForwardPass>();
+  }
+
+  std::unique_ptr<mlir::Pass> createEulerForwardPass(
+      const EulerForwardPassOptions& options)
+  {
+    return std::make_unique<EulerForwardPass>(options);
   }
 }

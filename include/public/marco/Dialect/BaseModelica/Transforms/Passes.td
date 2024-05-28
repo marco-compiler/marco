@@ -478,9 +478,14 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
     }];
 
     let dependentDialects = [
+        "mlir::affine::AffineDialect",
         "mlir::bmodelica::BaseModelicaDialect",
-        "mlir::runtime::RuntimeDialect",
-        "mlir::scf::SCFDialect"
+        "mlir::runtime::RuntimeDialect"
+    ];
+
+    let options = [
+        Option<"rangedStateUpdateFunctions", "ranged-state-update-functions", "bool",
+               "true", "Create ranged functions for state updates">
     ];
 
     let constructor = "mlir::bmodelica::createEulerForwardPass()";

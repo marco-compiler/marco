@@ -900,7 +900,7 @@ namespace marco::frontend
     pm.addPass(
         llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
             ci.getSimulationOptions().solver)
-            .Case("euler-forward", mlir::bmodelica::createEulerForwardPass())
+            .Case("euler-forward", createMLIREulerForwardPass())
             .Case("ida", createMLIRIDAPass())
             .Default(mlir::bmodelica::createEulerForwardPass()));
 
@@ -1074,6 +1074,18 @@ namespace marco::frontend
 
     options.modelName = modelName;
     return mlir::bmodelica::createReadOnlyVariablesPropagationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
+  {
+    auto& ci = getInstance();
+
+    mlir::bmodelica::EulerForwardPassOptions options;
+
+    options.rangedStateUpdateFunctions =
+        ci.getCodeGenOptions().equationsRuntimeScheduling;
+
+    return mlir::bmodelica::createEulerForwardPass(options);
   }
 
   std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRIDAPass()

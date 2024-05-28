@@ -67,6 +67,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
       mlir::runtime::RuntimeDialect,
       mlir::tensor::TensorDialect>();
 
+  target.addLegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
   target.addIllegalOp<CastOp>();
 
   target.addIllegalOp<

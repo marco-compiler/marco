@@ -169,6 +169,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
       std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
+      std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
       std::unique_ptr<mlir::Pass> createMLIRIDAPass();
       std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
 
