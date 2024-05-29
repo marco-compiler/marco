@@ -290,7 +290,7 @@ static T extractMaskValue(T KeyPath) {
     FLAGS, VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE,         \
     ALWAYS_EMIT, KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE,         \
     NORMALIZER, DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                  \
-  if ((VISIBILITY)&options::CC1Option) {                                       \
+  if ((VISIBILITY)&options::MC1Option) {                                       \
     KEYPATH = MERGER(KEYPATH, DEFAULT_VALUE);                                  \
     if (IMPLIED_CHECK)                                                         \
       KEYPATH = MERGER(KEYPATH, IMPLIED_VALUE);                                \
@@ -307,7 +307,7 @@ static T extractMaskValue(T KeyPath) {
     VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE, ALWAYS_EMIT,   \
     KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE, NORMALIZER,          \
     DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                              \
-  if ((VISIBILITY)&options::CC1Option) {                                       \
+  if ((VISIBILITY)&options::MC1Option) {                                       \
     [&](const auto &Extracted) {                                               \
       if (ALWAYS_EMIT ||                                                       \
           (Extracted !=                                                        \
