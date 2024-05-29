@@ -469,7 +469,7 @@ static void parseFrontendArgs(
     options.omcPath = value.str();
   }
 
-  for (const auto& omcArg : args.getAllArgValues(options::OPT_omc_arg)) {
+  for (const auto& omcArg : args.getAllArgValues(options::OPT_Xomc)) {
     options.omcCustomArgs.push_back(omcArg);
   }
 
