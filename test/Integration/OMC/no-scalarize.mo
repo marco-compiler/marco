@@ -1,4 +1,4 @@
-// RUN: marco %s -o - --model=Test --Xomc=-d=nonfScalarize -emit-base-modelica | FileCheck %s
+// RUN: marco %s -o - --model=Test -Xomc=-d=nonfScalarize -emit-base-modelica | FileCheck %s
 
 // CHECK:       model 'Test'
 // CHECK-NEXT:      Real[10] 'x'(each fixed = true, each start = 0.0);
