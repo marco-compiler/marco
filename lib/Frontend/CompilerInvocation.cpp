@@ -475,7 +475,7 @@ static void parseFrontendArgs(
 
   options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_filter)) {
+  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_variables_filter)) {
     options.variablesFilter = arg->getValue();
   }
 }
