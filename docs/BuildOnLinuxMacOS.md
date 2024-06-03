@@ -76,7 +76,7 @@ pip install lit
 ```
 
 ## Building and installing the runtime library
-Despite living in the same repository, the MARCO runtime library consists in a separate projects that must be built separately and installed before compiling the MARCO compiler.
+The runtime library project provides the libraries to be linked for generating the simulation.
 
 The `RUNTIME_INSTALL_PATH` variable must be set to the desired installation path.
 
@@ -88,7 +88,8 @@ In case of libraries installed through package managers, the build system of MAR
 The `LLVM_EXTERNAL_LIT` variable represent the path (including the executable name) to the `lit` tool. If it has been installed in user mode, it is usually `/home/user/.local/bin/lit`.
 
 ```bash
-cd marco/runtime
+git clone https://github.com/marco-compiler/marco-runtime.git
+cd marco-runtime
 mkdir build && cd build
 
 # Set the installation path.
