@@ -133,11 +133,12 @@ static void printHeader(const Simulation& simulation)
 static void printValues(const Simulation& simulation)
 {
   auto& options = printOptions();
+  std::cout.precision(options.precision);
 
   if (options.scientificNotation) {
     std::cout << std::scientific;
   } else {
-    std::cout << std::fixed << std::setprecision(options.precision);
+    std::cout << std::fixed;
   }
 
   double time = getTime();
