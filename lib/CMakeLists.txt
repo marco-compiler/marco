@@ -13,13 +13,3 @@ add_subdirectory(Dialect)
 add_subdirectory(Codegen)
 add_subdirectory(IO)
 add_subdirectory(Frontend)
-
-# Add the shared runtime support library for JIT compilation.
-set(RUNTIME_SRC_ROOT ${CMAKE_SOURCE_DIR}/runtime/lib)
-
-marco_add_runtime_library(RuntimeSupportShared SHARED
-    ${RUNTIME_SRC_ROOT}/Support/BuiltInFunctions.cpp
-    ${RUNTIME_SRC_ROOT}/Support/Math.cpp
-    ${RUNTIME_SRC_ROOT}/Support/MemoryManagement.cpp
-    ${RUNTIME_SRC_ROOT}/Support/Print.cpp
-    ${RUNTIME_SRC_ROOT}/Support/UtilityFunctions.cpp)
