@@ -13,7 +13,7 @@ namespace marco::runtime::eulerforward
   void CommandLineOptions::printCommandLineOptions(
       std::ostream& os) const
   {
-     os << "  --time-step=<value>    Set the time step (in seconds)." << std::endl;
+     os << "  --time-step=<value>    Set the time step (in seconds). Defaults to " << getOptions().timeStep << "." << std::endl;
   }
 
   void CommandLineOptions::parseCommandLineOptions(

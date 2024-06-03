@@ -17,26 +17,26 @@ namespace marco::runtime::sundials::ida
   {
     os << "  --time-step=<value>                    Set the time step (in seconds)." << std::endl;
 
-    os << "  --ida-equations-chunks-factor          Set the factor which, once multiplied by the threads count, determines the number of equation chunks" << std::endl;
+    os << "  --ida-equations-chunks-factor          Set the factor which, once multiplied by the threads count, determines the number of equation chunks. Defaults to " << getOptions().equationsChunksFactor << "." << std::endl;
 
-    os << "  --ida-relative-tolerance=<value>       Set the relative tolerance." << std::endl;
-    os << "  --ida-absolute-tolerance=<value>       Set the absolute tolerance." << std::endl;
-    os << "  --ida-max-algebraic-abs-tol=<value>    Set the maximum absolute tolerance allowed for algebraic variables." << std::endl;
-    os << "  --ida-time-scaling-factor-ic=<value>   Set the dividing factor for the initial step size guess (the higher the value, the smaller the step)." << std::endl;
+    os << "  --ida-relative-tolerance=<value>       Set the relative tolerance. Defaults to " << getOptions().relativeTolerance << "." << std::endl;
+    os << "  --ida-absolute-tolerance=<value>       Set the absolute tolerance. Defaults to " << getOptions().absoluteTolerance << "." << std::endl;
+    os << "  --ida-max-algebraic-abs-tol=<value>    Set the maximum absolute tolerance allowed for algebraic variables. Defaults to " << getOptions().maxAlgebraicAbsoluteTolerance << "." << std::endl;
+    os << "  --ida-time-scaling-factor-ic=<value>   Set the dividing factor for the initial step size guess (the higher the value, the smaller the step). Defaults to " << getOptions().timeScalingFactorInit << "." << std::endl;
 
-    os << "  --ida-max-steps=<value>                Set the maximum number of steps to be taken by the solver in its attempt to reach the next output time." << std::endl;
-    os << "  --ida-initial-step-size=<value>        Set the initial step size." << std::endl;
-    os << "  --ida-min-step-size=<value>            Set the minimum absolute value of the step size." << std::endl;
-    os << "  --ida-max-step-size=<value>            Set the maximum absolute value of the step size." << std::endl;
-    os << "  --ida-max-err-test-fails=<value>       Set the maximum number of error test failures in attempting one step." << std::endl;
+    os << "  --ida-max-steps=<value>                Set the maximum number of steps to be taken by the solver in its attempt to reach the next output time. Defaults to " << getOptions().maxSteps << "." << std::endl;
+    os << "  --ida-initial-step-size=<value>        Set the initial step size. Defaults to " << getOptions().initialStepSize << "." << std::endl;
+    os << "  --ida-min-step-size=<value>            Set the minimum absolute value of the step size. Defaults to " << getOptions().minStepSize << "." << std::endl;
+    os << "  --ida-max-step-size=<value>            Set the maximum absolute value of the step size. Defaults to " << getOptions().maxStepSize << "." << std::endl;
+    os << "  --ida-max-err-test-fails=<value>       Set the maximum number of error test failures in attempting one step. Defaults to " << getOptions().maxErrTestFails << "." << std::endl;
     os << "  --ida-suppress-alg-vars                Suppress algebraic variables in the local error test." << std::endl;
-    os << "  --ida-max-nonlin-iters=<value>         Maximum number of nonlinear solver iterations in one solve attempt." << std::endl;
-    os << "  --ida-max-conv-fails=<value>           Maximum number of nonlinear solver convergence failures in one step." << std::endl;
-    os << "  --ida-nonlin-conv-coef=<value>         Safety factor in the nonlinear convergence test." << std::endl;
-    os << "  --ida-nonlin-conv-coef-ic=<value>      Positive constant in the Newton iteration convergence test within the initial condition calculation." << std::endl;
-    os << "  --ida-max-steps-ic=<value>             Maximum number of steps allowed for IC." << std::endl;
-    os << "  --ida-max-jacs-ic=<value>              Maximum number of the approximate Jacobian or preconditioner evaluations allowed when the Newton iteration appears to be slowly converging." << std::endl;
-    os << "  --ida-max-iters-ic=<value>             Maximum number of Newton iterations allowed in any one attempt to solve the initial conditions calculation problem." << std::endl;
+    os << "  --ida-max-nonlin-iters=<value>         Maximum number of nonlinear solver iterations in one solve attempt. Defaults to " << getOptions().maxNonlinIters << "." << std::endl;
+    os << "  --ida-max-conv-fails=<value>           Maximum number of nonlinear solver convergence failures in one step. Defaults to " << getOptions().maxConvFails << "." << std::endl;
+    os << "  --ida-nonlin-conv-coef=<value>         Safety factor in the nonlinear convergence test. Defaults to " << getOptions().nonlinConvCoef << "." << std::endl;
+    os << "  --ida-nonlin-conv-coef-ic=<value>      Positive constant in the Newton iteration convergence test within the initial condition calculation. Defaults to " << getOptions().nonlinConvCoefIC << "." << std::endl;
+    os << "  --ida-max-steps-ic=<value>             Maximum number of steps allowed for IC. Defaults to " << getOptions().maxStepsIC << "." << std::endl;
+    os << "  --ida-max-jacs-ic=<value>              Maximum number of the approximate Jacobian or preconditioner evaluations allowed when the Newton iteration appears to be slowly converging. Defaults to " << getOptions().maxNumJacsIC << "." << std::endl;
+    os << "  --ida-max-iters-ic=<value>             Maximum number of Newton iterations allowed in any one attempt to solve the initial conditions calculation problem. Defaults to " << getOptions().maxNumItersIC << "." << std::endl;
     os << "  --ida-line-search-off                  Disable the linesearch algorithm." << std::endl;
 
     os << "  --ida-print-jacobian                   Whether to print the Jacobian matrices while debugging." << std::endl;
