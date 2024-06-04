@@ -25,6 +25,10 @@ ldconfig -p | grep 'libmpfr' > /dev/null || fail "Missing libmpfr"
 INSTDIR=$1
 mkdir -p $INSTDIR || fail "Error creating directory $INSTDIR"
 
+cd $INSTDIR || fail "Error moving in $INSTDIR"
+INSTDIR=$(pwd)
+cd - || fail "Error going back to previous directory"
+
 TEMP_DIR=$(mktemp -d)
 echo $TEMP_DIR
 cd "$TEMP_DIR" || fail "Error creating the temporary directory"
