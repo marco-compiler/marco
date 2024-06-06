@@ -27,7 +27,7 @@ for (config in configs) {
                     }
 
                     dir("${WORKSPACE}/src/marco") {
-                        git branch: 'jenkins', url: 'https://github.com/marco-compiler/marco.git'
+                        git branch: 'master', url: 'https://github.com/marco-compiler/marco.git'
                     }
                 }
 
