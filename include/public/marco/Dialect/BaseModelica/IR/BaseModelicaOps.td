@@ -2749,7 +2749,8 @@ def Modelica_LogOp : BaseModelica_Op<"log",
 }
 
 def Modelica_Log10Op : BaseModelica_Op<"log10",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Base 10 logarithm function.";
 

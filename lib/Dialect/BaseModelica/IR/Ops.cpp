@@ -6097,7 +6097,8 @@ mlir::OpFoldResult AcosOp::fold(FoldAdaptor adaptor) {
 
   return {};
 }
-} // namespace mlir::bmodelica
+}
+
 
 //===---------------------------------------------------------------------===//
 // AsinOp
@@ -6461,6 +6462,25 @@ mlir::OpFoldResult Log10Op::fold(FoldAdaptor adaptor) {
   }
 
   return {};
+}
+
+void Log10Op::generateRuntimeVerification(
+    mlir::OpBuilder& builder, mlir::Location loc)
+{
+  mlir::Value operand = getOperand();
+  // convert operand to arith-compatible type
+  mlir::Value argCast = builder.create<CastOp>(
+      loc, builder.getF64Type(), operand);
+
+  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getF64FloatAttr(0));
+
+  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
+      loc, mlir::arith::CmpFPredicate::OGT, argCast, zero);
+
+  builder.create<mlir::cf::AssertOp>(
+      loc, condition, builder.getStringAttr(
+        "Model error: Argument of log10 outside the domain. It should be > 0"));
 }
 } // namespace mlir::bmodelica
 
