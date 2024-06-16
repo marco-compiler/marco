@@ -90,7 +90,13 @@ find_program(LLVM_TABLEGEN_EXE "llvm-tblgen"
 # Runtime
 #------------------------------------------------------------------------------
 
+if (DEFINED MARCO_RUNTIME_PATH)
+	get_filename_component(MARCO_RUNTIME_ABS_PATH ${MARCO_RUNTIME_PATH} ABSOLUTE)
+	set(MARCORuntime_DIR "${LLVM_ABS_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/MARCORuntime")
+endif()
+
 find_package(MARCORuntime REQUIRED CONFIG)
+message(STATUS "Using MARCORuntimeConfig.cmake in: ${MARCORuntime_DIR}")
 include_directories(${CMAKE_SOURCE_DIR}/runtime/include)
 
 #-------------------------------------------------------------------------------

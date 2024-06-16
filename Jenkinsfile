@@ -100,7 +100,7 @@ for (config in configs) {
                         }
 
                         stage('MARCO Compiler') {
-                            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DLLVM_PATH=" + llvmInstallPath + " -DMARCORuntime_DIR=" + marcoRuntimeInstallPath + "/lib/cmake/MARCORuntime -DLLVM_EXTERNAL_LIT=" + localWorkspace + "/.venv/bin/lit", installation: 'InSearchPath', label: 'Configure'
+                            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DLLVM_PATH=" + llvmInstallPath + " -DMARCO_RUNTIME_PATH=" + marcoRuntimeInstallPath + " -DLLVM_EXTERNAL_LIT=" + localWorkspace + "/.venv/bin/lit", installation: 'InSearchPath', label: 'Configure'
                             cmake arguments: "--build " + marcoBuildPath, installation: 'InSearchPath', label: 'Build'
                             cmake arguments: "--build " + marcoBuildPath + " --target test", installation: 'InSearchPath', label: 'Unit tests'
                             cmake arguments: "--build " + marcoBuildPath + " --target check", installation: 'InSearchPath', label: 'Regression tests'
