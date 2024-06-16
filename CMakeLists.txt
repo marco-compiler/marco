@@ -95,9 +95,13 @@ if (DEFINED MARCO_RUNTIME_PATH)
 	set(MARCORuntime_DIR "${LLVM_ABS_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/MARCORuntime")
 endif()
 
-find_package(MARCORuntime REQUIRED CONFIG)
-message(STATUS "Using MARCORuntimeConfig.cmake in: ${MARCORuntime_DIR}")
-include_directories(${CMAKE_SOURCE_DIR}/runtime/include)
+find_package(MARCORuntime CONFIG)
+
+if (MARCORuntime_FOUND)
+	message(STATUS "Using MARCORuntimeConfig.cmake in: ${MARCORuntime_DIR}")
+else()
+	message(STATUS "MARCO Runtime libraries not found")
+endif()
 
 #-------------------------------------------------------------------------------
 # MARCO configuration
