@@ -30,9 +30,6 @@ for (config in configs) {
             String llvmBuildPath = buildPath + "/llvm-project"
             String llvmInstallPath = installPath + "/llvm-project"
 
-            String sundialsBuildPath = buildPath + "/sundials"
-            String sundialsInstallPath = installPath + "/sundials"
-
             String marcoRuntimeSrcPath = srcPath + "/marco-runtime"
             String marcoRuntimeBuildPath = buildPath + "/marco-runtime"
             String marcoRuntimeInstallPath = installPath + "/marco-runtime"
@@ -52,7 +49,7 @@ for (config in configs) {
                     }
 
                     dir(marcoRuntimeSrcPath) {
-                        git branch: 'master', url: 'https://github.com/marco-compiler/marco-runtime.git'
+                        git branch: 'dev', url: 'https://github.com/marco-compiler/marco-runtime.git'
                     }
 
                     dir(marcoSrcPath) {
@@ -86,14 +83,8 @@ for (config in configs) {
                             cmake arguments: "--build " + llvmBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
                         }
 
-                        stage('SUNDIALS') {
-                            dir(sundialsBuildPath) {
-                                sh marcoSrcPath + "/dependencies/sundials.sh " + sundialsInstallPath
-                            }
-                        }
-
                         stage('MARCO Runtime') {
-                            cmake arguments: "-S " + marcoRuntimeSrcPath + " -B " + marcoRuntimeBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=" + marcoRuntimeInstallPath + " -DLLVM_PATH=" + llvmInstallPath + " -DSUNDIALS_PATH=" + sundialsInstallPath, installation: 'InSearchPath', label: 'Configure'
+                            cmake arguments: "-S " + marcoRuntimeSrcPath + " -B " + marcoRuntimeBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=" + marcoRuntimeInstallPath + " -DLLVM_PATH=" + llvmInstallPath + " -DMARCO_USE_BUILTIN_SUNDIALS=OFF", installation: 'InSearchPath', label: 'Configure'
                             cmake arguments: "--build " + marcoRuntimeBuildPath, installation: 'InSearchPath', label: 'Build'
                             cmake arguments: "--build " + marcoRuntimeBuildPath + " --target test", installation: 'InSearchPath', label: 'Unit tests'
                             cmake arguments: "--build " + marcoRuntimeBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
