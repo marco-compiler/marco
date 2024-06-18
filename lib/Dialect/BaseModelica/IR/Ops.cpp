@@ -1089,6 +1089,36 @@ namespace mlir::bmodelica
   {
     patterns.add<DimOpStaticDimensionPattern>(context);
   }
+
+  void DimOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    size_t numDimensions = getArray().getType().getShape().size();
+    mlir::Value dimIndex = getDimension();
+    
+    // convert operand to arith-compatible type
+    mlir::Value argCast = builder.create<CastOp>(
+        loc, builder.getI64Type(), dimIndex);
+
+    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+        loc, builder.getI64IntegerAttr(0));
+    mlir::Value arrayShapeSize = builder.create<mlir::arith::ConstantOp>(
+        loc, builder.getI64IntegerAttr(numDimensions));
+  
+    mlir::Value firstCondition = builder.create<mlir::arith::CmpIOp>(
+        loc, mlir::arith::CmpIPredicate::sgt, argCast, zero);
+    
+    mlir::Value secondCondition = builder.create<mlir::arith::CmpIOp>(
+        loc, mlir::arith::CmpIPredicate::slt, argCast, arrayShapeSize);
+
+    builder.create<mlir::cf::AssertOp>(
+        loc, firstCondition, builder.getStringAttr(
+          "size_of_dimension_base_array failed (ndims out of bounds)"));
+    
+    builder.create<mlir::cf::AssertOp>(
+        loc, secondCondition, builder.getStringAttr(
+          "size_of_dimension_base_array failed (ndims out of bounds)"));
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -7902,6 +7932,25 @@ namespace mlir::bmodelica
     }
 
     return {};
+  }
+
+  void SqrtOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value operand = getOperand();
+    // convert operand to arith-compatible type
+    mlir::Value argCast = builder.create<CastOp>(
+        loc, builder.getF64Type(), operand);
+
+    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+        loc, builder.getF64FloatAttr(0));
+  
+    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
+        loc, mlir::arith::CmpFPredicate::OGE, argCast, zero);
+
+    builder.create<mlir::cf::AssertOp>(
+        loc, condition, builder.getStringAttr(
+          "Model error: Argument of sqrt outside the domain. It should be >= 0"));
   }
 }
 

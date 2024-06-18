@@ -811,7 +811,9 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
     }];
 }
 
-def Modelica_DimOp : BaseModelica_Op<"dim", [NoMemoryEffect]>
+def Modelica_DimOp : BaseModelica_Op<"dim", 
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -3062,7 +3064,8 @@ def BaseModelica_SizeOp : BaseModelica_Op<"size",
 }
 
 def Modelica_SqrtOp : BaseModelica_Op<"sqrt",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Square root.";
 
