@@ -964,27 +964,27 @@ namespace mlir::bmodelica
   {
     size_t numDimensions = getArray().getType().getShape().size();
     mlir::Value dimIndex = getDimension();
-    
+
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operand = builder.create<CastOp>(
         loc, builder.getI64Type(), dimIndex);
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getI64IntegerAttr(0));
-    mlir::Value arrayShapeSize = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value arrayShapeSize = builder.create<ConstantOp>(
         loc, builder.getI64IntegerAttr(numDimensions));
   
-    mlir::Value firstCondition = builder.create<mlir::arith::CmpIOp>(
-        loc, mlir::arith::CmpIPredicate::sgt, argCast, zero);
+    mlir::Value firstCondition = builder.create<GtOp>(
+        loc, operand, zero);
     
-    mlir::Value secondCondition = builder.create<mlir::arith::CmpIOp>(
-        loc, mlir::arith::CmpIPredicate::slt, argCast, arrayShapeSize);
+    mlir::Value secondCondition = builder.create<LtOp>(
+        loc, operand, arrayShapeSize);
 
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, firstCondition, builder.getStringAttr(
           "size_of_dimension_base_array failed (ndims out of bounds)"));
     
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, secondCondition, builder.getStringAttr(
           "size_of_dimension_base_array failed (ndims out of bounds)"));
   }
@@ -4830,16 +4830,16 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand(1);
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(0));
   
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::ONE, argCast, zero);
+    mlir::Value condition = builder.create<NotEqOp>(
+        loc, operandCast, zero);
 
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, condition, builder.getStringAttr(
           "Model error: division by zero"));
   }
@@ -6468,27 +6468,27 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value minusone = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value minusOne = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(-1));
 
-    mlir::Value one = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value one = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(1));
   
-    mlir::Value firstcondition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OGE, argCast, minusone);
+    mlir::Value firstCondition = builder.create<GteOp>(
+        loc, operandCast, minusOne);
     
-    mlir::Value secondcondition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OLE, argCast, one);
+    mlir::Value secondCondition = builder.create<LteOp>(
+        loc, operandCast, one);
 
-    builder.create<mlir::cf::AssertOp>(
-        loc, firstcondition, builder.getStringAttr(
+    builder.create<AssertOp>(
+        loc, firstCondition, builder.getStringAttr(
           "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"));
     
-    builder.create<mlir::cf::AssertOp>(
-        loc, secondcondition, builder.getStringAttr(
+    builder.create<AssertOp>(
+        loc, secondCondition, builder.getStringAttr(
           "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"));
   }
 }
@@ -6530,27 +6530,27 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value minusone = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value minusOne = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(-1));
 
-    mlir::Value one = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value one = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(1));
   
-    mlir::Value firstcondition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OGE, argCast, minusone);
+    mlir::Value firstCondition = builder.create<GteOp>(
+        loc, operandCast, minusOne);
     
-    mlir::Value secondcondition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OLE, argCast, one);
+    mlir::Value secondCondition = builder.create<LteOp>(
+        loc, operandCast, one);
 
-    builder.create<mlir::cf::AssertOp>(
-        loc, firstcondition, builder.getStringAttr(
+    builder.create<AssertOp>(
+        loc, firstCondition, builder.getStringAttr(
           "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
     
-    builder.create<mlir::cf::AssertOp>(
-        loc, secondcondition, builder.getStringAttr(
+    builder.create<AssertOp>(
+        loc, secondCondition, builder.getStringAttr(
           "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
   }
 }
@@ -6734,17 +6734,17 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand(1);
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(0));
   
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::ONE, argCast, zero);
+    mlir::Value condition = builder.create<NotEqOp>(
+        loc, operandCast, zero);
 
-    builder.create<mlir::cf::AssertOp>(
-        loc, condition, builder.getStringAttr(
+    builder.create<AssertOp>(
+        loc, operandCast, builder.getStringAttr(
           "Model error: division by zero"));
   }
 }
@@ -6875,22 +6875,26 @@ namespace mlir::bmodelica
 
     return {};
   }
-  
-  void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
+
+  void LogOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(0));
   
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OGT, argCast, zero);
+    mlir::Value condition = builder.create<GtOp>(
+        loc, operandCast, zero);
 
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, condition, builder.getStringAttr(
           "Model error: Argument of log outside the domain. It should be > 0"));
+    
+    // builder.create<YieldOp>(loc);
   }
 }
 
@@ -6930,16 +6934,16 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
+    mlir::Value operandCast = builder.create<CastOp>(
         loc, builder.getF64Type(), operand);
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(0));
   
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OGT, argCast, zero);
+    mlir::Value condition = builder.create<GtOp>(
+        loc, operandCast, zero);
 
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, condition, builder.getStringAttr(
           "Model error: Argument of log10 outside the domain. It should be > 0"));
   }
@@ -7664,19 +7668,19 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+    mlir::Value operandCast = builder.create<CastOp>(
+        loc, builder.getF64Type(), operand);  
 
-    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+    mlir::Value zero = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(0));
   
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OGE, argCast, zero);
+    mlir::Value condition = builder.create<GteOp>(
+        loc, operandCast, zero);
 
-    builder.create<mlir::cf::AssertOp>(
+    builder.create<AssertOp>(
         loc, condition, builder.getStringAttr(
           "Model error: Argument of sqrt outside the domain. It should be >= 0"));
-  }
+  }  
 }
 
 //===---------------------------------------------------------------------===//
@@ -12519,3 +12523,6 @@ namespace mlir::bmodelica
     return {};
   }
 }
+
+//===---------------------------------------------------------------------===//
+// AssertOp

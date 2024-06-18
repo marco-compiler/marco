@@ -5232,7 +5232,7 @@ def BaseModelica_WhileOp : BaseModelica_Op<"while",
             modelica.condition (%0 : !modelica.bool)
         } do {
             ...
-        }
+        }ParentOneOf
         ```
     }];
 
@@ -5335,6 +5335,32 @@ def Modelica_PrintOp : BaseModelica_Op<"print", []>
     let arguments = (ins AnyType:$value);
     let results = (outs);
     let assemblyFormat = "$value attr-dict `:` type($value)";
+}
+
+def Modelica_AssertOp : BaseModelica_Op<"assert", 
+    [NoMemoryEffect]>
+{
+    let summary = "Ensure a certain condition is met.";
+
+    let description = [{
+        The operations evaluates a boolean expression and,
+        if false, triggers an error and prints the error message
+        to the standard output.
+    }];
+
+    let arguments = (ins 
+        AnyType:$condition,
+        TypedAttrInterface:$msg);
+    
+    let results = (outs);
+    
+    let assemblyFormat = "$condition `,` $msg attr-dict `:` type($condition)";
+
+    // let builders = [
+    //     OpBuilder<(ins "::mlir::Value":$condition, "::mlir::StringAttr":$msg), [{
+    //         build($_builder, $_state, condition, msg);
+    //     }]>
+    // ];
 }
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPS_TD

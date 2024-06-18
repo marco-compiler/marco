@@ -9,6 +9,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -296,6 +297,7 @@ namespace
           mlir::Block* loopExitBlock,
           mlir::Block* functionReturnBlock) const
       {
+        std::cout<<"IN\n";
         if (auto breakOp = mlir::dyn_cast<BreakOp>(op)) {
           return createCFG(rewriter, breakOp, loopExitBlock);
         }
@@ -314,6 +316,11 @@ namespace
 
         if (auto returnOp = mlir::dyn_cast<ReturnOp>(op)) {
           return createCFG(rewriter, returnOp, functionReturnBlock);
+        }
+
+        if (auto assertOp = mlir::dyn_cast<AssertOp>(op)) {
+          std::cout<< "OLLA\n";
+          return createCFG(rewriter, assertOp, functionReturnBlock);
         }
 
         return mlir::success();
@@ -607,6 +614,36 @@ namespace
         return mlir::success();
       }
 
+      mlir::LogicalResult createCFG(
+          mlir::PatternRewriter& rewriter,
+          AssertOp op,
+          mlir::Block* functionReturnBlock) const
+      {
+        if (functionReturnBlock == nullptr) {
+          return mlir::failure();
+        }
+
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPoint(op);
+
+        mlir::Block* currentBlock = rewriter.getInsertionBlock();
+        rewriter.splitBlock(currentBlock, op->getIterator());
+
+        mlir::Value conditionValue = op.getCondition();
+        mlir::StringAttr msg = mlir::cast<mlir::StringAttr>(op.getMsg());
+
+        if (conditionValue.getType() != rewriter.getI1Type()) {
+          conditionValue = rewriter.create<CastOp>(
+              conditionValue.getLoc(), rewriter.getI1Type(), conditionValue);
+        }
+
+        rewriter.setInsertionPointToEnd(currentBlock);
+        rewriter.create<mlir::cf::AssertOp>(op->getLoc(), conditionValue, msg);
+
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+
       mlir::LogicalResult recurse(
           mlir::PatternRewriter& rewriter,
           mlir::Block* first,
@@ -654,6 +691,7 @@ namespace
 
 void BaseModelicaToCFConversionPass::runOnOperation()
 {
+  std::cout<<"INSIDE THE PASS\n";
   mlir::ModuleOp moduleOp = getOperation();
 
   if (mlir::failed(convertBaseModelicaToCFG(moduleOp))) {
@@ -664,6 +702,7 @@ void BaseModelicaToCFConversionPass::runOnOperation()
 mlir::LogicalResult BaseModelicaToCFConversionPass::convertBaseModelicaToCFG(
     mlir::ModuleOp moduleOp)
 {
+  std::cout<<"CONVERTING TO CFG\n";
   mlir::RewritePatternSet patterns(&getContext());
   patterns.add<CFGLowering>(&getContext());
 
