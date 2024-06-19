@@ -171,7 +171,6 @@ namespace marco::codegen::lowering
     llvm::SmallVector<int64_t, 3> shape;
     computeShape(array, shape);
 
-    auto tensorType = mlir::RankedTensorType::get(shape, elementType);
     mlir::Location location = loc(array.getLocation());
 
     const ast::Expression *topLevel = array.getValue();
@@ -182,7 +181,7 @@ namespace marco::codegen::lowering
       mlir::Value elem = lower(*topLevel)[0].get(nodeLoc);
 
       mlir::Value result = builder().create<TensorBroadcastOp>(
-          location, tensorType, elem);
+          location, mlir::RankedTensorType::get(shape,elem.getType()), elem);
 
       return Reference::tensor(builder(), result);
     }
@@ -190,6 +189,8 @@ namespace marco::codegen::lowering
     // Flatten out all values.
     llvm::SmallVector<mlir::Value> values;
     lowerValues(array, values);
+
+    auto tensorType = mlir::RankedTensorType::get(shape, elementType);
 
     mlir::Value result = builder().create<TensorFromElementsOp>(
         location, tensorType, values);

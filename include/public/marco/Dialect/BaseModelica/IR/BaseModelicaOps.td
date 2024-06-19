@@ -427,7 +427,7 @@ def Modelica_TensorBroadcastOp : BaseModelica_Op<"tensor_broadcast",
     [NoMemoryEffect]>
 {
     let arguments = (ins
-        AnyBaseModelicaCompatibleScalar:$value,
+        AnyType:$value,
         Variadic<Index>:$dynamicDimensions);
 
     let results = (outs AnyTensor:$tensor);

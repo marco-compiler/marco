@@ -3,7 +3,7 @@
 // CHECK-LABEL: @Test
 // CHECK:       bmodelica.binding_equation @x {
 // CHECK-DAG:       %[[cst0:.*]] = bmodelica.constant #bmodelica<int 1234>
-// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_broadcast %[[cst0]] : !bmodelica.int -> tensor<3x!bmodelica.real>
+// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_broadcast %[[cst0]] : !bmodelica.int -> tensor<3x!bmodelica.int>
 // CHECK-NEXT:      bmodelica.yield %[[tensor]]
 // CHECK-NEXT:  }
 
