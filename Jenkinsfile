@@ -45,12 +45,16 @@ for (config in configs) {
                 publishChecks(name: configName, status: 'IN_PROGRESS', summary: 'In progress')
 
                 docker.withRegistry('https://ghcr.io', 'marco-ci') {
-                    def devImage = docker.build(
-                        dockerMARCOImageName + '-dev:latest',
-                        "--build-arg MARCO_RUNTIME_BUILD_TYPE=Debug --build-arg LLVM_ENABLE_ASSERTIONS=ON " + dockerArgs)
+                    def devImage
 
-                    if (BRANCH_NAME == 'master') {
-                        devImage.push()
+                    stage("Development image") {
+                        devImage = docker.build(
+                            dockerMARCOImageName + '-dev:latest',
+                            "--build-arg MARCO_RUNTIME_BUILD_TYPE=Debug --build-arg LLVM_ENABLE_ASSERTIONS=ON " + dockerArgs)
+
+                        if (BRANCH_NAME == 'master') {
+                            devImage.push()
+                        }
                     }
 
                     devImage.inside() {
