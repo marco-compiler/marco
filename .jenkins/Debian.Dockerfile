@@ -1,6 +1,8 @@
 ARG VERSION=latest
 FROM debian:$VERSION
 
+LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
+
 ARG LLVM_BUILD_TYPE=Release
 ARG LLVM_ENABLE_ASSERTIONS=OFF
 ARG LLVM_PARALLEL_COMPILE_JOBS=4
@@ -12,6 +14,9 @@ RUN apt update -y && \
     apt install -y build-essential gfortran ninja-build lld cmake ccache git \
     python3-pip python3-venv libxml2-dev libtinfo-dev wget libopenblas-dev \
     libsuitesparse-dev libsundials-dev
+
+COPY ./setup_venv.sh /tmp/
+RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
 
 COPY ./install_llvm.sh /tmp/
 

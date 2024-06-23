@@ -22,11 +22,9 @@ for (config in configs) {
 
             String srcPath = localWorkspace + "/src"
             String buildPath = localWorkspace + "/build"
-            String installPath = localWorkspace + "/install"
 
             String marcoSrcPath = srcPath + "/marco"
             String marcoBuildPath = buildPath + "/marco"
-            String marcoInstallPath = installPath + "/marco"
 
             stage("Checkout") {
                 dir(marcoSrcPath) {
@@ -34,13 +32,10 @@ for (config in configs) {
                 }
             }
 
-            String dockerMARCOImageName = 'marco-' + configName
-            String llvmBuildType = "Release"
-            String llvmEnableAssertions = "ON"
+            String dockerMARCOImageName = 'marco-compiler/marco-' + configName
 
             String dockerArgs = configArgs +
-                " --build-arg LLVM_BUILD_TYPE=" + llvmBuildType +
-                " --build-arg LLVM_ENABLE_ASSERTIONS=" + llvmEnableAssertions +
+                " --build-arg LLVM_BUILD_TYPE=Release" +
                 " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
                 " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
                 " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
@@ -49,41 +44,29 @@ for (config in configs) {
             withEnv(configEnv) {
                 publishChecks(name: configName, status: 'IN_PROGRESS', summary: 'In progress')
 
-                docker.withRegistry('https://ghcr.io', 'github-app') {
+                docker.withRegistry('https://ghcr.io', 'marco-ci') {
                     def devImage = docker.build(
-                        dockerMARCOImageName + '-dev',
+                        dockerMARCOImageName + '-dev:latest',
                         "--build-arg MARCO_RUNTIME_BUILD_TYPE=Debug --build-arg LLVM_ENABLE_ASSERTIONS=ON " + dockerArgs)
 
-                    devImage.push()
+                    if (BRANCH_NAME == 'master') {
+                        devImage.push()
+                    }
 
-                    devImage.inside("-v $HOME/ccache:/ccache " + '-e "CCACHE_DIR=/ccache"') {
+                    devImage.inside() {
                         withChecks(name: configName) {
                             stage("OS information") {
                                 sh "cat /etc/os-release"
                             }
 
-                           stage('Virtual environment') {
-                                dir(localWorkspace) {
-                                    sh '''#!/bin/bash
-                                    python3 -m venv .venv
-                                    source .venv/bin/activate
-                                    pip install --upgrade pip
-                                    pip install lit'''
-                                }
-                            }
-
-                            stage("Clean") {
+                            stage('Clean') {
                                 dir(marcoBuildPath) {
-                                    deleteDir()
-                                }
-
-                                dir(marcoInstallPath) {
                                     deleteDir()
                                 }
                             }
 
                             stage('Configure') {
-                                cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DLLVM_EXTERNAL_LIT=" + localWorkspace + "/.venv/bin/lit", installation: 'InSearchPath', label: 'Configure'
+                                cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DLLVM_EXTERNAL_LIT=/virtualenv/bin/lit", installation: 'InSearchPath', label: 'Configure'
                             }
 
                             stage('Build') {
