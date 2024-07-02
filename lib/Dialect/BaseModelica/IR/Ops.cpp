@@ -682,7 +682,7 @@ namespace mlir::bmodelica
 
     if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError()
-          << "incorrect number of indices for store (expected " << rank
+          << "incorrect number of indices (expected " << rank
           << ", got " << indicesAmount << ")";
     }
 
@@ -1064,7 +1064,7 @@ namespace mlir::bmodelica
 
     if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError()
-          << "incorrect number of indices for store (expected " << rank
+          << "incorrect number of indices (expected " << rank
           << ", got " << indicesAmount << ")";
     }
 
@@ -1176,7 +1176,7 @@ namespace mlir::bmodelica
 
     if (rank != static_cast<int64_t>(indicesAmount)) {
       return emitOpError()
-          << "incorrect number of indices for store (expected " << rank
+          << "incorrect number of indices (expected " << rank
           << ", got " << indicesAmount << ")";
     }
 
