@@ -1097,22 +1097,9 @@ namespace
             RecordInliningPass>
   {
     public:
-      using RecordInliningPassBase::RecordInliningPassBase;
+      using RecordInliningPassBase<RecordInliningPass>::RecordInliningPassBase;
 
-      void runOnOperation() override
-      {
-        if (mlir::failed(explicitateAccesses())) {
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(unpackRecordVariables())) {
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(foldRecordCreateOps())) {
-          return signalPassFailure();
-        }
-      }
+      void runOnOperation() override;
 
       mlir::LogicalResult explicitateAccesses();
 
@@ -1120,6 +1107,21 @@ namespace
 
       mlir::LogicalResult foldRecordCreateOps();
   };
+}
+
+void RecordInliningPass::runOnOperation()
+{
+  if (mlir::failed(explicitateAccesses())) {
+    return signalPassFailure();
+  }
+
+  if (mlir::failed(unpackRecordVariables())) {
+    return signalPassFailure();
+  }
+
+  if (mlir::failed(foldRecordCreateOps())) {
+    return signalPassFailure();
+  }
 }
 
 mlir::LogicalResult RecordInliningPass::explicitateAccesses()
