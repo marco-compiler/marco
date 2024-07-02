@@ -1,3 +1,7 @@
+#ifndef MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
+#define MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
+
+
 #include <fstream>
 #include <string>
 #include <vector>
@@ -57,3 +61,5 @@ namespace marco::codegen::lowering
         static std::string getSynsetName(const Synset& synset);
     };
 }
+
+#endif // MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H

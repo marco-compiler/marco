@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.10)
-
 set(SOURCES
     DatabaseReader.cpp
     EditDistance.cpp
@@ -55,6 +53,6 @@ add_custom_target(
 # Install command to move the wordnet directory to the installation path.
 install(
     DIRECTORY "${TARGET_DIR}/"
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/share/marco/wordnet"
+    DESTINATION "share/marco/wordnet"
     COMPONENT wordnet
 )

@@ -39,6 +39,8 @@ set(SOURCES
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
+add_subdirectory(Distance)
+
 set(MLIR_LIBS
     ${dialect_libs})
 
@@ -51,5 +53,3 @@ marco_add_library(Lowering
     marco::variableFilter
     marco::Distance
     ${MLIR_LIBS})
-
-add_subdirectory(Distance)

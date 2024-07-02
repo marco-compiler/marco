@@ -44,7 +44,10 @@ namespace marco::codegen::lowering
       const unsigned int column;
 
       // Threshold to avoid using semantic distance.
-      constexpr static unsigned int threshold = 10;
+      // This will be multiplied by the length of the actual identifier,
+      // in order to account for the higher likelihood of errors in longer
+      // identifiers.
+      constexpr static unsigned int threshold = 1;
 
       // List of built-in functions in the language.
       static const std::set<std::string> builtInFunctions;

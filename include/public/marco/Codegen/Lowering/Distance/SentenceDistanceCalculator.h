@@ -1,3 +1,6 @@
+#ifndef MARCO_CODEGEN_LOWERING_DISTANCE_SENTENCEDISTANCECALCULATOR_H
+#define MARCO_CODEGEN_LOWERING_DISTANCE_SENTENCEDISTANCECALCULATOR_H
+
 #include "marco/Codegen/Lowering/Distance/WordDistanceCalculator.h"
 
 namespace marco::codegen::lowering
@@ -37,3 +40,5 @@ namespace marco::codegen::lowering
                             const std::string& sentence2);
     };
 }
+
+#endif //MARCO_CODEGEN_LOWERING_DISTANCE_SENTENCEDISTANCECALCULATOR_H

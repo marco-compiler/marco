@@ -73,7 +73,7 @@ namespace marco::codegen::lowering
         const float similarity = calculator.getSimilarity(actualName, declaredId);
 
         if (similarity > highestSimilarity) {
-          predictedName = declaredId;
+          predictedNameSemantic = declaredId;
           highestSimilarity = similarity;
         }
       }

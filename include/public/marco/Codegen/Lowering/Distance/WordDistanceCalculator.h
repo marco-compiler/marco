@@ -1,3 +1,6 @@
+#ifndef MARCO_CODEGEN_LOWERING_DISTANCE_WORDDISTANCECALCULATOR_H
+#define MARCO_CODEGEN_LOWERING_DISTANCE_WORDDISTANCECALCULATOR_H
+
 #include "marco/Codegen/Lowering/Distance/DatabaseReader.h"
 #include <string>
 
@@ -58,3 +61,5 @@ namespace marco::codegen::lowering
         Synset getLCA() const;
     };
 }
+
+#endif //MARCO_CODEGEN_LOWERING_DISTANCE_WORDDISTANCECALCULATOR_H
