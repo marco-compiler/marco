@@ -751,8 +751,7 @@ namespace marco::codegen::lowering
     std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
                               ". Expected " + std::to_string(expectedNum) + " argument(s) but got " + 
                               std::to_string(actualNum) + ".";
-    mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
-    diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
+    mlir::emitError(loc(location)) << errorString;
   }
   void CallLowerer::emitErrorNumArgumentsRange(const std::string &function, const marco::SourceRange& location,
                                                unsigned int actualNum, unsigned int minExpectedNum, 
@@ -761,8 +760,7 @@ namespace marco::codegen::lowering
                               ". Expected " + ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
                               "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
                               " argument(s) but got " + std::to_string(actualNum) + ".";
-    mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
-    diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
+    mlir::emitError(loc(location)) << errorString;
   }
 
   std::optional<Results> CallLowerer::abs(const ast::Call& call)

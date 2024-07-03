@@ -548,7 +548,6 @@ namespace marco::codegen::lowering
       errorString += " Did you mean " + predicted + "?";
     }
     
-    mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
-    diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
+    mlir::emitError(loc(location)) << errorString;
   }
 }

@@ -188,8 +188,7 @@ namespace marco::codegen::lowering
         marco::SourceRange location = variable.getLocation();
         std::string errorString = "Error in AST to MLIR conversion. Invalid fixed property for variable " + 
                                   std::string(variable.getName()) + ".";
-        mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
-        diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
+        mlir::emitError(loc(location)) << errorString;
         return false;
       }
     }
