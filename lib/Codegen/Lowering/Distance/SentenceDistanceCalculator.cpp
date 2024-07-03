@@ -12,10 +12,10 @@ namespace marco::codegen::lowering
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);
     }
 
-    stringVector SentenceDistanceCalculator::camelCaseSplit(const std::string& str) {
+    std::vector<std::string> SentenceDistanceCalculator::camelCaseSplit(llvm::StringRef str) {
         bool lastCharLower = true;
         
-        stringVector words;
+        std::vector<std::string> words;
         std::string word;
         for (char c : str) {
             // Check if the character is uppercase.
@@ -47,8 +47,8 @@ namespace marco::codegen::lowering
         return words;
     }
 
-    stringVector SentenceDistanceCalculator::underscoreSplit(const std::string& str) {
-        stringVector words;
+    std::vector<std::string> SentenceDistanceCalculator::underscoreSplit(llvm::StringRef str) {
+        std::vector<std::string> words;
         std::string word;
         for (char c : str) {
             // Check if the character is an underscore.
@@ -67,9 +67,9 @@ namespace marco::codegen::lowering
         return words;
     }
 
-    stringVector SentenceDistanceCalculator::split(const std::string& str) {
+    std::vector<std::string> SentenceDistanceCalculator::split(llvm::StringRef str) {
         // Check if the string contains an underscore.
-        stringVector words;
+        std::vector<std::string> words;
         if (str.find('_') != std::string::npos) {
             words =  underscoreSplit(str);
         } else {
@@ -84,13 +84,15 @@ namespace marco::codegen::lowering
         return words;
     }
 
-    stringVector SentenceDistanceCalculator::getJointWordSet(const stringVector& sentence1,
-                                                            const stringVector& sentence2) {
+    std::vector<std::string> SentenceDistanceCalculator::getJointWordSet(
+        llvm::ArrayRef<std::string> sentence1,
+        llvm::ArrayRef<std::string> sentence2
+    ) {
         // Create a set of strings.
-        stringVector jointWordSet;
+        std::vector<std::string> jointWordSet;
 
         // Iterate over the first sentence.
-        for (const std::string& word : sentence1) {
+        for (std::string word : sentence1) {
             // Check if the word is not in the joint word set.
             if (std::find(jointWordSet.begin(), jointWordSet.end(), word) == jointWordSet.end()) {
                 // Add the word to the joint word set.
@@ -99,7 +101,7 @@ namespace marco::codegen::lowering
         }
 
         // Iterate over the second sentence.
-        for (const std::string& word : sentence2) {
+        for (std::string word : sentence2) {
             // Check if the word is not in the joint word set.
             if (std::find(jointWordSet.begin(), jointWordSet.end(), word) == jointWordSet.end()) {
                 // Add the word to the joint word set.
@@ -110,15 +112,17 @@ namespace marco::codegen::lowering
         return jointWordSet;
     }
 
-    float SentenceDistanceCalculator::getLexicalCell(const std::string& str,
-                                                    const stringVector& sentence) {
+    float SentenceDistanceCalculator::getLexicalCell(
+        llvm::StringRef str,
+        llvm::ArrayRef<std::string> sentence
+    ) {
         // Check if the string is in the sentence.
         if (std::find(sentence.begin(), sentence.end(), str) != sentence.end()) {
             return 1.0f;
         }
 
         float bestSimilarity = 0.0f;
-        for (const std::string& word : sentence) {
+        for (llvm::StringRef word : sentence) {
             wordDistanceCalculator.analyzeByWords(str, word);
             float similarity = wordDistanceCalculator.getNormalizedSimilarity();
             if (similarity > bestSimilarity) {
@@ -129,21 +133,23 @@ namespace marco::codegen::lowering
         return bestSimilarity;
     }
 
-    float SentenceDistanceCalculator::getWordVecSimilarity(const stringVector& sentence1,
-                                                        const stringVector& sentence2) {
+    float SentenceDistanceCalculator::getWordVecSimilarity(
+        llvm::ArrayRef<std::string> sentence1,
+        llvm::ArrayRef<std::string> sentence2
+    ) {
         // Generate the joint word set.
-        stringVector jointWordSet = getJointWordSet(sentence1, sentence2);
+        std::vector<std::string> jointWordSet = getJointWordSet(sentence1, sentence2);
 
         // Get the lexical vector for the first sentence.
         std::vector<float> lexicalVector1;
-        for (const std::string& word : jointWordSet) {
+        for (llvm::StringRef word : jointWordSet) {
             float cell = getLexicalCell(word, sentence1);
             lexicalVector1.push_back(cell);
         }
 
         // Get the lexical vector for the second sentence.
         std::vector<float> lexicalVector2;
-        for (const std::string& word : jointWordSet) {
+        for (llvm::StringRef word : jointWordSet) {
             float cell = getLexicalCell(word, sentence2);
             lexicalVector2.push_back(cell);
         }
@@ -164,11 +170,11 @@ namespace marco::codegen::lowering
         return dotProduct / (magnitude1 * magnitude2);
     }
 
-    float SentenceDistanceCalculator::getSimilarity(const std::string& sentence1,
-                                                    const std::string& sentence2) {
+    float SentenceDistanceCalculator::getSimilarity(llvm::StringRef sentence1,
+                                                    llvm::StringRef sentence2) {
         // Split the sentences into words.
-        stringVector words1 = split(sentence1);
-        stringVector words2 = split(sentence2);
+        std::vector<std::string> words1 = split(sentence1);
+        std::vector<std::string> words2 = split(sentence2);
 
         // If one of the sentences is empty, return 0.
         if (words1.empty() || words2.empty()) {

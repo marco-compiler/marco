@@ -5,8 +5,6 @@
 
 namespace marco::codegen::lowering
 {
-    using stringVector = std::vector<std::string>;
-
     class SentenceDistanceCalculator {
     private:
         WordDistanceCalculator wordDistanceCalculator;
@@ -15,29 +13,28 @@ namespace marco::codegen::lowering
         static void lowerCase(std::string& str);
 
         // Split the variable name into words.
-        static stringVector camelCaseSplit(const std::string& str);
-        static stringVector underscoreSplit(const std::string& str);
-        static stringVector split(const std::string& str);
+        static std::vector<std::string> camelCaseSplit(llvm::StringRef str);
+        static std::vector<std::string> underscoreSplit(llvm::StringRef str);
+        static std::vector<std::string> split(llvm::StringRef str);
 
         // Get the joint word set of two sentences.
-        static stringVector getJointWordSet(const stringVector& sentence1,
-                                            const stringVector& sentence2);
+        static std::vector<std::string> getJointWordSet(llvm::ArrayRef<std::string> sentence1,
+                                                        llvm::ArrayRef<std::string> sentence2);
 
         // Compute the value of the lexical vector corresponding to
         // an element of the joint word set.
-        float getLexicalCell(const std::string& str,
-                            const stringVector& sentence);
+        float getLexicalCell(llvm::StringRef str, llvm::ArrayRef<std::string> sentence);
 
         // Compute the similarity of two word vectors.
-        float getWordVecSimilarity(const stringVector& sentence1,
-                                const stringVector& sentence2);
+        float getWordVecSimilarity(llvm::ArrayRef<std::string> sentence1,
+                                   llvm::ArrayRef<std::string> sentence2);
 
     public:
         SentenceDistanceCalculator();
 
         // Compute the similarity of two sentences.
-        float getSimilarity(const std::string& sentence1,
-                            const std::string& sentence2);
+        float getSimilarity(llvm::StringRef sentence1,
+                            llvm::StringRef sentence2);
     };
 }
 
