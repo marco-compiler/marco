@@ -206,7 +206,7 @@ namespace marco::codegen::lowering
       [[nodiscard]] virtual bool 
           lower(const ast::WhileStatement& statement) override;
 
-      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
+      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name, 
                                        const std::set<std::string> &declaredIdentifiers, 
                                        const marco::SourceRange& location);
 

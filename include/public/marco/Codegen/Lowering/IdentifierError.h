@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_IDENTIFIERERROR_H
 #define MARCO_CODEGEN_LOWERING_IDENTIFIERERROR_H
 
-#include <array>
+#include "llvm/ADT/StringRef.h"
 #include <set>
 #include <string>
 #include <tuple>
@@ -19,9 +19,9 @@ namespace marco::codegen::lowering
         FIELD
       };
 
-      // Create an IdentifierError object, calculating the most similar identifier to identifierName 
+      // Create an IdentifierError object, calculating the most similar identifier to actual
       // among those in declaredIdentifiers and the built-in ones (if any).
-      IdentifierError(const IdentifierType &errorType, const std::string &identifierName, 
+      IdentifierError(const IdentifierType &errorType, llvm::StringRef actual, 
                       const std::set<std::string> &declaredIdentifiers);
 
       IdentifierType getIdentifierType() const;
@@ -52,13 +52,13 @@ namespace marco::codegen::lowering
       // Return a tuple with the lowest distance and the identifier with
       // said distance.
       std::tuple<unsigned int, std::string> computeLowestEditDistance(
-            const std::string &actual, const std::set<std::string> &possibleIdentifiers) const;
+            llvm::StringRef actual, const std::set<std::string> &possibleIdentifiers) const;
       
       // Compute the semantic distance between actual and all elements of possibleIdentifiers.
       // Return a tuple with the highest similarity and the identifier with
       // said similarity.
       std::tuple<float, std::string> computeHighestSemanticSimilarity(
-            const std::string &actual, const std::set<std::string> &possibleIdentifiers) const;
+            llvm::StringRef actual, const std::set<std::string> &possibleIdentifiers) const;
   };
 }
 

@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
       getVisibleVariables(visibleVariables);
 
       marco::SourceRange sourceRange = firstEntry->getLocation();
-      emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(firstEntry->getName()), 
+      emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, firstEntry->getName(), 
                           visibleVariables, sourceRange);
       return std::nullopt;
     }
@@ -62,7 +62,7 @@ namespace marco::codegen::lowering
           getVisibleSymbols<VariableOp>(recordOp, visibleFields);
 
           marco::SourceRange sourceRange = pathEntry->getLocation();
-          emitIdentifierError(IdentifierError::IdentifierType::FIELD, std::string(pathEntry->getName()), 
+          emitIdentifierError(IdentifierError::IdentifierType::FIELD, pathEntry->getName(), 
                               visibleFields, sourceRange);
           return std::nullopt;
         }

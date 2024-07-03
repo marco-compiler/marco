@@ -69,7 +69,7 @@ namespace marco::codegen::lowering
           getVisibleVariables(visibleVariables);
 
           marco::SourceRange sourceRange = statement.getExpression()->getLocation();
-          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(path.front().getValue()), 
+          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, path.front().getValue(), 
                               visibleVariables, sourceRange);
           return false;
         }

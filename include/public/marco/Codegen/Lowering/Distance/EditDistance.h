@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H
 #define MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H
 
-#include <string>
+#include "llvm/ADT/StringRef.h"
 
 namespace marco::codegen::lowering
 {
@@ -15,7 +15,7 @@ namespace marco::codegen::lowering
   // The distance is not symmetric.
   // The words can only contain digits, letters and '_', which are the characters
   // allowed for Modelica for identifiers.
-  unsigned int editDistance(const std::string &actual, const std::string &expected);
+  unsigned int editDistance(llvm::StringRef actual, llvm::StringRef expected);
 }
 
 #endif // MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H

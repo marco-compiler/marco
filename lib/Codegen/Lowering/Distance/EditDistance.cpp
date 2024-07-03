@@ -1,5 +1,6 @@
 #include "marco/Codegen/Lowering/Distance/EditDistance.h"
 #include "marco/Codegen/Lowering/Distance/EditDistanceParameters.h"
+#include <string>
 #include <vector>
 
 using namespace ::marco;
@@ -7,9 +8,11 @@ using namespace ::marco::codegen::lowering;
 
 namespace marco::codegen::lowering
 {
-  unsigned int editDistance(const std::string &actual, const std::string &expected) {
-    unsigned int m = actual.length();
-    unsigned int n = expected.length();
+  unsigned int editDistance(llvm::StringRef actual, llvm::StringRef expected) {
+    std::string actualName(actual);
+    std::string expectedName(expected);
+    unsigned int m = actualName.length();
+    unsigned int n = expectedName.length();
 
     constexpr unsigned int maxCost = 65535;
 
@@ -22,46 +25,46 @@ namespace marco::codegen::lowering
     }
 
     // Initialize the first column of the matrix (all insertions).
-    unsigned int first_char_idx = (n > 0) ? charToSubstitutionCostsIndex(expected[0]) : 0;
+    unsigned int firstCharIdx = (n > 0) ? charToSubstitutionCostsIndex(expectedName[0]) : 0;
     for (unsigned int i=1; i<=m; ++i) {
-      unsigned int actual_char_idx = charToSubstitutionCostsIndex(actual[i-1]);
-      unsigned int char_insertion_cost = (n > 0) ?
-                                          editDistanceSubsitutionCosts[actual_char_idx][first_char_idx] :
+      unsigned int actualNameCharIdx = charToSubstitutionCostsIndex(actualName[i-1]);
+      unsigned int charInsertionCost = (n > 0) ?
+                                          editDistanceSubsitutionCosts[actualNameCharIdx][firstCharIdx] :
                                           editDistanceLargestSubstitutionCost;
-      distances[i*(n+1)] = distances[(i-1)*(n+1)] + editDistanceBaseInsertionCost + char_insertion_cost;
+      distances[i*(n+1)] = distances[(i-1)*(n+1)] + editDistanceBaseInsertionCost + charInsertionCost;
     } 
 
     // Compute the distance matrix.
     for (unsigned int i=1; i<=m; ++i) {
       for (unsigned int j=1; j<=n; ++j) {
         unsigned int index = i*(n+1) + j;
-        unsigned int actual_char_idx = charToSubstitutionCostsIndex(actual[i-1]);
-        unsigned int expected_char_idx = charToSubstitutionCostsIndex(expected[j-1]);
+        unsigned int actualNameCharIdx = charToSubstitutionCostsIndex(actualName[i-1]);
+        unsigned int expectedNameCharIdx = charToSubstitutionCostsIndex(expectedName[j-1]);
 
         // Calculate the distance in case of deletion.
-        unsigned int deletion_result = distances[index - 1] + editDistanceDeletionCost;
+        unsigned int deletionResult = distances[index - 1] + editDistanceDeletionCost;
 
         // Calculate the distance in case of insertion.
-        unsigned int current_char_cost = editDistanceSubsitutionCosts[actual_char_idx][expected_char_idx];
-        unsigned int next_char_cost = (j < n) ?
-              editDistanceSubsitutionCosts[actual_char_idx][charToSubstitutionCostsIndex(expected[j])] :
+        unsigned int currentCharCost = editDistanceSubsitutionCosts[actualNameCharIdx][expectedNameCharIdx];
+        unsigned int nextCharCost = (j < n) ?
+              editDistanceSubsitutionCosts[actualNameCharIdx][charToSubstitutionCostsIndex(expectedName[j])] :
               editDistanceLargestSubstitutionCost;
-        unsigned int insertion_result = distances[index - (n+1)] + editDistanceBaseInsertionCost + 
-                                              std::min(current_char_cost, next_char_cost);
+        unsigned int insertionResult = distances[index - (n+1)] + editDistanceBaseInsertionCost + 
+                                              std::min(currentCharCost, nextCharCost);
 
         // Calculate the distance in case of substitution.
-        unsigned int substitution_result = distances[index - (n+1) - 1] + 
-                                                 editDistanceSubsitutionCosts[actual_char_idx][expected_char_idx];
+        unsigned int substitutionResult = distances[index - (n+1) - 1] + 
+                                                 editDistanceSubsitutionCosts[actualNameCharIdx][expectedNameCharIdx];
 
         // Calculate the distance in case of transposition.
-        unsigned int transposition_result = 
-                           (i >= 2 && j >= 2 && actual[i-1] == expected[j-2] && actual[i-2] == expected[j-1]) ?
+        unsigned int transpositionResult = 
+                           (i >= 2 && j >= 2 && actualName[i-1] == expectedName[j-2] && actualName[i-2] == expectedName[j-1]) ?
                            distances[index - 2*(n+1) - 2] + editDistanceTranspositionCost :
                            maxCost;
 
         // Select the operation with the lowest cost.
-        distances[index] = std::min(std::min(deletion_result, insertion_result), 
-                                    std::min(substitution_result, transposition_result));
+        distances[index] = std::min(std::min(deletionResult, insertionResult), 
+                                    std::min(substitutionResult, transpositionResult));
       }
     }
 

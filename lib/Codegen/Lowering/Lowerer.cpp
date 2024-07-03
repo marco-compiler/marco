@@ -181,7 +181,7 @@ namespace marco::codegen::lowering
       getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
 
       marco::SourceRange sourceRange = type.getLocation();
-      emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
+      emitIdentifierError(IdentifierError::IdentifierType::TYPE, type.getElement(0), 
                           visibleTypes, sourceRange);
       return std::nullopt;
     }
@@ -511,7 +511,7 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
+  void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name, 
                                     const std::set<std::string> &declaredIdentifiers,
                                     const marco::SourceRange& location)
   {

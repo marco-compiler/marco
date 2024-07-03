@@ -55,7 +55,7 @@ namespace marco::codegen::lowering
 
         if (argValues.size() != expectedArgRanks.size()) {
           marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
-          emitErrorNumArguments(std::string(callee->getElement(0)->getName()), sourceRange, 
+          emitErrorNumArguments(callee->getElement(0)->getName(), sourceRange, 
                                 argValues.size(), expectedArgRanks.size());
           return std::nullopt;
         }
@@ -114,7 +114,7 @@ namespace marco::codegen::lowering
     getVisibleSymbols(getLookupScope(), visibleFunctions);
 
     marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
-    emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, std::string(callee->getElement(0)->getName()), 
+    emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, callee->getElement(0)->getName(), 
                         visibleFunctions, sourceRange);
     return std::nullopt;
   }
@@ -746,17 +746,17 @@ namespace marco::codegen::lowering
     return {};
   }
 
-  void CallLowerer::emitErrorNumArguments(const std::string &function, const marco::SourceRange& location,
+  void CallLowerer::emitErrorNumArguments(llvm::StringRef function, const marco::SourceRange& location,
                                           unsigned int actualNum, unsigned int expectedNum) {
-    std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
+    std::string errorString = "Error in AST to MLIR conversion when converting function " + std::string(function) + 
                               ". Expected " + std::to_string(expectedNum) + " argument(s) but got " + 
                               std::to_string(actualNum) + ".";
     mlir::emitError(loc(location)) << errorString;
   }
-  void CallLowerer::emitErrorNumArgumentsRange(const std::string &function, const marco::SourceRange& location,
+  void CallLowerer::emitErrorNumArgumentsRange(llvm::StringRef function, const marco::SourceRange& location,
                                                unsigned int actualNum, unsigned int minExpectedNum, 
                                                unsigned int maxExpectedNum) {
-    std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
+    std::string errorString = "Error in AST to MLIR conversion when converting function " + std::string(function) + 
                               ". Expected " + ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
                               "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
                               " argument(s) but got " + std::to_string(actualNum) + ".";

@@ -4,12 +4,12 @@
 
 namespace marco::codegen::lowering
 {
-  IdentifierError::IdentifierError(const IdentifierType &identifierType, const std::string &identifierName, 
+  IdentifierError::IdentifierError(const IdentifierType &identifierType, llvm::StringRef actual, 
         const std::set<std::string> &declaredIdentifiers): 
-        identifierType(identifierType), actualName(identifierName), predictedName("") {
+        identifierType(identifierType), actualName(actual), predictedName("") {
     // Check the declared identifiers using edit distance.
     std::tuple<unsigned int, std::string> declaredResult = 
-        computeLowestEditDistance(actualName, declaredIdentifiers);
+        computeLowestEditDistance(actual, declaredIdentifiers);
     unsigned int declaredDistance = std::get<0>(declaredResult);
     std::string declaredName = std::get<1>(declaredResult);
 
@@ -20,7 +20,7 @@ namespace marco::codegen::lowering
     switch (identifierType) {
       case IdentifierType::FUNCTION: {
         std::tuple<unsigned int, std::string> builtInResult = 
-            computeLowestEditDistance(actualName, builtInFunctions);
+            computeLowestEditDistance(actual, builtInFunctions);
         builtInDistance = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
         break;
@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
 
       case IdentifierType::TYPE: {
         std::tuple<unsigned int, std::string> builtInResult = 
-            computeLowestEditDistance(actualName, builtInTypes);
+            computeLowestEditDistance(actual, builtInTypes);
         builtInDistance = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
         break;
@@ -48,13 +48,13 @@ namespace marco::codegen::lowering
     }
 
     // Use semantic distance only if the distance is above the threshold.
-    if (lowestDistance <= threshold * identifierName.size()) {
+    if (lowestDistance <= threshold * actualName.size()) {
       return;
     }
 
     // Check the declared identifiers using semantic distance.
     std::tuple<float, std::string> declaredResultSemantic = 
-        computeHighestSemanticSimilarity(actualName, declaredIdentifiers);
+        computeHighestSemanticSimilarity(actual, declaredIdentifiers);
     float declaredSimilarity = std::get<0>(declaredResultSemantic);
     declaredName = std::get<1>(declaredResultSemantic);
 
@@ -64,7 +64,7 @@ namespace marco::codegen::lowering
     switch (identifierType) {
       case IdentifierType::FUNCTION: {
         std::tuple<float, std::string> builtInResult = 
-            computeHighestSemanticSimilarity(actualName, builtInFunctions);
+            computeHighestSemanticSimilarity(actual, builtInFunctions);
         builtInSimilarity = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
         break;
@@ -72,7 +72,7 @@ namespace marco::codegen::lowering
 
       case IdentifierType::TYPE: {
         std::tuple<float, std::string> builtInResult = 
-            computeHighestSemanticSimilarity(actualName, builtInTypes);
+            computeHighestSemanticSimilarity(actual, builtInTypes);
         builtInSimilarity = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
         break;
@@ -85,7 +85,7 @@ namespace marco::codegen::lowering
     // If semantic distance is not supported, the highest similarity will be 0.
     float highestSimilarity;
     std::string predictedNameSemantic;
-    if (builtInSimilarity >= builtInSimilarity) {
+    if (builtInSimilarity >= declaredSimilarity) {
       highestSimilarity = builtInSimilarity;
       predictedNameSemantic = builtInName;
     } else {
@@ -111,14 +111,14 @@ namespace marco::codegen::lowering
   }
 
   std::tuple<unsigned int, std::string> 
-  IdentifierError::computeLowestEditDistance(const std::string &actual, 
+  IdentifierError::computeLowestEditDistance(llvm::StringRef actual, 
                    const std::set<std::string> &possibleIdentifiers) const {
     unsigned int lowestDistanceYet = 65535U;
     std::string predictedName = "";
 
     for (auto pIdent = possibleIdentifiers.cbegin(); pIdent != possibleIdentifiers.cend(); ++pIdent) {
       std::string possibleMatch = *pIdent;
-      unsigned int distance = editDistance(actualName, possibleMatch);
+      unsigned int distance = editDistance(actual, llvm::StringRef(possibleMatch));
 
       if (distance < lowestDistanceYet) {
         predictedName = possibleMatch;
@@ -130,7 +130,7 @@ namespace marco::codegen::lowering
   }
 
   std::tuple<float, std::string> 
-  IdentifierError::computeHighestSemanticSimilarity(const std::string &actual, 
+  IdentifierError::computeHighestSemanticSimilarity(llvm::StringRef actual, 
                    const std::set<std::string> &possibleIdentifiers) const {
     SentenceDistanceCalculator calculator;
     float highestSimilarityYet = 0.0f;
@@ -138,7 +138,7 @@ namespace marco::codegen::lowering
 
     for (auto pIdent = possibleIdentifiers.cbegin(); pIdent != possibleIdentifiers.cend(); ++pIdent) {
       std::string possibleMatch = *pIdent;
-      float similarity = calculator.getSimilarity(actualName, possibleMatch);
+      float similarity = calculator.getSimilarity(actual, llvm::StringRef(possibleMatch));
 
       if (similarity > highestSimilarityYet) {
         predictedName = possibleMatch;

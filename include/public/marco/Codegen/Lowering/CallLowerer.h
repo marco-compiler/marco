@@ -81,9 +81,9 @@ namespace marco::codegen::lowering
       bool isBuiltInFunction(const ast::ComponentReference& name) const;
 
       /// Emit an error due to a wrong number of arguments being provided to a function.
-      void emitErrorNumArguments(const std::string &function, const marco::SourceRange& location, 
+      void emitErrorNumArguments(llvm::StringRef function, const marco::SourceRange& location, 
                                  unsigned int actualNum, unsigned int expectedNum);
-      void emitErrorNumArgumentsRange(const std::string &function, const marco::SourceRange& location,
+      void emitErrorNumArgumentsRange(llvm::StringRef function, const marco::SourceRange& location,
                                       unsigned int actualNum, unsigned int minExpectedNum, 
                                       unsigned int maxExpectedNum = 0);
 
