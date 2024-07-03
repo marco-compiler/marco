@@ -48,7 +48,7 @@ namespace marco::codegen::lowering
     private:
       std::optional<mlir::Value> lowerArg(const ast::Expression& expression);
 
-      __attribute__((warn_unused_result)) virtual bool lowerArgs(
+      [[nodiscard]] virtual bool lowerArgs(
           const ast::Operation& operation,
           llvm::SmallVectorImpl<mlir::Value>& args);
   };

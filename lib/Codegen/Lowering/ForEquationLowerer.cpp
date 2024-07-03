@@ -11,8 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool
-  ForEquationLowerer::lower(const ast::ForEquation& forEquation)
+  bool ForEquationLowerer::lower(const ast::ForEquation& forEquation)
   {
     Lowerer::VariablesScope scope(getVariablesSymbolTable());
     mlir::Location location = loc(forEquation.getLocation());

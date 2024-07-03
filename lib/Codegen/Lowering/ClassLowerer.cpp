@@ -37,7 +37,7 @@ namespace marco::codegen::lowering
     llvm_unreachable("Unknown class type");
   }
 
-  __attribute__((warn_unused_result)) bool ClassLowerer::declareVariables(const ast::Class& cls)
+  bool ClassLowerer::declareVariables(const ast::Class& cls)
   {
     if (auto model = cls.dyn_cast<ast::Model>()) {
       return declareVariables(*model);
@@ -64,8 +64,7 @@ namespace marco::codegen::lowering
     return false;
   }
 
-  __attribute__((warn_unused_result)) bool
-  ClassLowerer::declare(const ast::Member& variable)
+  bool ClassLowerer::declare(const ast::Member& variable)
   {
     mlir::Location location = loc(variable.getLocation());
 
@@ -109,7 +108,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ClassLowerer::lower(const ast::Class& cls)
+  bool ClassLowerer::lower(const ast::Class& cls)
   {
     if (auto model = cls.dyn_cast<ast::Model>()) {
       return lower(*model);
@@ -209,7 +208,7 @@ namespace marco::codegen::lowering
     return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
   }
 
-  __attribute__((warn_unused_result)) bool ClassLowerer::lowerClassBody(const ast::Class& cls)
+  bool ClassLowerer::lowerClassBody(const ast::Class& cls)
   {
     // Lower the constraints for the dynamic dimensions of the variables.
     for (const auto& variable : cls.getVariables()) {
@@ -232,7 +231,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ClassLowerer::createBindingEquation(
+  bool ClassLowerer::createBindingEquation(
       const ast::Member& variable, const ast::Expression& expression)
   {
     mlir::Location location = loc(expression.getLocation());
@@ -264,7 +263,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ClassLowerer::lowerStartAttribute(
+  bool ClassLowerer::lowerStartAttribute(
       mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
@@ -294,8 +293,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool
-  ClassLowerer::lowerVariableDimensionConstraints(
+  bool ClassLowerer::lowerVariableDimensionConstraints(
       mlir::SymbolTable& symbolTable,
       const ast::Member& variable)
   {

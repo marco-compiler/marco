@@ -14,9 +14,9 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Record& record) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Record& record) override;
+      [[nodiscard]] bool declareVariables(const ast::Record& record) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Record& record) override;
+      [[nodiscard]] bool lower(const ast::Record& record) override;
 
     protected:
       using Lowerer::declare;

@@ -11,8 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool 
-  ForStatementLowerer::lower(const ast::ForStatement& statement)
+  bool ForStatementLowerer::lower(const ast::ForStatement& statement)
   {
     Lowerer::VariablesScope varScope(getVariablesSymbolTable());
     mlir::Location location = loc(statement.getLocation());

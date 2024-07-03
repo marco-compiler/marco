@@ -14,19 +14,19 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Class& cls) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Class& cls) override;
+      [[nodiscard]] bool declareVariables(const ast::Class& cls) override;
 
-      __attribute__((warn_unused_result)) bool declare(const ast::Member& variable) override;
+      [[nodiscard]] bool declare(const ast::Member& variable) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Class& cls) override;
+      [[nodiscard]] bool lower(const ast::Class& cls) override;
 
-      __attribute__((warn_unused_result)) bool lowerClassBody(const ast::Class& cls) override;
+      [[nodiscard]] bool lowerClassBody(const ast::Class& cls) override;
 
-      __attribute__((warn_unused_result)) bool createBindingEquation(
+      [[nodiscard]] bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      __attribute__((warn_unused_result)) bool lowerStartAttribute(
+      [[nodiscard]] bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
@@ -41,7 +41,7 @@ namespace marco::codegen::lowering
           const ast::VariableType& type,
           const ast::TypePrefix& typePrefix);
 
-      __attribute__((warn_unused_result)) bool lowerVariableDimensionConstraints(
+      [[nodiscard]] bool lowerVariableDimensionConstraints(
           mlir::SymbolTable& symbolTable,
           const ast::Member& variable);
   };

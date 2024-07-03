@@ -1,10 +1,10 @@
-#ifndef MARCO_EDIT_DISTANCE_H
-#define MARCO_EDIT_DISTANCE_H
+#ifndef MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H
+#define MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H
 
-#include <string>
 #include <array>
 #include <cassert>
 #include <optional>
+#include <string>
 
 namespace marco::codegen::lowering
 {
@@ -54,4 +54,4 @@ namespace marco::codegen::lowering
   };
 }
 
-#endif // MARCO_EDIT_DISTANCE_H
+#endif // MARCO_CODEGEN_LOWERING_DISTANCE_EDITDISTANCE_H

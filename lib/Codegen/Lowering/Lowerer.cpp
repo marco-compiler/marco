@@ -310,17 +310,17 @@ namespace marco::codegen::lowering
     return bridge->declare(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Class& node)
+  bool Lowerer::declareVariables(const ast::Class& node)
   {
     return bridge->declareVariables(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Model& node)
+  bool Lowerer::declareVariables(const ast::Model& node)
   {
     return bridge->declareVariables(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Package& node)
+  bool Lowerer::declareVariables(const ast::Package& node)
   {
     return bridge->declareVariables(node);
   }
@@ -330,32 +330,32 @@ namespace marco::codegen::lowering
     return bridge->declareVariables(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::Record& node)
+  bool Lowerer::declareVariables(const ast::Record& node)
   {
     return bridge->declareVariables(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declareVariables(const ast::StandardFunction& node)
+  bool Lowerer::declareVariables(const ast::StandardFunction& node)
   {
     return bridge->declareVariables(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::declare(const ast::Member& node)
+  bool Lowerer::declare(const ast::Member& node)
   {
     return bridge->declare(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Class& node)
+  bool Lowerer::lower(const ast::Class& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Model& node)
+  bool Lowerer::lower(const ast::Model& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Package& node)
+  bool Lowerer::lower(const ast::Package& node)
   {
     return bridge->lower(node);
   }
@@ -365,29 +365,29 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Record& node)
+  bool Lowerer::lower(const ast::Record& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::StandardFunction& node)
+  bool Lowerer::lower(const ast::StandardFunction& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lowerClassBody(const ast::Class& node)
+  bool Lowerer::lowerClassBody(const ast::Class& node)
   {
     return bridge->lowerClassBody(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::createBindingEquation(
+  bool Lowerer::createBindingEquation(
       const ast::Member& variable,
       const ast::Expression& expression)
   {
     return bridge->createBindingEquation(variable, expression);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lowerStartAttribute(
+  bool Lowerer::lowerStartAttribute(
       mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
@@ -436,22 +436,22 @@ namespace marco::codegen::lowering
     return bridge->lower(subscript);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::EquationSection& node)
+  bool Lowerer::lower(const ast::EquationSection& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Equation& node)
+  bool Lowerer::lower(const ast::Equation& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::EqualityEquation& node)
+  bool Lowerer::lower(const ast::EqualityEquation& node)
   {
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::ForEquation& node)
+  bool Lowerer::lower(const ast::ForEquation& node)
   {
     return bridge->lower(node);
   }
@@ -466,17 +466,17 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Algorithm& algorithm)
+  bool Lowerer::lower(const ast::Algorithm& algorithm)
   {
     return bridge->lower(algorithm);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::Statement& statement)
+  bool Lowerer::lower(const ast::Statement& statement)
   {
     return bridge->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::AssignmentStatement& statement)
+  bool Lowerer::lower(const ast::AssignmentStatement& statement)
   {
     return bridge->lower(statement);
   }
@@ -486,12 +486,12 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::ForStatement& statement)
+  bool Lowerer::lower(const ast::ForStatement& statement)
   {
     return bridge->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::IfStatement& statement)
+  bool Lowerer::lower(const ast::IfStatement& statement)
   {
     return bridge->lower(statement);
   }
@@ -506,7 +506,7 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool Lowerer::lower(const ast::WhileStatement& statement)
+  bool Lowerer::lower(const ast::WhileStatement& statement)
   {
     return bridge->lower(statement);
   }

@@ -24,7 +24,7 @@ namespace marco::codegen::lowering
 
       void computeShape(const ast::ArrayGenerator& array, llvm::SmallVectorImpl<int64_t>& outShape);
 
-      __attribute__((warn_unused_result)) bool 
+      [[nodiscard]] bool 
       lowerValues(const ast::Expression& array, llvm::SmallVectorImpl<mlir::Value>& outValues);
   };
 }

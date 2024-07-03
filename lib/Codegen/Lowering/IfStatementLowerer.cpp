@@ -11,8 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool 
-  IfStatementLowerer::lower(const ast::IfStatement& statement)
+  bool IfStatementLowerer::lower(const ast::IfStatement& statement)
   {
     mlir::Location location = loc(statement.getLocation());
 
@@ -90,8 +89,7 @@ namespace marco::codegen::lowering
     return results[0].get(location);
   }
 
-  __attribute__((warn_unused_result)) bool
-  IfStatementLowerer::lower(const ast::StatementsBlock& statementsBlock)
+  bool IfStatementLowerer::lower(const ast::StatementsBlock& statementsBlock)
   {
     for (size_t i = 0, e = statementsBlock.size(); i < e; ++i) {
       const bool outcome = lower(*statementsBlock[i]);

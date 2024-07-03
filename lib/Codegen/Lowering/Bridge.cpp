@@ -56,7 +56,7 @@ namespace marco::codegen::lowering
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
 
-      __attribute__((warn_unused_result)) bool convert(const ast::Root& root);
+      [[nodiscard]] bool convert(const ast::Root& root);
 
       void declare(const ast::Class& node) override;
 
@@ -70,41 +70,41 @@ namespace marco::codegen::lowering
 
       void declare(const ast::StandardFunction& node) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Class& node) override;
+      [[nodiscard]] bool declareVariables(const ast::Class& node) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Model& model) override;
+      [[nodiscard]] bool declareVariables(const ast::Model& model) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Package& package) override;
+      [[nodiscard]] bool declareVariables(const ast::Package& package) override;
 
       void declareVariables(
           const ast::PartialDerFunction& function) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(const ast::Record& record) override;
+      [[nodiscard]] bool declareVariables(const ast::Record& record) override;
 
-      __attribute__((warn_unused_result)) bool declareVariables(
+      [[nodiscard]] bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      __attribute__((warn_unused_result)) bool declare(const ast::Member& node) override;
+      [[nodiscard]] bool declare(const ast::Member& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Class& node) override;
+      [[nodiscard]] bool lower(const ast::Class& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Model& node) override;
+      [[nodiscard]] bool lower(const ast::Model& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Package& node) override;
+      [[nodiscard]] bool lower(const ast::Package& node) override;
 
       void lower(const ast::PartialDerFunction& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Record& node) override;
+      [[nodiscard]] bool lower(const ast::Record& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::StandardFunction& node) override;
+      [[nodiscard]] bool lower(const ast::StandardFunction& node) override;
 
-      __attribute__((warn_unused_result)) bool lowerClassBody(const ast::Class& node) override;
+      [[nodiscard]] bool lowerClassBody(const ast::Class& node) override;
 
-      __attribute__((warn_unused_result)) bool createBindingEquation(
+      [[nodiscard]] bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      __attribute__((warn_unused_result)) bool lowerStartAttribute(
+      [[nodiscard]] bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
@@ -127,35 +127,35 @@ namespace marco::codegen::lowering
 
       std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::EquationSection& node) override;
+      [[nodiscard]] bool lower(const ast::EquationSection& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Equation& node) override;
+      [[nodiscard]] bool lower(const ast::Equation& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::EqualityEquation& node) override;
+      [[nodiscard]] bool lower(const ast::EqualityEquation& node) override;
 
       void lower(const ast::IfEquation& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::ForEquation& node) override;
+      [[nodiscard]] bool lower(const ast::ForEquation& node) override;
 
       void lower(const ast::WhenEquation& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Algorithm& node) override;
+      [[nodiscard]] bool lower(const ast::Algorithm& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Statement& node) override;
+      [[nodiscard]] bool lower(const ast::Statement& node) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::AssignmentStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::AssignmentStatement& statement) override;
 
       void lower(const ast::BreakStatement& statement) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::ForStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::ForStatement& statement) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::IfStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::IfStatement& statement) override;
 
       void lower(const ast::ReturnStatement& statement) override;
 
       void lower(const ast::WhenStatement& statement) override;
 
-      __attribute__((warn_unused_result)) bool lower(const ast::WhileStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
 
       void emitIdentifierError(IdentifierError::IdentifierType identifierType, 
                                std::string name, const std::set<std::string> &declaredIdentifiers,
@@ -294,8 +294,7 @@ namespace marco::codegen::lowering
     return module->getOperation();
   }
 
-  __attribute__((warn_unused_result)) bool 
-  Bridge::Impl::convert(const ast::Root& root)
+  bool Bridge::Impl::convert(const ast::Root& root)
   {
     mlir::OpBuilder::InsertionGuard guard(context->getBuilder());
     context->pushLookupScope(module->getOperation());
@@ -364,19 +363,19 @@ namespace marco::codegen::lowering
     return standardFunctionLowerer->declare(function);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declareVariables(const ast::Class& cls)
+  bool Bridge::Impl::declareVariables(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->declareVariables(cls);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declareVariables(const ast::Model& model)
+  bool Bridge::Impl::declareVariables(const ast::Model& model)
   {
     assert(modelLowerer != nullptr);
     return modelLowerer->declareVariables(model);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declareVariables(const ast::Package& package)
+  bool Bridge::Impl::declareVariables(const ast::Package& package)
   {
     assert(packageLowerer != nullptr);
     return packageLowerer->declareVariables(package);
@@ -389,40 +388,39 @@ namespace marco::codegen::lowering
     return partialDerFunctionLowerer->declareVariables(function);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declareVariables(const ast::Record& record)
+  bool Bridge::Impl::declareVariables(const ast::Record& record)
   {
     assert(recordLowerer != nullptr);
     return recordLowerer->declareVariables(record);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declareVariables(
+  bool Bridge::Impl::declareVariables(
       const ast::StandardFunction& function)
   {
     assert(standardFunctionLowerer != nullptr);
     return standardFunctionLowerer->declareVariables(function);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::declare(const ast::Member& variable)
+  bool Bridge::Impl::declare(const ast::Member& variable)
   {
     assert(classLowerer != nullptr);
     return classLowerer->declare(variable);
   }
 
-  __attribute__((warn_unused_result)) 
   bool Bridge::Impl::lower(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->lower(cls);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::Model& model)
   {
     assert(modelLowerer != nullptr);
     return modelLowerer->lower(model);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::Package& package)
   {
     assert(packageLowerer != nullptr);
@@ -435,27 +433,27 @@ namespace marco::codegen::lowering
     return partialDerFunctionLowerer->lower(function);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::Record& record)
   {
     assert(recordLowerer != nullptr);
     return recordLowerer->lower(record);
   }
 
-  __attribute__((warn_unused_result)) bool 
+  bool 
   Bridge::Impl::lower(const ast::StandardFunction& function)
   {
     assert(standardFunctionLowerer != nullptr);
     return standardFunctionLowerer->lower(function);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::lowerClassBody(const ast::Class& cls)
+  bool Bridge::Impl::lowerClassBody(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->lowerClassBody(cls);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::createBindingEquation(
+  bool Bridge::Impl::createBindingEquation(
       const ast::Member& variable,
       const ast::Expression& expression)
   {
@@ -463,7 +461,7 @@ namespace marco::codegen::lowering
     return classLowerer->createBindingEquation(variable, expression);
   }
 
-  __attribute__((warn_unused_result)) bool Bridge::Impl::lowerStartAttribute(
+  bool Bridge::Impl::lowerStartAttribute(
       mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
@@ -524,28 +522,28 @@ namespace marco::codegen::lowering
     return subscriptLowerer->lower(subscript);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::EquationSection& equationSection)
   {
     assert(equationLowerer != nullptr);
     return equationSectionLowerer->lower(equationSection);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::Equation& equation)
   {
     assert(equationLowerer != nullptr);
     return equationLowerer->lower(equation);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::EqualityEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return equalityEquationLowerer->lower(equation);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::ForEquation& forEquation)
   {
     assert(equationLowerer != nullptr);
@@ -564,21 +562,21 @@ namespace marco::codegen::lowering
     return whenEquationLowerer->lower(equation);
   }
 
-  __attribute__((warn_unused_result)) bool 
+  bool 
   Bridge::Impl::lower(const ast::Algorithm& algorithm)
   {
     assert(algorithmLowerer != nullptr);
     return algorithmLowerer->lower(algorithm);
   }
 
-  __attribute__((warn_unused_result)) bool 
+  bool 
   Bridge::Impl::lower(const ast::Statement& statement)
   {
     assert(statementLowerer != nullptr);
     return statementLowerer->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::AssignmentStatement& statement)
   {
     assert(assignmentStatementLowerer != nullptr);
@@ -591,14 +589,14 @@ namespace marco::codegen::lowering
     return breakStatementLowerer->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool 
+  bool 
   Bridge::Impl::lower(const ast::ForStatement& statement)
   {
     assert(forStatementLowerer != nullptr);
     return forStatementLowerer->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::Impl::lower(const ast::IfStatement& statement)
   {
     assert(ifStatementLowerer != nullptr);
@@ -617,7 +615,7 @@ namespace marco::codegen::lowering
     return whenStatementLowerer->lower(statement);
   }
 
-  __attribute__((warn_unused_result)) bool 
+  bool 
   Bridge::Impl::lower(const ast::WhileStatement& statement)
   {
     assert(whileStatementLowerer != nullptr);
@@ -676,7 +674,7 @@ namespace marco::codegen::lowering
 
   Bridge::~Bridge() = default;
 
-  __attribute__((warn_unused_result)) bool
+  bool
   Bridge::lower(const ast::Root& root)
   {
     return impl->convert(root);

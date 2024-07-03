@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool EqualityEquationLowerer::lower(
+  bool EqualityEquationLowerer::lower(
       const ast::EqualityEquation& equation)
   {
     mlir::Location location = loc(equation.getLocation());

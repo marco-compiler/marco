@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  __attribute__((warn_unused_result)) bool  RecordLowerer::declareVariables(const ast::Record& record)
+  bool RecordLowerer::declareVariables(const ast::Record& record)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -57,7 +57,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool RecordLowerer::lower(const ast::Record& record)
+  bool RecordLowerer::lower(const ast::Record& record)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 

@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool AssignmentStatementLowerer::lower(
+  bool AssignmentStatementLowerer::lower(
       const ast::AssignmentStatement& statement)
   {
     mlir::Location statementLoc = loc(statement.getLocation());

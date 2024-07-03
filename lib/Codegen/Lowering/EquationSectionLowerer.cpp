@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool EquationSectionLowerer::lower(
+  bool EquationSectionLowerer::lower(
       const ast::EquationSection& equationSection)
   {
     if (equationSection.isInitial()) {

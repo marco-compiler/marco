@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit AlgorithmLowerer(BridgeInterface* bridge);
 
-      __attribute__((warn_unused_result)) bool lower(const ast::Algorithm& algorithm) override;
+      [[nodiscard]] bool lower(const ast::Algorithm& algorithm) override;
 
     protected:
       using Lowerer::lower;

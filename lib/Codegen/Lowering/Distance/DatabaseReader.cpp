@@ -1,8 +1,8 @@
 #include "marco/Codegen/Lowering/Distance/DatabaseReader.h"
 #include <fstream>
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace marco::codegen::lowering
 {

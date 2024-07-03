@@ -8,7 +8,7 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering
 {
   CallLowerer::CallLowerer(BridgeInterface* bridge)
-    : Lowerer(bridge), bridge(bridge)
+    : Lowerer(bridge)
   {
   }
 
@@ -195,8 +195,7 @@ namespace marco::codegen::lowering
     getCustomFunctionInputVariables(inputVariables, functionOp);
   }
 
-  __attribute__((warn_unused_result)) bool
-  CallLowerer::lowerCustomFunctionArgs(
+  bool CallLowerer::lowerCustomFunctionArgs(
       const ast::Call& call,
       llvm::ArrayRef<VariableOp> calleeInputs,
       llvm::SmallVectorImpl<std::string>& argNames,
@@ -275,8 +274,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  __attribute__((warn_unused_result)) bool
-  CallLowerer::lowerRecordConstructorArgs(
+  bool CallLowerer::lowerRecordConstructorArgs(
       const ast::Call& call,
       llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
       llvm::SmallVectorImpl<std::string>& argNames,
@@ -338,8 +336,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool
-  CallLowerer::lowerBuiltInFunctionArgs(
+  bool CallLowerer::lowerBuiltInFunctionArgs(
       const ast::Call& call,
       llvm::SmallVectorImpl<mlir::Value>& args)
   {
@@ -755,18 +752,18 @@ namespace marco::codegen::lowering
 
   void CallLowerer::emitErrorNumArguments(const std::string &function, unsigned int line, unsigned int column,
                                           unsigned int actualNum, unsigned int expectedNum) {
-    bridge->emitError("Error in AST to MLIR conversion when converting function " + function + " at line " + 
-                      std::to_string(line) + ", column " + std::to_string(column) + ". Expected " + 
-                      std::to_string(expectedNum) + " argument(s) but got " + std::to_string(actualNum) + ".");
+    emitError("Error in AST to MLIR conversion when converting function " + function + " at line " + 
+              std::to_string(line) + ", column " + std::to_string(column) + ". Expected " + 
+              std::to_string(expectedNum) + " argument(s) but got " + std::to_string(actualNum) + ".");
   }
   void CallLowerer::emitErrorNumArgumentsRange(const std::string &function, unsigned int line, unsigned int column,
                                                unsigned int actualNum, unsigned int minExpectedNum, 
                                                unsigned int maxExpectedNum) {
-    bridge->emitError("Error in AST to MLIR conversion when converting function " + function + " at line " + 
-                      std::to_string(line) + ", column " + std::to_string(column) + ". Expected " + 
-                      ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
-                      "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
-                      " argument(s) but got " + std::to_string(actualNum) + ".");
+    emitError("Error in AST to MLIR conversion when converting function " + function + " at line " + 
+              std::to_string(line) + ", column " + std::to_string(column) + ". Expected " + 
+              ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
+              "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
+              " argument(s) but got " + std::to_string(actualNum) + ".");
   }
 
   std::optional<Results> CallLowerer::abs(const ast::Call& call)

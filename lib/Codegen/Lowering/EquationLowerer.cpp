@@ -11,8 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool
-  EquationLowerer::lower(const ast::Equation& equation)
+  bool EquationLowerer::lower(const ast::Equation& equation)
   {
     if (auto casted = equation.dyn_cast<ast::EqualityEquation>()) {
       return lower(*casted);

@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  __attribute__((warn_unused_result)) bool StandardFunctionLowerer::declareVariables(
+  bool StandardFunctionLowerer::declareVariables(
       const ast::StandardFunction& function)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
@@ -58,8 +58,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool 
-  StandardFunctionLowerer::lower(const ast::StandardFunction& function)
+  bool StandardFunctionLowerer::lower(const ast::StandardFunction& function)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
@@ -231,7 +230,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool StandardFunctionLowerer::lowerVariableDefaultValue(
+  bool StandardFunctionLowerer::lowerVariableDefaultValue(
       const ast::Member& variable)
   {
     if (!variable.hasExpression()) {

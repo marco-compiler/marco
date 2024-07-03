@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  __attribute__((warn_unused_result)) bool PackageLowerer::declareVariables(const ast::Package& package)
+  bool PackageLowerer::declareVariables(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -56,7 +56,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool PackageLowerer::lower(const ast::Package& package)
+  bool PackageLowerer::lower(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 

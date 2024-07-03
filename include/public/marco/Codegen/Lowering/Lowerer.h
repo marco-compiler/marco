@@ -115,43 +115,43 @@ namespace marco::codegen::lowering
 
       virtual void declare(const ast::StandardFunction& node) override;
 
-      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Class& node) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Class& node) override;
 
-      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Model& model) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Model& model) override;
 
-      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Package& package) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Package& package) override;
 
       virtual void declareVariables(
           const ast::PartialDerFunction& function) override;
 
-      virtual __attribute__((warn_unused_result)) bool declareVariables(const ast::Record& record) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Record& record) override;
 
-      virtual __attribute__((warn_unused_result)) bool declareVariables(
+      [[nodiscard]] virtual bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      virtual __attribute__((warn_unused_result)) bool declare(const ast::Member& node) override;
+      [[nodiscard]] virtual bool declare(const ast::Member& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Class& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Class& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Model& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Model& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Package& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Package& node) override;
 
       virtual void lower(const ast::PartialDerFunction& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Record& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Record& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool 
+      [[nodiscard]] virtual bool 
           lower(const ast::StandardFunction& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool 
+      [[nodiscard]] virtual bool 
           lowerClassBody(const ast::Class& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool createBindingEquation(
+      [[nodiscard]] virtual bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      __attribute__((warn_unused_result)) virtual bool lowerStartAttribute(
+      [[nodiscard]] virtual bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
@@ -174,35 +174,35 @@ namespace marco::codegen::lowering
 
       virtual std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::EquationSection& node) override;
+      [[nodiscard]] virtual bool lower(const ast::EquationSection& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Equation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::Equation& equation) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::EqualityEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::EqualityEquation& equation) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::ForEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::ForEquation& equation) override;
 
       virtual void lower(const ast::IfEquation& equation) override;
 
       virtual void lower(const ast::WhenEquation& equation) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Algorithm& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Algorithm& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::Statement& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Statement& node) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::AssignmentStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::AssignmentStatement& statement) override;
 
       virtual void lower(const ast::BreakStatement& statement) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::ForStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::ForStatement& statement) override;
 
-      __attribute__((warn_unused_result)) virtual bool lower(const ast::IfStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::IfStatement& statement) override;
 
       virtual void lower(const ast::ReturnStatement& statement) override;
 
       virtual void lower(const ast::WhenStatement& statement) override;
 
-      __attribute__((warn_unused_result)) virtual bool 
+      [[nodiscard]] virtual bool 
           lower(const ast::WhileStatement& statement) override;
 
       virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 

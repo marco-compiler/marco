@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit WhileStatementLowerer(BridgeInterface* bridge);
 
-      __attribute__((warn_unused_result)) bool lower(const ast::WhileStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
 
     protected:
       using Lowerer::lower;

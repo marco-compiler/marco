@@ -106,7 +106,7 @@ namespace marco::codegen::lowering
     return results[0].get(location);
   }
 
-  __attribute__((warn_unused_result)) bool OperationLowerer::lowerArgs(
+  bool OperationLowerer::lowerArgs(
       const ast::Operation& operation,
       llvm::SmallVectorImpl<mlir::Value>& args)
   {

@@ -11,8 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool 
-  WhileStatementLowerer::lower(const ast::WhileStatement& statement)
+  bool WhileStatementLowerer::lower(const ast::WhileStatement& statement)
   {
     mlir::Location location = loc(statement.getLocation());
 

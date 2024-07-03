@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool StatementLowerer::lower(const ast::Statement& statement)
+  bool StatementLowerer::lower(const ast::Statement& statement)
   {
     if (auto casted = statement.dyn_cast<ast::AssignmentStatement>()) {
       return lower(*casted);

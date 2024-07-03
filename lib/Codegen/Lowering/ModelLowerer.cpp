@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  __attribute__((warn_unused_result)) bool ModelLowerer::declareVariables(const ast::Model& model)
+  bool ModelLowerer::declareVariables(const ast::Model& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -57,7 +57,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ModelLowerer::lower(const ast::Model& model)
+  bool ModelLowerer::lower(const ast::Model& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
@@ -169,7 +169,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ModelLowerer::lowerVariableAttributes(
+  bool ModelLowerer::lowerVariableAttributes(
       ModelOp modelOp, const ast::Member& variable)
   {
     if (!variable.hasModification()) {
@@ -207,7 +207,7 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  __attribute__((warn_unused_result)) bool ModelLowerer::lowerVariableAttributes(
+  bool ModelLowerer::lowerVariableAttributes(
       ModelOp modelOp,
       llvm::SmallVectorImpl<VariableOp>& components,
       const ast::ClassModification& classModification)

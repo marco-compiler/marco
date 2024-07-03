@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit AssignmentStatementLowerer(BridgeInterface* bridge);
 
-      __attribute__((warn_unused_result)) bool
+      [[nodiscard]] bool
           lower(const ast::AssignmentStatement& statement) override;
 
     protected:

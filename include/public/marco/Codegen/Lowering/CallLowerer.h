@@ -35,7 +35,7 @@ namespace marco::codegen::lowering
           llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
           mlir::bmodelica::DerFunctionOp derFunctionOp);
 
-      __attribute__((warn_unused_result)) bool lowerCustomFunctionArgs(
+      [[nodiscard]] bool lowerCustomFunctionArgs(
           const ast::Call& call,
           llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
           llvm::SmallVectorImpl<std::string>& argNames,
@@ -45,13 +45,13 @@ namespace marco::codegen::lowering
           llvm::SmallVectorImpl<mlir::bmodelica::VariableOp>& inputVariables,
           mlir::bmodelica::RecordOp recordOp);
 
-      __attribute__((warn_unused_result)) bool lowerRecordConstructorArgs(
+      [[nodiscard]] bool lowerRecordConstructorArgs(
           const ast::Call& call,
           llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
           llvm::SmallVectorImpl<std::string>& argNames,
           llvm::SmallVectorImpl<mlir::Value>& argValues);
 
-      __attribute__((warn_unused_result)) bool lowerBuiltInFunctionArgs(
+      [[nodiscard]] bool lowerBuiltInFunctionArgs(
           const ast::Call& call,
           llvm::SmallVectorImpl<mlir::Value>& args);
 
@@ -138,8 +138,6 @@ namespace marco::codegen::lowering
       std::optional<Results> zeros(const ast::Call& call);
 
       std::optional<Results> reduction(const ast::Call& call, llvm::StringRef action);
-
-      BridgeInterface* bridge;
   };
 }
 

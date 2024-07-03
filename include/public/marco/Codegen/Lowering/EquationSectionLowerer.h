@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit EquationSectionLowerer(BridgeInterface* bridge);
 
-      __attribute__((warn_unused_result)) bool 
+      [[nodiscard]] bool 
           lower(const ast::EquationSection& equationSection) override;
 
     protected:

@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  __attribute__((warn_unused_result)) bool AlgorithmLowerer::lower(const ast::Algorithm& algorithm)
+  bool AlgorithmLowerer::lower(const ast::Algorithm& algorithm)
   {
     if (algorithm.empty()) {
       return true;
