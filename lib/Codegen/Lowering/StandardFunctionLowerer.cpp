@@ -242,11 +242,11 @@ namespace marco::codegen::lowering
     mlir::Block* bodyBlock = builder().createBlock(&defaultOp.getBodyRegion());
     builder().setInsertionPointToStart(bodyBlock);
 
-    auto optionalResult = lower(*expression);
-    if (!optionalResult) {
+    auto loweredExpression = lower(*expression);
+    if (!loweredExpression) {
       return false;
     }
-    mlir::Value value = optionalResult.value()[0].get(expressionLoc);
+    mlir::Value value = loweredExpression.value()[0].get(expressionLoc);
     builder().create<YieldOp>(expressionLoc, value);
     return true;
   }

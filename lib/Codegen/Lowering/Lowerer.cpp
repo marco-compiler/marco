@@ -51,7 +51,7 @@ namespace marco::codegen::lowering
     mlir::SymbolTable::walkSymbolTables(getRoot(), true, [this, &scope, &visibleSymbols, &filterFn](mlir::Operation *op, bool visible) {
       const mlir::StringAttr attr = op->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName());
       if (attr) {
-        const llvm::StringRef symbolName = attr;
+        llvm::StringRef symbolName = attr;
         if (resolveSymbolName(symbolName, scope, filterFn)) {
           visibleSymbols.insert(std::string(symbolName));
         }
@@ -180,9 +180,9 @@ namespace marco::codegen::lowering
       std::set<std::string> visibleTypes;
       getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
 
-      const marco::SourceRange sourceRange = type.getLocation();
-          emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
-                              visibleTypes, sourceRange);
+      marco::SourceRange sourceRange = type.getLocation();
+      emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
+                          visibleTypes, sourceRange);
       return std::nullopt;
     }
 
@@ -247,7 +247,7 @@ namespace marco::codegen::lowering
   {
     // Check if the variable is present in the symbol table.
     // If it is, return a Reference to it, otherwise return a null optional.
-    const auto &symbolTable = getVariablesSymbolTable();
+    auto &symbolTable = getVariablesSymbolTable();
     if (symbolTable.count(name)) {
       return symbolTable.lookup(name);
     }
@@ -411,7 +411,7 @@ namespace marco::codegen::lowering
     return bridge->lower(call);
   }
 
-  Results Lowerer::lower(const ast::Constant& constant)
+  std::optional<Results> Lowerer::lower(const ast::Constant& constant)
   {
     return bridge->lower(constant);
   }
@@ -515,9 +515,9 @@ namespace marco::codegen::lowering
                                     const std::set<std::string> &declaredIdentifiers,
                                     const marco::SourceRange& location)
   {
-    const IdentifierError error(identifierType, name, declaredIdentifiers);
-    const std::string actual = error.getActual();
-    const std::string predicted = error.getPredicted();
+    IdentifierError error(identifierType, name, declaredIdentifiers);
+    std::string actual = error.getActual();
+    std::string predicted = error.getPredicted();
 
     std::string errorString = "Error in AST to MLIR conversion. Unknown ";
     switch (identifierType) {

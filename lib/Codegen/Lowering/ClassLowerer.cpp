@@ -246,11 +246,11 @@ namespace marco::codegen::lowering
 
     // Lower the expression and yield its value.
     mlir::Location expressionLoc = loc(expression.getLocation());
-    const auto optionalExpressionValues = lower(expression);
+    auto optionalExpressionValues = lower(expression);
     if (!optionalExpressionValues) {
       return false;
     }
-    const auto &expressionValues = optionalExpressionValues.value();
+    auto &expressionValues = optionalExpressionValues.value();
     assert(expressionValues.size() == 1);
 
     builder().create<YieldOp>(
@@ -277,11 +277,11 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(bodyBlock);
 
     mlir::Location valueLoc = loc(expression.getLocation());
-    const auto optionalValue = lower(expression);
+    auto optionalValue = lower(expression);
     if (!optionalValue) {
       return false;
     }
-    const auto &value = optionalValue.value();
+    auto &value = optionalValue.value();
     assert(value.size() == 1);
 
     builder().create<YieldOp>(location, value[0].get(valueLoc));
@@ -312,11 +312,11 @@ namespace marco::codegen::lowering
         if (dimension->hasExpression()) {
           const ast::Expression* sizeExpression = dimension->getExpression();
           mlir::Location sizeLoc = loc(sizeExpression->getLocation());
-          const auto optionalResult = lower(*sizeExpression);
-          if (!optionalResult) {
+          auto loweredExpression = lower(*sizeExpression);
+          if (!loweredExpression) {
             return false;
           }
-          mlir::Value size = optionalResult.value()[0].get(sizeLoc);
+          mlir::Value size = loweredExpression.value()[0].get(sizeLoc);
 
           if (!size.getType().isa<mlir::IndexType>()) {
             size = builder().create<CastOp>(

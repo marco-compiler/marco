@@ -23,7 +23,7 @@ namespace marco::codegen::lowering
 
       ~Bridge();
 
-      [[nodiscard]] virtual bool lower(const ast::Root& root);
+      [[nodiscard]] bool lower(const ast::Root& root);
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
   };

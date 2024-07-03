@@ -97,11 +97,11 @@ namespace marco::codegen::lowering
   std::optional<mlir::Value> OperationLowerer::lowerArg(const ast::Expression& expression)
   {
     mlir::Location location = loc(expression.getLocation());
-    auto optionalResults = lower(expression);
-    if (!optionalResults) {
+    auto loweredExpression = lower(expression);
+    if (!loweredExpression) {
       return std::nullopt;
     }
-    auto &results = optionalResults.value();
+    auto &results = loweredExpression.value();
     assert(results.size() == 1);
     return results[0].get(location);
   }
@@ -111,11 +111,11 @@ namespace marco::codegen::lowering
       llvm::SmallVectorImpl<mlir::Value>& args)
   {
     for (size_t i = 0, e = operation.getNumOfArguments(); i < e; ++i) {
-      const auto optionalArg = lowerArg(*operation.getArgument(i));
-      if (!optionalArg) {
+      auto arg = lowerArg(*operation.getArgument(i));
+      if (!arg) {
         return false;
       }
-      args.push_back(optionalArg.value());
+      args.push_back(arg.value());
     }
     return true;
   }

@@ -7,8 +7,8 @@ using namespace ::marco::codegen::lowering;
 namespace marco::codegen::lowering
 {
   unsigned int EditDistance::editDistance(const std::string &actual, const std::string &expected) {
-    const unsigned int m = actual.length();
-    const unsigned int n = expected.length();
+    unsigned int m = actual.length();
+    unsigned int n = expected.length();
 
     // Create a matrix to store partial distances for the dynamic programming algorithm.
     std::vector<unsigned int> distances((n+1)*(m+1), 0);
@@ -19,10 +19,10 @@ namespace marco::codegen::lowering
     }
 
     // Initialize the first column of the matrix (all insertions).
-    const unsigned int first_char_idx = (n > 0) ? charToIndex(expected[0]) : 0;
+    unsigned int first_char_idx = (n > 0) ? charToIndex(expected[0]) : 0;
     for (unsigned int i=1; i<=m; ++i) {
-      const unsigned int actual_char_idx = charToIndex(actual[i-1]);
-      const unsigned int char_insertion_cost = (n > 0) ?
+      unsigned int actual_char_idx = charToIndex(actual[i-1]);
+      unsigned int char_insertion_cost = (n > 0) ?
                                           substitution_costs[actual_char_idx][first_char_idx] :
                                           largest_substitution_cost;
       distances[i*(n+1)] = distances[(i-1)*(n+1)] + base_insertion_cost + char_insertion_cost;
@@ -31,27 +31,27 @@ namespace marco::codegen::lowering
     // Compute the distance matrix.
     for (unsigned int i=1; i<=m; ++i) {
       for (unsigned int j=1; j<=n; ++j) {
-        const unsigned int index = i*(n+1) + j;
-        const unsigned int actual_char_idx = charToIndex(actual[i-1]);
-        const unsigned int expected_char_idx = charToIndex(expected[j-1]);
+        unsigned int index = i*(n+1) + j;
+        unsigned int actual_char_idx = charToIndex(actual[i-1]);
+        unsigned int expected_char_idx = charToIndex(expected[j-1]);
 
         // Calculate the distance in case of deletion.
-        const unsigned int deletion_result = distances[index - 1] + deletion_cost;
+        unsigned int deletion_result = distances[index - 1] + deletion_cost;
 
         // Calculate the distance in case of insertion.
-        const unsigned int current_char_cost = substitution_costs[actual_char_idx][expected_char_idx];
-        const unsigned int next_char_cost = (j < n) ?
+        unsigned int current_char_cost = substitution_costs[actual_char_idx][expected_char_idx];
+        unsigned int next_char_cost = (j < n) ?
               substitution_costs[actual_char_idx][charToIndex(expected[j])] :
               largest_substitution_cost;
-        const unsigned int insertion_result = distances[index - (n+1)] + base_insertion_cost + 
+        unsigned int insertion_result = distances[index - (n+1)] + base_insertion_cost + 
                                               std::min(current_char_cost, next_char_cost);
 
         // Calculate the distance in case of substitution.
-        const unsigned int substitution_result = distances[index - (n+1) - 1] + 
+        unsigned int substitution_result = distances[index - (n+1) - 1] + 
                                                  substitution_costs[actual_char_idx][expected_char_idx];
 
         // Calculate the distance in case of transposition.
-        const unsigned int transposition_result = 
+        unsigned int transposition_result = 
                            (i >= 2 && j >= 2 && actual[i-1] == expected[j-2] && actual[i-2] == expected[j-1]) ?
                            distances[index - 2*(n+1) - 2] + transposition_cost :
                            max_cost;

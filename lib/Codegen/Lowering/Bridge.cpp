@@ -116,7 +116,7 @@ namespace marco::codegen::lowering
 
       std::optional<Results> lower(const ast::Call& node) override;
 
-      Results lower(const ast::Constant& constant) override;
+      std::optional<Results> lower(const ast::Constant& constant) override;
 
       std::optional<Results> lower(const ast::Operation& operation) override;
 
@@ -481,7 +481,7 @@ namespace marco::codegen::lowering
     return callLowerer->lower(call);
   }
 
-  Results Bridge::Impl::lower(const ast::Constant& constant)
+  std::optional<Results> Bridge::Impl::lower(const ast::Constant& constant)
   {
     assert(constantLowerer != nullptr);
     return constantLowerer->lower(constant);

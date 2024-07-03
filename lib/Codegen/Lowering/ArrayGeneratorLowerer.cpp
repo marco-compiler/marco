@@ -136,11 +136,11 @@ namespace marco::codegen::lowering
     while (!s2.empty()) {
       const ast::Expression* node = s2.pop_back_val();
       mlir::Location nodeLoc = loc(node->getLocation());
-      const auto optionalResult = lower(*node);
-      if (!optionalResult) {
+      auto loweredNode = lower(*node);
+      if (!loweredNode) {
         return false;
       }
-      outValues.push_back(optionalResult.value()[0].get(nodeLoc));
+      outValues.push_back(loweredNode.value()[0].get(nodeLoc));
     }
 
     return true;
@@ -186,11 +186,11 @@ namespace marco::codegen::lowering
     if (!topLevel->isa<ast::ArrayGenerator>()) {
       // Lower as a broadcast.
       mlir::Location nodeLoc = loc(topLevel->getLocation());
-      const auto optionalResult = lower(*topLevel);
-      if (!optionalResult) {
+      auto loweredTopLevel = lower(*topLevel);
+      if (!loweredTopLevel) {
         return std::nullopt;
       }
-      mlir::Value elem = optionalResult.value()[0].get(nodeLoc);
+      mlir::Value elem = loweredTopLevel.value()[0].get(nodeLoc);
 
       mlir::Value result = builder().create<TensorBroadcastOp>(
           location, mlir::RankedTensorType::get(shape,elem.getType()), elem);

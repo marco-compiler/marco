@@ -185,9 +185,9 @@ namespace marco::codegen::lowering
       components.push_back(variableOp);
 
       if (!lowerVariableAttributes(modelOp, components, *classModification)) {
-        const marco::SourceRange location = variable.getLocation();
-        const std::string errorString = "Error in AST to MLIR conversion. Invalid fixed property for variable " + 
-                                        std::string(variable.getName()) + ".";
+        marco::SourceRange location = variable.getLocation();
+        std::string errorString = "Error in AST to MLIR conversion. Invalid fixed property for variable " + 
+                                  std::string(variable.getName()) + ".";
         mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
         diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
         return false;
@@ -212,7 +212,7 @@ namespace marco::codegen::lowering
             components[i].getSymNameAttr()));
       }
 
-      const std::optional<bool> fixedProperty = classModification.getFixedProperty();
+      std::optional<bool> fixedProperty = classModification.getFixedProperty();
       if (!fixedProperty) {
         return false;
       }

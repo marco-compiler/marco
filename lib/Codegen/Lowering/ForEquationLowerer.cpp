@@ -67,7 +67,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
       // Add the induction variable to the symbol table
-      const llvm::StringRef name = forIndex->getName();
+      llvm::StringRef name = forIndex->getName();
       getDeclaredVariables().insert(std::string(name));
       getVariablesSymbolTable().insert(
           name,

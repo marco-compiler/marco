@@ -96,7 +96,7 @@ namespace marco::codegen::lowering
         mlir::Value inductionValue =
             builder().create<LoadOp>(location, inductionVar);
 
-        const llvm::StringRef name = forIndex->getName();
+        llvm::StringRef name = forIndex->getName();
         getDeclaredVariables().insert(std::string(name));
         getVariablesSymbolTable().insert(
             name, Reference::ssa(builder(), inductionValue));

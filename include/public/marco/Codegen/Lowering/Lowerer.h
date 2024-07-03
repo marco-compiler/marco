@@ -164,7 +164,7 @@ namespace marco::codegen::lowering
 
       virtual std::optional<Results> lower(const ast::Call& node) override;
 
-      virtual Results lower(const ast::Constant& constant) override;
+      virtual std::optional<Results> lower(const ast::Constant& constant) override;
 
       virtual std::optional<Results> lower(const ast::Operation& operation) override;
 

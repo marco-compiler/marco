@@ -54,7 +54,7 @@ namespace marco::codegen::lowering
         llvm::SmallVector<mlir::Type, 1> resultTypes;
 
         if (argValues.size() != expectedArgRanks.size()) {
-          const marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
+          marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
           emitErrorNumArguments(std::string(callee->getElement(0)->getName()), sourceRange, 
                                 argValues.size(), expectedArgRanks.size());
           return std::nullopt;
@@ -113,7 +113,7 @@ namespace marco::codegen::lowering
     std::set<std::string> visibleFunctions;
     getVisibleSymbols(getLookupScope(), visibleFunctions);
 
-    const marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
+    marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
     emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, std::string(callee->getElement(0)->getName()), 
                         visibleFunctions, sourceRange);
     return std::nullopt;
@@ -139,8 +139,8 @@ namespace marco::codegen::lowering
         return nullptr;
       }
 
-      const mlir::StringAttr strAttr = builder().getStringAttr(callee.getElement(i)->getName());
-      result = getSymbolTable().lookupSymbolIn(result, strAttr);
+      result = getSymbolTable().lookupSymbolIn(
+          result, builder().getStringAttr(callee.getElement(i)->getName()));
     }
 
     return result;
@@ -149,11 +149,11 @@ namespace marco::codegen::lowering
   std::optional<mlir::Value> CallLowerer::lowerArg(const ast::Expression& expression)
   {
     mlir::Location location = loc(expression.getLocation());
-    auto optionalResults = lower(expression);
-    if (!optionalResults) {
+    auto loweredExpression = lower(expression);
+    if (!loweredExpression) {
       return std::nullopt;
     }
-    auto &results = optionalResults.value();
+    auto &results = loweredExpression.value();
     assert(results.size() == 1);
     return results[0].get(location);
   }
@@ -224,11 +224,11 @@ namespace marco::codegen::lowering
       auto arg = call.getArgument(argIndex)
                      ->cast<ast::ExpressionFunctionArgument>();
 
-      const auto optionalArgValue = lowerArg(*arg->getExpression());
-      if (!optionalArgValue) {
+      auto argValue = lowerArg(*arg->getExpression());
+      if (!argValue) {
         return false;
       }
-      argValues.push_back(optionalArgValue.value());
+      argValues.push_back(argValue.value());
 
       if (existsNamedArgument) {
         VariableOp variableOp = calleeInputs[argIndex];
@@ -243,14 +243,14 @@ namespace marco::codegen::lowering
       auto arg = call.getArgument(argIndex)
                      ->cast<ast::NamedFunctionArgument>();
 
-      const auto optionalArgValue = lowerArg(
+      auto argValue = lowerArg(
           *arg->getValue()
                ->cast<ast::ExpressionFunctionArgument>()
                ->getExpression());
-      if (!optionalArgValue) {
+      if (!argValue) {
         return false;
       }
-      argValues.push_back(optionalArgValue.value());
+      argValues.push_back(argValue.value());
 
       argNames.push_back(arg->getName().str());
       ++argIndex;
@@ -297,11 +297,11 @@ namespace marco::codegen::lowering
       auto arg = call.getArgument(argIndex)
                      ->cast<ast::ExpressionFunctionArgument>();
 
-      const auto optionalArgValue = lowerArg(*arg->getExpression());
-      if (!optionalArgValue) {
+      auto argValue = lowerArg(*arg->getExpression());
+      if (!argValue) {
         return false;
       }
-      argValues.push_back(optionalArgValue.value());
+      argValues.push_back(argValue.value());
 
       if (existsNamedArgument) {
         VariableOp variableOp = calleeInputs[argIndex];
@@ -316,14 +316,14 @@ namespace marco::codegen::lowering
       auto arg = call.getArgument(argIndex)
                      ->cast<ast::NamedFunctionArgument>();
 
-      const auto optionalArgValue = lowerArg(
+      auto argValue = lowerArg(
           *arg->getValue()
                ->cast<ast::ExpressionFunctionArgument>()
                    ->getExpression());
-      if (!optionalArgValue) {
+      if (!argValue) {
         return false;
       }
-      argValues.push_back(optionalArgValue.value());
+      argValues.push_back(argValue.value());
 
       argNames.push_back(arg->getName().str());
       ++argIndex;
@@ -342,12 +342,12 @@ namespace marco::codegen::lowering
     }));
 
     for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
-      const auto optionalArg = lowerBuiltInFunctionArg(
+      auto arg = lowerBuiltInFunctionArg(
           *call.getArgument(i)->cast<ast::ExpressionFunctionArgument>());
-      if (!optionalArg) {
+      if (!arg) {
         return false;
       }
-      args.push_back(optionalArg.value());
+      args.push_back(arg.value());
     }
 
     return true;
@@ -748,19 +748,19 @@ namespace marco::codegen::lowering
 
   void CallLowerer::emitErrorNumArguments(const std::string &function, const marco::SourceRange& location,
                                           unsigned int actualNum, unsigned int expectedNum) {
-    const std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
-                                    ". Expected " + std::to_string(expectedNum) + " argument(s) but got " + 
-                                    std::to_string(actualNum) + ".";
+    std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
+                              ". Expected " + std::to_string(expectedNum) + " argument(s) but got " + 
+                              std::to_string(actualNum) + ".";
     mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
     diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
   }
   void CallLowerer::emitErrorNumArgumentsRange(const std::string &function, const marco::SourceRange& location,
                                                unsigned int actualNum, unsigned int minExpectedNum, 
                                                unsigned int maxExpectedNum) {
-    const std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
-                                    ". Expected " + ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
-                                    "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
-                                    " argument(s) but got " + std::to_string(actualNum) + ".";
+    std::string errorString = "Error in AST to MLIR conversion when converting function " + function + 
+                              ". Expected " + ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
+                              "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
+                              " argument(s) but got " + std::to_string(actualNum) + ".";
     mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
     diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
   }
@@ -772,7 +772,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("abs", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -812,7 +812,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("acos", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -852,7 +852,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("asin", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -892,7 +892,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("atan", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -932,7 +932,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("atan2", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -972,7 +972,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("ceil", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1012,7 +1012,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("cos", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1052,7 +1052,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("cosh", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1092,7 +1092,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("der", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1132,7 +1132,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("diagonal", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1161,7 +1161,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("div", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1192,7 +1192,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("exp", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1232,7 +1232,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("fill", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;
@@ -1278,7 +1278,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("floor", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1318,7 +1318,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("identity", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1347,7 +1347,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("integer", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1386,7 +1386,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 3;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("linspace", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1413,7 +1413,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("log", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1453,7 +1453,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("log10", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1495,7 +1495,7 @@ namespace marco::codegen::lowering
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("max", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
@@ -1539,7 +1539,7 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("max", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1565,7 +1565,7 @@ namespace marco::codegen::lowering
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("min", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
@@ -1609,7 +1609,7 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("min", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1633,7 +1633,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("mod", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1664,7 +1664,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("ndims", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1690,7 +1690,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("ones", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;
@@ -1720,7 +1720,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("product", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1737,7 +1737,7 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("product", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1769,7 +1769,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("rem", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1800,7 +1800,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sign", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1825,7 +1825,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sin", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1865,7 +1865,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sinh", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1907,7 +1907,7 @@ namespace marco::codegen::lowering
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("size", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
@@ -1950,7 +1950,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sqrt", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -1990,7 +1990,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sum", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2007,7 +2007,7 @@ namespace marco::codegen::lowering
   {
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("sum", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2039,7 +2039,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("symmetric", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2065,7 +2065,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("tan", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2105,7 +2105,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("tanh", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2145,7 +2145,7 @@ namespace marco::codegen::lowering
 
    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArguments("transpose", sourceRange, 
                             call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
@@ -2177,7 +2177,7 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      const marco::SourceRange sourceRange = call.getLocation();
+      marco::SourceRange sourceRange = call.getLocation();
       emitErrorNumArgumentsRange("zeros", sourceRange, 
                             call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;

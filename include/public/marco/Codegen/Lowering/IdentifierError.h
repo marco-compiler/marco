@@ -1,5 +1,5 @@
-#ifndef IDENTIFIER_ERROR_H
-#define IDENTIFIER_ERROR_H
+#ifndef MARCO_CODEGEN_LOWERING_IDENTIFIERERROR_H
+#define MARCO_CODEGEN_LOWERING_IDENTIFIERERROR_H
 
 #include <array>
 #include <set>
@@ -62,4 +62,4 @@ namespace marco::codegen::lowering
   };
 }
 
-#endif //MARCO_CODEGEN_IDENTIFIER_ERROR_H
+#endif //MARCO_CODEGEN_LOWERING_IDENTIFIERERROR_H

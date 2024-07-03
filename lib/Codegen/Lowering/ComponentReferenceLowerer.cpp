@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
       std::set<std::string> visibleVariables = {};
       getVisibleVariables(visibleVariables);
 
-      const marco::SourceRange sourceRange = firstEntry->getLocation();
+      marco::SourceRange sourceRange = firstEntry->getLocation();
       emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(firstEntry->getName()), 
                           visibleVariables, sourceRange);
       return std::nullopt;
@@ -61,7 +61,7 @@ namespace marco::codegen::lowering
           std::set<std::string> visibleFields;
           getVisibleSymbols<VariableOp>(recordOp, visibleFields);
 
-          const marco::SourceRange sourceRange = pathEntry->getLocation();
+          marco::SourceRange sourceRange = pathEntry->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::FIELD, std::string(pathEntry->getName()), 
                               visibleFields, sourceRange);
           return std::nullopt;
@@ -109,11 +109,11 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> indices;
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
-      std::optional<Results> optionalResult = lower(*entry.getSubscript(i));
-      if (!optionalResult) {
+      std::optional<Results> optionalIndex = lower(*entry.getSubscript(i));
+      if (!optionalIndex) {
         return std::nullopt;
       }
-      Result &index = optionalResult.value()[0];
+      Result &index = optionalIndex.value()[0];
       mlir::Value indexValue = index.get(index.getLoc());
       indices.push_back(indexValue);
     }

@@ -19,7 +19,7 @@ namespace marco::codegen::lowering
     const auto* destinations = statement.getDestinations();
 
     mlir::Location valuesLoc = loc(statement.getExpression()->getLocation());
-    const auto optionalValues = lower(*statement.getExpression());
+    auto optionalValues = lower(*statement.getExpression());
     if (!optionalValues) {
       return false;
     }
@@ -51,12 +51,12 @@ namespace marco::codegen::lowering
           mlir::Location subscriptLoc =
               loc(refEntry->getSubscript(subscriptIndex)->getLocation());
 
-          std::optional<Results> optionalResult =
+          std::optional<Results> result =
               lower(*refEntry->getSubscript(subscriptIndex));
-          if (!optionalResult) {
+          if (!result) {
             return false;
           }
-          mlir::Value subscriptValue = optionalResult.value()[0].get(subscriptLoc);
+          mlir::Value subscriptValue = result.value()[0].get(subscriptLoc);
 
           subscripts.push_back(subscriptValue);
         }
@@ -68,7 +68,7 @@ namespace marco::codegen::lowering
           std::set<std::string> visibleVariables = {};
           getVisibleVariables(visibleVariables);
 
-          const marco::SourceRange sourceRange = statement.getExpression()->getLocation();
+          marco::SourceRange sourceRange = statement.getExpression()->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(path.front().getValue()), 
                               visibleVariables, sourceRange);
           return false;

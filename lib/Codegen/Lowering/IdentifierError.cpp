@@ -117,8 +117,8 @@ namespace marco::codegen::lowering
     std::string predictedName = "";
 
     for (auto pIdent = possibleIdentifiers.cbegin(); pIdent != possibleIdentifiers.cend(); ++pIdent) {
-      const std::string possibleMatch = *pIdent;
-      const unsigned int distance = EditDistance::editDistance(actualName, possibleMatch);
+      std::string possibleMatch = *pIdent;
+      unsigned int distance = EditDistance::editDistance(actualName, possibleMatch);
 
       if (distance < lowestDistanceYet) {
         predictedName = possibleMatch;
@@ -137,8 +137,8 @@ namespace marco::codegen::lowering
     std::string predictedName = "";
 
     for (auto pIdent = possibleIdentifiers.cbegin(); pIdent != possibleIdentifiers.cend(); ++pIdent) {
-      const std::string possibleMatch = *pIdent;
-      const float similarity = calculator.getSimilarity(actualName, possibleMatch);
+      std::string possibleMatch = *pIdent;
+      float similarity = calculator.getSimilarity(actualName, possibleMatch);
 
       if (similarity > highestSimilarityYet) {
         predictedName = possibleMatch;

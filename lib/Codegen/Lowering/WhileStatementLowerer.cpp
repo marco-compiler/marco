@@ -34,13 +34,13 @@ namespace marco::codegen::lowering
 
       const auto* condition = statement.getCondition();
 
-      auto optionalLoweredCondition = lower(*condition);
-      if (!optionalLoweredCondition) {
+      auto loweredCondition = lower(*condition);
+      if (!loweredCondition) {
         return false;
       }
       builder().create<ConditionOp>(
           loc(condition->getLocation()),
-          optionalLoweredCondition.value()[0].get(conditionLoc));
+          loweredCondition.value()[0].get(conditionLoc));
     }
 
     {

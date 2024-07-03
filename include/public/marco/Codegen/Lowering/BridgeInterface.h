@@ -14,8 +14,6 @@ namespace marco::codegen::lowering
     public:
       virtual ~BridgeInterface();
 
-      BridgeInterface() = default;
-
       virtual LoweringContext& getContext() = 0;
 
       virtual const LoweringContext& getContext() const = 0;
@@ -79,7 +77,7 @@ namespace marco::codegen::lowering
 
       virtual std::optional<Results> lower(const ast::Call& call) = 0;
 
-      virtual Results lower(const ast::Constant& constant) = 0;
+      virtual std::optional<Results> lower(const ast::Constant& constant) = 0;
 
       virtual std::optional<Results> lower(const ast::Operation& operation) = 0;
 

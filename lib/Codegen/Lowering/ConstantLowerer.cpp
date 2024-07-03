@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  Results ConstantLowerer::lower(const ast::Constant& constant)
+  std::optional<Results> ConstantLowerer::lower(const ast::Constant& constant)
   {
     mlir::Location location = loc(constant.getLocation());
     mlir::TypedAttr attribute = constant.visit(*this);
