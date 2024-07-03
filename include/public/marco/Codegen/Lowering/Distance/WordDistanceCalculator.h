@@ -2,14 +2,13 @@
 #define MARCO_CODEGEN_LOWERING_DISTANCE_WORDDISTANCECALCULATOR_H
 
 #include "marco/Codegen/Lowering/Distance/DatabaseReader.h"
-#include <string>
 
 namespace marco::codegen::lowering
 {
     class WordDistanceCalculator {
     private:
         // We use the singleton DatabaseReader to access the database.
-        DatabaseReader* databaseReader;
+        DatabaseReader& databaseReader;
 
         // The two closest synsets to the root synset, within the two provided groups.
         std::pair<Synset, Synset> closestSynsets;
@@ -32,11 +31,11 @@ namespace marco::codegen::lowering
         const float semanticThreshold;
 
         // This method finds the LCA of two words.
-        void analyzeByWords(const std::string& word1, const std::string& word2);
+        void analyzeByWords(llvm::StringRef word1, llvm::StringRef word2);
 
         // This method finds the LCA of two groups of synsets.
-        void analyzeBySynsetGroups(const std::vector<Synset>& synsets1,
-                                const std::vector<Synset>& synsets2);
+        void analyzeBySynsetGroups(llvm::ArrayRef<Synset> synsets1,
+                                   llvm::ArrayRef<Synset> synsets2);
 
         // This method calculates the semantic similarity between two words using
         // the synset distance to the LCA and the LCA distance to the root synset.

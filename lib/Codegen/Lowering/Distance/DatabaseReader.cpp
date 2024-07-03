@@ -6,14 +6,9 @@
 
 namespace marco::codegen::lowering
 {
-    DatabaseReader* DatabaseReader::instance = NULL;
-    DatabaseReader* DatabaseReader::getInstance()
+    DatabaseReader& DatabaseReader::getInstance()
     {
-        if (instance == NULL)
-        {
-            instance = new DatabaseReader();
-        }
-
+        static DatabaseReader instance;
         return instance;
     }
 
@@ -69,7 +64,7 @@ namespace marco::codegen::lowering
     }
 
     std::vector<std::string>
-    DatabaseReader::keyToRow(std::ifstream& file, const std::string& key)
+    DatabaseReader::keyToRow(std::ifstream& file, llvm::StringRef key)
     {
         if (!filesOpened) { return {}; }
 
@@ -153,7 +148,7 @@ namespace marco::codegen::lowering
     }
 
     std::vector<Synset>
-    DatabaseReader::getSynsets(const std::string& word)
+    DatabaseReader::getSynsets(llvm::StringRef word)
     {
         if (!filesOpened) { return {}; }
 

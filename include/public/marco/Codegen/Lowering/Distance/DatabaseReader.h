@@ -1,10 +1,10 @@
 #ifndef MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
 #define MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
 
-
 #include <fstream>
-#include <string>
 #include <vector>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace marco::codegen::lowering
 {
@@ -20,9 +20,6 @@ namespace marco::codegen::lowering
         // We keep the constructor private to prevent multiple instances
         // of the DatabaseReader class.
         DatabaseReader();
-
-        // A static pointer to the only instance of the DatabaseReader.
-        static DatabaseReader* instance;
 
         // File mappings. Note that the hypernyms file has an extra
         // column, which is the count of hypernyms for that synset.
@@ -47,16 +44,16 @@ namespace marco::codegen::lowering
         // and returns the columns as a vector of strings. The first
         // column is the key itself, and is omitted.
         std::vector<std::string>
-        keyToRow(std::ifstream& file, const std::string& key);
+        keyToRow(std::ifstream& file, llvm::StringRef key);
 
     public:
         // No copying.
         DatabaseReader(const DatabaseReader&) = delete;
 
         // Instance getter.
-        static DatabaseReader* getInstance();
+        static DatabaseReader& getInstance();
 
-        std::vector<Synset> getSynsets(const std::string& word);
+        std::vector<Synset> getSynsets(llvm::StringRef word);
         std::vector<Synset> getHypernyms(const Synset& synset);
 
         // Get a synset's count within the corpus.
