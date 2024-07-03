@@ -39,16 +39,14 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : package.getVariables()) {
-      const bool outcome = declare(*variable->cast<ast::Member>());
-      if (!outcome) {
+      if (!declare(*variable->cast<ast::Member>())) {
         return false;
       }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      const bool outcome = declareVariables(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }
@@ -83,8 +81,7 @@ namespace marco::codegen::lowering
     }
 
     // Lower the body.
-    bool outcome = lowerClassBody(package);
-    if (!outcome) {
+    if (!lowerClassBody(package)) {
       return false;
     }
 
@@ -109,8 +106,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initialOp.getBody());
 
       for (const auto& algorithm : initialAlgorithms) {
-        const bool outcome = lower(*algorithm);
-        if (!outcome) {
+        if (!lower(*algorithm)) {
           return false;
         }
       }
@@ -125,8 +121,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(dynamicOp.getBody());
 
       for (const auto& algorithm : algorithms) {
-        const bool outcome = lower(*algorithm);
-        if (!outcome) {
+        if (!lower(*algorithm)) {
           return false;
         }
       }
@@ -134,8 +129,7 @@ namespace marco::codegen::lowering
 
     // Lower the inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      outcome = lower(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }

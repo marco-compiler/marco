@@ -40,16 +40,14 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : model.getVariables()) {
-      const bool outcome = declare(*variable->cast<ast::Member>());
-      if (!outcome) {
+      if (!declare(*variable->cast<ast::Member>())) {
         return false;
       }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
-      const bool outcome = declareVariables(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }
@@ -90,9 +88,7 @@ namespace marco::codegen::lowering
       if (variable->hasModification()) {
         if (const auto* modification = variable->getModification();
             modification->hasExpression()) {
-          const bool outcome = 
-              createBindingEquation(*variable, *modification->getExpression());
-          if (!outcome) {
+          if (!createBindingEquation(*variable, *modification->getExpression())) {
             return false;
           }
         }
@@ -102,15 +98,13 @@ namespace marco::codegen::lowering
     // Lower the attributes of the variables.
     for (const auto& variableNode : model.getVariables()) {
       const ast::Member* variable = variableNode->cast<ast::Member>();
-      const bool outcome = lowerVariableAttributes(modelOp, *variable);
-      if (!outcome) {
+      if (!lowerVariableAttributes(modelOp, *variable)) {
         return false;
       }
     }
 
     // Lower the body.
-    bool outcome = lowerClassBody(model);
-    if (!outcome) {
+    if (!lowerClassBody(model)) {
       return false;
     }
 
@@ -135,8 +129,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initialOp.getBody());
 
       for (const auto& algorithm : initialAlgorithms) {
-        const bool outcome = lower(*algorithm);
-        if (!outcome) {
+        if (!lower(*algorithm)) {
           return false;
         }
       }
@@ -151,8 +144,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(dynamicOp.getBody());
 
       for (const auto& algorithm : algorithms) {
-        const bool outcome = lower(*algorithm);
-        if (!outcome) {
+        if (!lower(*algorithm)) {
           return false;
         }
       }
@@ -160,8 +152,7 @@ namespace marco::codegen::lowering
 
     // Lower the inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
-      outcome = lower(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }
@@ -193,9 +184,7 @@ namespace marco::codegen::lowering
       llvm::SmallVector<VariableOp> components;
       components.push_back(variableOp);
 
-      const bool outcome = 
-          lowerVariableAttributes(modelOp, components, *classModification);
-      if (!outcome) {
+      if (!lowerVariableAttributes(modelOp, components, *classModification)) {
         const marco::SourceRange location = variable.getLocation();
         const std::string errorString = "Error in AST to MLIR conversion. Invalid fixed property for variable " + 
                                         std::string(variable.getName()) + ".";
@@ -228,12 +217,11 @@ namespace marco::codegen::lowering
         return false;
       }
 
-      const bool outcome = lowerStartAttribute(
+      if (!lowerStartAttribute(
           mlir::SymbolRefAttr::get(components[0].getSymNameAttr(), nestedRefs),
           *classModification.getStartExpression(),
           fixedProperty.value(),
-          classModification.getEachProperty());
-      if (!outcome) {
+          classModification.getEachProperty())) {
         return false;
       }
     }
@@ -285,10 +273,8 @@ namespace marco::codegen::lowering
             continue;
           }
 
-          const bool outcome =
-              lowerVariableAttributes(modelOp, components,
-                                  *innerClassModification);
-          if (!outcome) {
+          if (!lowerVariableAttributes(modelOp, components,
+                                       *innerClassModification)) {
             return false;
           }
         }

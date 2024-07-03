@@ -41,16 +41,14 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : function.getVariables()) {
-      const bool outcome = declare(*variable->cast<ast::Member>());
-      if (!outcome) {
+      if (!declare(*variable->cast<ast::Member>())) {
         return false;
       }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
-      const bool outcome = declareVariables(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }
@@ -170,22 +168,19 @@ namespace marco::codegen::lowering
 
     // Create the default values for variables.
     for (const auto& variable : function.getVariables()) {
-      const bool outcome = lowerVariableDefaultValue(*variable->cast<ast::Member>());
-      if (!outcome) {
+      if (!lowerVariableDefaultValue(*variable->cast<ast::Member>())) {
         return false;
       }
     }
 
     // Lower the body.
-    bool outcome = lowerClassBody(function);
-    if (!outcome) {
+    if (!lowerClassBody(function)) {
       return false;
     }
 
     // Create the algorithms.
     for (const auto& algorithm : function.getAlgorithms()) {
-      const bool outcome = lower(*algorithm->cast<ast::Algorithm>());
-      if (!outcome) {
+      if (!lower(*algorithm->cast<ast::Algorithm>())) {
         return false;
       }
     }
@@ -221,8 +216,7 @@ namespace marco::codegen::lowering
 
     // Lower the inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
-      outcome = lower(*innerClassNode->cast<ast::Class>());
-      if (!outcome) {
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
         return false;
       }
     }

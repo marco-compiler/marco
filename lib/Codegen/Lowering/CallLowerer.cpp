@@ -39,10 +39,8 @@ namespace marco::codegen::lowering
 
         llvm::SmallVector<std::string, 3> argNames;
         llvm::SmallVector<mlir::Value, 3> argValues;
-
-        const bool outcome = 
-            lowerCustomFunctionArgs(call, inputVariables, argNames, argValues);
-        if (!outcome) {
+ 
+        if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
           return std::nullopt;
         }
         assert(argNames.empty() && "Named arguments not supported yet");
@@ -90,9 +88,7 @@ namespace marco::codegen::lowering
 
         llvm::SmallVector<std::string, 3> argNames;
         llvm::SmallVector<mlir::Value, 3> argValues;
-        const bool outcome = 
-            lowerRecordConstructorArgs(call, inputVariables, argNames, argValues);
-        if (!outcome) {
+        if (!lowerRecordConstructorArgs(call, inputVariables, argNames, argValues)) {
           return std::nullopt;
         }
         assert(argNames.empty() && "Named args for records not yet supported");
@@ -114,12 +110,12 @@ namespace marco::codegen::lowering
     }
 
     // The function doesn't exist.
-    std::set<std::string> declaredFunctions;
-    initializeDeclaredSymbols(getLookupScope(), declaredFunctions);
+    std::set<std::string> visibleFunctions;
+    getVisibleSymbols(getLookupScope(), visibleFunctions);
 
     const marco::SourceRange sourceRange = callee->getElement(0)->getLocation();
     emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, std::string(callee->getElement(0)->getName()), 
-                        declaredFunctions, sourceRange);
+                        visibleFunctions, sourceRange);
     return std::nullopt;
   }
 
@@ -783,8 +779,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -824,8 +819,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -865,8 +859,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -906,8 +899,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -946,8 +938,7 @@ namespace marco::codegen::lowering
       return std::nullopt;
     }
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -988,8 +979,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1029,8 +1019,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1070,8 +1059,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1111,8 +1099,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1152,8 +1139,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1182,8 +1168,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1214,8 +1199,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1301,8 +1285,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1342,8 +1325,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1371,8 +1353,7 @@ namespace marco::codegen::lowering
       return std::nullopt;
     }
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1412,8 +1393,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 3> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1440,8 +1420,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1481,8 +1460,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1539,8 +1517,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1569,8 +1546,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1611,8 +1587,7 @@ namespace marco::codegen::lowering
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1641,8 +1616,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1666,8 +1640,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1698,8 +1671,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1725,8 +1697,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1773,8 +1744,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1806,8 +1776,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1838,8 +1807,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1864,8 +1832,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1905,8 +1872,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1948,8 +1914,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -1992,8 +1957,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2050,8 +2014,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2083,8 +2046,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2110,8 +2072,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2151,8 +2112,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2192,8 +2152,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 
@@ -2225,8 +2184,7 @@ namespace marco::codegen::lowering
     }
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerBuiltInFunctionArgs(call, args);
-    if (!outcome) {
+    if (!lowerBuiltInFunctionArgs(call, args)) {
       return std::nullopt;
     }
 

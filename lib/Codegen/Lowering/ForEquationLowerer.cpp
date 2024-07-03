@@ -80,8 +80,7 @@ namespace marco::codegen::lowering
 
     // Create the equation body.
     for (size_t i = 0, e = forEquation.getNumOfEquations(); i < e; ++i) {
-      const bool outcome = lower(*forEquation.getEquation(i));
-      if (!outcome) {
+      if (!lower(*forEquation.getEquation(i))) {
         return false;
       }
     }

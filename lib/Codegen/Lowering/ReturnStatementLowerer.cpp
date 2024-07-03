@@ -11,9 +11,10 @@ namespace marco::codegen::lowering
   {
   }
 
-  void ReturnStatementLowerer::lower(const ast::ReturnStatement& statement)
+  bool ReturnStatementLowerer::lower(const ast::ReturnStatement& statement)
   {
     mlir::Location location = loc(statement.getLocation());
     builder().create<ReturnOp>(location);
+    return true;
   }
 }

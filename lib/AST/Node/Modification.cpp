@@ -123,17 +123,13 @@ namespace marco::ast
     return getClassModification()->getStartExpression();
   }
 
-  bool Modification::getFixedProperty() const
+  std::optional<bool> Modification::getFixedProperty() const
   {
     if (!hasClassModification()) {
       return false;
     }
 
-    std::optional<bool> outcome = getClassModification()->getFixedProperty();
-    if (!outcome) {
-      assert(false);
-    }
-    return outcome.value();
+    return getClassModification()->getFixedProperty();
   }
 
   bool Modification::getEachProperty() const

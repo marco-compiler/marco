@@ -11,8 +11,9 @@ namespace marco::codegen::lowering
   {
   }
 
-  void IfEquationLowerer::lower(const ast::IfEquation& equation)
+  bool IfEquationLowerer::lower(const ast::IfEquation& equation)
   {
     llvm_unreachable("If equation is not implemented yet");
+    return true;
   }
 }

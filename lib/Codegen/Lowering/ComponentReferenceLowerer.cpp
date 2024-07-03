@@ -24,12 +24,12 @@ namespace marco::codegen::lowering
 
     std::optional<Reference> optionalResult = lookupVariable(firstEntry->getName());
     if (!optionalResult) {
-      std::set<std::string> declaredVars = {};
-      initializeDeclaredVars(declaredVars);
+      std::set<std::string> visibleVariables = {};
+      getVisibleVariables(visibleVariables);
 
       const marco::SourceRange sourceRange = firstEntry->getLocation();
       emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(firstEntry->getName()), 
-                          declaredVars, sourceRange);
+                          visibleVariables, sourceRange);
       return std::nullopt;
     }
 
@@ -58,12 +58,12 @@ namespace marco::codegen::lowering
 
         mlir::Operation *op = resolveSymbolName<VariableOp>(pathEntry->getName(), recordOp);
         if (op == nullptr) {
-          std::set<std::string> declaredFields;
-          initializeDeclaredSymbols<VariableOp>(recordOp, declaredFields);
+          std::set<std::string> visibleFields;
+          getVisibleSymbols<VariableOp>(recordOp, visibleFields);
 
           const marco::SourceRange sourceRange = pathEntry->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::FIELD, std::string(pathEntry->getName()), 
-                              declaredFields, sourceRange);
+                              visibleFields, sourceRange);
           return std::nullopt;
         }
 

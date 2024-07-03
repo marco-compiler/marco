@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit IfEquationLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::IfEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::IfEquation& equation) override;
 
     protected:
       using Lowerer::lower;

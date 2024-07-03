@@ -125,8 +125,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 1> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 1);
@@ -140,8 +139,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() >= 2);
@@ -168,8 +166,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -183,8 +180,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -198,8 +194,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -213,8 +208,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() >= 2);
@@ -242,8 +236,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -257,8 +250,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -272,8 +264,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -336,7 +327,7 @@ namespace marco::codegen::lowering
       results.push_back(Reference::ssa(builder(), result));
     }
 
-    return std::make_optional<Results>({results.begin(), results.end()});
+    return Results({results.begin(), results.end()});
   }
 
   std::optional<Results> OperationLowerer::greater(const ast::Operation& operation)
@@ -344,8 +335,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -359,8 +349,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -374,8 +363,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -389,8 +377,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -404,8 +391,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -419,8 +405,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -434,8 +419,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -449,8 +433,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 1);
@@ -464,8 +447,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -479,8 +461,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 4> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(!args.empty());
@@ -505,8 +486,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -520,8 +500,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 2> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2);
@@ -535,8 +514,7 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(operation.getLocation());
 
     llvm::SmallVector<mlir::Value, 3> args;
-    const bool outcome = lowerArgs(operation, args);
-    if (!outcome) {
+    if (!lowerArgs(operation, args)) {
       return std::nullopt;
     }
     assert(args.size() == 2 || args.size() == 3);

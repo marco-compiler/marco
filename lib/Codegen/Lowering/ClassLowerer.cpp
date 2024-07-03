@@ -48,8 +48,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
-      declareVariables(*function);
-      return true;
+      return declareVariables(*function);
     }
 
     if (auto record = cls.dyn_cast<ast::Record>()) {
@@ -119,8 +118,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
-      lower(*function);
-      return true;
+      return lower(*function);
     }
 
     if (auto record = cls.dyn_cast<ast::Record>()) {
@@ -212,18 +210,16 @@ namespace marco::codegen::lowering
   {
     // Lower the constraints for the dynamic dimensions of the variables.
     for (const auto& variable : cls.getVariables()) {
-      const bool outcome = lowerVariableDimensionConstraints(
+      if (!lowerVariableDimensionConstraints(
           getSymbolTable().getSymbolTable(getClass(cls)),
-          *variable->cast<ast::Member>());
-      if (!outcome) {
+          *variable->cast<ast::Member>())) {
         return false;
       }
     }
 
     // Create the equations.
     for (const auto& section : cls.getEquationSections()) {
-      const bool outcome = lower(*section->cast<ast::EquationSection>());
-      if (!outcome) {
+      if (!lower(*section->cast<ast::EquationSection>())) {
         return false;
       }
     }

@@ -36,24 +36,25 @@ namespace marco::codegen::lowering
 
       LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
 
-      std::set<llvm::StringRef>& getDeclaredVariables();
+      std::set<std::string>& getDeclaredVariables();
 
-      // Helper to initialize declaredSymbols, adding all the declared symbols visible from scope 
-      // of the requested type.
+      // Helper to initialize visibleSymbols, adding all the declared symbols
+      // of the requested type that are visible from scope.
       template<typename... T>
-      void initializeDeclaredSymbols(
+      void getVisibleSymbols(
           mlir::Operation* scope, 
-          std::set<std::string> &declaredSymbols) 
+          std::set<std::string> &visibleSymbols) 
       {
-        return initializeDeclaredSymbols(scope, declaredSymbols, [](mlir::Operation* op) {
+        return getVisibleSymbols(scope, visibleSymbols, [](mlir::Operation* op) {
           return mlir::isa<T...>(op);
         });
       }
 
-      void initializeDeclaredSymbols(mlir::Operation* scope, std::set<std::string> &declaredSymbols);
+      void getVisibleSymbols(mlir::Operation* scope, std::set<std::string> &declaredSymbols);
 
-      // Helper to initialize declaredVars, adding all the declared variables visible from the current scope.
-      void initializeDeclaredVars(std::set<std::string> &declaredVars);
+      // Helper to initialize visibleVariables, adding all the declared variables 
+      // that are visible from the current scope.
+      void getVisibleVariables(std::set<std::string> &visibleVariables);
 
       mlir::Operation* getLookupScope();
 
@@ -121,7 +122,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool declareVariables(const ast::Package& package) override;
 
-      virtual void declareVariables(
+      [[nodiscard]] virtual bool declareVariables(
           const ast::PartialDerFunction& function) override;
 
       [[nodiscard]] virtual bool declareVariables(const ast::Record& record) override;
@@ -137,7 +138,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::Package& node) override;
 
-      virtual void lower(const ast::PartialDerFunction& node) override;
+      [[nodiscard]] virtual bool lower(const ast::PartialDerFunction& node) override;
 
       [[nodiscard]] virtual bool lower(const ast::Record& node) override;
 
@@ -182,9 +183,9 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::ForEquation& equation) override;
 
-      virtual void lower(const ast::IfEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::IfEquation& equation) override;
 
-      virtual void lower(const ast::WhenEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::WhenEquation& equation) override;
 
       [[nodiscard]] virtual bool lower(const ast::Algorithm& node) override;
 
@@ -192,15 +193,15 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::AssignmentStatement& statement) override;
 
-      virtual void lower(const ast::BreakStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::BreakStatement& statement) override;
 
       [[nodiscard]] virtual bool lower(const ast::ForStatement& statement) override;
 
       [[nodiscard]] virtual bool lower(const ast::IfStatement& statement) override;
 
-      virtual void lower(const ast::ReturnStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::ReturnStatement& statement) override;
 
-      virtual void lower(const ast::WhenStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::WhenStatement& statement) override;
 
       [[nodiscard]] virtual bool 
           lower(const ast::WhileStatement& statement) override;
@@ -217,9 +218,9 @@ namespace marco::codegen::lowering
           mlir::Operation* currentScope,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
       
-      void initializeDeclaredSymbols(
+      void getVisibleSymbols(
           mlir::Operation* scope, 
-          std::set<std::string> &declaredSymbols,
+          std::set<std::string> &visibleSymbols,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
 
     private:

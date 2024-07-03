@@ -18,8 +18,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = equation.dyn_cast<ast::IfEquation>()) {
-      lower(*casted);
-      return true;
+      return lower(*casted);
     }
 
     if (auto casted = equation.dyn_cast<ast::ForEquation>()) {
@@ -27,8 +26,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = equation.dyn_cast<ast::WhenEquation>()) {
-      lower(*casted);
-      return true;
+      return lower(*casted);
     }
 
     llvm_unreachable("Unknown equation type");

@@ -40,7 +40,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool declareVariables(const ast::Package& package) = 0;
 
-      virtual void declareVariables(const ast::PartialDerFunction& function) = 0;
+      [[nodiscard]] virtual bool declareVariables(const ast::PartialDerFunction& function) = 0;
 
       [[nodiscard]] virtual bool declareVariables(const ast::Record& record) = 0;
 
@@ -54,7 +54,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::Package& package) = 0;
 
-      virtual void lower(const ast::PartialDerFunction& function) = 0;
+      [[nodiscard]] virtual bool lower(const ast::PartialDerFunction& function) = 0;
 
       [[nodiscard]] virtual bool lower(const ast::Record& record) = 0;
 
@@ -98,9 +98,9 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::ForEquation& equation) = 0;
 
-      virtual void lower(const ast::IfEquation& equation) = 0;
+      [[nodiscard]] virtual bool lower(const ast::IfEquation& equation) = 0;
 
-      virtual void lower(const ast::WhenEquation& equation) = 0;
+      [[nodiscard]] virtual bool lower(const ast::WhenEquation& equation) = 0;
 
       [[nodiscard]] virtual bool lower(const ast::Algorithm& algorithm) = 0;
 
@@ -108,15 +108,15 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::AssignmentStatement& statement) = 0;
 
-      virtual void lower(const ast::BreakStatement& statement) = 0;
+      [[nodiscard]] virtual bool lower(const ast::BreakStatement& statement) = 0;
 
       [[nodiscard]] virtual bool lower(const ast::ForStatement& statement) = 0;
 
       [[nodiscard]] virtual bool lower(const ast::IfStatement& statement) = 0;
 
-      virtual void lower(const ast::ReturnStatement& statement) = 0;
+      [[nodiscard]] virtual bool lower(const ast::ReturnStatement& statement) = 0;
 
-      virtual void lower(const ast::WhenStatement& statement) = 0;
+      [[nodiscard]] virtual bool lower(const ast::WhenStatement& statement) = 0;
 
       [[nodiscard]] virtual bool 
           lower(const ast::WhileStatement& statement) = 0;

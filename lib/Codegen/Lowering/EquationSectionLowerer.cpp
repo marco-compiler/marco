@@ -24,8 +24,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(bodyBlock);
 
       for (size_t i = 0, e = equationSection.getNumOfEquations(); i < e; ++i) {
-        const bool outcome = lower(*equationSection.getEquation(i));
-        if (!outcome) {
+        if (!lower(*equationSection.getEquation(i))) {
           return false;
         }
       }
@@ -41,8 +40,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(bodyBlock);
 
       for (size_t i = 0, e = equationSection.getNumOfEquations(); i < e; ++i) {
-        const bool outcome = lower(*equationSection.getEquation(i));
-        if (!outcome) {
+        if (!lower(*equationSection.getEquation(i))) {
           return false;
         }
       }

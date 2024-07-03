@@ -51,8 +51,7 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(bodyBlock);
 
       for (size_t i = 0, e = statement.size(); i < e; ++i) {
-        const bool outcome = lower(*statement[i]);
-        if (!outcome) {
+        if (!lower(*statement[i])) {
           return false;
         }
       }

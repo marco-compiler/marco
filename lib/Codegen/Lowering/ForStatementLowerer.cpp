@@ -103,8 +103,7 @@ namespace marco::codegen::lowering
 
         for (size_t statementIndex = 0, e = statement.getNumOfStatements();
              statementIndex < e; ++statementIndex) {
-          const bool outcome = lower(*statement.getStatement(statementIndex));
-          if (!outcome) {
+          if (!lower(*statement.getStatement(statementIndex))) {
             return false;
           }
         }

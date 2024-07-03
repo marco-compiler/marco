@@ -38,49 +38,49 @@ namespace marco::codegen::lowering
     return getContext().getSymbolTable();
   }
 
-  std::set<llvm::StringRef>& Lowerer::getDeclaredVariables()
+  std::set<std::string>& Lowerer::getDeclaredVariables()
   {
     return getContext().getDeclaredVariables();
   }
 
-  void Lowerer::initializeDeclaredSymbols(
+  void Lowerer::getVisibleSymbols(
       mlir::Operation* scope, 
-      std::set<std::string>& declaredSymbols,
+      std::set<std::string>& visibleSymbols,
       llvm::function_ref<bool(mlir::Operation*)> filterFn)
   {
-    mlir::SymbolTable::walkSymbolTables(getRoot(), true, [this, &scope, &declaredSymbols, &filterFn](mlir::Operation *op, bool visible) {
+    mlir::SymbolTable::walkSymbolTables(getRoot(), true, [this, &scope, &visibleSymbols, &filterFn](mlir::Operation *op, bool visible) {
       const mlir::StringAttr attr = op->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName());
       if (attr) {
         const llvm::StringRef symbolName = attr;
         if (resolveSymbolName(symbolName, scope, filterFn)) {
-          declaredSymbols.insert(std::string(symbolName));
+          visibleSymbols.insert(std::string(symbolName));
         }
       }
     });
 
-    std::set<llvm::StringRef>& declaredVariables = getDeclaredVariables();
+    std::set<std::string>& declaredVariables = getDeclaredVariables();
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
-      if (resolveSymbolName(*pVar, scope, filterFn)) {
-        declaredSymbols.insert(std::string(*pVar));
+      if (resolveSymbolName(llvm::StringRef(*pVar), scope, filterFn)) {
+        visibleSymbols.insert(std::string(*pVar));
       }
     }
   }
 
-  void Lowerer::initializeDeclaredSymbols(
+  void Lowerer::getVisibleSymbols(
       mlir::Operation* scope, 
-      std::set<std::string>& declaredSymbols)
+      std::set<std::string>& visibleSymbols)
   {
-    return initializeDeclaredSymbols(scope, declaredSymbols, [](mlir::Operation* op) {
+    return getVisibleSymbols(scope, visibleSymbols, [](mlir::Operation* op) {
       return true;
     });
   }
 
-  void Lowerer::initializeDeclaredVars(std::set<std::string>& declaredVars)
+  void Lowerer::getVisibleVariables(std::set<std::string>& visibleVariables)
   {
-    std::set<llvm::StringRef>& declaredVariables = getDeclaredVariables();
+    std::set<std::string>& declaredVariables = getDeclaredVariables();
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
       if (lookupVariable(*pVar)) {
-        declaredVars.insert(std::string(*pVar));
+        visibleVariables.insert(std::string(*pVar));
       }
     }
   }
@@ -177,12 +177,12 @@ namespace marco::codegen::lowering
         type.getElement(0), scope);
 
     if (!scope) {
-      std::set<std::string> declaredTypes;
-      initializeDeclaredSymbols<ClassInterface>(originalScope, declaredTypes);
+      std::set<std::string> visibleTypes;
+      getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
 
       const marco::SourceRange sourceRange = type.getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
-                              declaredTypes, sourceRange);
+                              visibleTypes, sourceRange);
       return std::nullopt;
     }
 
@@ -256,7 +256,7 @@ namespace marco::codegen::lowering
 
   void Lowerer::insertVariable(llvm::StringRef name, Reference reference)
   {
-    getDeclaredVariables().insert(name);
+    getDeclaredVariables().insert(std::string(name));
     getVariablesSymbolTable().insert(name, reference);
   }
 
@@ -325,7 +325,7 @@ namespace marco::codegen::lowering
     return bridge->declareVariables(node);
   }
 
-  void Lowerer::declareVariables(const ast::PartialDerFunction& node)
+  bool Lowerer::declareVariables(const ast::PartialDerFunction& node)
   {
     return bridge->declareVariables(node);
   }
@@ -360,7 +360,7 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::PartialDerFunction& node)
+  bool Lowerer::lower(const ast::PartialDerFunction& node)
   {
     return bridge->lower(node);
   }
@@ -456,12 +456,12 @@ namespace marco::codegen::lowering
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::IfEquation& node)
+  bool Lowerer::lower(const ast::IfEquation& node)
   {
     return bridge->lower(node);
   }
 
-  void Lowerer::lower(const ast::WhenEquation& node)
+  bool Lowerer::lower(const ast::WhenEquation& node)
   {
     return bridge->lower(node);
   }
@@ -481,7 +481,7 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::BreakStatement& statement)
+  bool Lowerer::lower(const ast::BreakStatement& statement)
   {
     return bridge->lower(statement);
   }
@@ -496,12 +496,12 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::ReturnStatement& statement)
+  bool Lowerer::lower(const ast::ReturnStatement& statement)
   {
     return bridge->lower(statement);
   }
 
-  void Lowerer::lower(const ast::WhenStatement& statement)
+  bool Lowerer::lower(const ast::WhenStatement& statement)
   {
     return bridge->lower(statement);
   }

@@ -1,9 +1,10 @@
 #ifndef IDENTIFIER_ERROR_H
 #define IDENTIFIER_ERROR_H
 
-#include <string>
 #include <array>
-#include "marco/Codegen/Lowering/LoweringContext.h"
+#include <set>
+#include <string>
+#include <tuple>
 
 namespace marco::codegen::lowering
 {
@@ -20,7 +21,7 @@ namespace marco::codegen::lowering
 
       // Create an IdentifierError object, calculating the most similar identifier to identifierName 
       // among those in declaredIdentifiers and the built-in ones (if any).
-      IdentifierError(const IdentifierType &errorType, std::string identifierName, 
+      IdentifierError(const IdentifierType &errorType, const std::string &identifierName, 
                       const std::set<std::string> &declaredIdentifiers);
 
       IdentifierType getIdentifierType() const;
@@ -46,6 +47,18 @@ namespace marco::codegen::lowering
 
       // List of built-in types in the language.
       static const std::set<std::string> builtInTypes;
+
+      // Compute the edit distance between actual and all elements of possibleIdentifiers.
+      // Return a tuple with the lowest distance and the identifier with
+      // said distance.
+      std::tuple<unsigned int, std::string> computeLowestEditDistance(
+            const std::string &actual, const std::set<std::string> &possibleIdentifiers) const;
+      
+      // Compute the semantic distance between actual and all elements of possibleIdentifiers.
+      // Return a tuple with the highest similarity and the identifier with
+      // said similarity.
+      std::tuple<float, std::string> computeHighestSemanticSimilarity(
+            const std::string &actual, const std::set<std::string> &possibleIdentifiers) const;
   };
 }
 

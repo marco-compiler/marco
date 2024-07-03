@@ -47,7 +47,7 @@ namespace marco::codegen::lowering
     return variablesSymbolTable;
   }
 
-  std::set<llvm::StringRef>& 
+  std::set<std::string>& 
   LoweringContext::getDeclaredVariables()
   {
     return declaredVariables;

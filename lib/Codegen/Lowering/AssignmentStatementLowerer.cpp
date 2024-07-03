@@ -65,12 +65,12 @@ namespace marco::codegen::lowering
       if (path.size() == 1) {
         std::optional<Reference> optionalVariableRef = lookupVariable(path.front().getValue());
         if (!optionalVariableRef) {
-          std::set<std::string> declaredVars = {};
-          initializeDeclaredVars(declaredVars);
+          std::set<std::string> visibleVariables = {};
+          getVisibleVariables(visibleVariables);
 
           const marco::SourceRange sourceRange = statement.getExpression()->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(path.front().getValue()), 
-                              declaredVars, sourceRange);
+                              visibleVariables, sourceRange);
           return false;
         }
         Reference &variableRef = optionalVariableRef.value();

@@ -18,8 +18,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = statement.dyn_cast<ast::BreakStatement>()) {
-      lower(*casted);
-      return true;
+      return lower(*casted);
     }
 
     if (auto casted = statement.dyn_cast<ast::ForStatement>()) {
@@ -31,8 +30,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = statement.dyn_cast<ast::ReturnStatement>()) {
-      lower(*casted);
-      return true;
+      return lower(*casted);
     }
 
     if (auto casted = statement.dyn_cast<ast::WhileStatement>()) {
@@ -40,8 +38,7 @@ namespace marco::codegen::lowering
     }
 
     if (auto casted = statement.dyn_cast<ast::WhenStatement>()) {
-      lower(*casted);
-      return true;
+      return lower(*casted);
     }
 
     llvm_unreachable("Unknown statement type");

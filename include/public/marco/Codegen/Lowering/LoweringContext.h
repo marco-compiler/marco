@@ -40,7 +40,7 @@ namespace marco::codegen::lowering
 
       VariablesSymbolTable& getVariablesSymbolTable();
 
-      std::set<llvm::StringRef>& getDeclaredVariables();
+      std::set<std::string>& getDeclaredVariables();
 
       mlir::Operation* getLookupScope();
 
@@ -62,9 +62,10 @@ namespace marco::codegen::lowering
       /// scope are dropped.
       VariablesSymbolTable variablesSymbolTable;
 
-      /// A set containing the variable names in "variablesSymbolTable". Used only 
-      /// to print debugging information in case of parsing errors to the user.
-      std::set<llvm::StringRef> declaredVariables;
+      /// A set containing the variable names that have been inserted into 
+      /// "variablesSymbolTable". Used only to print debugging information 
+      /// in case of parsing errors.
+      std::set<std::string> declaredVariables;
 
       llvm::SmallVector<mlir::Operation*> lookupScopes;
   };

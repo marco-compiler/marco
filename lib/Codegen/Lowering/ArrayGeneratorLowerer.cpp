@@ -157,8 +157,7 @@ namespace marco::codegen::lowering
 
     // Determine the values.
     llvm::SmallVector<mlir::Value> values;
-    const bool outcome = lowerValues(array, values);
-    if (!outcome) {
+    if (!lowerValues(array, values)) {
       return std::nullopt;
     }
 
@@ -201,8 +200,7 @@ namespace marco::codegen::lowering
 
     // Flatten out all values.
     llvm::SmallVector<mlir::Value> values;
-    const bool outcome = lowerValues(array, values);
-    if (!outcome) {
+    if (!lowerValues(array, values)) {
       return std::nullopt;
     }
 

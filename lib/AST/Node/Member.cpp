@@ -202,7 +202,7 @@ namespace marco::ast
     return getModification()->getStartExpression();
   }
 
-  bool Member::getFixedProperty() const
+  std::optional<bool> Member::getFixedProperty() const
   {
     if (!hasModification()) {
       return false;

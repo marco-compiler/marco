@@ -76,7 +76,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool declareVariables(const ast::Package& package) override;
 
-      void declareVariables(
+      [[nodiscard]] bool declareVariables(
           const ast::PartialDerFunction& function) override;
 
       [[nodiscard]] bool declareVariables(const ast::Record& record) override;
@@ -92,7 +92,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool lower(const ast::Package& node) override;
 
-      void lower(const ast::PartialDerFunction& node) override;
+      [[nodiscard]] bool lower(const ast::PartialDerFunction& node) override;
 
       [[nodiscard]] bool lower(const ast::Record& node) override;
 
@@ -133,11 +133,11 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool lower(const ast::EqualityEquation& node) override;
 
-      void lower(const ast::IfEquation& node) override;
+      [[nodiscard]] bool lower(const ast::IfEquation& node) override;
 
       [[nodiscard]] bool lower(const ast::ForEquation& node) override;
 
-      void lower(const ast::WhenEquation& node) override;
+      [[nodiscard]] bool lower(const ast::WhenEquation& node) override;
 
       [[nodiscard]] bool lower(const ast::Algorithm& node) override;
 
@@ -145,15 +145,15 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool lower(const ast::AssignmentStatement& statement) override;
 
-      void lower(const ast::BreakStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::BreakStatement& statement) override;
 
       [[nodiscard]] bool lower(const ast::ForStatement& statement) override;
 
       [[nodiscard]] bool lower(const ast::IfStatement& statement) override;
 
-      void lower(const ast::ReturnStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::ReturnStatement& statement) override;
 
-      void lower(const ast::WhenStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::WhenStatement& statement) override;
 
       [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
 
@@ -296,15 +296,13 @@ namespace marco::codegen::lowering
     }
 
     for (const auto& cls : root.getInnerClasses()) {
-      const bool outcome = classLowerer->declareVariables(*cls->cast<ast::Class>());
-      if (!outcome) {
+      if (!classLowerer->declareVariables(*cls->cast<ast::Class>())) {
         return false;
       }
     }
 
     for (const auto& cls : root.getInnerClasses()) {
-      const bool outcome = classLowerer->lower(*cls->cast<ast::Class>());
-      if (!outcome) {
+      if (!classLowerer->lower(*cls->cast<ast::Class>())) {
         return false;
       }
     }
@@ -372,7 +370,7 @@ namespace marco::codegen::lowering
     return packageLowerer->declareVariables(package);
   }
 
-  void Bridge::Impl::declareVariables(
+  bool Bridge::Impl::declareVariables(
       const ast::PartialDerFunction& function)
   {
     assert(partialDerFunctionLowerer != nullptr);
@@ -418,7 +416,8 @@ namespace marco::codegen::lowering
     return packageLowerer->lower(package);
   }
 
-  void Bridge::Impl::lower(const ast::PartialDerFunction& function)
+  bool
+  Bridge::Impl::lower(const ast::PartialDerFunction& function)
   {
     assert(partialDerFunctionLowerer != nullptr);
     return partialDerFunctionLowerer->lower(function);
@@ -541,13 +540,15 @@ namespace marco::codegen::lowering
     return forEquationLowerer->lower(forEquation);
   }
 
-  void Bridge::Impl::lower(const ast::IfEquation& equation)
+  bool
+  Bridge::Impl::lower(const ast::IfEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return ifEquationLowerer->lower(equation);
   }
 
-  void Bridge::Impl::lower(const ast::WhenEquation& equation)
+  bool
+  Bridge::Impl::lower(const ast::WhenEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return whenEquationLowerer->lower(equation);
@@ -574,7 +575,8 @@ namespace marco::codegen::lowering
     return assignmentStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::BreakStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::BreakStatement& statement)
   {
     assert(breakStatementLowerer != nullptr);
     return breakStatementLowerer->lower(statement);
@@ -594,13 +596,15 @@ namespace marco::codegen::lowering
     return ifStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::ReturnStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::ReturnStatement& statement)
   {
     assert(returnStatementLowerer != nullptr);
     return returnStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::WhenStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::WhenStatement& statement)
   {
     assert(whenStatementLowerer != nullptr);
     return whenStatementLowerer->lower(statement);

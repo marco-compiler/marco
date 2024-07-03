@@ -28,8 +28,7 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(algorithmBody);
 
     for (size_t i = 0, e = algorithm.size(); i < e; ++i) {
-      const bool outcome = lower(*algorithm[i]);
-      if (!outcome) {
+      if (!lower(*algorithm[i])) {
         return false;
       }
     }

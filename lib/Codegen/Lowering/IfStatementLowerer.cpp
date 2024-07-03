@@ -29,8 +29,7 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(ifOp.thenBlock());
 
     // Lower the statements belonging to the 'if' block.
-    bool outcome = lower(*statement.getIfBlock());
-    if (!outcome) {
+    if (!lower(*statement.getIfBlock())) {
       return false;
     }
 
@@ -51,8 +50,7 @@ namespace marco::codegen::lowering
             i != e - 1 || statement.hasElseBlock());
 
         builder().setInsertionPointToStart(elseIfOp.thenBlock());
-        outcome = lower(*statement.getElseIfBlock(i));
-        if (!outcome) {
+        if (!lower(*statement.getElseIfBlock(i))) {
           return false;
         }
 
@@ -64,8 +62,7 @@ namespace marco::codegen::lowering
 
     // Lower the statements belonging to the 'else' block.
     if (statement.hasElseBlock()) {
-      outcome = lower(*statement.getElseBlock());
-      if (!outcome) {
+      if (!lower(*statement.getElseBlock())) {
         return false;
       }
     }
@@ -92,8 +89,7 @@ namespace marco::codegen::lowering
   bool IfStatementLowerer::lower(const ast::StatementsBlock& statementsBlock)
   {
     for (size_t i = 0, e = statementsBlock.size(); i < e; ++i) {
-      const bool outcome = lower(*statementsBlock[i]);
-      if (!outcome) {
+      if (!lower(*statementsBlock[i])) {
         return false;
       }
     }
