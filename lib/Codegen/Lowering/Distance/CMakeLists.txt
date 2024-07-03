@@ -18,36 +18,20 @@ marco_add_library(Distance
 # which will provide fast access to the wordnet database.
 set(TARGET_DIR "${CMAKE_BINARY_DIR}/wordnet")
 
-# Custom command to create the directory
-add_custom_command(
-    OUTPUT ${TARGET_DIR}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${TARGET_DIR}
-    COMMENT "Creating directory: ${TARGET_DIR}"
-)
-
 # As opposed to CMAKE_SOURCE_DIR, CMAKE_CURRENT_SOURCE_DIR is
 # the directory of the current CMakeLists.txt file. In this case,
 # it is the directory of this file, which is exactly where the
 # Python script is located.
 set(PYTHON_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/install-db.py")
 
-# Custom command to run the Python script
-add_custom_command(
-    OUTPUT "${TARGET_DIR}/.timestamp"  # We use a timestamp file to signify that the script has run.
-    DEPENDS ${TARGET_DIR}
-    COMMAND ${CMAKE_COMMAND} -E echo "Running Python script"
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=$ENV{PYTHONPATH}
-        ${CMAKE_COMMAND} -E env python3 ${PYTHON_SCRIPT} ${TARGET_DIR} ${CMAKE_BINARY_DIR} ||
-        ${CMAKE_COMMAND} -E echo "Python script failed. Did you install NLTK?"
-    COMMAND ${CMAKE_COMMAND} -E touch "${TARGET_DIR}/.timestamp"
-    COMMENT "Running Python script with input directory: ${TARGET_DIR}"
-)
-
-# Add a custom target that depends on the final output.
+# Custom target to create the directory and run the Python script
 add_custom_target(
     run_python_script ALL
-    DEPENDS "${TARGET_DIR}/.timestamp"
-    COMMENT "Custom target to run the Python script"
+    COMMAND ${CMAKE_COMMAND} -E echo "Running Python script"
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${TARGET_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=$ENV{PYTHONPATH} python3 ${PYTHON_SCRIPT} ${TARGET_DIR} ${CMAKE_BINARY_DIR} ||
+        ${CMAKE_COMMAND} -E echo "Python script failed. Did you install NLTK?"
+    COMMENT "Creating directory and running Python script with input directory: ${TARGET_DIR}"
 )
 
 # Install command to move the wordnet directory to the installation path.

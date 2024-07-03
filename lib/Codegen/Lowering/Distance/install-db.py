@@ -12,6 +12,12 @@ if len(sys.argv) != 3:
 
 print(f"Called with arguments {sys.argv[1]} and {sys.argv[2]}")
 
+# Check that the install directory exists.
+if os.listdir(sys.argv[1]):
+    # Check that the install directory is empty.
+    print(f"Skipping wordnet installation as {sys.argv[1]} is not empty.")
+    sys.exit(0)
+
 nltk.data.path.append(sys.argv[2])
 nltk.download('wordnet', sys.argv[2])
 
