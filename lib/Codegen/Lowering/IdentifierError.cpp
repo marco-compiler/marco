@@ -59,7 +59,7 @@ namespace marco::codegen::lowering
     declaredName = std::get<1>(declaredResultSemantic);
 
     // Check the built-in identifiers using semantic distance.
-    float builtInSimilarity = 65535U;
+    float builtInSimilarity = 0.f;
 
     switch (identifierType) {
       case IdentifierType::FUNCTION: {
