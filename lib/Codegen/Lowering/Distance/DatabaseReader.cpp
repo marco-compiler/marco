@@ -6,23 +6,23 @@
 
 namespace marco::codegen::lowering
 {
-    std::ifstream DatabaseReader::senses;
-    std::ifstream DatabaseReader::hypernyms;
-    std::ifstream DatabaseReader::synsets;
+    DatabaseReader* DatabaseReader::instance = NULL;
+    DatabaseReader* DatabaseReader::getInstance()
+    {
+        if (instance == NULL)
+        {
+            instance = new DatabaseReader();
+        }
 
-    bool DatabaseReader::filesOpened = false;
-    int DatabaseReader::openInstances = 0;
-    int DatabaseReader::totalSynsetCount = 0;
+        return instance;
+    }
 
     // As a constructor, this function opens the files if they haven't been opened yet.
     // Files are static, so they are shared among all instances of DatabaseReader. They
     // are not const, however, because reading from them changes their state.
     DatabaseReader::DatabaseReader()
     {
-        // Do nothing if the files have already been opened.
-        openInstances++;
-        if (filesOpened) { return; }
-
+        filesOpened = false;
         std::string path = std::string("../share/marco/wordnet");
 
         // Try to open the files using the shared path.
@@ -65,27 +65,7 @@ namespace marco::codegen::lowering
             return;
         }
         synsetsCount >> totalSynsetCount;
-
-        std::cout << totalSynsetCount << std::endl;
-
-        // Set filesOpened to true so that we don't open the files again.
-        // This also allows us to keep executing the code even if the files
-        // couldn't be opened. The constructor will just return early, and
-        // the following flag will not be raised.
         filesOpened = true;
-    }
-
-    DatabaseReader::~DatabaseReader()
-    {
-        openInstances--;
-        if (openInstances == 0 && filesOpened)
-        {
-            filesOpened = false;
-
-            senses.close();
-            hypernyms.close();
-            synsets.close();
-        }
     }
 
     std::vector<std::string>
@@ -269,7 +249,7 @@ namespace marco::codegen::lowering
         return std::stoi(columns[0]);
     }
 
-    int DatabaseReader::getTotalSynsetCount()
+    int DatabaseReader::getTotalSynsetCount() const
     {
         return totalSynsetCount;
     }

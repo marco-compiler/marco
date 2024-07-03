@@ -8,9 +8,8 @@ namespace marco::codegen::lowering
 {
     class WordDistanceCalculator {
     private:
-        // To get the information about the DAG distance between two words and
-        // the LCA distance to the root synset, we use the DatabaseReader.
-        const DatabaseReader databaseReader;
+        // We use the singleton DatabaseReader to access the database.
+        DatabaseReader* databaseReader;
 
         // The two closest synsets to the root synset, within the two provided groups.
         std::pair<Synset, Synset> closestSynsets;

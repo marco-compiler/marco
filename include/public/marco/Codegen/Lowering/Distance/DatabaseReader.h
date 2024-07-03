@@ -17,48 +17,56 @@ namespace marco::codegen::lowering
     class DatabaseReader
     {
     private:
+        // We keep the constructor private to prevent multiple instances
+        // of the DatabaseReader class.
+        DatabaseReader();
+
+        // A static pointer to the only instance of the DatabaseReader.
+        static DatabaseReader* instance;
+
         // File mappings. Note that the hypernyms file has an extra
         // column, which is the count of hypernyms for that synset.
-        static std::ifstream senses;     // Words -> Synsets.
-        static std::ifstream hypernyms;  // Synsets -> Hypernyms.
-        static std::ifstream synsets;    // Synsets -> String names.
-        
-        // We use this flag to check if the files have been opened.
-        // This is to prevent opening the files multiple times, on
-        // different instances of the class.
-        static bool filesOpened;
-        static int openInstances;
+        std::ifstream senses;     // Words -> Synsets.
+        std::ifstream hypernyms;  // Synsets -> Hypernyms.
+        std::ifstream synsets;    // Synsets -> String names.
+
+        // If anything goes wrong, we keep track of the failure
+        // state through this boolean.
+        bool filesOpened;
 
         // The total number of synset appearances in the corpus.
-        static int totalSynsetCount;
+        int totalSynsetCount;
 
         // This method finds a row in a CSV file, given an int byte
         // offset and returns the columns as a vector of strings.
         // The first column is the offset itself, and is omitted.
-        static std::vector<std::string>
+        std::vector<std::string>
         offsetToRow(std::ifstream& file, int offset);
 
         // This method finds a row in a CSV file, given a string key
         // and returns the columns as a vector of strings. The first
         // column is the key itself, and is omitted.
-        static std::vector<std::string>
+        std::vector<std::string>
         keyToRow(std::ifstream& file, const std::string& key);
 
     public:
-        DatabaseReader();
-        ~DatabaseReader();
+        // No copying.
+        DatabaseReader(const DatabaseReader&) = delete;
 
-        static std::vector<Synset> getSynsets(const std::string& word);
-        static std::vector<Synset> getHypernyms(const Synset& synset);
+        // Instance getter.
+        static DatabaseReader* getInstance();
+
+        std::vector<Synset> getSynsets(const std::string& word);
+        std::vector<Synset> getHypernyms(const Synset& synset);
 
         // Get a synset's count within the corpus.
-        static int getSynsetCount(const Synset& synset);
+        int getSynsetCount(const Synset& synset);
 
         // Get the total count of synsets in the corpus.
-        static int getTotalSynsetCount();
+        int getTotalSynsetCount() const;
 
         // Get a readable name for a synset (e.g. "dog.n.01")
-        static std::string getSynsetName(const Synset& synset);
+        std::string getSynsetName(const Synset& synset);
     };
 }
 

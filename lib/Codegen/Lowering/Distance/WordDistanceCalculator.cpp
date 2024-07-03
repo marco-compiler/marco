@@ -10,16 +10,20 @@ namespace marco::codegen::lowering
 {
 
     WordDistanceCalculator::WordDistanceCalculator() :
-        databaseReader(DatabaseReader()), alpha(0.2),
-        beta(0.45), semanticThreshold(0.2) {}
+        alpha(0.2), beta(0.45),
+        semanticThreshold(0.2)
+    {
+        // Initialize the singleton DatabaseReader.
+        databaseReader = DatabaseReader::getInstance();
+    }
 
     WordDistanceCalculator::~WordDistanceCalculator() {}
 
     void WordDistanceCalculator::analyzeByWords(const string& word1,
                                             const string& word2)
     {
-        vector<Synset> synsets1 = databaseReader.getSynsets(word1);
-        vector<Synset> synsets2 = databaseReader.getSynsets(word2);
+        vector<Synset> synsets1 = databaseReader->getSynsets(word1);
+        vector<Synset> synsets2 = databaseReader->getSynsets(word2);
 
         analyzeBySynsetGroups(synsets1, synsets2);
     }
@@ -61,7 +65,7 @@ namespace marco::codegen::lowering
             int length = leaves1.size();
             for (int i = 0; i < length; i++)
             {
-                vector<Synset> hypernyms = databaseReader.getHypernyms(get<0>(leaves1[i]));
+                vector<Synset> hypernyms = databaseReader->getHypernyms(get<0>(leaves1[i]));
                 for (const Synset& hypernym : hypernyms)
                 {
                     nodes1.push_back(make_tuple(hypernym, get<1>(leaves1[i]) + 1, get<2>(leaves1[i])));
@@ -78,7 +82,7 @@ namespace marco::codegen::lowering
             int length2 = leaves2.size();
             for (int i = 0; i < length2; i++)
             {
-                vector<Synset> hypernyms = databaseReader.getHypernyms(get<0>(leaves2[i]));
+                vector<Synset> hypernyms = databaseReader->getHypernyms(get<0>(leaves2[i]));
                 for (const Synset& hypernym : hypernyms)
                 {
                     nodes2.push_back(make_tuple(hypernym, get<1>(leaves2[i]) + 1, get<2>(leaves2[i])));
@@ -156,8 +160,8 @@ namespace marco::codegen::lowering
     {
         if (synset == -1) { return 0; }
 
-        int count = databaseReader.getSynsetCount(synset);
-        int total = databaseReader.getTotalSynsetCount();
+        int count = databaseReader->getSynsetCount(synset);
+        int total = databaseReader->getTotalSynsetCount();
 
         return 1 - log((float) count + 1) / log((float) total + 1);
     }
@@ -177,7 +181,7 @@ namespace marco::codegen::lowering
             nodes.erase(nodes.begin());
 
             // Get the hypernyms of the node.
-            vector<Synset> hypernyms = databaseReader.getHypernyms(node.first);
+            vector<Synset> hypernyms = databaseReader->getHypernyms(node.first);
 
             // If no hypernyms were found, return the distance.
             if (hypernyms.empty()) { break; }
