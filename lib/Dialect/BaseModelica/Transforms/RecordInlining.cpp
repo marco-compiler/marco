@@ -222,8 +222,18 @@ namespace
 
         for (mlir::Operation* op : subscriptions) {
           if (auto extractOp = mlir::dyn_cast<TensorExtractOp>(op)) {
-            result = builder.create<TensorExtractOp>(
-                extractOp.getLoc(), result, extractOp.getIndices());
+            int64_t rank = result.getType().cast<mlir::TensorType>().getRank();
+
+            auto numOfSubscripts =
+                static_cast<int64_t>(extractOp.getIndices().size());
+
+            if (numOfSubscripts == rank) {
+              result = builder.create<TensorExtractOp>(
+                  extractOp.getLoc(), result, extractOp.getIndices());
+            } else {
+              result = builder.create<TensorViewOp>(
+                  extractOp.getLoc(), result, extractOp.getIndices());
+            }
           } else if (auto viewOp = mlir::dyn_cast<TensorViewOp>(op)) {
             result = builder.create<TensorViewOp>(
                 viewOp.getLoc(), result, viewOp.getSubscriptions());
@@ -271,15 +281,32 @@ namespace
               op.getValue(),
               recordComponentOp.getSymName());
 
-          llvm::SmallVector<mlir::FlatSymbolRefAttr, 1> nestedRefs;
+          llvm::SmallVector<mlir::Attribute, 1> newPath;
 
-          nestedRefs.push_back(mlir::FlatSymbolRefAttr::get(
+          newPath.push_back(
+              mlir::FlatSymbolRefAttr::get(op.getVariableAttr()));
+
+          newPath.push_back(mlir::FlatSymbolRefAttr::get(
               recordComponentOp.getSymNameAttr()));
+
+          llvm::SmallVector<mlir::Value> subscripts;
+          llvm::SmallVector<int64_t> subscriptsAmounts;
+
+          if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+            mlir::Value unboundedRange =
+                rewriter.create<UnboundedRangeOp>(op.getLoc());
+
+            subscripts.append(tensorType.getRank(), unboundedRange);
+            subscriptsAmounts.push_back(tensorType.getRank());
+          } else {
+            subscriptsAmounts.push_back(0);
+          }
 
           rewriter.create<VariableComponentSetOp>(
               op.getLoc(),
-              mlir::SymbolRefAttr::get(op.getVariableAttr(), nestedRefs),
-              std::nullopt,
+              rewriter.getArrayAttr(newPath),
+              subscripts,
+              rewriter.getI64ArrayAttr(subscriptsAmounts),
               componentValue);
         }
 
@@ -317,6 +344,7 @@ namespace
         }
 
         auto recordOp = getRecordOp(recordType);
+        size_t pathLength = op.getPath().size();
 
         for (VariableOp recordComponentOp : recordOp.getVariables()) {
           mlir::Value componentValue = rewriter.create<ComponentGetOp>(
@@ -325,21 +353,42 @@ namespace
               op.getValue(),
               recordComponentOp.getSymName());
 
-          llvm::SmallVector<mlir::FlatSymbolRefAttr, 10> nestedRefs;
+          llvm::SmallVector<mlir::Attribute, 10> newPath;
 
-          for (mlir::FlatSymbolRefAttr nestedRef :
-               op.getVariable().getNestedReferences()) {
-            nestedRefs.push_back(nestedRef);
+          for (size_t component = 1; component < pathLength; ++component) {
+            newPath.push_back(op.getPath()[component]);
           }
 
-          nestedRefs.push_back(mlir::FlatSymbolRefAttr::get(
+          newPath.push_back(mlir::FlatSymbolRefAttr::get(
               recordComponentOp.getSymNameAttr()));
+
+          llvm::SmallVector<mlir::Value, 10> subscripts;
+          llvm::SmallVector<int64_t, 10> subscriptsAmounts;
+
+          for (mlir::Value subscript : op.getSubscriptions()) {
+            subscripts.push_back(subscript);
+          }
+
+          for (mlir::IntegerAttr subscriptsAmount :
+               op.getSubscriptionsAmounts().getAsRange<mlir::IntegerAttr>()) {
+            subscriptsAmounts.push_back(subscriptsAmount.getInt());
+          }
+
+          if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+            mlir::Value unboundedRange =
+                rewriter.create<UnboundedRangeOp>(op.getLoc());
+
+            subscripts.append(tensorType.getRank(), unboundedRange);
+            subscriptsAmounts.push_back(tensorType.getRank());
+          } else {
+            subscriptsAmounts.push_back(0);
+          }
 
           rewriter.create<VariableComponentSetOp>(
               op.getLoc(),
-              mlir::SymbolRefAttr::get(
-                  op.getVariable().getRootReference(), nestedRefs),
-              op.getSubscriptions(),
+              rewriter.getArrayAttr(newPath),
+              subscripts,
+              rewriter.getI64ArrayAttr(subscriptsAmounts),
               componentValue);
         }
 
@@ -513,7 +562,9 @@ namespace
             }
           } else if (auto setOp = mlir::dyn_cast<VariableComponentSetOp>(
                          nestedOp)) {
-            if (setOp.getVariable().getRootReference() == op.getSymName()) {
+            auto rootNameAttr = setOp.getPath()[0].cast<mlir::FlatSymbolRefAttr>();
+
+            if (rootNameAttr.getValue() == op.getSymName()) {
               setOps.push_back(setOp);
             }
           }
@@ -528,7 +579,7 @@ namespace
 
         for (VariableComponentSetOp setOp : setOps) {
           if (mlir::failed(replaceVariableComponentSetOp(
-                  rewriter, setOp, componentsMap))) {
+                  rewriter, op, setOp, componentsMap))) {
             return mlir::failure();
           }
         }
@@ -729,36 +780,61 @@ namespace
 
       mlir::LogicalResult replaceVariableComponentSetOp(
           mlir::PatternRewriter& rewriter,
+          VariableOp variableOp,
           VariableComponentSetOp setOp,
           const llvm::StringMap<VariableOp>& componentsMap) const
       {
         mlir::OpBuilder::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(setOp);
 
-        size_t numOfNestedRefs =
-            setOp.getVariable().getNestedReferences().size();
+        int64_t rootVariableRank = variableOp.getVariableType().getRank();
+        size_t pathLength = setOp.getPath().size();
 
-        if (numOfNestedRefs > 1) {
-          llvm::SmallVector<mlir::FlatSymbolRefAttr> nestedRefs;
+        if (pathLength > 2) {
+          std::string composedName = getComposedComponentName(
+              setOp.getPath()[0].cast<mlir::FlatSymbolRefAttr>().getValue(),
+              setOp.getPath()[1].cast<mlir::FlatSymbolRefAttr>().getValue());
 
-          for (size_t i = 1; i < numOfNestedRefs; ++i) {
-            nestedRefs.push_back(setOp.getVariable().getNestedReferences()[i]);
+          llvm::SmallVector<mlir::Attribute> destination;
+
+          destination.push_back(mlir::FlatSymbolRefAttr::get(
+              rewriter.getContext(), composedName));
+
+          for (size_t i = 2; i < pathLength; ++i) {
+            destination.push_back(setOp.getPath()[i]);
           }
 
-          std::string composedName = getComposedComponentName(
-              setOp.getVariable().getRootReference().getValue(),
-              setOp.getVariable().getNestedReferences().front().getValue());
+          llvm::SmallVector<mlir::Value> subscripts;
+          llvm::SmallVector<int64_t> subscriptsAmounts;
 
-          auto destination = mlir::SymbolRefAttr::get(
-              rewriter.getStringAttr(composedName),
-              setOp.getVariable().getNestedReferences().drop_front());
+          subscriptsAmounts.push_back(rootVariableRank);
+
+          getFullRankSubscripts(
+              rewriter, setOp.getLoc(),
+              rootVariableRank, setOp.getComponentSubscripts(0),
+              subscripts);
+
+          for (size_t component = 1; component < pathLength; ++component) {
+            auto componentSubscripts = setOp.getComponentSubscripts(component);
+
+            subscripts.append(componentSubscripts.begin(),
+                              componentSubscripts.end());
+          }
+
+          for (mlir::IntegerAttr subscriptsAmount :
+               setOp.getSubscriptionsAmounts().getAsRange<mlir::IntegerAttr>()) {
+            subscriptsAmounts.push_back(subscriptsAmount.getInt());
+          }
 
           rewriter.create<VariableComponentSetOp>(
-              setOp.getLoc(), destination, setOp.getSubscriptions(),
+              setOp.getLoc(),
+              rewriter.getArrayAttr(destination),
+              subscripts,
+              rewriter.getI64ArrayAttr(subscriptsAmounts),
               setOp.getValue());
         } else {
-          mlir::FlatSymbolRefAttr componentName =
-              setOp.getVariable().getNestedReferences().front();
+          auto componentName =
+              setOp.getPath()[1].cast<mlir::FlatSymbolRefAttr>();
 
           if (!componentsMap.contains(componentName.getValue())) {
             return mlir::failure();
@@ -777,9 +853,22 @@ namespace
               mlir::Value previousValue = rewriter.create<VariableGetOp>(
                   setOp.getLoc(), componentVariableOp);
 
+              llvm::SmallVector<mlir::Value> subscripts;
+
+              getFullRankSubscripts(
+                  rewriter, setOp.getLoc(),
+                  rootVariableRank, setOp.getComponentSubscripts(0),
+                  subscripts);
+
+              for (size_t component = 1; component < pathLength; ++component) {
+                auto componentSubscripts = setOp.getComponentSubscripts(component);
+
+                subscripts.append(componentSubscripts.begin(),
+                                  componentSubscripts.end());
+              }
+
               mlir::Value newValue = rewriter.create<TensorInsertSliceOp>(
-                  setOp.getLoc(), setOp.getValue(), previousValue,
-                  subscriptions);
+                  setOp.getLoc(), setOp.getValue(), previousValue, subscripts);
 
               rewriter.create<VariableSetOp>(
                   setOp.getLoc(), componentVariableOp, newValue);
@@ -804,6 +893,24 @@ namespace
 
         rewriter.eraseOp(setOp);
         return mlir::success();
+      }
+
+      void getFullRankSubscripts(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          int64_t rank,
+          mlir::ValueRange givenSubscripts,
+          llvm::SmallVectorImpl<mlir::Value>& result) const
+      {
+        size_t numOfGivenSubscripts = givenSubscripts.size();
+        result.append(givenSubscripts.begin(), givenSubscripts.end());
+
+        int64_t numOfAdditionalSubscripts =
+            rank - static_cast<int64_t>(numOfGivenSubscripts);
+
+        for (int64_t i = 0; i < numOfAdditionalSubscripts; ++i) {
+          result.push_back(builder.create<UnboundedRangeOp>(loc));
+        }
       }
   };
 

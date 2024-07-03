@@ -30,8 +30,9 @@ namespace marco::codegen::lowering
 
       size_t pathLength = destinationRef->getPathLength();
 
-      llvm::SmallVector<mlir::FlatSymbolRefAttr> path;
+      llvm::SmallVector<mlir::Attribute> path;
       llvm::SmallVector<mlir::Value> subscripts;
+      llvm::SmallVector<int64_t> subscriptsAmounts;
 
       for (size_t pathIndex = 0; pathIndex < pathLength; ++pathIndex) {
         const ast::ComponentReferenceEntry* refEntry =
@@ -41,6 +42,7 @@ namespace marco::codegen::lowering
             builder().getContext(), refEntry->getName()));
 
         size_t numOfSubscripts = refEntry->getNumOfSubscripts();
+        subscriptsAmounts.push_back(static_cast<int64_t>(numOfSubscripts));
 
         for (size_t subscriptIndex = 0; subscriptIndex < numOfSubscripts;
              ++subscriptIndex) {
@@ -56,16 +58,17 @@ namespace marco::codegen::lowering
       }
 
       if (path.size() == 1) {
-        Reference variableRef = lookupVariable(path.front().getValue());
+        Reference variableRef = lookupVariable(
+            path.front().cast<mlir::FlatSymbolRefAttr>().getValue());
+
         mlir::Value rhs = values[i].get(valuesLoc);
         variableRef.set(statementLoc, subscripts, rhs);
       } else {
         builder().create<VariableComponentSetOp>(
             statementLoc,
-            mlir::SymbolRefAttr::get(
-                path.front().getAttr(),
-                llvm::ArrayRef(path).drop_front()),
+            builder().getArrayAttr(path),
             subscripts,
+            builder().getI64ArrayAttr(subscriptsAmounts),
             values[i].get(valuesLoc));
       }
     }

@@ -1826,6 +1826,142 @@ namespace mlir::bmodelica
 }
 
 //===---------------------------------------------------------------------===//
+// VariableComponentSetOp
+
+namespace mlir::bmodelica
+{
+  mlir::ParseResult VariableComponentSetOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto loc = parser.getCurrentLocation();
+
+    llvm::SmallVector<mlir::Attribute> path;
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> subscripts;
+    llvm::SmallVector<int64_t, 3> subscriptsAmounts;
+    mlir::OpAsmParser::UnresolvedOperand value;
+    llvm::SmallVector<mlir::Type, 3> types;
+
+    do {
+      mlir::StringAttr component;
+
+      if (parser.parseSymbolName(component)) {
+        return mlir::failure();
+      }
+
+      path.push_back(mlir::FlatSymbolRefAttr::get(component));
+
+      llvm::SmallVector<
+          mlir::OpAsmParser::UnresolvedOperand, 3> componentSubscripts;
+
+      if (mlir::succeeded(parser.parseOptionalLSquare())) {
+        do {
+          if (parser.parseOperand(componentSubscripts.emplace_back())) {
+            return mlir::failure();
+          }
+        } while (mlir::succeeded(parser.parseOptionalComma()));
+
+        if (parser.parseRSquare()) {
+          return mlir::failure();
+        }
+      }
+
+      subscriptsAmounts.push_back(
+          static_cast<int64_t>(componentSubscripts.size()));
+
+      subscripts.append(componentSubscripts);
+    } while (mlir::succeeded(parser.parseOptionalColon()) &&
+             mlir::succeeded(parser.parseOptionalColon()));
+
+    result.getOrAddProperties<VariableComponentSetOp::Properties>().path =
+        parser.getBuilder().getArrayAttr(path);
+
+    result.getOrAddProperties<
+        VariableComponentSetOp::Properties>().subscriptionsAmounts =
+        parser.getBuilder().getI64ArrayAttr(subscriptsAmounts);
+
+    if (parser.parseComma() ||
+        parser.parseOperand(value) ||
+        parser.parseColonTypeList(types)) {
+      return mlir::failure();
+    }
+
+    if (!subscripts.empty()) {
+      if (parser.resolveOperands(
+              subscripts, llvm::ArrayRef(types).drop_back(), loc,
+              result.operands)) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.resolveOperand(value, types.back(), result.operands)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void VariableComponentSetOp::print(mlir::OpAsmPrinter& printer)
+  {
+    size_t pathLength = getPath().size();
+    auto subscriptions = getSubscriptions();
+    auto subscriptionsAmount = getSubscriptionsAmounts();
+    size_t subscriptsPos = 0;
+
+    printer << " ";
+
+    for (size_t component = 0; component < pathLength; ++component) {
+      if (component != 0) {
+        printer << "::";
+      }
+
+      printer << getPath()[component];
+
+      if (auto subscripts = getComponentSubscripts(component); !subscripts.empty()) {
+        printer << "[";
+        llvm::interleaveComma(subscripts, printer);
+        printer << "]";
+      }
+    }
+
+    printer << ", " << getValue() << " : ";
+
+    if (auto subscripts = getSubscriptions(); !subscripts.empty()) {
+      for (mlir::Value subscript : subscripts) {
+        printer << subscript.getType() << ", ";
+      }
+    }
+
+    printer << getValue().getType();
+  }
+
+  mlir::ValueRange VariableComponentSetOp::getComponentSubscripts(
+      size_t componentIndex)
+  {
+    auto subscripts = getSubscriptions();
+
+    if (subscripts.empty()) {
+      return std::nullopt;
+    }
+
+    auto numOfSubscripts = getSubscriptionsAmounts()[componentIndex]
+                               .cast<mlir::IntegerAttr>().getInt();
+
+    if (numOfSubscripts == 0) {
+      return std::nullopt;
+    }
+
+    size_t beginPos = 0;
+
+    for (size_t i = 0; i < componentIndex; ++i) {
+      beginPos +=
+          getSubscriptionsAmounts()[i].cast<mlir::IntegerAttr>().getInt();
+    }
+
+    return subscripts.slice(beginPos, numOfSubscripts);
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // ComponentGetOp
 
 namespace mlir::bmodelica
