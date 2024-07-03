@@ -118,7 +118,7 @@ namespace marco::codegen::lowering
 
     for (auto pIdent = possibleIdentifiers.cbegin(); pIdent != possibleIdentifiers.cend(); ++pIdent) {
       std::string possibleMatch = *pIdent;
-      unsigned int distance = EditDistance::editDistance(actualName, possibleMatch);
+      unsigned int distance = editDistance(actualName, possibleMatch);
 
       if (distance < lowestDistanceYet) {
         predictedName = possibleMatch;
