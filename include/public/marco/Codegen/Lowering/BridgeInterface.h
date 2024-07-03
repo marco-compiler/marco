@@ -120,11 +120,6 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool 
           lower(const ast::WhileStatement& statement) = 0;
-
-      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
-                                       const std::set<std::string> &declaredIdentifiers, 
-                                       unsigned int line, unsigned int column) = 0;
-      virtual void emitError(const std::string &error) = 0;
   };
 }
 

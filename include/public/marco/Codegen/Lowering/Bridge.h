@@ -19,8 +19,7 @@ namespace marco::codegen::lowering
 
     public:
       Bridge(
-        mlir::MLIRContext& context,
-        clang::DiagnosticsEngine &diag);
+        mlir::MLIRContext& context);
 
       ~Bridge();
 

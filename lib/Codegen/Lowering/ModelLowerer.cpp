@@ -196,10 +196,11 @@ namespace marco::codegen::lowering
       const bool outcome = 
           lowerVariableAttributes(modelOp, components, *classModification);
       if (!outcome) {
-        const marco::SourceRange sourceRange = variable.getLocation();
-        emitError("Error in AST to MLIR conversion. Invalid fixed property for variable " + 
-                  std::string(variable.getName()) + " at line " + std::to_string(sourceRange.begin.line) + 
-                  ", column " + std::to_string(sourceRange.begin.column) + ".");
+        const marco::SourceRange location = variable.getLocation();
+        const std::string errorString = "Error in AST to MLIR conversion. Invalid fixed property for variable " + 
+                                        std::string(variable.getName()) + ".";
+        mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
+        diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
         return false;
       }
     }

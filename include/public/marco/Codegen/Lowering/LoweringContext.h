@@ -34,6 +34,8 @@ namespace marco::codegen::lowering
 
       mlir::OpBuilder& getBuilder();
 
+      mlir::DiagnosticEngine& getDiagEngine();
+
       mlir::SymbolTableCollection& getSymbolTable();
 
       VariablesSymbolTable& getVariablesSymbolTable();

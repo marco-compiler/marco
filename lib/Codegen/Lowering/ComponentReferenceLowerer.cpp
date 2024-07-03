@@ -29,7 +29,7 @@ namespace marco::codegen::lowering
 
       const marco::SourceRange sourceRange = firstEntry->getLocation();
       emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(firstEntry->getName()), 
-                          declaredVars, sourceRange.begin.line, sourceRange.begin.column);
+                          declaredVars, sourceRange);
       return std::nullopt;
     }
 
@@ -63,7 +63,7 @@ namespace marco::codegen::lowering
 
           const marco::SourceRange sourceRange = pathEntry->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::FIELD, std::string(pathEntry->getName()), 
-                              declaredFields, sourceRange.begin.line, sourceRange.begin.column);
+                              declaredFields, sourceRange);
           return std::nullopt;
         }
 

@@ -70,7 +70,7 @@ namespace marco::codegen::lowering
 
           const marco::SourceRange sourceRange = statement.getExpression()->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, std::string(path.front().getValue()), 
-                              declaredVars, sourceRange.begin.line, sourceRange.begin.column);
+                              declaredVars, sourceRange);
           return false;
         }
         Reference &variableRef = optionalVariableRef.value();

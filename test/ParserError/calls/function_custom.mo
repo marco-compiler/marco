@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Error in AST to MLIR conversion. Unknown function identifier foO at line 16, column 10. Did you mean foo?
+// CHECK: Error in AST to MLIR conversion. Unknown function identifier foO.
 
 function foo
     input Integer[:] x;

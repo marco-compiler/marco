@@ -5,9 +5,8 @@
 namespace marco::codegen::lowering
 {
   IdentifierError::IdentifierError(const IdentifierType &identifierType, std::string identifierName, 
-        const std::set<std::string> &declaredIdentifiers, unsigned int line, unsigned int column): 
-        identifierType(identifierType), actualName(identifierName), predictedName(""),
-        line(line), column(column) {
+        const std::set<std::string> &declaredIdentifiers): 
+        identifierType(identifierType), actualName(identifierName), predictedName("") {
     unsigned int lowestDistance = UINT32_MAX;
 
     // Choose which built in identifiers to check.
@@ -94,14 +93,6 @@ namespace marco::codegen::lowering
 
   std::string IdentifierError::getPredicted() const {
     return predictedName;
-  }
-
-  unsigned int IdentifierError::getLine() const {
-    return line;
-  }
-
-  unsigned int IdentifierError::getColumn() const {
-    return column;
   }
 
   const std::set<std::string> IdentifierError::builtInFunctions = {"abs", "acos", "asin", "atan", "atan2", "ceil", "cos", "cosh", "der", "diagonal", "div", "exp", "fill", "floor", "identity", "integer", "linspace", "log", "log10", "max", "min", "mod", "ndims", "ones", "product", "rem", "sign", "sin", "sinh", "size", "sqrt", "sum", "symmetric", "tan", "tanh", "transpose", "zeros"};

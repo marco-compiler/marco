@@ -44,7 +44,7 @@ namespace marco::codegen::lowering
   class Bridge::Impl : public BridgeInterface
   {
     public:
-      Impl(mlir::MLIRContext& context, clang::DiagnosticsEngine &diag);
+      Impl(mlir::MLIRContext& context);
 
       ~Impl() override;
 
@@ -157,18 +157,11 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
 
-      void emitIdentifierError(IdentifierError::IdentifierType identifierType, 
-                               std::string name, const std::set<std::string> &declaredIdentifiers,
-                               unsigned int line, unsigned int column) override;
-      void emitError(const std::string &error) override;
-
     private:
       std::unique_ptr<LoweringContext> context;
 
       // The module that is populated while converting the AST.
       std::unique_ptr<mlir::ModuleOp> module;
-
-      clang::DiagnosticsEngine *diag;
 
       // Lowerers.
       std::unique_ptr<ClassLowerer> classLowerer;
@@ -202,14 +195,12 @@ namespace marco::codegen::lowering
       std::unique_ptr<WhileStatementLowerer> whileStatementLowerer;
   };
 
-  Bridge::Impl::Impl(mlir::MLIRContext& context, clang::DiagnosticsEngine &diag)
+  Bridge::Impl::Impl(mlir::MLIRContext& context)
   {
     this->context = std::make_unique<LoweringContext>(context);
 
     this->module = std::make_unique<mlir::ModuleOp>(
         mlir::ModuleOp::create(this->context->getBuilder().getUnknownLoc()));
-
-    this->diag = &diag;
 
     // Initialize the lowerers.
     this->classLowerer = std::make_unique<ClassLowerer>(this);
@@ -622,53 +613,8 @@ namespace marco::codegen::lowering
     return whileStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::emitIdentifierError(IdentifierError::IdentifierType identifierType, 
-       std::string name, const std::set<std::string> &declaredIdentifiers,
-       unsigned int line, unsigned int column)
-  {
-    const IdentifierError error(identifierType, name, declaredIdentifiers, line, column);
-    const std::string actual = error.getActual();
-    const std::string predicted = error.getPredicted();
-
-    std::string errorString = "Error in AST to MLIR conversion. Unknown ";
-    switch (identifierType) {
-      case marco::codegen::lowering::IdentifierError::IdentifierType::FUNCTION: {
-        errorString += "function";
-        break;
-      }
-      case marco::codegen::lowering::IdentifierError::IdentifierType::VARIABLE: {
-        errorString += "variable";
-        break;
-      }
-      case marco::codegen::lowering::IdentifierError::IdentifierType::TYPE: {
-        errorString += "type or class";
-        break;
-      }
-      case marco::codegen::lowering::IdentifierError::IdentifierType::FIELD: {
-        errorString += "field";
-        break;
-      }
-      default: {
-        llvm_unreachable("Unkown error type.");
-        break;
-      }
-    }
-    errorString += " identifier " + actual + " at line " + std::to_string(line) + 
-                   ", column " + std::to_string(column) + ".";
-
-    if (predicted != "") {
-      errorString += " Did you mean " + predicted + "?";
-    }
-    
-    emitError(errorString);
-  }
-
-  void Bridge::Impl::emitError(const std::string &error) {
-    diag->Report(diag->getCustomDiagID(clang::DiagnosticsEngine::Fatal, "%0")) << error;
-  }
-
-  Bridge::Bridge(mlir::MLIRContext& context, clang::DiagnosticsEngine &diag)
-    : impl(std::make_unique<Impl>(context, diag))
+  Bridge::Bridge(mlir::MLIRContext& context)
+    : impl(std::make_unique<Impl>(context))
   {
   }
 

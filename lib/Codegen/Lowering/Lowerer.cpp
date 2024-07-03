@@ -182,7 +182,7 @@ namespace marco::codegen::lowering
 
       const marco::SourceRange sourceRange = type.getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::TYPE, std::string(type.getElement(0)), 
-                              declaredTypes, sourceRange.begin.line, sourceRange.begin.column);
+                              declaredTypes, sourceRange);
       return std::nullopt;
     }
 
@@ -513,12 +513,42 @@ namespace marco::codegen::lowering
 
   void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
                                     const std::set<std::string> &declaredIdentifiers,
-                                    unsigned int line, unsigned int column)
+                                    const marco::SourceRange& location)
   {
-    bridge->emitIdentifierError(identifierType, name, declaredIdentifiers, line, column);
-  }
+    const IdentifierError error(identifierType, name, declaredIdentifiers);
+    const std::string actual = error.getActual();
+    const std::string predicted = error.getPredicted();
 
-  void Lowerer::emitError(const std::string &error) {
-    bridge->emitError(error);
+    std::string errorString = "Error in AST to MLIR conversion. Unknown ";
+    switch (identifierType) {
+      case marco::codegen::lowering::IdentifierError::IdentifierType::FUNCTION: {
+        errorString += "function";
+        break;
+      }
+      case marco::codegen::lowering::IdentifierError::IdentifierType::VARIABLE: {
+        errorString += "variable";
+        break;
+      }
+      case marco::codegen::lowering::IdentifierError::IdentifierType::TYPE: {
+        errorString += "type or class";
+        break;
+      }
+      case marco::codegen::lowering::IdentifierError::IdentifierType::FIELD: {
+        errorString += "field";
+        break;
+      }
+      default: {
+        llvm_unreachable("Unkown error type.");
+        break;
+      }
+    }
+    errorString += " identifier " + actual + ".";
+
+    if (predicted != "") {
+      errorString += " Did you mean " + predicted + "?";
+    }
+    
+    mlir::DiagnosticEngine& diag = getContext().getDiagEngine();
+    diag.emit(loc(location), mlir::DiagnosticSeverity::Error) << errorString;
   }
 }

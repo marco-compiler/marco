@@ -32,6 +32,10 @@ namespace marco::codegen::lowering
     return builder;
   }
 
+  mlir::DiagnosticEngine& LoweringContext::getDiagEngine() {
+    return builder.getContext()->getDiagEngine();
+  }
+
   mlir::SymbolTableCollection& LoweringContext::getSymbolTable()
   {
     return symbolTable;

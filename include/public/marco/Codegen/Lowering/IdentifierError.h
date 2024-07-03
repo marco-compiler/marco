@@ -21,14 +21,11 @@ namespace marco::codegen::lowering
       // Create an IdentifierError object, calculating the most similar identifier to identifierName 
       // among those in declaredIdentifiers and the built-in ones (if any).
       IdentifierError(const IdentifierType &errorType, std::string identifierName, 
-                      const std::set<std::string> &declaredIdentifiers, 
-                      unsigned int line, unsigned int column);
+                      const std::set<std::string> &declaredIdentifiers);
 
       IdentifierType getIdentifierType() const;
       std::string getActual() const;
       std::string getPredicted() const;
-      unsigned int getLine() const;
-      unsigned int getColumn() const;
 
     private:
       // Type of identifier that generated the error.
@@ -37,11 +34,6 @@ namespace marco::codegen::lowering
       const std::string actualName;
       // Most similar identifier or keyword to the actual one.
       std::string predictedName;
-
-      // Starting line of the identifier that generated the error.
-      const unsigned int line;
-      // Starting column of the identifier that generated the error.
-      const unsigned int column;
 
       // Threshold to avoid using semantic distance.
       // This will be multiplied by the length of the actual identifier,

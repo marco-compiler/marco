@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Error in AST to MLIR conversion. Unknown variable identifier id1 at line 11, column 19. Did you mean idx1?
+// CHECK: Error in AST to MLIR conversion. Unknown variable identifier id1.
 
 model AccessesDependingOnIndices
     Real[3, 4] x;

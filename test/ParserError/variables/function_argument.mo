@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Error in AST to MLIR conversion. Unknown variable identifier argument at line 16, column 14. Did you mean argument1?
+// CHECK: Error in AST to MLIR conversion. Unknown variable identifier argument.
 
 function foo
     input Integer[:] x;

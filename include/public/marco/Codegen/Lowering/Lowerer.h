@@ -207,8 +207,7 @@ namespace marco::codegen::lowering
 
       virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, std::string name, 
                                        const std::set<std::string> &declaredIdentifiers, 
-                                       unsigned int line, unsigned int column) override;
-      virtual void emitError(const std::string &error) override;
+                                       const marco::SourceRange& location);
 
       /// }
 
