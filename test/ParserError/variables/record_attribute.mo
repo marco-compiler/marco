@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Unknown variable identifier fooo.
+// CHECK: Unknown variable identifier fooo. Did you mean foo?
 
 model M
   record R

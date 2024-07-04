@@ -13,7 +13,6 @@ namespace marco::codegen::lowering
   class Lowerer : public BridgeInterface
   {
     public:
-      using VariablesScope = LoweringContext::VariablesScope;
       using LookupScopeGuard = LoweringContext::LookupScopeGuard;
 
       explicit Lowerer(BridgeInterface* bridge);
@@ -34,9 +33,7 @@ namespace marco::codegen::lowering
 
       mlir::SymbolTableCollection& getSymbolTable();
 
-      LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
-
-      std::set<std::string>& getDeclaredVariables();
+      VariablesSymbolTable& getVariablesSymbolTable();
 
       // Helper to initialize visibleSymbols, adding all the declared symbols
       // of the requested type that are visible from scope.
@@ -51,10 +48,6 @@ namespace marco::codegen::lowering
       }
 
       void getVisibleSymbols(mlir::Operation* scope, std::set<std::string> &declaredSymbols);
-
-      // Helper to initialize visibleVariables, adding all the declared variables 
-      // that are visible from the current scope.
-      void getVisibleVariables(std::set<std::string> &visibleVariables);
 
       mlir::Operation* getLookupScope();
 

@@ -2191,11 +2191,10 @@ namespace marco::codegen::lowering
     assert(reductionArg->getNumOfForIndices() ==
            reductionOp.getInductions().size());
 
-    Lowerer::VariablesScope scope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
 
     for (size_t i = 0, e = reductionArg->getNumOfForIndices(); i < e; ++i) {
       const llvm::StringRef name = reductionArg->getForIndex(i)->getName();
-      getDeclaredVariables().insert(name.str());
       getVariablesSymbolTable().insert(
           name,
           Reference::ssa(builder(), reductionOp.getInductions()[i]));

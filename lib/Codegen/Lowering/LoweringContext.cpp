@@ -37,16 +37,10 @@ namespace marco::codegen::lowering
     return symbolTable;
   }
 
-  LoweringContext::VariablesSymbolTable&
+  VariablesSymbolTable&
   LoweringContext::getVariablesSymbolTable()
   {
     return variablesSymbolTable;
-  }
-
-  std::set<std::string>& 
-  LoweringContext::getDeclaredVariables()
-  {
-    return declaredVariables;
   }
 
   mlir::Operation* LoweringContext::getLookupScope()

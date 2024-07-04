@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Unknown variable identifier variale.
+// CHECK: Unknown variable identifier variale. Did you mean variable?
 
 model AccessesDependingOnIndices
     Real[3, 4] x;

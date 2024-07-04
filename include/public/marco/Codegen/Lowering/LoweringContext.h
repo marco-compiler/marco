@@ -2,22 +2,15 @@
 #define MARCO_CODEGEN_LOWERING_LOWERINGCONTEXT_H
 
 #include "marco/Codegen/Lowering/Reference.h"
-#include "llvm/ADT/ScopedHashTable.h"
+#include "marco/Codegen/Lowering/VariablesSymbolTable.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
-#include <set>
-#include <string>
 
 namespace marco::codegen::lowering
 {
   class LoweringContext
   {
     public:
-      using VariablesSymbolTable =
-          llvm::ScopedHashTable<llvm::StringRef, Reference>;
-
-      using VariablesScope = VariablesSymbolTable::ScopeTy;
-
       class LookupScopeGuard
       {
         public:
@@ -38,8 +31,6 @@ namespace marco::codegen::lowering
 
       VariablesSymbolTable& getVariablesSymbolTable();
 
-      std::set<std::string>& getDeclaredVariables();
-
       mlir::Operation* getLookupScope();
 
       void pushLookupScope(mlir::Operation* lookupScope);
@@ -59,11 +50,6 @@ namespace marco::codegen::lowering
       /// terminated, the scope is destroyed and the mappings created in this
       /// scope are dropped.
       VariablesSymbolTable variablesSymbolTable;
-
-      /// A set containing the variable names that have been inserted into 
-      /// "variablesSymbolTable". Used only to print debugging information 
-      /// in case of parsing errors.
-      std::set<std::string> declaredVariables;
 
       llvm::SmallVector<mlir::Operation*> lookupScopes;
   };

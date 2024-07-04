@@ -38,11 +38,6 @@ namespace marco::codegen::lowering
     return getContext().getSymbolTable();
   }
 
-  std::set<std::string>& Lowerer::getDeclaredVariables()
-  {
-    return getContext().getDeclaredVariables();
-  }
-
   void Lowerer::getVisibleSymbols(
       mlir::Operation* scope, 
       std::set<std::string>& visibleSymbols,
@@ -58,7 +53,7 @@ namespace marco::codegen::lowering
       }
     });
 
-    std::set<std::string>& declaredVariables = getDeclaredVariables();
+    std::set<std::string> declaredVariables = getVariablesSymbolTable().getVariables(false);
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
       if (resolveSymbolName(llvm::StringRef(*pVar), scope, filterFn)) {
         visibleSymbols.insert(*pVar);
@@ -75,17 +70,7 @@ namespace marco::codegen::lowering
     });
   }
 
-  void Lowerer::getVisibleVariables(std::set<std::string>& visibleVariables)
-  {
-    std::set<std::string>& declaredVariables = getDeclaredVariables();
-    for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
-      if (lookupVariable(*pVar)) {
-        visibleVariables.insert(*pVar);
-      }
-    }
-  }
-
-  LoweringContext::VariablesSymbolTable& Lowerer::getVariablesSymbolTable()
+  VariablesSymbolTable& Lowerer::getVariablesSymbolTable()
   {
     return getContext().getVariablesSymbolTable();
   }
@@ -245,18 +230,11 @@ namespace marco::codegen::lowering
 
   std::optional<Reference> Lowerer::lookupVariable(llvm::StringRef name)
   {
-    // Check if the variable is present in the symbol table.
-    // If it is, return a Reference to it, otherwise return a null optional.
-    auto &symbolTable = getVariablesSymbolTable();
-    if (symbolTable.count(name)) {
-      return symbolTable.lookup(name);
-    }
-    return std::nullopt;
+    return getVariablesSymbolTable().lookup(name);
   }
 
   void Lowerer::insertVariable(llvm::StringRef name, Reference reference)
   {
-    getDeclaredVariables().insert(name.str());
     getVariablesSymbolTable().insert(name, reference);
   }
 

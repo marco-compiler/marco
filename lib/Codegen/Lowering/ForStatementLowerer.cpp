@@ -13,7 +13,7 @@ namespace marco::codegen::lowering
 
   bool ForStatementLowerer::lower(const ast::ForStatement& statement)
   {
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
     mlir::Location location = loc(statement.getLocation());
 
     size_t numOfForIndices = statement.getNumOfForIndices();
@@ -89,7 +89,7 @@ namespace marco::codegen::lowering
 
       {
         // Body.
-        Lowerer::VariablesScope scope(getVariablesSymbolTable());
+        VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
 
         builder().setInsertionPointToStart(bodyBlock);
 
@@ -97,7 +97,6 @@ namespace marco::codegen::lowering
             builder().create<LoadOp>(location, inductionVar);
 
         llvm::StringRef name = forIndex->getName();
-        getDeclaredVariables().insert(name.str());
         getVariablesSymbolTable().insert(
             name, Reference::ssa(builder(), inductionValue));
 

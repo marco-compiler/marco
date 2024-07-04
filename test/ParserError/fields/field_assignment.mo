@@ -1,6 +1,6 @@
 // RUN: not marco -mc1 %s --omc-bypass -emit-mlir -o - 2>&1 | FileCheck %s
 
-// CHECK: Unknown field identifier fild.
+// CHECK: Unknown field identifier fild. Did you mean field?
 
 record RECORD
     Real field;

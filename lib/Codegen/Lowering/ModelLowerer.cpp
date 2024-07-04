@@ -59,7 +59,7 @@ namespace marco::codegen::lowering
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
     LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.

@@ -33,6 +33,7 @@ set(SOURCES
     StatementLowerer.cpp
     SubscriptLowerer.cpp
     TupleLowerer.cpp
+    VariablesSymbolTable.cpp
     WhenEquationLowerer.cpp
     WhenStatementLowerer.cpp
     WhileStatementLowerer.cpp)

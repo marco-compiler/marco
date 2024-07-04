@@ -24,11 +24,9 @@ namespace marco::codegen::lowering
 
     std::optional<Reference> result = lookupVariable(firstEntry->getName());
     if (!result) {
-      std::set<std::string> visibleVariables = {};
-      getVisibleVariables(visibleVariables);
-
       emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, firstEntry->getName(), 
-                          visibleVariables, firstEntry->getLocation());
+                          getVariablesSymbolTable().getVariables(true), 
+                          firstEntry->getLocation());
       return std::nullopt;
     }
 
@@ -59,9 +57,8 @@ namespace marco::codegen::lowering
           std::set<std::string> visibleFields;
           getVisibleSymbols<VariableOp>(recordOp, visibleFields);
 
-          marco::SourceRange sourceRange = pathEntry->getLocation();
           emitIdentifierError(IdentifierError::IdentifierType::FIELD, pathEntry->getName(), 
-                              visibleFields, sourceRange);
+                              visibleFields, pathEntry->getLocation());
           return std::nullopt;
         }
 

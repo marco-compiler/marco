@@ -21,7 +21,7 @@ namespace marco::codegen::lowering
 
     {
       // Condition.
-      Lowerer::VariablesScope scope(getVariablesSymbolTable());
+      VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
       assert(whileOp.getConditionRegion().empty());
 
       mlir::Block* conditionBlock =
@@ -45,7 +45,7 @@ namespace marco::codegen::lowering
 
     {
       // Body.
-      Lowerer::VariablesScope scope(getVariablesSymbolTable());
+      VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
       assert(whileOp.getBodyRegion().empty());
       mlir::Block* bodyBlock = builder().createBlock(&whileOp.getBodyRegion());
       builder().setInsertionPointToStart(bodyBlock);
