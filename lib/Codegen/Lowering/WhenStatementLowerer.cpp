@@ -14,6 +14,6 @@ namespace marco::codegen::lowering
   bool WhenStatementLowerer::lower(const ast::WhenStatement& statement)
   {
     llvm_unreachable("When statement is not implemented yet");
-    return true;
+    return false;
   }
 }

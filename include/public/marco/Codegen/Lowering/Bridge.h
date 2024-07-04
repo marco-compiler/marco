@@ -6,7 +6,6 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
-#include "clang/Basic/Diagnostic.h"
 #include <memory>
 
 namespace marco::codegen::lowering
@@ -18,8 +17,7 @@ namespace marco::codegen::lowering
       std::unique_ptr<Impl> impl;
 
     public:
-      Bridge(
-        mlir::MLIRContext& context);
+      Bridge(mlir::MLIRContext& context);
 
       ~Bridge();
 

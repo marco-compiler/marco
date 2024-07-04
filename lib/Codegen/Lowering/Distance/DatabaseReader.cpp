@@ -18,7 +18,7 @@ namespace marco::codegen::lowering
     DatabaseReader::DatabaseReader()
     {
         filesOpened = false;
-        std::string path = std::string("../share/marco/wordnet");
+        std::string path = "../share/marco/wordnet";
 
         // Try to open the files using the shared path.
         senses.open(path + "/senses.csv");

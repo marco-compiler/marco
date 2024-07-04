@@ -246,7 +246,7 @@ namespace marco::codegen::lowering
     if (!loweredExpression) {
       return false;
     }
-    mlir::Value value = loweredExpression.value()[0].get(expressionLoc);
+    mlir::Value value = (*loweredExpression)[0].get(expressionLoc);
     builder().create<YieldOp>(expressionLoc, value);
     return true;
   }

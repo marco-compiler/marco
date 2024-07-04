@@ -36,11 +36,11 @@ namespace marco::codegen::lowering
 
       const ast::Expression* lowerBoundExp = forIndexRange->getArgument(0);
       mlir::Location lowerBoundLoc = loc(lowerBoundExp->getLocation());
-      auto optionalLowerBoundExp = lower(*lowerBoundExp);
-      if (!optionalLowerBoundExp) {
+      auto loweredLowerBoundExp = lower(*lowerBoundExp);
+      if (!loweredLowerBoundExp) {
         return false;
       }
-      mlir::Value lowerBound = optionalLowerBoundExp.value()[0].get(lowerBoundLoc);
+      mlir::Value lowerBound = (*loweredLowerBoundExp)[0].get(lowerBoundLoc);
 
       lowerBound = builder().create<CastOp>(
           lowerBound.getLoc(), builder().getIndexType(), lowerBound);
@@ -71,11 +71,11 @@ namespace marco::codegen::lowering
 
         const ast::Expression* upperBoundExp = forIndexRange->getArgument(1);
         mlir::Location upperBoundLoc = loc(upperBoundExp->getLocation());
-        auto optionalUpperBoundExp = lower(*upperBoundExp);
-        if (!optionalUpperBoundExp) {
+        auto loweredUpperBoundExp = lower(*upperBoundExp);
+        if (!loweredUpperBoundExp) {
           return false;
         }
-        mlir::Value upperBound = optionalUpperBoundExp.value()[0].get(upperBoundLoc);
+        mlir::Value upperBound = (*loweredUpperBoundExp)[0].get(upperBoundLoc);
 
         upperBound = builder().create<CastOp>(
             lowerBound.getLoc(), builder().getIndexType(), upperBound);
@@ -97,7 +97,7 @@ namespace marco::codegen::lowering
             builder().create<LoadOp>(location, inductionVar);
 
         llvm::StringRef name = forIndex->getName();
-        getDeclaredVariables().insert(std::string(name));
+        getDeclaredVariables().insert(name.str());
         getVariablesSymbolTable().insert(
             name, Reference::ssa(builder(), inductionValue));
 
@@ -125,11 +125,11 @@ namespace marco::codegen::lowering
         mlir::Value step;
 
         if (forIndexRange->getNumOfArguments() == 3) {
-          auto optionalStep = lower(*forIndexRange->getArgument(2));
-          if (!optionalStep) {
+          auto loweredExpression = lower(*forIndexRange->getArgument(2));
+          if (!loweredExpression) {
             return false;
           }
-          step = optionalStep.value()[0].get(
+          step = (*loweredExpression)[0].get(
               loc(forIndexRange->getArgument(2)->getLocation()));
         } else {
           step = builder().create<ConstantOp>(

@@ -1,12 +1,12 @@
 #ifndef MARCO_CODEGEN_LOWERING_LOWERINGCONTEXT_H
 #define MARCO_CODEGEN_LOWERING_LOWERINGCONTEXT_H
 
-#include <set>
-#include <string>
 #include "marco/Codegen/Lowering/Reference.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
+#include <set>
+#include <string>
 
 namespace marco::codegen::lowering
 {

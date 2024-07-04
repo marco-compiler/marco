@@ -1,10 +1,10 @@
 #ifndef MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
 #define MARCO_CODEGEN_LOWERING_DISTANCE_DATABASEREADER_H
 
-#include <fstream>
-#include <vector>
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ArrayRef.h"
+#include <fstream>
+#include <vector>
 
 namespace marco::codegen::lowering
 {

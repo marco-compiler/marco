@@ -53,7 +53,7 @@ namespace marco::codegen::lowering
       if (attr) {
         llvm::StringRef symbolName = attr;
         if (resolveSymbolName(symbolName, scope, filterFn)) {
-          visibleSymbols.insert(std::string(symbolName));
+          visibleSymbols.insert(symbolName.str());
         }
       }
     });
@@ -61,7 +61,7 @@ namespace marco::codegen::lowering
     std::set<std::string>& declaredVariables = getDeclaredVariables();
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
       if (resolveSymbolName(llvm::StringRef(*pVar), scope, filterFn)) {
-        visibleSymbols.insert(std::string(*pVar));
+        visibleSymbols.insert(*pVar);
       }
     }
   }
@@ -80,7 +80,7 @@ namespace marco::codegen::lowering
     std::set<std::string>& declaredVariables = getDeclaredVariables();
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
       if (lookupVariable(*pVar)) {
-        visibleVariables.insert(std::string(*pVar));
+        visibleVariables.insert(*pVar);
       }
     }
   }
@@ -121,6 +121,7 @@ namespace marco::codegen::lowering
       classes.pop_back();
     }
 
+    assert(result != nullptr && "Class not found");
     return result;
   }
 
@@ -180,9 +181,8 @@ namespace marco::codegen::lowering
       std::set<std::string> visibleTypes;
       getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
 
-      marco::SourceRange sourceRange = type.getLocation();
       emitIdentifierError(IdentifierError::IdentifierType::TYPE, type.getElement(0), 
-                          visibleTypes, sourceRange);
+                          visibleTypes, type.getLocation());
       return std::nullopt;
     }
 
@@ -256,7 +256,7 @@ namespace marco::codegen::lowering
 
   void Lowerer::insertVariable(llvm::StringRef name, Reference reference)
   {
-    getDeclaredVariables().insert(std::string(name));
+    getDeclaredVariables().insert(name.str());
     getVariablesSymbolTable().insert(name, reference);
   }
 
@@ -519,7 +519,7 @@ namespace marco::codegen::lowering
     std::string actual = error.getActual();
     std::string predicted = error.getPredicted();
 
-    std::string errorString = "Error in AST to MLIR conversion. Unknown ";
+    std::string errorString = "Unknown ";
     switch (identifierType) {
       case marco::codegen::lowering::IdentifierError::IdentifierType::FUNCTION: {
         errorString += "function";

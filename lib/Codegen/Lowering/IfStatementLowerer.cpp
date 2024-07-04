@@ -15,15 +15,14 @@ namespace marco::codegen::lowering
   {
     mlir::Location location = loc(statement.getLocation());
 
-    std::optional<mlir::Value> optionalIfCondition = 
+    std::optional<mlir::Value> ifCondition = 
         lowerCondition(*statement.getIfCondition());
-    if (!optionalIfCondition) {
+    if (!ifCondition) {
       return false;
     }
-    mlir::Value &ifCondition = optionalIfCondition.value();
 
     auto ifOp = builder().create<IfOp>(
-        location, ifCondition,
+        location, *ifCondition,
         statement.hasElseIfBlocks() || statement.hasElseBlock());
 
     builder().setInsertionPointToStart(ifOp.thenBlock());
@@ -38,15 +37,14 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(ifOp.elseBlock());
 
       for (size_t i = 0, e = statement.getNumOfElseIfBlocks(); i < e; ++i) {
-        std::optional<mlir::Value> optionalElseIfCondition = 
+        std::optional<mlir::Value> elseIfCondition = 
             lowerCondition(*statement.getElseIfCondition(i));
-        if (!optionalElseIfCondition) {
+        if (!elseIfCondition) {
           return false;
         }
-        mlir::Value &elseIfCondition = optionalElseIfCondition.value();
 
         auto elseIfOp = builder().create<IfOp>(
-            location, elseIfCondition,
+            location, *elseIfCondition,
             i != e - 1 || statement.hasElseBlock());
 
         builder().setInsertionPointToStart(elseIfOp.thenBlock());
@@ -81,7 +79,7 @@ namespace marco::codegen::lowering
     if (!loweredExpression) {
       return std::nullopt;
     }
-    auto &results = loweredExpression.value();
+    auto &results = *loweredExpression;
     assert(results.size() == 1);
     return results[0].get(location);
   }

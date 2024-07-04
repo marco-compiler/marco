@@ -67,18 +67,16 @@ namespace marco::codegen::lowering
   {
     mlir::Location location = loc(variable.getLocation());
 
-    std::optional<VariableType> variableTypeOptional = getVariableType(
+    std::optional<VariableType> variableType = getVariableType(
         *variable.getType(), *variable.getTypePrefix());
     
-    if (!variableTypeOptional) {
+    if (!variableType) {
       return false;
     }
 
-    VariableType &variableType = variableTypeOptional.value();
-
     llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
 
-    if (auto shapedType = variableType.unwrap().dyn_cast<mlir::ShapedType>()) {
+    if (auto shapedType = variableType->unwrap().dyn_cast<mlir::ShapedType>()) {
       for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
            ++dim) {
         const ast::ArrayDimension* dimension = (*variable.getType())[dim];
@@ -96,7 +94,7 @@ namespace marco::codegen::lowering
     }
 
     auto variableOp = builder().create<VariableOp>(
-        location, variable.getName(), variableType,
+        location, variable.getName(), *variableType,
         builder().getStrArrayAttr(dimensionsConstraints));
 
     mlir::SymbolTable& symbolTable = getSymbolTable().getSymbolTable(
@@ -166,17 +164,15 @@ namespace marco::codegen::lowering
       }
     } else if (auto userDefinedType =
                    variableType.dyn_cast<ast::UserDefinedType>()) {
-      auto symbolOptional = resolveType(*userDefinedType, getLookupScope());
+      auto symbolOp = resolveType(*userDefinedType, getLookupScope());
       
-      if (!symbolOptional) {
+      if (!symbolOp) {
         return std::nullopt;
       }
 
-      auto &symbolOp = symbolOptional.value();
-
-      if (mlir::isa<RecordOp>(symbolOp)) {
+      if (mlir::isa<RecordOp>(*symbolOp)) {
         baseType = RecordType::get(
-            builder().getContext(), getSymbolRefFromRoot(symbolOp));
+            builder().getContext(), getSymbolRefFromRoot(*symbolOp));
       } else {
         llvm_unreachable("Unknown variable type");
         return nullptr;
@@ -246,15 +242,14 @@ namespace marco::codegen::lowering
 
     // Lower the expression and yield its value.
     mlir::Location expressionLoc = loc(expression.getLocation());
-    auto optionalExpressionValues = lower(expression);
-    if (!optionalExpressionValues) {
+    auto expressionValues = lower(expression);
+    if (!expressionValues) {
       return false;
     }
-    auto &expressionValues = optionalExpressionValues.value();
-    assert(expressionValues.size() == 1);
+    assert(expressionValues->size() == 1);
 
     builder().create<YieldOp>(
-        location, expressionValues[0].get(expressionLoc));
+        location, (*expressionValues)[0].get(expressionLoc));
 
     return true;
   }
@@ -277,14 +272,13 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(bodyBlock);
 
     mlir::Location valueLoc = loc(expression.getLocation());
-    auto optionalValue = lower(expression);
-    if (!optionalValue) {
+    auto value = lower(expression);
+    if (!value) {
       return false;
     }
-    auto &value = optionalValue.value();
-    assert(value.size() == 1);
+    assert(value->size() == 1);
 
-    builder().create<YieldOp>(location, value[0].get(valueLoc));
+    builder().create<YieldOp>(location, (*value)[0].get(valueLoc));
 
     return true;
   }
@@ -316,7 +310,7 @@ namespace marco::codegen::lowering
           if (!loweredExpression) {
             return false;
           }
-          mlir::Value size = loweredExpression.value()[0].get(sizeLoc);
+          mlir::Value size = (*loweredExpression)[0].get(sizeLoc);
 
           if (!size.getType().isa<mlir::IndexType>()) {
             size = builder().create<CastOp>(

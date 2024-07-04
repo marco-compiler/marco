@@ -140,7 +140,7 @@ namespace marco::codegen::lowering
       if (!loweredNode) {
         return false;
       }
-      outValues.push_back(loweredNode.value()[0].get(nodeLoc));
+      outValues.push_back((*loweredNode)[0].get(nodeLoc));
     }
 
     return true;
@@ -190,7 +190,7 @@ namespace marco::codegen::lowering
       if (!loweredTopLevel) {
         return std::nullopt;
       }
-      mlir::Value elem = loweredTopLevel.value()[0].get(nodeLoc);
+      mlir::Value elem = (*loweredTopLevel)[0].get(nodeLoc);
 
       mlir::Value result = builder().create<TensorBroadcastOp>(
           location, mlir::RankedTensorType::get(shape,elem.getType()), elem);

@@ -24,7 +24,7 @@ namespace marco::codegen::lowering
     if (!loweredSubscript) {
       return std::nullopt;
     }
-    mlir::Value index = loweredSubscript.value()[0].get(location);
+    mlir::Value index = (*loweredSubscript)[0].get(location);
 
     // Indices in Modelica are 1-based, while in the MLIR dialect are
     // 0-based. Thus, we need to shift them by one. In doing so, we also

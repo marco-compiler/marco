@@ -40,7 +40,7 @@ namespace marco::codegen::lowering
       }
       builder().create<ConditionOp>(
           loc(condition->getLocation()),
-          loweredCondition.value()[0].get(conditionLoc));
+          (*loweredCondition)[0].get(conditionLoc));
     }
 
     {

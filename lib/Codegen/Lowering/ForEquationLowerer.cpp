@@ -68,7 +68,7 @@ namespace marco::codegen::lowering
 
       // Add the induction variable to the symbol table
       llvm::StringRef name = forIndex->getName();
-      getDeclaredVariables().insert(std::string(name));
+      getDeclaredVariables().insert(name.str());
       getVariablesSymbolTable().insert(
           name,
           Reference::ssa(builder(), forEquationOp.induction()));

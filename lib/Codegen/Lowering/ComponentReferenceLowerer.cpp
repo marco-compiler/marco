@@ -22,25 +22,23 @@ namespace marco::codegen::lowering
     const ast::ComponentReferenceEntry* firstEntry =
         componentReference.getElement(0);
 
-    std::optional<Reference> optionalResult = lookupVariable(firstEntry->getName());
-    if (!optionalResult) {
+    std::optional<Reference> result = lookupVariable(firstEntry->getName());
+    if (!result) {
       std::set<std::string> visibleVariables = {};
       getVisibleVariables(visibleVariables);
 
-      marco::SourceRange sourceRange = firstEntry->getLocation();
       emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, firstEntry->getName(), 
-                          visibleVariables, sourceRange);
+                          visibleVariables, firstEntry->getLocation());
       return std::nullopt;
     }
 
-    optionalResult = lowerSubscripts(optionalResult.value(), *firstEntry);
-    if (!optionalResult) {
+    result = lowerSubscripts(*result, *firstEntry);
+    if (!result) {
       return std::nullopt;
     }
-    Reference &result = optionalResult.value();
 
     for (size_t i = 1; i < pathLength; ++i) {
-      mlir::Value parent = result.get(location);
+      mlir::Value parent = result->get(location);
       mlir::Type parentType = parent.getType();
 
       const ast::ComponentReferenceEntry* pathEntry =
@@ -93,11 +91,10 @@ namespace marco::codegen::lowering
             builder(), location, parent, componentType, pathEntry->getName());
       }
 
-      optionalResult = lowerSubscripts(result, *pathEntry);
-      if (!optionalResult) {
+      result = lowerSubscripts(*result, *pathEntry);
+      if (!result) {
         return std::nullopt;
       }
-      result = optionalResult.value();
     }
 
     return result;
@@ -109,11 +106,11 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> indices;
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
-      std::optional<Results> optionalIndex = lower(*entry.getSubscript(i));
-      if (!optionalIndex) {
+      std::optional<Results> loweredSubscript = lower(*entry.getSubscript(i));
+      if (!loweredSubscript) {
         return std::nullopt;
       }
-      Result &index = optionalIndex.value()[0];
+      Result &index = (*loweredSubscript)[0];
       mlir::Value indexValue = index.get(index.getLoc());
       indices.push_back(indexValue);
     }

@@ -101,7 +101,7 @@ namespace marco::codegen::lowering
     if (!loweredExpression) {
       return std::nullopt;
     }
-    auto &results = loweredExpression.value();
+    auto &results = *loweredExpression;
     assert(results.size() == 1);
     return results[0].get(location);
   }
@@ -115,7 +115,7 @@ namespace marco::codegen::lowering
       if (!arg) {
         return false;
       }
-      args.push_back(arg.value());
+      args.push_back(*arg);
     }
     return true;
   }
@@ -277,11 +277,10 @@ namespace marco::codegen::lowering
   {
     mlir::Location location = loc(operation.getLocation());
 
-    std::optional<mlir::Value> optionalCondition = lowerArg(*operation.getArgument(0));
-    if (!optionalCondition) {
+    std::optional<mlir::Value> condition = lowerArg(*operation.getArgument(0));
+    if (!condition) {
       return std::nullopt;
     }
-    mlir::Value &condition = optionalCondition.value();
 
     mlir::Location trueExpressionsLoc =
         loc(operation.getArgument(1)->getLocation());
@@ -289,16 +288,14 @@ namespace marco::codegen::lowering
     mlir::Location falseExpressionsLoc =
         loc(operation.getArgument(2)->getLocation());
 
-    std::optional<Results> optionalTrueExpressions = lower(*operation.getArgument(1));
-    if (!optionalTrueExpressions) {
+    std::optional<Results> trueExpressions = lower(*operation.getArgument(1));
+    if (!trueExpressions) {
       return std::nullopt;
     }
-    Results &trueExpressions = optionalTrueExpressions.value();
-    std::optional<Results> optionalFalseExpressions = lower(*operation.getArgument(2));
-    if (!optionalFalseExpressions) {
+    std::optional<Results> falseExpressions = lower(*operation.getArgument(2));
+    if (!falseExpressions) {
       return std::nullopt;
     }
-    Results &falseExpressions = optionalFalseExpressions.value();
 
     llvm::SmallVector<mlir::Value, 3> args;
 
@@ -306,7 +303,7 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> falseValues;
 
     for (const auto& [trueExpression, falseExpression] :
-         llvm::zip(trueExpressions, falseExpressions)) {
+         llvm::zip(*trueExpressions, *falseExpressions)) {
       mlir::Value trueValue = trueExpression.get(trueExpressionsLoc);
       mlir::Value falseValue = falseExpression.get(falseExpressionsLoc);
 
@@ -319,7 +316,7 @@ namespace marco::codegen::lowering
     }
 
     auto selectOp = builder().create<SelectOp>(
-        location, condition, trueValues, falseValues);
+        location, *condition, trueValues, falseValues);
 
     std::vector<Reference> results;
 

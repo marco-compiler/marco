@@ -32,13 +32,12 @@ namespace marco::codegen::lowering
       const auto* expression = equation.getLhsExpression();
 
       auto referencesLoc = loc(expression->getLocation());
-      auto optionalReferences = lower(*expression);
-      if (!optionalReferences) {
+      auto references = lower(*expression);
+      if (!references) {
         return false;
       }
-      auto &references = optionalReferences.value();
 
-      for (auto& reference : references) {
+      for (auto& reference : *references) {
         lhs.push_back(reference.get(referencesLoc));
       }
     }
@@ -48,13 +47,12 @@ namespace marco::codegen::lowering
       const auto* expression = equation.getRhsExpression();
 
       auto referencesLoc = loc(expression->getLocation());
-      auto optionalReferences = lower(*expression);
-      if (!optionalReferences) {
+      auto references = lower(*expression);
+      if (!references) {
         return false;
       }
-      auto &references = optionalReferences.value();
 
-      for (auto& reference : references) {
+      for (auto& reference : *references) {
         rhs.push_back(reference.get(referencesLoc));
       }
     }
