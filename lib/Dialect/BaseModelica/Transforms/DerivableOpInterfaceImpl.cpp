@@ -2642,6 +2642,65 @@ namespace
     }
   };
 
+  struct FillOpInterface
+      : public DerivableOpInterface::ExternalModel<FillOpInterface, FillOp>
+  {
+    mlir::LogicalResult createPartialDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state) const
+    {
+      return createDerivative(op, builder, state);
+    }
+
+    mlir::LogicalResult createTimeDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state,
+        bool deriveDependencies) const
+    {
+      auto castedOp = mlir::cast<FillOp>(op);
+
+      if (deriveDependencies) {
+        if (mlir::failed(createValueTimeDerivative(
+                builder, state, castedOp.getOperand()))) {
+          return mlir::failure();
+        }
+      }
+
+      return createDerivative(op, builder, state);
+    }
+
+    mlir::LogicalResult createDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state) const
+    {
+      auto castedOp = mlir::cast<FillOp>(op);
+
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointAfter(castedOp);
+
+      auto derivedValue = getDerivative(state, castedOp.getValue());
+
+      if (!derivedValue) {
+        return mlir::failure();
+      }
+
+      auto resultType = getDerivedType(castedOp.getResult().getType());
+
+      if (mlir::failed(resultType)) {
+        return mlir::failure();
+      }
+
+      auto derivedOp = builder.create<TensorBroadcastOp>(
+          castedOp.getLoc(), *resultType, *derivedValue);
+
+      state.mapDerivative(castedOp, derivedOp);
+      return mlir::success();
+    }
+  };
+
   struct LogOpInterface
       : public DerivableOpInterface::ExternalModel<LogOpInterface, LogOp>
   {
@@ -3528,6 +3587,7 @@ namespace mlir::bmodelica
       CosOp::attachInterface<::CosOpInterface>(*context);
       CoshOp::attachInterface<::CoshOpInterface>(*context);
       ExpOp::attachInterface<::ExpOpInterface>(*context);
+      FillOp::attachInterface<::FillOpInterface>(*context);
       LogOp::attachInterface<::LogOpInterface>(*context);
       Log10Op::attachInterface<::Log10OpInterface>(*context);
       SinOp::attachInterface<::SinOpInterface>(*context);
