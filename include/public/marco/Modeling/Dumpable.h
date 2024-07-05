@@ -1,8 +1,12 @@
 #ifndef MARCO_MODELING_DUMPABLE_H
 #define MARCO_MODELING_DUMPABLE_H
 
-#include <iostream>
 #include <type_traits>
+
+namespace llvm
+{
+  class raw_ostream;
+}
 
 namespace marco::modeling::internal
 {
@@ -30,7 +34,7 @@ namespace marco::modeling::internal
 
       void dump() const;
 
-      virtual void dump(std::ostream& os) const = 0;
+      virtual void dump(llvm::raw_ostream& os) const = 0;
   };
 }
 

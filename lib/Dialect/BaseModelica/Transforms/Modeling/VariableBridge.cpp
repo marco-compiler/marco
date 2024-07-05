@@ -67,6 +67,12 @@ namespace marco::modeling::matching
 
     return result;
   }
+
+  llvm::raw_ostream& VariableTraits<VariableBridge*>::dump(
+      const Variable* variable, llvm::raw_ostream& os)
+  {
+    return os << (*variable)->name;
+  }
 }
 
 namespace marco::modeling::dependency
@@ -98,5 +104,11 @@ namespace marco::modeling::dependency
     }
 
     return result;
+  }
+
+  llvm::raw_ostream& VariableTraits<VariableBridge*>::dump(
+      const Variable* variable, llvm::raw_ostream& os)
+  {
+    return os << (*variable)->name;
   }
 }

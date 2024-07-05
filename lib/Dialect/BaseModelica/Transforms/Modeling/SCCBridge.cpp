@@ -207,4 +207,10 @@ namespace marco::modeling::dependency
 
     return result;
   }
+
+  llvm::raw_ostream& SCCTraits<SCCBridge*>::dump(
+      const SCC* scc, llvm::raw_ostream& os)
+  {
+    return os << "not implemented";
+  }
 }

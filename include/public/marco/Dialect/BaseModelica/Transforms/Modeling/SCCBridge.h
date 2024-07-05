@@ -7,6 +7,11 @@
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace mlir::bmodelica::bridge
 {
   class SCCBridge
@@ -56,6 +61,8 @@ namespace marco::modeling::dependency
 
     static std::vector<ElementRef>
     getDependencies(const SCC* scc, ElementRef equation);
+
+    static llvm::raw_ostream& dump(const SCC* scc, llvm::raw_ostream& os);
   };
 }
 
