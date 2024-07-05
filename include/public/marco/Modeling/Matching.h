@@ -27,7 +27,8 @@ namespace marco::modeling
 {
   namespace matching
   {
-    // This class must be specialized for the variable type that is used during the matching process.
+    // This class must be specialized for the variable type that is used during
+    // the matching process.
     template<typename VariableType>
     struct VariableTraits
     {
@@ -47,7 +48,8 @@ namespace marco::modeling
       using Id = typename VariableType::UnknownVariableTypeError;
     };
 
-    // This class must be specialized for the equation type that is used during the matching process.
+    // This class must be specialized for the equation type that is used during
+    // the matching process.
     template<typename EquationType>
     struct EquationTraits
     {
@@ -66,10 +68,12 @@ namespace marco::modeling
       //
       // typedef VariableType : the type of the accessed variable
       //
-      // typedef AccessProperty : the access property (this is optional, and if not specified an empty one is used)
+      // typedef AccessProperty : the access property (this is optional, and if
+      //                          not specified an empty one is used)
       //
-      // static std::vector<Access<VariableType, AccessProperty>> getAccesses(const EquationType*)
-      //    return the access done by the equation.
+      // static std::vector<Access<VariableType, AccessProperty>>
+      // getAccesses(const EquationType*)
+      //    return the accesses done by the equation.
 
       using Id = typename EquationType::UnknownEquationTypeError;
     };
@@ -85,7 +89,7 @@ namespace marco::modeling
       class Matchable
       {
         public:
-          Matchable(IndexSet matchableIndices);
+          explicit Matchable(IndexSet matchableIndices);
 
           const IndexSet& getMatched() const;
 
@@ -112,7 +116,7 @@ namespace marco::modeling
           using Traits = typename ::marco::modeling::matching::VariableTraits<VariableProperty>;
           using Id = typename Traits::Id;
 
-          VariableVertex(VariableProperty property)
+          explicit VariableVertex(VariableProperty property)
               : Matchable(getIndices(property)),
                 property(property),
                 visible(true)
@@ -530,7 +534,7 @@ namespace marco::modeling
         {
         }
 
-        ~BFSStep() = default;
+        ~BFSStep() override = default;
 
         BFSStep& operator=(const BFSStep& other);
 
@@ -934,7 +938,7 @@ namespace marco::modeling
 
       using Dumpable::dump;
 
-      MatchingGraph(mlir::MLIRContext* context)
+      explicit MatchingGraph(mlir::MLIRContext* context)
           : context(context)
       {
       }
@@ -951,7 +955,7 @@ namespace marco::modeling
         equationsMap = std::move(other.equationsMap);
       }
 
-      ~MatchingGraph() = default;
+      ~MatchingGraph() override = default;
 
       MatchingGraph& operator=(const MatchingGraph& other) = delete;
 
