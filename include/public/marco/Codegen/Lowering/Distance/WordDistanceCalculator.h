@@ -18,6 +18,24 @@
  * the alpha, beta, and semanticThreshold parameters, are based on the
  * paper's recommendations. The similarity function and the normalization
  * of the similarity are also based on the paper's recommendations.
+ * 
+ * Here's a brief summary discussion on the differences between the paper
+ * and this implementation:
+ * 
+ * The meaning of least common subsumer (LCS) is poorly defined in the paper.
+ * Our process is to get all possible synsets for each word and then calculate
+ * the distance between all pairs of synsets, to find the smallest one. Each
+ * distance is calculated by checking all hypernyms of the synsets. Since
+ * some synsets have multiple hypernyms, the structure of the graph is not
+ * a tree, but a directed acyclic graph. This seems to differ from the paper,
+ * that provides a tree-like diagram. As a result, the distance calculation
+ * is different, and the results are not the same.
+ * 
+ * The paper assigns a corpus frequency to each word, which is part of the
+ * process for calculating the similarity between two words. This is implemented
+ * in a weaker form in this project, by counting the word frequency using the
+ * synset's granularity, as opposed to the word's itself. This was done because
+ * a word-based frequency seemed to produce worse results.
  */
 
 namespace marco::codegen::lowering
