@@ -9,32 +9,16 @@
 /**
  * @file DatabaseReader.h
  * @brief Header file for the DatabaseReader class.
+ * 
+ * To get information about relationships between words, we use the
+ * WordNet database, which was used in the paper "Sentence similarity
+ * based on semantic nets and corpus statistics" by Li, McLean, Bandar,
+ * O'Shea, Crockett. Since the paper's data was already tuned to the
+ * WordNet database, we decided to use the same database to get the
+ * information we need, even though the original paper was more focused
+ * on natural language sentences, and not on variable names.
  */
 
-/**
- * @class marco::codegen::lowering::DatabaseReader
- * @brief A class that provides read access to the WordNet database.
- * 
- * This class encapsulates the reading of the WordNet database files,
- * which consist of three CSV files: senses.csv, hypernyms.csv, and
- * synsets.csv. These files map words to synsets, synsets to hypernyms,
- * and synsets to string names, respectively. A synset is a set of words
- * that are synonymous, and a hypernym is a word that is more general
- * than another word. For example, "language" is a hypernym of "modelica".
- * These mappings are used by @ref marco::codegen::lowering::WordDistanceCalculator
- * to calculate the distance between two words. The wordnet files also
- * contain a special 'count.txt' file, which contains the total number
- * of synset appearances in the corpus. This is used to calculate the
- * prior probability of a synset's appearance in the corpus, in the
- * @ref marco::codegen::lowering::SentenceDistanceCalculator class.
- * 
- * All csv files contain rows of columns separated by commas. The first
- * column is always the key. The key is a byte offset in the hypernyms
- * and synsets files, and a word in the senses file, as the senses file
- * maps words to synsets. In the hypernyms file, the second column is
- * the count of hypernyms for that synset. All other columns are the
- * hypernyms themselves.
- */
 namespace marco::codegen::lowering
 {
     // We use the synset's hypernym.csv byte offset as the synset ID.
@@ -43,6 +27,30 @@ namespace marco::codegen::lowering
     // a typedef to make it easier to change the synset ID type.
     using Synset = int;
 
+    /**
+     * @class marco::codegen::lowering::DatabaseReader
+     * @brief A class that provides read access to the WordNet database.
+     * 
+     * This class encapsulates the reading of the WordNet database files,
+     * which consist of three CSV files: senses.csv, hypernyms.csv, and
+     * synsets.csv. These files map words to synsets, synsets to hypernyms,
+     * and synsets to string names, respectively. A synset is a set of words
+     * that are synonymous, and a hypernym is a word that is more general
+     * than another word. For example, "language" is a hypernym of "modelica".
+     * These mappings are used by @ref marco::codegen::lowering::WordDistanceCalculator
+     * to calculate the distance between two words. The wordnet files also
+     * contain a special 'count.txt' file, which contains the total number
+     * of synset appearances in the corpus. This is used to calculate the
+     * prior probability of a synset's appearance in the corpus, in the
+     * @ref marco::codegen::lowering::SentenceDistanceCalculator class.
+     * 
+     * All csv files contain rows of columns separated by commas. The first
+     * column is always the key. The key is a byte offset in the hypernyms
+     * and synsets files, and a word in the senses file, as the senses file
+     * maps words to synsets. In the hypernyms file, the second column is
+     * the count of hypernyms for that synset. All other columns are the
+     * hypernyms themselves.
+     */
     class DatabaseReader
     {
     private:

@@ -3,59 +3,191 @@
 
 #include "marco/Codegen/Lowering/Distance/DatabaseReader.h"
 
+/**
+ * @file WordDistanceCalculator.h
+ * @brief Header file for the WordDistanceCalculator class.
+ * 
+ * This is a custom implementation of a semantic distance calculator
+ * between two variable names. The idea is to calculate the distance
+ * between two variable names by interpreting them as short sentences.
+ * The distance is calculated by following the paper "Sentence similarity
+ * based on semantic nets and corpus statistics" by Li, McLean, Bandar,
+ * O'Shea, Crockett.
+ * 
+ * In this particular implementation, the l and h parameters, as well as
+ * the alpha, beta, and semanticThreshold parameters, are based on the
+ * paper's recommendations. The similarity function and the normalization
+ * of the similarity are also based on the paper's recommendations.
+ */
+
 namespace marco::codegen::lowering
 {
+    /**
+     * @class marco::codegen::lowering::WordDistanceCalculator
+     * @brief A class that calculates the distance between two words.
+     * 
+     * Variables and words are two distinct entities in our system. A variable
+     * is a composition of words, either by camel case or by underscores. A word
+     * is a pure word. The task of comparing compositions of words is done by
+     * the @ref marco::codegen::lowering::SentenceDistanceCalculator class,
+     * which uses this class to compare individual words.
+     * 
+     * Comparing two words is done by considering two main factors: the distance
+     * between the two words' synsets and the distance between the two words'
+     * least common ancestor (LCA) synset and the root synset. These two
+     * scores are combined to form a similarity score, which is then normalized
+     * by the frequency of the words in the corpus. In order to get information
+     * about the synsets, this class uses the @ref marco::codegen::lowering::DatabaseReader
+     * class to access the WordNet database.
+     */
     class WordDistanceCalculator {
     private:
         // We use the singleton DatabaseReader to access the database.
         DatabaseReader& databaseReader;
 
-        // The two closest synsets to the root synset, within the two provided groups.
+        /**
+         * @brief A helper struct to store the two closest synsets within
+         * the two provided groups of synsets.
+         * 
+         * During comparisons, two clusters of synsets need to be compared,
+         * and the two closest synsets within these clusters need are stored
+         * in this struct.
+         */
         std::pair<Synset, Synset> closestSynsets;
 
-        // The LCA of the two groups of synsets.
+        /**
+         * @brief The least common ancestor (LCA) of the two groups of synsets.
+         * 
+         * Given two synsets, the LCA is the synset that minimizes the distance
+         * to both synsets.
+         */
         Synset lca;
 
-        // The combined distance to the LCAs of the two groups of synsets.
+        /**
+         * @brief The l parameter of the tree, which is the distance between
+         * the two synsets, passing through the LCA.
+         */
         int combinedDistance;
 
-        // This method finds the distance to the root synset.
+        /**
+         * @brief This method calculates the distance to the root
+         * synset of a given synset.
+         * 
+         * The h parameter of the tree is the distance between the LCA
+         * and the root synset, which can be calculated through this method.
+         * Note that the distance to the root is a measure of how general
+         * a synset is. The higher the distance, the more specific the synset.
+         * A word such as "modelica" would have a high distance to the root,
+         * whereas a word such as "thing" would have a low distance to the root.
+         */
         int distanceToRoot(const Synset& synset) const;
 
     public:
         WordDistanceCalculator();
         ~WordDistanceCalculator();
 
+        /**
+         * @brief Parameters for the similarity function.
+         * 
+         * The similarity function is a function that calculates the similarity
+         * between two words. The function is a weighted combination of the
+         * distance between the two synsets and the distance between the LCA
+         * and the root synset. The alpha and beta parameters are used to
+         * tune the function.
+         */
         const float alpha;
+
+        /**
+         * @brief Parameters for the similarity function.
+         * @see alpha
+         */
         const float beta;
+
+        /**
+         * @brief A low threshold for the similarity function.
+         * 
+         * Given a low similarity value, the value is discarded.
+         * This threshold is used to filter out low similarity values.
+         */
         const float semanticThreshold;
 
-        // This method finds the LCA of two words.
+        /**
+         * @brief Analyzes two words and calculates relevant information,
+         * such as the LCA, the closest synsets, and the tree parameters.
+         * This information is stored in the class' state and can be accessed
+         * through the corresponding getter methods.
+         * 
+         * @param word1 The first word to analyze.
+         * @param word2 The second word to analyze.
+         * 
+         * Note that this method compares words, and not synsets. The synsets
+         * are retrieved from the WordNet database using the DatabaseReader,
+         * so the function is actually comparing clusters of synsets.
+         */
         void analyzeByWords(llvm::StringRef word1, llvm::StringRef word2);
 
-        // This method finds the LCA of two groups of synsets.
+        /**
+         * @brief Analyzes two clusters of synsets and calculates relevant
+         * information, such as the LCA, the closest synsets, and the tree
+         * parameters. This information is stored in the class' state and can
+         * be accessed through the corresponding getter methods.
+         */
         void analyzeBySynsetGroups(llvm::ArrayRef<Synset> synsets1,
                                    llvm::ArrayRef<Synset> synsets2);
 
-        // This method calculates the semantic similarity between two words using
-        // the synset distance to the LCA and the LCA distance to the root synset.
+        /**
+         * @brief Calculates the similarity between two words.
+         * 
+         * @param l The distance between the two synsets, passing through the LCA.
+         * @param h The distance between the LCA and the root synset.
+         * 
+         * The similarity function is a weighted combination of the two parameters,
+         * using the alpha and beta parameters. The function is used to calculate
+         * the similarity between two words.
+         */
         float similarityFunction(int l, int h) const;
 
-        // Get the normalized similarity, accounting for the word's frequency,
-        // and discarding low similarity values. Analyze the words before calling
-        // this method.
+        /**
+         * @brief Gets the normalized similarity between two words.
+         * 
+         * Since rarer words are more informative, the similarity between two
+         * words is normalized by the frequency of the words in the corpus.
+         * It's more common to find the word "thing" than the word "vertebrate",
+         * so it's easier to mistakingly identify the word "thing" as a synonym
+         * of another word. This method normalizes the similarity by the frequency
+         * of the words in the corpus.
+         */
         float getNormalizedSimilarity() const;
 
-        // Get the information content of a synset.
+        /**
+         * @brief Gets the information content of a synset.
+         * 
+         * The information content of a synset is a measure of how informative
+         * the synset is. The information content is calculated by the number
+         * of occurrences of the synset in the corpus. The more occurrences,
+         * the less informative the synset is. Synsets with a high information
+         * are favored in the similarity calculation after normalization.
+         */
         float getInformationContent(const Synset& synset) const;
 
-        // Get the parameters l and h.
+        /**
+         * @brief Gets the tree parameters of the analyzed words.
+         * Note that this method should be called after the analyzeBySynsetGroups
+         * method is run, as the closest synsets are stored in the class' state.
+         */
         const std::pair<int, int> getTreeParameters() const;
 
-        // Get the closest synsets to the root synset.
+        /**
+         * @brief Gets the two closest synsets within the two groups of synsets.
+         * 
+         * Note that this method should be called after the analyzeBySynsetGroups
+         * method is run, as the closest synsets are stored in the class' state.
+         */
         const std::pair<Synset, Synset> getClosestSynsets() const;
 
-        // Get the LCA of the two groups of synsets.
+        /**
+         * @brief Gets the least common ancestor (LCA) of the two groups of synsets.
+         */
         Synset getLCA() const;
     };
 }
