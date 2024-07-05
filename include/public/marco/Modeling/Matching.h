@@ -154,12 +154,16 @@ namespace marco::modeling
 
           size_t getRank() const
           {
-            return getRank(property);
+            auto result = getRank(property);
+            assert(result > 0);
+            return result;
           }
 
           IndexSet getIndices() const
           {
-            return getIndices(property);
+            auto result = getIndices(property);
+            assert(!result.empty());
+            return result;
           }
 
           unsigned int flatSize() const
@@ -332,12 +336,16 @@ namespace marco::modeling
 
         size_t getNumOfIterationVars() const
         {
-          return getNumOfIterationVars(property);
+          auto result = getNumOfIterationVars(property);
+          assert(result > 0);
+          return result;
         }
 
         IndexSet getIterationRanges() const
         {
-          return getIterationRanges(property);
+          auto result = getIterationRanges(property);
+          assert(!result.empty());
+          return result;
         }
 
         unsigned int flatSize() const
