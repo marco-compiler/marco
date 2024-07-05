@@ -1,0 +1,13 @@
+/**
+ * @mainpage Main Page 
+ *
+ * @section intro Introduction
+ * In order to provide better error messages, we need to provide hints to the user if
+ * the typed word is not found in the list of words. This project is two-fold:
+ * - The first part is to get the list of plausible words that the user might have
+ *  intended to type, which depends on the context in which the word was typed.
+ * - The second part is to infer which of the plausible words is the most likely
+ *  intended word. In this case, we need to understand if the user made a typo or
+ *  if they intended to type a different word, which had semantic similarity to the
+ *  typed one.
+ */
