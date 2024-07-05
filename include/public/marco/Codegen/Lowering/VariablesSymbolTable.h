@@ -13,10 +13,9 @@ namespace marco::codegen::lowering
     public:
       class VariablesScope {
         public:
-          VariablesScope(VariablesSymbolTable &ht);
+          explicit VariablesScope(VariablesSymbolTable &ht);
         private:
           llvm::ScopedHashTable<llvm::StringRef, Reference>::ScopeTy scope;
-          VariablesSymbolTable& symbolTable;
       };
 
       void insert(const llvm::StringRef &Key, const Reference &Val);
@@ -27,10 +26,10 @@ namespace marco::codegen::lowering
 
       // If "onlyVisible" is true, return all variables ever inserted into the
       // symbol table. Otherwise, only return current ones.
-      std::set<std::string> getVariables(bool onlyVisible) const;
+      std::set<std::string> getVariables(bool onlyVisible = true) const;
 
     private:
-      llvm::ScopedHashTable<llvm::StringRef, Reference> hashTable;
+      llvm::ScopedHashTable<llvm::StringRef, Reference> references;
       std::set<std::string> variablesSet;
   };
 }
