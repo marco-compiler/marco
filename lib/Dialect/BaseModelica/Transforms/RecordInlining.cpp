@@ -1178,6 +1178,106 @@ namespace
       }
   };
 
+  class TensorBroadcastUnpackPattern
+      : public RecordInliningPattern<TensorBroadcastOp>
+  {
+    public:
+      using RecordInliningPattern<TensorBroadcastOp>::RecordInliningPattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          TensorBroadcastOp op,
+          mlir::PatternRewriter& rewriter) const override
+      {
+        mlir::Type resultType = op.getResult().getType();
+        mlir::Type resultBaseType = resultType;
+
+        if (auto tensorType = resultType.dyn_cast<mlir::TensorType>()) {
+          resultBaseType = tensorType.getElementType();
+        }
+
+        auto recordType = resultBaseType.dyn_cast<RecordType>();
+
+        if (!recordType) {
+          return mlir::failure();
+        }
+
+        auto recordOp = getRecordOp(recordType);
+
+        llvm::SmallVector<ComponentGetOp> componentGetOps;
+
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(op->getUsers())) {
+          if (auto getOp = mlir::dyn_cast<ComponentGetOp>(user)) {
+            componentGetOps.push_back(getOp);
+          }
+        }
+
+        if (componentGetOps.empty()) {
+          return mlir::failure();
+        }
+
+        llvm::StringMap<mlir::Value> componentsMap;
+
+        for (VariableOp component : recordOp.getVariables()) {
+          llvm::SmallVector<mlir::Value, 3> componentValues;
+          mlir::Value element = op.getValue();
+          llvm::SmallVector<int64_t, 3> getResultShape;
+          llvm::ArrayRef<int64_t> elementShape = std::nullopt;
+
+          if (auto elementTensorType =
+                  element.getType().dyn_cast<mlir::TensorType>()) {
+            elementShape = elementTensorType.getShape();
+          }
+
+          mergeShapes(
+              getResultShape, elementShape, component.getVariableType().getShape());
+
+          auto componentGetOp = rewriter.create<ComponentGetOp>(
+              op.getLoc(),
+              component.getVariableType().withShape(getResultShape).unwrap(),
+              element,
+              component.getSymName());
+
+          componentValues.push_back(componentGetOp);
+
+          llvm::SmallVector<int64_t, 3> shape;
+
+          mergeShapes(
+              shape,
+              op.getTensor().getType().getShape(),
+              component.getVariableType().getShape());
+
+          auto sliceOp = rewriter.create<TensorBroadcastOp>(
+              op.getLoc(),
+              op.getTensor().getType().clone(shape).clone(
+                  component.getVariableType().getElementType()),
+              componentValues);
+
+          componentsMap[component.getSymName()] = sliceOp;
+        }
+
+        llvm::SmallVector<mlir::Operation*> subscriptions;
+
+        auto componentGetter =
+            [&](mlir::OpBuilder& builder,
+                mlir::Location loc,
+                llvm::StringRef componentName) -> mlir::Value {
+          return componentsMap[componentName];
+        };
+
+        for (mlir::Operation* user :
+             llvm::make_early_inc_range(op.getResult().getUsers())) {
+          if (mlir::failed(replaceRecordGetters(
+                  rewriter, componentGetter, subscriptions, op.getResult(),
+                  user))) {
+            return mlir::failure();
+          }
+        }
+
+        return mlir::success();
+      }
+  };
+
   class RecordCreateOpFoldPattern
       : public mlir::OpRewritePattern<RecordCreateOp>
   {
@@ -1277,7 +1377,8 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps()
 
   patterns.add<
       RecordCreateOpUnpackPattern,
-      TensorFromElementsUnpackPattern>(&getContext(), moduleOp, symbolTable);
+      TensorFromElementsUnpackPattern,
+      TensorBroadcastUnpackPattern>(&getContext(), moduleOp, symbolTable);
 
   patterns.add<RecordCreateOpFoldPattern>(&getContext());
 
