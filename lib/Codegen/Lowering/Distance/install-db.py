@@ -4,6 +4,39 @@ import os
 import nltk
 from nltk.corpus import wordnet as wn
 
+"""
+This python script downloads the wordnet data through the nltk library,
+and then creates a custom database for the wordnet data. The custom
+database is used by the WordDistanceCalculator class to calculate the
+semantic distance between two words. The custom database is a set of
+four files: count.txt, hypernyms.csv, senses.csv, and synsets.csv.
+
+### count.txt
+The count.txt file contains the total number of synsets in the wordnet
+database. This number is used to calculate the probability of a synset
+occurring in the database.
+
+### hypernyms.csv
+The hypernyms.csv file contains the hypernym relationships between
+synsets in the wordnet database. The first column is the hypernym
+identifier, the second column is the frequency of the synset, and the
+remaining columns are the actual hypernyms of the synset. Note that,
+conveniently, the synset identifier is the byte offset of the synset
+in the file, so that we can quickly jump to the correct position in
+the file.
+
+### senses.csv
+The senses.csv file contains the synsets of each word in the wordnet
+database. The first column is the word, and the remaining columns are
+the byte offsets of the synsets of the word in the hypernyms.csv file.
+
+### synsets.csv
+The synsets.csv file contains the string representation of each synset
+in the wordnet database. The first column is the byte offset of the
+synset in the hypernyms.csv file, and the second column is the string
+representation of the synset, which can be useful for debugging purposes.
+"""
+
 
 if len(sys.argv) != 3:
     print(f"Usage: {sys.argv[0]} <installl-dir> <nltk-data-dir>")
