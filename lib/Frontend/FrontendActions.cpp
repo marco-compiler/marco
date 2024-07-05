@@ -834,67 +834,44 @@ namespace marco::frontend
 
     // Make the equations having only one element on its left and right-hand
     // sides.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createEquationSidesSplitPass());
+    pm.addPass(mlir::bmodelica::createEquationSidesSplitPass());
 
     // Add additional inductions in case of equalities between arrays.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createEquationInductionsExplicitationPass());
+    pm.addPass(mlir::bmodelica::createEquationInductionsExplicitationPass());
 
     // Fold accesses operating on views.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createViewAccessFoldingPass());
+    pm.addPass(mlir::bmodelica::createViewAccessFoldingPass());
 
     // Lift the equations.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createEquationTemplatesCreationPass());
+    pm.addPass(mlir::bmodelica::createEquationTemplatesCreationPass());
 
     // Materialize the derivatives.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createDerivativesMaterializationPass());
+    pm.addPass(mlir::bmodelica::createDerivativesMaterializationPass());
 
     // Legalize the model.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createBindingEquationConversionPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createExplicitStartValueInsertionPass());
-
+    pm.addPass(mlir::bmodelica::createBindingEquationConversionPass());
+    pm.addPass(mlir::bmodelica::createExplicitStartValueInsertionPass());
     pm.addPass(mlir::bmodelica::createModelAlgorithmConversionPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
+    pm.addPass(mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
 
     if (ci.getFrontendOptions().printModelInfo) {
       pm.addPass(mlir::bmodelica::createPrintModelInfoPass());
     }
 
     // Solve the model.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createMatchingPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createEquationAccessSplitPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createSingleValuedInductionEliminationPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createSCCDetectionPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createVariablesPromotionPass());
+    pm.addPass(mlir::bmodelica::createMatchingPass());
+    pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
+    pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
+    pm.addPass(mlir::bmodelica::createSCCDetectionPass());
+    pm.addPass(mlir::bmodelica::createVariablesPromotionPass());
 
     // Try to solve the cycles by substitution.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createSCCSolvingBySubstitutionPass());
+    pm.addPass(mlir::bmodelica::createSCCSolvingBySubstitutionPass());
 
     // Simplify the possibly complex accesses introduced by equations
     // substitutions.
     pm.addPass(mlir::createCanonicalizerPass());
-
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createSingleValuedInductionEliminationPass());
+    pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
 
     // Apply the selected solver.
     pm.addPass(
@@ -908,8 +885,7 @@ namespace marco::frontend
     pm.addPass(mlir::bmodelica::createInitialConditionsSolvingPass());
 
     // Schedule the equations.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createSchedulingPass());
+    pm.addPass(mlir::bmodelica::createSchedulingPass());
 
     // Explicitate the equations.
     pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
@@ -922,8 +898,7 @@ namespace marco::frontend
     pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
 
     // Parallelize the scheduled blocks.
-    pm.addNestedPass<mlir::bmodelica::ModelOp>(
-        mlir::bmodelica::createScheduleParallelizationPass());
+    pm.addPass(mlir::bmodelica::createScheduleParallelizationPass());
 
     if (ci.getCodeGenOptions().equationsRuntimeScheduling) {
       // Delegate the calls to the equation functions to the runtime library.

@@ -34,7 +34,7 @@ namespace
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      DerivativesMap& getDerivativesMap();
+      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
       mlir::LogicalResult collectDerivedIndices(
           ModelOp modelOp,
@@ -90,7 +90,19 @@ namespace
 
 void DerivativesMaterializationPass::runOnOperation()
 {
-  if (mlir::failed(processModelOp(getOperation()))) {
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
     return signalPassFailure();
   }
 
@@ -112,7 +124,7 @@ mlir::LogicalResult DerivativesMaterializationPass::processModelOp(ModelOp model
 
   // Collect the derived indices.
   llvm::DenseSet<mlir::SymbolRefAttr> derivedVariables;
-  DerivativesMap& derivativesMap = getDerivativesMap();
+  DerivativesMap& derivativesMap = getDerivativesMap(modelOp);
   MutexCollection mutexCollection;
 
   if (mlir::failed(mlir::failableParallelForEach(
@@ -175,13 +187,30 @@ mlir::LogicalResult DerivativesMaterializationPass::processModelOp(ModelOp model
   return mlir::success();
 }
 
-DerivativesMap& DerivativesMaterializationPass::getDerivativesMap()
+DerivativesMap& DerivativesMaterializationPass::getDerivativesMap(
+    ModelOp modelOp)
 {
-  if (auto analysis = getCachedAnalysis<DerivativesMap>()) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = modelOp->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
     return *analysis;
   }
 
-  auto& analysis = getAnalysis<DerivativesMap>();
+  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
   analysis.initialize();
   return analysis;
 }

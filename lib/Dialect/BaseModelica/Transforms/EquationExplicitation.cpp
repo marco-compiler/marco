@@ -149,14 +149,25 @@ void EquationExplicitationPass::runOnOperation()
   }
 }
 
-
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 EquationExplicitationPass::getVariableAccessAnalysis(
     EquationTemplateOp equationTemplate,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  auto modelOp = equationTemplate->getParentOfType<ModelOp>();
-  auto analysisManager = getAnalysisManager().nest(modelOp);
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
 
   if (auto analysis =
           analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(

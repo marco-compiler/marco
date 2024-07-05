@@ -26,6 +26,9 @@ namespace
 
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
+
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
   };
 }
 
@@ -165,17 +168,19 @@ namespace
 
 void EquationAccessSplitPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
-  mlir::SymbolTableCollection symbolTableCollection;
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationOpPattern>(&getContext(), symbolTableCollection);
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
 
-  mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
-
-  if (mlir::failed(applyPatternsAndFoldGreedily(
-          modelOp, std::move(patterns), config))) {
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
     return signalPassFailure();
   }
 
@@ -186,7 +191,35 @@ void EquationAccessSplitPass::runOnOperation()
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 EquationAccessSplitPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
 {
-  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = op->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* currentParentOp : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(currentParentOp);
+  }
+
+  return analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(op);
+}
+
+mlir::LogicalResult EquationAccessSplitPass::processModelOp(ModelOp modelOp)
+{
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.insert<EquationOpPattern>(&getContext(), symbolTableCollection);
+
+  mlir::GreedyRewriteConfig config;
+  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+
+  return applyPatternsAndFoldGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica

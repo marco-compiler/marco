@@ -53,7 +53,7 @@ namespace
     private:
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
-          MatchedEquationInstanceOp equation,
+          EquationTemplateOp equationTemplate,
           mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::LogicalResult processModelOp(ModelOp modelOp);
@@ -89,18 +89,34 @@ namespace
 
 void SCCSolvingBySubstitutionPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
-  LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  if (mlir::failed(processModelOp(modelOp))) {
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  auto runFn = [&](mlir::Operation* op) {
+    auto modelOp = mlir::cast<ModelOp>(op);
+    LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
+
+    if (mlir::failed(processModelOp(modelOp))) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(cleanModelOp(modelOp))) {
+      return mlir::failure();
+    }
+
+    LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
+    return mlir::success();
+  };
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
-
-  if (mlir::failed(cleanModelOp(modelOp))) {
-    return signalPassFailure();
-  }
-
-  LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
   // Determine the analyses to be preserved.
   markAnalysesPreserved<DerivativesMap>();
@@ -109,21 +125,52 @@ void SCCSolvingBySubstitutionPass::runOnOperation()
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SCCSolvingBySubstitutionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
 {
-  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = op->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* currentParentOp : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(currentParentOp);
+  }
+
+  return analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SCCSolvingBySubstitutionPass::getVariableAccessAnalysis(
-    MatchedEquationInstanceOp equation,
+    EquationTemplateOp equationTemplate,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
-          equation.getTemplate())) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(
+              equationTemplate)) {
     return *analysis;
   }
 
-  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
-      equation.getTemplate());
+  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+      equationTemplate);
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
     return std::nullopt;
@@ -208,8 +255,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
   }
 
   for (MatchedEquationInstanceOp equation : equations) {
-    auto variableAccessAnalysis =
-        getVariableAccessAnalysis(equation, symbolTableCollection);
+    auto variableAccessAnalysis = getVariableAccessAnalysis(
+        equation.getTemplate(), symbolTableCollection);
 
     auto& bridge = equationBridges.emplace_back(
         MatchedEquationBridge::build(
@@ -635,8 +682,8 @@ void SCCSolvingBySubstitutionPass::createSCCs(
   }
 
   for (MatchedEquationInstanceOp equation : equations) {
-    auto variableAccessAnalysis =
-        getVariableAccessAnalysis(equation, symbolTableCollection);
+    auto variableAccessAnalysis = getVariableAccessAnalysis(
+        equation.getTemplate(), symbolTableCollection);
 
     auto& bridge = equationBridges.emplace_back(
         MatchedEquationBridge::build(

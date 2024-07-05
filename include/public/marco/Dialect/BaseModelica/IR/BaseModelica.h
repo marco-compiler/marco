@@ -40,6 +40,10 @@ namespace mlir::bmodelica
         resolveSymbol(moduleOp, symbolTableCollection, symbol));
   }
 
+  void walkClasses(
+      mlir::Operation* root,
+      llvm::function_ref<void(mlir::Operation*)> callback);
+
   mlir::Type getMostGenericScalarType(mlir::Value first, mlir::Value second);
 
   mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second);

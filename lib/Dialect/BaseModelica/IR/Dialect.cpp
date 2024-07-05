@@ -192,6 +192,30 @@ namespace mlir::bmodelica
     return result;
   }
 
+  void walkClasses(
+      mlir::Operation* root,
+      llvm::function_ref<void(mlir::Operation*)> callback)
+  {
+    llvm::SmallVector<mlir::Operation*, 10> stack;
+    stack.push_back(root);
+
+    while (!stack.empty()) {
+      mlir::Operation* op = stack.pop_back_val();
+
+      if (op->hasTrait<ClassInterface::Trait>()) {
+        callback(op);
+      }
+
+      for (auto& region : op->getRegions()) {
+        for (auto& nestedOp : region.getOps()) {
+          if (nestedOp.hasTrait<ClassInterface::Trait>()) {
+            stack.push_back(&nestedOp);
+          }
+        }
+      }
+    }
+  }
+
   mlir::Type getMostGenericScalarType(mlir::Value x, mlir::Value y)
   {
     assert(x != nullptr && y != nullptr);

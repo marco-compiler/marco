@@ -36,24 +36,41 @@ namespace
 
       mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 
-      DerivativesMap& getDerivativesMap();
+      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
-          MatchedEquationInstanceOp equation,
+          EquationTemplateOp equationTemplate,
           mlir::SymbolTableCollection& symbolTableCollection);
   };
 }
 
 void VariablesPromotionPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  if (mlir::failed(processModelOp(modelOp))) {
-    return signalPassFailure();
-  }
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
 
-  if (mlir::failed(cleanModelOp(modelOp))) {
+  auto runFn = [&](mlir::Operation* op) {
+    auto modelOp = mlir::cast<ModelOp>(op);
+
+    if (mlir::failed(processModelOp(modelOp))) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(cleanModelOp(modelOp))) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  };
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
 
@@ -64,7 +81,22 @@ void VariablesPromotionPass::runOnOperation()
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 VariablesPromotionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
 {
-  return getCachedChildAnalysis<VariableAccessAnalysis>(op);
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = op->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* currentParentOp : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(currentParentOp);
+  }
+
+  return analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
 static IndexSet getVariableIndices(VariableOp variableOp)
@@ -312,7 +344,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   mlir::SymbolTableCollection symbolTableCollection;
 
   // Retrieve the derivatives map.
-  DerivativesMap& derivativesMap = getDerivativesMap();
+  DerivativesMap& derivativesMap = getDerivativesMap(modelOp);
 
   // Collect the variables.
   llvm::SmallVector<VariableOp> variables;
@@ -392,7 +424,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 
   for (MatchedEquationInstanceOp equationOp : mainEquations) {
     auto accessAnalysis = getVariableAccessAnalysis(
-        equationOp, symbolTableCollection);
+        equationOp.getTemplate(), symbolTableCollection);
 
     if (!accessAnalysis) {
       return mlir::failure();
@@ -677,29 +709,61 @@ mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp)
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-DerivativesMap& VariablesPromotionPass::getDerivativesMap()
+DerivativesMap& VariablesPromotionPass::getDerivativesMap(ModelOp modelOp)
 {
-  if (auto analysis = getCachedAnalysis<DerivativesMap>()) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = modelOp->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
     return *analysis;
   }
 
-  auto& analysis = getAnalysis<DerivativesMap>();
+  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
   analysis.initialize();
   return analysis;
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 VariablesPromotionPass::getVariableAccessAnalysis(
-    MatchedEquationInstanceOp equation,
+    EquationTemplateOp equationTemplate,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
-          equation.getTemplate())) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(
+              equationTemplate)) {
     return *analysis;
   }
 
-  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
-      equation.getTemplate());
+  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+      equationTemplate);
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
     return std::nullopt;

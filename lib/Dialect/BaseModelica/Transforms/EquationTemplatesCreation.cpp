@@ -279,10 +279,20 @@ namespace
 
 void EquationTemplatesCreationPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  if (mlir::failed(createTemplates(modelOp))) {
-      return signalPassFailure();
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return createTemplates(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
   }
 }
 

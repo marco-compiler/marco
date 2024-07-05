@@ -22,6 +22,9 @@ namespace
 
       void runOnOperation() override;
 
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
+
       void cloneEquationsAsInitialEquations(
           mlir::OpBuilder& builder, ModelOp modelOp);
 
@@ -32,10 +35,30 @@ namespace
 
 void ExplicitInitialEquationsInsertionPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult ExplicitInitialEquationsInsertionPass::processModelOp(
+    ModelOp modelOp)
+{
   mlir::OpBuilder builder(modelOp);
   cloneEquationsAsInitialEquations(builder, modelOp);
   createInitialEquationsFromStartOps(builder, modelOp);
+  return mlir::success();
 }
 
 void ExplicitInitialEquationsInsertionPass::cloneEquationsAsInitialEquations(
@@ -81,7 +104,7 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     mlir::Location loc = startOp.getLoc();
 
     auto variable = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        getOperation(), startOp.getVariableAttr());
+        modelOp, startOp.getVariableAttr());
 
     VariableType variableType = variable.getVariableType();
     int64_t expressionRank = 0;

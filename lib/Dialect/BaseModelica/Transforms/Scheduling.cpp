@@ -42,6 +42,8 @@ namespace
           MatchedEquationInstanceOp equation,
           mlir::SymbolTableCollection& symbolTableCollection);
 
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
+
       mlir::LogicalResult processScheduleOp(
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
@@ -79,14 +81,20 @@ namespace
 
 void SchedulingPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
-  mlir::SymbolTableCollection symbolTableCollection;
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
-    if (mlir::failed(processScheduleOp(
-            symbolTableCollection, modelOp, scheduleOp))) {
-      return signalPassFailure();
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
     }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
   }
 }
 
@@ -95,12 +103,28 @@ SchedulingPass::getVariableAccessAnalysis(
     EquationTemplateOp equationTemplate,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  if (auto analysis = getCachedChildAnalysis<VariableAccessAnalysis>(
-          equationTemplate)) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(
+              equationTemplate)) {
     return *analysis;
   }
 
-  auto& analysis = getChildAnalysis<VariableAccessAnalysis>(
+  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
       equationTemplate);
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
@@ -127,6 +151,20 @@ SchedulingPass::getVariableAccessAnalysis(
 {
   return getVariableAccessAnalysis(
       equation.getTemplate(), symbolTableCollection);
+}
+
+mlir::LogicalResult SchedulingPass::processModelOp(ModelOp modelOp)
+{
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
+    if (mlir::failed(processScheduleOp(
+            symbolTableCollection, modelOp, scheduleOp))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult SchedulingPass::processScheduleOp(
