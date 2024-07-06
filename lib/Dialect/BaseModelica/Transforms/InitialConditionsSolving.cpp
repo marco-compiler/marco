@@ -36,9 +36,11 @@ void InitialConditionsSolvingPass::runOnOperation()
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<ModelOp> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
-    modelOps.push_back(modelOp);
-  }
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(

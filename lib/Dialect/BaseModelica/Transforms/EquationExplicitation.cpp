@@ -133,7 +133,13 @@ void EquationExplicitationPass::runOnOperation()
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  for (ModelOp modelOp : modelOps) {
     for (ScheduleOp scheduleOp :
          llvm::make_early_inc_range(modelOp.getOps<ScheduleOp>())) {
       if (mlir::failed(processScheduleOp(

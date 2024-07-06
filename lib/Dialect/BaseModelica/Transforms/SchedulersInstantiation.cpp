@@ -96,9 +96,16 @@ void SchedulersInstantiationPass::runOnOperation()
   mlir::ModuleOp moduleOp = getOperation();
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
+  llvm::SmallVector<ModelOp, 1> modelOps;
   llvm::SmallVector<ScheduleOp> scheduleOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  for (ModelOp modelOp : modelOps) {
     for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
       scheduleOps.push_back(scheduleOp);
     }
