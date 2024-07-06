@@ -289,6 +289,10 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     }
   }
 
+  llvm::sort(result, [](const Cycle& first, const Cycle& second) {
+    return first.size() > second.size();
+  });
+
   LLVM_DEBUG(llvm::dbgs() << result.size() << " cycles found\n");
   return mlir::success();
 }
