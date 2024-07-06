@@ -540,6 +540,9 @@ namespace marco::frontend
 
     mlir::runtime::registerAllDialectInterfaceImplementations(
         mlirDialectRegistry);
+
+    // Register conversions to LLVM dialect.
+    mlir::registerConvertBaseModelicaToLLVMInterface(mlirDialectRegistry);
   }
 
   void CodeGenAction::createMLIRContext()
