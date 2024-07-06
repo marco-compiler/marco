@@ -29,9 +29,10 @@ namespace marco::codegen::lowering
     for (unsigned int i=1; i<=m; ++i) {
       unsigned int actualNameCharIdx = charToSubstitutionCostsIndex(actualName[i-1]);
       unsigned int charInsertionCost = (n > 0) ?
-                                          editDistanceSubsitutionCosts[actualNameCharIdx][firstCharIdx] :
-                                          editDistanceLargestSubstitutionCost;
-      distances[i*(n+1)] = distances[(i-1)*(n+1)] + editDistanceBaseInsertionCost + charInsertionCost;
+          editDistanceSubsitutionCosts[actualNameCharIdx][firstCharIdx] :
+          editDistanceLargestSubstitutionCost;
+      distances[i*(n+1)] = distances[(i-1)*(n+1)] + editDistanceBaseInsertionCost + 
+                           charInsertionCost;
     } 
 
     // Compute the distance matrix.
@@ -47,20 +48,21 @@ namespace marco::codegen::lowering
         // Calculate the distance in case of insertion.
         unsigned int currentCharCost = editDistanceSubsitutionCosts[actualNameCharIdx][expectedNameCharIdx];
         unsigned int nextCharCost = (j < n) ?
-              editDistanceSubsitutionCosts[actualNameCharIdx][charToSubstitutionCostsIndex(expectedName[j])] :
-              editDistanceLargestSubstitutionCost;
+            editDistanceSubsitutionCosts[actualNameCharIdx][charToSubstitutionCostsIndex(expectedName[j])] :
+            editDistanceLargestSubstitutionCost;
         unsigned int insertionResult = distances[index - (n+1)] + editDistanceBaseInsertionCost + 
-                                              std::min(currentCharCost, nextCharCost);
+                                       std::min(currentCharCost, nextCharCost);
 
         // Calculate the distance in case of substitution.
+        // This includes the case when there is a match (0 substitution cost).
         unsigned int substitutionResult = distances[index - (n+1) - 1] + 
-                                                 editDistanceSubsitutionCosts[actualNameCharIdx][expectedNameCharIdx];
+            editDistanceSubsitutionCosts[actualNameCharIdx][expectedNameCharIdx];
 
         // Calculate the distance in case of transposition.
         unsigned int transpositionResult = 
-                           (i >= 2 && j >= 2 && actualName[i-1] == expectedName[j-2] && actualName[i-2] == expectedName[j-1]) ?
-                           distances[index - 2*(n+1) - 2] + editDistanceTranspositionCost :
-                           maxCost;
+            (i >= 2 && j >= 2 && actualName[i-1] == expectedName[j-2] && actualName[i-2] == expectedName[j-1]) ?
+            distances[index - 2*(n+1) - 2] + editDistanceTranspositionCost :
+            maxCost;
 
         // Select the operation with the lowest cost.
         distances[index] = std::min(std::min(deletionResult, insertionResult), 
