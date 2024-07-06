@@ -1067,11 +1067,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
 
     if (auto derivativeVariable = getDerivative(mlir::SymbolRefAttr::get(
             variableOp.getSymNameAttr()))) {
-      auto derivativeVariableOp =
-          symbolTableCollection->lookupSymbolIn<VariableOp>(
-              modelOp, *derivativeVariable);
-
-      return idaStateVariables[stateVariablesLookup[derivativeVariableOp]];
+      return idaStateVariables[stateVariablesLookup[variableOp]];
     }
 
     return idaAlgebraicVariables[algebraicVariablesLookup[variableOp]];
