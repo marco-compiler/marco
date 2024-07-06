@@ -1,10 +1,14 @@
 /// @mainpage Main Page 
 ///
 /// @section intro Introduction
-/// In order to generate better error messages, we need to provide hints to the user if
-/// the typed word is not found in the list of words. This project is two-fold:
+/// In order to generate proper error messages, we need to provide hints to the user if
+/// an undeclared identifier is found. This is done in two steps:
 /// - The first part is to get the list of plausible words that the user might have
-///  intended to type, which depends on the context in which the word was typed.
+///  intended to type, which depends on the context in which the word was typed. When an
+///  error occurs, the global and variables symbol table in the lowring context are used 
+///  to find which identifiers are of the correct type and visible from the current scope. 
+///  The list of plausible words is then created inserting said identifiers and the built-in 
+///  identifiers of the respective type.
 /// - The second part is to infer which of the plausible words is the most likely
 ///  intended word. In this case, we need to understand if the user made a typo or
 ///  if they intended to type a different word, which had semantic similarity to the
@@ -14,10 +18,21 @@
 /// distance metric and a semantic distance metric, following the paper "Sentence similarity
 /// based on semantic nets and corpus statistics" by Li, McLean, Bandar, O'Shea, Crockett.
 /// The first metric is a first step to immediately understand if the user made an actual
-/// typo. Each word is assigned a "distance" to the typed word, and if the smallest distance
-/// is below a certain threshold, we can infer that the user made a typo and suggest the
-/// word with the smallest distance. Only if the smallest distance is above the threshold
-/// do we use the more algorithmically expensive semantic distance metric.
+/// typo, and is based only on syntactic properties. Each word is assigned a "distance" 
+/// to the typed word, and if the smallest distance is below a certain threshold, we can infer 
+/// that the user made a typo and suggest the word with the smallest distance. Only if the 
+/// smallest distance is above the threshold do we use the more algorithmically expensive 
+/// semantic distance metric. Moreover, if the semantic distance fails due to a faulty
+/// wordnet installation, the result using the distance metric is kept.
+///
+/// @section syntactic Syntactic Distance
+/// The edit distance metric is based only on syntactic properties of the two compared words.
+/// The metric is known as the optimal string alignment distance, modified to use custom weights
+/// for edit operations. The idea behind this metric is that the distance between two words is 
+/// calculated finding the sequence of operations to transform one word into the other which
+/// has the lowest cost among the possible ones, using the operations of insertion, deletion
+/// and substitution of a character and trasposition of two characters. It is based on the 
+/// well-known Levenshtein distance, with the addition of the trasposition operation.
 ///
 /// @section semantic Semantic Distance
 /// The semantic distance metric is based on exploring the graph of synsets in WordNet.
@@ -36,11 +51,11 @@
 ///
 /// @section classes Class Overview
 /// The IdentifierError class is the main class that is used to fix the best suggestion for
-/// a given word. After checking the Damerau-Levenshtein-inspired distance, it uses the
-/// SentenceDistanceCalculator class to calculate the semantic distance between two words.
+/// a given word. After checking the edit distance, it uses the SentenceDistanceCalculator class 
+/// to calculate the semantic distance between two words.
 /// The SentenceDistanceCalculator class uses the WordDistanceCalculator class to calculate
-/// the distance between two variables, which may be compositions of multiple words. The WordDistanceCalculator
-/// class uses the DatabaseReader class to interface with the custom database that contains the
-/// WordNet graph.
+/// the distance between two variables, which may be compositions of multiple words. The 
+/// WordDistanceCalculator class uses the DatabaseReader class to interface with the custom 
+/// database that contains the WordNet graph.
 ///
 /// @image html class-diagram.png

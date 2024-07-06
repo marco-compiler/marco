@@ -8,7 +8,7 @@
 /// @brief Header file for the editDistance function.
 /// 
 /// The file contains the declaration of the editDistance function, which
-/// computes an optimal string alignment distance between two words.
+/// computes the optimal string alignment distance between two words.
 
 namespace marco::codegen::lowering
 {
