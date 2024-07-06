@@ -17,6 +17,32 @@ using namespace ::mlir::bmodelica;
 
 namespace
 {
+  class PackageOpPattern : public mlir::OpRewritePattern<PackageOp>
+  {
+    public:
+      using mlir::OpRewritePattern<PackageOp>::OpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          PackageOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class RecordOpPattern : public mlir::OpRewritePattern<RecordOp>
+  {
+    public:
+      using mlir::OpRewritePattern<RecordOp>::OpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          RecordOp op, mlir::PatternRewriter& rewriter) const override
+      {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
   class ConstantOpRangeLowering
       : public mlir::ConvertOpToLLVMPattern<ConstantOp>
   {
@@ -254,6 +280,10 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations()
   });
 
   target.addIllegalOp<
+      PackageOp,
+      RecordOp>();
+
+  target.addIllegalOp<
       RangeOp,
       RangeBeginOp,
       RangeEndOp,
@@ -296,6 +326,11 @@ namespace mlir
       mlir::RewritePatternSet& patterns,
       mlir::LLVMTypeConverter& typeConverter)
   {
+    // Class operations.
+    patterns.insert<
+        PackageOpPattern,
+        RecordOpPattern>(&typeConverter.getContext());
+
     // Range operations.
     patterns.insert<
         ConstantOpRangeLowering,
