@@ -862,6 +862,7 @@ namespace marco::frontend
     }
 
     // Solve the model.
+    pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::bmodelica::createMatchingPass());
     pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
     pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
