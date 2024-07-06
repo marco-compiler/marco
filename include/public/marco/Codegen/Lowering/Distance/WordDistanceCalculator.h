@@ -100,10 +100,6 @@ namespace marco::codegen::lowering
          */
         int distanceToRoot(const Synset& synset) const;
 
-    public:
-        WordDistanceCalculator();
-        ~WordDistanceCalculator();
-
         /**
          * @brief Parameters for the similarity function.
          * 
@@ -130,21 +126,6 @@ namespace marco::codegen::lowering
         const float semanticThreshold;
 
         /**
-         * @brief Analyzes two words and calculates relevant information,
-         * such as the LCA, the closest synsets, and the tree parameters.
-         * This information is stored in the class' state and can be accessed
-         * through the corresponding getter methods.
-         * 
-         * @param word1 The first word to analyze.
-         * @param word2 The second word to analyze.
-         * 
-         * Note that this method compares words, and not synsets. The synsets
-         * are retrieved from the WordNet database using the DatabaseReader,
-         * so the function is actually comparing clusters of synsets.
-         */
-        void analyzeByWords(llvm::StringRef word1, llvm::StringRef word2);
-
-        /**
          * @brief Analyzes two clusters of synsets and calculates relevant
          * information, such as the LCA, the closest synsets, and the tree
          * parameters. This information is stored in the class' state and can
@@ -164,18 +145,6 @@ namespace marco::codegen::lowering
          * the similarity between two words.
          */
         float similarityFunction(int l, int h) const;
-
-        /**
-         * @brief Gets the normalized similarity between two words.
-         * 
-         * Since rarer words are more informative, the similarity between two
-         * words is normalized by the frequency of the words in the corpus.
-         * It's more common to find the word "thing" than the word "vertebrate",
-         * so it's easier to mistakingly identify the word "thing" as a synonym
-         * of another word. This method normalizes the similarity by the frequency
-         * of the words in the corpus.
-         */
-        float getNormalizedSimilarity() const;
 
         /**
          * @brief Gets the information content of a synset.
@@ -207,6 +176,36 @@ namespace marco::codegen::lowering
          * @brief Gets the least common ancestor (LCA) of the two groups of synsets.
          */
         Synset getLCA() const;
+
+    public:
+        WordDistanceCalculator();
+
+        /**
+         * @brief Analyzes two words and calculates relevant information,
+         * such as the LCA, the closest synsets, and the tree parameters.
+         * This information is stored in the class' state and can be accessed
+         * through the corresponding getter methods.
+         * 
+         * @param word1 The first word to analyze.
+         * @param word2 The second word to analyze.
+         * 
+         * Note that this method compares words, and not synsets. The synsets
+         * are retrieved from the WordNet database using the DatabaseReader,
+         * so the function is actually comparing clusters of synsets.
+         */
+        void analyzeByWords(llvm::StringRef word1, llvm::StringRef word2);
+
+        /**
+         * @brief Gets the normalized similarity between two words.
+         * 
+         * Since rarer words are more informative, the similarity between two
+         * words is normalized by the frequency of the words in the corpus.
+         * It's more common to find the word "thing" than the word "vertebrate",
+         * so it's easier to mistakingly identify the word "thing" as a synonym
+         * of another word. This method normalizes the similarity by the frequency
+         * of the words in the corpus.
+         */
+        float getNormalizedSimilarity() const;
     };
 }
 

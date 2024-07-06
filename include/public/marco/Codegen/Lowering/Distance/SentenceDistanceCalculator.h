@@ -112,7 +112,7 @@ namespace marco::codegen::lowering
          * @brief Get the similarity between two sentences.
          * 
          * This is a public method that calculates the similarity between
-         * two sentences. The sentences are split into words, and the
+         * two sentences. The sentences are split into words, and thed
          * similarity is calculated by comparing the word vectors.
          * 
          * This is the final product of the sentence distance

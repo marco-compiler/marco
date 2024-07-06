@@ -14,8 +14,6 @@ namespace marco::codegen::lowering
         alpha(0.2), beta(0.45),
         semanticThreshold(0.2) {}
 
-    WordDistanceCalculator::~WordDistanceCalculator() {}
-
     void WordDistanceCalculator::analyzeByWords(llvm::StringRef word1,
                                                 llvm::StringRef word2)
     {
