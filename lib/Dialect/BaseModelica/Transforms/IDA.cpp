@@ -2050,7 +2050,6 @@ namespace
 
 void IDAPass::runOnOperation()
 {
-  mlir::ModuleOp moduleOp = getOperation();
   llvm::SmallVector<ModelOp, 1> modelOps;
 
   walkClasses(getOperation(), [&](mlir::Operation* op) {
