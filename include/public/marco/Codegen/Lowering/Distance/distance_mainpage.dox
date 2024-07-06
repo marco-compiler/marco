@@ -37,11 +37,12 @@
  *
  * @section classes Class Overview
  * The IdentifierError class is the main class that is used to fix the best suggestion for
- * a given word. It calls the EditDistance and SentenceDistanceCalculator classes in order
- * to gather the most likely suggestion. The EditDistance class is used to calculate the
- * Damerau-Levenshtein-inspired distance between two words, and the SentenceDistanceCalculator
- * class is used to calculate the semantic distance between two words. The SentenceDistanceCalculator
- * class uses the WordDistanceCalculator class to calculate the distance between two variables,
- * which may be compositions of multiple words. The WordDistanceCalculator class uses the
- * DatabaseReader class to interface with the custom database that contains the WordNet graph.
+ * a given word. After checking the Damerau-Levenshtein-inspired distance, it uses the
+ * SentenceDistanceCalculator class to calculate the semantic distance between two words.
+ * The SentenceDistanceCalculator class uses the WordDistanceCalculator class to calculate
+ * the distance between two variables, which may be compositions of multiple words. The WordDistanceCalculator
+ * class uses the DatabaseReader class to interface with the custom database that contains the
+ * WordNet graph.
+ *
+ * @image html class-diagram.png
  */
