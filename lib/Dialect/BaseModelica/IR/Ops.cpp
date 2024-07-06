@@ -3999,11 +3999,19 @@ namespace mlir::bmodelica
     auto lhs = adaptor.getLhs();
     auto rhs = adaptor.getRhs();
 
-    if (!lhs || !rhs) {
-      return {};
+    auto resultType = getResult().getType();
+
+    if (lhs && isScalar(lhs) && getScalarAttributeValue<double>(lhs) == 0) {
+      if (!resultType.isa<mlir::ShapedType>()) {
+        return getAttr(resultType, static_cast<int64_t>(0));
+      }
     }
 
-    auto resultType = getResult().getType();
+    if (rhs && isScalar(rhs) && getScalarAttributeValue<double>(rhs) == 0) {
+      if (!resultType.isa<mlir::ShapedType>()) {
+        return getAttr(resultType, static_cast<int64_t>(0));
+      }
+    }
 
     if (isScalar(lhs) && isScalar(rhs)) {
       if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
