@@ -478,17 +478,23 @@ static mlir::LogicalResult solveCycle(
 }
 
 static bool isContainedInBiggerCycle(
-    const Cycle& cycle, llvm::ArrayRef<Cycle> cycles)
+    llvm::ArrayRef<Cycle> cycles, size_t cycleIndex)
 {
+  const Cycle& cycle = cycles[cycleIndex];
   llvm::DenseSet<MatchedEquationInstanceOp> involvedEquations;
 
   for (size_t i = 1, e = cycle.size(); i < e; ++i) {
     involvedEquations.insert(cycle[i].equation);
   }
 
-  for (const Cycle& otherCycle : cycles) {
+  // The cycles are sorted by decreasing size, so we can just iterate up to the
+  // currently analyzed cycle.
+  for (size_t otherCycleIndex = 0; otherCycleIndex < cycleIndex;
+       ++otherCycleIndex) {
+    const Cycle& otherCycle = cycles[otherCycleIndex];
+
     if (otherCycle.size() <= cycle.size()) {
-      continue;
+      break;
     }
 
     llvm::DenseSet<MatchedEquationInstanceOp> otherInvolvedEquations;
@@ -576,24 +582,24 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     // Try to solve one cycle.
     atLeastOneChanged = false;
 
-    for (const Cycle& cycle : cycles) {
+    for (const auto& cycle : llvm::enumerate(cycles)) {
       currentEquations.clear();
 
-      if (isContainedInBiggerCycle(cycle, cycles)) {
+      if (isContainedInBiggerCycle(cycles, cycle.index())) {
         LLVM_DEBUG({
           llvm::dbgs() << "The following cycle is skipped for being part of a bigger SCC\n";
-          printCycle(llvm::dbgs(), cycle);
+          printCycle(llvm::dbgs(), cycle.value());
         });
 
         continue;
       }
 
       // Check if one of the equations can't be made explicit.
-      for (size_t i = 1, e = cycle.size(); i < e; ++i) {
-        if (nonExplicitableEquations.contains(cycle[i].equation)) {
+      for (size_t i = 1, e = cycle.value().size(); i < e; ++i) {
+        if (nonExplicitableEquations.contains(cycle.value()[i].equation)) {
           LLVM_DEBUG({
             llvm::dbgs() << "The following cycle is skipped for having a non-explicitable equation\n";
-            printCycle(llvm::dbgs(), cycle);
+            printCycle(llvm::dbgs(), cycle.value());
           });
 
           continue;
@@ -603,9 +609,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
       llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
       if (mlir::succeeded(::solveCycle(
-              rewriter, symbolTableCollection, cycle,
+              rewriter, symbolTableCollection, cycle.value(),
               newEquations, nonExplicitableEquations))) {
-        MatchedEquationInstanceOp firstEquation = cycle[0].equation;
+        MatchedEquationInstanceOp firstEquation = cycle.value()[0].equation;
         IndexSet originalIterationSpace = firstEquation.getIterationSpace();
 
         if (!originalIterationSpace.empty()) {
