@@ -48,7 +48,8 @@ namespace marco::codegen::lowering
       /// The symbol table maps a variable name to a value in the current scope.
       /// Entering a class creates a new scope. When the processing of a class is
       /// terminated, the scope is destroyed and the mappings created in this
-      /// scope are dropped.
+      /// scope are dropped. However, the variable names can still be accesses after
+      /// leaving the scope, to be used to provide debugging information to the user.
       VariablesSymbolTable variablesSymbolTable;
 
       llvm::SmallVector<mlir::Operation*> lookupScopes;

@@ -80,9 +80,18 @@ namespace marco::codegen::lowering
       /// Check if a built-in function with a given name exists.
       bool isBuiltInFunction(const ast::ComponentReference& name) const;
 
-      /// Emit an error due to a wrong number of arguments being provided to a function.
+      /// Helper function to emit an error if a function is provided the wrong number 
+      /// of arguments. The error will state that the function received actualNum
+      /// arguments, but the expected number was exactly expectedNum.
       void emitErrorNumArguments(llvm::StringRef function, const marco::SourceRange& location, 
                                  unsigned int actualNum, unsigned int expectedNum);
+                                 
+      /// Helper function to emit an error if a function is provided the wrong number 
+      /// of arguments. The error will state that the function received actualNum
+      /// arguments. If maxExpectedNum is 0, the function will state that the expected
+      /// number of arguments was at least minExpectedNum, otherwise it will state that
+      /// the expected number of arguments was in the range [minExpectedNum, 
+      /// maxExpectedNum].
       void emitErrorNumArgumentsRange(llvm::StringRef function, const marco::SourceRange& location,
                                       unsigned int actualNum, unsigned int minExpectedNum, 
                                       unsigned int maxExpectedNum = 0);

@@ -26,17 +26,8 @@ namespace marco::codegen::lowering
       /// Helper to convert an AST location range to a MLIR location.
       mlir::Location loc(const SourceRange& location);
 
-      /// @name Utility getters.
-      /// {
-
-      mlir::OpBuilder& builder();
-
-      mlir::SymbolTableCollection& getSymbolTable();
-
-      VariablesSymbolTable& getVariablesSymbolTable();
-
-      // Helper to initialize visibleSymbols, adding all the declared symbols
-      // of the requested type that are visible from scope.
+      /// Helper function to initialize visibleSymbols, adding all the declared symbols
+      /// of type T that are visible from the given scope.
       template<typename... T>
       void getVisibleSymbols(
           mlir::Operation* scope, 
@@ -47,7 +38,18 @@ namespace marco::codegen::lowering
         });
       }
 
-      void getVisibleSymbols(mlir::Operation* scope, std::set<std::string> &declaredSymbols);
+      /// Helper function to initialize visibleSymbols, adding all the declared symbols
+      /// that are visible from the given scope.
+      void getVisibleSymbols(mlir::Operation* scope, std::set<std::string> &visibleSymbols);
+
+      /// @name Utility getters.
+      /// {
+
+      mlir::OpBuilder& builder();
+
+      mlir::SymbolTableCollection& getSymbolTable();
+
+      VariablesSymbolTable& getVariablesSymbolTable();
 
       mlir::Operation* getLookupScope();
 
