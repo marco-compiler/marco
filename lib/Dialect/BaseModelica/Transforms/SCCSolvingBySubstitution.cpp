@@ -34,6 +34,22 @@ namespace
 
 using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 
+static void printCycle(llvm::raw_ostream& os, const Cycle& cycle)
+{
+  for (const CyclicEquation& cyclicEquation : cycle) {
+    os << cyclicEquation.writeAccess.getVariable() << " -> ";
+  }
+
+  os << cycle.back().readAccess.getVariable() << "\n";
+
+  for (const CyclicEquation& cyclicEquation : cycle) {
+    MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+    os << "[writing " << cyclicEquation.writeAccess.getVariable() << "] ";
+    equationOp.printInline(llvm::dbgs());
+    os << "\n";
+  }
+}
+
 namespace
 {
   class SCCSolvingBySubstitutionPass
@@ -302,7 +318,8 @@ static mlir::LogicalResult solveCycle(
     mlir::SymbolTableCollection& symbolTableCollection,
     const Cycle& cycle,
     size_t index,
-    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations,
+    llvm::DenseSet<MatchedEquationInstanceOp>& nonExplicitableEquations)
 {
   if (index + 1 == cycle.size()) {
     MatchedEquationInstanceOp equationOp = cycle[index].equation;
@@ -324,7 +341,7 @@ static mlir::LogicalResult solveCycle(
 
   if (mlir::failed(solveCycle(
           rewriter, symbolTableCollection, cycle, index + 1,
-          writingEquations))) {
+          writingEquations, nonExplicitableEquations))) {
     return mlir::failure();
   }
 
@@ -358,6 +375,7 @@ static mlir::LogicalResult solveCycle(
 
     if (!explicitWritingEquationOp) {
       LLVM_DEBUG(llvm::dbgs() << "The writing equation can't be made explicit\n");
+      nonExplicitableEquations.insert(writingEquationOp);
       return mlir::failure();
     }
 
@@ -434,7 +452,8 @@ static mlir::LogicalResult solveCycle(
     mlir::RewriterBase& rewriter,
     mlir::SymbolTableCollection& symbolTableCollection,
     const Cycle& cycle,
-    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations)
+    llvm::SmallVectorImpl<MatchedEquationInstanceOp>& newEquations,
+    llvm::DenseSet<MatchedEquationInstanceOp>& nonExplicitableEquations)
 {
   LLVM_DEBUG({
     llvm::dbgs() << "Solving cycle composed by the following equations:\n";
@@ -453,7 +472,9 @@ static mlir::LogicalResult solveCycle(
     }
   });
 
-  return ::solveCycle(rewriter, symbolTableCollection, cycle, 0, newEquations);
+  return ::solveCycle(
+      rewriter, symbolTableCollection, cycle, 0,
+      newEquations, nonExplicitableEquations);
 }
 
 static bool isContainedInBiggerCycle(
@@ -519,6 +540,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
   llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
   llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
+  llvm::DenseSet<MatchedEquationInstanceOp> nonExplicitableEquations;
 
   auto createSCCsFn = llvm::make_scope_exit([&]() {
     for (MatchedEquationInstanceOp equation : toBeErased) {
@@ -551,15 +573,6 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   int64_t currentIteration = 0;
 
   while (!cycles.empty() && currentIteration++ < maxIterations) {
-    // Collect all the equation indices leading to cycles.
-    llvm::DenseMap<MatchedEquationInstanceOp, IndexSet> cyclicIndices;
-
-    for (const Cycle& cycle : cycles) {
-      MatchedEquationInstanceOp equationOp = cycle[0].equation;
-      IndexSet indices = equationOp.getIterationSpace();
-      cyclicIndices[equationOp] += indices;
-    }
-
     // Try to solve one cycle.
     atLeastOneChanged = false;
 
@@ -569,29 +582,29 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
       if (isContainedInBiggerCycle(cycle, cycles)) {
         LLVM_DEBUG({
           llvm::dbgs() << "The following cycle is skipped for being part of a bigger SCC\n";
-
-          for (const CyclicEquation& cyclicEquation : cycle) {
-            llvm::dbgs() << cyclicEquation.writeAccess.getVariable() << " -> ";
-          }
-
-          llvm::dbgs() << cycle.back().readAccess.getVariable() << "\n";
-
-          for (const CyclicEquation& cyclicEquation : cycle) {
-            MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
-            llvm::dbgs() << "[writing "
-                         << cyclicEquation.writeAccess.getVariable() << "] ";
-            equationOp.printInline(llvm::dbgs());
-            llvm::dbgs() << "\n";
-          }
+          printCycle(llvm::dbgs(), cycle);
         });
 
         continue;
       }
 
+      // Check if one of the equations can't be made explicit.
+      for (size_t i = 1, e = cycle.size(); i < e; ++i) {
+        if (nonExplicitableEquations.contains(cycle[i].equation)) {
+          LLVM_DEBUG({
+            llvm::dbgs() << "The following cycle is skipped for having a non-explicitable equation\n";
+            printCycle(llvm::dbgs(), cycle);
+          });
+
+          continue;
+        }
+      }
+
       llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
       if (mlir::succeeded(::solveCycle(
-              rewriter, symbolTableCollection, cycle, newEquations))) {
+              rewriter, symbolTableCollection, cycle,
+              newEquations, nonExplicitableEquations))) {
         MatchedEquationInstanceOp firstEquation = cycle[0].equation;
         IndexSet originalIterationSpace = firstEquation.getIterationSpace();
 
