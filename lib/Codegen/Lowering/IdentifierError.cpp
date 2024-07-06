@@ -8,7 +8,7 @@ namespace marco::codegen::lowering
         const std::set<std::string> &declaredIdentifiers): 
         identifierType(identifierType), actualName(actual), predictedName("") {
     // Check the declared identifiers using edit distance.
-    std::tuple<unsigned int, std::string> declaredResult = 
+    std::pair<unsigned int, std::string> declaredResult = 
         computeLowestEditDistance(actual, declaredIdentifiers);
     unsigned int declaredDistance = std::get<0>(declaredResult);
     std::string declaredName = std::get<1>(declaredResult);
@@ -19,7 +19,7 @@ namespace marco::codegen::lowering
 
     switch (identifierType) {
       case IdentifierType::FUNCTION: {
-        std::tuple<unsigned int, std::string> builtInResult = 
+        std::pair<unsigned int, std::string> builtInResult = 
             computeLowestEditDistance(actual, builtInFunctions);
         builtInDistance = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
       }
 
       case IdentifierType::TYPE: {
-        std::tuple<unsigned int, std::string> builtInResult = 
+        std::pair<unsigned int, std::string> builtInResult = 
             computeLowestEditDistance(actual, builtInTypes);
         builtInDistance = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
@@ -53,7 +53,7 @@ namespace marco::codegen::lowering
     }
 
     // Check the declared identifiers using semantic distance.
-    std::tuple<float, std::string> declaredResultSemantic = 
+    std::pair<float, std::string> declaredResultSemantic = 
         computeHighestSemanticSimilarity(actual, declaredIdentifiers);
     float declaredSimilarity = std::get<0>(declaredResultSemantic);
     declaredName = std::get<1>(declaredResultSemantic);
@@ -63,7 +63,7 @@ namespace marco::codegen::lowering
 
     switch (identifierType) {
       case IdentifierType::FUNCTION: {
-        std::tuple<float, std::string> builtInResult = 
+        std::pair<float, std::string> builtInResult = 
             computeHighestSemanticSimilarity(actual, builtInFunctions);
         builtInSimilarity = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
@@ -71,7 +71,7 @@ namespace marco::codegen::lowering
       }
 
       case IdentifierType::TYPE: {
-        std::tuple<float, std::string> builtInResult = 
+        std::pair<float, std::string> builtInResult = 
             computeHighestSemanticSimilarity(actual, builtInTypes);
         builtInSimilarity = std::get<0>(builtInResult);
         builtInName = std::get<1>(builtInResult);
@@ -110,7 +110,7 @@ namespace marco::codegen::lowering
     return predictedName;
   }
 
-  std::tuple<unsigned int, std::string> 
+  std::pair<unsigned int, std::string> 
   IdentifierError::computeLowestEditDistance(llvm::StringRef actual, 
                    const std::set<std::string> &possibleIdentifiers) const {
     unsigned int lowestDistanceYet = 65535U;
@@ -126,10 +126,10 @@ namespace marco::codegen::lowering
       }
     }
 
-    return std::tuple(lowestDistanceYet, predictedName);
+    return std::pair(lowestDistanceYet, predictedName);
   }
 
-  std::tuple<float, std::string> 
+  std::pair<float, std::string> 
   IdentifierError::computeHighestSemanticSimilarity(llvm::StringRef actual, 
                    const std::set<std::string> &possibleIdentifiers) const {
     SentenceDistanceCalculator calculator;
@@ -146,7 +146,7 @@ namespace marco::codegen::lowering
       }
     }
 
-    return std::tuple(highestSimilarityYet, predictedName);
+    return std::pair(highestSimilarityYet, predictedName);
   }
 
   const std::set<std::string> IdentifierError::builtInFunctions = {"abs", "acos", "asin", "atan", "atan2", "ceil", "cos", "cosh", "der", "diagonal", "div", "exp", "fill", "floor", "identity", "integer", "linspace", "log", "log10", "max", "min", "mod", "ndims", "ones", "product", "rem", "sign", "sin", "sinh", "size", "sqrt", "sum", "symmetric", "tan", "tanh", "transpose", "zeros"};

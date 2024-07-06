@@ -43,6 +43,7 @@ namespace marco::codegen::lowering
       std::set<std::string>& visibleSymbols,
       llvm::function_ref<bool(mlir::Operation*)> filterFn)
   {
+    // Check the global symbol table.
     mlir::SymbolTable::walkSymbolTables(getRoot(), true, [this, &scope, &visibleSymbols, &filterFn](mlir::Operation *op, bool visible) {
       const mlir::StringAttr attr = op->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName());
       if (attr) {
@@ -53,6 +54,7 @@ namespace marco::codegen::lowering
       }
     });
 
+    // Check the variables symbol table.
     std::set<std::string> declaredVariables = getVariablesSymbolTable().getVariables(false);
     for (auto pVar = declaredVariables.cbegin(); pVar != declaredVariables.cend(); ++pVar) {
       if (resolveSymbolName(llvm::StringRef(*pVar), scope, filterFn)) {
