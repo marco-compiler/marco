@@ -297,7 +297,6 @@ namespace
           mlir::Block* loopExitBlock,
           mlir::Block* functionReturnBlock) const
       {
-        std::cout<<"IN\n";
         if (auto breakOp = mlir::dyn_cast<BreakOp>(op)) {
           return createCFG(rewriter, breakOp, loopExitBlock);
         }
@@ -319,7 +318,6 @@ namespace
         }
 
         if (auto assertOp = mlir::dyn_cast<AssertOp>(op)) {
-          std::cout<< "OLLA\n";
           return createCFG(rewriter, assertOp, functionReturnBlock);
         }
 
@@ -691,7 +689,6 @@ namespace
 
 void BaseModelicaToCFConversionPass::runOnOperation()
 {
-  std::cout<<"INSIDE THE PASS\n";
   mlir::ModuleOp moduleOp = getOperation();
 
   if (mlir::failed(convertBaseModelicaToCFG(moduleOp))) {
@@ -702,7 +699,6 @@ void BaseModelicaToCFConversionPass::runOnOperation()
 mlir::LogicalResult BaseModelicaToCFConversionPass::convertBaseModelicaToCFG(
     mlir::ModuleOp moduleOp)
 {
-  std::cout<<"CONVERTING TO CFG\n";
   mlir::RewritePatternSet patterns(&getContext());
   patterns.add<CFGLowering>(&getContext());
 
