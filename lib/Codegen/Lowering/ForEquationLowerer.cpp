@@ -11,9 +11,9 @@ namespace marco::codegen::lowering
   {
   }
 
-  void ForEquationLowerer::lower(const ast::ForEquation& forEquation)
+  bool ForEquationLowerer::lower(const ast::ForEquation& forEquation)
   {
-    Lowerer::VariablesScope scope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
     mlir::Location location = loc(forEquation.getLocation());
 
     // We need to keep track of the first loop in order to restore
@@ -67,8 +67,9 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
       // Add the induction variable to the symbol table
+      llvm::StringRef name = forIndex->getName();
       getVariablesSymbolTable().insert(
-          forIndex->getName(),
+          name,
           Reference::ssa(builder(), forEquationOp.induction()));
 
       if (firstOp == nullptr) {
@@ -78,9 +79,13 @@ namespace marco::codegen::lowering
 
     // Create the equation body.
     for (size_t i = 0, e = forEquation.getNumOfEquations(); i < e; ++i) {
-      lower(*forEquation.getEquation(i));
+      if (!lower(*forEquation.getEquation(i))) {
+        return false;
+      }
     }
 
     builder().setInsertionPointAfter(firstOp);
+
+    return true;
   }
 }

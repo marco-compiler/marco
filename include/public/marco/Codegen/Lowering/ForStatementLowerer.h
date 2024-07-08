@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit ForStatementLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::ForStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::ForStatement& statement) override;
 
     protected:
       using Lowerer::lower;

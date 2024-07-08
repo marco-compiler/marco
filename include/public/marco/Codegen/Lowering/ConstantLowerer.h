@@ -13,7 +13,7 @@ namespace marco::codegen::lowering
     public:
       explicit ConstantLowerer(BridgeInterface* bridge);
 
-      Results lower(const ast::Constant& constant) override;
+      std::optional<Results> lower(const ast::Constant& constant) override;
 
       mlir::TypedAttr operator()(bool value);
       mlir::TypedAttr operator()(int64_t value);

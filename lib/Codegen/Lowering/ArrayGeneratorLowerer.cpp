@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  Results ArrayGeneratorLowerer::lower(const ast::ArrayGenerator& array)
+  std::optional<Results> ArrayGeneratorLowerer::lower(const ast::ArrayGenerator& array)
   {
     if (array.isa<ast::ArrayConstant>()) {
       return lower(*array.cast<ast::ArrayConstant>());
@@ -89,7 +89,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  void ArrayGeneratorLowerer::lowerValues(
+  bool ArrayGeneratorLowerer::lowerValues(
       const ast::Expression& array,
       llvm::SmallVectorImpl<mlir::Value>& outValues)
   {
@@ -136,11 +136,17 @@ namespace marco::codegen::lowering
     while (!s2.empty()) {
       const ast::Expression* node = s2.pop_back_val();
       mlir::Location nodeLoc = loc(node->getLocation());
-      outValues.push_back(lower(*node)[0].get(nodeLoc));
+      auto loweredNode = lower(*node);
+      if (!loweredNode) {
+        return false;
+      }
+      outValues.push_back((*loweredNode)[0].get(nodeLoc));
     }
+
+    return true;
   }
 
-  Results ArrayGeneratorLowerer::lower(const ast::ArrayConstant& array)
+  std::optional<Results> ArrayGeneratorLowerer::lower(const ast::ArrayConstant& array)
   {
     // TODO determine minimum required type
     mlir::Type elementType = RealType::get(builder().getContext());;
@@ -151,7 +157,9 @@ namespace marco::codegen::lowering
 
     // Determine the values.
     llvm::SmallVector<mlir::Value> values;
-    lowerValues(array, values);
+    if (!lowerValues(array, values)) {
+      return std::nullopt;
+    }
 
     auto tensorType = mlir::RankedTensorType::get(shape, elementType);
     mlir::Location location = loc(array.getLocation());
@@ -162,7 +170,7 @@ namespace marco::codegen::lowering
     return Reference::tensor(builder(), result);
   }
 
-  Results ArrayGeneratorLowerer::lower(const ast::ArrayForGenerator& array)
+  std::optional<Results> ArrayGeneratorLowerer::lower(const ast::ArrayForGenerator& array)
   {
     // TODO determine minimum required type
     mlir::Type elementType = RealType::get(builder().getContext());
@@ -178,7 +186,11 @@ namespace marco::codegen::lowering
     if (!topLevel->isa<ast::ArrayGenerator>()) {
       // Lower as a broadcast.
       mlir::Location nodeLoc = loc(topLevel->getLocation());
-      mlir::Value elem = lower(*topLevel)[0].get(nodeLoc);
+      auto loweredTopLevel = lower(*topLevel);
+      if (!loweredTopLevel) {
+        return std::nullopt;
+      }
+      mlir::Value elem = (*loweredTopLevel)[0].get(nodeLoc);
 
       mlir::Value result = builder().create<TensorBroadcastOp>(
           location, mlir::RankedTensorType::get(shape,elem.getType()), elem);
@@ -188,7 +200,9 @@ namespace marco::codegen::lowering
 
     // Flatten out all values.
     llvm::SmallVector<mlir::Value> values;
-    lowerValues(array, values);
+    if (!lowerValues(array, values)) {
+      return std::nullopt;
+    }
 
     auto tensorType = mlir::RankedTensorType::get(shape, elementType);
 

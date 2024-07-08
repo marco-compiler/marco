@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  Results ComponentReferenceLowerer::lower(
+  std::optional<Results> ComponentReferenceLowerer::lower(
       const ast::ComponentReference& componentReference)
   {
     mlir::Location location = loc(componentReference.getLocation());
@@ -22,11 +22,21 @@ namespace marco::codegen::lowering
     const ast::ComponentReferenceEntry* firstEntry =
         componentReference.getElement(0);
 
-    Reference result = lookupVariable(firstEntry->getName());
-    result = lowerSubscripts(result, *firstEntry);
+    std::optional<Reference> result = lookupVariable(firstEntry->getName());
+    if (!result) {
+      emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, firstEntry->getName(), 
+                          getVariablesSymbolTable().getVariables(true), 
+                          firstEntry->getLocation());
+      return std::nullopt;
+    }
+
+    result = lowerSubscripts(*result, *firstEntry);
+    if (!result) {
+      return std::nullopt;
+    }
 
     for (size_t i = 1; i < pathLength; ++i) {
-      mlir::Value parent = result.get(location);
+      mlir::Value parent = result->get(location);
       mlir::Type parentType = parent.getType();
 
       const ast::ComponentReferenceEntry* pathEntry =
@@ -42,8 +52,17 @@ namespace marco::codegen::lowering
         auto recordOp = resolveTypeFromRoot(recordType.getName());
         assert(recordOp != nullptr);
 
-        auto variableOp = mlir::cast<VariableOp>(
-            resolveSymbolName<VariableOp>(pathEntry->getName(), recordOp));
+        mlir::Operation *op = resolveSymbolName<VariableOp>(pathEntry->getName(), recordOp);
+        if (op == nullptr) {
+          std::set<std::string> visibleFields;
+          getVisibleSymbols<VariableOp>(recordOp, visibleFields);
+
+          emitIdentifierError(IdentifierError::IdentifierType::FIELD, pathEntry->getName(), 
+                              visibleFields, pathEntry->getLocation());
+          return std::nullopt;
+        }
+
+        auto variableOp = mlir::cast<VariableOp>(op);
 
         llvm::SmallVector<int64_t, 3> shape;
 
@@ -69,19 +88,26 @@ namespace marco::codegen::lowering
             builder(), location, parent, componentType, pathEntry->getName());
       }
 
-      result = lowerSubscripts(result, *pathEntry);
+      result = lowerSubscripts(*result, *pathEntry);
+      if (!result) {
+        return std::nullopt;
+      }
     }
 
     return result;
   }
 
-  Reference ComponentReferenceLowerer::lowerSubscripts(
+  std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
       Reference current, const ast::ComponentReferenceEntry& entry)
   {
     llvm::SmallVector<mlir::Value> subscripts;
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
-      Result index = lower(*entry.getSubscript(i))[0];
+      std::optional<Results> loweredSubscript = lower(*entry.getSubscript(i));
+      if (!loweredSubscript) {
+        return std::nullopt;
+      }
+      Result &index = (*loweredSubscript)[0];
       mlir::Value subscript = index.get(index.getLoc());
       subscripts.push_back(subscript);
     }

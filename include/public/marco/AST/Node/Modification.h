@@ -62,7 +62,7 @@ namespace marco::ast
       const Expression* getStartExpression() const;
 
       // FIXME: might not be uniform in case of arrays
-      bool getFixedProperty() const;
+      std::optional<bool> getFixedProperty() const;
 
       bool getEachProperty() const;
 
@@ -105,7 +105,7 @@ namespace marco::ast
       const Expression* getStartExpression() const;
 
       // FIXME: might not be uniform in case of arrays
-      bool getFixedProperty() const;
+      std::optional<bool> getFixedProperty() const;
 
       bool getEachProperty() const;
 

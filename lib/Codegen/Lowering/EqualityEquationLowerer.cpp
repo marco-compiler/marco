@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  void EqualityEquationLowerer::lower(
+  bool EqualityEquationLowerer::lower(
       const ast::EqualityEquation& equation)
   {
     mlir::Location location = loc(equation.getLocation());
@@ -33,8 +33,11 @@ namespace marco::codegen::lowering
 
       auto referencesLoc = loc(expression->getLocation());
       auto references = lower(*expression);
+      if (!references) {
+        return false;
+      }
 
-      for (auto& reference : references) {
+      for (auto& reference : *references) {
         lhs.push_back(reference.get(referencesLoc));
       }
     }
@@ -45,8 +48,11 @@ namespace marco::codegen::lowering
 
       auto referencesLoc = loc(expression->getLocation());
       auto references = lower(*expression);
+      if (!references) {
+        return false;
+      }
 
-      for (auto& reference : references) {
+      for (auto& reference : *references) {
         rhs.push_back(reference.get(referencesLoc));
       }
     }
@@ -55,5 +61,7 @@ namespace marco::codegen::lowering
     mlir::Value rhsTuple = builder().create<EquationSideOp>(location, rhs);
     builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
     builder().setInsertionPointAfter(equationOp);
+
+    return true;
   }
 }

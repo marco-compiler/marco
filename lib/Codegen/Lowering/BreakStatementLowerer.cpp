@@ -11,9 +11,10 @@ namespace marco::codegen::lowering
   {
   }
 
-  void BreakStatementLowerer::lower(const ast::BreakStatement& statement)
+  bool BreakStatementLowerer::lower(const ast::BreakStatement& statement)
   {
     mlir::Location location = loc(statement.getLocation());
     builder().create<BreakOp>(location);
+    return true;
   }
 }

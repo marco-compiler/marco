@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
     public:
       explicit EqualityEquationLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::EqualityEquation& equation) override;
+      [[nodiscard]] bool lower(const ast::EqualityEquation& equation) override;
 
     protected:
       using Lowerer::lower;

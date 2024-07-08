@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  void StandardFunctionLowerer::declareVariables(
+  bool StandardFunctionLowerer::declareVariables(
       const ast::StandardFunction& function)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
@@ -41,20 +41,26 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : function.getVariables()) {
-      declare(*variable->cast<ast::Member>());
+      if (!declare(*variable->cast<ast::Member>())) {
+        return false;
+      }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
-      declareVariables(*innerClassNode->cast<ast::Class>());
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void StandardFunctionLowerer::lower(const ast::StandardFunction& function)
+  bool StandardFunctionLowerer::lower(const ast::StandardFunction& function)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
     LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
@@ -162,15 +168,21 @@ namespace marco::codegen::lowering
 
     // Create the default values for variables.
     for (const auto& variable : function.getVariables()) {
-      lowerVariableDefaultValue(*variable->cast<ast::Member>());
+      if (!lowerVariableDefaultValue(*variable->cast<ast::Member>())) {
+        return false;
+      }
     }
 
     // Lower the body.
-    lowerClassBody(function);
+    if (!lowerClassBody(function)) {
+      return false;
+    }
 
     // Create the algorithms.
     for (const auto& algorithm : function.getAlgorithms()) {
-      lower(*algorithm->cast<ast::Algorithm>());
+      if (!lower(*algorithm->cast<ast::Algorithm>())) {
+        return false;
+      }
     }
 
     // Special handling of record constructors.
@@ -204,15 +216,19 @@ namespace marco::codegen::lowering
 
     // Lower the inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
-      lower(*innerClassNode->cast<ast::Class>());
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void StandardFunctionLowerer::lowerVariableDefaultValue(
+  bool StandardFunctionLowerer::lowerVariableDefaultValue(
       const ast::Member& variable)
   {
     if (!variable.hasExpression()) {
-      return;
+      return true;
     }
 
     const ast::Expression* expression = variable.getExpression();
@@ -226,8 +242,13 @@ namespace marco::codegen::lowering
     mlir::Block* bodyBlock = builder().createBlock(&defaultOp.getBodyRegion());
     builder().setInsertionPointToStart(bodyBlock);
 
-    mlir::Value value = lower(*expression)[0].get(expressionLoc);
+    auto loweredExpression = lower(*expression);
+    if (!loweredExpression) {
+      return false;
+    }
+    mlir::Value value = (*loweredExpression)[0].get(expressionLoc);
     builder().create<YieldOp>(expressionLoc, value);
+    return true;
   }
 
   bool StandardFunctionLowerer::isRecordConstructor(

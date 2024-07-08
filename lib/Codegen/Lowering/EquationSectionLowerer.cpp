@@ -11,7 +11,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  void EquationSectionLowerer::lower(
+  bool EquationSectionLowerer::lower(
       const ast::EquationSection& equationSection)
   {
     if (equationSection.isInitial()) {
@@ -24,7 +24,9 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(bodyBlock);
 
       for (size_t i = 0, e = equationSection.getNumOfEquations(); i < e; ++i) {
-        lower(*equationSection.getEquation(i));
+        if (!lower(*equationSection.getEquation(i))) {
+          return false;
+        }
       }
 
       builder().setInsertionPointAfter(initialOp);
@@ -38,10 +40,14 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(bodyBlock);
 
       for (size_t i = 0, e = equationSection.getNumOfEquations(); i < e; ++i) {
-        lower(*equationSection.getEquation(i));
+        if (!lower(*equationSection.getEquation(i))) {
+          return false;
+        }
       }
 
       builder().setInsertionPointAfter(dynamicOp);
     }
+
+    return true;
   }
 }

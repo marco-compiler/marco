@@ -97,3 +97,7 @@ sundials_libraries/install
 sundials_libraries/OpenBLAS*
 sundials_libraries/SuiteSparse*
 sundials_libraries/sundials*
+
+# Doxygen
+docs/html/
+docs/latex/

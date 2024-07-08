@@ -29,3 +29,5 @@ COPY ./install_runtime.sh /tmp/
 RUN chmod +x /tmp/install_runtime.sh && \
     cd /root && \
     /tmp/install_runtime.sh
+
+RUN apt install -y python3-nltk

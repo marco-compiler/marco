@@ -123,7 +123,7 @@ namespace marco::ast
     return getClassModification()->getStartExpression();
   }
 
-  bool Modification::getFixedProperty() const
+  std::optional<bool> Modification::getFixedProperty() const
   {
     if (!hasClassModification()) {
       return false;
@@ -289,7 +289,7 @@ namespace marco::ast
     return lastValue;
   }
 
-  bool ClassModification::getFixedProperty() const
+  std::optional<bool> ClassModification::getFixedProperty() const
   {
     for (const auto& argument : arguments) {
       if (!argument->isa<ElementModification>()) {
@@ -336,8 +336,7 @@ namespace marco::ast
         }
       }
 
-      assert(false);
-      return false;
+      return std::nullopt;
     }
 
     return false;

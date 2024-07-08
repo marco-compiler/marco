@@ -28,7 +28,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  void ModelLowerer::declareVariables(const ast::Model& model)
+  bool ModelLowerer::declareVariables(const ast::Model& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -40,20 +40,26 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : model.getVariables()) {
-      declare(*variable->cast<ast::Member>());
+      if (!declare(*variable->cast<ast::Member>())) {
+        return false;
+      }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
-      declareVariables(*innerClassNode->cast<ast::Class>());
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void ModelLowerer::lower(const ast::Model& model)
+  bool ModelLowerer::lower(const ast::Model& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
     LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
@@ -82,7 +88,9 @@ namespace marco::codegen::lowering
       if (variable->hasModification()) {
         if (const auto* modification = variable->getModification();
             modification->hasExpression()) {
-          createBindingEquation(*variable, *modification->getExpression());
+          if (!createBindingEquation(*variable, *modification->getExpression())) {
+            return false;
+          }
         }
       }
     }
@@ -90,11 +98,15 @@ namespace marco::codegen::lowering
     // Lower the attributes of the variables.
     for (const auto& variableNode : model.getVariables()) {
       const ast::Member* variable = variableNode->cast<ast::Member>();
-      lowerVariableAttributes(modelOp, *variable);
+      if (!lowerVariableAttributes(modelOp, *variable)) {
+        return false;
+      }
     }
 
     // Lower the body.
-    lowerClassBody(model);
+    if (!lowerClassBody(model)) {
+      return false;
+    }
 
     // Create the algorithms.
     llvm::SmallVector<const ast::Algorithm*> initialAlgorithms;
@@ -117,7 +129,9 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initialOp.getBody());
 
       for (const auto& algorithm : initialAlgorithms) {
-        lower(*algorithm);
+        if (!lower(*algorithm)) {
+          return false;
+        }
       }
     }
 
@@ -130,27 +144,33 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(dynamicOp.getBody());
 
       for (const auto& algorithm : algorithms) {
-        lower(*algorithm);
+        if (!lower(*algorithm)) {
+          return false;
+        }
       }
     }
 
     // Lower the inner classes.
     for (const auto& innerClassNode : model.getInnerClasses()) {
-      lower(*innerClassNode->cast<ast::Class>());
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void ModelLowerer::lowerVariableAttributes(
+  bool ModelLowerer::lowerVariableAttributes(
       ModelOp modelOp, const ast::Member& variable)
   {
     if (!variable.hasModification()) {
-      return;
+      return true;
     }
 
     const ast::Modification* modification = variable.getModification();
 
     if (!modification->hasClassModification()) {
-      return;
+      return true;
     }
 
     const ast::ClassModification* classModification =
@@ -164,11 +184,18 @@ namespace marco::codegen::lowering
       llvm::SmallVector<VariableOp> components;
       components.push_back(variableOp);
 
-      lowerVariableAttributes(modelOp, components, *classModification);
+      if (!lowerVariableAttributes(modelOp, components, *classModification)) {
+        std::string errorString = "Invalid fixed property for variable " + 
+                                  variable.getName().str() + ".";
+        mlir::emitError(loc(variable.getLocation())) << errorString;
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void ModelLowerer::lowerVariableAttributes(
+  bool ModelLowerer::lowerVariableAttributes(
       ModelOp modelOp,
       llvm::SmallVectorImpl<VariableOp>& components,
       const ast::ClassModification& classModification)
@@ -183,11 +210,18 @@ namespace marco::codegen::lowering
             components[i].getSymNameAttr()));
       }
 
-      lowerStartAttribute(
+      std::optional<bool> fixedProperty = classModification.getFixedProperty();
+      if (!fixedProperty) {
+        return false;
+      }
+
+      if (!lowerStartAttribute(
           mlir::SymbolRefAttr::get(components[0].getSymNameAttr(), nestedRefs),
           *classModification.getStartExpression(),
-          classModification.getFixedProperty(),
-          classModification.getEachProperty());
+          *fixedProperty,
+          classModification.getEachProperty())) {
+        return false;
+      }
     }
 
     VariableOp lastVariableOp = components.back();
@@ -237,12 +271,16 @@ namespace marco::codegen::lowering
             continue;
           }
 
-          lowerVariableAttributes(modelOp, components,
-                                  *innerClassModification);
+          if (!lowerVariableAttributes(modelOp, components,
+                                       *innerClassModification)) {
+            return false;
+          }
         }
 
         components.pop_back();
       }
     }
+
+    return true;
   }
 }

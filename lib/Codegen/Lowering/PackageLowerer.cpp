@@ -27,7 +27,7 @@ namespace marco::codegen::lowering
     }
   }
 
-  void PackageLowerer::declareVariables(const ast::Package& package)
+  bool PackageLowerer::declareVariables(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     LookupScopeGuard lookupScopeGuard(&getContext());
@@ -39,20 +39,26 @@ namespace marco::codegen::lowering
 
     // Declare the variables.
     for (const auto& variable : package.getVariables()) {
-      declare(*variable->cast<ast::Member>());
+      if (!declare(*variable->cast<ast::Member>())) {
+        return false;
+      }
     }
 
     // Declare the variables of inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      declareVariables(*innerClassNode->cast<ast::Class>());
+      if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  void PackageLowerer::lower(const ast::Package& package)
+  bool PackageLowerer::lower(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
 
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
     LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
@@ -75,7 +81,9 @@ namespace marco::codegen::lowering
     }
 
     // Lower the body.
-    lowerClassBody(package);
+    if (!lowerClassBody(package)) {
+      return false;
+    }
 
     // Create the algorithms.
     llvm::SmallVector<const ast::Algorithm*> initialAlgorithms;
@@ -98,7 +106,9 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initialOp.getBody());
 
       for (const auto& algorithm : initialAlgorithms) {
-        lower(*algorithm);
+        if (!lower(*algorithm)) {
+          return false;
+        }
       }
     }
 
@@ -111,13 +121,19 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(dynamicOp.getBody());
 
       for (const auto& algorithm : algorithms) {
-        lower(*algorithm);
+        if (!lower(*algorithm)) {
+          return false;
+        }
       }
     }
 
     // Lower the inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
-      lower(*innerClassNode->cast<ast::Class>());
+      if (!lower(*innerClassNode->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 }

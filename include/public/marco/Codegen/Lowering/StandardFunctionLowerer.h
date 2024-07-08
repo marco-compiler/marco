@@ -14,9 +14,9 @@ namespace marco::codegen::lowering
 
       void declare(const ast::StandardFunction& function) override;
 
-      void declareVariables(const ast::StandardFunction& function) override;
+      [[nodiscard]] bool declareVariables(const ast::StandardFunction& function) override;
 
-      void lower(const ast::StandardFunction& function) override;
+      [[nodiscard]] bool lower(const ast::StandardFunction& function) override;
 
     protected:
       using Lowerer::declare;
@@ -24,7 +24,7 @@ namespace marco::codegen::lowering
       using Lowerer::lower;
 
     private:
-      void lowerVariableDefaultValue(const ast::Member& variable);
+      [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member& variable);
 
       bool isRecordConstructor(const ast::StandardFunction& function);
   };

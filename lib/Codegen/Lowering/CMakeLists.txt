@@ -16,6 +16,7 @@ set(SOURCES
     ExpressionLowerer.cpp
     ForEquationLowerer.cpp
     ForStatementLowerer.cpp
+    IdentifierError.cpp
     IfEquationLowerer.cpp
     IfStatementLowerer.cpp
     Lowerer.cpp
@@ -32,11 +33,14 @@ set(SOURCES
     StatementLowerer.cpp
     SubscriptLowerer.cpp
     TupleLowerer.cpp
+    VariablesSymbolTable.cpp
     WhenEquationLowerer.cpp
     WhenStatementLowerer.cpp
     WhileStatementLowerer.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+
+add_subdirectory(Distance)
 
 set(MLIR_LIBS
     ${dialect_libs})
@@ -48,4 +52,5 @@ marco_add_library(Lowering
     marco::ast
     marco::modeling
     marco::variableFilter
+    marco::Distance
     ${MLIR_LIBS})

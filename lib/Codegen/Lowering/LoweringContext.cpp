@@ -37,7 +37,7 @@ namespace marco::codegen::lowering
     return symbolTable;
   }
 
-  LoweringContext::VariablesSymbolTable&
+  VariablesSymbolTable&
   LoweringContext::getVariablesSymbolTable()
   {
     return variablesSymbolTable;

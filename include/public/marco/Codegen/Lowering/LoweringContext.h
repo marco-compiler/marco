@@ -2,7 +2,7 @@
 #define MARCO_CODEGEN_LOWERING_LOWERINGCONTEXT_H
 
 #include "marco/Codegen/Lowering/Reference.h"
-#include "llvm/ADT/ScopedHashTable.h"
+#include "marco/Codegen/Lowering/VariablesSymbolTable.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/MLIRContext.h"
 
@@ -11,11 +11,6 @@ namespace marco::codegen::lowering
   class LoweringContext
   {
     public:
-      using VariablesSymbolTable =
-          llvm::ScopedHashTable<llvm::StringRef, Reference>;
-
-      using VariablesScope = VariablesSymbolTable::ScopeTy;
-
       class LookupScopeGuard
       {
         public:
@@ -53,7 +48,8 @@ namespace marco::codegen::lowering
       /// The symbol table maps a variable name to a value in the current scope.
       /// Entering a class creates a new scope. When the processing of a class is
       /// terminated, the scope is destroyed and the mappings created in this
-      /// scope are dropped.
+      /// scope are dropped. However, the variable names can still be accesses after
+      /// leaving the scope, to be used to provide debugging information to the user.
       VariablesSymbolTable variablesSymbolTable;
 
       llvm::SmallVector<mlir::Operation*> lookupScopes;

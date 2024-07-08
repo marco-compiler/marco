@@ -13,7 +13,6 @@ namespace marco::codegen::lowering
   class Lowerer : public BridgeInterface
   {
     public:
-      using VariablesScope = LoweringContext::VariablesScope;
       using LookupScopeGuard = LoweringContext::LookupScopeGuard;
 
       explicit Lowerer(BridgeInterface* bridge);
@@ -27,6 +26,22 @@ namespace marco::codegen::lowering
       /// Helper to convert an AST location range to a MLIR location.
       mlir::Location loc(const SourceRange& location);
 
+      /// Helper function to initialize visibleSymbols, adding all the declared symbols
+      /// of type T that are visible from the given scope.
+      template<typename... T>
+      void getVisibleSymbols(
+          mlir::Operation* scope, 
+          std::set<std::string> &visibleSymbols) 
+      {
+        return getVisibleSymbols(scope, visibleSymbols, [](mlir::Operation* op) {
+          return mlir::isa<T...>(op);
+        });
+      }
+
+      /// Helper function to initialize visibleSymbols, adding all the declared symbols
+      /// that are visible from the given scope.
+      void getVisibleSymbols(mlir::Operation* scope, std::set<std::string> &visibleSymbols);
+
       /// @name Utility getters.
       /// {
 
@@ -34,7 +49,7 @@ namespace marco::codegen::lowering
 
       mlir::SymbolTableCollection& getSymbolTable();
 
-      LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
+      VariablesSymbolTable& getVariablesSymbolTable();
 
       mlir::Operation* getLookupScope();
 
@@ -48,7 +63,7 @@ namespace marco::codegen::lowering
           llvm::StringRef name,
           mlir::Operation* currentScope);
 
-      mlir::Operation* resolveType(
+      std::optional<mlir::Operation*> resolveType(
           const ast::UserDefinedType& type,
           mlir::Operation* lookupScope);
 
@@ -68,7 +83,7 @@ namespace marco::codegen::lowering
         });
       }
 
-      Reference lookupVariable(llvm::StringRef name);
+      std::optional<Reference> lookupVariable(llvm::StringRef name);
 
       void insertVariable(llvm::StringRef name, Reference reference);
 
@@ -96,92 +111,99 @@ namespace marco::codegen::lowering
 
       virtual void declare(const ast::StandardFunction& node) override;
 
-      virtual void declareVariables(const ast::Class& node) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Class& node) override;
 
-      virtual void declareVariables(const ast::Model& model) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Model& model) override;
 
-      virtual void declareVariables(const ast::Package& package) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Package& package) override;
 
-      virtual void declareVariables(
+      [[nodiscard]] virtual bool declareVariables(
           const ast::PartialDerFunction& function) override;
 
-      virtual void declareVariables(const ast::Record& record) override;
+      [[nodiscard]] virtual bool declareVariables(const ast::Record& record) override;
 
-      virtual void declareVariables(
+      [[nodiscard]] virtual bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      virtual void declare(const ast::Member& node) override;
+      [[nodiscard]] virtual bool declare(const ast::Member& node) override;
 
-      virtual void lower(const ast::Class& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Class& node) override;
 
-      virtual void lower(const ast::Model& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Model& node) override;
 
-      virtual void lower(const ast::Package& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Package& node) override;
 
-      virtual void lower(const ast::PartialDerFunction& node) override;
+      [[nodiscard]] virtual bool lower(const ast::PartialDerFunction& node) override;
 
-      virtual void lower(const ast::Record& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Record& node) override;
 
-      virtual void lower(const ast::StandardFunction& node) override;
+      [[nodiscard]] virtual bool 
+          lower(const ast::StandardFunction& node) override;
 
-      virtual void lowerClassBody(const ast::Class& node) override;
+      [[nodiscard]] virtual bool 
+          lowerClassBody(const ast::Class& node) override;
 
-      virtual void createBindingEquation(
+      [[nodiscard]] virtual bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      virtual void lowerStartAttribute(
+      [[nodiscard]] virtual bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
           bool each) override;
 
-      virtual Results lower(const ast::Expression& expression) override;
+      virtual std::optional<Results> lower(const ast::Expression& expression) override;
 
-      virtual Results lower(const ast::ArrayGenerator& node) override;
+      virtual std::optional<Results> lower(const ast::ArrayGenerator& node) override;
 
-      virtual Results lower(const ast::Call& node) override;
+      virtual std::optional<Results> lower(const ast::Call& node) override;
 
-      virtual Results lower(const ast::Constant& constant) override;
+      virtual std::optional<Results> lower(const ast::Constant& constant) override;
 
-      virtual Results lower(const ast::Operation& operation) override;
+      virtual std::optional<Results> lower(const ast::Operation& operation) override;
 
-      virtual Results lower(
+      virtual std::optional<Results> lower(
           const ast::ComponentReference& componentReference) override;
 
-      virtual Results lower(const ast::Tuple& tuple) override;
+      virtual std::optional<Results> lower(const ast::Tuple& tuple) override;
 
-      virtual Results lower(const ast::Subscript& subscript) override;
+      virtual std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      virtual void lower(const ast::EquationSection& node) override;
+      [[nodiscard]] virtual bool lower(const ast::EquationSection& node) override;
 
-      virtual void lower(const ast::Equation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::Equation& equation) override;
 
-      virtual void lower(const ast::EqualityEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::EqualityEquation& equation) override;
 
-      virtual void lower(const ast::ForEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::ForEquation& equation) override;
 
-      virtual void lower(const ast::IfEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::IfEquation& equation) override;
 
-      virtual void lower(const ast::WhenEquation& equation) override;
+      [[nodiscard]] virtual bool lower(const ast::WhenEquation& equation) override;
 
-      virtual void lower(const ast::Algorithm& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Algorithm& node) override;
 
-      virtual void lower(const ast::Statement& node) override;
+      [[nodiscard]] virtual bool lower(const ast::Statement& node) override;
 
-      virtual void lower(const ast::AssignmentStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::AssignmentStatement& statement) override;
 
-      virtual void lower(const ast::BreakStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::BreakStatement& statement) override;
 
-      virtual void lower(const ast::ForStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::ForStatement& statement) override;
 
-      virtual void lower(const ast::IfStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::IfStatement& statement) override;
 
-      virtual void lower(const ast::ReturnStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::ReturnStatement& statement) override;
 
-      virtual void lower(const ast::WhenStatement& statement) override;
+      [[nodiscard]] virtual bool lower(const ast::WhenStatement& statement) override;
 
-      virtual void lower(const ast::WhileStatement& statement) override;
+      [[nodiscard]] virtual bool 
+          lower(const ast::WhileStatement& statement) override;
+
+      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name, 
+                                       const std::set<std::string> &declaredIdentifiers, 
+                                       const marco::SourceRange& location);
 
       /// }
 
@@ -189,6 +211,11 @@ namespace marco::codegen::lowering
       mlir::Operation* resolveSymbolName(
           llvm::StringRef name,
           mlir::Operation* currentScope,
+          llvm::function_ref<bool(mlir::Operation*)> filterFn);
+      
+      void getVisibleSymbols(
+          mlir::Operation* scope, 
+          std::set<std::string> &visibleSymbols,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
 
     private:

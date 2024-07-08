@@ -14,9 +14,9 @@ namespace marco::codegen::lowering
 
       void declare(const ast::PartialDerFunction& function) override;
 
-      void declareVariables(const ast::PartialDerFunction& function) override;
+      [[nodiscard]] bool declareVariables(const ast::PartialDerFunction& function) override;
 
-      void lower(const ast::PartialDerFunction& function) override;
+      [[nodiscard]] bool lower(const ast::PartialDerFunction& function) override;
 
     protected:
       using Lowerer::declare;

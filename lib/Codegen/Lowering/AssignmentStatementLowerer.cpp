@@ -12,7 +12,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  void AssignmentStatementLowerer::lower(
+  bool AssignmentStatementLowerer::lower(
       const ast::AssignmentStatement& statement)
   {
     mlir::Location statementLoc = loc(statement.getLocation());
@@ -20,11 +20,14 @@ namespace marco::codegen::lowering
 
     mlir::Location valuesLoc = loc(statement.getExpression()->getLocation());
     auto values = lower(*statement.getExpression());
+    if (!values) {
+      return false;
+    }
 
-    assert(values.size() == destinations->size() &&
+    assert(values->size() == destinations->size() &&
            "Unequal number of destinations and results");
 
-    for (size_t i = 0, e = values.size(); i < e; ++i) {
+    for (size_t i = 0, e = values->size(); i < e; ++i) {
       const auto* destinationRef = destinations->getExpression(i)
                                        ->cast<ast::ComponentReference>();
 
@@ -49,28 +52,40 @@ namespace marco::codegen::lowering
           mlir::Location subscriptLoc =
               loc(refEntry->getSubscript(subscriptIndex)->getLocation());
 
-          mlir::Value subscriptValue =
-              lower(*refEntry->getSubscript(subscriptIndex))[0]
-                  .get(subscriptLoc);
+          std::optional<Results> loweredSubscript =
+              lower(*refEntry->getSubscript(subscriptIndex));
+          if (!loweredSubscript) {
+            return false;
+          }
+          mlir::Value subscriptValue = (*loweredSubscript)[0].get(subscriptLoc);
 
           subscripts.push_back(subscriptValue);
         }
       }
 
       if (path.size() == 1) {
-        Reference variableRef = lookupVariable(
+        std::optional<Reference> variableRef = lookupVariable(
             path.front().cast<mlir::FlatSymbolRefAttr>().getValue());
+        if (!variableRef) {
+          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, 
+                              path.front().cast<mlir::FlatSymbolRefAttr>().getValue(), 
+                              getVariablesSymbolTable().getVariables(true), 
+                              statement.getExpression()->getLocation());
+          return false;
+        }
 
-        mlir::Value rhs = values[i].get(valuesLoc);
-        variableRef.set(statementLoc, subscripts, rhs);
+        mlir::Value rhs = (*values)[i].get(valuesLoc);
+        variableRef->set(statementLoc, subscripts, rhs);
       } else {
         builder().create<VariableComponentSetOp>(
             statementLoc,
             builder().getArrayAttr(path),
             subscripts,
             builder().getI64ArrayAttr(subscriptsAmounts),
-            values[i].get(valuesLoc));
+            (*values)[i].get(valuesLoc));
       }
     }
+
+    return true;
   }
 }

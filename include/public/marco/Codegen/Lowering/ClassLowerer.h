@@ -14,19 +14,19 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Class& cls) override;
 
-      void declareVariables(const ast::Class& cls) override;
+      [[nodiscard]] bool declareVariables(const ast::Class& cls) override;
 
-      void declare(const ast::Member& variable) override;
+      [[nodiscard]] bool declare(const ast::Member& variable) override;
 
-      void lower(const ast::Class& cls) override;
+      [[nodiscard]] bool lower(const ast::Class& cls) override;
 
-      void lowerClassBody(const ast::Class& cls) override;
+      [[nodiscard]] bool lowerClassBody(const ast::Class& cls) override;
 
-      void createBindingEquation(
+      [[nodiscard]] bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      void lowerStartAttribute(
+      [[nodiscard]] bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
@@ -37,11 +37,11 @@ namespace marco::codegen::lowering
       using Lowerer::declareVariables;
       using Lowerer::lower;
 
-      mlir::bmodelica::VariableType getVariableType(
+      std::optional<mlir::bmodelica::VariableType> getVariableType(
           const ast::VariableType& type,
           const ast::TypePrefix& typePrefix);
 
-      void lowerVariableDimensionConstraints(
+      [[nodiscard]] bool lowerVariableDimensionConstraints(
           mlir::SymbolTable& symbolTable,
           const ast::Member& variable);
   };

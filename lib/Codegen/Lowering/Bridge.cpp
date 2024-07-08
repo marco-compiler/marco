@@ -56,7 +56,7 @@ namespace marco::codegen::lowering
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
 
-      void convert(const ast::Root& root);
+      [[nodiscard]] bool convert(const ast::Root& root);
 
       void declare(const ast::Class& node) override;
 
@@ -70,92 +70,92 @@ namespace marco::codegen::lowering
 
       void declare(const ast::StandardFunction& node) override;
 
-      void declareVariables(const ast::Class& node) override;
+      [[nodiscard]] bool declareVariables(const ast::Class& node) override;
 
-      void declareVariables(const ast::Model& model) override;
+      [[nodiscard]] bool declareVariables(const ast::Model& model) override;
 
-      void declareVariables(const ast::Package& package) override;
+      [[nodiscard]] bool declareVariables(const ast::Package& package) override;
 
-      void declareVariables(
+      [[nodiscard]] bool declareVariables(
           const ast::PartialDerFunction& function) override;
 
-      void declareVariables(const ast::Record& record) override;
+      [[nodiscard]] bool declareVariables(const ast::Record& record) override;
 
-      void declareVariables(
+      [[nodiscard]] bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      void declare(const ast::Member& node) override;
+      [[nodiscard]] bool declare(const ast::Member& node) override;
 
-      void lower(const ast::Class& node) override;
+      [[nodiscard]] bool lower(const ast::Class& node) override;
 
-      void lower(const ast::Model& node) override;
+      [[nodiscard]] bool lower(const ast::Model& node) override;
 
-      void lower(const ast::Package& node) override;
+      [[nodiscard]] bool lower(const ast::Package& node) override;
 
-      void lower(const ast::PartialDerFunction& node) override;
+      [[nodiscard]] bool lower(const ast::PartialDerFunction& node) override;
 
-      void lower(const ast::Record& node) override;
+      [[nodiscard]] bool lower(const ast::Record& node) override;
 
-      void lower(const ast::StandardFunction& node) override;
+      [[nodiscard]] bool lower(const ast::StandardFunction& node) override;
 
-      void lowerClassBody(const ast::Class& node) override;
+      [[nodiscard]] bool lowerClassBody(const ast::Class& node) override;
 
-      void createBindingEquation(
+      [[nodiscard]] bool createBindingEquation(
           const ast::Member& variable,
           const ast::Expression& expression) override;
 
-      void lowerStartAttribute(
+      [[nodiscard]] bool lowerStartAttribute(
           mlir::SymbolRefAttr variable,
           const ast::Expression& expression,
           bool fixed,
           bool each) override;
 
-      Results lower(const ast::Expression& expression) override;
+      std::optional<Results> lower(const ast::Expression& expression) override;
 
-      Results lower(const ast::ArrayGenerator& node) override;
+      std::optional<Results> lower(const ast::ArrayGenerator& node) override;
 
-      Results lower(const ast::Call& node) override;
+      std::optional<Results> lower(const ast::Call& node) override;
 
-      Results lower(const ast::Constant& constant) override;
+      std::optional<Results> lower(const ast::Constant& constant) override;
 
-      Results lower(const ast::Operation& operation) override;
+      std::optional<Results> lower(const ast::Operation& operation) override;
 
-      Results lower(
+      std::optional<Results> lower(
           const ast::ComponentReference& componentReference) override;
 
-      Results lower(const ast::Tuple& tuple) override;
+      std::optional<Results> lower(const ast::Tuple& tuple) override;
 
-      Results lower(const ast::Subscript& subscript) override;
+      std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      void lower(const ast::EquationSection& node) override;
+      [[nodiscard]] bool lower(const ast::EquationSection& node) override;
 
-      void lower(const ast::Equation& node) override;
+      [[nodiscard]] bool lower(const ast::Equation& node) override;
 
-      void lower(const ast::EqualityEquation& node) override;
+      [[nodiscard]] bool lower(const ast::EqualityEquation& node) override;
 
-      void lower(const ast::IfEquation& node) override;
+      [[nodiscard]] bool lower(const ast::IfEquation& node) override;
 
-      void lower(const ast::ForEquation& node) override;
+      [[nodiscard]] bool lower(const ast::ForEquation& node) override;
 
-      void lower(const ast::WhenEquation& node) override;
+      [[nodiscard]] bool lower(const ast::WhenEquation& node) override;
 
-      void lower(const ast::Algorithm& node) override;
+      [[nodiscard]] bool lower(const ast::Algorithm& node) override;
 
-      void lower(const ast::Statement& node) override;
+      [[nodiscard]] bool lower(const ast::Statement& node) override;
 
-      void lower(const ast::AssignmentStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::AssignmentStatement& statement) override;
 
-      void lower(const ast::BreakStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::BreakStatement& statement) override;
 
-      void lower(const ast::ForStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::ForStatement& statement) override;
 
-      void lower(const ast::IfStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::IfStatement& statement) override;
 
-      void lower(const ast::ReturnStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::ReturnStatement& statement) override;
 
-      void lower(const ast::WhenStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::WhenStatement& statement) override;
 
-      void lower(const ast::WhileStatement& statement) override;
+      [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
 
     private:
       std::unique_ptr<LoweringContext> context;
@@ -285,7 +285,7 @@ namespace marco::codegen::lowering
     return module->getOperation();
   }
 
-  void Bridge::Impl::convert(const ast::Root& root)
+  bool Bridge::Impl::convert(const ast::Root& root)
   {
     mlir::OpBuilder::InsertionGuard guard(context->getBuilder());
     context->pushLookupScope(module->getOperation());
@@ -296,12 +296,18 @@ namespace marco::codegen::lowering
     }
 
     for (const auto& cls : root.getInnerClasses()) {
-      classLowerer->declareVariables(*cls->cast<ast::Class>());
+      if (!classLowerer->declareVariables(*cls->cast<ast::Class>())) {
+        return false;
+      }
     }
 
     for (const auto& cls : root.getInnerClasses()) {
-      classLowerer->lower(*cls->cast<ast::Class>());
+      if (!classLowerer->lower(*cls->cast<ast::Class>())) {
+        return false;
+      }
     }
+
+    return true;
   }
 
   std::unique_ptr<mlir::ModuleOp>& Bridge::Impl::getMLIRModule()
@@ -346,93 +352,98 @@ namespace marco::codegen::lowering
     return standardFunctionLowerer->declare(function);
   }
 
-  void Bridge::Impl::declareVariables(const ast::Class& cls)
+  bool Bridge::Impl::declareVariables(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->declareVariables(cls);
   }
 
-  void Bridge::Impl::declareVariables(const ast::Model& model)
+  bool Bridge::Impl::declareVariables(const ast::Model& model)
   {
     assert(modelLowerer != nullptr);
     return modelLowerer->declareVariables(model);
   }
 
-  void Bridge::Impl::declareVariables(const ast::Package& package)
+  bool Bridge::Impl::declareVariables(const ast::Package& package)
   {
     assert(packageLowerer != nullptr);
     return packageLowerer->declareVariables(package);
   }
 
-  void Bridge::Impl::declareVariables(
+  bool Bridge::Impl::declareVariables(
       const ast::PartialDerFunction& function)
   {
     assert(partialDerFunctionLowerer != nullptr);
     return partialDerFunctionLowerer->declareVariables(function);
   }
 
-  void Bridge::Impl::declareVariables(const ast::Record& record)
+  bool Bridge::Impl::declareVariables(const ast::Record& record)
   {
     assert(recordLowerer != nullptr);
     return recordLowerer->declareVariables(record);
   }
 
-  void Bridge::Impl::declareVariables(
+  bool Bridge::Impl::declareVariables(
       const ast::StandardFunction& function)
   {
     assert(standardFunctionLowerer != nullptr);
     return standardFunctionLowerer->declareVariables(function);
   }
 
-  void Bridge::Impl::declare(const ast::Member& variable)
+  bool Bridge::Impl::declare(const ast::Member& variable)
   {
     assert(classLowerer != nullptr);
     return classLowerer->declare(variable);
   }
 
-  void Bridge::Impl::lower(const ast::Class& cls)
+  bool Bridge::Impl::lower(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->lower(cls);
   }
 
-  void Bridge::Impl::lower(const ast::Model& model)
+  bool
+  Bridge::Impl::lower(const ast::Model& model)
   {
     assert(modelLowerer != nullptr);
     return modelLowerer->lower(model);
   }
 
-  void Bridge::Impl::lower(const ast::Package& package)
+  bool
+  Bridge::Impl::lower(const ast::Package& package)
   {
     assert(packageLowerer != nullptr);
     return packageLowerer->lower(package);
   }
 
-  void Bridge::Impl::lower(const ast::PartialDerFunction& function)
+  bool
+  Bridge::Impl::lower(const ast::PartialDerFunction& function)
   {
     assert(partialDerFunctionLowerer != nullptr);
     return partialDerFunctionLowerer->lower(function);
   }
 
-  void Bridge::Impl::lower(const ast::Record& record)
+  bool
+  Bridge::Impl::lower(const ast::Record& record)
   {
     assert(recordLowerer != nullptr);
     return recordLowerer->lower(record);
   }
 
-  void Bridge::Impl::lower(const ast::StandardFunction& function)
+  bool 
+  Bridge::Impl::lower(const ast::StandardFunction& function)
   {
     assert(standardFunctionLowerer != nullptr);
     return standardFunctionLowerer->lower(function);
   }
 
-  void Bridge::Impl::lowerClassBody(const ast::Class& cls)
+  bool Bridge::Impl::lowerClassBody(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
     return classLowerer->lowerClassBody(cls);
   }
 
-  void Bridge::Impl::createBindingEquation(
+  bool Bridge::Impl::createBindingEquation(
       const ast::Member& variable,
       const ast::Expression& expression)
   {
@@ -440,7 +451,7 @@ namespace marco::codegen::lowering
     return classLowerer->createBindingEquation(variable, expression);
   }
 
-  void Bridge::Impl::lowerStartAttribute(
+  bool Bridge::Impl::lowerStartAttribute(
       mlir::SymbolRefAttr variable,
       const ast::Expression& expression,
       bool fixed,
@@ -452,140 +463,155 @@ namespace marco::codegen::lowering
         variable, expression, fixed, each);
   }
 
-  Results Bridge::Impl::lower(const ast::Expression& expression)
+  std::optional<Results> Bridge::Impl::lower(const ast::Expression& expression)
   {
     assert(expressionLowerer != nullptr);
     return expressionLowerer->lower(expression);
   }
 
-  Results Bridge::Impl::lower(const ast::ArrayGenerator& array)
+  std::optional<Results> Bridge::Impl::lower(const ast::ArrayGenerator& array)
   {
     assert(arrayLowerer != nullptr);
     return arrayLowerer->lower(array);
   }
 
-  Results Bridge::Impl::lower(const ast::Call& call)
+  std::optional<Results> Bridge::Impl::lower(const ast::Call& call)
   {
     assert(callLowerer != nullptr);
     return callLowerer->lower(call);
   }
 
-  Results Bridge::Impl::lower(const ast::Constant& constant)
+  std::optional<Results> Bridge::Impl::lower(const ast::Constant& constant)
   {
     assert(constantLowerer != nullptr);
     return constantLowerer->lower(constant);
   }
 
-  Results Bridge::Impl::lower(const ast::Operation& operation)
+  std::optional<Results> Bridge::Impl::lower(const ast::Operation& operation)
   {
     assert(operationLowerer != nullptr);
     return operationLowerer->lower(operation);
   }
 
-  Results Bridge::Impl::lower(
+  std::optional<Results> Bridge::Impl::lower(
       const ast::ComponentReference& componentReference)
   {
     assert(componentReferenceLowerer != nullptr);
     return componentReferenceLowerer->lower(componentReference);
   }
 
-  Results Bridge::Impl::lower(const ast::Tuple& tuple)
+  std::optional<Results> Bridge::Impl::lower(const ast::Tuple& tuple)
   {
     assert(tupleLowerer != nullptr);
     return tupleLowerer->lower(tuple);
   }
 
-  Results Bridge::Impl::lower(const ast::Subscript& subscript)
+  std::optional<Results> Bridge::Impl::lower(const ast::Subscript& subscript)
   {
     assert(subscriptLowerer != nullptr);
     return subscriptLowerer->lower(subscript);
   }
 
-  void Bridge::Impl::lower(const ast::EquationSection& equationSection)
+  bool
+  Bridge::Impl::lower(const ast::EquationSection& equationSection)
   {
     assert(equationLowerer != nullptr);
     return equationSectionLowerer->lower(equationSection);
   }
 
-  void Bridge::Impl::lower(const ast::Equation& equation)
+  bool
+  Bridge::Impl::lower(const ast::Equation& equation)
   {
     assert(equationLowerer != nullptr);
     return equationLowerer->lower(equation);
   }
 
-  void Bridge::Impl::lower(const ast::EqualityEquation& equation)
+  bool
+  Bridge::Impl::lower(const ast::EqualityEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return equalityEquationLowerer->lower(equation);
   }
 
-  void Bridge::Impl::lower(const ast::ForEquation& forEquation)
+  bool
+  Bridge::Impl::lower(const ast::ForEquation& forEquation)
   {
     assert(equationLowerer != nullptr);
     return forEquationLowerer->lower(forEquation);
   }
 
-  void Bridge::Impl::lower(const ast::IfEquation& equation)
+  bool
+  Bridge::Impl::lower(const ast::IfEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return ifEquationLowerer->lower(equation);
   }
 
-  void Bridge::Impl::lower(const ast::WhenEquation& equation)
+  bool
+  Bridge::Impl::lower(const ast::WhenEquation& equation)
   {
     assert(equationLowerer != nullptr);
     return whenEquationLowerer->lower(equation);
   }
 
-  void Bridge::Impl::lower(const ast::Algorithm& algorithm)
+  bool 
+  Bridge::Impl::lower(const ast::Algorithm& algorithm)
   {
     assert(algorithmLowerer != nullptr);
     return algorithmLowerer->lower(algorithm);
   }
 
-  void Bridge::Impl::lower(const ast::Statement& statement)
+  bool 
+  Bridge::Impl::lower(const ast::Statement& statement)
   {
     assert(statementLowerer != nullptr);
     return statementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::AssignmentStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::AssignmentStatement& statement)
   {
     assert(assignmentStatementLowerer != nullptr);
     return assignmentStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::BreakStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::BreakStatement& statement)
   {
     assert(breakStatementLowerer != nullptr);
     return breakStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::ForStatement& statement)
+  bool 
+  Bridge::Impl::lower(const ast::ForStatement& statement)
   {
     assert(forStatementLowerer != nullptr);
     return forStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::IfStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::IfStatement& statement)
   {
     assert(ifStatementLowerer != nullptr);
     return ifStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::ReturnStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::ReturnStatement& statement)
   {
     assert(returnStatementLowerer != nullptr);
     return returnStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::WhenStatement& statement)
+  bool
+  Bridge::Impl::lower(const ast::WhenStatement& statement)
   {
     assert(whenStatementLowerer != nullptr);
     return whenStatementLowerer->lower(statement);
   }
 
-  void Bridge::Impl::lower(const ast::WhileStatement& statement)
+  bool 
+  Bridge::Impl::lower(const ast::WhileStatement& statement)
   {
     assert(whileStatementLowerer != nullptr);
     return whileStatementLowerer->lower(statement);
@@ -598,9 +624,10 @@ namespace marco::codegen::lowering
 
   Bridge::~Bridge() = default;
 
-  void Bridge::lower(const ast::Root& root)
+  bool
+  Bridge::lower(const ast::Root& root)
   {
-    impl->convert(root);
+    return impl->convert(root);
   }
 
   std::unique_ptr<mlir::ModuleOp>& Bridge::getMLIRModule()

@@ -80,7 +80,7 @@ namespace marco::ast
 
       const Expression* getStartExpression() const;
 
-      bool getFixedProperty() const;
+      std::optional<bool> getFixedProperty() const;
 
       bool getEachProperty() const;
 
