@@ -67,7 +67,8 @@ namespace marco::codegen::lowering
         std::optional<Reference> variableRef = lookupVariable(
             path.front().cast<mlir::FlatSymbolRefAttr>().getValue());
         if (!variableRef) {
-          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, path.front().getValue(), 
+          emitIdentifierError(IdentifierError::IdentifierType::VARIABLE, 
+                              path.front().cast<mlir::FlatSymbolRefAttr>().getValue(), 
                               getVariablesSymbolTable().getVariables(true), 
                               statement.getExpression()->getLocation());
           return false;
