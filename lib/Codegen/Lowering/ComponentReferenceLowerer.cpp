@@ -100,7 +100,7 @@ namespace marco::codegen::lowering
   std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
       Reference current, const ast::ComponentReferenceEntry& entry)
   {
-    std::vector<mlir::Value> indices;
+    llvm::SmallVector<mlir::Value> subscripts;
 
     for (size_t i = 0, e = entry.getNumOfSubscripts(); i < e; ++i) {
       std::optional<Results> loweredSubscript = lower(*entry.getSubscript(i));
@@ -108,16 +108,30 @@ namespace marco::codegen::lowering
         return std::nullopt;
       }
       Result &index = (*loweredSubscript)[0];
-      mlir::Value indexValue = index.get(index.getLoc());
-      indices.push_back(indexValue);
+      mlir::Value subscript = index.get(index.getLoc());
+      subscripts.push_back(subscript);
     }
 
-    if (!indices.empty()) {
+    if (!subscripts.empty()) {
+      llvm::SmallVector<mlir::Value> fullRankSubscripts;
+
       mlir::Location location = loc(entry.getLocation());
-      mlir::Value array = current.get(loc(entry.getLocation()));
+      mlir::Value tensor = current.get(loc(entry.getLocation()));
+      int64_t sourceRank = tensor.getType().cast<mlir::TensorType>().getRank();
+
+      if (sourceRank > static_cast<int64_t>(subscripts.size())) {
+        mlir::Value unboundedRange =
+            builder().create<UnboundedRangeOp>(location);
+
+        fullRankSubscripts.append(
+            sourceRank - static_cast<int64_t>(subscripts.size()),
+            unboundedRange);
+      }
+
+      fullRankSubscripts.append(subscripts);
 
       mlir::Value result = builder().create<TensorViewOp>(
-          location, array, indices);
+          location, tensor, fullRankSubscripts);
 
       return Reference::tensor(builder(), result);
     }

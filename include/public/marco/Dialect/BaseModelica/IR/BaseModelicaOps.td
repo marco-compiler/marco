@@ -1223,12 +1223,17 @@ def Modelica_VariableSetOp : BaseModelica_Op<"variable_set",
 def Modelica_VariableComponentSetOp : BaseModelica_Op<"variable_component_set", []>
 {
     let arguments = (ins
-        SymbolRefAttr:$variable,
+        FlatSymbolRefArrayAttr:$path,
         Variadic<AnyType>:$subscriptions,
+        I64ArrayAttr:$subscriptionsAmounts,
         AnyType:$value);
 
     let results = (outs);
-    let assemblyFormat = "$value `,` $variable `[` $subscriptions `]` attr-dict `:` type($value) (`,` type($subscriptions)^)?";
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        mlir::ValueRange getComponentSubscripts(size_t componentIndex);
+    }];
 }
 
 def Modelica_ComponentGetOp : BaseModelica_Op<"component_get",

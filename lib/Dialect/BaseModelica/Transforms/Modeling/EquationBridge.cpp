@@ -99,4 +99,11 @@ namespace marco::modeling::matching
 
     return accessFunction.clone();
   }
+
+  llvm::raw_ostream& EquationTraits<EquationBridge*>::dump(
+      const Equation* equation, llvm::raw_ostream& os)
+  {
+    (*equation)->op.printInline(os);
+    return os;
+  }
 }

@@ -1,4 +1,5 @@
 #include "marco/Modeling/Dumpable.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling::internal
 {
@@ -6,6 +7,6 @@ namespace marco::modeling::internal
 
   void Dumpable::dump() const
   {
-    dump(std::cerr);
+    dump(llvm::errs());
   }
 }

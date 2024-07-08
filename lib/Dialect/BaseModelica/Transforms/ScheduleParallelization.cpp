@@ -25,6 +25,8 @@ namespace
       void runOnOperation() override;
 
     private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
+
       mlir::LogicalResult processScheduleOp(
           mlir::SymbolTableCollection& symbolTableCollection,
           ModelOp modelOp,
@@ -49,15 +51,36 @@ namespace
 
 void ScheduleParallelizationPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult ScheduleParallelizationPass::processModelOp(
+    ModelOp modelOp)
+{
   mlir::SymbolTableCollection symbolTableCollection;
 
   for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
     if (mlir::failed(processScheduleOp(
             symbolTableCollection, modelOp, scheduleOp))) {
-      return signalPassFailure();
+      return mlir::failure();
     }
   }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(

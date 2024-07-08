@@ -28,9 +28,19 @@ namespace
 
 void EquationSidesSplitPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  if (mlir::failed(processModelOp(modelOp))) {
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
     return signalPassFailure();
   }
 }

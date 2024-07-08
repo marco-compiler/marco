@@ -1758,11 +1758,13 @@ void SCCSolvingWithKINSOLPass::runOnOperation()
 
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
-  llvm::SmallVector<ModelOp> modelOps;
+  llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
-    modelOps.push_back(modelOp);
-  }
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(

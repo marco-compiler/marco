@@ -13,8 +13,9 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <atomic>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
@@ -23,11 +24,14 @@
 #include <type_traits>
 #include <variant>
 
+#define DEBUG_TYPE "matching"
+
 namespace marco::modeling
 {
   namespace matching
   {
-    // This class must be specialized for the variable type that is used during the matching process.
+    // This class must be specialized for the variable type that is used during
+    // the matching process.
     template<typename VariableType>
     struct VariableTraits
     {
@@ -43,11 +47,15 @@ namespace marco::modeling
       //
       // static IndexSet getIndices(const VariableType*)
       //    return the indices of a variable.
+      //
+      // static llvm::raw_ostream& dump(const VariableType*, llvm::raw_ostream&)
+      //    print debug information.
 
       using Id = typename VariableType::UnknownVariableTypeError;
     };
 
-    // This class must be specialized for the equation type that is used during the matching process.
+    // This class must be specialized for the equation type that is used during
+    // the matching process.
     template<typename EquationType>
     struct EquationTraits
     {
@@ -66,10 +74,15 @@ namespace marco::modeling
       //
       // typedef VariableType : the type of the accessed variable
       //
-      // typedef AccessProperty : the access property (this is optional, and if not specified an empty one is used)
+      // typedef AccessProperty : the access property (this is optional, and if
+      //                          not specified an empty one is used)
       //
-      // static std::vector<Access<VariableType, AccessProperty>> getAccesses(const EquationType*)
-      //    return the access done by the equation.
+      // static std::vector<Access<VariableType, AccessProperty>>
+      // getAccesses(const EquationType*)
+      //    return the accesses done by the equation.
+      //
+      // static llvm::raw_ostream& dump(const EquationType*, llvm::raw_ostream&)
+      //    print debug information.
 
       using Id = typename EquationType::UnknownEquationTypeError;
     };
@@ -85,7 +98,7 @@ namespace marco::modeling
       class Matchable
       {
         public:
-          Matchable(IndexSet matchableIndices);
+          explicit Matchable(IndexSet matchableIndices);
 
           const IndexSet& getMatched() const;
 
@@ -112,7 +125,7 @@ namespace marco::modeling
           using Traits = typename ::marco::modeling::matching::VariableTraits<VariableProperty>;
           using Id = typename Traits::Id;
 
-          VariableVertex(VariableProperty property)
+          explicit VariableVertex(VariableProperty property)
               : Matchable(getIndices(property)),
                 property(property),
                 visible(true)
@@ -123,18 +136,16 @@ namespace marco::modeling
 
           using Dumpable::dump;
 
-          void dump(std::ostream& stream) const override
+          void dump(llvm::raw_ostream& os) const override
           {
-            using namespace marco::utils;
-
-            TreeOStream os(stream);
             os << "Variable\n";
-            os << tree_property << "ID: " << getId() << "\n";
-            os << tree_property << "Rank: " << getRank() << "\n";
-            os << tree_property << "Indices: " << getIndices() << "\n";
-            os << tree_property << "Matched: " << getMatched() << "\n";
-
-            stream << std::endl;
+            os << "  - ID: " << getId() << "\n";
+            os << "  - Rank: " << getRank() << "\n";
+            os << "  - Indices: " << getIndices() << "\n";
+            os << "  - Matched: " << getMatched() << "\n";
+            os << "  - Details: ";
+            Traits::dump(&property, os);
+            os << "\n";
           }
 
           VariableProperty& getProperty()
@@ -154,12 +165,16 @@ namespace marco::modeling
 
           size_t getRank() const
           {
-            return getRank(property);
+            auto result = getRank(property);
+            assert(result > 0);
+            return result;
           }
 
           IndexSet getIndices() const
           {
-            return getIndices(property);
+            auto result = getIndices(property);
+            assert(!result.empty());
+            return result;
           }
 
           unsigned int flatSize() const
@@ -302,17 +317,15 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Equation\n";
-          os << tree_property << "ID: " << getId() << "\n";
-          os << tree_property << "Iteration ranges: " << getIterationRanges() << "\n";
-          os << tree_property << "Matched: " << getMatched() << "\n";
-
-          stream << std::endl;
+          os << "  - ID: " << getId() << "\n";
+          os << "  - Iteration ranges: " << getIterationRanges() << "\n";
+          os << "  - Matched: " << getMatched() << "\n";
+          os << "  - Details: ";
+          Traits::dump(&property, os);
+          os << "\n";
         }
 
         EquationProperty& getProperty()
@@ -332,12 +345,16 @@ namespace marco::modeling
 
         size_t getNumOfIterationVars() const
         {
-          return getNumOfIterationVars(property);
+          auto result = getNumOfIterationVars(property);
+          assert(result > 0);
+          return result;
         }
 
         IndexSet getIterationRanges() const
         {
-          return getIterationRanges(property);
+          auto result = getIterationRanges(property);
+          assert(!result.empty());
+          return result;
         }
 
         unsigned int flatSize() const
@@ -402,18 +419,15 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Edge\n";
-          os << tree_property << "Equation: " << equation << "\n";
-          os << tree_property << "Variable: " << variable << "\n";
-          os << tree_property << "Incidence matrix:\n" << incidenceMatrix << "\n";
-          os << tree_property << "Match matrix:\n" << getMatched();
-
-          stream << std::endl;
+          os << "  - Equation: " << equation << "\n";
+          os << "  - Variable: " << variable << "\n";
+          os << "  - Incidence matrix:\n" << incidenceMatrix << "\n";
+          os << "  - Matched equations: " << getMatched().flattenColumns() << "\n";
+          os << "  - Matched variables: " << getMatched().flattenRows() << "\n";
+          os << "  - Match matrix:\n" << getMatched() << "\n";
         }
 
         const AccessFunction& getAccessFunction() const
@@ -531,30 +545,26 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "BFS step\n";
 
-          os << tree_property << "Node: ";
+          os << "Node: ";
           dumpId(os, getNode());
           os << "\n";
 
-          os << tree_property << "Candidates:\n" << getCandidates();
+          os << "Candidates:\n" << getCandidates();
 
           if (hasPrevious()) {
             os << "\n";
-            os << tree_property << "Edge: ";
+            os << "Edge: ";
             dumpId(os, getEdge().from);
             os << " - ";
             dumpId(os, getEdge().to);
             os << "\n";
 
-            os << tree_property << "Mapped flow:\n" << getMappedFlow() << "\n";
-
-            os << tree_property << "Previous:\n";
+            os << "Mapped flow:\n" << getMappedFlow() << "\n";
+            os << "Previous:\n";
             getPrevious()->dump(os);
           }
         }
@@ -592,7 +602,7 @@ namespace marco::modeling
         }
 
       private:
-        void dumpId(marco::utils::TreeOStream& os, VertexDescriptor descriptor) const
+        void dumpId(llvm::raw_ostream& os, VertexDescriptor descriptor) const
         {
           const VertexProperty& nodeProperty = (*graph)[descriptor];
 
@@ -649,15 +659,11 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Frontier\n";
 
           for (const auto& step : steps) {
-            os << tree_property;
             step.dump(os);
             os << "\n";
           }
@@ -748,28 +754,25 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Flow\n";
 
-          os << tree_property << "Source: ";
+          os << "  - Source: ";
           dumpId(os, source);
           os << "\n";
 
-          os << tree_property << "Edge: ";
+          os << "  - Edge: ";
           dumpId(os, edge.from);
           os << " - ";
           dumpId(os, edge.to);
           os << "\n";
 
-          os << tree_property << "Delta:\n" << delta;
+          os << "  - Delta:\n" << delta;
         }
 
       private:
-        void dumpId(marco::utils::TreeOStream& os, VertexDescriptor descriptor) const
+        void dumpId(llvm::raw_ostream& os, VertexDescriptor descriptor) const
         {
           const VertexProperty& nodeProperty = (*graph)[descriptor];
 
@@ -800,22 +803,19 @@ namespace marco::modeling
         using const_iterator = typename Container<Flow>::const_iterator;
 
         template<typename Flows>
-        AugmentingPath(const Flows& flows)
+        explicit AugmentingPath(const Flows& flows)
             : flows(flows.begin(), flows.end())
         {
         }
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Augmenting path\n";
 
           for (const auto& flow : flows) {
-            os << tree_property;
+            os << "  ";
             flow.dump(os);
             os << "\n";
           }
@@ -924,9 +924,7 @@ namespace marco::modeling
       using Access = matching::Access<VariableProperty, AccessProperty>;
       using MatchingSolution = internal::matching::MatchingSolution<EquationProperty, VariableProperty, AccessProperty>;
 
-      using Dumpable::dump;
-
-      MatchingGraph(mlir::MLIRContext* context)
+      explicit MatchingGraph(mlir::MLIRContext* context)
           : context(context)
       {
       }
@@ -949,26 +947,34 @@ namespace marco::modeling
 
       MatchingGraph& operator=(MatchingGraph&& other) = default;
 
-      void dump(std::ostream& stream) const override
+      using Dumpable::dump;
+
+      void dump(llvm::raw_ostream& os) const override
       {
-        using namespace marco::utils;
-        std::lock_guard<std::mutex> lockGuard(mutex);
-
-        TreeOStream os(stream);
+        os << "--------------------------------------------------\n";
         os << "Matching graph\n";
+        os << "- Vertices:\n";
 
-        for (auto descriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
+        for (auto vertexDescriptor : llvm::make_range(
+                 graph.verticesBegin(), graph.verticesEnd())) {
+
           std::visit(
               [&](const auto& vertex) {
-                os << tree_property;
                 vertex.dump(os);
-              }, graph[descriptor]);
+              }, graph[vertexDescriptor]);
+
+          os << "\n";
         }
 
-        for (auto descriptor : llvm::make_range(graph.edgesBegin(), graph.edgesEnd())) {
-          os << tree_property;
-          graph[descriptor].dump(os);
+        os << "- Equations:\n";
+
+        for (auto equationDescriptor : llvm::make_range(
+                 graph.edgesBegin(), graph.edgesEnd())) {
+          graph[equationDescriptor].dump(os);
+          os << "\n";
         }
+
+        os << "--------------------------------------------------\n";
       }
 
       mlir::MLIRContext* getContext() const
@@ -1325,7 +1331,20 @@ namespace marco::modeling
         do {
           success = matchIteration();
           complete = allNodesMatched();
+
+          LLVM_DEBUG({
+              llvm::dbgs() << "Match iteration completed\n";
+              dump(llvm::dbgs());
+          });
         } while (success && !complete);
+
+        LLVM_DEBUG({
+           if (success) {
+             llvm::dbgs() << "Matching completed successfully\n";
+           } else {
+             llvm::dbgs() << "Matching failed\n";
+           }
+        });
 
         return success;
       }
@@ -1339,22 +1358,28 @@ namespace marco::modeling
           return false;
         }
 
-        auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
+        auto equations = llvm::make_range(
+            getEquationsBeginIt(), getEquationsEndIt());
 
         for (VertexDescriptor equationDescriptor : equations) {
-          auto edges = llvm::make_range(edgesBegin(equationDescriptor), edgesEnd(equationDescriptor));
+          auto edges = llvm::make_range(
+              edgesBegin(equationDescriptor), edgesEnd(equationDescriptor));
 
           for (EdgeDescriptor edgeDescriptor : edges) {
             const Edge& edge = graph[edgeDescriptor];
 
             if (const auto& matched = edge.getMatched(); !matched.empty()) {
               auto variableDescriptor =
-                  edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
+                  edgeDescriptor.from == equationDescriptor
+                  ? edgeDescriptor.to : edgeDescriptor.from;
+
+              IndexSet matchedEquationIndices = matched.flattenColumns();
+              assert(!matchedEquationIndices.empty());
 
               result.emplace_back(
                   getEquationFromDescriptor(equationDescriptor).getProperty(),
                   getVariableFromDescriptor(variableDescriptor).getProperty(),
-                  matched.flattenColumns(),
+                  std::move(matchedEquationIndices),
                   edge.getAccessProperty());
             }
           }

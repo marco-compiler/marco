@@ -194,7 +194,10 @@ namespace marco::modeling::internal
         newGroups.try_emplace(group.first, std::move(group.second));
       } else {
         IndexSet diff = group.second.getKeys() - groupIt->second.getKeys();
-        newGroups.try_emplace(group.first, MCIMElement(std::move(diff)));
+
+        if (!diff.empty()) {
+          newGroups.try_emplace(group.first, MCIMElement(std::move(diff)));
+        }
       }
     }
 
@@ -571,6 +574,7 @@ namespace marco::modeling::internal
 
   void MCIM::Impl::add(IndexSet equations, Delta delta)
   {
+    assert(!equations.empty());
     groups[delta].addKeys(std::move(equations));
   }
 }

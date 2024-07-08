@@ -312,15 +312,12 @@ namespace marco::modeling
 
         using Dumpable::dump;
 
-        void dump(std::ostream& stream) const override
+        void dump(llvm::raw_ostream& os) const override
         {
-          using namespace marco::utils;
-
-          TreeOStream os(stream);
           os << "Write information\n";
-          os << tree_property << "Variable: " << variable << "\n";
-          os << tree_property << "Equation: " << (*graph)[equation].getId() << "\n";
-          os << tree_property << "Written variable indexes: " << indexes << "\n";
+          os << "Variable: " << variable << "\n";
+          os << "Equation: " << (*graph)[equation].getId() << "\n";
+          os << "Written variable indexes: " << indexes << "\n";
         }
 
         const VariableId& getVariable() const

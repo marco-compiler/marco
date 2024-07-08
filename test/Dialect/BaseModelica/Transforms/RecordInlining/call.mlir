@@ -98,8 +98,8 @@ bmodelica.function @Foo {
     bmodelica.algorithm {
         %0 = bmodelica.variable_get @x : !bmodelica.real
         %1 = bmodelica.variable_get @y : !bmodelica.real
-        bmodelica.variable_component_set %0, @r::@x[] : !bmodelica.real
-        bmodelica.variable_component_set %1, @r::@y[] : !bmodelica.real
+        bmodelica.variable_component_set @r::@x, %0 : !bmodelica.real
+        bmodelica.variable_component_set @r::@y, %1 : !bmodelica.real
     }
 }
 

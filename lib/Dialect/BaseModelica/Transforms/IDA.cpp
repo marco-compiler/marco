@@ -1047,6 +1047,12 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
         mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
     size_t& accessFunctionsCounter)
 {
+  LLVM_DEBUG({
+     llvm::dbgs() << "Adding access information for equation ";
+     equationOp.printInline(llvm::dbgs());
+     llvm::dbgs() << "\n";
+  });
+
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
   assert(idaEquation.getType().isa<mlir::ida::EquationType>());
 
@@ -1061,11 +1067,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
 
     if (auto derivativeVariable = getDerivative(mlir::SymbolRefAttr::get(
             variableOp.getSymNameAttr()))) {
-      auto derivativeVariableOp =
-          symbolTableCollection->lookupSymbolIn<VariableOp>(
-              modelOp, *derivativeVariable);
-
-      return idaStateVariables[stateVariablesLookup[derivativeVariableOp]];
+      return idaStateVariables[stateVariablesLookup[variableOp]];
     }
 
     return idaAlgebraicVariables[algebraicVariablesLookup[variableOp]];
@@ -1085,16 +1087,30 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
     auto variableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
         modelOp, access.getVariable());
 
+    LLVM_DEBUG({
+      llvm::dbgs() << "  - Variable \"" << variableOp.getSymName() << "\"\n";
+    });
+
     if (!hasVariable(variableOp)) {
+      LLVM_DEBUG({
+        llvm::dbgs() << "    Not handled by IDA. Skipping.\n";
+      });
+
       continue;
     }
 
     mlir::Value idaVariable = getIDAVariable(variableOp);
     assert(idaVariable != nullptr);
+    LLVM_DEBUG(llvm::dbgs() << "    IDA variable: " << idaVariable << "\n");
 
     const AccessFunction& accessFunction = access.getAccessFunction();
 
     if (accessFunction.isAffine()) {
+      LLVM_DEBUG({
+        llvm::dbgs() << "    Access function: "
+                     << accessFunction.getAffineMap() << "\n";
+      });
+
       maps[idaVariable].insert(accessFunction.getAffineMap());
     } else {
       IndexSet accessedIndices =
@@ -1110,6 +1126,10 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
 
         auto affineMap = mlir::AffineMap::get(
             accessFunction.getNumOfDims(), 0, results, builder.getContext());
+
+        LLVM_DEBUG({
+          llvm::dbgs() << "    Access function: " << affineMap << "\n";
+        });
 
         maps[idaVariable].insert(affineMap);
       }
@@ -2030,12 +2050,13 @@ namespace
 
 void IDAPass::runOnOperation()
 {
-  mlir::ModuleOp moduleOp = getOperation();
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
-    modelOps.push_back(modelOp);
-  }
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(modelOp))) {
@@ -2052,11 +2073,27 @@ void IDAPass::runOnOperation()
 
 DerivativesMap& IDAPass::getDerivativesMap(ModelOp modelOp)
 {
-  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = modelOp->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
     return *analysis;
   }
 
-  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
+  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
   analysis.initialize();
   return analysis;
 }

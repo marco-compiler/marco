@@ -24,24 +24,45 @@ namespace
 
       void runOnOperation() override;
 
-      private:
-        mlir::LogicalResult processEquation(
-            mlir::RewriterBase& rewriter,
-            MatchedEquationInstanceOp equation);
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-        EquationTemplateOp createReducedTemplate(
-            mlir::RewriterBase& rewriter,
-            EquationTemplateOp templateOp,
-            const MultidimensionalRange& indices,
-            const llvm::SmallBitVector& singleValuedInductions);
+      mlir::LogicalResult processEquation(
+          mlir::RewriterBase& rewriter,
+          MatchedEquationInstanceOp equation);
 
-        mlir::LogicalResult cleanModelOp(ModelOp modelOp);
+      EquationTemplateOp createReducedTemplate(
+          mlir::RewriterBase& rewriter,
+          EquationTemplateOp templateOp,
+          const MultidimensionalRange& indices,
+          const llvm::SmallBitVector& singleValuedInductions);
+
+      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
   };
 }
 
 void SingleValuedInductionEliminationPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult SingleValuedInductionEliminationPass::processModelOp(
+    ModelOp modelOp)
+{
   mlir::IRRewriter rewriter(&getContext());
   llvm::SmallVector<MatchedEquationInstanceOp> equations;
 
@@ -51,13 +72,15 @@ void SingleValuedInductionEliminationPass::runOnOperation()
 
   for (MatchedEquationInstanceOp equation : equations) {
     if (mlir::failed(processEquation(rewriter, equation))) {
-      return signalPassFailure();
+      return mlir::failure();
     }
   }
 
   if (mlir::failed(cleanModelOp(modelOp))) {
-    return signalPassFailure();
+    return mlir::failure();
   }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(

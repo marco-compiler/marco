@@ -174,9 +174,9 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation()
 
   llvm::SmallVector<ModelOp> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+  moduleOp.walk([&](ModelOp modelOp) {
     modelOps.push_back(modelOp);
-  }
+  });
 
   if (modelOps.empty()) {
     moduleOp.emitError() << "no model found";
@@ -193,7 +193,10 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation()
     return signalPassFailure();
   }
 
-  symbolTableCollection.getSymbolTable(moduleOp).remove(modelOps[0]);
+  mlir::Operation* parentSymbolTable =
+      modelOps[0]->getParentWithTrait<mlir::OpTrait::SymbolTable>();
+
+  symbolTableCollection.getSymbolTable(parentSymbolTable).remove(modelOps[0]);
   rewriter.eraseOp(modelOps[0]);
 
   // Declare the time variable.
@@ -225,11 +228,28 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation()
 DerivativesMap& BaseModelicaToRuntimeConversionPass::getDerivativesMap(
     ModelOp modelOp)
 {
-  if (auto analysis = getCachedChildAnalysis<DerivativesMap>(modelOp)) {
+  mlir::ModuleOp moduleOp = getOperation();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  mlir::Operation* parentOp = modelOp->getParentOp();
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
+
+  if (auto analysis =
+          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
     return *analysis;
   }
 
-  auto& analysis = getChildAnalysis<DerivativesMap>(modelOp);
+  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
   analysis.initialize();
   return analysis;
 }

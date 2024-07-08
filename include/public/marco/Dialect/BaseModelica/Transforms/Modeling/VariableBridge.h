@@ -7,6 +7,11 @@
 #include "marco/Modeling/Matching.h"
 #include "mlir/IR/BuiltinAttributes.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace mlir::bmodelica::bridge
 {
   class VariableBridge
@@ -47,6 +52,9 @@ namespace marco::modeling::matching
     static size_t getRank(const Variable* variable);
 
     static IndexSet getIndices(const Variable* variable);
+
+    static llvm::raw_ostream& dump(
+        const Variable* variable, llvm::raw_ostream& os);
   };
 }
 
@@ -63,6 +71,9 @@ namespace marco::modeling::dependency
     static size_t getRank(const Variable* variable);
 
     static IndexSet getIndices(const Variable* variable);
+
+    static llvm::raw_ostream& dump(
+        const Variable* variable, llvm::raw_ostream& os);
   };
 }
 

@@ -37,7 +37,7 @@ namespace marco::modeling::internal
         public:
           MCIMElement();
 
-          MCIMElement(IndexSet keys);
+          explicit MCIMElement(IndexSet keys);
 
           const IndexSet& getKeys() const;
 

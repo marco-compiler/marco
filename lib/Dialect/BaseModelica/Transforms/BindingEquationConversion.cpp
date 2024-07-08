@@ -21,6 +21,9 @@ namespace
           ::BindingEquationConversionPassBase;
 
       void runOnOperation() override;
+
+    private:
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
   };
 }
 
@@ -155,7 +158,26 @@ namespace
 
 void BindingEquationConversionPass::runOnOperation()
 {
-  ModelOp modelOp = getOperation();
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](mlir::Operation* op) {
+            return processModelOp(mlir::cast<ModelOp>(op));
+          }))) {
+    return signalPassFailure();
+  }
+}
+
+mlir::LogicalResult BindingEquationConversionPass::processModelOp(
+    ModelOp modelOp)
+{
   mlir::SymbolTable symbolTable(modelOp);
 
   mlir::ConversionTarget target(getContext());
@@ -171,10 +193,7 @@ void BindingEquationConversionPass::runOnOperation()
       BindingEquationOpToEquationOpPattern,
       BindingEquationOpToStartOpPattern>(&getContext(), symbolTable);
 
-  if (mlir::failed(applyPartialConversion(
-          modelOp, target, std::move(patterns)))) {
-    return signalPassFailure();
-  }
+  return applyPartialConversion(modelOp, target, std::move(patterns));
 }
 
 namespace mlir::bmodelica

@@ -24,7 +24,7 @@ def AutomaticDifferentiationPass : Pass<"auto-diff", "mlir::ModuleOp">
 }
 
 def BindingEquationConversionPass
-    : Pass<"convert-binding-equations", "ModelOp">
+    : Pass<"convert-binding-equations", "mlir::ModuleOp">
 {
     let summary = "Convert binding equations.";
 
@@ -56,7 +56,7 @@ def DerivativeChainRulePass
 }
 
 def EquationAccessSplitPass
-    : Pass<"split-overlapping-accesses", "ModelOp">
+    : Pass<"split-overlapping-accesses", "mlir::ModuleOp">
 {
     let summary = "Split the overlapping read / write accesses.";
 
@@ -73,7 +73,7 @@ def EquationAccessSplitPass
 }
 
 def EquationInductionsExplicitationPass
-    : Pass<"explicitate-equation-inductions", "ModelOp">
+    : Pass<"explicitate-equation-inductions", "mlir::ModuleOp">
 {
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
@@ -83,8 +83,7 @@ def EquationInductionsExplicitationPass
         "mlir::bmodelica::createEquationInductionsExplicitationPass()";
 }
 
-def EquationSidesSplitPass
-    : Pass<"split-equation-sides", "ModelOp">
+def EquationSidesSplitPass : Pass<"split-equation-sides", "mlir::ModuleOp">
 {
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
@@ -94,7 +93,7 @@ def EquationSidesSplitPass
 }
 
 def EquationTemplatesCreationPass
-    : Pass<"create-equation-templates", "ModelOp">
+    : Pass<"create-equation-templates", "mlir::ModuleOp">
 {
     let summary = "Create the equation templates and their instances.";
 
@@ -128,7 +127,7 @@ def ExplicitCastInsertionPass
 }
 
 def ExplicitInitialEquationsInsertionPass
-    : Pass<"insert-explicit-initial-equations", "ModelOp">
+    : Pass<"insert-explicit-initial-equations", "mlir::ModuleOp">
 {
     let summary = "Explicitate all the initial equations.";
 
@@ -146,7 +145,7 @@ def ExplicitInitialEquationsInsertionPass
 }
 
 def ExplicitStartValueInsertionPass
-    : Pass<"insert-missing-start-values", "ModelOp">
+    : Pass<"insert-missing-start-values", "mlir::ModuleOp">
 {
     let summary = "Add the missing start values.";
 
@@ -277,7 +276,7 @@ def RecordInliningPass : Pass<"inline-records", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createRecordInliningPass()";
 }
 
-def ViewAccessFoldingPass : Pass<"fold-view-accesses", "ModelOp">
+def ViewAccessFoldingPass : Pass<"fold-view-accesses", "mlir::ModuleOp">
 {
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
@@ -330,7 +329,8 @@ def ReadOnlyVariablesPropagationPass
     let constructor = "mlir::bmodelica::createReadOnlyVariablesPropagationPass()";
 }
 
-def ScheduleParallelizationPass : Pass<"schedule-parallelization", "ModelOp">
+def ScheduleParallelizationPass
+    : Pass<"schedule-parallelization", "mlir::ModuleOp">
 {
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect"
@@ -346,7 +346,7 @@ def ScheduleParallelizationPass : Pass<"schedule-parallelization", "ModelOp">
 }
 
 def SingleValuedInductionEliminationPass
-    : Pass<"single-valued-induction-elimination", "ModelOp">
+    : Pass<"single-valued-induction-elimination", "mlir::ModuleOp">
 {
     let summary = "Remove the induction variables that obtain a single value.";
 
@@ -363,7 +363,8 @@ def SingleValuedInductionEliminationPass
         "mlir::bmodelica::createSingleValuedInductionEliminationPass()";
 }
 
-def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "ModelOp">
+def VariablesPromotionPass
+    : Pass<"promote-variables-to-parameters", "mlir::ModuleOp">
 {
     let summary = "Promote to variables to parameters.";
 
@@ -383,7 +384,7 @@ def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "ModelOp">
 //===---------------------------------------------------------------------===//
 
 def DerivativesMaterializationPass
-    : Pass<"derivatives-materialization", "ModelOp">
+    : Pass<"derivatives-materialization", "mlir::ModuleOp">
 {
     let summary = "Create the variables for the derivatives.";
 
@@ -399,7 +400,7 @@ def DerivativesMaterializationPass
         "mlir::bmodelica::createDerivativesMaterializationPass()";
 }
 
-def MatchingPass : Pass<"match", "ModelOp">
+def MatchingPass : Pass<"match", "mlir::ModuleOp">
 {
     let summary = "Perform the matching process";
 
@@ -429,7 +430,7 @@ def SCCAbsenceVerificationPass : Pass<"scc-absence-verification", "mlir::ModuleO
     let constructor = "mlir::bmodelica::createSCCAbsenceVerificationPass()";
 }
 
-def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
+def SCCDetectionPass : Pass<"detect-scc", "mlir::ModuleOp">
 {
     let summary = "Compute the SCCs of a model";
 
@@ -440,7 +441,7 @@ def SCCDetectionPass : Pass<"detect-scc", "ModelOp">
     let constructor = "mlir::bmodelica::createSCCDetectionPass()";
 }
 
-def SchedulingPass : Pass<"schedule", "ModelOp">
+def SchedulingPass : Pass<"schedule", "mlir::ModuleOp">
 {
     let summary = "Perform the scheduling process";
 
@@ -541,7 +542,8 @@ def EquationExplicitationPass
     let constructor = "mlir::bmodelica::createEquationExplicitationPass()";
 }
 
-def SCCSolvingBySubstitutionPass : Pass<"scc-solving-substitution", "ModelOp">
+def SCCSolvingBySubstitutionPass
+    : Pass<"scc-solving-substitution", "mlir::ModuleOp">
 {
     let summary = "Solve the cycles of matched model by substitution";
 

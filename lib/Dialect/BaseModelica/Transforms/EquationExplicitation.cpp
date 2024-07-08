@@ -133,7 +133,13 @@ void EquationExplicitationPass::runOnOperation()
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  for (ModelOp modelOp : moduleOp.getOps<ModelOp>()) {
+  walkClasses(getOperation(), [&](mlir::Operation* op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  for (ModelOp modelOp : modelOps) {
     for (ScheduleOp scheduleOp :
          llvm::make_early_inc_range(modelOp.getOps<ScheduleOp>())) {
       if (mlir::failed(processScheduleOp(
@@ -149,14 +155,25 @@ void EquationExplicitationPass::runOnOperation()
   }
 }
 
-
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 EquationExplicitationPass::getVariableAccessAnalysis(
     EquationTemplateOp equationTemplate,
     mlir::SymbolTableCollection& symbolTableCollection)
 {
-  auto modelOp = equationTemplate->getParentOfType<ModelOp>();
-  auto analysisManager = getAnalysisManager().nest(modelOp);
+  mlir::ModuleOp moduleOp = getOperation();
+  mlir::Operation* parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation*> parentOps;
+
+  while (parentOp != moduleOp) {
+    parentOps.push_back(parentOp);
+    parentOp = parentOp->getParentOp();
+  }
+
+  mlir::AnalysisManager analysisManager = getAnalysisManager();
+
+  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+    analysisManager = analysisManager.nest(op);
+  }
 
   if (auto analysis =
           analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(

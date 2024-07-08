@@ -6,6 +6,11 @@
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"
 
+namespace llvm
+{
+  class raw_ostream;
+}
+
 namespace mlir::bmodelica::bridge
 {
   class EquationBridge
@@ -60,6 +65,9 @@ namespace marco::modeling::matching
     static std::unique_ptr<AccessFunction> getAccessFunction(
         mlir::MLIRContext* context,
         const mlir::bmodelica::VariableAccess& access);
+
+    static llvm::raw_ostream& dump(
+        const Equation* equation, llvm::raw_ostream& os);
   };
 }
 
