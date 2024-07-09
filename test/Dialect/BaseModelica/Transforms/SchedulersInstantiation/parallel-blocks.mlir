@@ -3,9 +3,9 @@
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
-// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [@x, @y], readVariables = [] {
 // CHECK-NEXT:                  runtime.scheduler_run @[[scheduler:.*]]
-// CHECK-NEXT:              } {readVariables = [], writtenVariables = [#bmodelica.var<@x>, #bmodelica.var<@y>]}
+// CHECK-NEXT:              }
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
@@ -39,12 +39,12 @@ module {
         bmodelica.schedule @schedule {
             bmodelica.dynamic {
                 bmodelica.parallel_schedule_blocks {
-                    bmodelica.schedule_block {
+                    bmodelica.schedule_block writtenVariables = [@x], readVariables = [] {
                         bmodelica.equation_call @equation_0
-                    } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@x>]}
-                    bmodelica.schedule_block {
+                    } {parallelizable = true}
+                    bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
                         bmodelica.equation_call @equation_1
-                    } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
+                    } {parallelizable = true}
                 }
             }
         }

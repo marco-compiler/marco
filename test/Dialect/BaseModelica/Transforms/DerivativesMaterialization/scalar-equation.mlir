@@ -5,7 +5,7 @@
 // Check variable declaration and derivatives map.
 
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x>]
+// CHECK-SAME: der = [<@x, @der_x>]
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
 // CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real>
 
@@ -87,9 +87,8 @@ bmodelica.model @Test {
 
 // Check variable declaration and derivatives map.
 
-// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,1]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-SAME: der = [<@x, @der_x, {[0,1]}>]
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.real>
 // CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<2x!bmodelica.real>
 
@@ -128,9 +127,8 @@ bmodelica.model @Test {
 
 // Check variable usage.
 
-// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,1]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-SAME: der = [<@x, @der_x, {[0,1]}>]
 // CHECK:       bmodelica.equation_template inductions = [] attributes {id = "eq0"} {
 // CHECK-DAG:       %[[der_x:.*]] = bmodelica.variable_get @der_x
 // CHECK-DAG:       %[[index:.*]] = bmodelica.constant 0 : index
@@ -228,9 +226,8 @@ bmodelica.model @Test {
 
 // Check variable declaration and derivatives map.
 
-// CHECK: #[[index_set:.*]] = #modeling<index_set {[3,4]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-SAME: der = [<@x, @der_x, {[3,4]}>]
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<10x!bmodelica.real>
 // CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<10x!bmodelica.real>
 

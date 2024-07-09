@@ -53,20 +53,4 @@ def Modeling_MultidimensionalRangeAttr : Modeling_Attr<"MultidimensionalRange">
     let assemblyFormat = "$value";
 }
 
-class IndexSetParameter<string desc>
-    : AttrOrTypeParameter<"IndexSet", desc, "const IndexSet&">;
-
-def Modeling_IndexSetAttr : Modeling_Attr<"IndexSet">
-{
-    let summary = "Index set";
-
-    let description = [{
-        Attribute representing a set of multidimensional indices.
-    }];
-
-    let mnemonic = "index_set";
-    let parameters = (ins IndexSetParameter<"Index set">:$value);
-    let assemblyFormat = "$value";
-}
-
 #endif // MARCO_DIALECT_MODELING_IR_MODELINGATTRIBUTES_TD

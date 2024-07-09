@@ -2,7 +2,9 @@
 #define MARCO_DIALECT_BASEMODELICA_IR_OPS_H
 
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
+#include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/OpInterfaces.h"
+#include "marco/Dialect/BaseModelica/IR/Properties.h"
 #include "marco/Dialect/BaseModelica/IR/Types.h"
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
 #include "marco/Dialect/Modeling/IR/Attributes.h"

@@ -19,7 +19,6 @@ namespace mlir::bmodelica
 {
   using RangeAttr = ::mlir::modeling::RangeAttr;
   using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
-  using IndexSetAttr = ::mlir::modeling::IndexSetAttr;
 
   using EquationScheduleDirection = ::marco::modeling::scheduling::Direction;
 

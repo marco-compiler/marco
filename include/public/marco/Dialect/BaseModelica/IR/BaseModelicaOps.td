@@ -134,26 +134,6 @@ def MultidimensionalRangeAttr
     let convertFromStorage = "$_self";
 }
 
-// IndexSet attribute.
-def IndexSetAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::IndexSetAttr>()">,
-                 "Index set attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::IndexSetAttr }];
-    let returnType = [{ ::mlir::bmodelica::IndexSetAttr }];
-    let convertFromStorage = "$_self";
-}
-
-// Variable attribute.
-def VariableAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::VariableAttr>()">,
-           "Variable attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::VariableAttr }];
-    let returnType = [{ ::mlir::bmodelica::VariableAttr }];
-    let convertFromStorage = "$_self";
-}
-
 // Function derivative attribute.
 def FunctionDerivativeAttr
     : Attr<CPred<"$_self.isa<::mlir::bmodelica::FunctionDerivativeAttr>()">,
@@ -206,6 +186,35 @@ def EquationMatchAttr
     let storageType = [{ ::mlir::bmodelica::EquationMatchAttr }];
     let returnType = [{ ::mlir::bmodelica::EquationMatchAttr }];
     let convertFromStorage = "$_self";
+}
+
+//===---------------------------------------------------------------------===//
+// Properties
+//===---------------------------------------------------------------------===//
+
+def DerivativesMapProperty : Property<"DerivativesMap">
+{
+    let convertToAttribute = "$_storage.asAttribute($_ctxt)";
+
+    let convertFromAttribute =
+        "return DerivativesMap::setFromAttr($_storage, $_attr, $_diag);";
+
+    let hashProperty = "$_storage.hash();";
+}
+
+def VariablesListProperty : Property<"VariablesList">
+{
+    let convertToAttribute = [{
+        getPropertiesAsAttribute($_ctxt, $_storage)
+    }];
+
+    let convertFromAttribute = [{
+        return setPropertiesFromAttribute($_storage, $_attr, $_diag);
+    }];
+
+    let hashProperty = [{
+        computeHash($_storage);
+    }];
 }
 
 //===---------------------------------------------------------------------===//
@@ -3317,9 +3326,7 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        DefaultValuedAttr<
-            TypedArrayAttrBase<VarDerivativeAttr, "Derivatives map">,
-            "std::nullopt">:$derivatives_map);
+        DerivativesMapProperty:$derivativesMap);
 
     let results = (outs);
 
@@ -3327,10 +3334,12 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
-    let hasCanonicalizer = 1;
+    let assemblyFormat = [{
+        $sym_name custom<ModelDerivativesMap>($derivativesMap)
+        attr-dict-with-keyword $bodyRegion
+    }];
 
-    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
+    let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
         static void getCleaningPatterns(
@@ -4008,8 +4017,8 @@ def BaseModelica_AbstractEquationOp : BaseModelica_Op<"abstract_equation",
     NoTerminator]>
 {
     let arguments = (ins
-        TypedArrayAttrBase<VariableAttr, "Written variables">:$writtenVariables,
-        TypedArrayAttrBase<VariableAttr, "Read variables">:$readVariables);
+        VariablesListProperty:$writtenVariables,
+        VariablesListProperty:$readVariables);
 
     let results = (outs);
 
@@ -4017,7 +4026,11 @@ def BaseModelica_AbstractEquationOp : BaseModelica_Op<"abstract_equation",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = "$bodyRegion attr-dict";
+    let assemblyFormat = [{
+        custom<AbstractEquationWrittenVars>($writtenVariables) `,`
+        custom<AbstractEquationReadVars>($readVariables)
+        $bodyRegion attr-dict
+    }];
 }
 
 def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_instance",
@@ -4980,12 +4993,17 @@ def BaseModelica_ScheduleBlockOp : BaseModelica_Op<"schedule_block",
 
     let arguments = (ins
         DefaultValuedAttr<BoolAttr, "false">:$parallelizable,
-        TypedArrayAttrBase<VariableAttr, "Written variables">:$writtenVariables,
-        TypedArrayAttrBase<VariableAttr, "Read variables">:$readVariables);
+        VariablesListProperty:$writtenVariables,
+        VariablesListProperty:$readVariables);
 
     let results = (outs);
     let regions = (region SizedRegion<1>:$bodyRegion);
-    let assemblyFormat = "$bodyRegion attr-dict";
+
+    let assemblyFormat = [{
+        custom<ScheduleBlockWrittenVars>($writtenVariables) `,`
+        custom<ScheduleBlockReadVars>($readVariables)
+        $bodyRegion attr-dict
+    }];
 }
 
 def BaseModelica_ParallelScheduleBlocksOp : BaseModelica_Op<"parallel_schedule_blocks",

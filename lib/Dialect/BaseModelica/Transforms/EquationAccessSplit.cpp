@@ -1,7 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationAccessSplit.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::bmodelica
@@ -183,9 +182,6 @@ void EquationAccessSplitPass::runOnOperation()
           }))) {
     return signalPassFailure();
   }
-
-  // Determine the analyses to be preserved.
-  markAnalysesPreserved<DerivativesMap>();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

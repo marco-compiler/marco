@@ -215,10 +215,10 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   }
 
   for (ScheduleBlockOp readingBlock : blocks) {
-    for (auto readVariable :
-         readingBlock.getReadVariables().getAsRange<VariableAttr>()) {
+    for (const Variable& readVariable :
+         readingBlock.getProperties().readVariables) {
       auto readVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-          modelOp, readVariable.getName());
+          modelOp, readVariable.name);
 
       for (const auto& writingBlock :
            llvm::make_range(writesMap.equal_range(readVariableOp))) {
@@ -227,10 +227,9 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
           continue;
         }
 
-        if (writingBlock.second.first.overlaps(
-                readVariable.getIndices().getValue()) ||
+        if (writingBlock.second.first.overlaps(readVariable.indices) ||
             (writingBlock.second.first.empty() &&
-             readVariable.getIndices().getValue().empty())) {
+             readVariable.indices.empty())) {
           dependantBlocks[writingBlock.second.second].insert(readingBlock);
           inDegrees[readingBlock]++;
         }

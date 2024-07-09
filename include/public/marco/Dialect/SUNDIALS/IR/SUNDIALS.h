@@ -5,6 +5,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "marco/Dialect/SUNDIALS/IR/Attributes.h"
 #include "marco/Dialect/SUNDIALS/IR/Ops.h"
+#include "marco/Dialect/SUNDIALS/IR/Properties.h"
 #include "marco/Dialect/SUNDIALS/IR/Types.h"
 
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALS.h.inc"

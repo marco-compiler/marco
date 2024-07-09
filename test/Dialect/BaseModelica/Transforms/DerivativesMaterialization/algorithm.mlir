@@ -2,9 +2,8 @@
 
 // Check variable declaration and derivatives map.
 
-// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,4]}>
 // CHECK-LABEL: @Test
-// CHECK-SAME: derivatives_map = [#bmodelica<var_derivative @x, @der_x, #[[index_set]]>]
+// CHECK-SAME: der = [<@x, @der_x, {[0,4]}>]
 // CHECK-DAG: bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
 // CHECK-DAG: bmodelica.variable @der_x : !bmodelica.variable<5x!bmodelica.real>
 

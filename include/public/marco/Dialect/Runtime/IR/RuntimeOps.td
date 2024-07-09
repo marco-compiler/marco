@@ -10,6 +10,25 @@ include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===---------------------------------------------------------------------===//
+// Properties
+//===---------------------------------------------------------------------===//
+
+def PrintableIndicesListProperty : Property<"PrintableIndicesList">
+{
+    let convertToAttribute = [{
+        getPropertiesAsAttribute($_ctxt, $_storage)
+    }];
+
+    let convertFromAttribute = [{
+        return setPropertiesFromAttribute($_storage, $_attr, $_diag);
+    }];
+
+    let hashProperty = [{
+        computeHash($_storage);
+    }];
+}
+
+//===---------------------------------------------------------------------===//
 // Attribute constraints
 //===---------------------------------------------------------------------===//
 
@@ -20,16 +39,6 @@ def MultidimensionalRangeAttr
 {
   let storageType = [{ ::mlir::runtime::MultidimensionalRangeAttr }];
   let returnType = [{ ::mlir::runtime::MultidimensionalRangeAttr }];
-  let convertFromStorage = "$_self";
-}
-
-// Index set attribute.
-def IndexSetAttr
-    : Attr<CPred<"$_self.isa<::mlir::runtime::IndexSetAttr>()">,
-                 "Index set attribute">
-{
-  let storageType = [{ ::mlir::runtime::IndexSetAttr }];
-  let returnType = [{ ::mlir::runtime::IndexSetAttr }];
   let convertFromStorage = "$_self";
 }
 
@@ -301,9 +310,9 @@ def Runtime_PrintableIndicesOp : Runtime_Op<"printable_indices",
         ```
     }];
 
-    let arguments = (ins ArrayAttr:$value);
+    let arguments = (ins PrintableIndicesListProperty:$value);
 
-    let assemblyFormat = "$value attr-dict";
+    let assemblyFormat = "custom<PrintableIndicesList>($value) attr-dict";
 }
 
 def Runtime_InitFunctionOp : Runtime_Op<"init_function",

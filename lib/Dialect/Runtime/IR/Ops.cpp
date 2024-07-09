@@ -6,6 +6,57 @@
 
 using namespace ::mlir::runtime;
 
+static bool parsePrintableIndicesList(
+    mlir::OpAsmParser& parser, PrintableIndicesList& prop)
+{
+  if (parser.parseLSquare()) {
+    return true;
+  }
+
+  if (mlir::failed(parser.parseOptionalRSquare())) {
+    do {
+      if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
+        prop.emplace_back(true);
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("false"))) {
+        prop.emplace_back(false);
+      } else {
+        IndexSet indices;
+
+        if (mlir::failed(mlir::modeling::parse(parser, indices))) {
+          return true;
+        }
+
+        prop.emplace_back(std::move(indices));
+      }
+    } while (mlir::succeeded(parser.parseOptionalComma()));
+
+    if (parser.parseRSquare()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void printPrintableIndicesList(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const PrintableIndicesList& prop)
+{
+  printer << "[";
+
+  llvm::interleaveComma(prop, printer, [&](const PrintInfo& printInfo) {
+    if (printInfo.isa<bool>()) {
+      printer << (printInfo.get<bool>() ? "true" : "false");
+      return;
+    }
+
+    mlir::modeling::print(printer, printInfo.get<IndexSet>());
+  });
+
+  printer << "]";
+}
+
 #define GET_OP_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeOps.cpp.inc"
 

@@ -1,20 +1,16 @@
 // RUN: modelica-opt %s --split-input-file --schedule-parallelization | FileCheck %s
 
-// CHECK-DAG: #[[index_set_0:.*]] = #modeling<index_set {[0,3]}>
-// CHECK-DAG: #[[index_set_1:.*]] = #modeling<index_set {[0,5]}>
-// CHECK-DAG: #[[index_set_2:.*]] = #modeling<index_set {[4,9]}>
-
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
-// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [<@x, {[0,3]}>], readVariables = [] {
 // CHECK-NEXT:                  bmodelica.equation_call @equation_0
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@x, #[[index_set_0]]>]}
+// CHECK-NEXT:              } {parallelizable = true}
 // CHECK-NEXT:          }
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
-// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [<@x, {[4,9]}>], readVariables = [<@x, {[0,5]}>] {
 // CHECK-NEXT:                  bmodelica.equation_call @equation_1
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [#bmodelica.var<@x, #[[index_set_1]]>], writtenVariables = [#bmodelica.var<@x, #[[index_set_2]]>]}
+// CHECK-NEXT:              } {parallelizable = true}
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
@@ -25,12 +21,12 @@ module {
 
         bmodelica.schedule @schedule {
             bmodelica.dynamic {
-                bmodelica.schedule_block {
+                bmodelica.schedule_block writtenVariables = [<@x, {[0,3]}>], readVariables = [] {
                     bmodelica.equation_call @equation_0
-                } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@x, #modeling<index_set {[0,3]}>>]}
-                bmodelica.schedule_block {
+                } {parallelizable = true}
+                bmodelica.schedule_block writtenVariables = [<@x, {[4,9]}>], readVariables = [<@x, {[0,5]}>] {
                     bmodelica.equation_call @equation_1
-                } {parallelizable = true, readVariables = [#bmodelica.var<@x, #modeling<index_set {[0,5]}>>], writtenVariables = [#bmodelica.var<@x, #modeling<index_set {[4,9]}>>]}
+                } {parallelizable = true}
             }
         }
     }

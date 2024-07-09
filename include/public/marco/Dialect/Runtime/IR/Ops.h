@@ -12,6 +12,7 @@
 #include "mlir/Interfaces/FunctionInterfaces.h"
 
 #include "marco/Dialect/Runtime/IR/Attributes.h"
+#include "marco/Dialect/Runtime/IR/Properties.h"
 
 #define GET_OP_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeOps.h.inc"

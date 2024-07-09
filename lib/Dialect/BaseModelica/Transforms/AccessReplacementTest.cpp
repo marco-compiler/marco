@@ -36,8 +36,8 @@ namespace
         IndexSet indices;
 
         if (auto indicesAttr =
-                op->getAttrOfType<IndexSetAttr>("replace_indices")) {
-          indices = indicesAttr.getValue();
+                op->getAttrOfType<MultidimensionalRangeAttr>("replace_indices")) {
+          indices = IndexSet(indicesAttr.getValue());
         }
 
         auto destinationPath =

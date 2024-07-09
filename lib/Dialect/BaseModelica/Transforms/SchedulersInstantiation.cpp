@@ -55,8 +55,8 @@ namespace
               mlir::OpBuilder&, mlir::Location)> createEndFn);
 
       void mergeVariableAccesses(
-          llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-          llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+          llvm::SmallVectorImpl<Variable>& writtenVariables,
+          llvm::SmallVectorImpl<Variable>& readVariables,
           llvm::ArrayRef<ScheduleBlockOp> blocks);
 
       mlir::runtime::SchedulerOp declareScheduler(
@@ -290,16 +290,15 @@ mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
       continue;
     }
 
-    llvm::SmallVector<mlir::Attribute> writtenVariables;
-    llvm::SmallVector<mlir::Attribute> readVariables;
-    mergeVariableAccesses(writtenVariables, readVariables, blocks);
-
     rewriter.setInsertionPointToEnd(parallelOp.getBody());
 
     auto newScheduleOp = rewriter.create<ScheduleBlockOp>(
-        parallelOp.getLoc(), false,
-        rewriter.getArrayAttr(writtenVariables),
-        rewriter.getArrayAttr(readVariables));
+        parallelOp.getLoc(), false);
+
+    mergeVariableAccesses(
+        newScheduleOp.getProperties().writtenVariables,
+        newScheduleOp.getProperties().readVariables,
+        blocks);
 
     rewriter.createBlock(&newScheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(newScheduleOp.getBody());
@@ -336,42 +335,34 @@ mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
 }
 
 void SchedulersInstantiationPass::mergeVariableAccesses(
-    llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-    llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+    llvm::SmallVectorImpl<Variable>& writtenVariables,
+    llvm::SmallVectorImpl<Variable>& readVariables,
     llvm::ArrayRef<ScheduleBlockOp> blocks)
 {
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> writtenVariablesIndices;
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> readVariablesIndices;
 
   for (ScheduleBlockOp block : blocks) {
-    for (VariableAttr variable :
-         block.getWrittenVariables().getAsRange<VariableAttr>()) {
-      writtenVariablesIndices[variable.getName()] +=
-          variable.getIndices().getValue();
+    for (const Variable& variable : block.getProperties().writtenVariables) {
+      writtenVariablesIndices[variable.name] += variable.indices;
     }
 
-    for (VariableAttr variable :
-         block.getReadVariables().getAsRange<VariableAttr>()) {
-      readVariablesIndices[variable.getName()] +=
-          variable.getIndices().getValue();
+    for (const Variable& variable : block.getProperties().readVariables) {
+      readVariablesIndices[variable.name] += variable.indices;
     }
   }
 
   for (const auto& entry : writtenVariablesIndices) {
-    writtenVariables.push_back(VariableAttr::get(
-        &getContext(), entry.getFirst(),
-        IndexSetAttr::get(&getContext(), entry.getSecond())));
+    writtenVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
   for (const auto& entry : readVariablesIndices) {
-    readVariables.push_back(VariableAttr::get(
-        &getContext(), entry.getFirst(),
-        IndexSetAttr::get(&getContext(), entry.getSecond())));
+    readVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
-  auto sortFn = [](mlir::Attribute first, mlir::Attribute second) -> bool {
-    auto firstName = first.cast<VariableAttr>().getName();
-    auto secondName = second.cast<VariableAttr>().getName();
+  auto sortFn = [](const Variable& first, const Variable& second) -> bool {
+    auto firstName = first.name;
+    auto secondName = second.name;
 
     auto firstRoot = firstName.getRootReference().getValue();
     auto secondRoot = secondName.getRootReference().getValue();
@@ -395,8 +386,8 @@ void SchedulersInstantiationPass::mergeVariableAccesses(
     return firstLength <= secondLength;
   };
 
-  std::sort(writtenVariables.begin(), writtenVariables.end(), sortFn);
-  std::sort(readVariables.begin(), readVariables.end(), sortFn);
+  llvm::sort(writtenVariables, sortFn);
+  llvm::sort(readVariables, sortFn);
 }
 
 mlir::runtime::SchedulerOp SchedulersInstantiationPass::declareScheduler(

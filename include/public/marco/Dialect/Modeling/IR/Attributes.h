@@ -1,7 +1,9 @@
 #ifndef MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H
 #define MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H
 
-#include "marco/Modeling/IndexSet.h"
+#include "marco/Dialect/Modeling/IR/MultidimensionalRange.h"
+#include "marco/Dialect/Modeling/IR/Point.h"
+#include "marco/Dialect/Modeling/IR/Range.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -11,14 +13,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Hashing.h"
-
-namespace mlir::modeling
-{
-  using Point = ::marco::modeling::Point;
-  using Range = ::marco::modeling::Range;
-  using MultidimensionalRange = ::marco::modeling::MultidimensionalRange;
-  using IndexSet = ::marco::modeling::IndexSet;
-}
 
 #define GET_ATTRDEF_CLASSES
 #include "marco/Dialect/Modeling/IR/ModelingAttributes.h.inc"
@@ -67,28 +61,6 @@ namespace mlir
   mlir::AsmPrinter& operator<<(
       mlir::AsmPrinter& printer,
       const std::optional<mlir::modeling::MultidimensionalRange>& range);
-
-  template<>
-  struct FieldParser<mlir::modeling::IndexSet>
-  {
-    static FailureOr<mlir::modeling::IndexSet>
-    parse(mlir::AsmParser& parser);
-  };
-
-  mlir::AsmPrinter& operator<<(
-      mlir::AsmPrinter& printer,
-      const mlir::modeling::IndexSet& indexSet);
-
-  template<>
-  struct FieldParser<std::optional<mlir::modeling::IndexSet>>
-  {
-    static FailureOr<std::optional<mlir::modeling::IndexSet>>
-    parse(mlir::AsmParser& parser);
-  };
-
-  mlir::AsmPrinter& operator<<(
-      mlir::AsmPrinter& printer,
-      const std::optional<mlir::modeling::IndexSet>& indexSet);
 }
 
 #endif // MARCO_DIALECT_MODELING_IR_ATTRIBUTES_H

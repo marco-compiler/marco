@@ -2,6 +2,7 @@ add_mlir_dialect_library(MLIRModeling
     Attributes.cpp
     Modeling.cpp
     Ops.cpp
+    Properties.cpp
 
     DEPENDS
     MLIRModelingIncGen

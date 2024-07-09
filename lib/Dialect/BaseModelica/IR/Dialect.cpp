@@ -939,10 +939,10 @@ namespace mlir::bmodelica
       mlir::SymbolTableCollection& symbolTableCollection)
   {
     for (ScheduleBlockOp block : scheduleBlocks) {
-      for (VariableAttr writtenVariable :
-           block.getWrittenVariables().getAsRange<VariableAttr>()) {
+      for (const Variable& writtenVariable :
+           block.getProperties().writtenVariables) {
         auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-            modelOp, writtenVariable.getName());
+            modelOp, writtenVariable.name);
 
         if (!variableOp) {
           return mlir::failure();
@@ -950,7 +950,7 @@ namespace mlir::bmodelica
 
         writesMap.emplace(
             variableOp,
-            std::make_pair(writtenVariable.getIndices().getValue(), block));
+            std::make_pair(writtenVariable.indices, block));
       }
     }
 

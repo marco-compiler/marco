@@ -3,14 +3,14 @@
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
-// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
 // CHECK-NEXT:                  bmodelica.equation_call @equation_0
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
+// CHECK-NEXT:              } {parallelizable = true}
 // CHECK-NEXT:          }
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
-// CHECK-NEXT:              bmodelica.schedule_block {
+// CHECK-NEXT:              bmodelica.schedule_block writtenVariables = [@x], readVariables = [@y] {
 // CHECK-NEXT:                  bmodelica.equation_call @equation_1
-// CHECK-NEXT:              } {parallelizable = true, readVariables = [#bmodelica.var<@y>], writtenVariables = [#bmodelica.var<@x>]}
+// CHECK-NEXT:              } {parallelizable = true}
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
@@ -22,13 +22,13 @@ module {
 
         bmodelica.schedule @schedule {
             bmodelica.dynamic {
-                bmodelica.schedule_block {
+                bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
                     bmodelica.equation_call @equation_0
-                } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
+                } {parallelizable = true}
 
-                bmodelica.schedule_block {
+                bmodelica.schedule_block writtenVariables = [@x], readVariables = [@y] {
                     bmodelica.equation_call @equation_1
-                } {parallelizable = true, readVariables = [#bmodelica.var<@y>], writtenVariables = [#bmodelica.var<@x>]}
+                } {parallelizable = true}
             }
         }
     }

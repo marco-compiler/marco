@@ -111,14 +111,14 @@ namespace
           llvm::ArrayRef<mlir::Value> inductions);
 
       mlir::LogicalResult getAccessAttrs(
-          llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-          llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+          llvm::SmallVectorImpl<Variable>& writtenVariables,
+          llvm::SmallVectorImpl<Variable>& readVariables,
           mlir::SymbolTableCollection& symbolTableCollection,
           StartEquationInstanceOp equationOp);
 
       mlir::LogicalResult getAccessAttrs(
-          llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-          llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+          llvm::SmallVectorImpl<Variable>& writtenVariables,
+          llvm::SmallVectorImpl<Variable>& readVariables,
           mlir::SymbolTableCollection& symbolTableCollection,
           ScheduledEquationInstanceOp equationOp);
 
@@ -284,20 +284,15 @@ mlir::LogicalResult EquationExplicitationPass::processStartEquation(
 
   rewriter.setInsertionPoint(equation);
 
-  llvm::SmallVector<mlir::Attribute> writtenVariables;
-  llvm::SmallVector<mlir::Attribute> readVariables;
+  auto scheduleBlockOp =
+      rewriter.create<ScheduleBlockOp>(modelOp.getLoc(), false);
 
   if (mlir::failed(getAccessAttrs(
-          writtenVariables, readVariables, symbolTableCollection,
-          equation))) {
+          scheduleBlockOp.getProperties().writtenVariables,
+          scheduleBlockOp.getProperties().readVariables,
+          symbolTableCollection, equation))) {
     return mlir::failure();
   }
-
-  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
-      modelOp.getLoc(),
-      false,
-      rewriter.getArrayAttr(writtenVariables),
-      rewriter.getArrayAttr(readVariables));
 
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
@@ -378,20 +373,15 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
 
       rewriter.setInsertionPoint(scc);
 
-      llvm::SmallVector<mlir::Attribute> writtenVariables;
-      llvm::SmallVector<mlir::Attribute> readVariables;
+      auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
+          modelOp.getLoc(), true);
 
       if (mlir::failed(getAccessAttrs(
-              writtenVariables, readVariables, symbolTableCollection,
-              equation))) {
+              scheduleBlockOp.getProperties().writtenVariables,
+              scheduleBlockOp.getProperties().readVariables,
+              symbolTableCollection, equation))) {
         return mlir::failure();
       }
-
-      auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
-          modelOp.getLoc(),
-          true,
-          rewriter.getArrayAttr(writtenVariables),
-          rewriter.getArrayAttr(readVariables));
 
       rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
       rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
@@ -749,8 +739,8 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
 }
 
 mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
-    llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-    llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+    llvm::SmallVectorImpl<Variable>& writtenVariables,
+    llvm::SmallVectorImpl<Variable>& readVariables,
     mlir::SymbolTableCollection& symbolTableCollection,
     StartEquationInstanceOp equationOp)
 {
@@ -771,14 +761,9 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   IndexSet matchedVariableIndices =
       writeAccess->getAccessFunction().map(equationIndices);
 
-  auto writtenVariableAttr = VariableAttr::get(
-      equationOp.getContext(),
-      writeAccess->getVariable(),
-      IndexSetAttr::get(
-          equationOp.getContext(),
-          std::move(matchedVariableIndices)));
+  writtenVariables.emplace_back(
+      writeAccess->getVariable(), std::move(matchedVariableIndices));
 
-  writtenVariables.push_back(writtenVariableAttr);
   llvm::SmallVector<VariableAccess> readAccesses;
 
   auto accesses = accessAnalysis->get().getAccesses(
@@ -802,18 +787,15 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   }
 
   for (const auto& entry : readVariablesIndices) {
-    readVariables.push_back(VariableAttr::get(
-        equationOp.getContext(),
-        entry.getFirst(),
-        IndexSetAttr::get(equationOp.getContext(), entry.getSecond())));
+    readVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
   return mlir::success();
 }
 
 mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
-    llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-    llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+    llvm::SmallVectorImpl<Variable>& writtenVariables,
+    llvm::SmallVectorImpl<Variable>& readVariables,
     mlir::SymbolTableCollection& symbolTableCollection,
     ScheduledEquationInstanceOp equationOp)
 {
@@ -834,14 +816,9 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   IndexSet matchedVariableIndices =
       matchedAccess->getAccessFunction().map(equationIndices);
 
-  auto writtenVariableAttr = VariableAttr::get(
-      equationOp.getContext(),
-      matchedAccess->getVariable(),
-      IndexSetAttr::get(
-          equationOp.getContext(),
-          std::move(matchedVariableIndices)));
+  writtenVariables.emplace_back(
+      matchedAccess->getVariable(), std::move(matchedVariableIndices));
 
-  writtenVariables.push_back(writtenVariableAttr);
   llvm::SmallVector<VariableAccess> readAccesses;
 
   auto accesses = accessAnalysis->get().getAccesses(
@@ -865,10 +842,7 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   }
 
   for (const auto& entry : readVariablesIndices) {
-    readVariables.push_back(VariableAttr::get(
-        equationOp.getContext(),
-        entry.getFirst(),
-        IndexSetAttr::get(equationOp.getContext(), entry.getSecond())));
+    readVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
   return mlir::success();

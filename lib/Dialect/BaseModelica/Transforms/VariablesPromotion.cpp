@@ -1,7 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPromotion.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Modeling/Dependency.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/DenseSet.h"
@@ -35,8 +34,6 @@ namespace
       mlir::LogicalResult processModelOp(ModelOp modelOp);
 
       mlir::LogicalResult cleanModelOp(ModelOp modelOp);
-
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
@@ -73,9 +70,6 @@ void VariablesPromotionPass::runOnOperation()
           &getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
-
-  // Determine the analyses to be preserved.
-  markAnalysesPreserved<DerivativesMap>();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
@@ -344,7 +338,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   mlir::SymbolTableCollection symbolTableCollection;
 
   // Retrieve the derivatives map.
-  DerivativesMap& derivativesMap = getDerivativesMap(modelOp);
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
 
   // Collect the variables.
   llvm::SmallVector<VariableOp> variables;
@@ -707,33 +702,6 @@ mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp)
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
-}
-
-DerivativesMap& VariablesPromotionPass::getDerivativesMap(ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = modelOp->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

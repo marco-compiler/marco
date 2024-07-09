@@ -1,10 +1,9 @@
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingWithKINSOL.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
+#include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
+#include "marco/Dialect/BaseModelica/Transforms/Solvers/SUNDIALS.h"
 #include "marco/Dialect/KINSOL/IR/KINSOL.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
-#include "marco/Dialect/BaseModelica/Transforms/Solvers/SUNDIALS.h"
-#include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -1724,8 +1723,8 @@ namespace
           mlir::ModuleOp moduleOp);
 
       mlir::LogicalResult getAccessAttrs(
-          llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-          llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+          llvm::SmallVectorImpl<Variable>& writtenVariables,
+          llvm::SmallVectorImpl<Variable>& readVariables,
           mlir::SymbolTableCollection& symbolTableCollection,
           SCCOp scc);
 
@@ -1776,9 +1775,6 @@ void SCCSolvingWithKINSOLPass::runOnOperation()
       return signalPassFailure();
     }
   }
-
-  // Determine the analyses to be preserved.
-  markAnalysesPreserved<DerivativesMap>();
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
@@ -1913,11 +1909,15 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
      }
   });
 
-  llvm::SmallVector<mlir::Attribute> writtenVariables;
-  llvm::SmallVector<mlir::Attribute> readVariables;
+  rewriter.setInsertionPoint(scc);
+
+  auto scheduleBlockOp =
+      rewriter.create<ScheduleBlockOp>(scc.getLoc(), false);
 
   if (mlir::failed(getAccessAttrs(
-          writtenVariables, readVariables, symbolTableCollection, scc))) {
+          scheduleBlockOp.getProperties().writtenVariables,
+          scheduleBlockOp.getProperties().readVariables,
+          symbolTableCollection, scc))) {
     return mlir::failure();
   }
 
@@ -1926,17 +1926,16 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
   // Determine the unwritten indices among the externalized variables.
   llvm::DenseMap<VariableOp, IndexSet> writtenVariableIndices;
 
-  for (mlir::Attribute attr : writtenVariables) {
-    auto variableAttr = attr.cast<VariableAttr>();
-    auto writtenVariableName = variableAttr.cast<VariableAttr>().getName();
+  for (const Variable& variable :
+       scheduleBlockOp.getProperties().writtenVariables) {
+    auto writtenVariableName = variable.name;
 
     auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
         modelOp, writtenVariableName);
 
     variables.push_back(writtenVariableOp);
 
-    writtenVariableIndices[writtenVariableOp] +=
-        variableAttr.getIndices().getValue();
+    writtenVariableIndices[writtenVariableOp] += variable.indices;
   }
 
   auto instanceOp = declareInstance(
@@ -1977,13 +1976,6 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
     return mlir::failure();
   }
 
-  rewriter.setInsertionPoint(scc);
-
-  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
-      scc.getLoc(), false,
-      rewriter.getArrayAttr(writtenVariables),
-      rewriter.getArrayAttr(readVariables));
-
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
 
@@ -2014,8 +2006,8 @@ mlir::kinsol::InstanceOp SCCSolvingWithKINSOLPass::declareInstance(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
-    llvm::SmallVectorImpl<mlir::Attribute>& writtenVariables,
-    llvm::SmallVectorImpl<mlir::Attribute>& readVariables,
+    llvm::SmallVectorImpl<Variable>& writtenVariables,
+    llvm::SmallVectorImpl<Variable>& readVariables,
     mlir::SymbolTableCollection& symbolTableCollection,
     SCCOp scc)
 {
@@ -2058,17 +2050,11 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
   }
 
   for (const auto& entry : writtenVariablesIndices) {
-    writtenVariables.push_back(VariableAttr::get(
-        &getContext(),
-        entry.getFirst(),
-        IndexSetAttr::get(&getContext(), entry.getSecond())));
+    writtenVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
   for (const auto& entry : readVariablesIndices) {
-    readVariables.push_back(VariableAttr::get(
-        &getContext(),
-        entry.getFirst(),
-        IndexSetAttr::get(&getContext(), entry.getSecond())));
+    readVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
   return mlir::success();

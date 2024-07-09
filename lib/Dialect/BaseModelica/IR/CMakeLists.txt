@@ -2,11 +2,13 @@ add_mlir_dialect_library(MLIRBaseModelica
     Attributes.cpp
     AttrInterfaces.cpp
     DefaultValuesDependencyGraph.cpp
+    DerivativesMap.cpp
     Dialect.cpp
     EquationPath.cpp
     ExpressionPath.cpp
     Ops.cpp
     OpInterfaces.cpp
+    Properties.cpp
     Types.cpp
     TypeInterfaces.cpp
     VariableAccess.cpp

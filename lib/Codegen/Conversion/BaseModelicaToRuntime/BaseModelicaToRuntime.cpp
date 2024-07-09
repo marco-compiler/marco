@@ -1,5 +1,4 @@
 #include "marco/Codegen/Conversion/BaseModelicaToRuntime/BaseModelicaToRuntime.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/VariableFilter/VariableFilter.h"
@@ -29,8 +28,6 @@ namespace
       void runOnOperation() override;
 
     private:
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
-
       mlir::LogicalResult addMissingRuntimeFunctions(
           mlir::OpBuilder& builder,
           mlir::ModuleOp moduleOp);
@@ -223,35 +220,6 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation()
   if (mlir::failed(convertTimeOp(moduleOp))) {
     return signalPassFailure();
   }
-}
-
-DerivativesMap& BaseModelicaToRuntimeConversionPass::getDerivativesMap(
-    ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  mlir::Operation* parentOp = modelOp->getParentOp();
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 mlir::LogicalResult
@@ -704,8 +672,6 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  llvm::SmallVector<mlir::Attribute> printInformation;
-
   auto getFlatName = [](mlir::SymbolRefAttr symbolRef) -> std::string {
     std::string result = symbolRef.getRootReference().str();
 
@@ -716,7 +682,13 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
     return result;
   };
 
-  auto& derivativesMap = getDerivativesMap(modelOp);
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
+
+  auto printableIndicesOp =
+      builder.create<mlir::runtime::PrintableIndicesOp>(modelOp.getLoc());
+
+  auto& printableIndicesList = printableIndicesOp.getProperties().value;
 
   for (VariableOp variableOp : variables) {
     VariableType variableType = variableOp.getVariableType();
@@ -741,19 +713,13 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
             return filter.isVisible();
           });
 
-      printInformation.push_back(builder.getBoolAttr(isVisible));
+      printableIndicesList.emplace_back(isVisible);
     } else {
       // Array variable.
       IndexSet printableIndices = getPrintableIndices(variableType, filters);
-      printableIndices = printableIndices.getCanonicalRepresentation();
-
-      printInformation.push_back(IndexSetAttr::get(
-          builder.getContext(), printableIndices));
+      printableIndicesList.emplace_back(printableIndices);
     }
   }
-
-  builder.create<mlir::runtime::PrintableIndicesOp>(
-      modelOp.getLoc(), builder.getArrayAttr(printInformation));
 
   return mlir::success();
 }
@@ -778,7 +744,9 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createDerivativesMapOp(
 
   // Compute the positions of the derivatives.
   llvm::SmallVector<int64_t> derivatives;
-  auto& derivativesMap = getDerivativesMap(modelOp);
+
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
 
   for (VariableOp variable : variables) {
     if (auto derivative = derivativesMap.getDerivative(

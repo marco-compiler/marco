@@ -12,14 +12,8 @@
 
 namespace mlir::runtime
 {
-  using Point = ::mlir::modeling::Point;
-  using Range = ::mlir::modeling::Range;
-  using MultidimensionalRange = ::mlir::modeling::MultidimensionalRange;
-  using IndexSet = ::mlir::modeling::IndexSet;
-
   using RangeAttr = ::mlir::modeling::RangeAttr;
   using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
-  using IndexSetAttr = ::mlir::modeling::IndexSetAttr;
 }
 
 #define GET_ATTRDEF_CLASSES

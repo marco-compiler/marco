@@ -14,8 +14,7 @@ module {
 
 // Array variable.
 
-// CHECK: #[[index_set:.*]] = #modeling<index_set {[0,2][0,1]}>
-// CHECK: runtime.printable_indices [#[[index_set]]]
+// CHECK: runtime.printable_indices [{[0,2][0,1]}]
 
 module {
     bmodelica.model @Test {

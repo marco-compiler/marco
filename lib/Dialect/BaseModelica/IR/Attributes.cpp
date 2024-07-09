@@ -692,44 +692,6 @@ namespace mlir::bmodelica
   }
 
   //===----------------------------------------------------------------------===//
-  // VariableAttr
-  //===----------------------------------------------------------------------===//
-
-  mlir::Attribute VariableAttr::parse(mlir::AsmParser& parser, mlir::Type type)
-  {
-    mlir::StringAttr name;
-
-    if (parser.parseLess() ||
-        parser.parseSymbolName(name)) {
-      return {};
-    }
-
-    IndexSetAttr indices = IndexSetAttr::get(parser.getContext(), {});
-
-    if (mlir::succeeded(parser.parseOptionalComma())) {
-      if (parser.parseAttribute(indices)) {
-        return {};
-      }
-    }
-
-    return VariableAttr::get(
-        parser.getContext(),
-        mlir::SymbolRefAttr::get(name),
-        indices);
-  }
-
-  void VariableAttr::print(mlir::AsmPrinter& printer) const
-  {
-    printer << "<" << getName();
-
-    if (auto indicesAttr = getIndices(); !indicesAttr.getValue().empty()) {
-      printer << ", " << indicesAttr;
-    }
-
-    printer << ">";
-  }
-
-  //===----------------------------------------------------------------------===//
   // FunctionDerivativeAttr
   //===----------------------------------------------------------------------===//
 

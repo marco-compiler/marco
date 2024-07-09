@@ -205,23 +205,6 @@ def BaseModelica_InverseFunctionsAttr : BaseModelica_Attr<"InverseFunctions">
     }];
 }
 
-def BaseModelica_VariableAttr : BaseModelica_Attr<"Variable">
-{
-    let summary = "Variable information.";
-
-    let description = [{
-        Attribute representing a variable and some of its indices.
-    }];
-
-    let mnemonic = "var";
-
-    let parameters = (ins
-        "mlir::SymbolRefAttr":$name,
-        OptionalParameter<"IndexSetAttr">:$indices);
-
-    let hasCustomAssemblyFormat = 1;
-}
-
 def BaseModelica_FunctionDerivativeAttr
     : BaseModelica_Attr<"FunctionDerivative">
 {
@@ -238,45 +221,6 @@ def BaseModelica_FunctionDerivativeAttr
         "uint64_t":$order);
 
     let assemblyFormat = "$name `,` $order";
-}
-
-def BaseModelica_VarDerivativeAttr : BaseModelica_Attr<"VarDerivative">
-{
-    let summary = "Variable's derivative information.";
-
-    let description = [{
-        Attribute representing the information about a derivative of a variable.
-    }];
-
-    let mnemonic = "var_derivative";
-
-    let parameters = (ins
-        "mlir::SymbolRefAttr":$variable,
-        "mlir::SymbolRefAttr":$derivative,
-        OptionalParameter<"IndexSetAttr">:$derived_indices);
-
-    let assemblyFormat = [{
-        $variable `,` $derivative (`,` $derived_indices^)?
-    }];
-}
-
-def BaseModelica_EquationViewAttr : BaseModelica_Attr<"EquationView">
-{
-    let summary = "Equation view.";
-
-    let description = [{
-        Attribute representing a view over an equation.
-    }];
-
-    let mnemonic = "equation_view";
-
-    let parameters = (ins
-        "int64_t":$sideElementIndex,
-        "mlir::SymbolRefAttr":$component);
-
-    let assemblyFormat = [{
-        $sideElementIndex `,` $component
-    }];
 }
 
 def BaseModelica_EquationPathAttr : BaseModelica_Attr<"EquationPath">
@@ -305,27 +249,6 @@ def BaseModelica_EquationScheduleDirectionAttr
     let mnemonic = "equation_schedule_direction";
     let parameters = (ins "EquationScheduleDirection":$value);
     let assemblyFormat = "$value";
-}
-
-def BaseModelica_EquationMatchAttr : BaseModelica_Attr<"EquationMatch">
-{
-    let summary = "Equation match information.";
-
-    let description = [{
-        Attribute representing the match information for an equation.
-    }];
-
-    let mnemonic = "equation_match";
-
-    let parameters = (ins
-        "mlir::modeling::IndexSetAttr":$equation_indices,
-        "EquationPathAttr":$path,
-        OptionalParameter<"mlir::modeling::IndexSetAttr">:$variable_extra_indices,
-        OptionalParameter<"mlir::SymbolRefAttr">:$component);
-
-    let assemblyFormat = [{
-        $equation_indices `,` $path (`,` $variable_extra_indices^)? (`,` $component^)?
-    }];
 }
 
 def BaseModelica_IntegerRangeAttr : BaseModelica_Attr<"IntegerRange",

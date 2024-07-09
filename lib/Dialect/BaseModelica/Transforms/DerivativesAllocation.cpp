@@ -1,6 +1,5 @@
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/Threading.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include <mutex>
@@ -33,8 +32,6 @@ namespace
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
-
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
       mlir::LogicalResult collectDerivedIndices(
           ModelOp modelOp,
@@ -124,7 +121,7 @@ mlir::LogicalResult DerivativesMaterializationPass::processModelOp(ModelOp model
 
   // Collect the derived indices.
   llvm::DenseSet<mlir::SymbolRefAttr> derivedVariables;
-  DerivativesMap& derivativesMap = getDerivativesMap(modelOp);
+  DerivativesMap& derivativesMap = modelOp.getProperties().derivativesMap;
   MutexCollection mutexCollection;
 
   if (mlir::failed(mlir::failableParallelForEach(
@@ -185,34 +182,6 @@ mlir::LogicalResult DerivativesMaterializationPass::processModelOp(ModelOp model
   }
 
   return mlir::success();
-}
-
-DerivativesMap& DerivativesMaterializationPass::getDerivativesMap(
-    ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = modelOp->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 static mlir::SymbolRefAttr getSymbolRefFromPath(
@@ -518,13 +487,6 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
   mlir::SymbolTable& symbolTable =
       symbolTableCollection.getSymbolTable(modelOp);
 
-  llvm::SmallVector<mlir::Attribute> derivativeAttrs;
-
-  // Add the already existing attributes.
-  for (mlir::Attribute attr : modelOp.getDerivativesMap()) {
-    derivativeAttrs.push_back(attr);
-  }
-
   // Add the new attributes.
   for (mlir::SymbolRefAttr variable : derivedVariables) {
     llvm::SmallVector<int64_t, 3> variableShape;
@@ -542,24 +504,10 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
                           VariabilityProperty::none, IOProperty::none));
 
     symbolTable.insert(derVariableOp, modelOp.getBody()->end());
-    IndexSetAttr derivedIndicesAttr = nullptr;
-
-    if (auto derivedIndices = derivativesMap.getDerivedIndices(variable);
-        derivedIndices && !derivedIndices->get().empty()) {
-      derivedIndicesAttr = IndexSetAttr::get(
-          builder.getContext(),
-          derivedIndices->get().getCanonicalRepresentation());
-    }
-
     auto derivative = mlir::SymbolRefAttr::get(derVariableOp.getSymNameAttr());
-
-    derivativeAttrs.push_back(VarDerivativeAttr::get(
-        builder.getContext(), variable, derivative, derivedIndicesAttr));
-
     derivativesMap.setDerivative(variable, derivative);
   }
 
-  modelOp.setDerivativesMapAttr(builder.getArrayAttr(derivativeAttrs));
   return mlir::success();
 }
 

@@ -72,8 +72,7 @@ runtime.printable_indices [true]
 
 // Non-printable array variable.
 
-#index_set = #modeling<index_set {}>
-runtime.printable_indices [#index_set]
+runtime.printable_indices [{}]
 
 // -----
 
@@ -105,5 +104,4 @@ runtime.printable_indices [#index_set]
 // CHECK-NEXT:          return %[[result]]
 // CHECK-NEXT:  }
 
-#index_set = #modeling<index_set {[0,2]}>
-runtime.printable_indices [#index_set]
+runtime.printable_indices [{[0,2]}]

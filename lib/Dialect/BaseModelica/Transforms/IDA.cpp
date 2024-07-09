@@ -1,6 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/IDA.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/BaseModelica/Transforms/Solvers/SUNDIALS.h"
 #include "marco/Dialect/IDA/IR/IDA.h"
@@ -2071,33 +2070,6 @@ void IDAPass::runOnOperation()
   markAnalysesPreserved<DerivativesMap>();
 }
 
-DerivativesMap& IDAPass::getDerivativesMap(ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = modelOp->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
-}
-
 mlir::LogicalResult IDAPass::processModelOp(ModelOp modelOp)
 {
   mlir::IRRewriter rewriter(&getContext());
@@ -2132,7 +2104,9 @@ mlir::LogicalResult IDAPass::solveMainModel(
 {
   LLVM_DEBUG(llvm::dbgs() << "Solving the 'main' model\n");
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-  auto& derivativesMap = getDerivativesMap(modelOp);
+
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
 
   auto idaInstance = std::make_unique<IDAInstance>(
       "ida_main", symbolTableCollection, &derivativesMap,

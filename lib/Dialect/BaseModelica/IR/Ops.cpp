@@ -32,6 +32,137 @@ namespace mlir::bmodelica
 // BaseModelica Operations
 //===---------------------------------------------------------------------===//
 
+static bool parseWrittenVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  if (parser.parseKeyword("writtenVariables") ||
+      parser.parseEqual()) {
+    return true;
+  }
+
+  if (mlir::failed(parse(parser, prop))) {
+    return true;
+  }
+
+  return false;
+}
+
+static void printWrittenVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  printer << "writtenVariables = ";
+  print(printer, prop);
+}
+
+static bool parseReadVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  if (parser.parseKeyword("readVariables") ||
+      parser.parseEqual()) {
+    return true;
+  }
+
+  if (mlir::failed(parse(parser, prop))) {
+    return true;
+  }
+
+  return false;
+}
+
+static void printReadVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  printer << "readVariables = ";
+  print(printer, prop);
+}
+
+static bool parseModelDerivativesMap(
+    mlir::OpAsmParser& parser, DerivativesMap& prop)
+{
+  if (mlir::succeeded(parser.parseOptionalKeyword("der"))) {
+    if (parser.parseEqual()) {
+      return true;
+    }
+
+    if (mlir::failed(parse(parser, prop))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void printModelDerivativesMap(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const DerivativesMap& prop)
+{
+  if (!prop.empty()) {
+    printer << "der = ";
+    print(printer, prop);
+  }
+}
+
+static bool parseAbstractEquationWrittenVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  return parseWrittenVars(parser, prop);
+}
+
+static void printAbstractEquationWrittenVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  return printWrittenVars(printer, op, prop);
+}
+
+static bool parseAbstractEquationReadVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  return parseReadVars(parser, prop);
+}
+
+static void printAbstractEquationReadVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  return printReadVars(printer, op, prop);
+}
+
+static bool parseScheduleBlockWrittenVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  return parseWrittenVars(parser, prop);
+}
+
+static void printScheduleBlockWrittenVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  return printWrittenVars(printer, op, prop);
+}
+
+static bool parseScheduleBlockReadVars(
+    mlir::OpAsmParser& parser, VariablesList& prop)
+{
+  return parseReadVars(parser, prop);
+}
+
+static void printScheduleBlockReadVars(
+    mlir::OpAsmPrinter& printer,
+    mlir::Operation* op,
+    const VariablesList& prop)
+{
+  return printReadVars(printer, op, prop);
+}
+
 #define GET_OP_CLASSES
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
 
@@ -8007,14 +8138,6 @@ namespace
 
 namespace mlir::bmodelica
 {
-  void ModelOp::build(
-      mlir::OpBuilder& builder,
-      mlir::OperationState& state,
-      llvm::StringRef name)
-  {
-    build(builder, state, name, builder.getArrayAttr(std::nullopt));
-  }
-
   void ModelOp::getCanonicalizationPatterns(
       mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
   {

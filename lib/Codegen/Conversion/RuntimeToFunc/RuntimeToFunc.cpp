@@ -319,15 +319,16 @@ namespace
 
         // Get the canonical version of index sets in order to guarantee
         // consistency among functions and minimal code size.
-        llvm::DenseMap<int64_t, IndexSet> printableIndicesMap;
+        llvm::DenseMap<size_t, IndexSet> printableIndicesMap;
 
-        for (auto attr : llvm::enumerate(op.getValue())) {
-          if (auto indexSetAttr = attr.value().dyn_cast<IndexSetAttr>()) {
-            const IndexSet& indexSet = indexSetAttr.getValue();
+        for (const auto& printInfo :
+             llvm::enumerate(op.getProperties().value)) {
+          if (printInfo.value().isa<IndexSet>()) {
+            const IndexSet& indices = printInfo.value().get<IndexSet>();
 
-            if (!indexSet.empty()) {
-              printableIndicesMap[attr.index()] =
-                  indexSet.getCanonicalRepresentation();
+            if (!indices.empty()) {
+              printableIndicesMap[printInfo.index()] =
+                  indices.getCanonicalRepresentation();
             }
           }
         }
@@ -380,21 +381,12 @@ namespace
         builder.create<mlir::func::ReturnOp>(loc, returnBlock->getArgument(0));
 
         // Create the blocks and the switch.
-        mlir::ArrayAttr printabilityAttrs = op.getValue();
-        llvm::DenseSet<int64_t> printableVariables;
+        llvm::DenseSet<size_t> printableVariables;
 
-        for (auto attr : llvm::enumerate(printabilityAttrs)) {
-          if (auto boolAttr = attr.value().dyn_cast<mlir::BoolAttr>()) {
-            if (boolAttr.getValue()) {
-              printableVariables.insert(attr.index());
-            }
-
-            continue;
-          }
-
-          if (auto indexSetAttr = attr.value().dyn_cast<IndexSetAttr>()) {
-            if (!indexSetAttr.getValue().empty()) {
-              printableVariables.insert(attr.index());
+        for (auto printInfo : llvm::enumerate(op.getProperties().value)) {
+          if (printInfo.value().isa<bool>()) {
+            if (printInfo.value().get<bool>()) {
+              printableVariables.insert(printInfo.index());
             }
           }
         }
@@ -433,7 +425,7 @@ namespace
       mlir::LogicalResult createGetVariableNumOfPrintableRangesFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          const llvm::DenseMap<int64_t, IndexSet> printableIndicesMap) const
+          const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const
       {
         auto funcOp = builder.create<mlir::func::FuncOp>(
             loc, "getVariableNumOfPrintableRanges",
@@ -455,7 +447,7 @@ namespace
         builder.create<mlir::func::ReturnOp>(loc, returnBlock->getArgument(0));
 
         // Collect the results.
-        llvm::DenseMap<int64_t, llvm::DenseSet<int64_t>> resultsVariablesMap;
+        llvm::DenseMap<size_t, llvm::DenseSet<int64_t>> resultsVariablesMap;
 
         for (const auto& entry : printableIndicesMap) {
           const IndexSet& indexSet = entry.getSecond();
@@ -508,7 +500,7 @@ namespace
       mlir::LogicalResult createGetVariablePrintableRangeBeginFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          const llvm::DenseMap<int64_t, IndexSet> printableIndicesMap) const
+          const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const
       {
         auto callback = [](const Range& range) -> int64_t {
           return range.getBegin();
@@ -524,7 +516,7 @@ namespace
       mlir::LogicalResult createGetVariablePrintableRangeEndFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          const llvm::DenseMap<int64_t, IndexSet> printableIndicesMap) const
+          const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const
       {
         auto callback = [](const Range& range) -> int64_t {
           return range.getEnd();
@@ -541,7 +533,7 @@ namespace
           mlir::OpBuilder& builder,
           mlir::Location loc,
           llvm::StringRef functionName,
-          const llvm::DenseMap<int64_t, IndexSet> printableIndicesMap,
+          const llvm::DenseMap<size_t, IndexSet> printableIndicesMap,
           llvm::function_ref<int64_t(const Range&)> boundaryGetterCallback) const
       {
         llvm::SmallVector<mlir::Type, 3> argTypes;

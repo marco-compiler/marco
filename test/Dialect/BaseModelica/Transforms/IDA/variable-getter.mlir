@@ -14,7 +14,7 @@
 // CHECK:           sundials.return %[[cast]]
 // CHECK-NEXT:  }
 
-bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+bmodelica.model @Test der = [<@x, @der_x>] {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real>
 }
@@ -37,7 +37,7 @@ bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @
 // CHECK:           sundials.return %[[cast]]
 // CHECK-NEXT:  }
 
-bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+bmodelica.model @Test der = [<@x, @der_x>] {
     bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.real>
     bmodelica.variable @der_x : !bmodelica.variable<2x!bmodelica.real>
 }
@@ -60,7 +60,7 @@ bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @
 // CHECK:           sundials.return %[[cast]]
 // CHECK-NEXT:  }
 
-bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+bmodelica.model @Test der = [<@x, @der_x>] {
     bmodelica.variable @x : !bmodelica.variable<2x3x!bmodelica.real>
     bmodelica.variable @der_x : !bmodelica.variable<2x3x!bmodelica.real>
 }

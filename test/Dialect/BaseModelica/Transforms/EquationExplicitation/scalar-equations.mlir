@@ -2,12 +2,12 @@
 
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
-// CHECK-NEXT:          bmodelica.schedule_block {
+// CHECK-NEXT:          bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
 // CHECK-NEXT:              bmodelica.equation_call @[[eq0:.*]]
-// CHECK-NEXT:          } {parallelizable = true, readVariables = [], writtenVariables = [#bmodelica.var<@y>]}
-// CHECK-NEXT:          bmodelica.schedule_block {
+// CHECK-NEXT:          } {parallelizable = true}
+// CHECK-NEXT:          bmodelica.schedule_block writtenVariables = [@x], readVariables = [@y] {
 // CHECK-NEXT:              bmodelica.equation_call @[[eq1:.*]]
-// CHECK-NEXT:          } {parallelizable = true, readVariables = [#bmodelica.var<@y>], writtenVariables = [#bmodelica.var<@x>]}
+// CHECK-NEXT:          } {parallelizable = true}
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

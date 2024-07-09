@@ -1,8 +1,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingBySubstitution.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
-#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
@@ -133,9 +132,6 @@ void SCCSolvingBySubstitutionPass::runOnOperation()
           &getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
-
-  // Determine the analyses to be preserved.
-  markAnalysesPreserved<DerivativesMap>();
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

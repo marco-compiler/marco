@@ -1,6 +1,7 @@
 add_mlir_dialect_library(MLIRRuntime
     Attributes.cpp
     Ops.cpp
+    Properties.cpp
     Runtime.cpp
 
     DEPENDS

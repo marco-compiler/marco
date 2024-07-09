@@ -1,7 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/Matching.h"
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/Matching.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -34,8 +33,6 @@ namespace
 
     private:
       mlir::LogicalResult processModelOp(ModelOp modelOp);
-
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
 
       std::optional<std::reference_wrapper<VariableAccessAnalysis>>
       getVariableAccessAnalysis(
@@ -125,7 +122,8 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
   mlir::SymbolTableCollection symbolTableCollection;
 
   // Get the derivatives map.
-  auto& derivativesMap = getDerivativesMap(modelOp);
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
 
   // Perform the matching on the 'initial conditions' model.
   if (!initialEquations.empty()) {
@@ -181,33 +179,6 @@ mlir::LogicalResult MatchingPass::processModelOp(ModelOp modelOp)
   }
 
   return mlir::success();
-}
-
-DerivativesMap& MatchingPass::getDerivativesMap(ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = modelOp->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

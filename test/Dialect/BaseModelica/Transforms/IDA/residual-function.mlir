@@ -10,7 +10,7 @@
 // CHECK-NEXT:  }
 
 module {
-    bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+    bmodelica.model @Test der = [<@x, @der_x>] {
         bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
         bmodelica.variable @der_x : !bmodelica.variable<!bmodelica.real>
 
@@ -45,7 +45,7 @@ module {
 // CHECK-NEXT:  }
 
 module {
-    bmodelica.model @Test attributes {derivatives_map = [#bmodelica<var_derivative @x, @der_x>]} {
+    bmodelica.model @Test der = [<@x, @der_x>] {
         bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.real>
         bmodelica.variable @der_x : !bmodelica.variable<2x!bmodelica.real>
 

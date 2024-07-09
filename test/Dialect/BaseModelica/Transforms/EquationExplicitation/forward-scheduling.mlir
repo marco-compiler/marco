@@ -1,13 +1,10 @@
 // RUN: modelica-opt %s --split-input-file --equation-explicitation | FileCheck %s
 
-// CHECK-DAG: #[[index_set_0:.*]] = #modeling<index_set {[0,8]}>
-// CHECK-DAG: #[[index_set_1:.*]] = #modeling<index_set {[1,9]}>
-
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
-// CHECK-NEXT:          bmodelica.schedule_block {
+// CHECK-NEXT:          bmodelica.schedule_block writtenVariables = [<@x, {[1,9]}>], readVariables = [<@x, {[0,8]}>] {
 // CHECK-NEXT:              bmodelica.equation_call @[[eq:.*]] {indices = #modeling<multidim_range [0,8]>}
-// CHECK-NEXT:          } {parallelizable = true, readVariables = [#bmodelica.var<@x, #[[index_set_0]]>], writtenVariables = [#bmodelica.var<@x, #[[index_set_1]]>]}
+// CHECK-NEXT:          } {parallelizable = true}
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

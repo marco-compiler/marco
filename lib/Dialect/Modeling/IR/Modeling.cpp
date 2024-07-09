@@ -23,11 +23,6 @@ namespace
     AliasResult getAlias(
         mlir::Attribute attr, llvm::raw_ostream& os) const override
     {
-      if (attr.isa<IndexSetAttr>()) {
-        os << "index_set";
-        return AliasResult::OverridableAlias;
-      }
-
       return AliasResult::NoAlias;
     }
 

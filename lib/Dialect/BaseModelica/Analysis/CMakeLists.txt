@@ -1,5 +1,4 @@
 set(SOURCES
-    DerivativesMap.cpp
     VariableAccessAnalysis.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

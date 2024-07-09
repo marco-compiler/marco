@@ -1,6 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/EulerForward.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
-#include "marco/Dialect/BaseModelica/Analysis/DerivativesMap.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
@@ -26,8 +26,6 @@ namespace
       void runOnOperation() override;
 
     private:
-      DerivativesMap& getDerivativesMap(ModelOp modelOp);
-
       mlir::LogicalResult processModelOp(ModelOp modelOp);
 
       mlir::LogicalResult solveMainModel(
@@ -92,35 +90,6 @@ void EulerForwardPass::runOnOperation()
       return signalPassFailure();
     }
   }
-
-  markAnalysesPreserved<DerivativesMap>();
-}
-
-DerivativesMap& EulerForwardPass::getDerivativesMap(ModelOp modelOp)
-{
-  mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = modelOp->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
-
-  while (parentOp != moduleOp) {
-    parentOps.push_back(parentOp);
-    parentOp = parentOp->getParentOp();
-  }
-
-  mlir::AnalysisManager analysisManager = getAnalysisManager();
-
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
-    analysisManager = analysisManager.nest(op);
-  }
-
-  if (auto analysis =
-          analysisManager.getCachedChildAnalysis<DerivativesMap>(modelOp)) {
-    return *analysis;
-  }
-
-  auto& analysis = analysisManager.getChildAnalysis<DerivativesMap>(modelOp);
-  analysis.initialize();
-  return analysis;
 }
 
 mlir::LogicalResult EulerForwardPass::processModelOp(ModelOp modelOp)
@@ -244,7 +213,8 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
       timeStepArg.getLoc(), timeStepArg, timeStepArray, std::nullopt);
 
   // Compute the list of state and derivative variables.
-  auto& derivativesMap = getDerivativesMap(modelOp);
+  const DerivativesMap& derivativesMap =
+      modelOp.getProperties().derivativesMap;
 
   // The two lists are kept in sync.
   llvm::SmallVector<VariableOp> stateVariables;
@@ -308,35 +278,27 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   return mlir::success();
 }
 
-static std::pair<mlir::ArrayAttr, mlir::ArrayAttr>
-getStateUpdateBlockVarWriteReadAttrs(
+static void getStateUpdateBlockVarWriteReadInfo(
     mlir::OpBuilder& builder,
     VariableOp stateVariable,
     VariableOp derivativeVariable,
-    MultidimensionalRangeAttr ranges)
+    MultidimensionalRangeAttr ranges,
+    llvm::SmallVectorImpl<Variable>& writtenVariables,
+    llvm::SmallVectorImpl<Variable>& readVariables)
 {
-  llvm::SmallVector<mlir::Attribute> writtenVarAttrs;
-  llvm::SmallVector<mlir::Attribute> readVarAttrs;
-
   IndexSet indices;
 
   if (ranges) {
     indices += ranges.getValue();
   }
 
-  writtenVarAttrs.push_back(VariableAttr::get(
-      builder.getContext(),
+  writtenVariables.emplace_back(
       mlir::SymbolRefAttr::get(stateVariable.getSymNameAttr()),
-      IndexSetAttr::get(builder.getContext(), indices)));
+      indices);
 
-  readVarAttrs.push_back(VariableAttr::get(
-      builder.getContext(),
+  readVariables.emplace_back(
       mlir::SymbolRefAttr::get(derivativeVariable.getSymNameAttr()),
-      IndexSetAttr::get(builder.getContext(), indices)));
-
-  return std::make_pair(
-      builder.getArrayAttr(writtenVarAttrs),
-      builder.getArrayAttr(readVarAttrs));
+      indices);
 }
 
 static void createStateUpdateFunctionCall(
@@ -346,14 +308,13 @@ static void createStateUpdateFunctionCall(
     MultidimensionalRangeAttr ranges,
     EquationFunctionOp equationFuncOp)
 {
-  mlir::ArrayAttr writtenVars;
-  mlir::ArrayAttr readVars;
-
-  std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
-      builder, stateVariable, derivativeVariable, ranges);
-
   auto blockOp = builder.create<ScheduleBlockOp>(
-      stateVariable.getLoc(), true, writtenVars, readVars);
+      stateVariable.getLoc(), true);
+
+  getStateUpdateBlockVarWriteReadInfo(
+      builder, stateVariable, derivativeVariable, ranges,
+      blockOp.getProperties().writtenVariables,
+      blockOp.getProperties().readVariables);
 
   builder.createBlock(&blockOp.getBodyRegion());
   builder.setInsertionPointToStart(blockOp.getBody());
@@ -540,14 +501,16 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
   // Create the schedule block and call the function.
   builder.setInsertionPointToEnd(dynamicOp.getBody());
 
-  mlir::ArrayAttr writtenVars;
-  mlir::ArrayAttr readVars;
-
   int64_t variableRank = variableType.getRank();
 
+  auto blockOp = builder.create<ScheduleBlockOp>(
+      stateVariable.getLoc(), true);
+
   if (variableRank == 0) {
-    std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
-        builder, stateVariable, derivativeVariable, nullptr);
+    getStateUpdateBlockVarWriteReadInfo(
+        builder, stateVariable, derivativeVariable, nullptr,
+        blockOp.getProperties().writtenVariables,
+        blockOp.getProperties().readVariables);
   } else {
     for (int64_t dim = 0; dim < variableType.getRank(); ++dim) {
       llvm::SmallVector<Range> ranges;
@@ -557,15 +520,14 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
         ranges.push_back(Range(0, dimSize));
       }
 
-      std::tie(writtenVars, readVars) = getStateUpdateBlockVarWriteReadAttrs(
+      getStateUpdateBlockVarWriteReadInfo(
           builder, stateVariable, derivativeVariable,
-          MultidimensionalRangeAttr::get(builder.getContext(),
-                                         MultidimensionalRange(ranges)));
+          MultidimensionalRangeAttr::get(
+              builder.getContext(), MultidimensionalRange(ranges)),
+          blockOp.getProperties().writtenVariables,
+          blockOp.getProperties().readVariables);
     }
   }
-
-  auto blockOp = builder.create<ScheduleBlockOp>(
-      stateVariable.getLoc(), true, writtenVars, readVars);
 
   builder.createBlock(&blockOp.getBodyRegion());
   builder.setInsertionPointToStart(blockOp.getBody());
