@@ -7,7 +7,7 @@
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.real>
 
-    // x[i] + x[i + 1]
+    // x[i] + x[i + 1] = 0
     // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<3x!bmodelica.real>

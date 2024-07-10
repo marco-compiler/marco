@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --schedule | FileCheck %s
 
-// for i in 0:9 loop
+// for i in 0:8 loop
 //    x[i] = x[i + 1]
 //
 // x[9] = 0
