@@ -1,9 +1,12 @@
 #include "marco/Codegen/Conversion/BaseModelicaToFunc/BaseModelicaToFunc.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir
@@ -691,6 +694,37 @@ namespace
       return mlir::success();
     }
   };
+
+  struct AssertOpLowering : public mlir::OpConversionPattern<AssertOp>
+  {
+    using mlir::OpConversionPattern<AssertOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        AssertOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+      rewriter.splitBlock(currentBlock, op->getIterator());
+
+      mlir::Value conditionValue = op.getCondition();
+      mlir::StringAttr msg = mlir::cast<mlir::StringAttr>(op.getMsg());
+
+      if (conditionValue.getType() != rewriter.getI1Type()) {
+        conditionValue = rewriter.create<CastOp>(
+            conditionValue.getLoc(), rewriter.getI1Type(), conditionValue);
+      }
+
+      rewriter.setInsertionPointToEnd(currentBlock);
+      rewriter.create<mlir::cf::AssertOp>(op->getLoc(), conditionValue, msg);
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+  };
 }
 
 namespace
@@ -787,7 +821,8 @@ namespace mlir
         EquationCallOpLowering,
         RawFunctionOpLowering,
         RawReturnOpLowering,
-        CallOpLowering>(typeConverter, context);
+        CallOpLowering,
+        AssertOpLowering>(typeConverter, context);
   }
 
   std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass()

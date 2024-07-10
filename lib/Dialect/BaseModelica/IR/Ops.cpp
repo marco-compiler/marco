@@ -12526,3 +12526,29 @@ namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // AssertOp
+
+namespace
+{
+  struct MatchAssertPattern
+      : public mlir::OpRewritePattern<AssertOp>
+  {
+    using mlir::OpRewritePattern<AssertOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        AssertOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      std::cout<< "Assert has been matched!" << std::endl;
+
+      return mlir::success();
+    }
+  };
+}
+
+namespace mlir::bmodelica
+{
+  void AssertOp::getCanonicalizationPatterns(
+      mlir::RewritePatternSet& patterns, mlir::MLIRContext* context)
+  {
+    patterns.add<MatchAssertPattern>(context);
+  }
+}

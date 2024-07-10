@@ -316,11 +316,7 @@ namespace
         if (auto returnOp = mlir::dyn_cast<ReturnOp>(op)) {
           return createCFG(rewriter, returnOp, functionReturnBlock);
         }
-
-        if (auto assertOp = mlir::dyn_cast<AssertOp>(op)) {
-          return createCFG(rewriter, assertOp, functionReturnBlock);
-        }
-
+        
         return mlir::success();
       }
 
@@ -607,36 +603,6 @@ namespace
 
         rewriter.setInsertionPointToEnd(currentBlock);
         rewriter.create<mlir::cf::BranchOp>(op->getLoc(), functionReturnBlock);
-
-        rewriter.eraseOp(op);
-        return mlir::success();
-      }
-
-      mlir::LogicalResult createCFG(
-          mlir::PatternRewriter& rewriter,
-          AssertOp op,
-          mlir::Block* functionReturnBlock) const
-      {
-        if (functionReturnBlock == nullptr) {
-          return mlir::failure();
-        }
-
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(op);
-
-        mlir::Block* currentBlock = rewriter.getInsertionBlock();
-        rewriter.splitBlock(currentBlock, op->getIterator());
-
-        mlir::Value conditionValue = op.getCondition();
-        mlir::StringAttr msg = mlir::cast<mlir::StringAttr>(op.getMsg());
-
-        if (conditionValue.getType() != rewriter.getI1Type()) {
-          conditionValue = rewriter.create<CastOp>(
-              conditionValue.getLoc(), rewriter.getI1Type(), conditionValue);
-        }
-
-        rewriter.setInsertionPointToEnd(currentBlock);
-        rewriter.create<mlir::cf::AssertOp>(op->getLoc(), conditionValue, msg);
 
         rewriter.eraseOp(op);
         return mlir::success();

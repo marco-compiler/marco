@@ -5353,14 +5353,10 @@ def Modelica_AssertOp : BaseModelica_Op<"assert",
         TypedAttrInterface:$msg);
     
     let results = (outs);
-    
+
     let assemblyFormat = "$condition `,` $msg attr-dict `:` type($condition)";
 
-    // let builders = [
-    //     OpBuilder<(ins "::mlir::Value":$condition, "::mlir::StringAttr":$msg), [{
-    //         build($_builder, $_state, condition, msg);
-    //     }]>
-    // ];
+    let hasCanonicalizer = 1;
 }
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPS_TD
