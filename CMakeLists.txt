@@ -92,7 +92,7 @@ find_program(LLVM_TABLEGEN_EXE "llvm-tblgen"
 
 if (DEFINED MARCO_RUNTIME_PATH)
 	get_filename_component(MARCO_RUNTIME_ABS_PATH ${MARCO_RUNTIME_PATH} ABSOLUTE)
-	set(MARCORuntime_DIR "${LLVM_ABS_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/MARCORuntime")
+	set(MARCORuntime_DIR "${MARCO_RUNTIME_ABS_PATH}/${CMAKE_INSTALL_LIBDIR}/cmake/MARCORuntime")
 endif()
 
 find_package(MARCORuntime CONFIG)
