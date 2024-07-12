@@ -39,7 +39,7 @@ namespace marco::codegen::lowering
   }
 
   void Lowerer::getVisibleSymbols(
-      mlir::Operation* scope, 
+      mlir::Operation* scope,
       std::set<std::string>& visibleSymbols,
       llvm::function_ref<bool(mlir::Operation*)> filterFn)
   {
@@ -64,7 +64,7 @@ namespace marco::codegen::lowering
   }
 
   void Lowerer::getVisibleSymbols(
-      mlir::Operation* scope, 
+      mlir::Operation* scope,
       std::set<std::string>& visibleSymbols)
   {
     return getVisibleSymbols(scope, visibleSymbols, [](mlir::Operation* op) {
@@ -168,7 +168,7 @@ namespace marco::codegen::lowering
       std::set<std::string> visibleTypes;
       getVisibleSymbols<ClassInterface>(originalScope, visibleTypes);
 
-      emitIdentifierError(IdentifierError::IdentifierType::TYPE, type.getElement(0), 
+      emitIdentifierError(IdentifierError::IdentifierType::TYPE, type.getElement(0),
                           visibleTypes, type.getLocation());
       return std::nullopt;
     }
@@ -491,7 +491,12 @@ namespace marco::codegen::lowering
     return bridge->lower(statement);
   }
 
-  void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name, 
+  bool Lowerer::lower(const ast::CallStatement& statement)
+  {
+    return bridge->lower(statement);
+  }
+
+  void Lowerer::emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name,
                                     const std::set<std::string> &declaredIdentifiers,
                                     const marco::SourceRange& location)
   {
@@ -527,7 +532,7 @@ namespace marco::codegen::lowering
     if (predicted != "") {
       errorString += " Did you mean " + predicted + "?";
     }
-    
+
     mlir::emitError(loc(location)) << errorString;
   }
 }

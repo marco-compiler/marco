@@ -4,6 +4,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
+
+
 namespace marco::ast
 {
   Root::Root(SourceRange location)
@@ -15,7 +17,10 @@ namespace marco::ast
       : ASTNode(other)
   {
     setInnerClasses(other.innerClasses);
+
   }
+
+
 
   Root::~Root() = default;
 

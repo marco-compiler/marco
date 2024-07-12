@@ -591,7 +591,7 @@ namespace marco::parser
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
-    // Assignment statement.
+    // Multiple assignment statement.
     if (accept<TokenKind::LPar>()) {
       SourceRange loc = getLocation();
       TRY(destinations, parseOutputExpressionList());
@@ -617,14 +617,45 @@ namespace marco::parser
       return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
     }
 
-    TRY(destination, parseComponentReference());
+    // assert ( condition, "message" )
+    // COMPONENT-REFERENCE LPAR parse(argument-list) RPAR
+
+    TRY(name, parseComponentReference());
+
+
+    if ( accept<TokenKind::LPar>() ) {
+      TRY(functionArguments, parseFunctionArguments());
+      EXPECT(TokenKind::RPar);
+
+      SourceRange loc = getLocation();
+
+      auto callee = std::make_unique<ast::ComponentReference>(loc);
+
+      loc.end = functionArguments->getLocation().end;
+
+
+      auto result = std::make_unique<CallStatement>(loc);
+
+      {
+        auto call = std::make_unique<Call>(loc);
+
+        call->setCallee(std::move(*name));
+        call->setArguments(functionArguments->getValue());
+        result->setCall(std::move(call));
+      }
+
+
+      return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+    }
+
+
     EXPECT(TokenKind::AssignmentOperator);
     TRY(expression, parseExpression());
-    SourceRange loc = (*destination)->getLocation();
+    SourceRange loc = (*name)->getLocation();
     loc.end = (*expression)->getLocation().end;
 
     auto result = std::make_unique<AssignmentStatement>(loc);
-    result->setDestinations(std::move(*destination));
+    result->setDestinations(std::move(*name));
     result->setExpression(std::move(*expression));
     return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }

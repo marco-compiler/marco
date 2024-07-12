@@ -70,6 +70,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
   target.addLegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
   target.addIllegalOp<CastOp>();
 
+  // Tensor ops
   target.addIllegalOp<
       TensorFromElementsOp,
       TensorBroadcastOp,
@@ -80,11 +81,15 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
 
   target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
     return op.getResult().getType().isa<RangeType>();
+
+    // TODO: String type
   });
 
+  // Logic ops
   target.addIllegalOp<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
   target.addIllegalOp<NotOp, AndOp, OrOp>();
 
+  // Math ops
   target.addIllegalOp<NegateOp>();
   target.addIllegalOp<AddOp, AddEWOp>();
   target.addIllegalOp<SubOp, SubEWOp>();
@@ -96,8 +101,10 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
   target.addIllegalOp<SelectOp>();
   target.addIllegalOp<RangeSizeOp>();
 
+  // Global variable ops
   target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp>();
 
+  // Array ops
   target.addIllegalOp<
       AllocaOp,
       AllocOp,
@@ -112,6 +119,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
       ArrayFillOp,
       ArrayCopyOp>();
 
+  // Function ops
   target.addIllegalOp<
       EquationFunctionOp,
       EquationCallOp,
@@ -138,8 +146,9 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
       AbsOp,
       AcosOp,
       AsinOp,
-      AtanOp,
+      AssertOp,
       Atan2Op,
+      AtanOp,
       CeilOp,
       CosOp,
       CoshOp,
@@ -151,13 +160,13 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
       IdentityOp,
       IntegerOp,
       LinspaceOp,
-      LogOp,
       Log10Op,
-      OnesOp,
+      LogOp,
       MaxOp,
       MinOp,
       ModOp,
       NDimsOp,
+      OnesOp,
       ProductOp,
       RemOp,
       SignOp,

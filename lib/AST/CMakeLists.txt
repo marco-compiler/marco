@@ -44,7 +44,9 @@ set(AST_NODES
 	Node/TypePrefix.cpp
 	Node/WhenEquation.cpp
 	Node/WhenStatement.cpp
-	Node/WhileStatement.cpp)
+	Node/WhileStatement.cpp
+    Node/CallStatement.cpp
+)
 
 set(SOURCES
 	${AST_NODES})

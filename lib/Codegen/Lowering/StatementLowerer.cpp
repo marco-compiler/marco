@@ -13,31 +13,35 @@ namespace marco::codegen::lowering
 
   bool StatementLowerer::lower(const ast::Statement& statement)
   {
-    if (auto casted = statement.dyn_cast<ast::AssignmentStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::AssignmentStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::BreakStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::BreakStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::ForStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::ForStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::IfStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::IfStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::ReturnStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::ReturnStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::WhileStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::WhileStatement>()) {
       return lower(*casted);
     }
 
-    if (auto casted = statement.dyn_cast<ast::WhenStatement>()) {
+    if (auto * const casted = statement.dyn_cast<ast::WhenStatement>()) {
+      return lower(*casted);
+    }
+
+    if ( auto * const casted = statement.dyn_cast<ast::CallStatement>()) {
       return lower(*casted);
     }
 

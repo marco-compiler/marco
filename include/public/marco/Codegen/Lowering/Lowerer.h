@@ -30,8 +30,8 @@ namespace marco::codegen::lowering
       /// of type T that are visible from the given scope.
       template<typename... T>
       void getVisibleSymbols(
-          mlir::Operation* scope, 
-          std::set<std::string> &visibleSymbols) 
+          mlir::Operation* scope,
+          std::set<std::string> &visibleSymbols)
       {
         return getVisibleSymbols(scope, visibleSymbols, [](mlir::Operation* op) {
           return mlir::isa<T...>(op);
@@ -137,10 +137,10 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::Record& node) override;
 
-      [[nodiscard]] virtual bool 
+      [[nodiscard]] virtual bool
           lower(const ast::StandardFunction& node) override;
 
-      [[nodiscard]] virtual bool 
+      [[nodiscard]] virtual bool
           lowerClassBody(const ast::Class& node) override;
 
       [[nodiscard]] virtual bool createBindingEquation(
@@ -198,11 +198,14 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::WhenStatement& statement) override;
 
-      [[nodiscard]] virtual bool 
+
+      [[nodiscard]] virtual bool
           lower(const ast::WhileStatement& statement) override;
 
-      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name, 
-                                       const std::set<std::string> &declaredIdentifiers, 
+      [[nodiscard]] bool lower(const ast::CallStatement& statement) override;
+
+      virtual void emitIdentifierError(IdentifierError::IdentifierType identifierType, llvm::StringRef name,
+                                       const std::set<std::string> &declaredIdentifiers,
                                        const marco::SourceRange& location);
 
       /// }
@@ -212,9 +215,9 @@ namespace marco::codegen::lowering
           llvm::StringRef name,
           mlir::Operation* currentScope,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
-      
+
       void getVisibleSymbols(
-          mlir::Operation* scope, 
+          mlir::Operation* scope,
           std::set<std::string> &visibleSymbols,
           llvm::function_ref<bool(mlir::Operation*)> filterFn);
 

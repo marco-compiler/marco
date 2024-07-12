@@ -46,6 +46,6 @@ namespace marco::ast
       // Right-hand side expression of the assignment.
       std::unique_ptr<ASTNode> expression;
   };
-}
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ASSIGNMENTSTATEMENT_H

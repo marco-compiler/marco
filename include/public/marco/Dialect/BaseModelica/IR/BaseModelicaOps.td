@@ -49,6 +49,12 @@ def BaseModelicaIntegerAttr :
 {
     let storageType = [{ ::mlir::bmodelica::IntegerAttr }];
     let returnType = [{ int64_t }];
+
+    let convertFromStorage = [{
+      $_self.getValue().getSExtValue();
+    }];
+
+
     let valueType = BaseModelicaInteger;
 
     let constBuilderCall =
@@ -68,6 +74,10 @@ def BaseModelicaRealAttr :
     let storageType = [{ ::mlir::bmodelica::RealAttr }];
     let returnType = [{ double }];
     let valueType = BaseModelicaReal;
+
+    let convertFromStorage = [{
+      $_self.getValue().convertToDouble();
+    }];
 
     let constBuilderCall =
         "::mlir::bmodelica::RealAttr::get($_builder.getContext(), $0)";
@@ -3224,6 +3234,42 @@ def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
     }];
 }
 
+def BaseModelica_AssertOp : BaseModelica_Op<"assert",
+   [ MemoryEffects<[MemWrite]>, SingleBlock]>
+{
+  let summary = "Assert truth of assertion argument";
+
+// TODO: Add a proper description when the MLIR IR for assertion op is known
+  let description = [{
+    Takes in an expression that should yield a boolean truth value.
+
+    Example:
+
+    ```mlir
+    bmodelica.assert { message = "...", level = ... } {
+      ...
+      %condition = ...
+      bmodelica.yield %condition
+    }
+    ```
+  }];
+
+
+  let arguments = (ins
+    StrAttr:$message,
+    I64Attr:$level
+  );
+
+  // TODO(Tor): Tighten the region constraint
+  let regions = (region
+    AnyRegion:$conditionRegion
+  );
+
+  let results = (outs);
+
+  let hasCustomAssemblyFormat = 1;
+}
+
 def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
 {
     let summary = "Iteration space reduction.";
@@ -4840,7 +4886,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
         Example:
 
         ```mlir
-        %2 = modelica.call @foo(%0, %1) : (!modelica.int, !modelica.real) -> !modelica.real
+        %2 = bmodelica.call @foo(%0, %1) : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
         ```
     }];
 

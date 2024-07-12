@@ -4,10 +4,12 @@
 include "marco/Dialect/Runtime/IR/RuntimeAttributes.td"
 include "marco/Dialect/Runtime/IR/Runtime.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+
 
 //===---------------------------------------------------------------------===//
 // Properties
@@ -760,6 +762,32 @@ def Runtime_ReturnOp : Runtime_Op<"return",
     let results = (outs);
 
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
+}
+
+def Runtime_StringOp : Runtime_Op<"string", [NoMemoryEffect]>
+{
+
+  let summary = "Runtime string operation";
+
+  let description = [{
+    The runtime StringOp introduces a string value that will
+    be lowered to a LLVM constant array.
+
+    ```mlir
+      %res = runtime.string "message" : !runtime.string
+    ```
+  }];
+
+  let arguments = (ins
+    StrAttr:$string
+  );
+
+  let results = (outs
+    AnyType:$result
+  );
+
+  let assemblyFormat = "attr-dict `:` type($result)";
+
 }
 
 // TODO symbol user interface

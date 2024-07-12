@@ -61,6 +61,6 @@ namespace marco::codegen::lowering
     private:
       std::unique_ptr<Impl> impl;
   };
-}
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_REFERENCE_H

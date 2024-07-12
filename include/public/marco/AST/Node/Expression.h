@@ -10,7 +10,7 @@ namespace marco::ast
 		public:
       using ASTNode::ASTNode;
 
-      virtual ~Expression();
+      ~Expression() override;
 
       static bool classof(const ASTNode* node)
       {
@@ -20,6 +20,6 @@ namespace marco::ast
 
       virtual bool isLValue() const = 0;
 	};
-}
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_EXPRESSION_H

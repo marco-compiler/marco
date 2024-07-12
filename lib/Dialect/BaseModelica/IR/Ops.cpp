@@ -10414,7 +10414,7 @@ namespace mlir::bmodelica
       SCCs.push_back(scc);
     }
   }
-  
+
   void DynamicOp::collectAlgorithms(
       llvm::SmallVectorImpl<AlgorithmOp>& algorithms)
   {
@@ -10422,7 +10422,7 @@ namespace mlir::bmodelica
       algorithms.push_back(algorithm);
     }
   }
-}
+} // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // StartEquationInstanceOp
@@ -10533,7 +10533,7 @@ namespace mlir::bmodelica
   {
     return getTemplate().getAccessAtPath(symbolTable, path);
   }
-}
+} // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // EquationInstanceOp
@@ -10941,7 +10941,7 @@ namespace mlir::bmodelica
     rewriter.eraseOp(temporaryClonedOp);
     return mlir::success();
   }
-}
+} // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // SCCGroupOp
@@ -10959,7 +10959,7 @@ namespace mlir::bmodelica
       SCCs.push_back(scc);
     }
   }
-}
+} // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // SCCOp
@@ -12606,3 +12606,33 @@ namespace mlir::bmodelica
     return {};
   }
 }
+
+//===----------------------------------------------------------------------==//
+// AssertOp
+//===----------------------------------------------------------------------==//
+
+namespace mlir::bmodelica
+{
+  void AssertOp::print(mlir::OpAsmPrinter &printer)
+  {
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " ";
+    printer.printRegion(getConditionRegion(), false);
+  }
+
+  mlir::ParseResult AssertOp::parse(mlir::OpAsmParser &parser, mlir::OperationState &result)
+  {
+    mlir::Region *conditionRegion = result.addRegion();
+
+    if (
+        parser.parseOptionalAttrDict(result.attributes) ||
+        parser.parseRegion(*conditionRegion)
+    ) {
+          return mlir::failure();
+    }
+
+    return mlir::success();
+
+  }
+
+} // namespace mlir::bmodelica

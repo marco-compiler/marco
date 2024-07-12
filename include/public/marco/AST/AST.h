@@ -47,5 +47,6 @@
 #include "marco/AST/Node/WhenEquation.h"
 #include "marco/AST/Node/WhenStatement.h"
 #include "marco/AST/Node/WhileStatement.h"
+#include "marco/AST/Node/CallStatement.h"
 
 #endif // MARCO_AST_AST_H

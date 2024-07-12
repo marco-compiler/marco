@@ -1,5 +1,6 @@
 #include "marco/Codegen/Lowering/Bridge.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
+#include "marco/Codegen/Lowering/CallStatementLowerer.h"
 #include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/AlgorithmLowerer.h"
 #include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
@@ -58,19 +59,19 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool convert(const ast::Root& root);
 
-      void declare(const ast::Class& node) override;
+      void declare(const ast::Class& cls) override;
 
-      void declare(const ast::Model& node) override;
+      void declare(const ast::Model& model) override;
 
-      void declare(const ast::Package& node) override;
+      void declare(const ast::Package& package) override;
 
-      void declare(const ast::PartialDerFunction& node) override;
+      void declare(const ast::PartialDerFunction& function) override;
 
-      void declare(const ast::Record& node) override;
+      void declare(const ast::Record& record) override;
 
-      void declare(const ast::StandardFunction& node) override;
+      void declare(const ast::StandardFunction& function) override;
 
-      [[nodiscard]] bool declareVariables(const ast::Class& node) override;
+      [[nodiscard]] bool declareVariables(const ast::Class& cls) override;
 
       [[nodiscard]] bool declareVariables(const ast::Model& model) override;
 
@@ -84,21 +85,21 @@ namespace marco::codegen::lowering
       [[nodiscard]] bool declareVariables(
           const ast::StandardFunction& function) override;
 
-      [[nodiscard]] bool declare(const ast::Member& node) override;
+      [[nodiscard]] bool declare(const ast::Member& variable) override;
 
-      [[nodiscard]] bool lower(const ast::Class& node) override;
+      [[nodiscard]] bool lower(const ast::Class& cls) override;
 
-      [[nodiscard]] bool lower(const ast::Model& node) override;
+      [[nodiscard]] bool lower(const ast::Model& model) override;
 
-      [[nodiscard]] bool lower(const ast::Package& node) override;
+      [[nodiscard]] bool lower(const ast::Package& package) override;
 
-      [[nodiscard]] bool lower(const ast::PartialDerFunction& node) override;
+      [[nodiscard]] bool lower(const ast::PartialDerFunction& function) override;
 
-      [[nodiscard]] bool lower(const ast::Record& node) override;
+      [[nodiscard]] bool lower(const ast::Record& record) override;
 
-      [[nodiscard]] bool lower(const ast::StandardFunction& node) override;
+      [[nodiscard]] bool lower(const ast::StandardFunction& function) override;
 
-      [[nodiscard]] bool lowerClassBody(const ast::Class& node) override;
+      [[nodiscard]] bool lowerClassBody(const ast::Class& cls) override;
 
       [[nodiscard]] bool createBindingEquation(
           const ast::Member& variable,
@@ -112,9 +113,9 @@ namespace marco::codegen::lowering
 
       std::optional<Results> lower(const ast::Expression& expression) override;
 
-      std::optional<Results> lower(const ast::ArrayGenerator& node) override;
+      std::optional<Results> lower(const ast::ArrayGenerator& array) override;
 
-      std::optional<Results> lower(const ast::Call& node) override;
+      std::optional<Results> lower(const ast::Call& call) override;
 
       std::optional<Results> lower(const ast::Constant& constant) override;
 
@@ -127,21 +128,21 @@ namespace marco::codegen::lowering
 
       std::optional<Results> lower(const ast::Subscript& subscript) override;
 
-      [[nodiscard]] bool lower(const ast::EquationSection& node) override;
+      [[nodiscard]] bool lower(const ast::EquationSection& equationSection) override;
 
-      [[nodiscard]] bool lower(const ast::Equation& node) override;
+      [[nodiscard]] bool lower(const ast::Equation& equation) override;
 
-      [[nodiscard]] bool lower(const ast::EqualityEquation& node) override;
+      [[nodiscard]] bool lower(const ast::EqualityEquation& equation) override;
 
-      [[nodiscard]] bool lower(const ast::IfEquation& node) override;
+      [[nodiscard]] bool lower(const ast::IfEquation& equation) override;
 
-      [[nodiscard]] bool lower(const ast::ForEquation& node) override;
+      [[nodiscard]] bool lower(const ast::ForEquation& forEquation) override;
 
-      [[nodiscard]] bool lower(const ast::WhenEquation& node) override;
+      [[nodiscard]] bool lower(const ast::WhenEquation& equation) override;
 
-      [[nodiscard]] bool lower(const ast::Algorithm& node) override;
+      [[nodiscard]] bool lower(const ast::Algorithm& algorithm) override;
 
-      [[nodiscard]] bool lower(const ast::Statement& node) override;
+      [[nodiscard]] bool lower(const ast::Statement& statement) override;
 
       [[nodiscard]] bool lower(const ast::AssignmentStatement& statement) override;
 
@@ -156,6 +157,9 @@ namespace marco::codegen::lowering
       [[nodiscard]] bool lower(const ast::WhenStatement& statement) override;
 
       [[nodiscard]] bool lower(const ast::WhileStatement& statement) override;
+
+      [[nodiscard]] bool lower(const ast::CallStatement& statement) override;
+
 
     private:
       std::unique_ptr<LoweringContext> context;
@@ -193,6 +197,7 @@ namespace marco::codegen::lowering
       std::unique_ptr<ReturnStatementLowerer> returnStatementLowerer;
       std::unique_ptr<WhenStatementLowerer> whenStatementLowerer;
       std::unique_ptr<WhileStatementLowerer> whileStatementLowerer;
+      std::unique_ptr<CallStatementLowerer> callStatementLowerer;
   };
 
   Bridge::Impl::Impl(mlir::MLIRContext& context)
@@ -258,6 +263,9 @@ namespace marco::codegen::lowering
 
     this->whileStatementLowerer =
         std::make_unique<WhileStatementLowerer>(this);
+
+    this->callStatementLowerer =
+      std::make_unique<CallStatementLowerer>(this);
   }
 
   Bridge::Impl::~Impl()
@@ -430,7 +438,7 @@ namespace marco::codegen::lowering
     return recordLowerer->lower(record);
   }
 
-  bool 
+  bool
   Bridge::Impl::lower(const ast::StandardFunction& function)
   {
     assert(standardFunctionLowerer != nullptr);
@@ -554,14 +562,14 @@ namespace marco::codegen::lowering
     return whenEquationLowerer->lower(equation);
   }
 
-  bool 
+  bool
   Bridge::Impl::lower(const ast::Algorithm& algorithm)
   {
     assert(algorithmLowerer != nullptr);
     return algorithmLowerer->lower(algorithm);
   }
 
-  bool 
+  bool
   Bridge::Impl::lower(const ast::Statement& statement)
   {
     assert(statementLowerer != nullptr);
@@ -582,7 +590,7 @@ namespace marco::codegen::lowering
     return breakStatementLowerer->lower(statement);
   }
 
-  bool 
+  bool
   Bridge::Impl::lower(const ast::ForStatement& statement)
   {
     assert(forStatementLowerer != nullptr);
@@ -610,11 +618,18 @@ namespace marco::codegen::lowering
     return whenStatementLowerer->lower(statement);
   }
 
-  bool 
+  bool
   Bridge::Impl::lower(const ast::WhileStatement& statement)
   {
     assert(whileStatementLowerer != nullptr);
     return whileStatementLowerer->lower(statement);
+  }
+
+  bool
+  Bridge::Impl::lower(const ast::CallStatement& statement)
+  {
+    assert(callStatementLowerer != nullptr);
+    return callStatementLowerer->lower(statement);
   }
 
   Bridge::Bridge(mlir::MLIRContext& context)
@@ -634,4 +649,4 @@ namespace marco::codegen::lowering
   {
     return impl->getMLIRModule();
   }
-}
+} // namespace marco::codegen::lowering

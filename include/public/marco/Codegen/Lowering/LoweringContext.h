@@ -54,6 +54,6 @@ namespace marco::codegen::lowering
 
       llvm::SmallVector<mlir::Operation*> lookupScopes;
   };
-}
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_LOWERINGCONTEXT_H

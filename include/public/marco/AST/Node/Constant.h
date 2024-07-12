@@ -42,19 +42,25 @@ namespace marco::ast
       template<typename T>
       T as() const
       {
-        if (std::holds_alternative<bool>(value)) {
-          return static_cast<T>(std::get<bool>(value));
-        }
+        if constexpr ( std::is_same_v<T, bool> || std::is_integral_v<T> ) {
+          if (std::holds_alternative<bool>(value)) {
+            return static_cast<T>(std::get<bool>(value));
+          }
 
-        if (std::holds_alternative<int64_t>(value)) {
-          return static_cast<T>(std::get<int64_t>(value));
-        }
+          if (std::holds_alternative<int64_t>(value)) {
+            return static_cast<T>(std::get<int64_t>(value));
+          }
 
-        if (std::holds_alternative<double>(value)) {
-          return static_cast<T>(std::get<double>(value));
+          return static_cast<T>(!std::get<std::string>(value).empty());
+        } else if constexpr (std::is_base_of<std::basic_string<char>, T>::value) {
+          if ( std::holds_alternative<std::string>(value)) {
+            return static_cast<T>(std::get<std::string>(value));
+          }
+        } else {
+            if (std::holds_alternative<double>(value)) {
+              return static_cast<T>(std::get<double>(value));
+            }
         }
-
-        return static_cast<T>(!std::get<std::string>(value).empty());
       }
 
       void setValue(bool newValue);

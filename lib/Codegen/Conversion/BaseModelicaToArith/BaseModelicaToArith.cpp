@@ -755,7 +755,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -776,7 +776,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -806,7 +806,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -827,7 +827,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -857,7 +857,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -879,7 +879,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -914,7 +914,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -936,7 +936,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -971,7 +971,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -992,7 +992,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -1027,7 +1027,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -1048,7 +1048,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -1083,7 +1083,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -1105,7 +1105,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -1140,7 +1140,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -1162,7 +1162,7 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      
+
       mlir::Value lhs = adaptor.getLhs();
       mlir::Value rhs = adaptor.getRhs();
 
@@ -1197,7 +1197,7 @@ namespace
 
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
-      
+
       if (result.getType() != requestedResultType) {
         result = rewriter.create<CastOp>(
             result.getLoc(), requestedResultType, result);
@@ -1315,7 +1315,7 @@ namespace
     {
       mlir::Location loc = op.getLoc();
       mlir::Type operandType = adaptor.getOperand().getType();
-      
+
       mlir::Type requestedResultType =
           getTypeConverter()->convertType(op.getResult().getType());
 
@@ -2262,14 +2262,10 @@ mlir::LogicalResult BaseModelicaToArithConversionPass::convertOperations()
       mlir::scf::SCFDialect>();
 
   target.addDynamicallyLegalOp<CastOp>([](CastOp op) {
-    if (op.getValue().getType().isa<
+    return ! op.getValue().getType().isa<
             BooleanType, IntegerType, RealType,
-            mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
-      return false;
-    }
-
-    return true;
-  });
+            mlir::IndexType, mlir::IntegerType, mlir::FloatType>();
+      });
 
   target.addIllegalOp<RangeSizeOp>();
 

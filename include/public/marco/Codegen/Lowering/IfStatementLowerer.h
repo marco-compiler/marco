@@ -22,6 +22,6 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] bool lower(const ast::StatementsBlock& statementsBlock);
   };
-}
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_IFSTATEMENTLOWERER_H
