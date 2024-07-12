@@ -53,4 +53,4 @@ namespace marco::ast
     expression = std::move(node);
     expression->setParent(this);
   }
-}
+} // namespace marco::ast

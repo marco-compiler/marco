@@ -56,7 +56,7 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::Record& record) = 0;
 
-      [[nodiscard]] virtual bool 
+      [[nodiscard]] virtual bool
           lower(const ast::StandardFunction& function) = 0;
 
       [[nodiscard]] virtual bool lowerClassBody(const ast::Class& cls) = 0;
@@ -116,8 +116,11 @@ namespace marco::codegen::lowering
 
       [[nodiscard]] virtual bool lower(const ast::WhenStatement& statement) = 0;
 
-      [[nodiscard]] virtual bool 
+
+      [[nodiscard]] virtual bool
           lower(const ast::WhileStatement& statement) = 0;
+
+      [[nodiscard]] virtual bool lower(const ast::CallStatement& statement) = 0;
   };
 }
 

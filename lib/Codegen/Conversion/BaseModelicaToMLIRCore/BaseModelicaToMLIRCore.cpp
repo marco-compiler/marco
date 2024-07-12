@@ -67,9 +67,11 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   target.addDynamicallyLegalOp<ConstantOp>(
       [](ConstantOp op) { return op.getResult().getType().isa<RangeType>(); });
 
+  // Logic ops
   target.addIllegalOp<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
   target.addIllegalOp<NotOp, AndOp, OrOp>();
 
+  // Math ops
   target.addIllegalOp<NegateOp>();
   target.addIllegalOp<AddOp, AddEWOp>();
   target.addIllegalOp<SubOp, SubEWOp>();
@@ -81,6 +83,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   target.addIllegalOp<SelectOp>();
   target.addIllegalOp<RangeSizeOp>();
 
+  // Global variable ops
   target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp>();
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>(

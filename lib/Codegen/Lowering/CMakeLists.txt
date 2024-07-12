@@ -36,7 +36,9 @@ set(SOURCES
     VariablesSymbolTable.cpp
     WhenEquationLowerer.cpp
     WhenStatementLowerer.cpp
-    WhileStatementLowerer.cpp)
+    WhileStatementLowerer.cpp
+    CallStatementLowerer.cpp
+)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

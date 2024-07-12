@@ -3,6 +3,7 @@
 
 include "mlir/IR/OpBase.td"
 
+
 //===---------------------------------------------------------------------===//
 // Runtime dialect
 //===---------------------------------------------------------------------===//
@@ -17,12 +18,14 @@ def Runtime_Dialect : Dialect {
 
     let cppNamespace = "::mlir::runtime";
     let useDefaultAttributePrinterParser = 1;
-    
+    let useDefaultTypePrinterParser = 1;
+
     let dependentDialects = [
         "modeling::ModelingDialect"
     ];
 
     let extraClassDeclaration = [{
+        void registerTypes();
         void registerAttributes();
     }];
 }

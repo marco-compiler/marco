@@ -60,7 +60,7 @@ namespace marco::frontend
       /// @name Diagnostics
       /// {
 
-      /// CHeck whether the diagnostic engine has been set.
+      /// Check whether the diagnostic engine has been set.
       bool hasDiagnostics() const;
 
       /// Get the current diagnostics engine.
@@ -305,7 +305,7 @@ namespace marco::frontend
   /// in the given compiler instance.
   ///
   /// @return true on success; false otherwise
-  bool executeCompilerInvocation(CompilerInstance* instance);
-}
+  bool executeCompilerInvocation(CompilerInstance *ci);
+} // namespace marco::frontend
 
 #endif // MARCO_FRONTEND_COMPILERINSTANCE_H

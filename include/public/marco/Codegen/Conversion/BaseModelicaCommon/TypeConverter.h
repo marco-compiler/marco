@@ -25,6 +25,6 @@ namespace mlir::bmodelica
 
       mlir::Type convertTensorType(mlir::TensorType type);
   };
-}
+} // namespace mlir::bmodelica
 
 #endif // MARCO_CODEGEN_CONVERSION_BASEMODELICACOMMON_TYPECONVERTER_H

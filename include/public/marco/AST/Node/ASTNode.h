@@ -8,7 +8,7 @@
 namespace llvm
 {
   class raw_ostream;
-}
+} // namespace llvm
 
 namespace marco::ast
 {
@@ -67,6 +67,7 @@ namespace marco::ast
         Modification,
         Statement,
         Statement_Assignment,
+        Statement_Call,
         Statement_Break,
         Statement_For,
         Statement_If,
