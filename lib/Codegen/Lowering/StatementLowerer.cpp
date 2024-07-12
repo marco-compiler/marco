@@ -36,6 +36,10 @@ bool StatementLowerer::lower(const ast::Statement &statement) {
     return lower(*casted);
   }
 
+  if (auto casted = statement.dyn_cast<ast::CallStatement>()) {
+    return lower(*casted);
+  }
+
   llvm_unreachable("Unknown statement type");
 }
 } // namespace marco::codegen::lowering

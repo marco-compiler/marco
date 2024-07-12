@@ -42,6 +42,7 @@ struct RuntimeOpAsmDialectInterface : public mlir::OpAsmDialectInterface {
 namespace mlir::runtime {
 void RuntimeDialect::initialize() {
   registerAttributes();
+  registerTypes();
 
   addOperations<
 #define GET_OP_LIST

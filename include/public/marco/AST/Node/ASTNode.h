@@ -63,6 +63,7 @@ public:
     Modification,
     Statement,
     Statement_Assignment,
+    Statement_Call,
     Statement_Break,
     Statement_For,
     Statement_If,

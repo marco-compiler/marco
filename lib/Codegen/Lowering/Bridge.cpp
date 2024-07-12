@@ -1,4 +1,7 @@
 #include "marco/Codegen/Lowering/Bridge.h"
+#include "marco/Codegen/Lowering/BridgeInterface.h"
+#include "marco/Codegen/Lowering/CallStatementLowerer.h"
+#include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/AlgorithmLowerer.h"
 #include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
 #include "marco/Codegen/Lowering/AssignmentStatementLowerer.h"
@@ -153,6 +156,8 @@ public:
 
   [[nodiscard]] bool lower(const ast::WhileStatement &statement) override;
 
+  [[nodiscard]] bool lower(const ast::CallStatement &statement) override;
+
 private:
   std::unique_ptr<LoweringContext> context;
 
@@ -189,6 +194,7 @@ private:
   std::unique_ptr<ReturnStatementLowerer> returnStatementLowerer;
   std::unique_ptr<WhenStatementLowerer> whenStatementLowerer;
   std::unique_ptr<WhileStatementLowerer> whileStatementLowerer;
+  std::unique_ptr<CallStatementLowerer> callStatementLowerer;
 };
 
 Bridge::Impl::Impl(mlir::MLIRContext &context) {
@@ -249,6 +255,8 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
   this->whenStatementLowerer = std::make_unique<WhenStatementLowerer>(this);
 
   this->whileStatementLowerer = std::make_unique<WhileStatementLowerer>(this);
+
+  this->callStatementLowerer = std::make_unique<CallStatementLowerer>(this);
 }
 
 Bridge::Impl::~Impl() {
@@ -529,6 +537,11 @@ bool Bridge::Impl::lower(const ast::WhenStatement &statement) {
 bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
+}
+
+bool Bridge::Impl::lower(const ast::CallStatement &statement) {
+  assert(callStatementLowerer != nullptr);
+  return callStatementLowerer->lower(statement);
 }
 
 Bridge::Bridge(mlir::MLIRContext &context)

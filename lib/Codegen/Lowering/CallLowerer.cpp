@@ -1,4 +1,8 @@
 #include "marco/Codegen/Lowering/CallLowerer.h"
+#include "marco/Dialect/BaseModelica/IR/Attributes.h"
+#include "marco/Dialect/BaseModelica/IR/Ops.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/Support/LLVM.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace ::marco;
@@ -557,6 +561,7 @@ bool CallLowerer::isBuiltInFunction(
       .Case("tanh", true)
       .Case("transpose", true)
       .Case("zeros", true)
+      .Case("assert", true)
       .Default(false);
 }
 
@@ -713,6 +718,10 @@ CallLowerer::dispatchBuiltInFunctionCall(const ast::Call &call) {
 
   if (callee == "zeros") {
     return zeros(call);
+  }
+
+  if (callee == "assert") {
+    return builtinAssert(call);
   }
 
   llvm_unreachable("Unknown built-in function");
@@ -2075,6 +2084,60 @@ std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
       builder().create<ZerosOp>(loc(call.getLocation()), resultType, args);
 
   return Reference::ssa(builder(), result);
+}
+
+std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
+
+  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+         "assert");
+
+  constexpr unsigned int minExpectedNumArgs = 2;
+  if (call.getNumOfArguments() < minExpectedNumArgs) {
+    emitErrorNumArgumentsRange("assert", call.getLocation(),
+                               call.getNumOfArguments(), minExpectedNumArgs);
+    return std::nullopt;
+  }
+
+  // Levels:
+  //   0: STATUS
+  //   1: WARNING
+  // >=2: ERROR
+  int64_t assertLevel = 2;
+
+  // Level has been specified
+  if (call.getNumOfArguments() == 3) {
+    const auto *level = call.getArgument(2)->cast<ast::Constant>();
+    assertLevel = level->as<int64_t>();
+  }
+
+  auto *message = call.getArgument(1)->cast<ast::ExpressionFunctionArgument>();
+  auto messageString =
+      message->getExpression()->cast<ast::Constant>()->as<std::string>();
+
+  mlir::StringAttr messageAttr =
+      mlir::StringAttr::get(builder().getContext(), messageString);
+
+
+  auto assertOp = builder().create<AssertOp>(loc(call.getLocation()),
+                                             messageAttr, assertLevel);
+
+  mlir::OpBuilder::InsertionGuard guard(builder());
+  builder().createBlock(&assertOp.getConditionRegion());
+
+  auto *conditionArg =
+      call.getArgument(0)->cast<ast::ExpressionFunctionArgument>();
+
+  std::optional<Results> conditionResults =
+      lower(*conditionArg->getExpression());
+
+  assert(conditionResults->size() == 1 && "conditionResults neq 1");
+
+  auto conditionValue =
+      (*conditionResults)[0].get((*conditionResults)[0].getLoc());
+
+  builder().create<YieldOp>(assertOp.getLoc(), conditionValue);
+
+  return Results();
 }
 
 std::optional<Results> CallLowerer::reduction(const ast::Call &call,

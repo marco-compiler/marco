@@ -1,13 +1,19 @@
-#include "marco/Codegen/Conversion/BaseModelicaToRuntimeCall/BaseModelicaToRuntimeCall.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/BaseModelicaToRuntimeCall/BaseModelicaToRuntimeCall.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
+#include "marco/Dialect/Runtime/IR/Types.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/Debug.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_BASEMODELICATORUNTIMECALLCONVERSIONPASS
@@ -47,14 +53,16 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
   target.addLegalDialect<
       BaseModelicaDialect, mlir::arith::ArithDialect,
       mlir::bufferization::BufferizationDialect, mlir::memref::MemRefDialect,
-      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect>();
+      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect,
+      mlir::LLVM::LLVMDialect>();
 
   target
       .addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
                     CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp, IdentityOp,
                     IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp, MaxOp, MinOp,
                     ModOp, ProductOp, RemOp, SignOp, SinOp, SinhOp, SqrtOp,
-                    SumOp, SymmetricOp, TanOp, TanhOp, TransposeOp, ZerosOp>();
+                    SumOp, SymmetricOp, TanOp, TanhOp, TransposeOp, ZerosOp,
+                    AssertOp>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
     if (mlir::isa<mlir::TensorType>(op.getBase().getType())) {
@@ -174,6 +182,10 @@ protected:
           getMangledType(memRefType.getElementType()));
     }
 
+    if (auto stringType = mlir::dyn_cast<mlir::runtime::RuntimeStringType>(type)) {
+      return getMangler()->getVoidPointerType();
+    }
+
     llvm_unreachable("Unknown type for mangling");
     return "unknown";
   }
@@ -285,7 +297,11 @@ protected:
         memRef.getLoc(), tensorType, memRef, true, true);
   }
 
-private:
+  mlir::SymbolTableCollection &getSymbolTableCollection() const {
+    return *symbolTableCollection;
+  }
+
+  private:
   RuntimeFunctionsMangling mangler;
   mlir::SymbolTableCollection *symbolTableCollection;
 };
@@ -2291,6 +2307,101 @@ struct ZerosOpLowering : public RuntimeOpConversionPattern<ZerosOp> {
   }
 };
 
+struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
+  using RuntimeOpConversionPattern<AssertOp>::RuntimeOpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(AssertOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+
+    mlir::Location loc = op.getLoc();
+
+    // Collect the arguments for the function call.
+    llvm::SmallVector<mlir::Value, 3> arguments;
+
+    // Message attribute
+    auto message = op.getMessage();
+    auto levelAttr = op.getLevelAttr();
+
+    auto &conditionRegion = op.getConditionRegion();
+
+    auto conditionOps = conditionRegion.getOps();
+    auto yieldOp = ::mlir::cast<YieldOp>(op.getBody()->getTerminator());
+
+    for (auto &nestedOp : llvm::make_early_inc_range(conditionOps)) {
+      rewriter.moveOpBefore(&nestedOp, op);
+    }
+
+    auto yieldArgument = yieldOp.getOperands()[0];
+
+    auto levelOp = rewriter.create<mlir::arith::ConstantOp>(
+        loc, rewriter.getI64Type(), levelAttr);
+
+    auto messageResult = rewriter.create<mlir::runtime::StringOp>(
+        loc, rewriter.getType<mlir::runtime::RuntimeStringType>(),
+        rewriter.getStringAttr(message));
+
+    if ( ! yieldArgument.getType().isInteger(1) ) {
+      yieldArgument = getTypeConverter()->materializeTargetConversion(
+          rewriter, loc, rewriter.getIntegerType(1), yieldArgument);
+    }
+
+    arguments.push_back(yieldArgument);
+    arguments.push_back(messageResult);
+    arguments.push_back(levelOp);
+
+    // Create the call to the runtime library.
+    auto callee = getOrDeclareRuntimeFunction(
+        rewriter, op->getParentOfType<mlir::ModuleOp>(),
+        getMangledFunctionName("assert", std::nullopt, arguments), std::nullopt,
+        arguments);
+
+
+    auto callOp =
+        rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);
+
+    rewriter.eraseOp(yieldOp);
+    rewriter.replaceOp(op, callOp);
+
+    return mlir::success();
+  }
+
+  mlir::Value createGlobalString(mlir::OpBuilder &builder, mlir::Location loc,
+                                 mlir::ModuleOp moduleOp,
+                                 mlir::SymbolTable &symTable,
+                                 mlir::StringRef name,
+                                 mlir::StringRef value) const {
+    mlir::LLVM::GlobalOp global;
+
+    {
+      // Create the global at the entry of the module.
+      mlir::OpBuilder::InsertionGuard insertGuard(builder);
+      builder.setInsertionPointToStart(moduleOp.getBody());
+
+      auto type = mlir::LLVM::LLVMArrayType::get(
+          mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+
+      global = builder.create<mlir::LLVM::GlobalOp>(
+          loc, type, true, mlir::LLVM::Linkage::Internal, name,
+          builder.getStringAttr(
+              llvm::StringRef(value.data(), value.size() + 1)));
+
+      symTable.insert(global);
+    }
+
+    // Get the pointer to the first character of the global string.
+    mlir::Value globalPtr =
+        builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+    mlir::Type type = mlir::LLVM::LLVMArrayType::get(
+        mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+
+    return builder.create<mlir::LLVM::GEPOp>(
+        loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
+        globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
+  }
+};
+
 struct PrintOpLowering : public RuntimeOpConversionPattern<PrintOp> {
   using RuntimeOpConversionPattern<PrintOp>::RuntimeOpConversionPattern;
 
@@ -2339,8 +2450,8 @@ void populateBaseModelicaToRuntimeCallConversionPatterns(
       MinOpScalarsLowering, MinOpArrayLowering, ModOpLowering, OnesOpLowering,
       ProductOpLowering, RemOpLowering, SignOpLowering, SinOpLowering,
       SinhOpLowering, SqrtOpLowering, SumOpLowering, SymmetricOpLowering,
-      TanOpLowering, TanhOpLowering, TransposeOpLowering, ZerosOpLowering>(
-      typeConverter, context, symbolTableCollection);
+      TanOpLowering, TanhOpLowering, TransposeOpLowering, ZerosOpLowering,
+      AssertOpLowering>(typeConverter, context, symbolTableCollection);
 
   // Utility operations.
   patterns.insert<PrintOpLowering>(typeConverter, context,

@@ -202,6 +202,9 @@ protected:
   [[nodiscard]] virtual bool
   lower(const ast::WhileStatement &statement) override;
 
+  [[nodiscard]] virtual bool
+  lower(const ast::CallStatement &statement) override;
+
   virtual void
   emitIdentifierError(IdentifierError::IdentifierType identifierType,
                       llvm::StringRef name,

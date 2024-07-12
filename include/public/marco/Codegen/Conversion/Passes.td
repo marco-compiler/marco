@@ -305,7 +305,7 @@ def BaseModelicaToRuntimeConversionPass
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
         "mlir::runtime::RuntimeDialect",
-        "mlir::func::FuncDialect"
+        "mlir::func::FuncDialect",
     ];
 
     let options = [
@@ -430,7 +430,8 @@ def BaseModelicaToRuntimeCallConversionPass
         "mlir::bufferization::BufferizationDialect",
         "mlir::memref::MemRefDialect",
         "mlir::runtime::RuntimeDialect",
-        "mlir::tensor::TensorDialect"
+        "mlir::tensor::TensorDialect",
+        "mlir::LLVM::LLVMDialect"
     ];
 
     let constructor = "mlir::createBaseModelicaToRuntimeCallConversionPass()";
