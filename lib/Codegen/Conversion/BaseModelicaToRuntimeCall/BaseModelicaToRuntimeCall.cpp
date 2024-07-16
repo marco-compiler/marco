@@ -93,11 +93,7 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations()
       ZerosOp>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
-    if (op.getBase().getType().isa<mlir::TensorType>()) {
-      return true;
-    }
-
-    return false;
+    return op.getBase().getType().isa<mlir::TensorType>();
   });
 
   target.addIllegalOp<PrintOp>();

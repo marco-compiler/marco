@@ -15,7 +15,7 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::lower(const ast::Call& call)
   {
     const ast::ComponentReference* callee =
-        call.getCallee()->cast<ast::ComponentReference>();
+      call.getCallee()->cast<ast::ComponentReference>();
 
     std::optional<mlir::Operation*> calleeOp = resolveCallee(*callee);
 
@@ -39,7 +39,7 @@ namespace marco::codegen::lowering
 
         llvm::SmallVector<std::string, 3> argNames;
         llvm::SmallVector<mlir::Value, 3> argValues;
- 
+
         if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
           return std::nullopt;
         }
@@ -54,14 +54,14 @@ namespace marco::codegen::lowering
         llvm::SmallVector<mlir::Type, 1> resultTypes;
 
         if (argValues.size() != expectedArgRanks.size()) {
-          emitErrorNumArguments(callee->getElement(0)->getName(), callee->getElement(0)->getLocation(), 
-                                argValues.size(), expectedArgRanks.size());
+          emitErrorNumArguments(callee->getElement(0)->getName(), callee->getElement(0)->getLocation(),
+              argValues.size(), expectedArgRanks.size());
           return std::nullopt;
         }
 
         if (!getVectorizedResultTypes(
-                argValues, expectedArgRanks,
-                scalarizedResultTypes, resultTypes)) {
+              argValues, expectedArgRanks,
+              scalarizedResultTypes, resultTypes)) {
           assert(false && "Can't vectorize function call");
           return {};
         }
@@ -112,8 +112,8 @@ namespace marco::codegen::lowering
     std::set<std::string> visibleFunctions;
     getVisibleSymbols(getLookupScope(), visibleFunctions);
 
-    emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, callee->getElement(0)->getName(), 
-                        visibleFunctions, callee->getElement(0)->getLocation());
+    emitIdentifierError(IdentifierError::IdentifierType::FUNCTION, callee->getElement(0)->getName(),
+        visibleFunctions, callee->getElement(0)->getLocation());
     return std::nullopt;
   }
 
@@ -178,7 +178,7 @@ namespace marco::codegen::lowering
 
     while (mlir::isa_and_nonnull<DerFunctionOp>(derivedFunctionOp)) {
       auto baseDerFunctionOp =
-          mlir::cast_if_present<DerFunctionOp>(derivedFunctionOp);
+        mlir::cast_if_present<DerFunctionOp>(derivedFunctionOp);
 
       derivedFunctionOp = resolveSymbol(
           moduleOp, getSymbolTable(), baseDerFunctionOp.getDerivedFunction());
@@ -199,7 +199,7 @@ namespace marco::codegen::lowering
 
     if (numOfArgs != 0) {
       if (call.getArgument(0)
-              ->dyn_cast<ast::ReductionFunctionArgument>()) {
+          ->dyn_cast<ast::ReductionFunctionArgument>()) {
         assert(call.getNumOfArguments() == 1);
         llvm_unreachable("ReductionOp has not been implemented yet");
         return false;
@@ -218,9 +218,9 @@ namespace marco::codegen::lowering
 
     // Process the unnamed arguments.
     while (argIndex < numOfArgs &&
-           !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
+        !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
       auto arg = call.getArgument(argIndex)
-                     ->cast<ast::ExpressionFunctionArgument>();
+        ->cast<ast::ExpressionFunctionArgument>();
 
       auto argValue = lowerArg(*arg->getExpression());
       if (!argValue) {
@@ -239,12 +239,12 @@ namespace marco::codegen::lowering
     // Process the named arguments.
     while (argIndex < numOfArgs) {
       auto arg = call.getArgument(argIndex)
-                     ->cast<ast::NamedFunctionArgument>();
+        ->cast<ast::NamedFunctionArgument>();
 
       auto argValue = lowerArg(
           *arg->getValue()
-               ->cast<ast::ExpressionFunctionArgument>()
-               ->getExpression());
+          ->cast<ast::ExpressionFunctionArgument>()
+          ->getExpression());
       if (!argValue) {
         return false;
       }
@@ -275,8 +275,8 @@ namespace marco::codegen::lowering
       llvm::SmallVectorImpl<mlir::Value>& argValues)
   {
     assert(llvm::none_of(call.getArguments(), [](const auto& arg) {
-      return arg->template isa<ast::ReductionFunctionArgument>();
-    }));
+          return arg->template isa<ast::ReductionFunctionArgument>();
+          }));
 
     size_t numOfArgs = call.getNumOfArguments();
     bool existsNamedArgument = false;
@@ -291,9 +291,9 @@ namespace marco::codegen::lowering
 
     // Process the unnamed arguments.
     while (argIndex < numOfArgs &&
-           !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
+        !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
       auto arg = call.getArgument(argIndex)
-                     ->cast<ast::ExpressionFunctionArgument>();
+        ->cast<ast::ExpressionFunctionArgument>();
 
       auto argValue = lowerArg(*arg->getExpression());
       if (!argValue) {
@@ -312,12 +312,12 @@ namespace marco::codegen::lowering
     // Process the named arguments.
     while (argIndex < numOfArgs) {
       auto arg = call.getArgument(argIndex)
-                     ->cast<ast::NamedFunctionArgument>();
+        ->cast<ast::NamedFunctionArgument>();
 
       auto argValue = lowerArg(
           *arg->getValue()
-               ->cast<ast::ExpressionFunctionArgument>()
-                   ->getExpression());
+          ->cast<ast::ExpressionFunctionArgument>()
+          ->getExpression());
       if (!argValue) {
         return false;
       }
@@ -335,9 +335,9 @@ namespace marco::codegen::lowering
       llvm::SmallVectorImpl<mlir::Value>& args)
   {
     assert(llvm::none_of(call.getArguments(), [](const auto& arg) {
-      return arg->template isa<ast::ReductionFunctionArgument>() ||
+          return arg->template isa<ast::ReductionFunctionArgument>() ||
           arg->template isa<ast::NamedFunctionArgument>();
-    }));
+          }));
 
     for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
       auto arg = lowerBuiltInFunctionArg(
@@ -547,50 +547,51 @@ namespace marco::codegen::lowering
     }
 
     return llvm::StringSwitch<bool>(functionName.getElement(0)->getName())
-        .Case("abs", true)
-        .Case("acos", true)
-        .Case("asin", true)
-        .Case("atan", true)
-        .Case("atan2", true)
-        .Case("ceil", true)
-        .Case("cos", true)
-        .Case("cosh", true)
-        .Case("der", true)
-        .Case("diagonal", true)
-        .Case("div", true)
-        .Case("exp", true)
-        .Case("fill", true)
-        .Case("floor", true)
-        .Case("identity", true)
-        .Case("integer", true)
-        .Case("linspace", true)
-        .Case("log", true)
-        .Case("log10", true)
-        .Case("max", true)
-        .Case("min", true)
-        .Case("mod", true)
-        .Case("ndims", true)
-        .Case("ones", true)
-        .Case("product", true)
-        .Case("rem", true)
-        .Case("sign", true)
-        .Case("sin", true)
-        .Case("sinh", true)
-        .Case("size", true)
-        .Case("sqrt", true)
-        .Case("sum", true)
-        .Case("symmetric", true)
-        .Case("tan", true)
-        .Case("tanh", true)
-        .Case("transpose", true)
-        .Case("zeros", true)
-        .Default(false);
+      .Case("abs", true)
+      .Case("acos", true)
+      .Case("asin", true)
+      .Case("atan", true)
+      .Case("atan2", true)
+      .Case("ceil", true)
+      .Case("cos", true)
+      .Case("cosh", true)
+      .Case("der", true)
+      .Case("diagonal", true)
+      .Case("div", true)
+      .Case("exp", true)
+      .Case("fill", true)
+      .Case("floor", true)
+      .Case("identity", true)
+      .Case("integer", true)
+      .Case("linspace", true)
+      .Case("log", true)
+      .Case("log10", true)
+      .Case("max", true)
+      .Case("min", true)
+      .Case("mod", true)
+      .Case("ndims", true)
+      .Case("ones", true)
+      .Case("product", true)
+      .Case("rem", true)
+      .Case("sign", true)
+      .Case("sin", true)
+      .Case("sinh", true)
+      .Case("size", true)
+      .Case("sqrt", true)
+      .Case("sum", true)
+      .Case("symmetric", true)
+      .Case("tan", true)
+      .Case("tanh", true)
+      .Case("transpose", true)
+      .Case("zeros", true)
+      .Case("assert", true)
+      .Default(false);
   }
 
   std::optional<Results> CallLowerer::dispatchBuiltInFunctionCall(const ast::Call& call)
   {
     auto callee = call.getCallee()->cast<ast::ComponentReference>()
-        ->getElement(0)->getName();
+      ->getElement(0)->getName();
 
     if (callee == "abs") {
       return abs(call);
@@ -740,35 +741,40 @@ namespace marco::codegen::lowering
       return zeros(call);
     }
 
+    if (callee == "assert") {
+      // TODO: handle lowering for assert call
+      return builtinAssert(call);
+    }
+
     llvm_unreachable("Unknown built-in function");
     return {};
   }
 
   void CallLowerer::emitErrorNumArguments(llvm::StringRef function, const marco::SourceRange& location,
-                                          unsigned int actualNum, unsigned int expectedNum) {
-    std::string errorString = function.str() + ": expected " + std::to_string(expectedNum) + 
-                              " argument(s) but got " + std::to_string(actualNum) + ".";
+      unsigned int actualNum, unsigned int expectedNum) {
+    std::string errorString = function.str() + ": expected " + std::to_string(expectedNum) +
+      " argument(s) but got " + std::to_string(actualNum) + ".";
     mlir::emitError(loc(location)) << errorString;
   }
   void CallLowerer::emitErrorNumArgumentsRange(llvm::StringRef function, const marco::SourceRange& location,
-                                               unsigned int actualNum, unsigned int minExpectedNum, 
-                                               unsigned int maxExpectedNum) {
-    std::string errorString = function.str() + ": expected " + 
-                              ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum): 
-                              "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
-                              " argument(s) but got " + std::to_string(actualNum) + ".";
+      unsigned int actualNum, unsigned int minExpectedNum,
+      unsigned int maxExpectedNum) {
+    std::string errorString = function.str() + ": expected " +
+      ((maxExpectedNum == 0) ? "at least " + std::to_string(minExpectedNum):
+       "between " + std::to_string(minExpectedNum) + " and " + std::to_string(maxExpectedNum)) +
+      " argument(s) but got " + std::to_string(actualNum) + ".";
     mlir::emitError(loc(location)) << errorString;
   }
 
   std::optional<Results> CallLowerer::abs(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "abs");
+        "abs");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("abs", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("abs", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -786,7 +792,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -802,12 +808,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::acos(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "acos");
+        "acos");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("acos", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("acos", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -825,7 +831,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -841,12 +847,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::asin(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "asin");
+        "asin");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("asin", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("asin", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -864,7 +870,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -880,12 +886,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::atan(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "atan");
+        "atan");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("atan", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("atan", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -903,7 +909,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -919,12 +925,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::atan2(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "atan2");
+        "atan2");
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("atan2", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("atan2", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
     llvm::SmallVector<mlir::Value, 2> args;
@@ -942,7 +948,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -958,12 +964,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::ceil(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "ceil");
+        "ceil");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("ceil", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("ceil", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -981,7 +987,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -997,12 +1003,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::cos(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "cos");
+        "cos");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("cos", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("cos", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1020,7 +1026,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1036,12 +1042,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::cosh(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "cosh");
+        "cosh");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("cosh", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("cosh", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1059,7 +1065,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1075,12 +1081,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::der(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "der");
+        "der");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("der", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("der", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1098,7 +1104,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1114,12 +1120,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::diagonal(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "diagonal");
+        "diagonal");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("diagonal", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("diagonal", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1142,12 +1148,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::div(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "div");
+        "div");
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("div", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("div", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1172,12 +1178,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::exp(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "exp");
+        "exp");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("exp", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("exp", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1195,7 +1201,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1211,12 +1217,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::fill(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "fill");
+        "fill");
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      emitErrorNumArgumentsRange("fill", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs);
+      emitErrorNumArgumentsRange("fill", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -1224,8 +1230,8 @@ namespace marco::codegen::lowering
 
     std::optional<mlir::Value> value = lowerArg(
         *call.getArgument(0)
-             ->cast<ast::ExpressionFunctionArgument>()
-             ->getExpression());
+        ->cast<ast::ExpressionFunctionArgument>()
+        ->getExpression());
     if (!value) {
       return std::nullopt;
     }
@@ -1236,9 +1242,9 @@ namespace marco::codegen::lowering
       assert(call.getArgument(i)->isa<ast::ExpressionFunctionArgument>());
 
       const ast::Expression* arg =
-          call.getArgument(i)
-              ->cast<ast::ExpressionFunctionArgument>()
-              ->getExpression();
+        call.getArgument(i)
+        ->cast<ast::ExpressionFunctionArgument>()
+        ->getExpression();
 
       assert(arg->isa<ast::Constant>());
       shape.push_back(arg->cast<ast::Constant>()->as<int64_t>());
@@ -1255,12 +1261,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::floor(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "floor");
+        "floor");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("floor", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("floor", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1278,7 +1284,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1294,12 +1300,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::identity(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "identity");
+        "identity");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("identity", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("identity", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1322,12 +1328,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::integer(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "integer");
+        "integer");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("integer", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("integer", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
     llvm::SmallVector<mlir::Value, 1> args;
@@ -1344,7 +1350,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1360,12 +1366,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::linspace(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "linspace");
+        "linspace");
 
     constexpr unsigned int expectedNumArgs = 3;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("linspace", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("linspace", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1386,12 +1392,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::log(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "log");
+        "log");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("log", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("log", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1409,7 +1415,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1425,12 +1431,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::log10(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "log10");
+        "log10");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("log10", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("log10", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1448,7 +1454,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1464,14 +1470,14 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::max(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "max");
+        "max");
 
     size_t numOfArguments = call.getNumOfArguments();
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      emitErrorNumArgumentsRange("max", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
+      emitErrorNumArgumentsRange("max", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -1496,7 +1502,7 @@ namespace marco::codegen::lowering
     }
 
     mlir::Type resultType =
-        args[0].getType().cast<mlir::ShapedType>().getElementType();
+      args[0].getType().cast<mlir::ShapedType>().getElementType();
 
     mlir::Value result = builder().create<MaxOp>(
         loc(call.getLocation()), resultType, args);
@@ -1513,8 +1519,8 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("max", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("max", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1532,14 +1538,14 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::min(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "min");
+        "min");
 
     size_t numOfArguments = call.getNumOfArguments();
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      emitErrorNumArgumentsRange("min", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
+      emitErrorNumArgumentsRange("min", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -1564,7 +1570,7 @@ namespace marco::codegen::lowering
     }
 
     mlir::Type resultType =
-        args[0].getType().cast<mlir::ShapedType>().getElementType();
+      args[0].getType().cast<mlir::ShapedType>().getElementType();
 
     mlir::Value result = builder().create<MinOp>(
         loc(call.getLocation()), resultType, args);
@@ -1581,8 +1587,8 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("min", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("min", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1600,12 +1606,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::mod(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "mod");
+        "mod");
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("mod", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("mod", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1630,12 +1636,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::ndims(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "ndims");
+        "ndims");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("ndims", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("ndims", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1655,12 +1661,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::ones(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "ones");
+        "ones");
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      emitErrorNumArgumentsRange("ones", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs);
+      emitErrorNumArgumentsRange("ones", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -1684,12 +1690,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::product(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "product");
+        "product");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("product", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("product", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1704,8 +1710,8 @@ namespace marco::codegen::lowering
   {
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("product", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("product", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1731,12 +1737,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::rem(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "rem");
+        "rem");
 
     constexpr unsigned int expectedNumArgs = 2;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("rem", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("rem", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1761,12 +1767,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::sign(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "sign");
+        "sign");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sign", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sign", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1789,8 +1795,8 @@ namespace marco::codegen::lowering
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sin", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sin", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1808,7 +1814,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1824,12 +1830,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::sinh(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "sinh");
+        "sinh");
 
     constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sinh", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sinh", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1847,7 +1853,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1863,14 +1869,14 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::size(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "size");
+        "size");
 
     size_t numOfArguments = call.getNumOfArguments();
     constexpr unsigned int minExpectedNumArgs = 1;
     constexpr unsigned int maxExpectedNumArgs = 2;
     if(numOfArguments < minExpectedNumArgs || numOfArguments > maxExpectedNumArgs) {
-      emitErrorNumArgumentsRange("size", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
+      emitErrorNumArgumentsRange("size", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs, maxExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -1907,12 +1913,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::sqrt(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "sqrt");
+        "sqrt");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sqrt", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sqrt", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1930,7 +1936,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -1946,12 +1952,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::sum(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "sum");
+        "sum");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sum", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sum", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1964,10 +1970,10 @@ namespace marco::codegen::lowering
 
   std::optional<Results> CallLowerer::sumArray(const ast::Call& call)
   {
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("sum", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("sum", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -1993,12 +1999,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::symmetric(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "symmetric");
+        "symmetric");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("symmetric", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("symmetric", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -2018,12 +2024,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::tan(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "tan");
+        "tan");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("tan", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("tan", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -2041,7 +2047,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -2057,12 +2063,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::tanh(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "tanh");
+        "tanh");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("tanh", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("tanh", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -2080,7 +2086,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 1> resultTypes;
 
     if (!getVectorizedResultTypes(
-            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
       assert(false && "Can't vectorize function call");
       return {};
     }
@@ -2096,12 +2102,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::transpose(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "transpose");
+        "transpose");
 
-   constexpr unsigned int expectedNumArgs = 1;
+    constexpr unsigned int expectedNumArgs = 1;
     if(call.getNumOfArguments() != expectedNumArgs) {
-      emitErrorNumArguments("transpose", call.getLocation(), 
-                            call.getNumOfArguments(), expectedNumArgs);
+      emitErrorNumArguments("transpose", call.getLocation(),
+          call.getNumOfArguments(), expectedNumArgs);
       return std::nullopt;
     }
 
@@ -2127,12 +2133,12 @@ namespace marco::codegen::lowering
   std::optional<Results> CallLowerer::zeros(const ast::Call& call)
   {
     assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
-           "zeros");
+        "zeros");
 
     constexpr unsigned int minExpectedNumArgs = 1;
     if(call.getNumOfArguments() < minExpectedNumArgs) {
-      emitErrorNumArgumentsRange("zeros", call.getLocation(), 
-                            call.getNumOfArguments(), minExpectedNumArgs);
+      emitErrorNumArgumentsRange("zeros", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs);
       return std::nullopt;
     }
 
@@ -2153,6 +2159,36 @@ namespace marco::codegen::lowering
     return Reference::ssa(builder(), result);
   }
 
+  // TODO: Continue here
+  std::optional<Results> CallLowerer::builtinAssert(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+        "assert");
+
+    constexpr unsigned int minExpectedNumArgs = 2;
+    if(call.getNumOfArguments() < minExpectedNumArgs) {
+      emitErrorNumArgumentsRange("assert", call.getLocation(),
+          call.getNumOfArguments(), minExpectedNumArgs);
+      return std::nullopt;
+    }
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    if (!lowerBuiltInFunctionArgs(call, args)) {
+      return std::nullopt;
+    }
+
+    // llvm::SmallVector<int64_t, 1> shape(
+    //     args.size(), mlir::ShapedType::kDynamic);
+
+    auto resultType = mlir::RankedTensorType::get(
+        mlir::ShapedType::kDynamic, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<ZerosOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
   std::optional<Results> CallLowerer::reduction(const ast::Call& call, llvm::StringRef action)
   {
     assert(call.getNumOfArguments() == 1);
@@ -2160,14 +2196,14 @@ namespace marco::codegen::lowering
     mlir::Type resultType = RealType::get(builder().getContext());
 
     auto* reductionArg =
-        call.getArgument(0)->cast<ast::ReductionFunctionArgument>();
+      call.getArgument(0)->cast<ast::ReductionFunctionArgument>();
 
     // Lower the iteration ranges.
     llvm::SmallVector<mlir::Value, 3> iterables;
 
     for (size_t i = 0, e = reductionArg->getNumOfForIndices(); i < e; ++i) {
-      std::optional<Results> inductionResults = 
-          lower(*reductionArg->getForIndex(i)->getExpression());
+      std::optional<Results> inductionResults =
+        lower(*reductionArg->getForIndex(i)->getExpression());
       if (!inductionResults) {
         return std::nullopt;
       }
@@ -2189,7 +2225,7 @@ namespace marco::codegen::lowering
 
     // Map the induction variables.
     assert(reductionArg->getNumOfForIndices() ==
-           reductionOp.getInductions().size());
+        reductionOp.getInductions().size());
 
     VariablesSymbolTable::VariablesScope scope(getVariablesSymbolTable());
 
@@ -2205,7 +2241,7 @@ namespace marco::codegen::lowering
     assert(expressionResults->size() == 1);
 
     mlir::Value result =
-        (*expressionResults)[0].get((*expressionResults)[0].getLoc());
+      (*expressionResults)[0].get((*expressionResults)[0].getLoc());
 
     if (result.getType() != resultType) {
       result = builder().create<CastOp>(result.getLoc(), resultType, result);
