@@ -23,3 +23,6 @@ add_public_tablegen_target(MLIRSUNDIALSIncGen)
 add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSAttributesIncGen)
 add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSTypesIncGen)
 add_dependencies(MLIRSUNDIALSIncGen MLIRSUNDIALSOpsIncGen)
+
+add_mlir_doc(SUNDIALSAttributes SUNDIALSAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(SUNDIALSOps SUNDIALSOps Dialects/ -gen-op-doc)

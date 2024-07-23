@@ -17,3 +17,6 @@ add_public_tablegen_target(MLIRModelingIncGen)
 
 add_dependencies(MLIRModelingIncGen MLIRModelingAttributesIncGen)
 add_dependencies(MLIRModelingIncGen MLIRModelingOpsIncGen)
+
+add_mlir_doc(ModelingAttributes ModelingAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(ModelingOps ModelingOps Dialects/ -gen-op-doc)

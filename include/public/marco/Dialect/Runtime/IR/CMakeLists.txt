@@ -17,3 +17,6 @@ add_public_tablegen_target(MLIRRuntimeIncGen)
 
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeAttributesIncGen)
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeOpsIncGen)
+
+add_mlir_doc(RuntimeAttributes RuntimeAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(RuntimeOps RuntimeOps Dialects/ -gen-op-doc)

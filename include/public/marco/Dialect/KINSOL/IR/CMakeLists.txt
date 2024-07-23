@@ -23,3 +23,7 @@ add_public_tablegen_target(MLIRKINSOLIncGen)
 add_dependencies(MLIRKINSOLIncGen MLIRKINSOLAttributesIncGen)
 add_dependencies(MLIRKINSOLIncGen MLIRKINSOLTypesIncGen)
 add_dependencies(MLIRKINSOLIncGen MLIRKINSOLOpsIncGen)
+
+add_mlir_doc(KINSOLAttributes KINSOLAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(KINSOLTypes KINSOLTypes Dialects/ -gen-typedef-doc)
+add_mlir_doc(KINSOLOps KINSOLOps Dialects/ -gen-op-doc)
