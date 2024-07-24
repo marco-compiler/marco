@@ -215,19 +215,11 @@ add_subdirectory(cmake/modules)
 #-------------------------------------------------------------------------------
 # Documentation
 #-------------------------------------------------------------------------------
-add_custom_target(marco-docs)
+option(MARCO_BUILD_MLIR_DOCS "Generate the Markdown MLIR documentation MARCO docs." ON)
+option(MARCO_BUILD_DOXYGEN_DOCS "Generate the Doxygen documentation for MARCO." OFF)
 
-option(MARCO_INCLUDE_DOCS "Generate build targets for the MARCO docs." ON)
-option(MARCO_BUILD_DOCS "Generate the documentation for MARCO." OFF)
-
-if (MARCO_BUILD_DOCS)
-	add_custom_target(doxygen ALL)
-endif()
-
-if (MARCO_INCLUDE_DOCS)
-	add_subdirectory(docs)
-	add_dependencies(marco-docs mlir-doc)
-endif()
+add_custom_target(docs)
+add_subdirectory(docs)
 
 #-------------------------------------------------------------------------------
 # Tests

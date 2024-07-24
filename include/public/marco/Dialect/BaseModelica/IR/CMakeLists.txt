@@ -41,3 +41,7 @@ add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaOpsIncGen)
 add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaOpInterfacesIncGen)
 add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaAttrInterfacesIncGen)
 add_dependencies(MLIRBaseModelicaIncGen MLIRBaseModelicaTypeInterfacesIncGen)
+
+add_mlir_doc(BaseModelicaAttributes BaseModelicaAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(BaseModelicaTypes BaseModelicaTypes Dialects/ -gen-typedef-doc)
+add_mlir_doc(BaseModelicaOps BaseModelicaOps Dialects/ -gen-op-doc)

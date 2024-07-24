@@ -23,3 +23,7 @@ add_public_tablegen_target(MLIRIDAIncGen)
 add_dependencies(MLIRIDAIncGen MLIRIDAAttributesIncGen)
 add_dependencies(MLIRIDAIncGen MLIRIDATypesIncGen)
 add_dependencies(MLIRIDAIncGen MLIRIDAOpsIncGen)
+
+add_mlir_doc(IDAAttributes IDAAttributes Dialects/ -gen-attrdef-doc)
+add_mlir_doc(IDATypes IDATypes Dialects/ -gen-typedef-doc)
+add_mlir_doc(IDAOps IDAOps Dialects/ -gen-op-doc)
