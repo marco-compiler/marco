@@ -1,6 +1,6 @@
 # Building on Linux / macOS
 We provide here directions to install MARCO on Linux and macOS.
-The commands for installing some packages are based on the `apt` tool, but it can be easily adapted to other package managers.
+The commands for installing some packages are based on the `apt` package manager, but it can be easily adapted to others.
 
 ## Requirements
 ### LLVM
@@ -46,12 +46,16 @@ For macOS users, OpenModelica is available through Homebrew.
 
 ### SUNDIALS
 The SUNDIALS libraries can usually be installed through package managers.
-However, a build script is available inside the repository to build and install them.
+
+```bash
+sudo apt install libsundials-dev
+```
+
+If needed, a build script is also available inside the repository to manually build and install them.
 The following dependencies must be installed before attempting a build:
 
 ```bash
-sudo apt install libgmp3-dev
-sudo apt install libmpc-dev
+sudo apt install libgmp-dev libmpc-dev
 ```
 
 The libraries can then be built by running the `sundials.sh` script inside the `dependencies` folder.
@@ -75,15 +79,15 @@ sudo apt install python-pip
 pip install lit
 ```
 
-## Building and installing the runtime library
-The runtime library project provides the libraries to be linked for generating the simulation.
+## Building and installing the runtime libraries
+The runtime libraries project provides the libraries to be linked for generating the simulation.
 
 The `RUNTIME_INSTALL_PATH` variable must be set to the desired installation path.
 
 The `LLVM_PATH` variable must be set to the installation path that was used during the LLVM installation process.
 
-If the Sundials library have been built manually, the `SUNDIALS_PATH` variable must be set to their installation path.
-In case of libraries installed through package managers, the build system of MARCO must be instructed to use them by setting `MARCO_USE_BUILTIN_SUNDIALS` CMake option to `OFF`.
+By default, the CMake configuration searches for SUNDIALS libraries within the OS.
+If the Sundials library have been built manually, the build system of MARCO must be instructed to use them by setting the `MARCO_USE_BUILTIN_SUNDIALS` CMake option must to `ON` and the `SUNDIALS_PATH` variable to their installation path.
 
 The `LLVM_EXTERNAL_LIT` variable represent the path (including the executable name) to the `lit` tool. If it has been installed in user mode, it is usually `/home/user/.local/bin/lit`.
 
@@ -98,7 +102,6 @@ RUNTIME_INSTALL_PATH=runtime_install_path
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=${RUNTIME_INSTALL_PATH} \
-  -DSUNDIALS_PATH=${SUNDIALS_INSTALL_PATH} \
   -DLLVM_PATH=${LLVM_INSTALL_PATH} \
   ..
 
@@ -132,7 +135,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=${MARCO_INSTALL_PATH} \
   -DLLVM_PATH=${LLVM_INSTALL_PATH} \
-  -DMARCORuntime_DIR=${RUNTIME_INSTALL_PATH}/lib/cmake/MARCORuntime \
+  -DMARCORuntime_PATH=${RUNTIME_INSTALL_PATH} \
   -DLLVM_EXTERNAL_LIT=${LIT_PATH} \
   ..
 
