@@ -1014,6 +1014,58 @@ namespace
     }
   };
 
+  struct GlobalVariableGetOpInterface
+      : public DerivableOpInterface::ExternalModel<
+            GlobalVariableGetOpInterface, GlobalVariableGetOp>
+  {
+    mlir::LogicalResult createPartialDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state) const
+    {
+      return createDerivative(op, builder, state);
+    }
+
+    mlir::LogicalResult createTimeDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state,
+        bool deriveDependencies) const
+    {
+      return createDerivative(op, builder, state);
+    }
+
+    mlir::LogicalResult createDerivative(
+        mlir::Operation* op,
+        mlir::OpBuilder& builder,
+        State& state) const
+    {
+      auto castedOp = mlir::cast<GlobalVariableGetOp>(op);
+
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointAfter(castedOp);
+
+      auto arrayType = castedOp.getResult().getType().cast<ArrayType>();
+      auto elementType = arrayType.getElementType();
+
+      auto materializableType = mlir::dyn_cast<ConstantMaterializableTypeInterface>(elementType);
+
+      if (!materializableType) {
+        return mlir::failure();
+      }
+
+      mlir::Value zero = materializableType.materializeIntConstant(
+          builder, castedOp.getLoc(), 0);
+
+      auto derivedOp = builder.create<ArrayBroadcastOp>(
+          castedOp.getLoc(),
+          arrayType, zero);
+
+      state.mapDerivative(castedOp, derivedOp);
+      return mlir::success();
+    }
+  };
+
   struct ConstantOpInterface
       : public DerivableOpInterface::ExternalModel<
           ConstantOpInterface, ConstantOp>
@@ -3562,6 +3614,9 @@ namespace mlir::bmodelica
       // Variable operations.
       VariableGetOp::attachInterface<::VariableGetOpInterface>(*context);
       VariableSetOp::attachInterface<::VariableSetOpInterface>(*context);
+
+      // Global variable operations.
+      GlobalVariableGetOp::attachInterface<::GlobalVariableGetOpInterface>(*context);
 
       // Math operations.
       ConstantOp::attachInterface<::ConstantOpInterface>(*context);
