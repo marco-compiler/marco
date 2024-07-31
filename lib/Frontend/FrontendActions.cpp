@@ -885,6 +885,17 @@ namespace marco::frontend
             ci.getSimulationOptions().solver)
             .Case("euler-forward", createMLIREulerForwardPass())
             .Case("ida", createMLIRIDAPass())
+            .Case("rk4", createMLIRRungeKuttaPass("rk4"))
+            .Case("rk-euler-forward", createMLIRRungeKuttaPass("euler-forward"))
+            .Case("rk-midpoint", createMLIRRungeKuttaPass("midpoint"))
+            .Case("rk-heun", createMLIRRungeKuttaPass("heun"))
+            .Case("rk-ralston", createMLIRRungeKuttaPass("ralston"))
+            .Case("rk-heun-euler", createMLIRRungeKuttaPass("heun-euler"))
+            .Case("rk-bogacki-shampine", createMLIRRungeKuttaPass("bogacki-shampine"))
+            .Case("rk-fehlberg", createMLIRRungeKuttaPass("fehlberg"))
+            .Case("rk-cash-karp", createMLIRRungeKuttaPass("cash-karp"))
+            .Case("rk-dormand-prince", createMLIRRungeKuttaPass("dormand-prince"))
+            .Case("rk-euler-backward", createMLIRRungeKuttaPass("euler-backward"))
             .Default(mlir::bmodelica::createEulerForwardPass()));
 
     // Solve the initial conditions model.
@@ -1055,6 +1066,14 @@ namespace marco::frontend
 
     options.modelName = modelName;
     return mlir::bmodelica::createReadOnlyVariablesPropagationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRRungeKuttaPass(llvm::StringRef variant)
+  {
+    mlir::bmodelica::RungeKuttaPassOptions options;
+    options.variant = variant.str();
+
+    return mlir::bmodelica::createRungeKuttaPass(options);
   }
 
   std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
