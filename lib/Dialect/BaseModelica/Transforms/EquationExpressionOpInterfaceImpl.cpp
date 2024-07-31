@@ -551,6 +551,32 @@ namespace
     }
   };
 
+  struct GlobalVariableGetOpInterface
+      : public EquationExpressionOpInterface::ExternalModel<
+            GlobalVariableGetOpInterface, GlobalVariableGetOp>
+  {
+    void printExpression(
+        mlir::Operation* op,
+        llvm::raw_ostream& os,
+        const llvm::DenseMap<mlir::Value, int64_t>& inductions) const
+    {
+      auto castedOp = mlir::cast<GlobalVariableGetOp>(op);
+      os << castedOp.getVariable();
+    }
+
+    mlir::LogicalResult getEquationAccesses(
+        mlir::Operation* op,
+        llvm::SmallVectorImpl<VariableAccess>& accesses,
+        mlir::SymbolTableCollection& symbolTable,
+        llvm::DenseMap<mlir::Value, unsigned int>& explicitInductionsPositionMap,
+        AdditionalInductions& additionalInductions,
+        llvm::SmallVectorImpl<std::unique_ptr<DimensionAccess>>& dimensionAccesses,
+        EquationPath path) const
+    {
+      return mlir::success();
+    }
+  };
+
   struct ConstantOpInterface
       : public EquationExpressionOpInterface::ExternalModel<
           ConstantOpInterface, ConstantOp>
@@ -1905,6 +1931,7 @@ namespace mlir::bmodelica
 
       // Variable operations.
       VariableGetOp::attachInterface<::VariableGetOpInterface>(*context);
+      GlobalVariableGetOp::attachInterface<::GlobalVariableGetOpInterface>(*context);
 
       // Math operations.
       ConstantOp::attachInterface<::ConstantOpInterface>(*context);
