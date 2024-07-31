@@ -1355,14 +1355,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
       continue;
     }
 
-    if (auto globalGetOp = mlir::dyn_cast<GlobalVariableGetOp>(op)) {
-      VariableOp variableOp = localVariableOps[globalGetOp.getVariable()];
-
-      auto getOp = rewriter.create<VariableGetOp>(
-          globalGetOp.getLoc(), variableOp);
-
-      mapping.map(globalGetOp.getResult(), getOp.getResult());
-    } else if (mlir::isa<EquationSideOp, EquationSidesOp>(op)) {
+    if (mlir::isa<EquationSideOp, EquationSidesOp>(op)) {
       continue;
     } else {
       rewriter.clone(op, mapping);
@@ -1855,7 +1848,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::ICModelBeginOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::DynamicModelBeginOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
       };
 
@@ -1863,7 +1856,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
       [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::ICModelEndOp>(loc);
+        auto beginFn = builder.create<mlir::runtime::DynamicModelEndOp>(loc);
         return builder.createBlock(&beginFn.getBodyRegion());
       };
 
