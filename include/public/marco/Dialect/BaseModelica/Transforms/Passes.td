@@ -492,6 +492,26 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createEulerForwardPass()";
 }
 
+def RungeKuttaPass : Pass<"runge-kutta", "mlir::ModuleOp">
+{
+    let summary = "Apply the implicit Euler integration method";
+
+    let description = [{
+        Apply the implicit Euler integration method.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+        "mlir::runtime::RuntimeDialect"
+    ];
+
+    let options = [
+        Option<"variant", "variant", "std::string", "", "Runge-Kutta variant">
+    ];
+
+    let constructor = "mlir::bmodelica::createRungeKuttaPass()";
+}
+
 def IDAPass : Pass<"ida", "mlir::ModuleOp">
 {
     let summary = "Solve the model with IDA";

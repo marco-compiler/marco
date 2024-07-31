@@ -2,7 +2,7 @@
 
 git clone https://github.com/marco-compiler/marco-runtime.git
 cd marco-runtime
-git checkout 58fd4d19c815527bd09a45061f55d208173ab170
+git checkout f7aa2422e563cf10cd5d865be72a442ffde6e871
 
 rm -rf build
 mkdir build

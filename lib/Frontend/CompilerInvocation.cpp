@@ -616,6 +616,10 @@ static void parseSimulationArgs(
       options.solver = "euler-forward";
     } else if (arg == "ida") {
       options.solver = "ida";
+    } else if (arg == "rk4") {
+      options.solver = "rk4";
+    } else if (llvm::StringRef(arg).starts_with("rk-")) {
+      options.solver = arg;
     } else {
       diagnostics.Report(diagnostics.getCustomDiagID(
           clang::DiagnosticsEngine::Warning,
