@@ -14,6 +14,12 @@ namespace mlir
 
 using namespace ::mlir::bmodelica;
 
+namespace {
+  bool isReservedVariable(llvm::StringRef name) {
+    return name.starts_with("__");
+  }
+} // namespace
+
 namespace
 {
   class BaseModelicaToRuntimeConversionPass
@@ -570,10 +576,12 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createNumOfVariablesOp(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto numOfVariables = static_cast<int64_t>(variables.size());
+  size_t numOfVariables = llvm::count_if(variables, [](VariableOp variable) {
+    return !isReservedVariable(variable.getSymName());
+  });
 
   builder.create<mlir::runtime::NumberOfVariablesOp>(
-      modelOp.getLoc(), builder.getI64IntegerAttr(numOfVariables));
+      modelOp.getLoc(), builder.getI64IntegerAttr(static_cast<int64_t>(numOfVariables)));
 
   return mlir::success();
 }
@@ -590,6 +598,10 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableNamesOp(
   llvm::SmallVector<mlir::Attribute> names;
 
   for (VariableOp variable : variables) {
+    if (isReservedVariable(variable.getSymName())) {
+      continue;
+    }
+
     names.push_back(builder.getStringAttr(variable.getSymName()));
   }
 
@@ -611,6 +623,10 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableRanksOp(
   llvm::SmallVector<int64_t> ranks;
 
   for (VariableOp variable : variables) {
+    if (isReservedVariable(variable.getSymName())) {
+      continue;
+    }
+
     VariableType variableType = variable.getVariableType();
     ranks.push_back(variableType.getRank());
   }
@@ -691,6 +707,10 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
   auto& printableIndicesList = printableIndicesOp.getProperties().value;
 
   for (VariableOp variableOp : variables) {
+    if (isReservedVariable(variableOp.getSymName())) {
+      continue;
+    }
+
     VariableType variableType = variableOp.getVariableType();
     std::vector<marco::VariableFilter::Filter> filters;
 
@@ -749,6 +769,10 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createDerivativesMapOp(
       modelOp.getProperties().derivativesMap;
 
   for (VariableOp variable : variables) {
+    if (isReservedVariable(variable.getSymName())) {
+      continue;
+    }
+
     if (auto derivative = derivativesMap.getDerivative(
             mlir::FlatSymbolRefAttr::get(variable.getSymNameAttr()))) {
       auto it = positionsMap.find(*derivative);
@@ -782,6 +806,10 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableGetters(
   llvm::SmallVector<mlir::Attribute> getterNames;
 
   for (VariableOp variable : variables) {
+    if (isReservedVariable(variable.getSymName())) {
+      continue;
+    }
+
     builder.setInsertionPointToEnd(moduleOp.getBody());
     VariableType variableType = variable.getVariableType();
 
