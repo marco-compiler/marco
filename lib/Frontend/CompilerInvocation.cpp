@@ -1,7 +1,7 @@
 #include "marco/Frontend/CompilerInvocation.h"
 #include "mlir/IR/Diagnostics.h"
-#include "clang/Driver/Options.h"
 #include "clang/Basic/DiagnosticDriver.h"
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Lex/PreprocessorOptions.h"
 #include "llvm/ADT/APFloat.h"
@@ -12,8 +12,8 @@
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/TargetParser/Host.h"
 #include "llvm/Support/Process.h"
+#include "llvm/TargetParser/Host.h"
 
 using namespace ::marco;
 using namespace ::clang;
@@ -63,12 +63,13 @@ static void denormalizeSimpleFlag(ArgumentConsumer Consumer,
   Consumer(Spelling);
 }
 
-template <typename T> static constexpr bool is_uint64_t_convertible() {
+template <typename T>
+static constexpr bool is_uint64_t_convertible() {
   return !std::is_same_v<T, uint64_t> && llvm::is_integral_or_enum<T>::value;
 }
 
 template <typename T,
-         std::enable_if_t<!is_uint64_t_convertible<T>(), bool> = false>
+          std::enable_if_t<!is_uint64_t_convertible<T>(), bool> = false>
 static auto makeFlagToValueNormalizer(T Value) {
   return [Value](OptSpecifier Opt, unsigned, const ArgList &Args,
                  DiagnosticsEngine &) -> std::optional<T> {
@@ -79,7 +80,7 @@ static auto makeFlagToValueNormalizer(T Value) {
 }
 
 template <typename T,
-         std::enable_if_t<is_uint64_t_convertible<T>(), bool> = false>
+          std::enable_if_t<is_uint64_t_convertible<T>(), bool> = false>
 static auto makeFlagToValueNormalizer(T Value) {
   return makeFlagToValueNormalizer(uint64_t(Value));
 }
@@ -109,19 +110,19 @@ static void denormalizeStringImpl(ArgumentConsumer Consumer,
                                   Option::OptionClass OptClass, unsigned,
                                   const Twine &Value) {
   switch (OptClass) {
-    case Option::SeparateClass:
-    case Option::JoinedOrSeparateClass:
-    case Option::JoinedAndSeparateClass:
-      Consumer(Spelling);
-      Consumer(Value);
-      break;
-    case Option::JoinedClass:
-    case Option::CommaJoinedClass:
-      Consumer(Spelling + Value);
-      break;
-    default:
-      llvm_unreachable("Cannot denormalize an option with option class "
-                       "incompatible with string denormalization.");
+  case Option::SeparateClass:
+  case Option::JoinedOrSeparateClass:
+  case Option::JoinedAndSeparateClass:
+    Consumer(Spelling);
+    Consumer(Value);
+    break;
+  case Option::JoinedClass:
+  case Option::CommaJoinedClass:
+    Consumer(Spelling + Value);
+    break;
+  default:
+    llvm_unreachable("Cannot denormalize an option with option class "
+                     "incompatible with string denormalization.");
   }
 }
 
@@ -232,28 +233,28 @@ static void denormalizeStringVector(ArgumentConsumer Consumer,
                                     unsigned TableIndex,
                                     const std::vector<std::string> &Values) {
   switch (OptClass) {
-    case Option::CommaJoinedClass: {
-      std::string CommaJoinedValue;
-      if (!Values.empty()) {
-        CommaJoinedValue.append(Values.front());
-        for (const std::string &Value : llvm::drop_begin(Values, 1)) {
-          CommaJoinedValue.append(",");
-          CommaJoinedValue.append(Value);
-        }
+  case Option::CommaJoinedClass: {
+    std::string CommaJoinedValue;
+    if (!Values.empty()) {
+      CommaJoinedValue.append(Values.front());
+      for (const std::string &Value : llvm::drop_begin(Values, 1)) {
+        CommaJoinedValue.append(",");
+        CommaJoinedValue.append(Value);
       }
-      denormalizeString(Consumer, Spelling, Option::OptionClass::JoinedClass,
-                        TableIndex, CommaJoinedValue);
-      break;
     }
-    case Option::JoinedClass:
-    case Option::SeparateClass:
-    case Option::JoinedOrSeparateClass:
-      for (const std::string &Value : Values)
-        denormalizeString(Consumer, Spelling, OptClass, TableIndex, Value);
-      break;
-    default:
-      llvm_unreachable("Cannot denormalize an option with option class "
-                       "incompatible with string vector denormalization.");
+    denormalizeString(Consumer, Spelling, Option::OptionClass::JoinedClass,
+                      TableIndex, CommaJoinedValue);
+    break;
+  }
+  case Option::JoinedClass:
+  case Option::SeparateClass:
+  case Option::JoinedOrSeparateClass:
+    for (const std::string &Value : Values)
+      denormalizeString(Consumer, Spelling, OptClass, TableIndex, Value);
+    break;
+  default:
+    llvm_unreachable("Cannot denormalize an option with option class "
+                     "incompatible with string vector denormalization.");
   }
 }
 
@@ -272,11 +273,13 @@ static T mergeForwardValue(T KeyPath, U Value) {
   return static_cast<T>(Value);
 }
 
-template <typename T, typename U> static T mergeMaskValue(T KeyPath, U Value) {
+template <typename T, typename U>
+static T mergeMaskValue(T KeyPath, U Value) {
   return KeyPath | Value;
 }
 
-template <typename T> static T extractForwardValue(T KeyPath) {
+template <typename T>
+static T extractForwardValue(T KeyPath) {
   return KeyPath;
 }
 
@@ -290,7 +293,7 @@ static T extractMaskValue(T KeyPath) {
     FLAGS, VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE,         \
     ALWAYS_EMIT, KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE,         \
     NORMALIZER, DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                  \
-  if ((VISIBILITY)&options::MC1Option) {                                       \
+  if ((VISIBILITY) & options::MC1Option) {                                     \
     KEYPATH = MERGER(KEYPATH, DEFAULT_VALUE);                                  \
     if (IMPLIED_CHECK)                                                         \
       KEYPATH = MERGER(KEYPATH, IMPLIED_VALUE);                                \
@@ -307,7 +310,7 @@ static T extractMaskValue(T KeyPath) {
     VISIBILITY, PARAM, HELPTEXT, METAVAR, VALUES, SHOULD_PARSE, ALWAYS_EMIT,   \
     KEYPATH, DEFAULT_VALUE, IMPLIED_CHECK, IMPLIED_VALUE, NORMALIZER,          \
     DENORMALIZER, MERGER, EXTRACTOR, TABLE_INDEX)                              \
-  if ((VISIBILITY)&options::MC1Option) {                                       \
+  if ((VISIBILITY) & options::MC1Option) {                                     \
     [&](const auto &Extracted) {                                               \
       if (ALWAYS_EMIT ||                                                       \
           (Extracted !=                                                        \
@@ -323,40 +326,35 @@ static T extractMaskValue(T KeyPath) {
 //===---------------------------------------------------------------------===//
 
 /// Tweak the frontend configuration based on the frontend action
-static void setUpFrontendBasedOnAction(
-    marco::frontend::FrontendOptions& options)
-{
+static void
+setUpFrontendBasedOnAction(marco::frontend::FrontendOptions &options) {
   assert(options.programAction != marco::frontend::InvalidAction &&
          "Frontend action not set!");
 }
 
-static bool parseDiagnosticArgs(
-    clang::DiagnosticOptions& diagnosticOptions,
-    llvm::opt::ArgList& args,
-    clang::DiagnosticsEngine* diags = nullptr,
-    bool defaultDiagColor = true)
-{
-  return clang::ParseDiagnosticArgs(
-      diagnosticOptions, args, diags, defaultDiagColor);
+static bool parseDiagnosticArgs(clang::DiagnosticOptions &diagnosticOptions,
+                                llvm::opt::ArgList &args,
+                                clang::DiagnosticsEngine *diags = nullptr,
+                                bool defaultDiagColor = true) {
+  return clang::ParseDiagnosticArgs(diagnosticOptions, args, diags,
+                                    defaultDiagColor);
 }
 
-static bool parseTargetArgs(
-    clang::TargetOptions& targetOptions,
-    llvm::opt::ArgList& args,
-    clang::DiagnosticsEngine& diags)
-{
+static bool parseTargetArgs(clang::TargetOptions &targetOptions,
+                            llvm::opt::ArgList &args,
+                            clang::DiagnosticsEngine &diags) {
   using namespace options;
   using namespace llvm::opt;
 
   unsigned numErrorsBefore = diags.getNumErrors();
-  clang::TargetOptions* TargetOpts = &targetOptions;
+  clang::TargetOptions *TargetOpts = &targetOptions;
 
 #define TARGET_OPTION_WITH_MARSHALLING(...)                                    \
   PARSE_OPTION_WITH_MARSHALLING(args, diags, __VA_ARGS__)
 #include "clang/Driver/Options.inc"
 #undef TARGET_OPTION_WITH_MARSHALLING
 
-  if (llvm::opt::Arg* A = args.getLastArg(options::OPT_target_sdk_version_EQ)) {
+  if (llvm::opt::Arg *A = args.getLastArg(options::OPT_target_sdk_version_EQ)) {
     llvm::VersionTuple Version;
     if (Version.tryParse(A->getValue()))
       diags.Report(clang::diag::err_drv_invalid_value)
@@ -378,11 +376,9 @@ static bool parseTargetArgs(
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static void parseFrontendArgs(
-    marco::frontend::FrontendOptions& options,
-    llvm::opt::ArgList& args,
-    clang::DiagnosticsEngine& diagnostics)
-{
+static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
+                              llvm::opt::ArgList &args,
+                              clang::DiagnosticsEngine &diagnostics) {
   using namespace ::marco::frontend;
 
   // Default action
@@ -391,49 +387,49 @@ static void parseFrontendArgs(
   if (args.hasArg(options::OPT_emit_ast)) {
     // -emit-ast is not part of the Action group in clang's options.
     options.programAction = EmitAST;
-  } else if (const llvm::opt::Arg* a =
+  } else if (const llvm::opt::Arg *a =
                  args.getLastArg(options::OPT_Action_Group)) {
     switch (a->getOption().getID()) {
-      case options::OPT_init_only:
-        options.programAction = InitOnly;
-        break;
+    case options::OPT_init_only:
+      options.programAction = InitOnly;
+      break;
 
-      case options::OPT_emit_base_modelica:
-        options.programAction = EmitBaseModelica;
-        break;
+    case options::OPT_emit_base_modelica:
+      options.programAction = EmitBaseModelica;
+      break;
 
-      case options::OPT_emit_mlir:
-        options.programAction = EmitMLIR;
-        break;
+    case options::OPT_emit_mlir:
+      options.programAction = EmitMLIR;
+      break;
 
-      case options::OPT_emit_mlir_modelica:
-        options.programAction = EmitMLIRModelica;
-        break;
+    case options::OPT_emit_mlir_modelica:
+      options.programAction = EmitMLIRModelica;
+      break;
 
-      case options::OPT_emit_mlir_llvm:
-        options.programAction = EmitMLIRLLVM;
-        break;
+    case options::OPT_emit_mlir_llvm:
+      options.programAction = EmitMLIRLLVM;
+      break;
 
-      case options::OPT_emit_llvm:
-        options.programAction = EmitLLVMIR;
-        break;
+    case options::OPT_emit_llvm:
+      options.programAction = EmitLLVMIR;
+      break;
 
-      case options::OPT_emit_llvm_bc:
-        options.programAction = EmitLLVMBitcode;
-        break;
+    case options::OPT_emit_llvm_bc:
+      options.programAction = EmitLLVMBitcode;
+      break;
 
-      // Old OPT_compile_only.
-      case options::OPT_S:
-        options.programAction = EmitAssembly;
-        break;
+    // Old OPT_compile_only.
+    case options::OPT_S:
+      options.programAction = EmitAssembly;
+      break;
 
-      case options::OPT_emit_obj:
-        options.programAction = EmitObject;
-        break;
+    case options::OPT_emit_obj:
+      options.programAction = EmitObject;
+      break;
 
-      default: {
-        llvm_unreachable("Invalid option in group!");
-      }
+    default: {
+      llvm_unreachable("Invalid option in group!");
+    }
     }
   }
 
@@ -443,10 +439,9 @@ static void parseFrontendArgs(
   options.printModelInfo = args.hasArg(options::OPT_print_model_info);
   options.printStatistics = args.hasArg(options::OPT_print_statistics);
 
-  options.multithreading = args.hasFlag(
-      options::OPT_multithreading,
-      options::OPT_no_multithreading,
-      options.multithreading);
+  options.multithreading =
+      args.hasFlag(options::OPT_multithreading, options::OPT_no_multithreading,
+                   options.multithreading);
 
   // Collect the input files and save them in our instance of FrontendOptions
   std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);
@@ -464,29 +459,28 @@ static void parseFrontendArgs(
 
   setUpFrontendBasedOnAction(options);
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_omc_path)) {
+  if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_omc_path)) {
     llvm::StringRef value = arg->getValue();
     options.omcPath = value.str();
   }
 
-  for (const auto& omcArg : args.getAllArgValues(options::OPT_Xomc)) {
+  for (const auto &omcArg : args.getAllArgValues(options::OPT_Xomc)) {
     options.omcCustomArgs.push_back(omcArg);
   }
 
   options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_variables_filter)) {
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_variables_filter)) {
     options.variablesFilter = arg->getValue();
   }
 }
 
-static void parseCodegenArgs(
-    marco::frontend::CodegenOptions& options,
-    llvm::opt::ArgList& args,
-    clang::DiagnosticsEngine& diagnostics)
-{
+static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
+                             llvm::opt::ArgList &args,
+                             clang::DiagnosticsEngine &diagnostics) {
   // Determine the optimization level
-  for (const auto& arg : args.getAllArgValues(options::OPT_O)) {
+  for (const auto &arg : args.getAllArgValues(options::OPT_O)) {
     if (arg == "0") {
       options.optLevel = llvm::OptimizationLevel::O0;
     } else if (arg == "1") {
@@ -503,9 +497,10 @@ static void parseCodegenArgs(
       options.optLevel = llvm::OptimizationLevel::Oz;
     } else {
       // "Unknown optimization option: %s"
-      diagnostics.Report(diagnostics.getCustomDiagID(
-          clang::DiagnosticsEngine::Warning,
-          "Unknown optimization option '%0'")) << arg;
+      diagnostics.Report(
+          diagnostics.getCustomDiagID(clang::DiagnosticsEngine::Warning,
+                                      "Unknown optimization option '%0'"))
+          << arg;
     }
   }
 
@@ -546,53 +541,45 @@ static void parseCodegenArgs(
   }
 
   options.assertions = args.hasFlag(
-      options::OPT_assertions,
-      options::OPT_no_assertions,
-      options.assertions);
+      options::OPT_assertions, options::OPT_no_assertions, options.assertions);
 
-  options.inlining = args.hasFlag(
-      options::OPT_function_inlining,
-      options::OPT_no_function_inlining,
-      options.inlining);
+  options.inlining =
+      args.hasFlag(options::OPT_function_inlining,
+                   options::OPT_no_function_inlining, options.inlining);
 
   options.outputArraysPromotion = args.hasFlag(
       options::OPT_output_arrays_promotion,
-      options::OPT_no_output_arrays_promotion,
-      options.outputArraysPromotion);
+      options::OPT_no_output_arrays_promotion, options.outputArraysPromotion);
 
-  options.readOnlyVariablesPropagation = args.hasFlag(
-      options::OPT_read_only_variables_propagation,
-      options::OPT_no_read_only_variables_propagation,
-      options.readOnlyVariablesPropagation);
+  options.readOnlyVariablesPropagation =
+      args.hasFlag(options::OPT_read_only_variables_propagation,
+                   options::OPT_no_read_only_variables_propagation,
+                   options.readOnlyVariablesPropagation);
 
-  options.variablesToParametersPromotion = args.hasFlag(
-      options::OPT_variables_to_parameters_promotion,
-      options::OPT_no_variables_to_parameters_promotion,
-      options.variablesToParametersPromotion);
+  options.variablesToParametersPromotion =
+      args.hasFlag(options::OPT_variables_to_parameters_promotion,
+                   options::OPT_no_variables_to_parameters_promotion,
+                   options.variablesToParametersPromotion);
 
-  options.cse = args.hasFlag(
-      options::OPT_cse,
-      options::OPT_no_cse,
-      options.cse);
+  options.cse =
+      args.hasFlag(options::OPT_cse, options::OPT_no_cse, options.cse);
 
-  options.equationsRuntimeScheduling = args.hasFlag(
-      options::OPT_equations_runtime_scheduling,
-      options::OPT_no_equations_runtime_scheduling,
-      options.equationsRuntimeScheduling);
+  options.equationsRuntimeScheduling =
+      args.hasFlag(options::OPT_equations_runtime_scheduling,
+                   options::OPT_no_equations_runtime_scheduling,
+                   options.equationsRuntimeScheduling);
 
-  options.omp = args.hasFlag(
-      options::OPT_omp,
-      options::OPT_no_omp,
-      options.omp);
+  options.omp =
+      args.hasFlag(options::OPT_omp, options::OPT_no_omp, options.omp);
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_bit_width)) {
+  if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_bit_width)) {
     llvm::StringRef value = arg->getValue();
     llvm::APSInt numericValue(value);
     options.bitWidth = numericValue.getSExtValue();
   }
 
   // Target-specific options.
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target_cpu)) {
+  if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_target_cpu)) {
     llvm::StringRef value = arg->getValue();
     options.cpu = value.str();
   }
@@ -600,18 +587,16 @@ static void parseCodegenArgs(
   options.features = args.getAllArgValues(options::OPT_target_feature);
 }
 
-static void parseSimulationArgs(
-    marco::frontend::SimulationOptions& options,
-    llvm::opt::ArgList& args,
-    clang::DiagnosticsEngine& diagnostics)
-{
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_model)) {
+static void parseSimulationArgs(marco::frontend::SimulationOptions &options,
+                                llvm::opt::ArgList &args,
+                                clang::DiagnosticsEngine &diagnostics) {
+  if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_model)) {
     llvm::StringRef value = arg->getValue();
     options.modelName = value.str();
   }
 
   // Determine the solver to be used.
-  for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
+  for (const auto &arg : args.getAllArgValues(options::OPT_solver)) {
     if (arg == "euler-forward") {
       options.solver = "euler-forward";
     } else if (arg == "ida") {
@@ -622,40 +607,35 @@ static void parseSimulationArgs(
       options.solver = arg;
     } else {
       diagnostics.Report(diagnostics.getCustomDiagID(
-          clang::DiagnosticsEngine::Warning,
-          "Unknown solver '%0'")) << arg;
+          clang::DiagnosticsEngine::Warning, "Unknown solver '%0'"))
+          << arg;
     }
   }
 
   // IDA: reduced system computation.
-  options.IDAReducedSystem = args.hasFlag(
-      options::OPT_ida_reduced_system,
-      options::OPT_no_ida_reduced_system,
-      options.IDAReducedSystem);
+  options.IDAReducedSystem = args.hasFlag(options::OPT_ida_reduced_system,
+                                          options::OPT_no_ida_reduced_system,
+                                          options.IDAReducedSystem);
 
   // IDA: reduced derivatives.
   options.IDAReducedDerivatives = args.hasFlag(
       options::OPT_ida_reduced_derivatives,
-      options::OPT_no_ida_reduced_derivatives,
-      options.IDAReducedDerivatives);
+      options::OPT_no_ida_reduced_derivatives, options.IDAReducedDerivatives);
 
   // IDA: AD seeds optimization.
   options.IDAJacobianOneSweep = args.hasFlag(
       options::OPT_ida_jacobian_one_sweep,
-      options::OPT_no_ida_jacobian_one_sweep,
-      options.IDAJacobianOneSweep);
+      options::OPT_no_ida_jacobian_one_sweep, options.IDAJacobianOneSweep);
 }
 
-static bool fixupInvocation(
-    marco::frontend::CompilerInvocation& invocation,
-    clang::DiagnosticsEngine& diags,
-    const llvm::opt::ArgList& args)
-{
+static bool fixupInvocation(marco::frontend::CompilerInvocation &invocation,
+                            clang::DiagnosticsEngine &diags,
+                            const llvm::opt::ArgList &args) {
   auto numErrorsBefore = diags.getNumErrors();
 
-  auto& LangOpts = invocation.getLanguageOptions();
-  auto& CodeGenOpts = invocation.getCodeGenOptions();
-  auto& TargetOpts = invocation.getTargetOptions();
+  auto &LangOpts = invocation.getLanguageOptions();
+  auto &CodeGenOpts = invocation.getCodeGenOptions();
+  auto &TargetOpts = invocation.getTargetOptions();
 
   CodeGenOpts.XRayInstrumentFunctions = LangOpts.XRayInstrument;
   CodeGenOpts.XRayAlwaysEmitCustomEvents = LangOpts.XRayAlwaysEmitCustomEvents;
@@ -673,244 +653,209 @@ static bool fixupInvocation(
 }
 
 namespace {
-  template <class T> std::shared_ptr<T> makeSharedCopy(const T &X) {
-    return std::make_shared<T>(X);
-  }
-
-  template <class T>
-  llvm::IntrusiveRefCntPtr<T> makeIntrusiveRefCntCopy(const T &X) {
-    return llvm::makeIntrusiveRefCnt<T>(X);
-  }
+template <class T>
+std::shared_ptr<T> makeSharedCopy(const T &X) {
+  return std::make_shared<T>(X);
 }
 
-namespace marco::frontend
-{
-  CompilerInvocationBase::CompilerInvocationBase()
-      : languageOptions(llvm::makeIntrusiveRefCnt<LanguageOptions>()),
-        targetOptions(std::make_shared<clang::TargetOptions>()),
-        diagnosticOptions(
-            llvm::makeIntrusiveRefCnt<clang::DiagnosticOptions>()),
-        fileSystemOptions(std::make_shared<clang::FileSystemOptions>()),
-        frontendOptions(std::make_shared<FrontendOptions>()),
-        codegenOptions(std::make_shared<CodegenOptions>()),
-        simulationOptions(std::make_shared<SimulationOptions>())
-  {
-  }
-
-  CompilerInvocationBase::CompilerInvocationBase(EmptyConstructor)
-  {
-  }
-
-  CompilerInvocationBase::CompilerInvocationBase(
-      CompilerInvocationBase&& other) = default;
-
-  CompilerInvocationBase& CompilerInvocationBase::deepCopyAssign(
-      const CompilerInvocationBase& other)
-  {
-    if (this != &other) {
-      languageOptions = makeIntrusiveRefCntCopy(other.getLanguageOptions());
-      targetOptions = makeSharedCopy(other.getTargetOptions());
-
-      diagnosticOptions =
-          makeIntrusiveRefCntCopy(other.getDiagnosticOptions());
-
-      fileSystemOptions = makeSharedCopy(other.getFileSystemOptions());
-      frontendOptions = makeSharedCopy(other.getFrontendOptions());
-      codegenOptions = makeSharedCopy(other.getCodeGenOptions());
-      simulationOptions = makeSharedCopy(other.getSimulationOptions());
-    }
-
-    return *this;
-  }
-
-  CompilerInvocationBase& CompilerInvocationBase::shallowCopyAssign(
-      const CompilerInvocationBase& other)
-  {
-    if (this != &other) {
-      languageOptions = other.languageOptions;
-      targetOptions = other.targetOptions;
-      diagnosticOptions = other.diagnosticOptions;
-      fileSystemOptions = other.fileSystemOptions;
-      frontendOptions = other.frontendOptions;
-      codegenOptions = other.codegenOptions;
-      simulationOptions = other.simulationOptions;
-    }
-
-    return *this;
-  }
-
-  CompilerInvocationBase& CompilerInvocationBase::operator=(
-      CompilerInvocationBase&& other) = default;
-
-  CompilerInvocationBase::~CompilerInvocationBase() = default;
-
-  LanguageOptions& CompilerInvocationBase::getLanguageOptions()
-  {
-    assert(languageOptions && "Compiler invocation has no language options");
-    return *languageOptions;
-  }
-
-  const LanguageOptions& CompilerInvocationBase::getLanguageOptions() const
-  {
-    assert(languageOptions && "Compiler invocation has no language options");
-    return *languageOptions;
-  }
-
-  clang::TargetOptions& CompilerInvocationBase::getTargetOptions()
-  {
-    assert(targetOptions && "Compiler invocation has no target options");
-    return *targetOptions;
-  }
-
-  const clang::TargetOptions& CompilerInvocationBase::getTargetOptions() const
-  {
-    assert(targetOptions && "Compiler invocation has no target options");
-    return *targetOptions;
-  }
-
-  std::shared_ptr<clang::TargetOptions>
-  CompilerInvocationBase::getTargetOptionsPtr()
-  {
-    assert(targetOptions && "Compiler invocation has no target options");
-    return targetOptions;
-  }
-
-  clang::DiagnosticOptions& CompilerInvocationBase::getDiagnosticOptions()
-  {
-    assert(diagnosticOptions &&
-           "Compiler invocation has no diagnostic options");
-
-    return *diagnosticOptions;
-  }
-
-  const clang::DiagnosticOptions&
-  CompilerInvocationBase::getDiagnosticOptions() const
-  {
-    assert(diagnosticOptions &&
-           "Compiler invocation has no diagnostic options");
-
-    return *diagnosticOptions;
-  }
-
-  clang::FileSystemOptions& CompilerInvocationBase::getFileSystemOptions()
-  {
-    assert(fileSystemOptions &&
-           "Compiler invocation has no file system options");
-
-    return *fileSystemOptions;
-  }
-
-  const clang::FileSystemOptions&
-  CompilerInvocationBase::getFileSystemOptions() const
-  {
-    assert(fileSystemOptions &&
-           "Compiler invocation has no file system options");
-
-    return *fileSystemOptions;
-  }
-
-  FrontendOptions& CompilerInvocationBase::getFrontendOptions()
-  {
-    assert(frontendOptions && "Compiler invocation has no frontend options");
-    return *frontendOptions;
-  }
-
-  const FrontendOptions& CompilerInvocationBase::getFrontendOptions() const
-  {
-    assert(frontendOptions && "Compiler invocation has no frontend options");
-    return *frontendOptions;
-  }
-
-  CodegenOptions& CompilerInvocationBase::getCodeGenOptions()
-  {
-    assert(codegenOptions && "Compiler invocation has no codegen options");
-    return *codegenOptions;
-  }
-
-  const CodegenOptions& CompilerInvocationBase::getCodeGenOptions() const
-  {
-    assert(codegenOptions && "Compiler invocation has no codegen options");
-    return *codegenOptions;
-  }
-
-  SimulationOptions& CompilerInvocationBase::getSimulationOptions()
-  {
-    assert(simulationOptions &&
-           "Compiler invocation has no simulation options");
-
-    return *simulationOptions;
-  }
-
-  const SimulationOptions& CompilerInvocationBase::getSimulationOptions() const
-  {
-    assert(simulationOptions &&
-           "Compiler invocation has no simulation options");
-
-    return *simulationOptions;
-  }
-
-  bool CompilerInvocation::createFromArgs(
-      CompilerInvocation& res,
-      llvm::ArrayRef<const char*> commandLineArgs,
-      clang::DiagnosticsEngine& diagnostics)
-  {
-    auto numOfErrors = diagnostics.getNumErrors();
-
-    // Parse the arguments
-    const llvm::opt::OptTable& opts = getDriverOptTable();
-    unsigned missingArgIndex, missingArgCount;
-
-    llvm::opt::InputArgList args = opts.ParseArgs(
-        commandLineArgs, missingArgIndex, missingArgCount, llvm::opt::Visibility(clang::driver::options::MC1Option));
-
-    // Check for missing argument error
-    if (missingArgCount != 0) {
-      diagnostics.Report(diagnostics.getCustomDiagID(
-          clang::DiagnosticsEngine::Error,
-          "Missing value for argument '%0'"))
-          << args.getArgString(missingArgIndex);
-    }
-
-    // Issue errors on unknown arguments
-    for (const auto* a: args.filtered(options::OPT_UNKNOWN)) {
-      auto argString = a->getAsString(args);
-      diagnostics.Report(diagnostics.getCustomDiagID(
-          clang::DiagnosticsEngine::Warning,
-          "Unknown argument '%0'")) << argString;
-    }
-
-    if (!parseDiagnosticArgs(res.getDiagnosticOptions(), args, &diagnostics)) {
-      return false;
-    }
-
-    if (!parseTargetArgs(res.getTargetOptions(), args, diagnostics)) {
-      return false;
-    }
-
-    parseFrontendArgs(res.getFrontendOptions(), args, diagnostics);
-    parseCodegenArgs(res.getCodeGenOptions(), args, diagnostics);
-    parseSimulationArgs(res.getSimulationOptions(), args, diagnostics);
-
-    fixupInvocation(res, diagnostics, args);
-
-    return numOfErrors == diagnostics.getNumErrors();
-  }
-
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-  createVFSFromCompilerInvocation(
-      const CompilerInvocation& ci, clang::DiagnosticsEngine& diags)
-  {
-    return createVFSFromCompilerInvocation(
-        ci, diags, llvm::vfs::getRealFileSystem());
-  }
-
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-  createVFSFromCompilerInvocation(
-      const CompilerInvocation& ci,
-      clang::DiagnosticsEngine& diags,
-      llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> baseFS)
-  {
-    // TODO Check if it makes sense to use VFS overlay files with Modelica.
-    return baseFS;
-  }
+template <class T>
+llvm::IntrusiveRefCntPtr<T> makeIntrusiveRefCntCopy(const T &X) {
+  return llvm::makeIntrusiveRefCnt<T>(X);
 }
+} // namespace
+
+namespace marco::frontend {
+CompilerInvocationBase::CompilerInvocationBase()
+    : languageOptions(llvm::makeIntrusiveRefCnt<LanguageOptions>()),
+      targetOptions(std::make_shared<clang::TargetOptions>()),
+      diagnosticOptions(llvm::makeIntrusiveRefCnt<clang::DiagnosticOptions>()),
+      fileSystemOptions(std::make_shared<clang::FileSystemOptions>()),
+      frontendOptions(std::make_shared<FrontendOptions>()),
+      codegenOptions(std::make_shared<CodegenOptions>()),
+      simulationOptions(std::make_shared<SimulationOptions>()) {}
+
+CompilerInvocationBase::CompilerInvocationBase(EmptyConstructor) {}
+
+CompilerInvocationBase::CompilerInvocationBase(CompilerInvocationBase &&other) =
+    default;
+
+CompilerInvocationBase &
+CompilerInvocationBase::deepCopyAssign(const CompilerInvocationBase &other) {
+  if (this != &other) {
+    languageOptions = makeIntrusiveRefCntCopy(other.getLanguageOptions());
+    targetOptions = makeSharedCopy(other.getTargetOptions());
+
+    diagnosticOptions = makeIntrusiveRefCntCopy(other.getDiagnosticOptions());
+
+    fileSystemOptions = makeSharedCopy(other.getFileSystemOptions());
+    frontendOptions = makeSharedCopy(other.getFrontendOptions());
+    codegenOptions = makeSharedCopy(other.getCodeGenOptions());
+    simulationOptions = makeSharedCopy(other.getSimulationOptions());
+  }
+
+  return *this;
+}
+
+CompilerInvocationBase &
+CompilerInvocationBase::shallowCopyAssign(const CompilerInvocationBase &other) {
+  if (this != &other) {
+    languageOptions = other.languageOptions;
+    targetOptions = other.targetOptions;
+    diagnosticOptions = other.diagnosticOptions;
+    fileSystemOptions = other.fileSystemOptions;
+    frontendOptions = other.frontendOptions;
+    codegenOptions = other.codegenOptions;
+    simulationOptions = other.simulationOptions;
+  }
+
+  return *this;
+}
+
+CompilerInvocationBase &
+CompilerInvocationBase::operator=(CompilerInvocationBase &&other) = default;
+
+CompilerInvocationBase::~CompilerInvocationBase() = default;
+
+LanguageOptions &CompilerInvocationBase::getLanguageOptions() {
+  assert(languageOptions && "Compiler invocation has no language options");
+  return *languageOptions;
+}
+
+const LanguageOptions &CompilerInvocationBase::getLanguageOptions() const {
+  assert(languageOptions && "Compiler invocation has no language options");
+  return *languageOptions;
+}
+
+clang::TargetOptions &CompilerInvocationBase::getTargetOptions() {
+  assert(targetOptions && "Compiler invocation has no target options");
+  return *targetOptions;
+}
+
+const clang::TargetOptions &CompilerInvocationBase::getTargetOptions() const {
+  assert(targetOptions && "Compiler invocation has no target options");
+  return *targetOptions;
+}
+
+std::shared_ptr<clang::TargetOptions>
+CompilerInvocationBase::getTargetOptionsPtr() {
+  assert(targetOptions && "Compiler invocation has no target options");
+  return targetOptions;
+}
+
+clang::DiagnosticOptions &CompilerInvocationBase::getDiagnosticOptions() {
+  assert(diagnosticOptions && "Compiler invocation has no diagnostic options");
+
+  return *diagnosticOptions;
+}
+
+const clang::DiagnosticOptions &
+CompilerInvocationBase::getDiagnosticOptions() const {
+  assert(diagnosticOptions && "Compiler invocation has no diagnostic options");
+
+  return *diagnosticOptions;
+}
+
+clang::FileSystemOptions &CompilerInvocationBase::getFileSystemOptions() {
+  assert(fileSystemOptions && "Compiler invocation has no file system options");
+
+  return *fileSystemOptions;
+}
+
+const clang::FileSystemOptions &
+CompilerInvocationBase::getFileSystemOptions() const {
+  assert(fileSystemOptions && "Compiler invocation has no file system options");
+
+  return *fileSystemOptions;
+}
+
+FrontendOptions &CompilerInvocationBase::getFrontendOptions() {
+  assert(frontendOptions && "Compiler invocation has no frontend options");
+  return *frontendOptions;
+}
+
+const FrontendOptions &CompilerInvocationBase::getFrontendOptions() const {
+  assert(frontendOptions && "Compiler invocation has no frontend options");
+  return *frontendOptions;
+}
+
+CodegenOptions &CompilerInvocationBase::getCodeGenOptions() {
+  assert(codegenOptions && "Compiler invocation has no codegen options");
+  return *codegenOptions;
+}
+
+const CodegenOptions &CompilerInvocationBase::getCodeGenOptions() const {
+  assert(codegenOptions && "Compiler invocation has no codegen options");
+  return *codegenOptions;
+}
+
+SimulationOptions &CompilerInvocationBase::getSimulationOptions() {
+  assert(simulationOptions && "Compiler invocation has no simulation options");
+
+  return *simulationOptions;
+}
+
+const SimulationOptions &CompilerInvocationBase::getSimulationOptions() const {
+  assert(simulationOptions && "Compiler invocation has no simulation options");
+
+  return *simulationOptions;
+}
+
+bool CompilerInvocation::createFromArgs(
+    CompilerInvocation &res, llvm::ArrayRef<const char *> commandLineArgs,
+    clang::DiagnosticsEngine &diagnostics) {
+  auto numOfErrors = diagnostics.getNumErrors();
+
+  // Parse the arguments
+  const llvm::opt::OptTable &opts = getDriverOptTable();
+  unsigned missingArgIndex, missingArgCount;
+
+  llvm::opt::InputArgList args =
+      opts.ParseArgs(commandLineArgs, missingArgIndex, missingArgCount,
+                     llvm::opt::Visibility(clang::driver::options::MC1Option));
+
+  // Check for missing argument error
+  if (missingArgCount != 0) {
+    diagnostics.Report(diagnostics.getCustomDiagID(
+        clang::DiagnosticsEngine::Error, "Missing value for argument '%0'"))
+        << args.getArgString(missingArgIndex);
+  }
+
+  // Issue errors on unknown arguments
+  for (const auto *a : args.filtered(options::OPT_UNKNOWN)) {
+    auto argString = a->getAsString(args);
+    diagnostics.Report(diagnostics.getCustomDiagID(
+        clang::DiagnosticsEngine::Warning, "Unknown argument '%0'"))
+        << argString;
+  }
+
+  if (!parseDiagnosticArgs(res.getDiagnosticOptions(), args, &diagnostics)) {
+    return false;
+  }
+
+  if (!parseTargetArgs(res.getTargetOptions(), args, diagnostics)) {
+    return false;
+  }
+
+  parseFrontendArgs(res.getFrontendOptions(), args, diagnostics);
+  parseCodegenArgs(res.getCodeGenOptions(), args, diagnostics);
+  parseSimulationArgs(res.getSimulationOptions(), args, diagnostics);
+
+  fixupInvocation(res, diagnostics, args);
+
+  return numOfErrors == diagnostics.getNumErrors();
+}
+
+llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
+createVFSFromCompilerInvocation(const CompilerInvocation &ci,
+                                clang::DiagnosticsEngine &diags) {
+  return createVFSFromCompilerInvocation(ci, diags,
+                                         llvm::vfs::getRealFileSystem());
+}
+
+llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFSFromCompilerInvocation(
+    const CompilerInvocation &ci, clang::DiagnosticsEngine &diags,
+    llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> baseFS) {
+  // TODO Check if it makes sense to use VFS overlay files with Modelica.
+  return baseFS;
+}
+} // namespace marco::frontend

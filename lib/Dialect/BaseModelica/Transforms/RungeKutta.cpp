@@ -106,13 +106,17 @@ std::unique_ptr<ButcherTableau> ButcherTableau::eulerForward() {
   //    | 1
 
   auto tableau = std::make_unique<ButcherTableau>(1, 1);
+
   tableau->setCoefficients(0);
   tableau->setNodes(0);
   tableau->setWeights(1);
+
   return tableau;
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::rk4() {
+  // clang-format off
+
   // 0    |
   // 1/2  | 1/2
   // 1/2  | 0    1/2
@@ -122,25 +126,40 @@ std::unique_ptr<ButcherTableau> ButcherTableau::rk4() {
 
   auto tableau = std::make_unique<ButcherTableau>(4, 4);
 
-  tableau->setCoefficients(
-      {0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 1, 0});
+  tableau->setCoefficients({
+    0,   0,   0, 0,
+    0.5, 0,   0, 0,
+    0,   0.5, 0, 0,
+    0,   0,   1, 0
+  });
 
   tableau->setNodes({0, 0.5, 0.5, 1});
   tableau->setWeights({1.0 / 6, 1.0 / 3, 1.0 / 3, 1.0 / 6});
+
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::genericMidPoint(double alpha) {
+  // clang-format off
+
   // 0      |
   // alpha  | alpha
   // -------|-----------------------------------------
   //        | 1 - 1 / (2 * alpha)     1 / (2 * alpha)
 
   auto tableau = std::make_unique<ButcherTableau>(2, 2);
-  tableau->setCoefficients({0, 0, alpha, 0});
+
+  tableau->setCoefficients({
+    0,     0,
+    alpha, 0
+  });
+
   tableau->setNodes({0, alpha});
   tableau->setWeights({1 - 1 / (2 * alpha), 1 / (2 * alpha)});
+
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::midpoint() {
@@ -156,6 +175,8 @@ std::unique_ptr<ButcherTableau> ButcherTableau::ralston() {
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::heunEuler() {
+  // clang-format off
+
   // 0  | 0   0
   // 1  | 1   0
   // ---|-------
@@ -163,14 +184,23 @@ std::unique_ptr<ButcherTableau> ButcherTableau::heunEuler() {
   //    | 1   0
 
   auto tableau = std::make_unique<ButcherTableau>(2, 2);
-  tableau->setCoefficients({0, 0, 1, 0});
+
+  tableau->setCoefficients({
+    0, 0,
+    1, 0
+  });
+
   tableau->setNodes({0, 1});
   tableau->setWeights({1.0 / 2, 1.0 / 2});
   tableau->setAdaptiveWeights({1, 0});
+
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::bogackiShampine() {
+  // clang-format off
+
   // 0    |
   // 1/2  | 1/2
   // 3/4  | 0     3/4
@@ -181,17 +211,24 @@ std::unique_ptr<ButcherTableau> ButcherTableau::bogackiShampine() {
 
   auto tableau = std::make_unique<ButcherTableau>(4, 4);
 
-  tableau->setCoefficients({0, 0, 0, 0, 1.0 / 2, 0, 0, 0, 0, 3.0 / 4, 0, 0,
-                            2.0 / 9, 1.0 / 3, 4.0 / 9, 0});
+  tableau->setCoefficients({
+    0,       0,       0,       0,
+    1.0 / 2, 0,       0,       0,
+    0,       3.0 / 4, 0,       0,
+    2.0 / 9, 1.0 / 3, 4.0 / 9, 0
+  });
 
   tableau->setNodes({0, 1.0 / 2, 3.0 / 4, 1});
   tableau->setWeights({2.0 / 9, 1.0 / 3, 4.0 / 9, 0});
   tableau->setAdaptiveWeights({7.0 / 24, 1.0 / 4, 1.0 / 3, 1.0 / 8});
 
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::fehlberg() {
+  // clang-format off
+
   // 0      |
   // 1/4    | 1/4
   // 3/8    | 3/32        9/32
@@ -204,55 +241,26 @@ std::unique_ptr<ButcherTableau> ButcherTableau::fehlberg() {
 
   auto tableau = std::make_unique<ButcherTableau>(6, 6);
 
-  tableau->setCoefficients({0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            1.0 / 4,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            3.0 / 32,
-                            9.0 / 32,
-                            0,
-                            0,
-                            0,
-                            0,
-                            1932.0 / 2197,
-                            -7200.0 / 2197,
-                            7296.0 / 2197,
-                            0,
-                            0,
-                            0,
-                            439.0 / 216,
-                            -8,
-                            3680.0 / 513,
-                            -845.0 / 4104,
-                            0,
-                            0,
-                            -8.0 / 27,
-                            2,
-                            -3544.0 / 2565,
-                            1859.0 / 4104,
-                            -11.0 / 40,
-                            0});
+  tableau->setCoefficients({
+    0,             0,              0,              0,             0,          0,
+    1.0 / 4,       0,              0,              0,             0,          0,
+    3.0 / 32,      9.0 / 32,       0,              0,             0,          0,
+    1932.0 / 2197, -7200.0 / 2197, 7296.0 / 2197,  0,             0,          0,
+    439.0 / 216,   -8,             3680.0 / 513,   -845.0 / 4104, 0,          0,
+    -8.0 / 27,     2,              -3544.0 / 2565, 1859.0 / 4104, -11.0 / 40, 0
+  });
 
   tableau->setNodes({0, 1.0 / 4, 3.0 / 8, 12.0 / 13, 1, 1.0 / 2});
-
-  tableau->setWeights(
-      {16.0 / 135, 0, 6656.0 / 12825, 28561.0 / 56430, -9.0 / 50, 2.0 / 55});
-
-  tableau->setAdaptiveWeights(
-      {25.0 / 216, 0, 1408.0 / 2565, 2197.0 / 4104, -1.0 / 5, 0});
+  tableau->setWeights({16.0 / 135, 0, 6656.0 / 12825, 28561.0 / 56430, -9.0 / 50, 2.0 / 55});
+  tableau->setAdaptiveWeights({25.0 / 216, 0, 1408.0 / 2565, 2197.0 / 4104, -1.0 / 5, 0});
 
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::cashKarp() {
+  // clang-format off
+
   // 0    |
   // 1/5  | 1/5
   // 3/10 | 3/40        9/40
@@ -265,55 +273,26 @@ std::unique_ptr<ButcherTableau> ButcherTableau::cashKarp() {
 
   auto tableau = std::make_unique<ButcherTableau>(6, 6);
 
-  tableau->setCoefficients({0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            1.0 / 5,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            3.0 / 40,
-                            9.0 / 40,
-                            0,
-                            0,
-                            0,
-                            0,
-                            3.0 / 10,
-                            -9.0 / 10,
-                            6.0 / 5,
-                            0,
-                            0,
-                            0,
-                            -11.0 / 54,
-                            5.0 / 2,
-                            -70.0 / 27,
-                            35.0 / 27,
-                            0,
-                            0,
-                            1631.0 / 55296,
-                            175.0 / 512,
-                            575.0 / 13824,
-                            44275.0 / 110592,
-                            253.0 / 4096,
-                            0});
+  tableau->setCoefficients({
+    0,              0,           0,             0,                0,            0,
+    1.0 / 5,        0,           0,             0,                0,            0,
+    3.0 / 40,       9.0 / 40,    0,             0,                0,            0,
+    3.0 / 10,       -9.0 / 10,   6.0 / 5,       0,                0,            0,
+    -11.0 / 54,     5.0 / 2,     -70.0 / 27,    35.0 / 27,        0,            0,
+    1631.0 / 55296, 175.0 / 512, 575.0 / 13824, 44275.0 / 110592, 253.0 / 4096, 0
+  });
 
   tableau->setNodes({0, 1.0 / 5, 3.0 / 10, 3.0 / 5, 1, 7.0 / 8});
-
-  tableau->setWeights(
-      {37.0 / 378, 0, 250.0 / 521, 125.0 / 594, 0, 512.0 / 1771});
-
-  tableau->setAdaptiveWeights({2825.0 / 27648, 0, 18575.0 / 48384,
-                               13535.0 / 55296, 277.0 / 14336, 1.0 / 4});
+  tableau->setWeights({37.0 / 378, 0, 250.0 / 521, 125.0 / 594, 0, 512.0 / 1771});
+  tableau->setAdaptiveWeights({2825.0 / 27648, 0, 18575.0 / 48384, 13535.0 / 55296, 277.0 / 14336, 1.0 / 4});
 
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::dormandPrince() {
+  // clang-format off
+
   // 0    |
   // 1/5  | 1/5
   // 3/10 | 3/40        9/40
@@ -327,77 +306,39 @@ std::unique_ptr<ButcherTableau> ButcherTableau::dormandPrince() {
 
   auto tableau = std::make_unique<ButcherTableau>(7, 7);
 
-  tableau->setCoefficients({0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            1.0 / 5,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            3.0 / 40,
-                            9.0 / 40,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            44.0 / 45,
-                            -56.0 / 15,
-                            32.0 / 9,
-                            0,
-                            0,
-                            0,
-                            0,
-                            19372.0 / 6561,
-                            -25360.0 / 2187,
-                            64448.0 / 6561,
-                            -212.0 / 729,
-                            0,
-                            0,
-                            0,
-                            9017.0 / 3168,
-                            -355.0 / 33,
-                            46732.0 / 5247,
-                            49.0 / 176,
-                            -5103.0 / 18656,
-                            0,
-                            0,
-                            35.0 / 384,
-                            0,
-                            500.0 / 1113,
-                            125.0 / 192,
-                            -2187.0 / 6784,
-                            11.0 / 84,
-                            0});
+  tableau->setCoefficients({
+    0,              0,               0,              0,              0,               0,         0,
+    1.0 / 5,        0,               0,              0,              0,               0,         0,
+    3.0 / 40,       9.0 / 40,        0,              0,              0,               0,         0,
+    44.0 / 45,      -56.0 / 15,      32.0 / 9,       0,              0,               0,         0,
+    19372.0 / 6561, -25360.0 / 2187, 64448.0 / 6561, -212.0 / 729,   0,               0,         0,
+    9017.0 / 3168,  -355.0 / 33,     46732.0 / 5247, 49.0 / 176,     -5103.0 / 18656, 0,         0,
+    35.0 / 384,     0,               500.0 / 1113,   125.0 / 192,    -2187.0 / 6784,  11.0 / 84, 0
+  });
 
   tableau->setNodes({0, 1.0 / 5, 3.0 / 10, 4.0 / 5, 8.0 / 9, 1, 1});
-
-  tableau->setWeights(
-      {35.0 / 384, 0, 500.0 / 1113, 125.0 / 192, -2187.0 / 6784, 11.0 / 84, 0});
-
-  tableau->setAdaptiveWeights({5179.0 / 57600, 0, 7571.0 / 16695, 393.0 / 640,
-                               -92097.0 / 339200, 187.0 / 2100, 1.0 / 40});
+  tableau->setWeights({35.0 / 384, 0, 500.0 / 1113, 125.0 / 192, -2187.0 / 6784, 11.0 / 84, 0});
+  tableau->setAdaptiveWeights({5179.0 / 57600, 0, 7571.0 / 16695, 393.0 / 640, -92097.0 / 339200, 187.0 / 2100, 1.0 / 40});
 
   return tableau;
+  // clang-format on
 }
 
 std::unique_ptr<ButcherTableau> ButcherTableau::eulerBackward() {
+  // clang-format off
+
   // 1  | 1
   // ---|---
   //    | 1
 
   auto tableau = std::make_unique<ButcherTableau>(1, 1);
+
   tableau->setCoefficients(1);
   tableau->setNodes(1);
   tableau->setWeights(1);
+
   return tableau;
+  // clang-format on
 }
 
 ButcherTableau::ButcherTableau(int rows, int columns)
@@ -1786,7 +1727,8 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
         auto clonedEquationOp =
             equationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
 
-        rewriter.moveOpBefore(clonedEquationOp.getOperation(), dynamicOp.getBody(), dynamicOp.getBody()->end());
+        rewriter.moveOpBefore(clonedEquationOp.getOperation(),
+                              dynamicOp.getBody(), dynamicOp.getBody()->end());
 
         newEquations.push_back(clonedEquationOp);
 

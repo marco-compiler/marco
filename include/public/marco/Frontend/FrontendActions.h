@@ -10,284 +10,260 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "llvm/Target/TargetMachine.h"
 
-namespace marco::frontend
-{
-  //===-------------------------------------------------------------------===//
-  // Custom actions
-  //===-------------------------------------------------------------------===//
-
-  class InitOnlyAction : public FrontendAction
-  {
-    public:
-      void executeAction() override;
-
-    private:
-      void printCategory(
-        llvm::raw_ostream& os, llvm::StringRef category) const;
-
-      void printOption(
-          llvm::raw_ostream& os, llvm::StringRef name, llvm::StringRef value);
-
-      void printOption(
-          llvm::raw_ostream& os, llvm::StringRef name, bool value);
-
-      void printOption(
-          llvm::raw_ostream& os, llvm::StringRef name, long value);
-
-      void printOption(
-          llvm::raw_ostream& os, llvm::StringRef name, double value);
-  };
+namespace marco::frontend {
+//===---------------------------------------------------------------------===//
+// Custom actions
+//===---------------------------------------------------------------------===//
 
-  //===-------------------------------------------------------------------===//
-  // Preprocessing actions
-  //===-------------------------------------------------------------------===//
+class InitOnlyAction : public FrontendAction {
+public:
+  void executeAction() override;
 
-  class PreprocessingAction : public FrontendAction
-  {
-    public:
-      bool beginSourceFilesAction() override;
+private:
+  void printCategory(llvm::raw_ostream &os, llvm::StringRef category) const;
 
-    protected:
-      std::string flattened;
-  };
+  void printOption(llvm::raw_ostream &os, llvm::StringRef name,
+                   llvm::StringRef value);
 
-  class EmitBaseModelicaAction : public PreprocessingAction
-  {
-    public:
-      void executeAction() override;
-  };
+  void printOption(llvm::raw_ostream &os, llvm::StringRef name, bool value);
 
-  //===-------------------------------------------------------------------===//
-  // AST actions
-  //===-------------------------------------------------------------------===//
+  void printOption(llvm::raw_ostream &os, llvm::StringRef name, long value);
 
-  enum class ASTActionKind
-  {
-    Parse
-  };
+  void printOption(llvm::raw_ostream &os, llvm::StringRef name, double value);
+};
 
-  class ASTAction : public PreprocessingAction
-  {
-    protected:
-      explicit ASTAction(ASTActionKind action);
+//===---------------------------------------------------------------------===//
+// Preprocessing actions
+//===---------------------------------------------------------------------===//
 
-    public:
-      bool beginSourceFilesAction() override;
+class PreprocessingAction : public FrontendAction {
+public:
+  bool beginSourceFilesAction() override;
 
-    private:
-      ASTActionKind action;
+protected:
+  std::string flattened;
+};
 
-    protected:
-      std::unique_ptr<ast::ASTNode> ast;
-  };
+class EmitBaseModelicaAction : public PreprocessingAction {
+public:
+  void executeAction() override;
+};
 
-  class EmitASTAction : public ASTAction
-  {
-    public:
-      EmitASTAction();
+//===---------------------------------------------------------------------===//
+// AST actions
+//===---------------------------------------------------------------------===//
 
-      void executeAction() override;
-  };
+enum class ASTActionKind { Parse };
 
-  //===-------------------------------------------------------------------===//
-  // CodeGen actions
-  //===-------------------------------------------------------------------===//
+class ASTAction : public PreprocessingAction {
+protected:
+  explicit ASTAction(ASTActionKind action);
 
-  enum class CodeGenActionKind
-  {
-    GenerateMLIR,
-    GenerateMLIRModelica,
-    GenerateMLIRLLVM,
-    GenerateLLVMIR
-  };
+public:
+  bool beginSourceFilesAction() override;
 
-  class CodeGenAction : public ASTAction
-  {
-    protected:
-      explicit CodeGenAction(CodeGenActionKind action);
+private:
+  ASTActionKind action;
 
-    public:
-      ~CodeGenAction() override;
+protected:
+  std::unique_ptr<ast::ASTNode> ast;
+};
 
-      bool beginSourceFilesAction() override;
+class EmitASTAction : public ASTAction {
+public:
+  EmitASTAction();
 
-    protected:
-      /// Set up the LLVM's TargetMachine.
-      bool setUpTargetMachine();
+  void executeAction() override;
+};
 
-      /// Get the data layout of the machine for which the code is being
-      /// compiled.
-      llvm::DataLayout getDataLayout() const;
+//===---------------------------------------------------------------------===//
+// CodeGen actions
+//===---------------------------------------------------------------------===//
 
-      /// @name MLIR
-      /// {
+enum class CodeGenActionKind {
+  GenerateMLIR,
+  GenerateMLIRModelica,
+  GenerateMLIRLLVM,
+  GenerateLLVMIR
+};
 
-      /// Register the MLIR dialects that can be encountered while parsing.
-      void registerMLIRDialects();
+class CodeGenAction : public ASTAction {
+protected:
+  explicit CodeGenAction(CodeGenActionKind action);
 
-      /// Register the MLIR extensions.
-      void registerMLIRExtensions();
+public:
+  ~CodeGenAction() override;
 
-      /// Create the MLIR context.
-      void createMLIRContext();
+  bool beginSourceFilesAction() override;
 
-      /// Get the MLIR context.
-      mlir::MLIRContext& getMLIRContext();
+protected:
+  /// Set up the LLVM's TargetMachine.
+  bool setUpTargetMachine();
 
-      /// Create the LLVM context.
-      void createLLVMContext();
+  /// Get the data layout of the machine for which the code is being
+  /// compiled.
+  llvm::DataLayout getDataLayout() const;
 
-      /// Get the LLVM context.
-      llvm::LLVMContext& getLLVMContext();
+  /// @name MLIR
+  /// {
 
-      /// Parse MLIR from the source file if in MLIR format, or generate it
-      /// according to the source file type.
-      bool generateMLIR();
+  /// Register the MLIR dialects that can be encountered while parsing.
+  void registerMLIRDialects();
 
-      /// Parse MLIR from the source file if in MLIR format (or generate it)
-      /// and obtain the Modelica dialect.
-      bool generateMLIRModelica();
+  /// Register the MLIR extensions.
+  void registerMLIRExtensions();
 
-      /// Parse MLIR from the source file if in MLIR format (or generate it)
-      /// and obtain the LLVM dialect.
-      bool generateMLIRLLVM();
+  /// Create the MLIR context.
+  void createMLIRContext();
 
-      /// Set the target triple inside the MLIR module.
-      void setMLIRModuleTargetTriple();
+  /// Get the MLIR context.
+  mlir::MLIRContext &getMLIRContext();
 
-      /// Set the data layout inside the MLIR module.
-      void setMLIRModuleDataLayout();
+  /// Create the LLVM context.
+  void createLLVMContext();
 
-      /// Given a pass manager, append the passes to lower the MLIR module to
-      /// the LLVM dialect.
-      void buildMLIRLoweringPipeline(mlir::PassManager& pm);
+  /// Get the LLVM context.
+  llvm::LLVMContext &getLLVMContext();
 
-      /// }
-      /// @name Modelica passes.
-      /// {
+  /// Parse MLIR from the source file if in MLIR format, or generate it
+  /// according to the source file type.
+  bool generateMLIR();
 
-      std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
-      std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
+  /// Parse MLIR from the source file if in MLIR format (or generate it)
+  /// and obtain the Modelica dialect.
+  bool generateMLIRModelica();
 
-      std::unique_ptr<mlir::Pass> createMLIRRungeKuttaPass(llvm::StringRef variant);
-      std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
-      std::unique_ptr<mlir::Pass> createMLIRIDAPass();
-      std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
+  /// Parse MLIR from the source file if in MLIR format (or generate it)
+  /// and obtain the LLVM dialect.
+  bool generateMLIRLLVM();
 
-      /// }
-      /// @name Conversion passes.
-      /// {
+  /// Set the target triple inside the MLIR module.
+  void setMLIRModuleTargetTriple();
 
-      std::unique_ptr<mlir::Pass>
-      createMLIRBaseModelicaToRuntimeConversionPass();
+  /// Set the data layout inside the MLIR module.
+  void setMLIRModuleDataLayout();
 
-      /// }
-      /// @name MLIR built-in passes.
-      /// {
+  /// Given a pass manager, append the passes to lower the MLIR module to
+  /// the LLVM dialect.
+  void buildMLIRLoweringPipeline(mlir::PassManager &pm);
 
-      std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass();
-      void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager& pm);
-      std::unique_ptr<mlir::Pass> createMLIRLoopTilingPass();
+  /// }
+  /// @name Modelica passes.
+  /// {
 
-      /// }
-      /// @name LLVM-IR
-      /// {
+  std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
+  std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
-      /// Register the translations needed to emit LLVM-IR.
-      void registerMLIRToLLVMIRTranslations();
+  std::unique_ptr<mlir::Pass> createMLIRRungeKuttaPass(llvm::StringRef variant);
+  std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
+  std::unique_ptr<mlir::Pass> createMLIRIDAPass();
+  std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
 
-      /// Parse LLVM-IR from the source file if in LLVM-IR format, or generate
-      /// it according to the source file type.
-      bool generateLLVMIR();
+  /// }
+  /// @name Conversion passes.
+  /// {
 
-      /// Set the target triple inside the LLVM module.
-      void setLLVMModuleTargetTriple();
+  std::unique_ptr<mlir::Pass> createMLIRBaseModelicaToRuntimeConversionPass();
 
-      /// Set the data layout inside the LLVM module.
-      void setLLVMModuleDataLayout();
+  /// }
+  /// @name MLIR built-in passes.
+  /// {
 
-      /// Run the optimization (aka middle-end) pipeline on the LLVM module
-      /// associated with this action.
-      void runOptimizationPipeline();
+  std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass();
+  void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager &pm);
+  std::unique_ptr<mlir::Pass> createMLIRLoopTilingPass();
 
-      /// }
-      /// @name Backend
-      /// {
+  /// }
+  /// @name LLVM-IR
+  /// {
 
-      void emitBackendOutput(
-          clang::BackendAction backendAction,
-          std::unique_ptr<llvm::raw_pwrite_stream> os);
+  /// Register the translations needed to emit LLVM-IR.
+  void registerMLIRToLLVMIRTranslations();
 
-      /// }
+  /// Parse LLVM-IR from the source file if in LLVM-IR format, or generate
+  /// it according to the source file type.
+  bool generateLLVMIR();
 
-    private:
-      CodeGenActionKind action;
-      mlir::DialectRegistry mlirDialectRegistry;
-      std::unique_ptr<mlir::MLIRContext> mlirContext;
-      std::unique_ptr<DiagnosticHandler> diagnosticHandler;
-      std::unique_ptr<llvm::LLVMContext> llvmContext;
+  /// Set the target triple inside the LLVM module.
+  void setLLVMModuleTargetTriple();
 
-    protected:
-      std::unique_ptr<mlir::ModuleOp> mlirModule;
-      std::unique_ptr<llvm::Module> llvmModule;
-      std::unique_ptr<llvm::TargetMachine> targetMachine;
-  };
+  /// Set the data layout inside the LLVM module.
+  void setLLVMModuleDataLayout();
 
-  class EmitMLIRAction : public CodeGenAction
-  {
-    public:
-      EmitMLIRAction();
+  /// Run the optimization (aka middle-end) pipeline on the LLVM module
+  /// associated with this action.
+  void runOptimizationPipeline();
 
-      void executeAction() override;
-  };
+  /// }
+  /// @name Backend
+  /// {
 
-  class EmitMLIRModelicaAction : public CodeGenAction
-  {
-    public:
-      EmitMLIRModelicaAction();
+  void emitBackendOutput(clang::BackendAction backendAction,
+                         std::unique_ptr<llvm::raw_pwrite_stream> os);
 
-      void executeAction() override;
-  };
+  /// }
 
-  class EmitMLIRLLVMAction : public CodeGenAction
-  {
-    public:
-      EmitMLIRLLVMAction();
+private:
+  CodeGenActionKind action;
+  mlir::DialectRegistry mlirDialectRegistry;
+  std::unique_ptr<mlir::MLIRContext> mlirContext;
+  std::unique_ptr<DiagnosticHandler> diagnosticHandler;
+  std::unique_ptr<llvm::LLVMContext> llvmContext;
 
-      void executeAction() override;
-  };
+protected:
+  std::unique_ptr<mlir::ModuleOp> mlirModule;
+  std::unique_ptr<llvm::Module> llvmModule;
+  std::unique_ptr<llvm::TargetMachine> targetMachine;
+};
 
-  class EmitLLVMIRAction : public CodeGenAction
-  {
-    public:
-      EmitLLVMIRAction();
+class EmitMLIRAction : public CodeGenAction {
+public:
+  EmitMLIRAction();
 
-      void executeAction() override;
-  };
+  void executeAction() override;
+};
 
-  class EmitBitcodeAction : public CodeGenAction
-  {
-    public:
-      EmitBitcodeAction();
+class EmitMLIRModelicaAction : public CodeGenAction {
+public:
+  EmitMLIRModelicaAction();
 
-      void executeAction() override;
-  };
+  void executeAction() override;
+};
 
-  class EmitAssemblyAction : public CodeGenAction
-  {
-    public:
-      EmitAssemblyAction();
+class EmitMLIRLLVMAction : public CodeGenAction {
+public:
+  EmitMLIRLLVMAction();
 
-      void executeAction() override;
-  };
+  void executeAction() override;
+};
 
-  class EmitObjAction : public CodeGenAction
-  {
-    public:
-      EmitObjAction();
+class EmitLLVMIRAction : public CodeGenAction {
+public:
+  EmitLLVMIRAction();
 
-      void executeAction() override;
-  };
-}
+  void executeAction() override;
+};
+
+class EmitBitcodeAction : public CodeGenAction {
+public:
+  EmitBitcodeAction();
+
+  void executeAction() override;
+};
+
+class EmitAssemblyAction : public CodeGenAction {
+public:
+  EmitAssemblyAction();
+
+  void executeAction() override;
+};
+
+class EmitObjAction : public CodeGenAction {
+public:
+  EmitObjAction();
+
+  void executeAction() override;
+};
+} // namespace marco::frontend
 
 #endif // MARCO_FRONTEND_FRONTENDACTIONS_H

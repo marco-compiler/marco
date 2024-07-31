@@ -43,11 +43,10 @@
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPromotion.h"
 #include "marco/Dialect/BaseModelica/Transforms/ViewAccessFolding.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 /// Generate the code for registering passes.
 #define GEN_PASS_REGISTRATION
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 #endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_PASSES_H

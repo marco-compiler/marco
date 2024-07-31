@@ -11,303 +11,226 @@
 
 #define DEBUG_TYPE "scc-solving-with-kinsol"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCCSOLVINGWITHKINSOLPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  /// Utility class to be used when variables are only partially written by the
-  /// equations composing the SCC.
-  /// The original variable is masked by an additional variable, of which only
-  /// the written indices will be forwarded to the original one.
-  class ProxyVariable
-  {
-    public:
-      ProxyVariable();
+namespace {
+/// Utility class to be used when variables are only partially written by the
+/// equations composing the SCC.
+/// The original variable is masked by an additional variable, of which only
+/// the written indices will be forwarded to the original one.
+class ProxyVariable {
+public:
+  ProxyVariable();
 
-      ProxyVariable(VariableOp original, GlobalVariableOp proxy, IndexSet mask);
+  ProxyVariable(VariableOp original, GlobalVariableOp proxy, IndexSet mask);
 
-      [[nodiscard]] VariableOp getOriginalVariable() const;
+  [[nodiscard]] VariableOp getOriginalVariable() const;
 
-      [[nodiscard]] GlobalVariableOp getProxyVariable() const;
+  [[nodiscard]] GlobalVariableOp getProxyVariable() const;
 
-      [[nodiscard]] const IndexSet& getMask() const;
+  [[nodiscard]] const IndexSet &getMask() const;
 
-    private:
-      VariableOp original;
-      GlobalVariableOp proxy;
-      IndexSet mask;
-  };
+private:
+  VariableOp original;
+  GlobalVariableOp proxy;
+  IndexSet mask;
+};
 
-  using ProxyMap = llvm::DenseMap<VariableOp, ProxyVariable>;
+using ProxyMap = llvm::DenseMap<VariableOp, ProxyVariable>;
 
-  class KINSOLInstance
-  {
-    public:
-      KINSOLInstance(
-          llvm::StringRef identifier,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          bool reducedDerivatives,
-          bool debugInformation);
+class KINSOLInstance {
+public:
+  KINSOLInstance(llvm::StringRef identifier,
+                 mlir::SymbolTableCollection &symbolTableCollection,
+                 bool reducedDerivatives, bool debugInformation);
 
-      [[nodiscard]] bool hasVariable(VariableOp variable) const;
+  [[nodiscard]] bool hasVariable(VariableOp variable) const;
 
-      void addVariable(VariableOp variable, const IndexSet& writtenIndices);
+  void addVariable(VariableOp variable, const IndexSet &writtenIndices);
 
-      void addEquation(ScheduledEquationInstanceOp equation);
+  void addEquation(ScheduledEquationInstanceOp equation);
 
-      mlir::LogicalResult initialize(
-          mlir::OpBuilder& builder,
-          mlir::Location loc);
+  mlir::LogicalResult initialize(mlir::OpBuilder &builder, mlir::Location loc);
 
-      mlir::LogicalResult configure(
-          mlir::RewriterBase& rewriter,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          llvm::ArrayRef<VariableOp> variableOps,
-          ProxyMap& proxyMap);
+  mlir::LogicalResult configure(mlir::RewriterBase &rewriter,
+                                mlir::Location loc, mlir::ModuleOp moduleOp,
+                                ModelOp modelOp,
+                                llvm::ArrayRef<VariableOp> variableOps,
+                                ProxyMap &proxyMap);
 
-      mlir::LogicalResult performSolve(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          ModelOp modelOp,
-          const ProxyMap& proxyMap);
+  mlir::LogicalResult performSolve(mlir::OpBuilder &builder, mlir::Location loc,
+                                   ModelOp modelOp, const ProxyMap &proxyMap);
 
-      mlir::LogicalResult deleteInstance(
-          mlir::OpBuilder& builder,
-          mlir::Location loc);
+  mlir::LogicalResult deleteInstance(mlir::OpBuilder &builder,
+                                     mlir::Location loc);
 
-    private:
-      mlir::LogicalResult addVariablesToKINSOL(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          llvm::ArrayRef<VariableOp> variableOps,
-          ProxyMap& proxyMap);
+private:
+  mlir::LogicalResult
+  addVariablesToKINSOL(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, ModelOp modelOp,
+                       llvm::ArrayRef<VariableOp> variableOps,
+                       ProxyMap &proxyMap);
 
-      GlobalVariableOp createProxyVariable(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp moduleOp,
-          VariableOp variableOp,
-          llvm::StringRef proxyName);
+  GlobalVariableOp createProxyVariable(mlir::OpBuilder &builder,
+                                       mlir::ModuleOp moduleOp,
+                                       VariableOp variableOp,
+                                       llvm::StringRef proxyName);
 
-      mlir::sundials::VariableGetterOp createGetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          llvm::StringRef functionName,
-          VariableOp variable);
+  mlir::sundials::VariableGetterOp
+  createGetterFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, llvm::StringRef functionName,
+                       VariableOp variable);
 
-      mlir::sundials::VariableGetterOp createGetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          llvm::StringRef functionName,
-          GlobalVariableOp variable);
+  mlir::sundials::VariableGetterOp
+  createGetterFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, llvm::StringRef functionName,
+                       GlobalVariableOp variable);
 
-      mlir::sundials::VariableSetterOp createSetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          llvm::StringRef functionName,
-          VariableOp variable);
+  mlir::sundials::VariableSetterOp
+  createSetterFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, llvm::StringRef functionName,
+                       VariableOp variable);
 
-      mlir::sundials::VariableSetterOp createSetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          llvm::StringRef functionName,
-          GlobalVariableOp variable);
+  mlir::sundials::VariableSetterOp
+  createSetterFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, llvm::StringRef functionName,
+                       GlobalVariableOp variable);
 
-      mlir::LogicalResult addEquationsToKINSOL(
-          mlir::RewriterBase& rewriter,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          llvm::ArrayRef<VariableOp> variableOps,
-          const ProxyMap& proxyMap,
-          llvm::DenseMap<
-              mlir::AffineMap,
-              mlir::sundials::AccessFunctionOp>& accessFunctionsMap);
+  mlir::LogicalResult addEquationsToKINSOL(
+      mlir::RewriterBase &rewriter, mlir::Location loc, mlir::ModuleOp moduleOp,
+      ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
+      const ProxyMap &proxyMap,
+      llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+          &accessFunctionsMap);
 
-      mlir::LogicalResult addVariableAccessesInfoToKINSOL(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp,
-          mlir::Value kinsolEquation,
-          llvm::DenseMap<
-              mlir::AffineMap,
-              mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
-          size_t& accessFunctionsCounter);
+  mlir::LogicalResult addVariableAccessesInfoToKINSOL(
+      mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
+      ScheduledEquationInstanceOp equationOp, mlir::Value kinsolEquation,
+      llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+          &accessFunctionsMap,
+      size_t &accessFunctionsCounter);
 
-      mlir::sundials::AccessFunctionOp getOrCreateAccessFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          mlir::AffineMap access,
-          llvm::StringRef functionNamePrefix,
-          llvm::DenseMap<
-              mlir::AffineMap,
-              mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
-          size_t& accessFunctionsCounter);
+  mlir::sundials::AccessFunctionOp getOrCreateAccessFunction(
+      mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+      mlir::AffineMap access, llvm::StringRef functionNamePrefix,
+      llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+          &accessFunctionsMap,
+      size_t &accessFunctionsCounter);
 
-      mlir::sundials::AccessFunctionOp createAccessFunction(
-          mlir::OpBuilder& builder,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp,
-          mlir::AffineMap access,
-          llvm::StringRef functionName);
+  mlir::sundials::AccessFunctionOp
+  createAccessFunction(mlir::OpBuilder &builder, mlir::Location loc,
+                       mlir::ModuleOp moduleOp, mlir::AffineMap access,
+                       llvm::StringRef functionName);
 
-      mlir::LogicalResult createResidualFunction(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp,
-          llvm::StringRef residualFunctionName,
-          const ProxyMap& proxyMap);
+  mlir::LogicalResult createResidualFunction(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      ScheduledEquationInstanceOp equationOp,
+      llvm::StringRef residualFunctionName, const ProxyMap &proxyMap);
 
-      mlir::LogicalResult createProxyResidualFunction(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          const ProxyVariable& proxy,
-          llvm::StringRef residualFunctionName);
+  mlir::LogicalResult createProxyResidualFunction(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      const ProxyVariable &proxy, llvm::StringRef residualFunctionName);
 
-      mlir::LogicalResult getIndependentVariablesForAD(
-          llvm::DenseSet<VariableOp>& result,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp);
+  mlir::LogicalResult
+  getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
+                               ModelOp modelOp,
+                               ScheduledEquationInstanceOp equationOp);
 
-      mlir::LogicalResult createPartialDerTemplateFunction(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp,
-          llvm::DenseMap<VariableOp, size_t>& variablesPos,
-          llvm::StringRef templateName,
-          const ProxyMap& proxyMap);
+  mlir::LogicalResult createPartialDerTemplateFunction(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      ScheduledEquationInstanceOp equationOp,
+      llvm::DenseMap<VariableOp, size_t> &variablesPos,
+      llvm::StringRef templateName, const ProxyMap &proxyMap);
 
-      mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp,
-          llvm::DenseMap<VariableOp, size_t>& variablesPos,
-          llvm::StringRef templateName,
-          const ProxyMap& proxyMap);
+  mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      ScheduledEquationInstanceOp equationOp,
+      llvm::DenseMap<VariableOp, size_t> &variablesPos,
+      llvm::StringRef templateName, const ProxyMap &proxyMap);
 
-      mlir::LogicalResult createJacobianFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          ScheduledEquationInstanceOp equationOp,
-          llvm::StringRef jacobianFunctionName,
-          const llvm::DenseMap<VariableOp, size_t>& variablesPos,
-          VariableOp independentVariable,
-          llvm::StringRef partialDerTemplateName);
+  mlir::LogicalResult createJacobianFunction(
+      mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      ScheduledEquationInstanceOp equationOp,
+      llvm::StringRef jacobianFunctionName,
+      const llvm::DenseMap<VariableOp, size_t> &variablesPos,
+      VariableOp independentVariable, llvm::StringRef partialDerTemplateName);
 
-      mlir::LogicalResult createProxyJacobianFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp moduleOp,
-          const ProxyVariable& proxy,
-          VariableOp independentVariable,
-          llvm::StringRef jacobianFunctionName);
+  mlir::LogicalResult
+  createProxyJacobianFunction(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
+                              const ProxyVariable &proxy,
+                              VariableOp independentVariable,
+                              llvm::StringRef jacobianFunctionName);
 
-      [[nodiscard]] std::string getKINSOLFunctionName(
-          llvm::StringRef name) const;
+  [[nodiscard]] std::string getKINSOLFunctionName(llvm::StringRef name) const;
 
-      [[nodiscard]] std::string getKINSOLProxyVariableName(
-          llvm::StringRef name) const;
+  [[nodiscard]] std::string
+  getKINSOLProxyVariableName(llvm::StringRef name) const;
 
-      mlir::LogicalResult replaceVariableGetOps(
-          mlir::RewriterBase& rewriter,
-          ModelOp modelOp,
-          llvm::ArrayRef<VariableGetOp> getOps,
-          const ProxyMap& proxyMap);
+  mlir::LogicalResult
+  replaceVariableGetOps(mlir::RewriterBase &rewriter, ModelOp modelOp,
+                        llvm::ArrayRef<VariableGetOp> getOps,
+                        const ProxyMap &proxyMap);
 
-    private:
-      /// Instance identifier.
-      /// It is used to create unique symbols.
-      std::string identifier;
+private:
+  /// Instance identifier.
+  /// It is used to create unique symbols.
+  std::string identifier;
 
-      mlir::SymbolTableCollection* symbolTableCollection;
+  mlir::SymbolTableCollection *symbolTableCollection;
 
-      bool reducedDerivatives;
-      bool debugInformation;
+  bool reducedDerivatives;
+  bool debugInformation;
 
-      /// The variables of the model that are managed by KINSOL.
-      llvm::SmallVector<VariableOp> variables;
+  /// The variables of the model that are managed by KINSOL.
+  llvm::SmallVector<VariableOp> variables;
 
-      /// The written indices of the variables.
-      llvm::DenseMap<VariableOp, IndexSet> writtenVariableIndices;
+  /// The written indices of the variables.
+  llvm::DenseMap<VariableOp, IndexSet> writtenVariableIndices;
 
-      /// The SSA values of the KINSOL variables.
-      llvm::SmallVector<mlir::Value> kinsolVariables;
+  /// The SSA values of the KINSOL variables.
+  llvm::SmallVector<mlir::Value> kinsolVariables;
 
-      /// Map used for a faster lookup of the variable position.
-      llvm::DenseMap<VariableOp, size_t> variablesLookup;
+  /// Map used for a faster lookup of the variable position.
+  llvm::DenseMap<VariableOp, size_t> variablesLookup;
 
-      /// The equations managed by KINSOL.
-      llvm::DenseSet<ScheduledEquationInstanceOp> equations;
-  };
-}
+  /// The equations managed by KINSOL.
+  llvm::DenseSet<ScheduledEquationInstanceOp> equations;
+};
+} // namespace
 
-ProxyVariable::ProxyVariable()
-{
-}
+ProxyVariable::ProxyVariable() {}
 
-ProxyVariable::ProxyVariable(
-    VariableOp original, GlobalVariableOp proxy, IndexSet mask)
-    : original(original),
-      proxy(proxy),
-      mask(std::move(mask))
-{
-}
+ProxyVariable::ProxyVariable(VariableOp original, GlobalVariableOp proxy,
+                             IndexSet mask)
+    : original(original), proxy(proxy), mask(std::move(mask)) {}
 
-VariableOp ProxyVariable::getOriginalVariable() const
-{
-  return original;
-}
+VariableOp ProxyVariable::getOriginalVariable() const { return original; }
 
-GlobalVariableOp ProxyVariable::getProxyVariable() const
-{
-  return proxy;
-}
+GlobalVariableOp ProxyVariable::getProxyVariable() const { return proxy; }
 
-const IndexSet& ProxyVariable::getMask() const
-{
-  return mask;
-}
+const IndexSet &ProxyVariable::getMask() const { return mask; }
 
 KINSOLInstance::KINSOLInstance(
     llvm::StringRef identifier,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    bool reducedDerivatives,
+    mlir::SymbolTableCollection &symbolTableCollection, bool reducedDerivatives,
     bool debugInformation)
     : identifier(identifier.str()),
       symbolTableCollection(&symbolTableCollection),
       reducedDerivatives(reducedDerivatives),
-      debugInformation(debugInformation)
-{
-}
+      debugInformation(debugInformation) {}
 
-bool KINSOLInstance::hasVariable(VariableOp variable) const
-{
+bool KINSOLInstance::hasVariable(VariableOp variable) const {
   assert(variable != nullptr);
   return variablesLookup.contains(variable);
 }
 
-void KINSOLInstance::addVariable(
-    VariableOp variable, const IndexSet& writtenIndices)
-{
+void KINSOLInstance::addVariable(VariableOp variable,
+                                 const IndexSet &writtenIndices) {
   assert(variable != nullptr);
 
   if (!hasVariable(variable)) {
@@ -318,57 +241,49 @@ void KINSOLInstance::addVariable(
   writtenVariableIndices[variable] += writtenIndices;
 }
 
-void KINSOLInstance::addEquation(ScheduledEquationInstanceOp equation)
-{
+void KINSOLInstance::addEquation(ScheduledEquationInstanceOp equation) {
   assert(equation != nullptr);
   equations.insert(equation);
 }
 
-mlir::LogicalResult KINSOLInstance::initialize(
-    mlir::OpBuilder& builder,
-    mlir::Location loc)
-{
+mlir::LogicalResult KINSOLInstance::initialize(mlir::OpBuilder &builder,
+                                               mlir::Location loc) {
   // Initialize the instance.
   builder.create<mlir::kinsol::InitOp>(loc, identifier);
 
   return mlir::success();
 }
 
-mlir::LogicalResult KINSOLInstance::configure(
-    mlir::RewriterBase& rewriter,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    ProxyMap& proxyMap)
-{
-  llvm::DenseMap<
-      mlir::AffineMap,
-      mlir::sundials::AccessFunctionOp> accessFunctionsMap;
+mlir::LogicalResult
+KINSOLInstance::configure(mlir::RewriterBase &rewriter, mlir::Location loc,
+                          mlir::ModuleOp moduleOp, ModelOp modelOp,
+                          llvm::ArrayRef<VariableOp> variableOps,
+                          ProxyMap &proxyMap) {
+  llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+      accessFunctionsMap;
 
   // Add the variables to KINSOL.
-  if (mlir::failed(addVariablesToKINSOL(
-          rewriter, loc, moduleOp, modelOp, variableOps, proxyMap))) {
+  if (mlir::failed(addVariablesToKINSOL(rewriter, loc, moduleOp, modelOp,
+                                        variableOps, proxyMap))) {
     return mlir::failure();
   }
 
   // Add the equations to KINSOL.
-  if (mlir::failed(addEquationsToKINSOL(
-          rewriter, loc, moduleOp, modelOp, variableOps,
-          proxyMap, accessFunctionsMap))) {
+  if (mlir::failed(addEquationsToKINSOL(rewriter, loc, moduleOp, modelOp,
+                                        variableOps, proxyMap,
+                                        accessFunctionsMap))) {
     return mlir::failure();
   }
 
   return mlir::success();
 }
 
-static void buildAffineLoopNest(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    const MultidimensionalRange& range,
-    llvm::function_ref<void(
-        mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> bodyBuilderFn)
-{
+static void
+buildAffineLoopNest(mlir::OpBuilder &builder, mlir::Location loc,
+                    const MultidimensionalRange &range,
+                    llvm::function_ref<void(mlir::OpBuilder &, mlir::Location,
+                                            mlir::ValueRange)>
+                        bodyBuilderFn) {
   llvm::SmallVector<int64_t> lowerBounds;
   llvm::SmallVector<int64_t> upperBounds;
   llvm::SmallVector<int64_t> steps;
@@ -379,16 +294,14 @@ static void buildAffineLoopNest(
     steps.push_back(1);
   }
 
-  mlir::affine::buildAffineLoopNest(
-      builder, loc, lowerBounds, upperBounds, steps, bodyBuilderFn);
+  mlir::affine::buildAffineLoopNest(builder, loc, lowerBounds, upperBounds,
+                                    steps, bodyBuilderFn);
 }
 
-mlir::LogicalResult KINSOLInstance::performSolve(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    ModelOp modelOp,
-    const ProxyMap& proxyMap)
-{
+mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
+                                                 mlir::Location loc,
+                                                 ModelOp modelOp,
+                                                 const ProxyMap &proxyMap) {
   // Copy original variables into proxy ones.
   for (VariableOp variableOp : variables) {
     auto proxyIt = proxyMap.find(variableOp);
@@ -401,11 +314,11 @@ mlir::LogicalResult KINSOLInstance::performSolve(
     assert(!variableIndices.empty());
     GlobalVariableOp proxy = proxyIt->getSecond().getProxyVariable();
 
-    for (const MultidimensionalRange& range : llvm::make_range(
+    for (const MultidimensionalRange &range : llvm::make_range(
              variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
       buildAffineLoopNest(
           builder, loc, range,
-          [&](mlir::OpBuilder& nestedBuilder, mlir::Location nestedLoc,
+          [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
               mlir::ValueRange indices) {
             mlir::Value source = nestedBuilder.create<QualifiedVariableGetOp>(
                 nestedLoc, variableOp.getVariableType().toArrayType(),
@@ -413,10 +326,11 @@ mlir::LogicalResult KINSOLInstance::performSolve(
 
             source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
 
-            mlir::Value destination = nestedBuilder.create<GlobalVariableGetOp>(
-                nestedLoc, proxy);
+            mlir::Value destination =
+                nestedBuilder.create<GlobalVariableGetOp>(nestedLoc, proxy);
 
-            nestedBuilder.create<StoreOp>(nestedLoc, source, destination, indices);
+            nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
+                                          indices);
           });
     }
   }
@@ -433,23 +347,25 @@ mlir::LogicalResult KINSOLInstance::performSolve(
 
     GlobalVariableOp proxy = proxyIt->getSecond().getProxyVariable();
 
-    for (const MultidimensionalRange& range : llvm::make_range(
-             proxyIt->getSecond().getMask().rangesBegin(),
-             proxyIt->getSecond().getMask().rangesEnd())) {
+    for (const MultidimensionalRange &range :
+         llvm::make_range(proxyIt->getSecond().getMask().rangesBegin(),
+                          proxyIt->getSecond().getMask().rangesEnd())) {
       buildAffineLoopNest(
           builder, loc, range,
-          [&](mlir::OpBuilder& nestedBuilder, mlir::Location nestedLoc,
+          [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
               mlir::ValueRange indices) {
-            mlir::Value source = nestedBuilder.create<GlobalVariableGetOp>(
-                nestedLoc, proxy);
+            mlir::Value source =
+                nestedBuilder.create<GlobalVariableGetOp>(nestedLoc, proxy);
 
             source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
 
-            mlir::Value destination = nestedBuilder.create<QualifiedVariableGetOp>(
-                nestedLoc, variableOp.getVariableType().toArrayType(),
-                getSymbolRefFromRoot(variableOp));
+            mlir::Value destination =
+                nestedBuilder.create<QualifiedVariableGetOp>(
+                    nestedLoc, variableOp.getVariableType().toArrayType(),
+                    getSymbolRefFromRoot(variableOp));
 
-            nestedBuilder.create<StoreOp>(nestedLoc, source, destination, indices);
+            nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
+                                          indices);
           });
     }
   }
@@ -457,22 +373,16 @@ mlir::LogicalResult KINSOLInstance::performSolve(
   return mlir::success();
 }
 
-mlir::LogicalResult KINSOLInstance::deleteInstance(
-    mlir::OpBuilder& builder,
-    mlir::Location loc)
-{
+mlir::LogicalResult KINSOLInstance::deleteInstance(mlir::OpBuilder &builder,
+                                                   mlir::Location loc) {
   builder.create<mlir::kinsol::FreeOp>(loc, identifier);
   return mlir::success();
 }
 
 mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    ProxyMap& proxyMap)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
+    ProxyMap &proxyMap) {
   // Counters used to generate unique names for the getter and setter
   // functions.
   unsigned int getterFunctionCounter = 0;
@@ -504,13 +414,12 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
     auto proxyMapIt = proxyMap.find(variableOp);
 
     if (proxyMapIt == proxyMap.end()) {
-      return createGetterFunction(
-          builder, loc, moduleOp, getterName, variableOp);
+      return createGetterFunction(builder, loc, moduleOp, getterName,
+                                  variableOp);
     }
 
-    return createGetterFunction(
-        builder, loc, moduleOp, getterName,
-        proxyMapIt->getSecond().getProxyVariable());
+    return createGetterFunction(builder, loc, moduleOp, getterName,
+                                proxyMapIt->getSecond().getProxyVariable());
   };
 
   auto createSetterFn =
@@ -521,13 +430,12 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
     auto proxyMapIt = proxyMap.find(variableOp);
 
     if (proxyMapIt == proxyMap.end()) {
-      return createSetterFunction(
-          builder, loc, moduleOp, setterName, variableOp);
+      return createSetterFunction(builder, loc, moduleOp, setterName,
+                                  variableOp);
     }
 
-    return createSetterFunction(
-        builder, loc, moduleOp, setterName,
-        proxyMapIt->getSecond().getProxyVariable());
+    return createSetterFunction(builder, loc, moduleOp, setterName,
+                                proxyMapIt->getSecond().getProxyVariable());
   };
 
   // Algebraic variables.
@@ -537,17 +445,16 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
     if (IndexSet variableIndices = variableOp.getIndices();
         writtenVariableIndices[variableOp] != variableIndices) {
       LLVM_DEBUG({
-        llvm::dbgs()
-            << "Variable is not fully written by the SCC.\n"
-            << "  Variable name: " << variableOp.getSymName() << "\n"
-            << "  Variable indices: " << variableIndices << "\n"
-            << "  Written indices: " << writtenVariableIndices[variableOp]
-            << "\n";
+        llvm::dbgs() << "Variable is not fully written by the SCC.\n"
+                     << "  Variable name: " << variableOp.getSymName() << "\n"
+                     << "  Variable indices: " << variableIndices << "\n"
+                     << "  Written indices: "
+                     << writtenVariableIndices[variableOp] << "\n";
       });
 
-      GlobalVariableOp proxy = createProxyVariable(
-          builder, moduleOp, variableOp,
-          getKINSOLFunctionName(variableOp.getSymName()));
+      GlobalVariableOp proxy =
+          createProxyVariable(builder, moduleOp, variableOp,
+                              getKINSOLFunctionName(variableOp.getSymName()));
 
       if (!proxy) {
         LLVM_DEBUG({
@@ -559,13 +466,12 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
       }
 
       LLVM_DEBUG({
-        llvm::dbgs()
-            << "Proxy variable '" << proxy.getSymName()
-            << "' created for '" << variableOp.getSymName() << "'\n";
+        llvm::dbgs() << "Proxy variable '" << proxy.getSymName()
+                     << "' created for '" << variableOp.getSymName() << "'\n";
       });
 
-      proxyMap[variableOp] = ProxyVariable(
-          variableOp, proxy, writtenVariableIndices[variableOp]);
+      proxyMap[variableOp] =
+          ProxyVariable(variableOp, proxy, writtenVariableIndices[variableOp]);
     }
 
     // Declare the variable inside the KINSOL instance.
@@ -575,13 +481,9 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
     auto getter = createGetterFn(variableOp);
     auto setter = createSetterFn(variableOp);
 
-    auto addVariableOp =
-        builder.create<mlir::kinsol::AddVariableOp>(
-            loc,
-            identifier,
-            builder.getI64ArrayAttr(dimensions),
-            getter.getSymName(),
-            setter.getSymName());
+    auto addVariableOp = builder.create<mlir::kinsol::AddVariableOp>(
+        loc, identifier, builder.getI64ArrayAttr(dimensions),
+        getter.getSymName(), setter.getSymName());
 
     if (debugInformation) {
       addVariableOp.setNameAttr(variableOp.getSymNameAttr());
@@ -599,11 +501,8 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
 }
 
 GlobalVariableOp KINSOLInstance::createProxyVariable(
-    mlir::OpBuilder& builder,
-    mlir::ModuleOp moduleOp,
-    VariableOp variableOp,
-    llvm::StringRef proxyName)
-{
+    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, VariableOp variableOp,
+    llvm::StringRef proxyName) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(moduleOp.getBody());
 
@@ -613,60 +512,39 @@ GlobalVariableOp KINSOLInstance::createProxyVariable(
 }
 
 mlir::sundials::VariableGetterOp KINSOLInstance::createGetterFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    llvm::StringRef functionName,
-    VariableOp variable)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    llvm::StringRef functionName, VariableOp variable) {
   return ::mlir::bmodelica::createGetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
 mlir::sundials::VariableGetterOp KINSOLInstance::createGetterFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    llvm::StringRef functionName,
-    GlobalVariableOp variable)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    llvm::StringRef functionName, GlobalVariableOp variable) {
   return ::mlir::bmodelica::createGetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
 mlir::sundials::VariableSetterOp KINSOLInstance::createSetterFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    llvm::StringRef functionName,
-    VariableOp variable)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    llvm::StringRef functionName, VariableOp variable) {
   return ::mlir::bmodelica::createSetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
 mlir::sundials::VariableSetterOp KINSOLInstance::createSetterFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    llvm::StringRef functionName,
-    GlobalVariableOp variable)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    llvm::StringRef functionName, GlobalVariableOp variable) {
   return ::mlir::bmodelica::createSetterFunction(
       builder, *symbolTableCollection, loc, moduleOp, variable, functionName);
 }
 
 mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
-    mlir::RewriterBase& rewriter,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    const ProxyMap& proxyMap,
-    llvm::DenseMap<
-        mlir::AffineMap,
-        mlir::sundials::AccessFunctionOp>& accessFunctionsMap)
-{
+    mlir::RewriterBase &rewriter, mlir::Location loc, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
+    const ProxyMap &proxyMap,
+    llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+        &accessFunctionsMap) {
   // Counters used to obtain unique names for the functions.
   size_t accessFunctionsCounter = 0;
   size_t residualFunctionsCounter = 0;
@@ -675,7 +553,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
   llvm::DenseMap<VariableOp, mlir::Value> variablesMapping;
 
-  for (const auto& [variable, kinsolVariable] :
+  for (const auto &[variable, kinsolVariable] :
        llvm::zip(variables, kinsolVariables)) {
     variablesMapping[variable] = kinsolVariable;
   }
@@ -686,15 +564,14 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
     llvm::SmallVector<VariableAccess> accesses;
     llvm::DenseSet<VariableOp> accessedVariables;
 
-    if (mlir::failed(equationOp.getAccesses(
-            accesses, *symbolTableCollection))) {
+    if (mlir::failed(
+            equationOp.getAccesses(accesses, *symbolTableCollection))) {
       return mlir::failure();
     }
 
-    for (const VariableAccess& access : accesses) {
-      auto variableOp =
-          symbolTableCollection->lookupSymbolIn<VariableOp>(
-              modelOp, access.getVariable());
+    for (const VariableAccess &access : accesses) {
+      auto variableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
+          modelOp, access.getVariable());
 
       accessedVariables.insert(variableOp);
     }
@@ -719,8 +596,8 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
     // Collect the independent variables for automatic differentiation.
     llvm::DenseSet<VariableOp> independentVariables;
 
-    if (mlir::failed(getIndependentVariablesForAD(
-            independentVariables, modelOp, equationOp))) {
+    if (mlir::failed(getIndependentVariablesForAD(independentVariables, modelOp,
+                                                  equationOp))) {
       return mlir::failure();
     }
 
@@ -736,26 +613,24 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       return mlir::failure();
     }
 
-    for (const MultidimensionalRange& range : llvm::make_range(
+    for (const MultidimensionalRange &range : llvm::make_range(
              equationIndices.rangesBegin(), equationIndices.rangesEnd())) {
       // Add the equation to the KINSOL instance.
       auto accessFunctionOp = getOrCreateAccessFunction(
           rewriter, equationOp.getLoc(), moduleOp,
           writeAccess->getAccessFunction().getAffineMap(),
-          getKINSOLFunctionName("access"),
-          accessFunctionsMap, accessFunctionsCounter);
+          getKINSOLFunctionName("access"), accessFunctionsMap,
+          accessFunctionsCounter);
 
       if (!accessFunctionOp) {
         return mlir::failure();
       }
 
       auto kinsolEquation = rewriter.create<mlir::kinsol::AddEquationOp>(
-          equationOp.getLoc(),
-          identifier,
-          mlir::kinsol::MultidimensionalRangeAttr::get(
-              rewriter.getContext(), range),
-          variablesMapping[writtenVar],
-          accessFunctionOp.getSymName());
+          equationOp.getLoc(), identifier,
+          mlir::kinsol::MultidimensionalRangeAttr::get(rewriter.getContext(),
+                                                       range),
+          variablesMapping[writtenVar], accessFunctionOp.getSymName());
 
       if (debugInformation) {
         std::string stringRepresentation;
@@ -779,9 +654,9 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       std::string residualFunctionName = getKINSOLFunctionName(
           "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
-      if (mlir::failed(createResidualFunction(
-              rewriter, moduleOp, modelOp, equationOp, residualFunctionName,
-              proxyMap))) {
+      if (mlir::failed(createResidualFunction(rewriter, moduleOp, modelOp,
+                                              equationOp, residualFunctionName,
+                                              proxyMap))) {
         return mlir::failure();
       }
 
@@ -797,8 +672,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
       for (auto [variable, kinsolVariable] :
            llvm::zip(variables, kinsolVariables)) {
-        if (reducedDerivatives &&
-            !accessedVariables.contains(variable)) {
+        if (reducedDerivatives && !accessedVariables.contains(variable)) {
           // The partial derivative is always zero.
           continue;
         }
@@ -836,15 +710,15 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
     assert(!unwrittenIndices.empty());
 
-    for (const MultidimensionalRange& range : llvm::make_range(
+    for (const MultidimensionalRange &range : llvm::make_range(
              unwrittenIndices.rangesBegin(), unwrittenIndices.rangesEnd())) {
       // Create an access function for the identity access.
-      auto accessFunctionOp = getOrCreateAccessFunction(
-          rewriter, variableOp.getLoc(), moduleOp,
-          mlir::AffineMap::getMultiDimIdentityMap(
-              range.rank(), rewriter.getContext()),
-          getKINSOLFunctionName("access"),
-          accessFunctionsMap, accessFunctionsCounter);
+      auto accessFunctionOp =
+          getOrCreateAccessFunction(rewriter, variableOp.getLoc(), moduleOp,
+                                    mlir::AffineMap::getMultiDimIdentityMap(
+                                        range.rank(), rewriter.getContext()),
+                                    getKINSOLFunctionName("access"),
+                                    accessFunctionsMap, accessFunctionsCounter);
 
       if (!accessFunctionOp) {
         return mlir::failure();
@@ -852,12 +726,10 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
       // Add the equation to the KINSOL instance.
       auto kinsolEquation = rewriter.create<mlir::kinsol::AddEquationOp>(
-          variableOp.getLoc(),
-          identifier,
-          mlir::kinsol::MultidimensionalRangeAttr::get(
-              rewriter.getContext(), range),
-          variablesMapping[variableOp],
-          accessFunctionOp.getSymName());
+          variableOp.getLoc(), identifier,
+          mlir::kinsol::MultidimensionalRangeAttr::get(rewriter.getContext(),
+                                                       range),
+          variablesMapping[variableOp], accessFunctionOp.getSymName());
 
       if (debugInformation) {
         kinsolEquation.setStringRepresentationAttr(
@@ -875,9 +747,9 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       std::string residualFunctionName = getKINSOLFunctionName(
           "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
-      if (mlir::failed(createProxyResidualFunction(
-              rewriter, moduleOp, modelOp, proxyIt->getSecond(),
-              residualFunctionName))) {
+      if (mlir::failed(createProxyResidualFunction(rewriter, moduleOp, modelOp,
+                                                   proxyIt->getSecond(),
+                                                   residualFunctionName))) {
         return mlir::failure();
       }
 
@@ -914,16 +786,11 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 }
 
 mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp,
-    mlir::Value kinsolEquation,
-    llvm::DenseMap<
-        mlir::AffineMap,
-        mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
-    size_t& accessFunctionsCounter)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
+    ScheduledEquationInstanceOp equationOp, mlir::Value kinsolEquation,
+    llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+        &accessFunctionsMap,
+    size_t &accessFunctionsCounter) {
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
   assert(kinsolEquation.getType().isa<mlir::kinsol::EquationType>());
 
@@ -937,7 +804,7 @@ mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
     return mlir::failure();
   }
 
-  for (const VariableAccess& access : accesses) {
+  for (const VariableAccess &access : accesses) {
     auto variableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
         modelOp, access.getVariable());
 
@@ -951,13 +818,12 @@ mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
   }
 
   // Inform KINSOL about the discovered accesses.
-  for (const auto& entry : maps) {
+  for (const auto &entry : maps) {
     mlir::Value kinsolVariable = entry.getFirst();
 
     for (mlir::AffineMap map : entry.getSecond()) {
       auto accessFunctionOp = getOrCreateAccessFunction(
-          builder, loc, moduleOp, map,
-          getKINSOLFunctionName("access"),
+          builder, loc, moduleOp, map, getKINSOLFunctionName("access"),
           accessFunctionsMap, accessFunctionsCounter);
 
       if (!accessFunctionOp) {
@@ -974,25 +840,19 @@ mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
 }
 
 mlir::sundials::AccessFunctionOp KINSOLInstance::getOrCreateAccessFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    mlir::AffineMap access,
-    llvm::StringRef functionNamePrefix,
-    llvm::DenseMap<
-        mlir::AffineMap,
-        mlir::sundials::AccessFunctionOp>& accessFunctionsMap,
-    size_t& accessFunctionsCounter)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    mlir::AffineMap access, llvm::StringRef functionNamePrefix,
+    llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
+        &accessFunctionsMap,
+    size_t &accessFunctionsCounter) {
   auto it = accessFunctionsMap.find(access);
 
   if (it == accessFunctionsMap.end()) {
-    std::string functionName =
-        functionNamePrefix.str() + "_" +
-        std::to_string(accessFunctionsCounter++);
+    std::string functionName = functionNamePrefix.str() + "_" +
+                               std::to_string(accessFunctionsCounter++);
 
-    auto accessFunctionOp = createAccessFunction(
-        builder, loc, moduleOp, access, functionName);
+    auto accessFunctionOp =
+        createAccessFunction(builder, loc, moduleOp, access, functionName);
 
     if (!accessFunctionOp) {
       return nullptr;
@@ -1006,12 +866,8 @@ mlir::sundials::AccessFunctionOp KINSOLInstance::getOrCreateAccessFunction(
 }
 
 mlir::sundials::AccessFunctionOp KINSOLInstance::createAccessFunction(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp,
-    mlir::AffineMap access,
-    llvm::StringRef functionName)
-{
+    mlir::OpBuilder &builder, mlir::Location loc, mlir::ModuleOp moduleOp,
+    mlir::AffineMap access, llvm::StringRef functionName) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1023,33 +879,29 @@ mlir::sundials::AccessFunctionOp KINSOLInstance::createAccessFunction(
   }
 
   if (expressions.empty()) {
-    expressions.push_back(
-        mlir::getAffineConstantExpr(0, builder.getContext()));
+    expressions.push_back(mlir::getAffineConstantExpr(0, builder.getContext()));
   }
 
   auto extendedAccess = mlir::AffineMap::get(
       std::max(static_cast<unsigned int>(1), access.getNumDims()),
-      access.getNumSymbols(),
-      expressions, builder.getContext());
+      access.getNumSymbols(), expressions, builder.getContext());
 
   // Create the operation for the access function.
   auto accessFunctionOp = builder.create<mlir::sundials::AccessFunctionOp>(
-      loc,
-      functionName,
-      extendedAccess.getNumDims(),
+      loc, functionName, extendedAccess.getNumDims(),
       extendedAccess.getNumResults());
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(accessFunctionOp);
 
-  mlir::Block* bodyBlock = accessFunctionOp.addEntryBlock();
+  mlir::Block *bodyBlock = accessFunctionOp.addEntryBlock();
   builder.setInsertionPointToStart(bodyBlock);
 
   // Materialize the access.
   llvm::SmallVector<mlir::Value, 3> results;
 
-  if (mlir::failed(materializeAffineMap(
-          builder, loc, extendedAccess,
-          accessFunctionOp.getEquationIndices(), results))) {
+  if (mlir::failed(materializeAffineMap(builder, loc, extendedAccess,
+                                        accessFunctionOp.getEquationIndices(),
+                                        results))) {
     return nullptr;
   }
 
@@ -1058,13 +910,9 @@ mlir::sundials::AccessFunctionOp KINSOLInstance::createAccessFunction(
 }
 
 mlir::LogicalResult KINSOLInstance::createResidualFunction(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
     ScheduledEquationInstanceOp equationOp,
-    llvm::StringRef residualFunctionName,
-    const ProxyMap& proxyMap)
-{
+    llvm::StringRef residualFunctionName, const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1072,13 +920,11 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
   size_t numOfInductionVariables = equationOp.getInductionVariables().size();
 
   auto residualFunction = rewriter.create<mlir::kinsol::ResidualFunctionOp>(
-      loc,
-      residualFunctionName,
-      numOfInductionVariables);
+      loc, residualFunctionName, numOfInductionVariables);
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(residualFunction);
 
-  mlir::Block* bodyBlock = residualFunction.addEntryBlock();
+  mlir::Block *bodyBlock = residualFunction.addEntryBlock();
   rewriter.setInsertionPointToStart(bodyBlock);
 
   // Map for the SSA values.
@@ -1093,7 +939,7 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
     mapping.map(originalInductions[i], mappedInductions[i]);
   }
 
-  for (auto& op : equationOp.getTemplate().getOps()) {
+  for (auto &op : equationOp.getTemplate().getOps()) {
     if (mlir::isa<EquationSideOp>(op)) {
       continue;
     } else if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
@@ -1104,8 +950,8 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
       assert(!lhs.getType().isa<mlir::ShapedType>());
       assert(!rhs.getType().isa<mlir::ShapedType>());
 
-      mlir::Value difference = rewriter.create<SubOp>(
-          loc, rewriter.getF64Type(), rhs, lhs);
+      mlir::Value difference =
+          rewriter.create<SubOp>(loc, rewriter.getF64Type(), rhs, lhs);
 
       rewriter.create<mlir::kinsol::ReturnOp>(difference.getLoc(), difference);
     } else {
@@ -1116,12 +962,10 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
   // Replace the original variable accesses.
   llvm::SmallVector<VariableGetOp> getOps;
 
-  residualFunction.walk([&](VariableGetOp getOp) {
-    getOps.push_back(getOp);
-  });
+  residualFunction.walk([&](VariableGetOp getOp) { getOps.push_back(getOp); });
 
-  if (mlir::failed(replaceVariableGetOps(
-          rewriter, modelOp, getOps, proxyMap))) {
+  if (mlir::failed(
+          replaceVariableGetOps(rewriter, modelOp, getOps, proxyMap))) {
     return mlir::failure();
   }
 
@@ -1129,12 +973,8 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
 }
 
 mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    const ProxyVariable& proxy,
-    llvm::StringRef residualFunctionName)
-{
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+    const ProxyVariable &proxy, llvm::StringRef residualFunctionName) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1144,13 +984,11 @@ mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
       proxy.getProxyVariable().getType().cast<ArrayType>().getRank();
 
   auto residualFunction = rewriter.create<mlir::kinsol::ResidualFunctionOp>(
-      loc,
-      residualFunctionName,
-      numOfInductionVariables);
+      loc, residualFunctionName, numOfInductionVariables);
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(residualFunction);
 
-  mlir::Block* bodyBlock = residualFunction.addEntryBlock();
+  mlir::Block *bodyBlock = residualFunction.addEntryBlock();
   rewriter.setInsertionPointToStart(bodyBlock);
 
   mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
@@ -1161,20 +999,17 @@ mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
 }
 
 mlir::LogicalResult KINSOLInstance::getIndependentVariablesForAD(
-    llvm::DenseSet<VariableOp>& result,
-    ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp)
-{
+    llvm::DenseSet<VariableOp> &result, ModelOp modelOp,
+    ScheduledEquationInstanceOp equationOp) {
   llvm::SmallVector<VariableAccess> accesses;
 
   if (mlir::failed(equationOp.getAccesses(accesses, *symbolTableCollection))) {
     return mlir::failure();
   }
 
-  for (const VariableAccess& access : accesses) {
-    auto variableOp =
-        symbolTableCollection->lookupSymbolIn<VariableOp>(
-            modelOp, access.getVariable());
+  for (const VariableAccess &access : accesses) {
+    auto variableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
+        modelOp, access.getVariable());
 
     result.insert(variableOp);
   }
@@ -1183,14 +1018,10 @@ mlir::LogicalResult KINSOLInstance::getIndependentVariablesForAD(
 }
 
 mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
     ScheduledEquationInstanceOp equationOp,
-    llvm::DenseMap<VariableOp, size_t>& variablesPos,
-    llvm::StringRef templateName,
-    const ProxyMap& proxyMap)
-{
+    llvm::DenseMap<VariableOp, size_t> &variablesPos,
+    llvm::StringRef templateName, const ProxyMap &proxyMap) {
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
       rewriter, moduleOp, modelOp, equationOp, variablesPos, templateName,
       proxyMap);
@@ -1204,14 +1035,10 @@ mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
 
 mlir::bmodelica::FunctionOp
 KINSOLInstance::createPartialDerTemplateFromEquation(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
     ScheduledEquationInstanceOp equationOp,
-    llvm::DenseMap<VariableOp, size_t>& variablesPos,
-    llvm::StringRef templateName,
-    const ProxyMap& proxyMap)
-{
+    llvm::DenseMap<VariableOp, size_t> &variablesPos,
+    llvm::StringRef templateName, const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1236,7 +1063,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 
   llvm::DenseSet<VariableOp> accessedVariables;
 
-  for (const VariableAccess& access : accesses) {
+  for (const VariableAccess &access : accesses) {
     auto variableOp = symbolTableCollection->lookupSymbolIn<VariableOp>(
         modelOp, access.getVariable());
 
@@ -1271,12 +1098,10 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
     std::string variableName = "ind" + std::to_string(i);
 
     auto variableType = VariableType::wrap(
-        rewriter.getIndexType(),
-        VariabilityProperty::none,
-        IOProperty::input);
+        rewriter.getIndexType(), VariabilityProperty::none, IOProperty::input);
 
-    auto variableOp = rewriter.create<VariableOp>(
-        loc, variableName, variableType);
+    auto variableOp =
+        rewriter.create<VariableOp>(loc, variableName, variableType);
 
     inductionVariablesOps.push_back(variableOp);
   }
@@ -1293,10 +1118,8 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 
   auto outputVariableOp = rewriter.create<VariableOp>(
       loc, outVariableName,
-      VariableType::wrap(
-          RealType::get(rewriter.getContext()),
-          VariabilityProperty::none,
-          IOProperty::output));
+      VariableType::wrap(RealType::get(rewriter.getContext()),
+                         VariabilityProperty::none, IOProperty::output));
 
   // Create the body of the function.
   auto algorithmOp = rewriter.create<AlgorithmOp>(loc);
@@ -1321,8 +1144,8 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 
   // Determine the operations to be cloned by starting from the terminator and
   // walking through the dependencies.
-  llvm::DenseSet<mlir::Operation*> toBeCloned;
-  llvm::SmallVector<mlir::Operation*> toBeClonedVisitStack;
+  llvm::DenseSet<mlir::Operation *> toBeCloned;
+  llvm::SmallVector<mlir::Operation *> toBeClonedVisitStack;
 
   auto equationSidesOp = mlir::cast<EquationSidesOp>(
       equationOp.getTemplate().getBody()->getTerminator());
@@ -1330,16 +1153,16 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   mlir::Value lhs = equationSidesOp.getLhsValues()[0];
   mlir::Value rhs = equationSidesOp.getRhsValues()[0];
 
-  if (mlir::Operation* lhsOp = lhs.getDefiningOp()) {
+  if (mlir::Operation *lhsOp = lhs.getDefiningOp()) {
     toBeClonedVisitStack.push_back(lhsOp);
   }
 
-  if (mlir::Operation* rhsOp = rhs.getDefiningOp()) {
+  if (mlir::Operation *rhsOp = rhs.getDefiningOp()) {
     toBeClonedVisitStack.push_back(rhsOp);
   }
 
   while (!toBeClonedVisitStack.empty()) {
-    mlir::Operation* op = toBeClonedVisitStack.pop_back_val();
+    mlir::Operation *op = toBeClonedVisitStack.pop_back_val();
     toBeCloned.insert(op);
 
     for (mlir::Value operand : op->getOperands()) {
@@ -1350,7 +1173,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   }
 
   // Clone the original operations and compute the residual value.
-  for (auto& op : equationOp.getTemplate().getOps()) {
+  for (auto &op : equationOp.getTemplate().getOps()) {
     if (!toBeCloned.contains(&op)) {
       continue;
     }
@@ -1403,8 +1226,8 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
     }
   });
 
-  if (mlir::failed(replaceVariableGetOps(
-          rewriter, modelOp, variableGetOps, proxyMap))) {
+  if (mlir::failed(
+          replaceVariableGetOps(rewriter, modelOp, variableGetOps, proxyMap))) {
     return nullptr;
   }
 
@@ -1420,15 +1243,11 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 }
 
 mlir::LogicalResult KINSOLInstance::createJacobianFunction(
-    mlir::OpBuilder& builder,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
+    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
     ScheduledEquationInstanceOp equationOp,
     llvm::StringRef jacobianFunctionName,
-    const llvm::DenseMap<VariableOp, size_t>& variablesPos,
-    VariableOp independentVariable,
-    llvm::StringRef partialDerTemplateName)
-{
+    const llvm::DenseMap<VariableOp, size_t> &variablesPos,
+    VariableOp independentVariable, llvm::StringRef partialDerTemplateName) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1444,25 +1263,24 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 
-  mlir::Block* bodyBlock = jacobianFunction.addEntryBlock();
+  mlir::Block *bodyBlock = jacobianFunction.addEntryBlock();
   builder.setInsertionPointToStart(bodyBlock);
 
   // Create the global seeds for the variables.
   llvm::SmallVector<GlobalVariableOp> varSeeds(numOfVars, nullptr);
   size_t seedsCounter = 0;
 
-  for (const auto& entry : variablesPos) {
+  for (const auto &entry : variablesPos) {
     VariableOp variableOp = entry.getFirst();
     size_t pos = entry.getSecond();
 
-    std::string seedName = jacobianFunctionName.str() + "_seed_" +
-        std::to_string(seedsCounter++);
+    std::string seedName =
+        jacobianFunctionName.str() + "_seed_" + std::to_string(seedsCounter++);
 
     assert(varSeeds[pos] == nullptr && "Seed already created");
 
-    auto seed = createGlobalADSeed(
-        builder, moduleOp, loc, seedName,
-        variableOp.getVariableType().toArrayType());
+    auto seed = createGlobalADSeed(builder, moduleOp, loc, seedName,
+                                   variableOp.getVariableType().toArrayType());
 
     if (!seed) {
       return mlir::failure();
@@ -1471,21 +1289,21 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
     varSeeds[pos] = seed;
   }
 
-  assert(llvm::none_of(varSeeds, [](GlobalVariableOp seed) {
-           return seed == nullptr;
-         }) && "Some seeds have not been created");
+  assert(llvm::none_of(varSeeds,
+                       [](GlobalVariableOp seed) { return seed == nullptr; }) &&
+         "Some seeds have not been created");
 
   // Zero and one constants to be used to update the array seeds or for the
   // scalar seeds.
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 0));
+  mlir::Value zero =
+      builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
 
-  mlir::Value one = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 1));
+  mlir::Value one =
+      builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 1));
 
   // Function to collect the arguments to be passed to the derivative template
   // function.
-  auto collectArgsFn = [&](llvm::SmallVectorImpl<mlir::Value>& args) {
+  auto collectArgsFn = [&](llvm::SmallVectorImpl<mlir::Value> &args) {
     // Equation indices.
     for (mlir::Value equationIndex : jacobianFunction.getEquationIndices()) {
       args.push_back(equationIndex);
@@ -1532,8 +1350,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   auto firstTemplateCall = builder.create<CallOp>(
       loc,
       mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
-      RealType::get(builder.getContext()),
-      args);
+      RealType::get(builder.getContext()), args);
 
   mlir::Value result = firstTemplateCall.getResult(0);
 
@@ -1549,12 +1366,9 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
 }
 
 mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
-    mlir::OpBuilder& builder,
-    mlir::ModuleOp moduleOp,
-    const ProxyVariable& proxy,
-    VariableOp independentVariable,
-    llvm::StringRef jacobianFunctionName)
-{
+    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
+    const ProxyVariable &proxy, VariableOp independentVariable,
+    llvm::StringRef jacobianFunctionName) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1572,11 +1386,11 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 
-  mlir::Block* bodyBlock = jacobianFunction.addEntryBlock();
+  mlir::Block *bodyBlock = jacobianFunction.addEntryBlock();
   builder.setInsertionPointToStart(bodyBlock);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
-      loc, builder.getF64FloatAttr(0));
+  mlir::Value zero =
+      builder.create<mlir::arith::ConstantOp>(loc, builder.getF64FloatAttr(0));
 
   mlir::Value result = zero;
 
@@ -1586,8 +1400,8 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
     mlir::Value one = builder.create<mlir::arith::ConstantOp>(
         loc, builder.getF64FloatAttr(1));
 
-    mlir::Value condition = builder.create<mlir::arith::ConstantOp>(
-        loc, builder.getBoolAttr(true));
+    mlir::Value condition =
+        builder.create<mlir::arith::ConstantOp>(loc, builder.getBoolAttr(true));
 
     for (int64_t i = 0; i < proxyRank; ++i) {
       mlir::Value equal = builder.create<mlir::arith::CmpIOp>(
@@ -1598,8 +1412,7 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
       condition = builder.create<mlir::arith::AndIOp>(loc, condition, equal);
     }
 
-    result = builder.create<mlir::arith::SelectOp>(
-        loc, condition, one, zero);
+    result = builder.create<mlir::arith::SelectOp>(loc, condition, one, zero);
   }
 
   // Return the result.
@@ -1608,23 +1421,18 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
   return mlir::success();
 }
 
-std::string KINSOLInstance::getKINSOLFunctionName(llvm::StringRef name) const
-{
+std::string KINSOLInstance::getKINSOLFunctionName(llvm::StringRef name) const {
   return identifier + "_" + name.str();
 }
 
-std::string KINSOLInstance::getKINSOLProxyVariableName(
-    llvm::StringRef name) const
-{
+std::string
+KINSOLInstance::getKINSOLProxyVariableName(llvm::StringRef name) const {
   return identifier + "_proxy_" + name.str();
 }
 
 mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
-    mlir::RewriterBase& rewriter,
-    ModelOp modelOp,
-    llvm::ArrayRef<VariableGetOp> getOps,
-    const ProxyMap& proxyMap)
-{
+    mlir::RewriterBase &rewriter, ModelOp modelOp,
+    llvm::ArrayRef<VariableGetOp> getOps, const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   for (VariableGetOp variableGetOp : getOps) {
@@ -1645,8 +1453,8 @@ mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
       // Use the proxy variable.
       GlobalVariableOp proxy = proxyIt->second.getProxyVariable();
 
-      auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
-          variableGetOp.getLoc(), proxy);
+      auto globalGetOp =
+          rewriter.create<GlobalVariableGetOp>(variableGetOp.getLoc(), proxy);
 
       mlir::Value replacement = globalGetOp.getResult();
 
@@ -1654,8 +1462,8 @@ mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
         replacement = rewriter.create<ArrayToTensorOp>(
             replacement.getLoc(), variableGetOp.getType(), replacement);
       } else {
-        replacement = rewriter.create<LoadOp>(
-            replacement.getLoc(), replacement, std::nullopt);
+        replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement,
+                                              std::nullopt);
       }
 
       rewriter.replaceOp(variableGetOp, replacement);
@@ -1665,102 +1473,86 @@ mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
   return mlir::success();
 }
 
-namespace
-{
-  class SCCSolvingWithKINSOLPass
-      : public mlir::bmodelica::impl::SCCSolvingWithKINSOLPassBase<
-            SCCSolvingWithKINSOLPass>
-  {
-    public:
-      using SCCSolvingWithKINSOLPassBase<SCCSolvingWithKINSOLPass>
-          ::SCCSolvingWithKINSOLPassBase;
+namespace {
+class SCCSolvingWithKINSOLPass
+    : public mlir::bmodelica::impl::SCCSolvingWithKINSOLPassBase<
+          SCCSolvingWithKINSOLPass> {
+public:
+  using SCCSolvingWithKINSOLPassBase<
+      SCCSolvingWithKINSOLPass>::SCCSolvingWithKINSOLPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(
-          mlir::RewriterBase& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp);
+private:
+  mlir::LogicalResult
+  processModelOp(mlir::RewriterBase &rewriter,
+                 mlir::SymbolTableCollection &symbolTableCollection,
+                 mlir::ModuleOp moduleOp, ModelOp modelOp);
 
-      mlir::LogicalResult processInitialOp(
-          mlir::RewriterBase& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          InitialOp initialOp);
+  mlir::LogicalResult
+  processInitialOp(mlir::RewriterBase &rewriter,
+                   mlir::SymbolTableCollection &symbolTableCollection,
+                   mlir::ModuleOp moduleOp, ModelOp modelOp,
+                   InitialOp initialOp);
 
-      mlir::LogicalResult processDynamicOp(
-          mlir::RewriterBase& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          DynamicOp dynamicOp);
+  mlir::LogicalResult
+  processDynamicOp(mlir::RewriterBase &rewriter,
+                   mlir::SymbolTableCollection &symbolTableCollection,
+                   mlir::ModuleOp moduleOp, ModelOp modelOp,
+                   DynamicOp dynamicOp);
 
-      mlir::LogicalResult processSCC(
-          mlir::RewriterBase& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          SCCOp scc,
-          llvm::function_ref<mlir::Block*(
-              mlir::OpBuilder&, mlir::Location)> createBeginFn,
-          llvm::function_ref<mlir::Block*(
-              mlir::OpBuilder&, mlir::Location)> createEndFn);
+  mlir::LogicalResult processSCC(
+      mlir::RewriterBase &rewriter,
+      mlir::SymbolTableCollection &symbolTableCollection,
+      mlir::ModuleOp moduleOp, ModelOp modelOp, SCCOp scc,
+      llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+          createBeginFn,
+      llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+          createEndFn);
 
-      mlir::kinsol::InstanceOp declareInstance(
-          mlir::OpBuilder& builder,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::Location loc,
-          mlir::ModuleOp moduleOp);
+  mlir::kinsol::InstanceOp
+  declareInstance(mlir::OpBuilder &builder,
+                  mlir::SymbolTableCollection &symbolTableCollection,
+                  mlir::Location loc, mlir::ModuleOp moduleOp);
 
-      mlir::LogicalResult getAccessAttrs(
-          llvm::SmallVectorImpl<Variable>& writtenVariables,
-          llvm::SmallVectorImpl<Variable>& readVariables,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          SCCOp scc);
+  mlir::LogicalResult
+  getAccessAttrs(llvm::SmallVectorImpl<Variable> &writtenVariables,
+                 llvm::SmallVectorImpl<Variable> &readVariables,
+                 mlir::SymbolTableCollection &symbolTableCollection, SCCOp scc);
 
-      mlir::LogicalResult createBeginFunction(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp,
-          mlir::Location loc,
-          KINSOLInstance* kinsolInstance,
-          llvm::ArrayRef<VariableOp> variables,
-          ProxyMap& proxyMap,
-          llvm::function_ref<mlir::Block*(
-              mlir::OpBuilder&, mlir::Location)> createBeginFn) const;
+  mlir::LogicalResult createBeginFunction(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      mlir::Location loc, KINSOLInstance *kinsolInstance,
+      llvm::ArrayRef<VariableOp> variables, ProxyMap &proxyMap,
+      llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+          createBeginFn) const;
 
-      mlir::LogicalResult createEndFunction(
-          mlir::RewriterBase& rewriter,
-          mlir::ModuleOp moduleOp,
-          mlir::Location loc,
-          KINSOLInstance* kinsolInstance,
-          llvm::function_ref<mlir::Block*(
-              mlir::OpBuilder&, mlir::Location)> createEndFn) const;
+  mlir::LogicalResult createEndFunction(
+      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, mlir::Location loc,
+      KINSOLInstance *kinsolInstance,
+      llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+          createEndFn) const;
 
-      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
-  };
-}
+  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
+};
+} // namespace
 
-void SCCSolvingWithKINSOLPass::runOnOperation()
-{
+void SCCSolvingWithKINSOLPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
 
   mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
   for (ModelOp modelOp : modelOps) {
-    if (mlir::failed(processModelOp(
-            rewriter, symbolTableCollection, moduleOp, modelOp))) {
+    if (mlir::failed(processModelOp(rewriter, symbolTableCollection, moduleOp,
+                                    modelOp))) {
       return signalPassFailure();
     }
 
@@ -1771,24 +1563,20 @@ void SCCSolvingWithKINSOLPass::runOnOperation()
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp)
-{
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp) {
   for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
     for (InitialOp initialOp : scheduleOp.getOps<InitialOp>()) {
-      if (mlir::failed(processInitialOp(
-              rewriter, symbolTableCollection, moduleOp, modelOp,
-              initialOp))) {
+      if (mlir::failed(processInitialOp(rewriter, symbolTableCollection,
+                                        moduleOp, modelOp, initialOp))) {
         return mlir::failure();
       }
     }
 
     for (DynamicOp dynamicOp : scheduleOp.getOps<DynamicOp>()) {
-      if (mlir::failed(processDynamicOp(
-              rewriter, symbolTableCollection, moduleOp, modelOp,
-              dynamicOp))) {
+      if (mlir::failed(processDynamicOp(rewriter, symbolTableCollection,
+                                        moduleOp, modelOp, dynamicOp))) {
         return mlir::failure();
       }
     }
@@ -1798,26 +1586,23 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processModelOp(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    InitialOp initialOp)
-{
-  auto createBeginFn =
-      [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::ICModelBeginOp>(loc);
-        return builder.createBlock(&beginFn.getBodyRegion());
-      };
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, InitialOp initialOp) {
+  auto createBeginFn = [&](mlir::OpBuilder &builder,
+                           mlir::Location loc) -> mlir::Block * {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+    auto beginFn = builder.create<mlir::runtime::ICModelBeginOp>(loc);
+    return builder.createBlock(&beginFn.getBodyRegion());
+  };
 
-  auto createEndFn =
-      [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::ICModelEndOp>(loc);
-        return builder.createBlock(&beginFn.getBodyRegion());
+  auto createEndFn = [&](mlir::OpBuilder &builder,
+                         mlir::Location loc) -> mlir::Block * {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+    auto beginFn = builder.create<mlir::runtime::ICModelEndOp>(loc);
+    return builder.createBlock(&beginFn.getBodyRegion());
   };
 
   llvm::SmallVector<SCCOp> SCCs;
@@ -1827,9 +1612,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
   }
 
   for (SCCOp scc : SCCs) {
-    if (mlir::succeeded(processSCC(
-            rewriter, symbolTableCollection, moduleOp, modelOp, scc,
-            createBeginFn, createEndFn))) {
+    if (mlir::succeeded(processSCC(rewriter, symbolTableCollection, moduleOp,
+                                   modelOp, scc, createBeginFn, createEndFn))) {
       rewriter.eraseOp(scc);
     }
   }
@@ -1838,27 +1622,24 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processInitialOp(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    DynamicOp dynamicOp)
-{
-  auto createBeginFn =
-      [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::DynamicModelBeginOp>(loc);
-        return builder.createBlock(&beginFn.getBodyRegion());
-      };
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, DynamicOp dynamicOp) {
+  auto createBeginFn = [&](mlir::OpBuilder &builder,
+                           mlir::Location loc) -> mlir::Block * {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+    auto beginFn = builder.create<mlir::runtime::DynamicModelBeginOp>(loc);
+    return builder.createBlock(&beginFn.getBodyRegion());
+  };
 
-  auto createEndFn =
-      [&](mlir::OpBuilder& builder, mlir::Location loc) -> mlir::Block* {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPointToEnd(moduleOp.getBody());
-        auto beginFn = builder.create<mlir::runtime::DynamicModelEndOp>(loc);
-        return builder.createBlock(&beginFn.getBodyRegion());
-      };
+  auto createEndFn = [&](mlir::OpBuilder &builder,
+                         mlir::Location loc) -> mlir::Block * {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+    auto beginFn = builder.create<mlir::runtime::DynamicModelEndOp>(loc);
+    return builder.createBlock(&beginFn.getBodyRegion());
+  };
 
   llvm::SmallVector<SCCOp> SCCs;
 
@@ -1867,9 +1648,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
   }
 
   for (SCCOp scc : SCCs) {
-    if (mlir::succeeded(processSCC(
-            rewriter, symbolTableCollection, moduleOp, modelOp, scc,
-            createBeginFn, createEndFn))) {
+    if (mlir::succeeded(processSCC(rewriter, symbolTableCollection, moduleOp,
+                                   modelOp, scc, createBeginFn, createEndFn))) {
       rewriter.eraseOp(scc);
     }
   }
@@ -1878,39 +1658,35 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processDynamicOp(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    SCCOp scc,
-    llvm::function_ref<mlir::Block*(
-        mlir::OpBuilder&, mlir::Location)> createBeginFn,
-    llvm::function_ref<mlir::Block*(
-        mlir::OpBuilder&, mlir::Location)> createEndFn)
-{
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, SCCOp scc,
+    llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+        createBeginFn,
+    llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+        createEndFn) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   ProxyMap proxyMap;
 
   LLVM_DEBUG({
-     llvm::dbgs() << "Processing SCC composed by:\n";
+    llvm::dbgs() << "Processing SCC composed by:\n";
 
-     for (ScheduledEquationInstanceOp equation :
-          scc.getOps<ScheduledEquationInstanceOp>()) {
-       llvm::dbgs() << "  ";
-       equation.printInline(llvm::dbgs());
-       llvm::dbgs() << "\n";
-     }
+    for (ScheduledEquationInstanceOp equation :
+         scc.getOps<ScheduledEquationInstanceOp>()) {
+      llvm::dbgs() << "  ";
+      equation.printInline(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    }
   });
 
   rewriter.setInsertionPoint(scc);
 
-  auto scheduleBlockOp =
-      rewriter.create<ScheduleBlockOp>(scc.getLoc(), false);
+  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(scc.getLoc(), false);
 
-  if (mlir::failed(getAccessAttrs(
-          scheduleBlockOp.getProperties().writtenVariables,
-          scheduleBlockOp.getProperties().readVariables,
-          symbolTableCollection, scc))) {
+  if (mlir::failed(
+          getAccessAttrs(scheduleBlockOp.getProperties().writtenVariables,
+                         scheduleBlockOp.getProperties().readVariables,
+                         symbolTableCollection, scc))) {
     return mlir::failure();
   }
 
@@ -1919,7 +1695,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
   // Determine the unwritten indices among the externalized variables.
   llvm::DenseMap<VariableOp, IndexSet> writtenVariableIndices;
 
-  for (const Variable& variable :
+  for (const Variable &variable :
        scheduleBlockOp.getProperties().writtenVariables) {
     auto writtenVariableName = variable.name;
 
@@ -1931,8 +1707,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
     writtenVariableIndices[writtenVariableOp] += variable.indices;
   }
 
-  auto instanceOp = declareInstance(
-      rewriter, symbolTableCollection, modelOp.getLoc(), moduleOp);
+  auto instanceOp = declareInstance(rewriter, symbolTableCollection,
+                                    modelOp.getLoc(), moduleOp);
 
   auto kinsolInstance = std::make_unique<KINSOLInstance>(
       instanceOp.getSymName(), symbolTableCollection, reducedDerivatives,
@@ -1940,8 +1716,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
 
   // Add the variables to KINSOL.
   for (VariableOp variable : variables) {
-    LLVM_DEBUG(llvm::dbgs() << "Add variable: " << variable.getSymName()
-                            << "\n");
+    LLVM_DEBUG(llvm::dbgs()
+               << "Add variable: " << variable.getSymName() << "\n");
 
     kinsolInstance->addVariable(variable, writtenVariableIndices[variable]);
   }
@@ -1957,23 +1733,22 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
     kinsolInstance->addEquation(equation);
   }
 
-  if (mlir::failed(createBeginFunction(
-          rewriter, moduleOp, modelOp, scc.getLoc(),
-          kinsolInstance.get(), variables, proxyMap, createBeginFn))) {
+  if (mlir::failed(createBeginFunction(rewriter, moduleOp, modelOp,
+                                       scc.getLoc(), kinsolInstance.get(),
+                                       variables, proxyMap, createBeginFn))) {
     return mlir::failure();
   }
 
-  if (mlir::failed(createEndFunction(
-          rewriter, moduleOp, modelOp.getLoc(), kinsolInstance.get(),
-          createEndFn))) {
+  if (mlir::failed(createEndFunction(rewriter, moduleOp, modelOp.getLoc(),
+                                     kinsolInstance.get(), createEndFn))) {
     return mlir::failure();
   }
 
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
 
-  if (mlir::failed(kinsolInstance->performSolve(
-          rewriter, scc.getLoc(), modelOp, proxyMap))) {
+  if (mlir::failed(kinsolInstance->performSolve(rewriter, scc.getLoc(), modelOp,
+                                                proxyMap))) {
     return mlir::failure();
   }
 
@@ -1981,11 +1756,9 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
 }
 
 mlir::kinsol::InstanceOp SCCSolvingWithKINSOLPass::declareInstance(
-    mlir::OpBuilder& builder,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::Location loc,
-    mlir::ModuleOp moduleOp)
-{
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::Location loc,
+    mlir::ModuleOp moduleOp) {
   // Create the instance.
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(moduleOp.getBody());
@@ -1999,11 +1772,9 @@ mlir::kinsol::InstanceOp SCCSolvingWithKINSOLPass::declareInstance(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
-    llvm::SmallVectorImpl<Variable>& writtenVariables,
-    llvm::SmallVectorImpl<Variable>& readVariables,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    SCCOp scc)
-{
+    llvm::SmallVectorImpl<Variable> &writtenVariables,
+    llvm::SmallVectorImpl<Variable> &readVariables,
+    mlir::SymbolTableCollection &symbolTableCollection, SCCOp scc) {
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> writtenVariablesIndices;
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> readVariablesIndices;
 
@@ -2025,8 +1796,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
     llvm::SmallVector<VariableAccess> accesses;
     llvm::SmallVector<VariableAccess> readAccesses;
 
-    if (mlir::failed(equationOp.getAccesses(
-            accesses, symbolTableCollection))) {
+    if (mlir::failed(equationOp.getAccesses(accesses, symbolTableCollection))) {
       return mlir::failure();
     }
 
@@ -2035,18 +1805,18 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
       return mlir::failure();
     }
 
-    for (const VariableAccess& readAccess : readAccesses) {
-      const AccessFunction& accessFunction = readAccess.getAccessFunction();
+    for (const VariableAccess &readAccess : readAccesses) {
+      const AccessFunction &accessFunction = readAccess.getAccessFunction();
       IndexSet readIndices = accessFunction.map(equationIndices);
       readVariablesIndices[readAccess.getVariable()] += readIndices;
     }
   }
 
-  for (const auto& entry : writtenVariablesIndices) {
+  for (const auto &entry : writtenVariablesIndices) {
     writtenVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
-  for (const auto& entry : readVariablesIndices) {
+  for (const auto &entry : readVariablesIndices) {
     readVariables.emplace_back(entry.getFirst(), entry.getSecond());
   }
 
@@ -2054,26 +1824,21 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::createBeginFunction(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp,
-    mlir::Location loc,
-    KINSOLInstance* kinsolInstance,
-    llvm::ArrayRef<VariableOp> variables,
-    ProxyMap& proxyMap,
-    llvm::function_ref<mlir::Block*(
-        mlir::OpBuilder&, mlir::Location)> createBeginFn) const
-{
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+    mlir::Location loc, KINSOLInstance *kinsolInstance,
+    llvm::ArrayRef<VariableOp> variables, ProxyMap &proxyMap,
+    llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+        createBeginFn) const {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
-  mlir::Block* bodyBlock = createBeginFn(rewriter, loc);
+  mlir::Block *bodyBlock = createBeginFn(rewriter, loc);
   rewriter.setInsertionPointToStart(bodyBlock);
 
   if (mlir::failed(kinsolInstance->initialize(rewriter, loc))) {
     return mlir::failure();
   }
 
-  if (mlir::failed(kinsolInstance->configure(
-          rewriter, loc, moduleOp, modelOp, variables, proxyMap))) {
+  if (mlir::failed(kinsolInstance->configure(rewriter, loc, moduleOp, modelOp,
+                                             variables, proxyMap))) {
     return mlir::failure();
   }
 
@@ -2081,15 +1846,12 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::createBeginFunction(
 }
 
 mlir::LogicalResult SCCSolvingWithKINSOLPass::createEndFunction(
-    mlir::RewriterBase& rewriter,
-    mlir::ModuleOp moduleOp,
-    mlir::Location loc,
-    KINSOLInstance* kinsolInstance,
-    llvm::function_ref<mlir::Block*(
-        mlir::OpBuilder&, mlir::Location)> createEndFn) const
-{
+    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, mlir::Location loc,
+    KINSOLInstance *kinsolInstance,
+    llvm::function_ref<mlir::Block *(mlir::OpBuilder &, mlir::Location)>
+        createEndFn) const {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
-  mlir::Block* bodyBlock = createEndFn(rewriter, loc);
+  mlir::Block *bodyBlock = createEndFn(rewriter, loc);
   rewriter.setInsertionPointToStart(bodyBlock);
 
   if (mlir::failed(kinsolInstance->deleteInstance(rewriter, loc))) {
@@ -2099,23 +1861,19 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::createEndFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult SCCSolvingWithKINSOLPass::cleanModelOp(ModelOp modelOp)
-{
+mlir::LogicalResult SCCSolvingWithKINSOLPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createSCCSolvingWithKINSOLPass()
-  {
-    return std::make_unique<SCCSolvingWithKINSOLPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createSCCSolvingWithKINSOLPass(
-      const SCCSolvingWithKINSOLPassOptions& options)
-  {
-    return std::make_unique<SCCSolvingWithKINSOLPass>(options);
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createSCCSolvingWithKINSOLPass() {
+  return std::make_unique<SCCSolvingWithKINSOLPass>();
 }
+
+std::unique_ptr<mlir::Pass>
+createSCCSolvingWithKINSOLPass(const SCCSolvingWithKINSOLPassOptions &options) {
+  return std::make_unique<SCCSolvingWithKINSOLPass>(options);
+}
+} // namespace mlir::bmodelica
