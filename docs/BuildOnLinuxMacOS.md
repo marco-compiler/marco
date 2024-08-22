@@ -117,9 +117,15 @@ cmake --build . --target install
 ## Building and installing the compiler
 With all the requirements set in place, the compiler can be now built through the following procedure.
 
-The `MARCO_INSTALL_PATH` variable must be set to the desired installation path.
+To use the script shown below you have to set or replace the following environment variables:
 
-The `LIT_PATH` variable must be set to path of the `lit` tool, which is used to run the regression tests.
+| Name | Value |
+| :--- | :--- |
+| `MARCO_INSTALL_PATH` | Path to final installation directory of the compiler |
+| `MARCO_RUNTIME_PATH` | Path to the installation directory of the runtime libraries |
+| `LLVM_INSTALL_PATH` | Path to the installation of the adapted LLVM project (see LLVM above) |
+| `LIT_PATH` | Path to the executable LLVM Integrated Tester (`lit`) |
+
 
 ```bash
 cd marco
@@ -135,7 +141,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=${MARCO_INSTALL_PATH} \
   -DLLVM_PATH=${LLVM_INSTALL_PATH} \
-  -DMARCORuntime_PATH=${RUNTIME_INSTALL_PATH} \
+  -DMARCO_RUNTIME_PATH=${RUNTIME_INSTALL_PATH} \
   -DLLVM_EXTERNAL_LIT=${LIT_PATH} \
   ..
 
