@@ -3,9 +3,9 @@
 
 using namespace ::mlir::bmodelica;
 
-static void
-printExpression(llvm::raw_ostream &os, mlir::Value value,
-                const llvm::DenseMap<mlir::Value, int64_t> &inductions) {
+namespace {
+void printExpression(llvm::raw_ostream &os, mlir::Value value,
+                     const llvm::DenseMap<mlir::Value, int64_t> &inductions) {
   mlir::Operation *op = value.getDefiningOp();
 
   if (!op) {
@@ -27,6 +27,41 @@ printExpression(llvm::raw_ostream &os, mlir::Value value,
 
   expressionOp.printExpression(os, inductions);
 }
+
+bool areExpressionOperandsEquivalent(
+    mlir::ValueRange firstOperands, mlir::ValueRange secondOperands,
+    mlir::SymbolTableCollection &symbolTableCollection) {
+  if (firstOperands.size() != secondOperands.size()) {
+    return false;
+  }
+
+  for (auto [firstOperand, secondOperand] :
+       llvm::zip(firstOperands, secondOperands)) {
+    auto firstExp = firstOperand.getDefiningOp<EquationExpressionOpInterface>();
+    auto secondExp =
+        secondOperand.getDefiningOp<EquationExpressionOpInterface>();
+
+    if (!firstExp || !secondExp) {
+      return false;
+    }
+
+    return firstExp.isEquivalent(secondExp, symbolTableCollection);
+  }
+
+  return true;
+}
+
+bool areEquationExpressionsEquivalent(
+    mlir::Operation *firstOp, mlir::Operation *secondOp,
+    mlir::SymbolTableCollection &symbolTableCollection) {
+  if (firstOp->getResultTypes() != secondOp->getResultTypes()) {
+    return false;
+  }
+
+  return ::areExpressionOperandsEquivalent(
+      firstOp->getOperands(), secondOp->getOperands(), symbolTableCollection);
+}
+} // namespace
 
 namespace {
 struct EquationSidesOpInterface
@@ -69,6 +104,19 @@ struct TensorFromElementsOpInterface
 
     os << "}";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TensorFromElementsOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct TensorBroadcastOpInterface
@@ -92,6 +140,19 @@ struct TensorBroadcastOpInterface
 
     os << "}";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TensorBroadcastOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct TensorViewOpInterface
@@ -110,6 +171,19 @@ struct TensorViewOpInterface
         [&](mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "]";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TensorViewOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -167,6 +241,19 @@ struct TensorExtractOpInterface
     os << "]";
   }
 
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TensorExtractOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
+
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
       mlir::SymbolTableCollection &symbolTable,
@@ -220,6 +307,19 @@ struct ArrayFromElementsOpInterface
 
     os << "}";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ArrayFromElementsOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct ArrayBroadcastOpInterface
@@ -243,6 +343,19 @@ struct ArrayBroadcastOpInterface
 
     os << "}";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ArrayBroadcastOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct ArrayCastOpInterface
@@ -253,6 +366,19 @@ struct ArrayCastOpInterface
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto castedOp = mlir::cast<ArrayCastOp>(op);
     ::printExpression(os, castedOp.getOperand(), inductions);
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ArrayCastOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -302,6 +428,19 @@ struct DimOpInterface
     os << ")";
   }
 
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DimOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
+
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const { return 1; }
 
   mlir::Value getExpressionElement(mlir::Operation *op,
@@ -328,6 +467,19 @@ struct SubscriptionOpInterface
     });
 
     os << "]";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SubscriptionOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -385,6 +537,19 @@ struct LoadOpInterface
     os << "]";
   }
 
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<LoadOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
+
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
       mlir::SymbolTableCollection &symbolTable,
@@ -430,6 +595,23 @@ struct VariableGetOpInterface
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto castedOp = mlir::cast<VariableGetOp>(op);
     os << castedOp.getVariable();
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<VariableGetOp>(op);
+    auto otherCasted = mlir::dyn_cast<VariableGetOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getVariable() != otherCasted.getVariable()) {
+      return false;
+    }
+
+    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -487,6 +669,23 @@ struct GlobalVariableGetOpInterface
     os << castedOp.getVariable();
   }
 
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<GlobalVariableGetOp>(op);
+    auto otherCasted = mlir::dyn_cast<GlobalVariableGetOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getVariable() != otherCasted.getVariable()) {
+      return false;
+    }
+
+    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+  }
+
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
       mlir::SymbolTableCollection &symbolTable,
@@ -534,6 +733,23 @@ struct ConstantOpInterface
 
     castedOp.getValue().print(os, true);
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<ConstantOp>(op);
+    auto otherCasted = mlir::dyn_cast<ConstantOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getValue() != otherCasted.getValue()) {
+      return false;
+    }
+
+    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+  }
 };
 
 struct NegateOpInterface
@@ -547,6 +763,19 @@ struct NegateOpInterface
     os << "(- ";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<NegateOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -564,6 +793,19 @@ struct AddOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AddOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct AddEWOpInterface
@@ -579,6 +821,19 @@ struct AddEWOpInterface
     os << " .+ ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AddEWOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -596,6 +851,19 @@ struct SubOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SubOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct SubEWOpInterface
@@ -611,6 +879,19 @@ struct SubEWOpInterface
     os << " .- ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SubEWOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -628,6 +909,19 @@ struct MulOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<MulOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct MulEWOpInterface
@@ -643,6 +937,19 @@ struct MulEWOpInterface
     os << " .* ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<MulEWOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -660,6 +967,19 @@ struct DivOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DivOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct DivEWOpInterface
@@ -675,6 +995,19 @@ struct DivEWOpInterface
     os << " ./ ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DivEWOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -692,6 +1025,19 @@ struct PowOpInterface
     ::printExpression(os, castedOp.getExponent(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<PowOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct PowEWOpInterface
@@ -708,6 +1054,19 @@ struct PowEWOpInterface
     ::printExpression(os, castedOp.getExponent(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<PowEWOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct EqOpInterface
@@ -722,6 +1081,19 @@ struct EqOpInterface
     os << " == ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<EqOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -739,6 +1111,19 @@ struct NotEqOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<NotEqOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct GtOpInterface
@@ -753,6 +1138,19 @@ struct GtOpInterface
     os << " > ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<GtOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -770,6 +1168,19 @@ struct GteOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<GteOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct LtOpInterface
@@ -784,6 +1195,19 @@ struct LtOpInterface
     os << " < ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<LtOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -801,6 +1225,19 @@ struct LteOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<LteOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct NotOpInterface
@@ -814,6 +1251,19 @@ struct NotOpInterface
     os << "!(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<NotOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -831,6 +1281,19 @@ struct AndOpInterface
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AndOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct OrOpInterface
@@ -845,6 +1308,19 @@ struct OrOpInterface
     os << " || ";
     ::printExpression(os, castedOp.getRhs(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<OrOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -871,6 +1347,19 @@ struct SelectOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SelectOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct AbsOpInterface
@@ -884,6 +1373,19 @@ struct AbsOpInterface
     os << "abs(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AbsOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -899,6 +1401,19 @@ struct AcosOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AcosOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct AsinOpInterface
@@ -913,6 +1428,19 @@ struct AsinOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AsinOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct AtanOpInterface
@@ -926,6 +1454,19 @@ struct AtanOpInterface
     os << "atan(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<AtanOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -943,6 +1484,19 @@ struct Atan2OpInterface
     ::printExpression(os, castedOp.getX(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<Atan2Op>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct CeilOpInterface
@@ -956,6 +1510,19 @@ struct CeilOpInterface
     os << "ceil(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<CeilOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -971,6 +1538,19 @@ struct CosOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<CosOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct CoshOpInterface
@@ -985,6 +1565,19 @@ struct CoshOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<CoshOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct DiagonalOpInterface
@@ -998,6 +1591,19 @@ struct DiagonalOpInterface
     os << "diagonal(";
     ::printExpression(os, castedOp.getValues(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DiagonalOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1015,6 +1621,19 @@ struct DivTruncOpInterface
     ::printExpression(os, castedOp.getY(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DivTruncOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct ExpOpInterface
@@ -1028,6 +1647,19 @@ struct ExpOpInterface
     os << "exp(";
     ::printExpression(os, castedOp.getExponent(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ExpOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1043,6 +1675,19 @@ struct FillOpInterface
     ::printExpression(os, castedOp.getValue(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<FillOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct FloorOpInterface
@@ -1056,6 +1701,19 @@ struct FloorOpInterface
     os << "floor(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<FloorOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1071,6 +1729,19 @@ struct IdentityOpInterface
     ::printExpression(os, castedOp.getSize(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<IdentityOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct IntegerOpInterface
@@ -1084,6 +1755,19 @@ struct IntegerOpInterface
     os << "integer(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<IntegerOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1103,6 +1787,19 @@ struct LinspaceOpInterface
     ::printExpression(os, castedOp.getAmount(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<LinspaceOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct LogOpInterface
@@ -1117,6 +1814,19 @@ struct LogOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<LogOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct Log10OpInterface
@@ -1130,6 +1840,19 @@ struct Log10OpInterface
     os << "log10(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<Log10Op>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1151,6 +1874,19 @@ struct MaxOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<MaxOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct MinOpInterface
@@ -1171,6 +1907,19 @@ struct MinOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<MinOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct ModOpInterface
@@ -1187,6 +1936,19 @@ struct ModOpInterface
     ::printExpression(os, castedOp.getY(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ModOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct NDimsOpInterface
@@ -1200,6 +1962,19 @@ struct NDimsOpInterface
     os << "ndims(";
     ::printExpression(os, castedOp.getArray(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<NDimsOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1219,6 +1994,19 @@ struct OnesOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<OnesOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct ProductOpInterface
@@ -1232,6 +2020,19 @@ struct ProductOpInterface
     os << "product(";
     ::printExpression(os, castedOp.getArray(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ProductOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1249,6 +2050,19 @@ struct RemOpInterface
     ::printExpression(os, castedOp.getY(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<RemOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct SignOpInterface
@@ -1262,6 +2076,19 @@ struct SignOpInterface
     os << "sign(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SignOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1277,6 +2104,19 @@ struct SinOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SinOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct SinhOpInterface
@@ -1290,6 +2130,19 @@ struct SinhOpInterface
     os << "sinh(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SinhOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1311,6 +2164,19 @@ struct SizeOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SizeOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct SqrtOpInterface
@@ -1324,6 +2190,19 @@ struct SqrtOpInterface
     os << "sqrt(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SqrtOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1339,6 +2218,19 @@ struct SumOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SumOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct SymmetricOpInterface
@@ -1352,6 +2244,19 @@ struct SymmetricOpInterface
     os << "symmetric(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<SymmetricOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1367,6 +2272,19 @@ struct TanOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TanOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct TanhOpInterface
@@ -1381,6 +2299,19 @@ struct TanhOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TanhOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct TransposeOpInterface
@@ -1394,6 +2325,19 @@ struct TransposeOpInterface
     os << "transpose(";
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<TransposeOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1412,6 +2356,19 @@ struct ZerosOpInterface
     });
 
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<ZerosOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 
@@ -1460,6 +2417,32 @@ struct ReductionOpInterface
     });
 
     os << ")";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<ReductionOp>(op);
+    auto otherCasted = mlir::dyn_cast<ReductionOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getAction() != otherCasted.getAction()) {
+      return false;
+    }
+
+    if (!areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                          symbolTableCollection)) {
+      return false;
+    }
+
+    auto yieldOp = mlir::cast<YieldOp>(casted.getBody()->getTerminator());
+    auto otherYieldOp =
+        mlir::cast<YieldOp>(otherCasted.getBody()->getTerminator());
+    return areExpressionOperandsEquivalent(
+        yieldOp.getValues(), otherYieldOp.getValues(), symbolTableCollection);
   }
 
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const {
@@ -1569,6 +2552,19 @@ struct DerOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<DerOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
+  }
 };
 
 struct TimeOpInterface
@@ -1578,6 +2574,12 @@ struct TimeOpInterface
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     os << "time";
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    return mlir::isa<TimeOp>(other);
   }
 };
 
@@ -1596,6 +2598,169 @@ struct CallOpInterface
 
     os << ")";
   }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<CallOp>(op);
+    auto otherCasted = mlir::dyn_cast<CallOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getCallee() != otherCasted.getCallee()) {
+      return false;
+    }
+
+    if (casted->getResultTypes() != otherCasted->getResultTypes()) {
+      return false;
+    }
+
+    auto argNames = casted.getArgNames();
+    auto otherArgNames = otherCasted.getArgNames();
+
+    llvm::StringMap<size_t> argNamesPos;
+    llvm::StringMap<size_t> otherArgNamesPos;
+
+    if (argNames) {
+      getArgNamesPos(*argNames, argNamesPos);
+    }
+
+    if (otherArgNames) {
+      getArgNamesPos(*otherArgNames, otherArgNamesPos);
+    }
+
+    if (argNames && otherArgNames) {
+      if (!haveSameArgNames(argNamesPos, otherArgNamesPos)) {
+        return false;
+      }
+
+      for (const auto &entry : argNamesPos) {
+        mlir::Value arg = casted.getArgs()[entry.getValue()];
+        mlir::Value otherArg =
+            otherCasted.getArgs()[otherArgNamesPos[entry.getKey()]];
+
+        if (!::areExpressionOperandsEquivalent(arg, otherArg,
+                                               symbolTableCollection)) {
+          return false;
+        }
+      }
+    } else if (argNames) {
+      if (mlir::failed(getArgNamesPos(otherCasted, symbolTableCollection,
+                                      otherArgNamesPos))) {
+        return false;
+      }
+
+      if (!compareNamedUnnamedArgs(casted.getArgs(), argNamesPos,
+                                   otherCasted.getArgs(), otherArgNamesPos,
+                                   symbolTableCollection)) {
+        return false;
+      }
+    } else if (otherArgNames) {
+      if (mlir::failed(
+              getArgNamesPos(casted, symbolTableCollection, argNamesPos))) {
+        return false;
+      }
+
+      if (!compareNamedUnnamedArgs(otherCasted.getArgs(), otherArgNamesPos,
+                                   casted.getArgs(), argNamesPos,
+                                   symbolTableCollection)) {
+        return false;
+      }
+    } else {
+      if (!::areExpressionOperandsEquivalent(
+              casted.getArgs(), otherCasted.getArgs(), symbolTableCollection)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void getArgNamesPos(mlir::ArrayAttr argNames,
+                      llvm::StringMap<size_t> &pos) const {
+    for (auto argName : llvm::enumerate(argNames)) {
+      auto name = argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
+      pos[name] = argName.index();
+    }
+  }
+
+  mlir::LogicalResult
+  getArgNamesPos(CallOp callOp,
+                 mlir::SymbolTableCollection &symbolTableCollection,
+                 llvm::StringMap<size_t> &pos) const {
+    auto otherFunctionOp = mlir::dyn_cast<FunctionOp>(callOp.getFunction(
+        callOp->getParentOfType<mlir::ModuleOp>(), symbolTableCollection));
+
+    if (!otherFunctionOp) {
+      return mlir::failure();
+    }
+
+    size_t variablePos = 0;
+
+    for (VariableOp variableOp : otherFunctionOp.getVariables()) {
+      if (variableOp.isInput()) {
+        pos[variableOp.getSymName()] = variablePos++;
+      }
+    }
+
+    return mlir::success();
+  }
+
+  bool containsArgNames(const llvm::StringMap<size_t> &parent,
+                        const llvm::StringMap<size_t> &child) const {
+    return llvm::all_of(child, [&](const auto &entry) {
+      return parent.contains(entry.getKey());
+    });
+  }
+
+  bool haveSameArgNames(const llvm::StringMap<size_t> &first,
+                        const llvm::StringMap<size_t> &second) const {
+    return containsArgNames(first, second) && containsArgNames(second, first);
+  }
+
+  bool compareNamedUnnamedArgs(
+      mlir::ValueRange namedArgs, const llvm::StringMap<size_t> &namedArgsPos,
+      mlir::ValueRange unnamedArgs,
+      const llvm::StringMap<size_t> &unnamedArgsPos,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    if (namedArgs.size() != unnamedArgs.size()) {
+      return false;
+    }
+
+    llvm::DenseMap<size_t, std::string> inverseUnnamedArgsPos;
+
+    for (const auto &entry : unnamedArgsPos) {
+      inverseUnnamedArgsPos[entry.getValue()] = entry.getKey().str();
+    }
+
+    for (auto unnamedArg : llvm::enumerate(unnamedArgs)) {
+      auto inverseUnnamedArgPosIt =
+          inverseUnnamedArgsPos.find(unnamedArg.index());
+
+      if (inverseUnnamedArgPosIt == inverseUnnamedArgsPos.end()) {
+        return false;
+      }
+
+      auto namedArgsPosIt =
+          namedArgsPos.find(inverseUnnamedArgPosIt->getSecond());
+
+      if (namedArgsPosIt == namedArgsPos.end()) {
+        return false;
+      }
+
+      assert(namedArgsPosIt->getValue() < namedArgs.size());
+      mlir::Value namedArg = namedArgs[namedArgsPosIt->getValue()];
+
+      if (!::areExpressionOperandsEquivalent(
+              namedArg, unnamedArg.value(), symbolTableCollection)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
 };
 
 struct CastOpInterface
@@ -1606,6 +2771,19 @@ struct CastOpInterface
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto casted = mlir::cast<CastOp>(op);
     ::printExpression(os, casted.getValue(), inductions);
+  }
+
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto otherCasted = mlir::dyn_cast<CastOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                            symbolTableCollection);
   }
 };
 } // namespace
