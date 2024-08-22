@@ -12,6 +12,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     AllocationOpInterfaceImpl.cpp
     BindingEquationConversion.cpp
     BufferizableOpInterfaceImpl.cpp
+    CallCSE.cpp
     ConstantMaterializableTypeInterfaceImpl.cpp
     DerivableOpInterfaceImpl.cpp
     DerivableTypeInterfaceImpl.cpp
