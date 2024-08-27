@@ -2085,6 +2085,36 @@ std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
 
 std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
 
+  enum class AssertionLevel : int64_t {
+    WARNING = 0,
+    ERROR = 1
+  };
+
+  auto parseAssertionLevelCR = [] ( const std::string &name )
+                               -> std::optional<AssertionLevel>
+  {
+    const int beginsWith = name.find("AssertionLevel.");
+    if ( beginsWith != 0 ) return std::nullopt;
+
+    std::string_view nestedName = name;
+
+    const std::size_t dotIdx = nestedName.find(".");
+
+    if ( dotIdx == std::string::npos || dotIdx + 1 > name.length() )
+      return std::nullopt;
+
+    nestedName = nestedName.substr( dotIdx + 1 );
+
+    if ( nestedName == "WARNING" ) {
+      return AssertionLevel::WARNING;
+    }
+    if ( nestedName == "ERROR" ) {
+      return AssertionLevel::ERROR;
+    }
+
+    return std::nullopt;
+  };
+
   assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
          "assert");
 
@@ -2096,15 +2126,32 @@ std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
   }
 
   // Levels:
-  //   0: STATUS
-  //   1: WARNING
-  // >=2: ERROR
+  //   0: WARNING
+  // >=1: ERROR
   int64_t assertLevel = 2;
 
   // Level has been specified
   if (call.getNumOfArguments() == 3) {
-    const auto *level = call.getArgument(2)->cast<ast::Constant>();
-    assertLevel = level->as<int64_t>();
+
+    const ast::FunctionArgument *levelArg = call.getArgument(2);
+
+    if ( const auto *expressionArg = levelArg->dyn_cast<ast::ExpressionFunctionArgument>() ) {
+
+      const auto *expr = expressionArg->getExpression()->cast<ast::ComponentReference>();
+
+      auto name = expr->getName();
+
+      auto level = parseAssertionLevelCR(name);
+
+      if ( static_cast<bool>(level) ) {
+        assertLevel = static_cast<int64_t>(*level);
+      } else {
+        return std::nullopt;
+      }
+    } else {
+      const auto *level = call.getArgument(2)->cast<ast::Constant>();
+      assertLevel = level->as<int64_t>();
+    }
   }
 
   auto *message = call.getArgument(1)->cast<ast::ExpressionFunctionArgument>();
