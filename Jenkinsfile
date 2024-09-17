@@ -34,7 +34,7 @@ for (config in configs) {
 
             String dockerMARCOImageName = 'marco-compiler/marco-' + configName
 
-            String dockerArgs = configArgs +
+            String dockerArgs = configArgs + " --no-cache" +
                 " --build-arg LLVM_BUILD_TYPE=Release" +
                 " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
                 " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
