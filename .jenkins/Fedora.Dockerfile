@@ -12,8 +12,8 @@ ARG MARCO_RUNTIME_BUILD_TYPE=Release
 
 RUN dnf update -y && \
     dnf install -y gcc gcc-c++ gfortran perl ninja-build cmake ccache git \
-    python3-pip python3-virtualenv libxml2-devel wget openblas-devel \
-    suitesparse-devel sundials-devel doxygen
+    python3-pip python3-virtualenv libxml2-devel wget doxygen \
+    openblas-devel suitesparse-devel sundials-devel doxygen
 
 COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh

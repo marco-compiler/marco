@@ -12,8 +12,8 @@ ARG MARCO_RUNTIME_BUILD_TYPE=Release
 
 RUN apt update -y && \
     apt install -y build-essential gfortran ninja-build lld cmake ccache git \
-    python3-pip python3-venv libxml2-dev libtinfo-dev wget libopenblas-dev \
-    libsuitesparse-dev libsundials-dev doxygen
+    python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen \
+    libopenblas-dev libsuitesparse-dev libsundials-dev
 
 COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
