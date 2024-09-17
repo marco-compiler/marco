@@ -12,6 +12,7 @@ cmake \
   -B build \
   -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr/local \
   -DOM_USE_CCACHE=OFF \
   -DOM_ENABLE_GUI_CLIENTS=OFF
 
