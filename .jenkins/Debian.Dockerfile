@@ -14,7 +14,9 @@ RUN apt update -y && \
     apt install -y build-essential gfortran ninja-build lld cmake ccache git \
     python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen \
     autoconf automake libboost-all-dev expat default-jre uuid-dev \
-    libopenblas-dev libsuitesparse-dev libsundials-dev
+    libopenblas-dev=0.3.21+ds-4 \
+    libsuitesparse-dev=1:5.12.0+dfsg-2 \
+    libsundials-dev=6.4.1+dfsg1-3
 
 COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
