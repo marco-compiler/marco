@@ -1,5 +1,5 @@
 String configName = "debian-12"
-String dockerfile = "Debian.Dockerfile"
+String dockerfile = "dev-debian-12.Dockerfile"
 
 publishChecks(name: configName, status: 'QUEUED', summary: 'Queued')
 
@@ -23,11 +23,9 @@ node {
         }
     }
 
-    String dockerMARCOImageName = 'marco-compiler/marco-' + "dev-" + configName
+    String dockerMARCOImageName = 'marco-compiler/marco-dev-' + configName
 
     String dockerArgs =
-        " --build-arg VERSION=12" +
-        " --build-arg LLVM_BUILD_TYPE=Release" +
         " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
         " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
@@ -38,9 +36,7 @@ node {
     def dockerImage
 
     stage("Docker image") {
-        dockerImage = docker.build(
-            dockerMARCOImageName + ':' + env.GIT_COMMIT,
-            "--build-arg MARCO_RUNTIME_BUILD_TYPE=Debug --build-arg LLVM_ENABLE_ASSERTIONS=ON " + dockerArgs)
+        dockerImage = docker.build(dockerMARCOImageName + ':' + env.GIT_COMMIT, dockerArgs)
     }
 
     dockerImage.inside() {
