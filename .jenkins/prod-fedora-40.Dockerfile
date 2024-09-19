@@ -15,19 +15,23 @@ RUN dnf update -y && \
 COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
 
+COPY ./version_llvm.txt /tmp/
 COPY ./install_llvm.sh /tmp/
 
 RUN chmod +x /tmp/install_llvm.sh && \
     cd /root && \
+    LLVM_COMMIT=$(cat /tmp/version_llvm.txt) \
     LLVM_BUILD_TYPE=Release \
     LLVM_ENABLE_ASSERTIONS=OFF \
     /tmp/install_llvm.sh
 
-COPY ./install_runtime.sh /tmp/
+COPY ./version_marco_runtime.txt /tmp/
+COPY ./install_marco_runtime.sh /tmp/
 
-RUN chmod +x /tmp/install_runtime.sh && \
+RUN chmod +x /tmp/install_marco_runtime.sh && \
     cd /root && \
+    MARCO_RUNTIME_COMMIT=$(cat /tmp/version_marco_runtime.txt) \
     MARCO_RUNTIME_BUILD_TYPE=Release \
-    /tmp/install_runtime.sh
+    /tmp/install_marco_runtime.sh
 
 RUN pip install nltk
