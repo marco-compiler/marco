@@ -6,8 +6,8 @@ ARG LLVM_PARALLEL_COMPILE_JOBS=4
 ARG LLVM_PARALLEL_LINK_JOBS=1
 
 RUN apt update -y && \
-    apt install -y build-essential gfortran ninja-build lld cmake ccache git \
-    python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen \
+    apt install -y build-essential gfortran ninja-build lld mold cmake ccache \
+    git python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen \
     autoconf automake libboost-all-dev expat default-jre uuid-dev \
     libopenblas-dev=0.3.21+ds-4 \
     libsuitesparse-dev=1:5.12.0+dfsg-2 \

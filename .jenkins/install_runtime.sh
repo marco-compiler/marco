@@ -9,6 +9,7 @@ mkdir build
 
 cmake \
   -S . -B build -G Ninja \
+  -DCMAKE_LINKER_TYPE=MOLD \
   -DCMAKE_BUILD_TYPE=${MARCO_BUILD_TYPE} \
   -DMARCO_USE_BUILTIN_SUNDIALS=OFF
 

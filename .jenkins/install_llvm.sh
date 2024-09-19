@@ -11,6 +11,7 @@ cmake \
   -S llvm \
   -B build \
   -G Ninja \
+  -DCMAKE_LINKER_TYPE=MOLD \
   -DCMAKE_BUILD_TYPE=${LLVM_BUILD_TYPE} \
   -DLLVM_TARGETS_TO_BUILD="host" \
   -DLLVM_INSTALL_UTILS=True \
