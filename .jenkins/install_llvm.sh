@@ -2,7 +2,7 @@
 
 git clone https://github.com/marco-compiler/llvm-project.git
 cd llvm-project
-git checkout 969ff8ef9aba8c17ddb53fd44bd8d3b82d47b3fa
+git checkout ${LLVM_COMMIT}
 
 rm -rf build
 mkdir build
