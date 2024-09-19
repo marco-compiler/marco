@@ -27,7 +27,7 @@ COPY ./install_llvm.sh /tmp/
 RUN chmod +x /tmp/install_llvm.sh && \
     cd /root && \
     LLVM_BUILD_TYPE=Release \
-    LLVM_ENABLE_ASSERTIONS=OFF \
+    LLVM_ENABLE_ASSERTIONS=ON \
     /tmp/install_llvm.sh
 
 COPY ./install_runtime.sh /tmp/
