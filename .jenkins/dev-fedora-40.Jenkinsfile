@@ -1,7 +1,8 @@
 String configName = "fedora-40"
 String dockerfile = "dev-fedora-40.Dockerfile"
+String checkName = "ci-" + configName
 
-publishChecks(name: configName, status: 'QUEUED', summary: 'Queued')
+publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
 node {
     agent 'x86_64-ubuntu-22.04'
@@ -31,7 +32,7 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    publishChecks(name: configName, status: 'IN_PROGRESS', summary: 'In progress')
+    publishChecks(name: checkName, status: 'IN_PROGRESS', summary: 'In progress')
 
     def dockerImage
 
@@ -40,7 +41,7 @@ node {
     }
 
     dockerImage.inside() {
-        withChecks(name: configName) {
+        withChecks(name: checkName) {
             stage("OS information") {
                 sh "cat /etc/os-release"
             }
@@ -67,5 +68,5 @@ node {
         }
     }
 
-    publishChecks(name: configName, conclusion: 'SUCCESS', summary: 'Completed')
+    publishChecks(name: checkName, conclusion: 'SUCCESS', summary: 'Completed')
 }
