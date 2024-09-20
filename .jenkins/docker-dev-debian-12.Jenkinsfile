@@ -5,7 +5,9 @@ String checkName = "docker-dev-image"
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
 node {
-    agent 'x86_64-ubuntu-22.04'
+    agent {
+        label 'x86_64-linux'
+    }
 
     String localWorkspace = "${WORKSPACE}/" + configName
 
