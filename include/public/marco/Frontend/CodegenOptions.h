@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace marco::frontend {
-/// Code generation operations.
+/// Code generation options.
 /// The default values are for compiling without optimizations.
 /// The class extends the language options for C / C++ to enable the
 /// integration with clang's diagnostics infrastructure.
