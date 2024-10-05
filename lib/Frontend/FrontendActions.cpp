@@ -826,7 +826,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
   pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
   pm.addPass(mlir::bmodelica::createSCCDetectionPass());
-  pm.addPass(mlir::bmodelica::createVariablesPromotionPass());
+
+  if (ci.getCodeGenOptions().variablesToParametersPromotion) {
+    pm.addPass(mlir::bmodelica::createVariablesPromotionPass());
+  }
 
   // Try to solve the cycles by substitution.
   pm.addPass(mlir::bmodelica::createSCCSolvingBySubstitutionPass());
