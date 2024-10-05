@@ -824,7 +824,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::bmodelica::createMatchingPass());
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
-  pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
+
+  if (ci.getCodeGenOptions().singleValuedInductionElimination) {
+    pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
+  }
+
   pm.addPass(mlir::bmodelica::createSCCDetectionPass());
 
   if (ci.getCodeGenOptions().variablesToParametersPromotion) {
@@ -837,7 +841,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Simplify the possibly complex accesses introduced by equations
   // substitutions.
   pm.addPass(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
+
+  if (ci.getCodeGenOptions().singleValuedInductionElimination) {
+    pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
+  }
 
   // Apply the selected solver.
   pm.addPass(

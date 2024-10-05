@@ -26,6 +26,7 @@ namespace marco::frontend
     bool cse = false;
     bool equationsRuntimeScheduling = false;
     bool omp = false;
+    bool singleValuedInductionElimination = false;
     bool loopFusion = false;
     bool loopCoalescing = false;
     bool loopTiling = false;

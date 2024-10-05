@@ -508,6 +508,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSpeedupLevel() > 0) {
     options.debug = false;
     options.assertions = false;
+    options.singleValuedInductionElimination = true;
   }
 
   if (options.optLevel.getSpeedupLevel() > 1) {
@@ -525,6 +526,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSizeLevel() > 0) {
     options.debug = false;
     options.cse = true;
+    options.singleValuedInductionElimination = true;
     options.loopFusion = true;
     options.loopCoalescing = true;
   }
