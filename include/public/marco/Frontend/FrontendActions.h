@@ -100,6 +100,12 @@ protected:
   /// Set up the LLVM's TargetMachine.
   bool setUpTargetMachine();
 
+  /// Get the LLVM's TargetMachine.
+  llvm::TargetMachine &getTargetMachine();
+
+  /// Get the LLVM's TargetMachine.
+  const llvm::TargetMachine &getTargetMachine() const;
+
   /// Get the data layout of the machine for which the code is being
   /// compiled.
   llvm::DataLayout getDataLayout() const;
@@ -205,6 +211,7 @@ protected:
 
 private:
   CodeGenActionKind action;
+  std::unique_ptr<llvm::TargetMachine> targetMachine;
   mlir::DialectRegistry mlirDialectRegistry;
   std::unique_ptr<mlir::MLIRContext> mlirContext;
   std::unique_ptr<DiagnosticHandler> diagnosticHandler;
@@ -213,7 +220,6 @@ private:
 protected:
   std::unique_ptr<mlir::ModuleOp> mlirModule;
   std::unique_ptr<llvm::Module> llvmModule;
-  std::unique_ptr<llvm::TargetMachine> targetMachine;
 };
 
 class EmitMLIRAction : public CodeGenAction {

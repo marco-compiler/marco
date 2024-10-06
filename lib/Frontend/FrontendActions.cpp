@@ -41,6 +41,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/Path.h"
@@ -419,6 +420,10 @@ bool CodeGenAction::beginSourceFilesAction() {
     createMLIRContext();
   }
 
+  if (!setUpTargetMachine()) {
+    return false;
+  }
+
   if (action == CodeGenActionKind::GenerateMLIR) {
     return generateMLIR();
   }
@@ -490,9 +495,18 @@ bool CodeGenAction::setUpTargetMachine() {
   return true;
 }
 
-llvm::DataLayout CodeGenAction::getDataLayout() const {
+llvm::TargetMachine &CodeGenAction::getTargetMachine() {
   assert(targetMachine && "TargetMachine has not been initialized yet");
-  return targetMachine->createDataLayout();
+  return *targetMachine;
+}
+
+const llvm::TargetMachine &CodeGenAction::getTargetMachine() const {
+  assert(targetMachine && "TargetMachine has not been initialized yet");
+  return *targetMachine;
+}
+
+llvm::DataLayout CodeGenAction::getDataLayout() const {
+  return getTargetMachine().createDataLayout();
 }
 
 void CodeGenAction::registerMLIRDialects() {
@@ -688,12 +702,7 @@ bool CodeGenAction::generateMLIRLLVM() {
 
 void CodeGenAction::setMLIRModuleTargetTriple() {
   assert(mlirModule && "MLIR module has not been created yet");
-
-  if (!targetMachine) {
-    setUpTargetMachine();
-  }
-
-  const std::string &triple = targetMachine->getTargetTriple().str();
+  const std::string &triple = getTargetMachine().getTargetTriple().str();
 
   llvm::StringRef tripleAttrName =
       mlir::LLVM::LLVMDialect::getTargetTripleAttrName();
@@ -717,12 +726,7 @@ void CodeGenAction::setMLIRModuleTargetTriple() {
 
 void CodeGenAction::setMLIRModuleDataLayout() {
   assert(mlirModule && "MLIR module has not been created yet");
-
-  if (!targetMachine) {
-    setUpTargetMachine();
-  }
-
-  const llvm::DataLayout &dl = targetMachine->createDataLayout();
+  const llvm::DataLayout &dl = getTargetMachine().createDataLayout();
 
   llvm::StringRef dlAttrName = mlir::LLVM::LLVMDialect::getDataLayoutAttrName();
 
@@ -1178,12 +1182,7 @@ bool CodeGenAction::generateLLVMIR() {
 
 void CodeGenAction::setLLVMModuleTargetTriple() {
   assert(llvmModule && "LLVM module has not been created yet");
-
-  if (!targetMachine) {
-    setUpTargetMachine();
-  }
-
-  const std::string &triple = targetMachine->getTargetTriple().str();
+  const std::string &triple = getTargetMachine().getTargetTriple().str();
 
   if (llvmModule->getTargetTriple() != triple) {
     // The LLVM module already has a target triple which is different from
@@ -1199,12 +1198,7 @@ void CodeGenAction::setLLVMModuleTargetTriple() {
 
 void CodeGenAction::setLLVMModuleDataLayout() {
   assert(llvmModule && "LLVM module has not been created yet");
-
-  if (!targetMachine) {
-    setUpTargetMachine();
-  }
-
-  const llvm::DataLayout &dataLayout = targetMachine->createDataLayout();
+  const llvm::DataLayout &dataLayout = getTargetMachine().createDataLayout();
 
   if (llvmModule->getDataLayout() != dataLayout) {
     // The LLVM module already has a data layout which is different from the
@@ -1236,7 +1230,7 @@ void CodeGenAction::runOptimizationPipeline() {
   llvm::StandardInstrumentations si(getLLVMContext(), false);
   si.registerCallbacks(pic, &mam);
 
-  llvm::PassBuilder pb(targetMachine.get(), pto, pgoOpt, &pic);
+  llvm::PassBuilder pb(&getTargetMachine(), pto, pgoOpt, &pic);
 
   // Register all the basic analyses with the managers.
   pb.registerModuleAnalyses(mam);
