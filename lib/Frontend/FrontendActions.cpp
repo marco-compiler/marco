@@ -1102,10 +1102,11 @@ void CodeGenAction::buildMLIRBufferDeallocationPipeline(
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRLoopTilingPass() {
-  auto &ci = getInstance();
+  const auto *subtargetInfo = getTargetMachine().getMCSubtargetInfo();
 
-  if (auto cacheLineSize = ci.getTarget().getCPUCacheLineSize()) {
-    return mlir::affine::createLoopTilingPass(*cacheLineSize);
+  if (auto cacheSize = subtargetInfo->getCacheSize(0);
+      cacheSize && *cacheSize >= 1024) {
+    return mlir::affine::createLoopTilingPass(*cacheSize);
   }
 
   return mlir::affine::createLoopTilingPass();
