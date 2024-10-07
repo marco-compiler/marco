@@ -816,7 +816,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
                        modelOp, variable.getRootReference());
 
                if (!hasVariable(variableOp)) {
-                 if (!variableOp.isReadOnly() || !reducedSystem) {
+                 if (!variableOp.isReadOnly()) {
                    return false;
                  }
                }
