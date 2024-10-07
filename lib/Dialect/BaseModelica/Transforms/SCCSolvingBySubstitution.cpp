@@ -91,6 +91,8 @@ namespace
           ModelOp modelOp,
           SCCOp scc);
 
+      /// Detect the SCCs among a set of equations and create the SCC
+      /// operations containing them.
       void createSCCs(
           mlir::RewriterBase& rewriter,
           mlir::SymbolTableCollection& symbolTableCollection,
@@ -534,14 +536,22 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     ModelOp modelOp,
     SCCOp scc)
 {
+  // The equations that initially compose the SCC.
   llvm::SmallVector<MatchedEquationInstanceOp> originalEquations;
   scc.collectEquations(originalEquations);
 
+  // The equations to be considered during an iteration.
+  // Initially, they are the equations within the SCC.
   llvm::SmallVector<MatchedEquationInstanceOp> currentEquations(
       originalEquations.begin(), originalEquations.end());
 
+  // The equations to be erased after having solved the SCC.
   llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
+
+  // The newly inserted equations.
   llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
+
+  // The set of equations that have deemed to be non-explicitable.
   llvm::DenseSet<MatchedEquationInstanceOp> nonExplicitableEquations;
 
   auto createSCCsOnSuccessFn = llvm::make_scope_exit([&]() {
@@ -550,6 +560,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
       rewriter.eraseOp(equation);
     }
 
+    // Collect the remaining equations.
     llvm::SmallVector<MatchedEquationInstanceOp> resultEquations;
 
     for (MatchedEquationInstanceOp equation :
@@ -557,10 +568,12 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
       resultEquations.push_back(equation);
     }
 
+    // Compute the new SCCs and erase the original one.
     createSCCs(rewriter, symbolTableCollection, modelOp, scc, resultEquations);
     rewriter.eraseOp(scc);
   });
 
+  // Compute the cyclic dependencies within the SCC.
   llvm::SmallVector<Cycle, 3> cycles;
 
   if (mlir::failed(getCycles(
