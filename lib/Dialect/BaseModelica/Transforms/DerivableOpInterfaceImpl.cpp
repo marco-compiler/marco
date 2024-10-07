@@ -889,6 +889,87 @@ struct VariableSetOpInterface
   }
 };
 
+struct QualifiedVariableGetOpInterface
+    : public DerivableOpInterface::ExternalModel<
+          QualifiedVariableGetOpInterface, QualifiedVariableGetOp> {
+  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
+                                              mlir::OpBuilder &builder,
+                                              State &state) const {
+    return createDerivative(op, builder, state);
+  }
+
+  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
+                                           mlir::OpBuilder &builder,
+                                           State &state,
+                                           bool deriveDependencies) const {
+    return createDerivative(op, builder, state);
+  }
+
+  mlir::LogicalResult createDerivative(mlir::Operation *op,
+                                       mlir::OpBuilder &builder,
+                                       State &state) const {
+    auto castedOp = mlir::cast<QualifiedVariableGetOp>(op);
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointAfter(castedOp);
+
+    if (auto tensorType =
+            castedOp.getResult().getType().cast<mlir::TensorType>()) {
+      auto elementType = tensorType.getElementType();
+
+      auto materializableType =
+          mlir::dyn_cast<ConstantMaterializableTypeInterface>(elementType);
+
+      if (!materializableType) {
+        return mlir::failure();
+      }
+
+      mlir::Value zero = materializableType.materializeIntConstant(
+          builder, castedOp.getLoc(), 0);
+
+      auto derivedOp = builder.create<TensorBroadcastOp>(castedOp.getLoc(),
+                                                         tensorType, zero);
+
+      state.mapDerivative(castedOp, derivedOp);
+      return mlir::success();
+    }
+
+    if (auto arrayType = castedOp.getResult().getType().cast<ArrayType>()) {
+      auto elementType = arrayType.getElementType();
+
+      auto materializableType =
+          mlir::dyn_cast<ConstantMaterializableTypeInterface>(elementType);
+
+      if (!materializableType) {
+        return mlir::failure();
+      }
+
+      mlir::Value zero = materializableType.materializeIntConstant(
+          builder, castedOp.getLoc(), 0);
+
+      auto derivedOp =
+          builder.create<ArrayBroadcastOp>(castedOp.getLoc(), arrayType, zero);
+
+      state.mapDerivative(castedOp, derivedOp);
+      return mlir::success();
+    }
+
+    auto materializableType =
+        mlir::dyn_cast<ConstantMaterializableTypeInterface>(
+            castedOp.getResult().getType());
+
+    if (!materializableType) {
+      return mlir::failure();
+    }
+
+    mlir::Value zero = materializableType.materializeIntConstant(
+        builder, castedOp.getLoc(), 0);
+
+    state.mapDerivative(castedOp, zero);
+    return mlir::success();
+  }
+};
+
 struct GlobalVariableGetOpInterface
     : public DerivableOpInterface::ExternalModel<GlobalVariableGetOpInterface,
                                                  GlobalVariableGetOp> {
@@ -3209,6 +3290,9 @@ void registerDerivableOpInterfaceExternalModels(
     // Variable operations.
     VariableGetOp::attachInterface<::VariableGetOpInterface>(*context);
     VariableSetOp::attachInterface<::VariableSetOpInterface>(*context);
+
+    // Qualified variable operations.
+    QualifiedVariableGetOp::attachInterface<::QualifiedVariableGetOpInterface>(*context);
 
     // Global variable operations.
     GlobalVariableGetOp::attachInterface<::GlobalVariableGetOpInterface>(*context);
