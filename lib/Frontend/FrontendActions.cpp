@@ -961,8 +961,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   if (ci.getCodeGenOptions().heapToStackPromotion) {
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::bufferization::createPromoteBuffersToStackPass());
+    pm.addNestedPass<mlir::func::FuncOp>(createMLIRPromoteBuffersToStackPass());
   }
 
   // Buffer deallocations placements must be performed after loop
@@ -1110,6 +1109,32 @@ std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRLoopTilingPass() {
   }
 
   return mlir::affine::createLoopTilingPass();
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIRPromoteBuffersToStackPass() {
+  // TODO: control with CLI
+  unsigned int maxAllocSizeInBytes = 1024;
+
+  auto isSmallAllocFn = [=](mlir::Value alloc) -> bool {
+    auto type = mlir::dyn_cast<mlir::ShapedType>(alloc.getType());
+
+    if (!type ||
+        !alloc.getDefiningOp<mlir::bufferization::AllocationOpInterface>()) {
+      return false;
+    }
+
+    if (!type.hasStaticShape()) {
+      return false;
+    }
+
+    unsigned int bitwidth = mlir::DataLayout::closest(alloc.getDefiningOp())
+                                .getTypeSizeInBits(type.getElementType());
+
+    return type.getNumElements() * bitwidth <= maxAllocSizeInBytes * 8;
+  };
+
+  return mlir::bufferization::createPromoteBuffersToStackPass(isSmallAllocFn);
 }
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {

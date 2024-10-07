@@ -178,6 +178,7 @@ protected:
   std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass();
   void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager &pm);
   std::unique_ptr<mlir::Pass> createMLIRLoopTilingPass();
+  std::unique_ptr<mlir::Pass> createMLIRPromoteBuffersToStackPass();
 
   /// }
   /// @name LLVM-IR
