@@ -544,7 +544,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
   llvm::DenseSet<MatchedEquationInstanceOp> nonExplicitableEquations;
 
-  auto createSCCsFn = llvm::make_scope_exit([&]() {
+  auto createSCCsOnSuccessFn = llvm::make_scope_exit([&]() {
+    // Erase the equations that have been discarded.
     for (MatchedEquationInstanceOp equation : toBeErased) {
       rewriter.eraseOp(equation);
     }
@@ -567,17 +568,10 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     return mlir::failure();
   }
 
-  if (cycles.empty()) {
-    return mlir::success();
-  }
-
-  bool atLeastOneChanged;
   int64_t currentIteration = 0;
 
   while (!cycles.empty() && currentIteration++ < maxIterations) {
     // Try to solve one cycle.
-    atLeastOneChanged = false;
-
     for (const auto& cycle : llvm::enumerate(cycles)) {
       currentEquations.clear();
 
@@ -644,14 +638,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
           allNewEquations.push_back(newEquation);
         }
 
-        atLeastOneChanged = true;
         break;
       }
-    }
-
-    if (!atLeastOneChanged) {
-      // The IR can't be modified more.
-      return mlir::LogicalResult::success();
     }
 
     // Search for the remaining cycles.
@@ -672,6 +660,16 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     if (mlir::failed(getCycles(
             cycles, symbolTableCollection, modelOp, currentEquations))) {
       return mlir::failure();
+    }
+  }
+
+  if (!cycles.empty()) {
+    // Could not solve the cycle.
+    // Cancel the modifications and keep the original SCC.
+    createSCCsOnSuccessFn.release();
+
+    for (MatchedEquationInstanceOp equationOp : allNewEquations) {
+      equationOp.erase();
     }
   }
 
