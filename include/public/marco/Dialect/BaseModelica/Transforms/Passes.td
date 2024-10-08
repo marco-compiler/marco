@@ -318,6 +318,11 @@ def CallCSEPass
         "mlir::bmodelica::BaseModelicaDialect"
     ];
 
+    let statistics = [
+        Statistic<"newCSEVariables", "new-cse-variables", "How many CSE variables have been created">,
+        Statistic<"replacedCalls", "replaced-calls", "How many calls were replaced by a CSE variable usage">
+    ];
+
     let constructor = "mlir::bmodelica::createCallCSEPass()";
 }
 
