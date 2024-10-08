@@ -4,12 +4,12 @@
 using namespace ::mlir::bmodelica;
 
 namespace {
-void printExpression(llvm::raw_ostream &os, mlir::Value value,
+void printExpression(llvm::raw_ostream &os, const mlir::Value value,
                      const llvm::DenseMap<mlir::Value, int64_t> &inductions) {
   mlir::Operation *op = value.getDefiningOp();
 
   if (!op) {
-    if (auto inductionsIt = inductions.find(value);
+    if (const auto inductionsIt = inductions.find(value);
         inductionsIt != inductions.end()) {
       os << "{ind " << inductionsIt->getSecond() << "}";
     } else {
@@ -58,15 +58,15 @@ bool areEquationExpressionsEquivalent(
     return false;
   }
 
-  return ::areExpressionOperandsEquivalent(
+  return areExpressionOperandsEquivalent(
       firstOp->getOperands(), secondOp->getOperands(), symbolTableCollection);
 }
 } // namespace
 
 namespace {
 struct EquationSidesOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          EquationSidesOpInterface, EquationSidesOp> {
+    : EquationExpressionOpInterface::ExternalModel<EquationSidesOpInterface,
+                                                   EquationSidesOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -74,13 +74,13 @@ struct EquationSidesOpInterface
 
     os << "{";
 
-    llvm::interleaveComma(castedOp.getLhsValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getLhsValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "} = {";
 
-    llvm::interleaveComma(castedOp.getRhsValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getRhsValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
@@ -89,7 +89,7 @@ struct EquationSidesOpInterface
 };
 
 struct TensorFromElementsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
+    : EquationExpressionOpInterface::ExternalModel<
           TensorFromElementsOpInterface, TensorFromElementsOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
@@ -98,16 +98,15 @@ struct TensorFromElementsOpInterface
 
     os << "{";
 
-    llvm::interleaveComma(castedOp.getValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "}";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TensorFromElementsOp>(other);
 
     if (!otherCasted) {
@@ -120,15 +119,15 @@ struct TensorFromElementsOpInterface
 };
 
 struct TensorBroadcastOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          TensorBroadcastOpInterface, TensorBroadcastOp> {
+    : EquationExpressionOpInterface::ExternalModel<TensorBroadcastOpInterface,
+                                                   TensorBroadcastOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto castedOp = mlir::cast<TensorBroadcastOp>(op);
 
     os << "{";
-    mlir::TensorType tensorType = castedOp.getResult().getType();
+    const auto tensorType = castedOp.getResult().getType();
 
     for (int64_t i = 0, e = tensorType.getNumElements(); i < e; ++i) {
       if (i != 0) {
@@ -141,9 +140,8 @@ struct TensorBroadcastOpInterface
     os << "}";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TensorBroadcastOp>(other);
 
     if (!otherCasted) {
@@ -156,8 +154,8 @@ struct TensorBroadcastOpInterface
 };
 
 struct TensorViewOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<TensorViewOpInterface,
-                                                          TensorViewOp> {
+    : EquationExpressionOpInterface::ExternalModel<TensorViewOpInterface,
+                                                   TensorViewOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -166,16 +164,15 @@ struct TensorViewOpInterface
     ::printExpression(os, castedOp.getSource(), inductions);
     os << "[";
 
-    llvm::interleaveComma(
+    interleaveComma(
         castedOp.getSubscriptions(), os,
-        [&](mlir::Value exp) { ::printExpression(os, exp, inductions); });
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "]";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TensorViewOp>(other);
 
     if (!otherCasted) {
@@ -195,10 +192,10 @@ struct TensorViewOpInterface
           &dimensionAccesses,
       EquationPath path) const {
     auto castedOp = mlir::cast<TensorViewOp>(op);
-    auto indices = castedOp.getSubscriptions();
+    const auto indices = castedOp.getSubscriptions();
 
     for (size_t i = 0, e = indices.size(); i < e; ++i) {
-      mlir::Value index = indices[e - 1 - i];
+      const mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(explicitInductionsPositionMap,
                                                 additionalInductions, index);
@@ -224,8 +221,8 @@ struct TensorViewOpInterface
 };
 
 struct TensorExtractOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          TensorExtractOpInterface, TensorExtractOp> {
+    : EquationExpressionOpInterface::ExternalModel<TensorExtractOpInterface,
+                                                   TensorExtractOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -234,16 +231,15 @@ struct TensorExtractOpInterface
     ::printExpression(os, castedOp.getTensor(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "]";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TensorExtractOp>(other);
 
     if (!otherCasted) {
@@ -263,10 +259,10 @@ struct TensorExtractOpInterface
           &dimensionAccesses,
       EquationPath path) const {
     auto castedOp = mlir::cast<TensorExtractOp>(op);
-    auto indices = castedOp.getIndices();
+    const auto indices = castedOp.getIndices();
 
     for (size_t i = 0, e = indices.size(); i < e; ++i) {
-      mlir::Value index = indices[e - 1 - i];
+      const mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(explicitInductionsPositionMap,
                                                 additionalInductions, index);
@@ -292,8 +288,8 @@ struct TensorExtractOpInterface
 };
 
 struct ArrayFromElementsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          ArrayFromElementsOpInterface, ArrayFromElementsOp> {
+    : EquationExpressionOpInterface::ExternalModel<ArrayFromElementsOpInterface,
+                                                   ArrayFromElementsOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -301,16 +297,15 @@ struct ArrayFromElementsOpInterface
 
     os << "{";
 
-    llvm::interleaveComma(castedOp.getValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "}";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ArrayFromElementsOp>(other);
 
     if (!otherCasted) {
@@ -323,8 +318,8 @@ struct ArrayFromElementsOpInterface
 };
 
 struct ArrayBroadcastOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          ArrayBroadcastOpInterface, ArrayBroadcastOp> {
+    : EquationExpressionOpInterface::ExternalModel<ArrayBroadcastOpInterface,
+                                                   ArrayBroadcastOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -344,9 +339,8 @@ struct ArrayBroadcastOpInterface
     os << "}";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ArrayBroadcastOp>(other);
 
     if (!otherCasted) {
@@ -359,8 +353,8 @@ struct ArrayBroadcastOpInterface
 };
 
 struct ArrayCastOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ArrayCastOpInterface,
-                                                          ArrayCastOp> {
+    : EquationExpressionOpInterface::ExternalModel<ArrayCastOpInterface,
+                                                   ArrayCastOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -368,9 +362,8 @@ struct ArrayCastOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ArrayCastOp>(other);
 
     if (!otherCasted) {
@@ -390,8 +383,8 @@ struct ArrayCastOpInterface
           &dimensionAccesses,
       EquationPath path) const {
     auto castedOp = mlir::cast<ArrayCastOp>(op);
-    mlir::Value source = castedOp.getSource();
-    auto childOp = source.getDefiningOp();
+    const mlir::Value source = castedOp.getSource();
+    const auto childOp = source.getDefiningOp();
 
     if (!childOp) {
       return mlir::success();
@@ -403,7 +396,7 @@ struct ArrayCastOpInterface
       return mlir::failure();
     }
 
-    if (mlir::failed(expressionInt.getEquationAccesses(
+    if (failed(expressionInt.getEquationAccesses(
             accesses, symbolTable, explicitInductionsPositionMap,
             additionalInductions, dimensionAccesses, path + 0))) {
       return mlir::failure();
@@ -414,8 +407,7 @@ struct ArrayCastOpInterface
 };
 
 struct DimOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DimOpInterface,
-                                                          DimOp> {
+    : EquationExpressionOpInterface::ExternalModel<DimOpInterface, DimOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -428,9 +420,8 @@ struct DimOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DimOp>(other);
 
     if (!otherCasted) {
@@ -444,7 +435,7 @@ struct DimOpInterface
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const { return 1; }
 
   mlir::Value getExpressionElement(mlir::Operation *op,
-                                   uint64_t position) const {
+                                   const uint64_t position) const {
     auto castedOp = mlir::cast<DimOp>(op);
     assert(position == 0);
     return castedOp.getDimension();
@@ -452,8 +443,8 @@ struct DimOpInterface
 };
 
 struct SubscriptionOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          SubscriptionOpInterface, SubscriptionOp> {
+    : EquationExpressionOpInterface::ExternalModel<SubscriptionOpInterface,
+                                                   SubscriptionOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -462,16 +453,15 @@ struct SubscriptionOpInterface
     ::printExpression(os, castedOp.getSource(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "]";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SubscriptionOp>(other);
 
     if (!otherCasted) {
@@ -491,10 +481,10 @@ struct SubscriptionOpInterface
           &dimensionAccesses,
       EquationPath path) const {
     auto castedOp = mlir::cast<SubscriptionOp>(op);
-    auto indices = castedOp.getIndices();
+    const auto indices = castedOp.getIndices();
 
     for (size_t i = 0, e = indices.size(); i < e; ++i) {
-      mlir::Value index = indices[e - 1 - i];
+      const mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(explicitInductionsPositionMap,
                                                 additionalInductions, index);
@@ -520,8 +510,7 @@ struct SubscriptionOpInterface
 };
 
 struct LoadOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<LoadOpInterface,
-                                                          LoadOp> {
+    : EquationExpressionOpInterface::ExternalModel<LoadOpInterface, LoadOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -530,16 +519,15 @@ struct LoadOpInterface
     ::printExpression(os, castedOp.getArray(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << "]";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<LoadOp>(other);
 
     if (!otherCasted) {
@@ -559,10 +547,10 @@ struct LoadOpInterface
           &dimensionAccesses,
       EquationPath path) const {
     auto castedOp = mlir::cast<LoadOp>(op);
-    auto indices = castedOp.getIndices();
+    const auto indices = castedOp.getIndices();
 
     for (size_t i = 0, e = indices.size(); i < e; ++i) {
-      mlir::Value index = indices[e - 1 - i];
+      const mlir::Value index = indices[e - 1 - i];
 
       auto dimensionAccess = getDimensionAccess(explicitInductionsPositionMap,
                                                 additionalInductions, index);
@@ -588,8 +576,8 @@ struct LoadOpInterface
 };
 
 struct VariableGetOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          VariableGetOpInterface, VariableGetOp> {
+    : EquationExpressionOpInterface::ExternalModel<VariableGetOpInterface,
+                                                   VariableGetOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -597,9 +585,8 @@ struct VariableGetOpInterface
     os << castedOp.getVariable();
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<VariableGetOp>(op);
     auto otherCasted = mlir::dyn_cast<VariableGetOp>(other);
 
@@ -611,7 +598,7 @@ struct VariableGetOpInterface
       return false;
     }
 
-    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -632,17 +619,17 @@ struct VariableGetOpInterface
     }
 
     // Finalize the accesses.
-    auto numOfInductions =
+    const auto numOfInductions =
         static_cast<uint64_t>(explicitInductionsPositionMap.size());
 
-    if (auto tensorType = castedOp.getType().dyn_cast<mlir::TensorType>();
+    if (const auto tensorType = castedOp.getType().dyn_cast<mlir::TensorType>();
         tensorType &&
         tensorType.getRank() > static_cast<int64_t>(reverted.size())) {
       // Access to each scalar variable.
       for (int64_t i = static_cast<int64_t>(reverted.size()),
                    rank = tensorType.getRank();
            i < rank; ++i) {
-        int64_t dimension = tensorType.getDimSize(i);
+        const int64_t dimension = tensorType.getDimSize(i);
         assert(dimension != mlir::ShapedType::kDynamic);
 
         reverted.push_back(std::make_unique<DimensionAccessRange>(
@@ -660,8 +647,8 @@ struct VariableGetOpInterface
 };
 
 struct GlobalVariableGetOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<
-          GlobalVariableGetOpInterface, GlobalVariableGetOp> {
+    : EquationExpressionOpInterface::ExternalModel<GlobalVariableGetOpInterface,
+                                                   GlobalVariableGetOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -669,9 +656,8 @@ struct GlobalVariableGetOpInterface
     os << castedOp.getVariable();
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<GlobalVariableGetOp>(op);
     auto otherCasted = mlir::dyn_cast<GlobalVariableGetOp>(other);
 
@@ -683,7 +669,7 @@ struct GlobalVariableGetOpInterface
       return false;
     }
 
-    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -699,34 +685,36 @@ struct GlobalVariableGetOpInterface
 };
 
 struct ConstantOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ConstantOpInterface,
-                                                          ConstantOp> {
+    : EquationExpressionOpInterface::ExternalModel<ConstantOpInterface,
+                                                   ConstantOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto castedOp = mlir::cast<ConstantOp>(op);
 
-    if (auto boolAttr = castedOp.getValue().dyn_cast<BooleanAttr>()) {
+    if (const auto boolAttr = castedOp.getValue().dyn_cast<BooleanAttr>()) {
       os << (boolAttr.getValue() ? "true" : "false");
       return;
     }
 
-    if (auto integerAttr = castedOp.getValue().dyn_cast<IntegerAttr>()) {
+    if (const auto integerAttr = castedOp.getValue().dyn_cast<IntegerAttr>()) {
       os << integerAttr.getValue();
       return;
     }
 
-    if (auto realAttr = castedOp.getValue().dyn_cast<RealAttr>()) {
+    if (const auto realAttr = castedOp.getValue().dyn_cast<RealAttr>()) {
       os << realAttr.getValue().convertToDouble();
       return;
     }
 
-    if (auto integerAttr = castedOp.getValue().dyn_cast<mlir::IntegerAttr>()) {
+    if (const auto integerAttr =
+            castedOp.getValue().dyn_cast<mlir::IntegerAttr>()) {
       os << integerAttr.getValue();
       return;
     }
 
-    if (auto floatAttr = castedOp.getValue().dyn_cast<mlir::FloatAttr>()) {
+    if (const auto floatAttr =
+            castedOp.getValue().dyn_cast<mlir::FloatAttr>()) {
       os << floatAttr.getValueAsDouble();
       return;
     }
@@ -734,9 +722,8 @@ struct ConstantOpInterface
     castedOp.getValue().print(os, true);
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<ConstantOp>(op);
     auto otherCasted = mlir::dyn_cast<ConstantOp>(other);
 
@@ -748,13 +735,13 @@ struct ConstantOpInterface
       return false;
     }
 
-    return ::areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
   }
 };
 
 struct NegateOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<NegateOpInterface,
-                                                          NegateOp> {
+    : EquationExpressionOpInterface::ExternalModel<NegateOpInterface,
+                                                   NegateOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -765,9 +752,8 @@ struct NegateOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<NegateOp>(other);
 
     if (!otherCasted) {
@@ -780,8 +766,7 @@ struct NegateOpInterface
 };
 
 struct AddOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AddOpInterface,
-                                                          AddOp> {
+    : EquationExpressionOpInterface::ExternalModel<AddOpInterface, AddOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -794,9 +779,8 @@ struct AddOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AddOp>(other);
 
     if (!otherCasted) {
@@ -809,8 +793,7 @@ struct AddOpInterface
 };
 
 struct AddEWOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AddEWOpInterface,
-                                                          AddEWOp> {
+    : EquationExpressionOpInterface::ExternalModel<AddEWOpInterface, AddEWOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -823,9 +806,8 @@ struct AddEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AddEWOp>(other);
 
     if (!otherCasted) {
@@ -838,8 +820,7 @@ struct AddEWOpInterface
 };
 
 struct SubOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SubOpInterface,
-                                                          SubOp> {
+    : EquationExpressionOpInterface::ExternalModel<SubOpInterface, SubOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -852,9 +833,8 @@ struct SubOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SubOp>(other);
 
     if (!otherCasted) {
@@ -867,8 +847,7 @@ struct SubOpInterface
 };
 
 struct SubEWOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SubEWOpInterface,
-                                                          SubEWOp> {
+    : EquationExpressionOpInterface::ExternalModel<SubEWOpInterface, SubEWOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -881,9 +860,8 @@ struct SubEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SubEWOp>(other);
 
     if (!otherCasted) {
@@ -896,8 +874,7 @@ struct SubEWOpInterface
 };
 
 struct MulOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<MulOpInterface,
-                                                          MulOp> {
+    : EquationExpressionOpInterface::ExternalModel<MulOpInterface, MulOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -910,9 +887,8 @@ struct MulOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<MulOp>(other);
 
     if (!otherCasted) {
@@ -925,8 +901,7 @@ struct MulOpInterface
 };
 
 struct MulEWOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<MulEWOpInterface,
-                                                          MulEWOp> {
+    : EquationExpressionOpInterface::ExternalModel<MulEWOpInterface, MulEWOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -939,9 +914,8 @@ struct MulEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<MulEWOp>(other);
 
     if (!otherCasted) {
@@ -954,8 +928,7 @@ struct MulEWOpInterface
 };
 
 struct DivOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DivOpInterface,
-                                                          DivOp> {
+    : EquationExpressionOpInterface::ExternalModel<DivOpInterface, DivOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -968,9 +941,8 @@ struct DivOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DivOp>(other);
 
     if (!otherCasted) {
@@ -983,8 +955,7 @@ struct DivOpInterface
 };
 
 struct DivEWOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DivEWOpInterface,
-                                                          DivEWOp> {
+    : EquationExpressionOpInterface::ExternalModel<DivEWOpInterface, DivEWOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -997,9 +968,8 @@ struct DivEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DivEWOp>(other);
 
     if (!otherCasted) {
@@ -1012,8 +982,7 @@ struct DivEWOpInterface
 };
 
 struct PowOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<PowOpInterface,
-                                                          PowOp> {
+    : EquationExpressionOpInterface::ExternalModel<PowOpInterface, PowOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1026,9 +995,8 @@ struct PowOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<PowOp>(other);
 
     if (!otherCasted) {
@@ -1041,8 +1009,7 @@ struct PowOpInterface
 };
 
 struct PowEWOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<PowEWOpInterface,
-                                                          PowEWOp> {
+    : EquationExpressionOpInterface::ExternalModel<PowEWOpInterface, PowEWOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1055,9 +1022,8 @@ struct PowEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<PowEWOp>(other);
 
     if (!otherCasted) {
@@ -1070,7 +1036,7 @@ struct PowEWOpInterface
 };
 
 struct EqOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<EqOpInterface, EqOp> {
+    : EquationExpressionOpInterface::ExternalModel<EqOpInterface, EqOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1083,9 +1049,8 @@ struct EqOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<EqOp>(other);
 
     if (!otherCasted) {
@@ -1098,8 +1063,7 @@ struct EqOpInterface
 };
 
 struct NotEqOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<NotEqOpInterface,
-                                                          NotEqOp> {
+    : EquationExpressionOpInterface::ExternalModel<NotEqOpInterface, NotEqOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1112,9 +1076,8 @@ struct NotEqOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<NotEqOp>(other);
 
     if (!otherCasted) {
@@ -1127,7 +1090,7 @@ struct NotEqOpInterface
 };
 
 struct GtOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<GtOpInterface, GtOp> {
+    : EquationExpressionOpInterface::ExternalModel<GtOpInterface, GtOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1140,9 +1103,8 @@ struct GtOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<GtOp>(other);
 
     if (!otherCasted) {
@@ -1155,8 +1117,7 @@ struct GtOpInterface
 };
 
 struct GteOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<GteOpInterface,
-                                                          GteOp> {
+    : EquationExpressionOpInterface::ExternalModel<GteOpInterface, GteOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1169,9 +1130,8 @@ struct GteOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<GteOp>(other);
 
     if (!otherCasted) {
@@ -1184,7 +1144,7 @@ struct GteOpInterface
 };
 
 struct LtOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<LtOpInterface, LtOp> {
+    : EquationExpressionOpInterface::ExternalModel<LtOpInterface, LtOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1197,9 +1157,8 @@ struct LtOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<LtOp>(other);
 
     if (!otherCasted) {
@@ -1212,8 +1171,7 @@ struct LtOpInterface
 };
 
 struct LteOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<LteOpInterface,
-                                                          LteOp> {
+    : EquationExpressionOpInterface::ExternalModel<LteOpInterface, LteOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1226,9 +1184,8 @@ struct LteOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<LteOp>(other);
 
     if (!otherCasted) {
@@ -1241,8 +1198,7 @@ struct LteOpInterface
 };
 
 struct NotOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<NotOpInterface,
-                                                          NotOp> {
+    : EquationExpressionOpInterface::ExternalModel<NotOpInterface, NotOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1253,9 +1209,8 @@ struct NotOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<NotOp>(other);
 
     if (!otherCasted) {
@@ -1268,8 +1223,7 @@ struct NotOpInterface
 };
 
 struct AndOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AndOpInterface,
-                                                          AndOp> {
+    : EquationExpressionOpInterface::ExternalModel<AndOpInterface, AndOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1282,9 +1236,8 @@ struct AndOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AndOp>(other);
 
     if (!otherCasted) {
@@ -1297,7 +1250,7 @@ struct AndOpInterface
 };
 
 struct OrOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<OrOpInterface, OrOp> {
+    : EquationExpressionOpInterface::ExternalModel<OrOpInterface, OrOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1310,9 +1263,8 @@ struct OrOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<OrOp>(other);
 
     if (!otherCasted) {
@@ -1325,8 +1277,8 @@ struct OrOpInterface
 };
 
 struct SelectOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SelectOpInterface,
-                                                          SelectOp> {
+    : EquationExpressionOpInterface::ExternalModel<SelectOpInterface,
+                                                   SelectOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1335,22 +1287,21 @@ struct SelectOpInterface
     ::printExpression(os, castedOp.getCondition(), inductions);
     os << " ? (";
 
-    llvm::interleaveComma(castedOp.getTrueValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getTrueValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << ") : (";
 
-    llvm::interleaveComma(castedOp.getFalseValues(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getFalseValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SelectOp>(other);
 
     if (!otherCasted) {
@@ -1363,8 +1314,7 @@ struct SelectOpInterface
 };
 
 struct AbsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AbsOpInterface,
-                                                          AbsOp> {
+    : EquationExpressionOpInterface::ExternalModel<AbsOpInterface, AbsOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1375,9 +1325,8 @@ struct AbsOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AbsOp>(other);
 
     if (!otherCasted) {
@@ -1390,8 +1339,7 @@ struct AbsOpInterface
 };
 
 struct AcosOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AcosOpInterface,
-                                                          AcosOp> {
+    : EquationExpressionOpInterface::ExternalModel<AcosOpInterface, AcosOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1402,9 +1350,8 @@ struct AcosOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AcosOp>(other);
 
     if (!otherCasted) {
@@ -1417,8 +1364,7 @@ struct AcosOpInterface
 };
 
 struct AsinOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AsinOpInterface,
-                                                          AsinOp> {
+    : EquationExpressionOpInterface::ExternalModel<AsinOpInterface, AsinOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1429,9 +1375,8 @@ struct AsinOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AsinOp>(other);
 
     if (!otherCasted) {
@@ -1444,8 +1389,7 @@ struct AsinOpInterface
 };
 
 struct AtanOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<AtanOpInterface,
-                                                          AtanOp> {
+    : EquationExpressionOpInterface::ExternalModel<AtanOpInterface, AtanOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1456,9 +1400,8 @@ struct AtanOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<AtanOp>(other);
 
     if (!otherCasted) {
@@ -1471,8 +1414,7 @@ struct AtanOpInterface
 };
 
 struct Atan2OpInterface
-    : public EquationExpressionOpInterface::ExternalModel<Atan2OpInterface,
-                                                          Atan2Op> {
+    : EquationExpressionOpInterface::ExternalModel<Atan2OpInterface, Atan2Op> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1485,9 +1427,8 @@ struct Atan2OpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<Atan2Op>(other);
 
     if (!otherCasted) {
@@ -1500,8 +1441,7 @@ struct Atan2OpInterface
 };
 
 struct CeilOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<CeilOpInterface,
-                                                          CeilOp> {
+    : EquationExpressionOpInterface::ExternalModel<CeilOpInterface, CeilOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1512,9 +1452,8 @@ struct CeilOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<CeilOp>(other);
 
     if (!otherCasted) {
@@ -1527,8 +1466,7 @@ struct CeilOpInterface
 };
 
 struct CosOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<CosOpInterface,
-                                                          CosOp> {
+    : EquationExpressionOpInterface::ExternalModel<CosOpInterface, CosOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1539,9 +1477,8 @@ struct CosOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<CosOp>(other);
 
     if (!otherCasted) {
@@ -1554,8 +1491,7 @@ struct CosOpInterface
 };
 
 struct CoshOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<CoshOpInterface,
-                                                          CoshOp> {
+    : EquationExpressionOpInterface::ExternalModel<CoshOpInterface, CoshOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1566,9 +1502,8 @@ struct CoshOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<CoshOp>(other);
 
     if (!otherCasted) {
@@ -1581,8 +1516,8 @@ struct CoshOpInterface
 };
 
 struct DiagonalOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DiagonalOpInterface,
-                                                          DiagonalOp> {
+    : EquationExpressionOpInterface::ExternalModel<DiagonalOpInterface,
+                                                   DiagonalOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1593,9 +1528,8 @@ struct DiagonalOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DiagonalOp>(other);
 
     if (!otherCasted) {
@@ -1608,8 +1542,8 @@ struct DiagonalOpInterface
 };
 
 struct DivTruncOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DivTruncOpInterface,
-                                                          DivTruncOp> {
+    : EquationExpressionOpInterface::ExternalModel<DivTruncOpInterface,
+                                                   DivTruncOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1622,9 +1556,8 @@ struct DivTruncOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DivTruncOp>(other);
 
     if (!otherCasted) {
@@ -1637,8 +1570,7 @@ struct DivTruncOpInterface
 };
 
 struct ExpOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ExpOpInterface,
-                                                          ExpOp> {
+    : EquationExpressionOpInterface::ExternalModel<ExpOpInterface, ExpOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1649,9 +1581,8 @@ struct ExpOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ExpOp>(other);
 
     if (!otherCasted) {
@@ -1664,8 +1595,7 @@ struct ExpOpInterface
 };
 
 struct FillOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<FillOpInterface,
-                                                          FillOp> {
+    : EquationExpressionOpInterface::ExternalModel<FillOpInterface, FillOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1676,9 +1606,8 @@ struct FillOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<FillOp>(other);
 
     if (!otherCasted) {
@@ -1691,8 +1620,7 @@ struct FillOpInterface
 };
 
 struct FloorOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<FloorOpInterface,
-                                                          FloorOp> {
+    : EquationExpressionOpInterface::ExternalModel<FloorOpInterface, FloorOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1703,9 +1631,8 @@ struct FloorOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<FloorOp>(other);
 
     if (!otherCasted) {
@@ -1718,8 +1645,8 @@ struct FloorOpInterface
 };
 
 struct IdentityOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<IdentityOpInterface,
-                                                          IdentityOp> {
+    : EquationExpressionOpInterface::ExternalModel<IdentityOpInterface,
+                                                   IdentityOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1730,9 +1657,8 @@ struct IdentityOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<IdentityOp>(other);
 
     if (!otherCasted) {
@@ -1745,8 +1671,8 @@ struct IdentityOpInterface
 };
 
 struct IntegerOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<IntegerOpInterface,
-                                                          IntegerOp> {
+    : EquationExpressionOpInterface::ExternalModel<IntegerOpInterface,
+                                                   IntegerOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1757,9 +1683,8 @@ struct IntegerOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<IntegerOp>(other);
 
     if (!otherCasted) {
@@ -1772,8 +1697,8 @@ struct IntegerOpInterface
 };
 
 struct LinspaceOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<LinspaceOpInterface,
-                                                          LinspaceOp> {
+    : EquationExpressionOpInterface::ExternalModel<LinspaceOpInterface,
+                                                   LinspaceOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1788,9 +1713,8 @@ struct LinspaceOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<LinspaceOp>(other);
 
     if (!otherCasted) {
@@ -1803,8 +1727,7 @@ struct LinspaceOpInterface
 };
 
 struct LogOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<LogOpInterface,
-                                                          LogOp> {
+    : EquationExpressionOpInterface::ExternalModel<LogOpInterface, LogOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1815,9 +1738,8 @@ struct LogOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<LogOp>(other);
 
     if (!otherCasted) {
@@ -1830,8 +1752,7 @@ struct LogOpInterface
 };
 
 struct Log10OpInterface
-    : public EquationExpressionOpInterface::ExternalModel<Log10OpInterface,
-                                                          Log10Op> {
+    : EquationExpressionOpInterface::ExternalModel<Log10OpInterface, Log10Op> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1842,9 +1763,8 @@ struct Log10OpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<Log10Op>(other);
 
     if (!otherCasted) {
@@ -1857,8 +1777,7 @@ struct Log10OpInterface
 };
 
 struct MaxOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<MaxOpInterface,
-                                                          MaxOp> {
+    : EquationExpressionOpInterface::ExternalModel<MaxOpInterface, MaxOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1867,7 +1786,7 @@ struct MaxOpInterface
     os << "max(";
     ::printExpression(os, castedOp.getFirst(), inductions);
 
-    if (mlir::Value second = castedOp.getSecond()) {
+    if (const mlir::Value second = castedOp.getSecond()) {
       os << ", ";
       ::printExpression(os, second, inductions);
     }
@@ -1875,9 +1794,8 @@ struct MaxOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<MaxOp>(other);
 
     if (!otherCasted) {
@@ -1890,8 +1808,7 @@ struct MaxOpInterface
 };
 
 struct MinOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<MinOpInterface,
-                                                          MinOp> {
+    : EquationExpressionOpInterface::ExternalModel<MinOpInterface, MinOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1900,7 +1817,7 @@ struct MinOpInterface
     os << "min(";
     ::printExpression(os, castedOp.getFirst(), inductions);
 
-    if (mlir::Value second = castedOp.getSecond()) {
+    if (const mlir::Value second = castedOp.getSecond()) {
       os << ", ";
       ::printExpression(os, second, inductions);
     }
@@ -1908,9 +1825,8 @@ struct MinOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<MinOp>(other);
 
     if (!otherCasted) {
@@ -1923,8 +1839,7 @@ struct MinOpInterface
 };
 
 struct ModOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ModOpInterface,
-                                                          ModOp> {
+    : EquationExpressionOpInterface::ExternalModel<ModOpInterface, ModOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1937,9 +1852,8 @@ struct ModOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ModOp>(other);
 
     if (!otherCasted) {
@@ -1952,8 +1866,7 @@ struct ModOpInterface
 };
 
 struct NDimsOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<NDimsOpInterface,
-                                                          NDimsOp> {
+    : EquationExpressionOpInterface::ExternalModel<NDimsOpInterface, NDimsOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1964,9 +1877,8 @@ struct NDimsOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<NDimsOp>(other);
 
     if (!otherCasted) {
@@ -1979,8 +1891,7 @@ struct NDimsOpInterface
 };
 
 struct OnesOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<OnesOpInterface,
-                                                          OnesOp> {
+    : EquationExpressionOpInterface::ExternalModel<OnesOpInterface, OnesOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -1988,16 +1899,15 @@ struct OnesOpInterface
 
     os << "ones(";
 
-    llvm::interleaveComma(castedOp.getSizes(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getSizes(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<OnesOp>(other);
 
     if (!otherCasted) {
@@ -2010,8 +1920,8 @@ struct OnesOpInterface
 };
 
 struct ProductOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ProductOpInterface,
-                                                          ProductOp> {
+    : EquationExpressionOpInterface::ExternalModel<ProductOpInterface,
+                                                   ProductOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2022,9 +1932,8 @@ struct ProductOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ProductOp>(other);
 
     if (!otherCasted) {
@@ -2037,8 +1946,7 @@ struct ProductOpInterface
 };
 
 struct RemOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<RemOpInterface,
-                                                          RemOp> {
+    : EquationExpressionOpInterface::ExternalModel<RemOpInterface, RemOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2051,9 +1959,8 @@ struct RemOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<RemOp>(other);
 
     if (!otherCasted) {
@@ -2066,8 +1973,7 @@ struct RemOpInterface
 };
 
 struct SignOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SignOpInterface,
-                                                          SignOp> {
+    : EquationExpressionOpInterface::ExternalModel<SignOpInterface, SignOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2078,9 +1984,8 @@ struct SignOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SignOp>(other);
 
     if (!otherCasted) {
@@ -2093,8 +1998,7 @@ struct SignOpInterface
 };
 
 struct SinOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SinOpInterface,
-                                                          SinOp> {
+    : EquationExpressionOpInterface::ExternalModel<SinOpInterface, SinOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2105,9 +2009,8 @@ struct SinOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SinOp>(other);
 
     if (!otherCasted) {
@@ -2120,8 +2023,7 @@ struct SinOpInterface
 };
 
 struct SinhOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SinhOpInterface,
-                                                          SinhOp> {
+    : EquationExpressionOpInterface::ExternalModel<SinhOpInterface, SinhOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2132,9 +2034,8 @@ struct SinhOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SinhOp>(other);
 
     if (!otherCasted) {
@@ -2147,8 +2048,7 @@ struct SinhOpInterface
 };
 
 struct SizeOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SizeOpInterface,
-                                                          SizeOp> {
+    : EquationExpressionOpInterface::ExternalModel<SizeOpInterface, SizeOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2157,7 +2057,7 @@ struct SizeOpInterface
     os << "size(";
     ::printExpression(os, castedOp.getArray(), inductions);
 
-    if (mlir::Value dimension = castedOp.getDimension()) {
+    if (const mlir::Value dimension = castedOp.getDimension()) {
       os << ", ";
       ::printExpression(os, dimension, inductions);
     }
@@ -2165,9 +2065,8 @@ struct SizeOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SizeOp>(other);
 
     if (!otherCasted) {
@@ -2180,8 +2079,7 @@ struct SizeOpInterface
 };
 
 struct SqrtOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SqrtOpInterface,
-                                                          SqrtOp> {
+    : EquationExpressionOpInterface::ExternalModel<SqrtOpInterface, SqrtOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2192,9 +2090,8 @@ struct SqrtOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SqrtOp>(other);
 
     if (!otherCasted) {
@@ -2207,8 +2104,7 @@ struct SqrtOpInterface
 };
 
 struct SumOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SumOpInterface,
-                                                          SumOp> {
+    : EquationExpressionOpInterface::ExternalModel<SumOpInterface, SumOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2219,9 +2115,8 @@ struct SumOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SumOp>(other);
 
     if (!otherCasted) {
@@ -2234,8 +2129,8 @@ struct SumOpInterface
 };
 
 struct SymmetricOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<SymmetricOpInterface,
-                                                          SymmetricOp> {
+    : EquationExpressionOpInterface::ExternalModel<SymmetricOpInterface,
+                                                   SymmetricOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2246,9 +2141,8 @@ struct SymmetricOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<SymmetricOp>(other);
 
     if (!otherCasted) {
@@ -2261,8 +2155,7 @@ struct SymmetricOpInterface
 };
 
 struct TanOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<TanOpInterface,
-                                                          TanOp> {
+    : EquationExpressionOpInterface::ExternalModel<TanOpInterface, TanOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2273,9 +2166,8 @@ struct TanOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TanOp>(other);
 
     if (!otherCasted) {
@@ -2288,8 +2180,7 @@ struct TanOpInterface
 };
 
 struct TanhOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<TanhOpInterface,
-                                                          TanhOp> {
+    : EquationExpressionOpInterface::ExternalModel<TanhOpInterface, TanhOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2300,9 +2191,8 @@ struct TanhOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TanhOp>(other);
 
     if (!otherCasted) {
@@ -2315,8 +2205,8 @@ struct TanhOpInterface
 };
 
 struct TransposeOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<TransposeOpInterface,
-                                                          TransposeOp> {
+    : EquationExpressionOpInterface::ExternalModel<TransposeOpInterface,
+                                                   TransposeOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2327,9 +2217,8 @@ struct TransposeOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<TransposeOp>(other);
 
     if (!otherCasted) {
@@ -2342,8 +2231,7 @@ struct TransposeOpInterface
 };
 
 struct ZerosOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ZerosOpInterface,
-                                                          ZerosOp> {
+    : EquationExpressionOpInterface::ExternalModel<ZerosOpInterface, ZerosOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2351,16 +2239,15 @@ struct ZerosOpInterface
 
     os << "zeros(";
 
-    llvm::interleaveComma(castedOp.getSizes(), os, [&](mlir::Value exp) {
+    interleaveComma(castedOp.getSizes(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<ZerosOp>(other);
 
     if (!otherCasted) {
@@ -2373,8 +2260,8 @@ struct ZerosOpInterface
 };
 
 struct ReductionOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<ReductionOpInterface,
-                                                          ReductionOp> {
+    : EquationExpressionOpInterface::ExternalModel<ReductionOpInterface,
+                                                   ReductionOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2382,10 +2269,10 @@ struct ReductionOpInterface
 
     // Add the inductions to the inductions map.
     llvm::DenseMap<mlir::Value, int64_t> expandedInductions(inductions);
-    auto inductionValues = castedOp.getInductions();
+    const auto inductionValues = castedOp.getInductions();
 
     for (mlir::Value inductionValue : inductionValues) {
-      auto id = static_cast<int64_t>(expandedInductions.size());
+      const auto id = static_cast<int64_t>(expandedInductions.size());
       expandedInductions[inductionValue] = id;
     }
 
@@ -2395,12 +2282,12 @@ struct ReductionOpInterface
 
     auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
 
-    llvm::interleaveComma(terminator.getValues(), os, [&](mlir::Value exp) {
+    interleaveComma(terminator.getValues(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, expandedInductions);
     });
 
     os << " for ";
-    auto iterables = castedOp.getIterables();
+    const auto iterables = castedOp.getIterables();
 
     for (size_t i = 0, e = inductionValues.size(); i < e; ++i) {
       if (i != 0) {
@@ -2412,16 +2299,15 @@ struct ReductionOpInterface
 
     os << " in ";
 
-    llvm::interleaveComma(iterables, os, [&](mlir::Value exp) {
+    interleaveComma(iterables, os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, expandedInductions);
     });
 
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<ReductionOp>(op);
     auto otherCasted = mlir::dyn_cast<ReductionOp>(other);
 
@@ -2454,7 +2340,7 @@ struct ReductionOpInterface
   }
 
   mlir::Value getExpressionElement(mlir::Operation *op,
-                                   uint64_t element) const {
+                                   const uint64_t element) const {
     auto castedOp = mlir::cast<ReductionOp>(op);
 
     auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
@@ -2466,7 +2352,7 @@ struct ReductionOpInterface
   getAdditionalInductions(mlir::Operation *op) const {
     auto castedOp = mlir::cast<ReductionOp>(op);
     llvm::SmallVector<mlir::Value> result;
-    auto inductions = castedOp.getInductions();
+    const auto inductions = castedOp.getInductions();
     result.append(inductions.begin(), inductions.end());
     return result;
   }
@@ -2480,7 +2366,7 @@ struct ReductionOpInterface
     llvm::SmallVector<std::pair<mlir::Value, uint64_t>> inductionsMap;
 
     for (const auto &[induction, iterable] :
-         llvm::zip(castedOp.getInductions(), castedOp.getIterables())) {
+         zip(castedOp.getInductions(), castedOp.getIterables())) {
       auto constantOp = iterable.getDefiningOp<ConstantOp>();
 
       if (!constantOp) {
@@ -2492,10 +2378,10 @@ struct ReductionOpInterface
       if (auto rangeAttr = iterableAttr.dyn_cast<IntegerRangeAttr>()) {
         assert(rangeAttr.getStep() == 1);
 
-        auto lowerBound =
+        const auto lowerBound =
             static_cast<Range::data_type>(rangeAttr.getLowerBound());
 
-        auto upperBound =
+        const auto upperBound =
             static_cast<Range::data_type>(rangeAttr.getUpperBound());
 
         Range range(lowerBound, upperBound + 1);
@@ -2510,10 +2396,10 @@ struct ReductionOpInterface
       if (auto rangeAttr = iterableAttr.dyn_cast<RealRangeAttr>()) {
         assert(rangeAttr.getStep().convertToDouble() == 1);
 
-        auto lowerBound = static_cast<Range::data_type>(
+        const auto lowerBound = static_cast<Range::data_type>(
             rangeAttr.getLowerBound().convertToDouble());
 
-        auto upperBound = static_cast<Range::data_type>(
+        const auto upperBound = static_cast<Range::data_type>(
             rangeAttr.getUpperBound().convertToDouble());
 
         Range range(lowerBound, upperBound);
@@ -2528,7 +2414,7 @@ struct ReductionOpInterface
       return mlir::failure();
     }
 
-    uint64_t iterationSpace =
+    const uint64_t iterationSpace =
         additionalInductions.addIterationSpace(std::move(indices));
 
     for (size_t i = 0, e = inductionsMap.size(); i < e; ++i) {
@@ -2541,8 +2427,7 @@ struct ReductionOpInterface
 };
 
 struct DerOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<DerOpInterface,
-                                                          DerOp> {
+    : EquationExpressionOpInterface::ExternalModel<DerOpInterface, DerOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2553,9 +2438,8 @@ struct DerOpInterface
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<DerOp>(other);
 
     if (!otherCasted) {
@@ -2568,40 +2452,36 @@ struct DerOpInterface
 };
 
 struct TimeOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<TimeOpInterface,
-                                                          TimeOp> {
+    : EquationExpressionOpInterface::ExternalModel<TimeOpInterface, TimeOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     os << "time";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     return mlir::isa<TimeOp>(other);
   }
 };
 
 struct CallOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<CallOpInterface,
-                                                          CallOp> {
+    : EquationExpressionOpInterface::ExternalModel<CallOpInterface, CallOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto casted = mlir::cast<CallOp>(op);
     os << casted.getCallee() << "(";
 
-    llvm::interleaveComma(casted.getArgs(), os, [&](mlir::Value exp) {
+    interleaveComma(casted.getArgs(), os, [&](const mlir::Value exp) {
       ::printExpression(os, exp, inductions);
     });
 
     os << ")";
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<CallOp>(op);
     auto otherCasted = mlir::dyn_cast<CallOp>(other);
 
@@ -2617,8 +2497,8 @@ struct CallOpInterface
       return false;
     }
 
-    auto argNames = casted.getArgNames();
-    auto otherArgNames = otherCasted.getArgNames();
+    const auto argNames = casted.getArgNames();
+    const auto otherArgNames = otherCasted.getArgNames();
 
     llvm::StringMap<size_t> argNamesPos;
     llvm::StringMap<size_t> otherArgNamesPos;
@@ -2637,18 +2517,18 @@ struct CallOpInterface
       }
 
       for (const auto &entry : argNamesPos) {
-        mlir::Value arg = casted.getArgs()[entry.getValue()];
-        mlir::Value otherArg =
+        const mlir::Value arg = casted.getArgs()[entry.getValue()];
+        const mlir::Value otherArg =
             otherCasted.getArgs()[otherArgNamesPos[entry.getKey()]];
 
-        if (!::areExpressionOperandsEquivalent(arg, otherArg,
-                                               symbolTableCollection)) {
+        if (!areExpressionOperandsEquivalent(arg, otherArg,
+                                             symbolTableCollection)) {
           return false;
         }
       }
     } else if (argNames) {
-      if (mlir::failed(getArgNamesPos(otherCasted, symbolTableCollection,
-                                      otherArgNamesPos))) {
+      if (failed(getArgNamesPos(otherCasted, symbolTableCollection,
+                                otherArgNamesPos))) {
         return false;
       }
 
@@ -2658,8 +2538,7 @@ struct CallOpInterface
         return false;
       }
     } else if (otherArgNames) {
-      if (mlir::failed(
-              getArgNamesPos(casted, symbolTableCollection, argNamesPos))) {
+      if (failed(getArgNamesPos(casted, symbolTableCollection, argNamesPos))) {
         return false;
       }
 
@@ -2669,7 +2548,7 @@ struct CallOpInterface
         return false;
       }
     } else {
-      if (!::areExpressionOperandsEquivalent(
+      if (!areExpressionOperandsEquivalent(
               casted.getArgs(), otherCasted.getArgs(), symbolTableCollection)) {
         return false;
       }
@@ -2678,18 +2557,19 @@ struct CallOpInterface
     return true;
   }
 
-  void getArgNamesPos(mlir::ArrayAttr argNames,
-                      llvm::StringMap<size_t> &pos) const {
+  static void getArgNamesPos(mlir::ArrayAttr argNames,
+                             llvm::StringMap<size_t> &pos) {
     for (auto argName : llvm::enumerate(argNames)) {
-      auto name = argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
+      const auto name =
+          argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
       pos[name] = argName.index();
     }
   }
 
-  mlir::LogicalResult
+  static mlir::LogicalResult
   getArgNamesPos(CallOp callOp,
                  mlir::SymbolTableCollection &symbolTableCollection,
-                 llvm::StringMap<size_t> &pos) const {
+                 llvm::StringMap<size_t> &pos) {
     auto otherFunctionOp = mlir::dyn_cast<FunctionOp>(callOp.getFunction(
         callOp->getParentOfType<mlir::ModuleOp>(), symbolTableCollection));
 
@@ -2710,7 +2590,7 @@ struct CallOpInterface
 
   bool containsArgNames(const llvm::StringMap<size_t> &parent,
                         const llvm::StringMap<size_t> &child) const {
-    return llvm::all_of(child, [&](const auto &entry) {
+    return all_of(child, [&](const auto &entry) {
       return parent.contains(entry.getKey());
     });
   }
@@ -2721,8 +2601,8 @@ struct CallOpInterface
   }
 
   bool compareNamedUnnamedArgs(
-      mlir::ValueRange namedArgs, const llvm::StringMap<size_t> &namedArgsPos,
-      mlir::ValueRange unnamedArgs,
+      const mlir::ValueRange namedArgs,
+      const llvm::StringMap<size_t> &namedArgsPos, mlir::ValueRange unnamedArgs,
       const llvm::StringMap<size_t> &unnamedArgsPos,
       mlir::SymbolTableCollection &symbolTableCollection) const {
     if (namedArgs.size() != unnamedArgs.size()) {
@@ -2753,8 +2633,8 @@ struct CallOpInterface
       assert(namedArgsPosIt->getValue() < namedArgs.size());
       mlir::Value namedArg = namedArgs[namedArgsPosIt->getValue()];
 
-      if (!::areExpressionOperandsEquivalent(
-              namedArg, unnamedArg.value(), symbolTableCollection)) {
+      if (!areExpressionOperandsEquivalent(namedArg, unnamedArg.value(),
+                                           symbolTableCollection)) {
         return false;
       }
     }
@@ -2764,8 +2644,7 @@ struct CallOpInterface
 };
 
 struct CastOpInterface
-    : public EquationExpressionOpInterface::ExternalModel<CastOpInterface,
-                                                          CastOp> {
+    : EquationExpressionOpInterface::ExternalModel<CastOpInterface, CastOp> {
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
@@ -2773,9 +2652,8 @@ struct CastOpInterface
     ::printExpression(os, casted.getValue(), inductions);
   }
 
-  bool isEquivalent(
-      mlir::Operation *op, mlir::Operation *other,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
     auto otherCasted = mlir::dyn_cast<CastOp>(other);
 
     if (!otherCasted) {
@@ -2790,103 +2668,103 @@ struct CastOpInterface
 
 namespace mlir::bmodelica {
 void registerEquationExpressionOpInterfaceExternalModels(
-    mlir::DialectRegistry &registry) {
-  registry.addExtension(+[](mlir::MLIRContext *context,
+    DialectRegistry &registry) {
+  registry.addExtension(+[](MLIRContext *context,
                             BaseModelicaDialect *dialect) {
     // clang-format off
     // Equation root.
-    EquationSidesOp::attachInterface<::EquationSidesOpInterface>(*context);
+    EquationSidesOp::attachInterface<EquationSidesOpInterface>(*context);
 
     // Tensor operations.
-    TensorFromElementsOp::attachInterface<::TensorFromElementsOpInterface>(*context);
-    TensorBroadcastOp::attachInterface<::TensorBroadcastOpInterface>(*context);
-    TensorViewOp::attachInterface<::TensorViewOpInterface>(*context);
-    TensorExtractOp::attachInterface<::TensorExtractOpInterface>(*context);
+    TensorFromElementsOp::attachInterface<TensorFromElementsOpInterface>(*context);
+    TensorBroadcastOp::attachInterface<TensorBroadcastOpInterface>(*context);
+    TensorViewOp::attachInterface<TensorViewOpInterface>(*context);
+    TensorExtractOp::attachInterface<TensorExtractOpInterface>(*context);
 
     // Array operations.
-    ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(*context);
-    ArrayBroadcastOp::attachInterface<::ArrayBroadcastOpInterface>(*context);
-    ArrayCastOp::attachInterface<::ArrayCastOpInterface>(*context);
-    DimOp::attachInterface<::DimOpInterface>(*context);
-    SubscriptionOp::attachInterface<::SubscriptionOpInterface>(*context);
-    LoadOp::attachInterface<::LoadOpInterface>(*context);
+    ArrayFromElementsOp::attachInterface<ArrayFromElementsOpInterface>(*context);
+    ArrayBroadcastOp::attachInterface<ArrayBroadcastOpInterface>(*context);
+    ArrayCastOp::attachInterface<ArrayCastOpInterface>(*context);
+    DimOp::attachInterface<DimOpInterface>(*context);
+    SubscriptionOp::attachInterface<SubscriptionOpInterface>(*context);
+    LoadOp::attachInterface<LoadOpInterface>(*context);
 
     // Variable operations.
-    VariableGetOp::attachInterface<::VariableGetOpInterface>(*context);
-    GlobalVariableGetOp::attachInterface<::GlobalVariableGetOpInterface>(*context);
+    VariableGetOp::attachInterface<VariableGetOpInterface>(*context);
+    GlobalVariableGetOp::attachInterface<GlobalVariableGetOpInterface>(*context);
 
     // Math operations.
-    ConstantOp::attachInterface<::ConstantOpInterface>(*context);
-    NegateOp::attachInterface<::NegateOpInterface>(*context);
-    AddOp::attachInterface<::AddOpInterface>(*context);
-    AddEWOp::attachInterface<::AddEWOpInterface>(*context);
-    SubOp::attachInterface<::SubOpInterface>(*context);
-    SubEWOp::attachInterface<::SubEWOpInterface>(*context);
-    MulOp::attachInterface<::MulOpInterface>(*context);
-    MulEWOp::attachInterface<::MulEWOpInterface>(*context);
-    DivOp::attachInterface<::DivOpInterface>(*context);
-    DivEWOp::attachInterface<::DivEWOpInterface>(*context);
-    PowOp::attachInterface<::PowOpInterface>(*context);
-    PowEWOp::attachInterface<::PowEWOpInterface>(*context);
+    ConstantOp::attachInterface<ConstantOpInterface>(*context);
+    NegateOp::attachInterface<NegateOpInterface>(*context);
+    AddOp::attachInterface<AddOpInterface>(*context);
+    AddEWOp::attachInterface<AddEWOpInterface>(*context);
+    SubOp::attachInterface<SubOpInterface>(*context);
+    SubEWOp::attachInterface<SubEWOpInterface>(*context);
+    MulOp::attachInterface<MulOpInterface>(*context);
+    MulEWOp::attachInterface<MulEWOpInterface>(*context);
+    DivOp::attachInterface<DivOpInterface>(*context);
+    DivEWOp::attachInterface<DivEWOpInterface>(*context);
+    PowOp::attachInterface<PowOpInterface>(*context);
+    PowEWOp::attachInterface<PowEWOpInterface>(*context);
 
     // Comparison operations.
-    EqOp::attachInterface<::EqOpInterface>(*context);
-    NotEqOp::attachInterface<::NotEqOpInterface>(*context);
-    GtOp::attachInterface<::GtOpInterface>(*context);
-    GteOp::attachInterface<::GteOpInterface>(*context);
-    LtOp::attachInterface<::LtOpInterface>(*context);
-    LteOp::attachInterface<::LteOpInterface>(*context);
+    EqOp::attachInterface<EqOpInterface>(*context);
+    NotEqOp::attachInterface<NotEqOpInterface>(*context);
+    GtOp::attachInterface<GtOpInterface>(*context);
+    GteOp::attachInterface<GteOpInterface>(*context);
+    LtOp::attachInterface<LtOpInterface>(*context);
+    LteOp::attachInterface<LteOpInterface>(*context);
 
     // Logic operations.
-    NotOp::attachInterface<::NotOpInterface>(*context);
-    AndOp::attachInterface<::AndOpInterface>(*context);
-    OrOp::attachInterface<::OrOpInterface>(*context);
-    SelectOp::attachInterface<::SelectOpInterface>(*context);
+    NotOp::attachInterface<NotOpInterface>(*context);
+    AndOp::attachInterface<AndOpInterface>(*context);
+    OrOp::attachInterface<OrOpInterface>(*context);
+    SelectOp::attachInterface<SelectOpInterface>(*context);
 
     // Built-in operations
-    AbsOp::attachInterface<::AbsOpInterface>(*context);
-    AcosOp::attachInterface<::AcosOpInterface>(*context);
-    AsinOp::attachInterface<::AsinOpInterface>(*context);
-    AtanOp::attachInterface<::AtanOpInterface>(*context);
-    Atan2Op::attachInterface<::Atan2OpInterface>(*context);
-    CeilOp::attachInterface<::CeilOpInterface>(*context);
-    CosOp::attachInterface<::CosOpInterface>(*context);
-    CoshOp::attachInterface<::CoshOpInterface>(*context);
-    DiagonalOp::attachInterface<::DiagonalOpInterface>(*context);
-    DivTruncOp::attachInterface<::DivTruncOpInterface>(*context);
-    ExpOp::attachInterface<::ExpOpInterface>(*context);
-    FillOp::attachInterface<::FillOpInterface>(*context);
-    FloorOp::attachInterface<::FloorOpInterface>(*context);
-    IdentityOp::attachInterface<::IdentityOpInterface>(*context);
-    IntegerOp::attachInterface<::IntegerOpInterface>(*context);
-    LinspaceOp::attachInterface<::LinspaceOpInterface>(*context);
-    LogOp::attachInterface<::LogOpInterface>(*context);
-    Log10Op::attachInterface<::Log10OpInterface>(*context);
-    MaxOp::attachInterface<::MaxOpInterface>(*context);
-    MinOp::attachInterface<::MinOpInterface>(*context);
-    ModOp::attachInterface<::ModOpInterface>(*context);
-    NDimsOp::attachInterface<::NDimsOpInterface>(*context);
-    OnesOp::attachInterface<::OnesOpInterface>(*context);
-    ProductOp::attachInterface<::ProductOpInterface>(*context);
-    RemOp::attachInterface<::RemOpInterface>(*context);
-    SignOp::attachInterface<::SignOpInterface>(*context);
-    SinOp::attachInterface<::SinOpInterface>(*context);
-    SinhOp::attachInterface<::SinhOpInterface>(*context);
-    SizeOp::attachInterface<::SizeOpInterface>(*context);
-    SqrtOp::attachInterface<::SqrtOpInterface>(*context);
-    SumOp::attachInterface<::SumOpInterface>(*context);
-    SymmetricOp::attachInterface<::SymmetricOpInterface>(*context);
-    TanOp::attachInterface<::TanOpInterface>(*context);
-    TanhOp::attachInterface<::TanhOpInterface>(*context);
-    TransposeOp::attachInterface<::TransposeOpInterface>(*context);
-    ZerosOp::attachInterface<::ZerosOpInterface>(*context);
+    AbsOp::attachInterface<AbsOpInterface>(*context);
+    AcosOp::attachInterface<AcosOpInterface>(*context);
+    AsinOp::attachInterface<AsinOpInterface>(*context);
+    AtanOp::attachInterface<AtanOpInterface>(*context);
+    Atan2Op::attachInterface<Atan2OpInterface>(*context);
+    CeilOp::attachInterface<CeilOpInterface>(*context);
+    CosOp::attachInterface<CosOpInterface>(*context);
+    CoshOp::attachInterface<CoshOpInterface>(*context);
+    DiagonalOp::attachInterface<DiagonalOpInterface>(*context);
+    DivTruncOp::attachInterface<DivTruncOpInterface>(*context);
+    ExpOp::attachInterface<ExpOpInterface>(*context);
+    FillOp::attachInterface<FillOpInterface>(*context);
+    FloorOp::attachInterface<FloorOpInterface>(*context);
+    IdentityOp::attachInterface<IdentityOpInterface>(*context);
+    IntegerOp::attachInterface<IntegerOpInterface>(*context);
+    LinspaceOp::attachInterface<LinspaceOpInterface>(*context);
+    LogOp::attachInterface<LogOpInterface>(*context);
+    Log10Op::attachInterface<Log10OpInterface>(*context);
+    MaxOp::attachInterface<MaxOpInterface>(*context);
+    MinOp::attachInterface<MinOpInterface>(*context);
+    ModOp::attachInterface<ModOpInterface>(*context);
+    NDimsOp::attachInterface<NDimsOpInterface>(*context);
+    OnesOp::attachInterface<OnesOpInterface>(*context);
+    ProductOp::attachInterface<ProductOpInterface>(*context);
+    RemOp::attachInterface<RemOpInterface>(*context);
+    SignOp::attachInterface<SignOpInterface>(*context);
+    SinOp::attachInterface<SinOpInterface>(*context);
+    SinhOp::attachInterface<SinhOpInterface>(*context);
+    SizeOp::attachInterface<SizeOpInterface>(*context);
+    SqrtOp::attachInterface<SqrtOpInterface>(*context);
+    SumOp::attachInterface<SumOpInterface>(*context);
+    SymmetricOp::attachInterface<SymmetricOpInterface>(*context);
+    TanOp::attachInterface<TanOpInterface>(*context);
+    TanhOp::attachInterface<TanhOpInterface>(*context);
+    TransposeOp::attachInterface<TransposeOpInterface>(*context);
+    ZerosOp::attachInterface<ZerosOpInterface>(*context);
 
     // Various operations.
-    ReductionOp::attachInterface<::ReductionOpInterface>(*context);
-    DerOp::attachInterface<::DerOpInterface>(*context);
+    ReductionOp::attachInterface<ReductionOpInterface>(*context);
+    DerOp::attachInterface<DerOpInterface>(*context);
     TimeOp::attachInterface<TimeOpInterface>(*context);
     CallOp::attachInterface<::CallOpInterface>(*context);
-    CastOp::attachInterface<::CastOpInterface>(*context);
+    CastOp::attachInterface<CastOpInterface>(*context);
     // clang-format on
   });
 }
