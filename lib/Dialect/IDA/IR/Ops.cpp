@@ -87,21 +87,39 @@ namespace mlir::ida
 
   llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getEquationIndices()
   {
-    return getBody().getArguments().slice(
-        1, getEquationRank().getSExtValue());
+    return getBody().getArguments().slice(1, getEquationRank().getSExtValue());
   }
 
   llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getVariableIndices()
   {
-    size_t offset = getBody().getNumArguments() -
-        getVariableRank().getSExtValue() - 1;
-
-    return getBody().getArguments().slice(
-        offset, getVariableRank().getSExtValue());
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = 1 + equationRank;
+    return getBody().getArguments().slice(offset, variableRank);
   }
 
   mlir::BlockArgument JacobianFunctionOp::getAlpha()
   {
-    return getBody().getArguments().back();
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = 1 + equationRank + variableRank;
+
+    return getBody().getArguments()[offset];
+  }
+
+  mlir::BlockArgument JacobianFunctionOp::getMemoryPool()
+  {
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = 1 + equationRank + variableRank + 1;
+    return getBody().getArguments()[offset];
+  }
+
+  llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getADSeeds()
+  {
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = 1 + equationRank + variableRank + 2;
+    return getBody().getArguments().slice(offset);
   }
 }

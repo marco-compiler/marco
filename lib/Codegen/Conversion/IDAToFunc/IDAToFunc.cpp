@@ -161,6 +161,10 @@ namespace
           mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
       argsTypes.push_back(op.getAlpha().getType());
+      argsTypes.push_back(rewriter.getI64Type());
+
+      argsTypes.push_back(
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
       auto functionType = rewriter.getFunctionType(
           argsTypes,
@@ -229,6 +233,42 @@ namespace
 
       // Add the "alpha" variable.
       branchArgs.push_back(newOp.getArgument(3));
+
+      // Add the "memory pool" identifier.
+      mlir::Value memoryPool = newOp.getArgument(4);
+
+      memoryPool = getTypeConverter()->materializeSourceConversion(
+          rewriter,
+          memoryPool.getLoc(),
+          rewriter.getIndexType(),
+          memoryPool);
+
+      branchArgs.push_back(memoryPool);
+
+      // The AD seeds identifiers are passed through an array.
+      mlir::Value seedsPtr = newOp.getArgument(5);
+
+      for (auto seedIndex : llvm::enumerate(op.getADSeeds())) {
+        auto index = static_cast<int32_t>(seedIndex.index());
+
+        mlir::Value seedPtr = rewriter.create<mlir::LLVM::GEPOp>(
+            seedsPtr.getLoc(),
+            seedsPtr.getType(),
+            rewriter.getI64Type(),
+            seedsPtr,
+            llvm::ArrayRef<mlir::LLVM::GEPArg>(index));
+
+        mlir::Value mappedSeed = rewriter.create<mlir::LLVM::LoadOp>(
+            seedPtr.getLoc(), rewriter.getI64Type(), seedPtr);
+
+        mappedSeed = getTypeConverter()->materializeSourceConversion(
+            rewriter,
+            mappedSeed.getLoc(),
+            rewriter.getIndexType(),
+            mappedSeed);
+
+        branchArgs.push_back(mappedSeed);
+      }
 
       // Create a branch to the entry block of the old region.
       rewriter.create<mlir::cf::BranchOp>(

@@ -536,11 +536,14 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
           3. The indices of the scalar variable with respect to the equation is
              derived.
           4. The IDA `alpha` parameter.
+          5. The identifier of the memory pool used for allocating the AD seeds.
+          5. The identifiers of the AD buffers that have been allocated in the
+             memory pool with the given identifier.
 
         Example:
 
         ```mlir
-        ida.jacobian_function @foo(%time : f64, %i : index, %j : index, %k : index, %l : index, %m : index, %alpha: f64) -> f64 attributes { equationRank = 3, variableRank = 2 } {
+        ida.jacobian_function @foo(%time : f64, %i : index, %j : index, %k : index, %l : index, %m : index, %alpha: f64, %pool: index, %seed1: index, %seed2: index) -> f64 attributes { equationRank = 3, variableRank = 2 } {
             %der = ... : f64
             ida.return %der : f64
         }
@@ -564,7 +567,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "size_t":$equationRank, "size_t":$variableRank), [{
+        OpBuilder<(ins "StringRef":$sym_name, "size_t":$equationRank, "size_t":$variableRank, "size_t":$numOfADSeeds), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
@@ -579,6 +582,11 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
             }
 
             args.push_back($_builder.getF64Type());
+            args.push_back($_builder.getIndexType());
+
+            for (size_t i = 0; i < numOfADSeeds; ++i) {
+                args.push_back($_builder.getIndexType());
+            }
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
@@ -593,6 +601,8 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
         ArrayRef<BlockArgument> getEquationIndices();
         ArrayRef<BlockArgument> getVariableIndices();
         BlockArgument getAlpha();
+        BlockArgument getMemoryPool();
+        ArrayRef<BlockArgument> getADSeeds();
 
         //===-------------------------------------------------------------===//
         // SymbolOpInterface Methods
@@ -711,7 +721,7 @@ def IDA_AddJacobianOp
 
         %0 = ... : !ida.equation
         %1 = ... : !ida.variable
-        ida.add_jacobian @instance, %0, %1 { function : @foo } : !ida.equation, !ida.variable
+        ida.add_jacobian @instance, %0, %1 { function : @foo, seeds = [3, 6, 2] } : !ida.equation, !ida.variable
         ```
     }];
 
@@ -719,7 +729,8 @@ def IDA_AddJacobianOp
         SymbolNameAttr:$instance,
         IDAEquation:$equation,
         IDAVariable:$variable,
-        SymbolNameAttr:$function);
+        SymbolNameAttr:$function,
+        I64ArrayAttr:$seedSizes);
 
     let results = (outs);
 

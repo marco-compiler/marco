@@ -142,7 +142,8 @@ private:
       llvm::StringRef jacobianFunctionName,
       const llvm::DenseSet<VariableOp> &independentVariables,
       const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
-      VariableOp independentVariable, llvm::StringRef partialDerTemplateName);
+      VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+      llvm::SmallVectorImpl<int64_t> &seedSizes);
 
   std::string getIDAFunctionName(llvm::StringRef name) const;
 
@@ -871,15 +872,18 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         std::string jacobianFunctionName = getIDAFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
+        llvm::SmallVector<int64_t> seedSizes;
+
         if (mlir::failed(createJacobianFunction(
                 rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
                 independentVariables, independentVariablesPos, variable,
-                partialDerTemplateName))) {
+                partialDerTemplateName, seedSizes))) {
           return mlir::failure();
         }
 
         rewriter.create<mlir::ida::AddJacobianOp>(
-            loc, identifier, idaEquation, idaVariable, jacobianFunctionName);
+            loc, identifier, idaEquation, idaVariable, jacobianFunctionName,
+            rewriter.getI64ArrayAttr(seedSizes));
       }
 
       assert(stateVariables.size() == idaStateVariables.size());
@@ -908,15 +912,18 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         std::string jacobianFunctionName = getIDAFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
+        llvm::SmallVector<int64_t> seedSizes;
+
         if (mlir::failed(createJacobianFunction(
                 rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
                 independentVariables, independentVariablesPos, variable,
-                partialDerTemplateName))) {
+                partialDerTemplateName, seedSizes))) {
           return mlir::failure();
         }
 
         rewriter.create<mlir::ida::AddJacobianOp>(
-            loc, identifier, idaEquation, idaVariable, jacobianFunctionName);
+            loc, identifier, idaEquation, idaVariable, jacobianFunctionName,
+            rewriter.getI64ArrayAttr(seedSizes));
       }
     }
   }
@@ -1514,7 +1521,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     MatchedEquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
     const llvm::DenseSet<VariableOp> &independentVariables,
     const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
-    VariableOp independentVariable, llvm::StringRef partialDerTemplateName) {
+    VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+    llvm::SmallVectorImpl<int64_t> &seedSizes) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1526,7 +1534,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   // Create the function.
   auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
       loc, jacobianFunctionName, numOfInductions,
-      independentVariable.getVariableType().getRank());
+      independentVariable.getVariableType().getRank(),
+      independentVariables.size());
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 
@@ -1534,31 +1543,21 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   builder.setInsertionPointToStart(bodyBlock);
 
   // Create the global seeds for the variables.
-  llvm::SmallVector<GlobalVariableOp> varSeeds(numOfIndependentVars, nullptr);
-  size_t seedsCounter = 0;
+  llvm::SmallVector<mlir::Value> varSeeds(numOfIndependentVars, nullptr);
 
-  for (VariableOp variableOp : independentVariables) {
-    assert(independentVariablesPos.count(variableOp) != 0);
-    size_t pos = independentVariablesPos.lookup(variableOp);
-
-    std::string seedName =
-        jacobianFunctionName.str() + "_seed_" + std::to_string(seedsCounter++);
-
-    assert(varSeeds[pos] == nullptr && "Seed already created");
-
-    auto seed = createGlobalADSeed(builder, moduleOp, loc, seedName,
-                                   variableOp.getVariableType().toArrayType());
-
-    if (!seed) {
-      return mlir::failure();
-    }
-
+  for (VariableOp independentVariableOp : independentVariables) {
+    assert(independentVariablesPos.count(independentVariableOp) != 0);
+    size_t pos = independentVariablesPos.lookup(independentVariableOp);
+    mlir::Value seed = builder.create<PoolVariableGetOp>(
+        loc, independentVariableOp.getVariableType().toArrayType(),
+        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[pos]);
     varSeeds[pos] = seed;
   }
 
-  assert(llvm::none_of(varSeeds,
-                       [](GlobalVariableOp seed) { return seed == nullptr; }) &&
-         "Some seeds have not been created");
+  for (mlir::Value seed : varSeeds) {
+    auto arrayType = seed.getType().cast<ArrayType>();
+    seedSizes.push_back(arrayType.getNumElements());
+  }
 
   // Zero and one constants to be used to update the array seeds or for the
   // scalar seeds.
@@ -1580,8 +1579,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     }
 
     // Seeds of the variables.
-    for (GlobalVariableOp globalSeed : varSeeds) {
-      mlir::Value seed = builder.create<GlobalVariableGetOp>(loc, globalSeed);
+    for (mlir::Value seed : varSeeds) {
       auto arrayType = seed.getType().cast<ArrayType>();
 
       auto tensorType = mlir::RankedTensorType::get(arrayType.getShape(),
@@ -1624,8 +1622,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     // Perform just one call to the template function.
     if (oneSeedPosition) {
       // Set the seed of the variable to one.
-      setGlobalADSeed(builder, loc, varSeeds[*oneSeedPosition],
-                      jacobianFunction.getVariableIndices(), one);
+      builder.create<StoreOp>(loc, one, varSeeds[*oneSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     if (derSeedPosition) {
@@ -1635,8 +1633,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
       alpha = builder.create<CastOp>(
           alpha.getLoc(), RealType::get(builder.getContext()), alpha);
 
-      setGlobalADSeed(builder, loc, varSeeds[*derSeedPosition],
-                      jacobianFunction.getVariableIndices(), alpha);
+      builder.create<StoreOp>(loc, alpha, varSeeds[*derSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     // Call the template function.
@@ -1652,13 +1650,13 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
     // Reset the seeds.
     if (oneSeedPosition) {
-      setGlobalADSeed(builder, loc, varSeeds[*oneSeedPosition],
-                      jacobianFunction.getVariableIndices(), zero);
+      builder.create<StoreOp>(loc, zero, varSeeds[*oneSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     if (derSeedPosition) {
-      setGlobalADSeed(builder, loc, varSeeds[*derSeedPosition],
-                      jacobianFunction.getVariableIndices(), zero);
+      builder.create<StoreOp>(loc, zero, varSeeds[*derSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     // Return the result.
@@ -1669,8 +1667,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
     // Perform the first call to the template function.
     if (oneSeedPosition) {
-      setGlobalADSeed(builder, loc, varSeeds[*oneSeedPosition],
-                      jacobianFunction.getVariableIndices(), one);
+      builder.create<StoreOp>(loc, one, varSeeds[*oneSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     args.clear();
@@ -1685,14 +1683,14 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
     if (oneSeedPosition) {
       // Reset the seed of the variable.
-      setGlobalADSeed(builder, loc, varSeeds[*oneSeedPosition],
-                      jacobianFunction.getVariableIndices(), zero);
+      builder.create<StoreOp>(loc, zero, varSeeds[*oneSeedPosition],
+                              jacobianFunction.getVariableIndices());
     }
 
     if (derSeedPosition) {
       // Set the seed of the derivative to one.
-      setGlobalADSeed(builder, loc, varSeeds[*derSeedPosition],
-                      jacobianFunction.getVariableIndices(), one);
+      builder.create<StoreOp>(loc, one, varSeeds[*derSeedPosition],
+                              jacobianFunction.getVariableIndices());
 
       // Call the template function.
       args.clear();
@@ -1705,8 +1703,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
           RealType::get(builder.getContext()), args);
 
       // Reset the seed of the variable.
-      setGlobalADSeed(builder, loc, varSeeds[*derSeedPosition],
-                      jacobianFunction.getVariableIndices(), zero);
+      builder.create<StoreOp>(loc, zero, varSeeds[*derSeedPosition],
+                              jacobianFunction.getVariableIndices());
 
       mlir::Value secondResult = secondTemplateCall.getResult(0);
 
