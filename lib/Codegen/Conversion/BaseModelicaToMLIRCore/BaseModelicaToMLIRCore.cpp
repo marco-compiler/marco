@@ -17,70 +17,55 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir
-{
+namespace mlir {
 #define GEN_PASS_DEF_BASEMODELICATOMLIRCORECONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
-}
+} // namespace mlir
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class BaseModelicaToMLIRCoreConversionPass
-      : public mlir::impl::BaseModelicaToMLIRCoreConversionPassBase<
-            BaseModelicaToMLIRCoreConversionPass>
-  {
-    public:
-      using BaseModelicaToMLIRCoreConversionPassBase<
-          BaseModelicaToMLIRCoreConversionPass>
-          ::BaseModelicaToMLIRCoreConversionPassBase;
+namespace {
+class BaseModelicaToMLIRCoreConversionPass
+    : public mlir::impl::BaseModelicaToMLIRCoreConversionPassBase<
+          BaseModelicaToMLIRCoreConversionPass> {
+public:
+  using BaseModelicaToMLIRCoreConversionPassBase<
+      BaseModelicaToMLIRCoreConversionPass>::
+      BaseModelicaToMLIRCoreConversionPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult convertOperations();
-  };
-}
+private:
+  mlir::LogicalResult convertOperations();
+};
+} // namespace
 
-void BaseModelicaToMLIRCoreConversionPass::runOnOperation()
-{
+void BaseModelicaToMLIRCoreConversionPass::runOnOperation() {
   if (mlir::failed(convertOperations())) {
     return signalPassFailure();
   }
 }
 
-mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
-{
+mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   mlir::ModuleOp module = getOperation();
   mlir::ConversionTarget target(getContext());
   TypeConverter typeConverter;
 
-  target.addLegalDialect<
-      mlir::BuiltinDialect,
-      mlir::arith::ArithDialect,
-      mlir::bufferization::BufferizationDialect,
-      mlir::func::FuncDialect,
-      mlir::linalg::LinalgDialect,
-      mlir::memref::MemRefDialect,
-      mlir::scf::SCFDialect,
-      mlir::runtime::RuntimeDialect,
-      mlir::tensor::TensorDialect>();
+  target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
+                         mlir::bufferization::BufferizationDialect,
+                         mlir::func::FuncDialect, mlir::linalg::LinalgDialect,
+                         mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
+                         mlir::runtime::RuntimeDialect,
+                         mlir::tensor::TensorDialect>();
 
   target.addLegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
   target.addIllegalOp<CastOp>();
 
-  target.addIllegalOp<
-      TensorFromElementsOp,
-      TensorBroadcastOp,
-      TensorViewOp,
-      TensorExtractOp,
-      TensorInsertOp,
-      TensorInsertSliceOp>();
+  target.addIllegalOp<TensorFromElementsOp, TensorBroadcastOp, TensorViewOp,
+                      TensorExtractOp, TensorInsertOp, TensorInsertSliceOp>();
 
-  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
-    return op.getResult().getType().isa<RangeType>();
-  });
+  target.addDynamicallyLegalOp<ConstantOp>(
+      [](ConstantOp op) { return op.getResult().getType().isa<RangeType>(); });
 
   target.addIllegalOp<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
   target.addIllegalOp<NotOp, AndOp, OrOp>();
@@ -98,30 +83,15 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
 
   target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp>();
 
-  target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
-    return !op.getType().isa<ArrayType>();
-  });
+  target.addDynamicallyLegalOp<PoolVariableGetOp>(
+      [](PoolVariableGetOp op) { return !op.getType().isa<ArrayType>(); });
 
-  target.addIllegalOp<
-      AllocaOp,
-      AllocOp,
-      ArrayFromElementsOp,
-      ArrayBroadcastOp,
-      FreeOp,
-      DimOp,
-      SubscriptionOp,
-      LoadOp,
-      StoreOp,
-      ArrayCastOp,
-      ArrayFillOp,
-      ArrayCopyOp>();
+  target.addIllegalOp<AllocaOp, AllocOp, ArrayFromElementsOp, ArrayBroadcastOp,
+                      FreeOp, DimOp, SubscriptionOp, LoadOp, StoreOp,
+                      ArrayCastOp, ArrayFillOp, ArrayCopyOp>();
 
-  target.addIllegalOp<
-      EquationFunctionOp,
-      EquationCallOp,
-      RawFunctionOp,
-      RawReturnOp,
-      CallOp>();
+  target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
+                      RawReturnOp, CallOp>();
 
   target.addDynamicallyLegalOp<RawVariableOp>([&](RawVariableOp op) {
     mlir::Type variableType = op.getVariable().getType();
@@ -138,43 +108,12 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
     return valueType == typeConverter.convertType(valueType);
   });
 
-  target.addIllegalOp<
-      AbsOp,
-      AcosOp,
-      AsinOp,
-      AtanOp,
-      Atan2Op,
-      CeilOp,
-      CosOp,
-      CoshOp,
-      DiagonalOp,
-      DivTruncOp,
-      ExpOp,
-      FillOp,
-      FloorOp,
-      IdentityOp,
-      IntegerOp,
-      LinspaceOp,
-      LogOp,
-      Log10Op,
-      OnesOp,
-      MaxOp,
-      MinOp,
-      ModOp,
-      NDimsOp,
-      ProductOp,
-      RemOp,
-      SignOp,
-      SinOp,
-      SinhOp,
-      SizeOp,
-      SqrtOp,
-      SumOp,
-      SymmetricOp,
-      TanOp,
-      TanhOp,
-      TransposeOp,
-      ZerosOp>();
+  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
+                      CoshOp, DiagonalOp, DivTruncOp, ExpOp, FillOp, FloorOp,
+                      IdentityOp, IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp,
+                      MaxOp, MinOp, ModOp, NDimsOp, ProductOp, RemOp, SignOp,
+                      SinOp, SinhOp, SizeOp, SqrtOp, SumOp, SymmetricOp, TanOp,
+                      TanhOp, TransposeOp, ZerosOp>();
 
   target.addIllegalOp<PrintOp>();
   target.addIllegalOp<ArrayToTensorOp, TensorToArrayOp>();
@@ -185,20 +124,20 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
   populateBaseModelicaToRuntimeCallConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
 
-  populateBaseModelicaToTensorConversionPatterns(
-      patterns, &getContext(), typeConverter);
+  populateBaseModelicaToTensorConversionPatterns(patterns, &getContext(),
+                                                 typeConverter);
 
-  populateBaseModelicaToArithConversionPatterns(
-      patterns, &getContext(), typeConverter);
+  populateBaseModelicaToArithConversionPatterns(patterns, &getContext(),
+                                                typeConverter);
 
-  populateBaseModelicaToFuncConversionPatterns(
-      patterns, &getContext(), typeConverter);
+  populateBaseModelicaToFuncConversionPatterns(patterns, &getContext(),
+                                               typeConverter);
 
   populateBaseModelicaRawVariablesTypeLegalizationPatterns(
       patterns, &getContext(), typeConverter);
 
-  populateBaseModelicaToLinalgConversionPatterns(
-      patterns, &getContext(), typeConverter);
+  populateBaseModelicaToLinalgConversionPatterns(patterns, &getContext(),
+                                                 typeConverter);
 
   populateBaseModelicaToMemRefConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
@@ -206,10 +145,8 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
   return applyPartialConversion(module, target, std::move(patterns));
 }
 
-namespace mlir
-{
-  std::unique_ptr<mlir::Pass> createBaseModelicaToMLIRCoreConversionPass()
-  {
-    return std::make_unique<BaseModelicaToMLIRCoreConversionPass>();
-  }
+namespace mlir {
+std::unique_ptr<mlir::Pass> createBaseModelicaToMLIRCoreConversionPass() {
+  return std::make_unique<BaseModelicaToMLIRCoreConversionPass>();
 }
+} // namespace mlir
