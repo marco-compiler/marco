@@ -77,14 +77,30 @@ namespace mlir::kinsol
 
   llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getEquationIndices()
   {
-    auto equationRank = getEquationRank().getSExtValue();
+    int64_t equationRank = getEquationRank().getSExtValue();
     return getBody().getArguments().slice(0, equationRank);
   }
 
   llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getVariableIndices()
   {
-    auto equationRank = getEquationRank().getSExtValue();
-    auto variableRank = getVariableRank().getSExtValue();
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
     return getBody().getArguments().slice(equationRank, variableRank);
+  }
+
+  mlir::BlockArgument JacobianFunctionOp::getMemoryPool()
+  {
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = equationRank + variableRank;
+    return getBody().getArguments()[offset];
+  }
+
+  llvm::ArrayRef<mlir::BlockArgument> JacobianFunctionOp::getADSeeds()
+  {
+    int64_t equationRank = getEquationRank().getSExtValue();
+    int64_t variableRank = getVariableRank().getSExtValue();
+    int64_t offset = equationRank + variableRank + 1;
+    return getBody().getArguments().slice(offset);
   }
 }

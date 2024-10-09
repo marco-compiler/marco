@@ -342,11 +342,14 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
           1. The indices of the scalar equation to be examined.
           2. The indices of the scalar variable with respect to the equation is
              derived.
+          3. The identifier of the memory pool used for allocating the AD seeds.
+          4. The identifiers of the AD buffers that have been allocated in the
+             memory pool with the given identifier.
 
         Example:
 
         ```mlir
-        kinsol.jacobian_function @foo(%i : index, %j : index, %k : index, %l : index, %m : index) -> f64 attributes { equationRank = 3, variableRank = 2 } {
+        kinsol.jacobian_function @foo(%i : index, %j : index, %k : index, %l : index, %m : index, %pool: index, %seed1: index, %seed2: index) -> f64 attributes { equationRank = 3, variableRank = 2 } {
             %der = ... : f64
             kinsol.return %der : f64
         }
@@ -370,7 +373,7 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "size_t":$equationRank, "size_t":$variableRank), [{
+        OpBuilder<(ins "StringRef":$sym_name, "size_t":$equationRank, "size_t":$variableRank, "size_t":$numOfADSeeds), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
             SmallVector<Type, 3> args;
 
@@ -379,6 +382,12 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
             }
 
             for (size_t i = 0; i < variableRank; ++i) {
+                args.push_back($_builder.getIndexType());
+            }
+
+            args.push_back($_builder.getIndexType());
+
+            for (size_t i = 0; i < numOfADSeeds; ++i) {
                 args.push_back($_builder.getIndexType());
             }
 
@@ -393,6 +402,8 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
     let extraClassDeclaration = [{
         ArrayRef<BlockArgument> getEquationIndices();
         ArrayRef<BlockArgument> getVariableIndices();
+        BlockArgument getMemoryPool();
+        ArrayRef<BlockArgument> getADSeeds();
 
         //===-------------------------------------------------------------===//
         // SymbolOpInterface Methods
@@ -511,7 +522,7 @@ def KINSOL_AddJacobianOp
 
         %0 = ... : !kinsol.equation
         %1 = ... : !kinsol.variable
-        kinsol.add_jacobian @instance, %0, %1 { function : @foo } : !kinsol.equation, !kinsol.variable
+        kinsol.add_jacobian @instance, %0, %1 { function : @foo, seedSizes = [3, 6, 2]  } : !kinsol.equation, !kinsol.variable
         ```
     }];
 
@@ -519,7 +530,8 @@ def KINSOL_AddJacobianOp
         SymbolNameAttr:$instance,
         KINSOLEquation:$equation,
         KINSOLVariable:$variable,
-        SymbolNameAttr:$function);
+        SymbolNameAttr:$function,
+        I64ArrayAttr:$seedSizes);
 
     let results = (outs);
 

@@ -722,7 +722,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getIntegerType(
           adaptor.getEquation().getType().getIntOrFloatBitWidth()));
 
-      // Variable
+      // Variable.
       args.push_back(adaptor.getVariable());
       mangledArgsTypes.push_back(mangling.getIntegerType(
           adaptor.getVariable().getType().getIntOrFloatBitWidth()));
@@ -733,6 +733,20 @@ namespace
 
       args.push_back(functionAddress);
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Number of seeds.
+      mlir::Value numOfSeeds = rewriter.create<mlir::LLVM::ConstantOp>(
+          loc, rewriter.getI64IntegerAttr(op.getSeedSizes().size()));
+
+      args.push_back(numOfSeeds);
+      mangledArgsTypes.push_back(mangling.getIntegerType(64));
+
+      // Seed sizes.
+      mlir::Value seedSizes = declareAndGetDimensionsArray(
+          rewriter, moduleOp, loc, op.getSeedSizes(), op.getFunction());
+
+      args.push_back(seedSizes);
+      mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(64)));
 
       // Create the call to the runtime library.
       auto resultType = getVoidType();

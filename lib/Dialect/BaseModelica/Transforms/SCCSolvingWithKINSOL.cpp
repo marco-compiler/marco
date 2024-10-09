@@ -158,7 +158,8 @@ private:
       ScheduledEquationInstanceOp equationOp,
       llvm::StringRef jacobianFunctionName,
       const llvm::DenseMap<VariableOp, size_t> &variablesPos,
-      VariableOp independentVariable, llvm::StringRef partialDerTemplateName);
+      VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+      llvm::SmallVectorImpl<int64_t> &seedSizes);
 
   mlir::LogicalResult
   createProxyJacobianFunction(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
@@ -452,9 +453,9 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
                      << writtenVariableIndices[variableOp] << "\n";
       });
 
-      GlobalVariableOp proxy =
-          createProxyVariable(builder, moduleOp, variableOp,
-                              getKINSOLProxyVariableName(variableOp.getSymName()));
+      GlobalVariableOp proxy = createProxyVariable(
+          builder, moduleOp, variableOp,
+          getKINSOLProxyVariableName(variableOp.getSymName()));
 
       if (!proxy) {
         LLVM_DEBUG({
@@ -680,15 +681,17 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
         std::string jacobianFunctionName = getKINSOLFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
+        llvm::SmallVector<int64_t> seedSizes;
+
         if (mlir::failed(createJacobianFunction(
                 rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
-                variablesPos, variable, partialDerTemplateName))) {
+                variablesPos, variable, partialDerTemplateName, seedSizes))) {
           return mlir::failure();
         }
 
         rewriter.create<mlir::kinsol::AddJacobianOp>(
             loc, identifier, kinsolEquation, kinsolVariable,
-            jacobianFunctionName);
+            jacobianFunctionName, rewriter.getI64ArrayAttr(seedSizes));
       }
     }
   }
@@ -769,6 +772,8 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
         std::string jacobianFunctionName = getKINSOLFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
+        llvm::SmallVector<int64_t> seedSizes;
+
         if (mlir::failed(createProxyJacobianFunction(
                 rewriter, moduleOp, proxyIt->getSecond(), variable,
                 jacobianFunctionName))) {
@@ -777,7 +782,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
         rewriter.create<mlir::kinsol::AddJacobianOp>(
             loc, identifier, kinsolEquation, kinsolVariable,
-            jacobianFunctionName);
+            jacobianFunctionName, rewriter.getI64ArrayAttr(seedSizes));
       }
     }
   }
@@ -1247,7 +1252,8 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
     ScheduledEquationInstanceOp equationOp,
     llvm::StringRef jacobianFunctionName,
     const llvm::DenseMap<VariableOp, size_t> &variablesPos,
-    VariableOp independentVariable, llvm::StringRef partialDerTemplateName) {
+    VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+    llvm::SmallVectorImpl<int64_t> &seedSizes) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1259,7 +1265,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   // Create the function.
   auto jacobianFunction = builder.create<mlir::kinsol::JacobianFunctionOp>(
       loc, jacobianFunctionName, numOfInductions,
-      independentVariable.getVariableType().getRank());
+      independentVariable.getVariableType().getRank(), numOfVars);
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 
@@ -1267,31 +1273,23 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   builder.setInsertionPointToStart(bodyBlock);
 
   // Create the global seeds for the variables.
-  llvm::SmallVector<GlobalVariableOp> varSeeds(numOfVars, nullptr);
-  size_t seedsCounter = 0;
+  llvm::SmallVector<mlir::Value> varSeeds(numOfVars, nullptr);
 
   for (const auto &entry : variablesPos) {
     VariableOp variableOp = entry.getFirst();
     size_t pos = entry.getSecond();
 
-    std::string seedName =
-        jacobianFunctionName.str() + "_seed_" + std::to_string(seedsCounter++);
-
-    assert(varSeeds[pos] == nullptr && "Seed already created");
-
-    auto seed = createGlobalADSeed(builder, moduleOp, loc, seedName,
-                                   variableOp.getVariableType().toArrayType());
-
-    if (!seed) {
-      return mlir::failure();
-    }
+    mlir::Value seed = builder.create<PoolVariableGetOp>(
+        loc, variableOp.getVariableType().toArrayType(),
+        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[pos]);
 
     varSeeds[pos] = seed;
   }
 
-  assert(llvm::none_of(varSeeds,
-                       [](GlobalVariableOp seed) { return seed == nullptr; }) &&
-         "Some seeds have not been created");
+  for (mlir::Value seed : varSeeds) {
+    auto arrayType = seed.getType().cast<ArrayType>();
+    seedSizes.push_back(arrayType.getNumElements());
+  }
 
   // Zero and one constants to be used to update the array seeds or for the
   // scalar seeds.
@@ -1310,8 +1308,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
     }
 
     // Seeds of the variables.
-    for (GlobalVariableOp globalSeed : varSeeds) {
-      mlir::Value seed = builder.create<GlobalVariableGetOp>(loc, globalSeed);
+    for (mlir::Value seed : varSeeds) {
       auto seedArrayType = seed.getType().cast<ArrayType>();
 
       if (seedArrayType.isScalar()) {
@@ -1340,8 +1337,8 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   // Set the seed of the variable to one.
   size_t oneSeedPosition = variablesPos.lookup(independentVariable);
 
-  setGlobalADSeed(builder, loc, varSeeds[oneSeedPosition],
-                  jacobianFunction.getVariableIndices(), one);
+  builder.create<StoreOp>(loc, one, varSeeds[oneSeedPosition],
+                          jacobianFunction.getVariableIndices());
 
   // Call the template function.
   args.clear();
@@ -1355,8 +1352,8 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   mlir::Value result = firstTemplateCall.getResult(0);
 
   // Reset the seed of the variable.
-  setGlobalADSeed(builder, loc, varSeeds[oneSeedPosition],
-                  jacobianFunction.getVariableIndices(), zero);
+  builder.create<StoreOp>(loc, zero, varSeeds[oneSeedPosition],
+                          jacobianFunction.getVariableIndices());
 
   // Return the result.
   result = builder.create<CastOp>(loc, builder.getF64Type(), result);
@@ -1382,7 +1379,7 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
 
   // Create the function.
   auto jacobianFunction = builder.create<mlir::kinsol::JacobianFunctionOp>(
-      loc, jacobianFunctionName, proxyRank, independentVariableRank);
+      loc, jacobianFunctionName, proxyRank, independentVariableRank, 0);
 
   symbolTableCollection->getSymbolTable(moduleOp).insert(jacobianFunction);
 

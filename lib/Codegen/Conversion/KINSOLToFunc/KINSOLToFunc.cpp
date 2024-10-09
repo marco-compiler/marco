@@ -157,6 +157,11 @@ namespace
       argsTypes.push_back(
           mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
 
+      argsTypes.push_back(rewriter.getI64Type());
+
+      argsTypes.push_back(
+          mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
+
       auto functionType = rewriter.getFunctionType(
           argsTypes,
           op.getFunctionType().getResult(0));
@@ -168,7 +173,7 @@ namespace
       rewriter.setInsertionPointToStart(entryBlock);
 
       // The arguments to be passed to the entry block of the old operation.
-      llvm::SmallVector<mlir::Value, 3> branchArgs;
+      llvm::SmallVector<mlir::Value, 5> branchArgs;
 
       // The equation indices are also passed through an array.
       mlir::Value equationIndicesPtr = newOp.getArgument(0);
@@ -221,6 +226,42 @@ namespace
             mappedVariableIndex);
 
         branchArgs.push_back(mappedVariableIndex);
+      }
+
+      // Add the "memory pool" identifier.
+      mlir::Value memoryPool = newOp.getArgument(2);
+
+      memoryPool = getTypeConverter()->materializeSourceConversion(
+          rewriter,
+          memoryPool.getLoc(),
+          rewriter.getIndexType(),
+          memoryPool);
+
+      branchArgs.push_back(memoryPool);
+
+      // The AD seeds identifiers are passed through an array.
+      mlir::Value seedsPtr = newOp.getArgument(3);
+
+      for (auto seedIndex : llvm::enumerate(op.getADSeeds())) {
+        auto index = static_cast<int32_t>(seedIndex.index());
+
+        mlir::Value seedPtr = rewriter.create<mlir::LLVM::GEPOp>(
+            seedsPtr.getLoc(),
+            seedsPtr.getType(),
+            rewriter.getI64Type(),
+            seedsPtr,
+            llvm::ArrayRef<mlir::LLVM::GEPArg>(index));
+
+        mlir::Value mappedSeed = rewriter.create<mlir::LLVM::LoadOp>(
+            seedPtr.getLoc(), rewriter.getI64Type(), seedPtr);
+
+        mappedSeed = getTypeConverter()->materializeSourceConversion(
+            rewriter,
+            mappedSeed.getLoc(),
+            rewriter.getIndexType(),
+            mappedSeed);
+
+        branchArgs.push_back(mappedSeed);
       }
 
       // Create a branch to the entry block of the old region.
