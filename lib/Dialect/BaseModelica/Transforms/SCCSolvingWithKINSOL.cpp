@@ -454,7 +454,7 @@ mlir::LogicalResult KINSOLInstance::addVariablesToKINSOL(
 
       GlobalVariableOp proxy =
           createProxyVariable(builder, moduleOp, variableOp,
-                              getKINSOLFunctionName(variableOp.getSymName()));
+                              getKINSOLProxyVariableName(variableOp.getSymName()));
 
       if (!proxy) {
         LLVM_DEBUG({
