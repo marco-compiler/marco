@@ -11,12 +11,10 @@ namespace mlir
 
   void populateBaseModelicaToLLVMConversionPatterns(
       mlir::RewritePatternSet& patterns,
-      mlir::LLVMTypeConverter& typeConverter);
+      mlir::LLVMTypeConverter& typeConverter,
+      mlir::SymbolTableCollection& symbolTableCollection);
 
   std::unique_ptr<mlir::Pass> createBaseModelicaToLLVMConversionPass();
-
-  void registerConvertBaseModelicaToLLVMInterface(
-      mlir::DialectRegistry& registry);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_BASEMODELICATOLLVM_BASEMODELICATOLLVM_H

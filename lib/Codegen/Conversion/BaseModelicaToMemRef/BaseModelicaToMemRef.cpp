@@ -326,6 +326,30 @@ namespace
     }
   };
 
+  class PoolVariableGetOpLowering
+      : public ModelicaOpConversionPattern<PoolVariableGetOp>
+  {
+    using ModelicaOpConversionPattern<PoolVariableGetOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        PoolVariableGetOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      if (!op.getType().isa<ArrayType>()) {
+        return rewriter.notifyMatchFailure(op, "Incompatible type");
+      }
+
+      auto memRefType = getTypeConverter()->convertType(op.getType());
+
+      rewriter.replaceOpWithNewOp<PoolVariableGetOp>(
+          op, memRefType, adaptor.getPool(), adaptor.getId());
+
+      return mlir::success();
+    }
+  };
+
   class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp>
   {
     using ModelicaOpConversionPattern<AllocaOp>::ModelicaOpConversionPattern;
@@ -787,6 +811,10 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations()
       ArrayFillOp,
       ArrayCopyOp>();
 
+  target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
+    return !op.getType().isa<ArrayType>();
+  });
+
   target.addIllegalOp<
       FillOp,
       NDimsOp,
@@ -833,7 +861,8 @@ namespace mlir
         GlobalVariableOpLowering>(typeConverter, context, symbolTableCollection);
 
     patterns.insert<
-        GlobalVariableGetOpLowering>(typeConverter, context);
+        GlobalVariableGetOpLowering,
+        PoolVariableGetOpLowering>(typeConverter, context);
 
     patterns.insert<
         AllocaOpLowering,

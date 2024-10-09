@@ -1409,6 +1409,25 @@ def BaseModelica_QualifiedVariableSetOp : BaseModelica_Op<"qualified_variable_se
     }];
 }
 
+def BaseModelica_PoolVariableGetOp : BaseModelica_Op<"pool_variable_get", [NoMemoryEffect]>
+{
+    let summary = "Get the data held by a variable allocated in a memory pool.";
+
+    let description = [{
+        Get the data held by a variable allocated in a memory pool.
+
+        Example:
+
+        ```mlir
+        %0 = modelica.pool_variable_get %0, %1 : !modelica.array<2x3x!modelica.real>
+        ```
+    }];
+
+    let arguments = (ins Index:$pool, Index:$id);
+    let results = (outs AnyType:$result);
+    let assemblyFormat = "$pool `,` $id attr-dict `:` type($result)";
+}
+
 //===---------------------------------------------------------------------===//
 // Math operations
 //===---------------------------------------------------------------------===//

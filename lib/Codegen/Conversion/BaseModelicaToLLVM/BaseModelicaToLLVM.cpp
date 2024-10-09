@@ -1,10 +1,12 @@
 #include "marco/Codegen/Conversion/BaseModelicaToLLVM/BaseModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Codegen/Runtime.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir
@@ -14,9 +16,83 @@ namespace mlir
 }
 
 using namespace ::mlir::bmodelica;
+using namespace ::marco::codegen;
 
 namespace
 {
+  template<typename Op>
+  class BaseModelicaOpConversion : public mlir::ConvertOpToLLVMPattern<Op>
+  {
+    public:
+      BaseModelicaOpConversion(
+          mlir::LLVMTypeConverter& typeConverter,
+          mlir::SymbolTableCollection& symbolTableCollection)
+          : mlir::ConvertOpToLLVMPattern<Op>(typeConverter),
+            symbolTableCollection(&symbolTableCollection)
+      {
+      }
+
+      mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::StringRef name,
+          mlir::LLVM::LLVMFunctionType functionType) const
+      {
+        auto funcOp =
+            symbolTableCollection->lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
+                moduleOp, builder.getStringAttr(name));
+
+        if (funcOp) {
+          return funcOp;
+        }
+
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPointToStart(moduleOp.getBody());
+
+        auto newFuncOp =
+            builder.create<mlir::LLVM::LLVMFuncOp>(loc, name, functionType);
+
+        symbolTableCollection->getSymbolTable(moduleOp).insert(newFuncOp);
+        return newFuncOp;
+      }
+
+      mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::StringRef name,
+          mlir::Type resultType,
+          llvm::ArrayRef<mlir::Type> argTypes) const
+      {
+        auto functionType =
+            mlir::LLVM::LLVMFunctionType::get(resultType, argTypes);
+
+        return getOrDeclareFunction(builder, moduleOp, loc, name, functionType);
+      }
+
+      mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp moduleOp,
+          mlir::Location loc,
+          llvm::StringRef name,
+          mlir::Type resultType,
+          llvm::ArrayRef<mlir::Value> args) const
+      {
+        llvm::SmallVector<mlir::Type> argTypes;
+
+        for (mlir::Value arg : args) {
+          argTypes.push_back(arg.getType());
+        }
+
+        return getOrDeclareFunction(
+            builder, moduleOp, loc, name, resultType, argTypes);
+      }
+
+    protected:
+      mlir::SymbolTableCollection* symbolTableCollection;
+  };
+
   class PackageOpPattern : public mlir::OpRewritePattern<PackageOp>
   {
     public:
@@ -44,10 +120,10 @@ namespace
   };
 
   class ConstantOpRangeLowering
-      : public mlir::ConvertOpToLLVMPattern<ConstantOp>
+      : public BaseModelicaOpConversion<ConstantOp>
   {
     public:
-      using mlir::ConvertOpToLLVMPattern<ConstantOp>::ConvertOpToLLVMPattern;
+      using BaseModelicaOpConversion<ConstantOp>::BaseModelicaOpConversion;
 
       mlir::LogicalResult matchAndRewrite(
           ConstantOp op,
@@ -139,10 +215,10 @@ namespace
   };
 
   class RangeOpLowering
-      : public mlir::ConvertOpToLLVMPattern<RangeOp>
+      : public BaseModelicaOpConversion<RangeOp>
   {
     public:
-      using mlir::ConvertOpToLLVMPattern<RangeOp>::ConvertOpToLLVMPattern;
+      using BaseModelicaOpConversion<RangeOp>::BaseModelicaOpConversion;
 
       mlir::LogicalResult matchAndRewrite(
           RangeOp op,
@@ -194,9 +270,9 @@ namespace
   };
 
   struct RangeBeginOpLowering
-      : public mlir::ConvertOpToLLVMPattern<RangeBeginOp>
+      : public BaseModelicaOpConversion<RangeBeginOp>
   {
-      using mlir::ConvertOpToLLVMPattern<RangeBeginOp>::ConvertOpToLLVMPattern;
+      using BaseModelicaOpConversion<RangeBeginOp>::BaseModelicaOpConversion;
 
       mlir::LogicalResult matchAndRewrite(
           RangeBeginOp op,
@@ -211,9 +287,9 @@ namespace
   };
 
   struct RangeEndOpLowering
-      : public mlir::ConvertOpToLLVMPattern<RangeEndOp>
+      : public BaseModelicaOpConversion<RangeEndOp>
   {
-      using mlir::ConvertOpToLLVMPattern<RangeEndOp>::ConvertOpToLLVMPattern;
+      using BaseModelicaOpConversion<RangeEndOp>::BaseModelicaOpConversion;
 
       mlir::LogicalResult matchAndRewrite(
           RangeEndOp op,
@@ -227,9 +303,9 @@ namespace
       }
   };
 
-  struct RangeStepOpLowering : public mlir::ConvertOpToLLVMPattern<RangeStepOp>
+  struct RangeStepOpLowering : public BaseModelicaOpConversion<RangeStepOp>
   {
-      using mlir::ConvertOpToLLVMPattern<RangeStepOp>::ConvertOpToLLVMPattern;
+      using BaseModelicaOpConversion<RangeStepOp>::BaseModelicaOpConversion;
 
       mlir::LogicalResult matchAndRewrite(
           RangeStepOp op,
@@ -241,6 +317,59 @@ namespace
 
         return mlir::success();
       }
+  };
+
+  struct PoolVariableGetOpLowering : public BaseModelicaOpConversion<PoolVariableGetOp>
+  {
+    using BaseModelicaOpConversion<PoolVariableGetOp>::BaseModelicaOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(
+        PoolVariableGetOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      if (!op.getType().isa<mlir::MemRefType>()) {
+        return rewriter.notifyMatchFailure(op, "Incompatible type");
+      }
+
+      mlir::Location loc = op.getLoc();
+      auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+      RuntimeFunctionsMangling mangling;
+
+      llvm::SmallVector<mlir::Value, 2> args;
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      // Memory pool identifier.
+      args.push_back(adaptor.getPool());
+      mangledArgsTypes.push_back(mangling.getIntegerType(64));
+
+      // Buffer identifier.
+      args.push_back(adaptor.getId());
+      mangledArgsTypes.push_back(mangling.getIntegerType(64));
+
+      // Create the call to the runtime library.
+      auto resultType = mlir::LLVM::LLVMPointerType::get(op.getContext());
+      auto mangledResultType = mangling.getVoidPointerType();
+
+      auto functionName = mangling.getMangledFunction(
+          "memoryPoolGet", mangledResultType, mangledArgsTypes);
+
+      auto funcOp = getOrDeclareFunction(
+          rewriter, moduleOp, loc, functionName, resultType, args);
+
+      auto callOp = rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
+
+      mlir::Value ptr = callOp.getResult();
+      auto memRefType = op.getType().cast<mlir::MemRefType>();
+
+      ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, ptr.getType(), memRefType.getElementType(), ptr, llvm::ArrayRef<mlir::LLVM::GEPArg>(0));
+
+      auto memRefDescriptor = mlir::MemRefDescriptor::fromStaticShape(rewriter, loc, *getTypeConverter(), memRefType, ptr, ptr);
+
+      rewriter.replaceOp(op, {memRefDescriptor});
+      return mlir::success();
+    }
   };
 }
 
@@ -289,42 +418,32 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations()
       RangeEndOp,
       RangeStepOp>();
 
+  target.addIllegalOp<PoolVariableGetOp>();
+
+  target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
+    return !op.getType().isa<mlir::MemRefType>();
+  });
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+  mlir::SymbolTableCollection symbolTableCollection;
 
   mlir::RewritePatternSet patterns(&getContext());
-  populateBaseModelicaToLLVMConversionPatterns(patterns, typeConverter);
+  populateBaseModelicaToLLVMConversionPatterns(patterns, typeConverter, symbolTableCollection);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
-}
-
-namespace
-{
-  struct BaseModelicaToLLVMDialectInterface
-      : public mlir::ConvertToLLVMPatternInterface
-  {
-    using ConvertToLLVMPatternInterface::ConvertToLLVMPatternInterface;
-
-    void loadDependentDialects(mlir::MLIRContext* context) const final
-    {
-      context->loadDialect<mlir::LLVM::LLVMDialect>();
-    }
-
-    void populateConvertToLLVMConversionPatterns(
-        mlir::ConversionTarget& target,
-        mlir::LLVMTypeConverter& typeConverter,
-        mlir::RewritePatternSet &patterns) const final
-    {
-      populateBaseModelicaToLLVMConversionPatterns(patterns, typeConverter);
-    }
-  };
 }
 
 namespace mlir
 {
   void populateBaseModelicaToLLVMConversionPatterns(
       mlir::RewritePatternSet& patterns,
-      mlir::LLVMTypeConverter& typeConverter)
+      mlir::LLVMTypeConverter& typeConverter,
+      mlir::SymbolTableCollection& symbolTableCollection)
   {
     // Class operations.
     patterns.insert<
@@ -337,19 +456,14 @@ namespace mlir
         RangeOpLowering,
         RangeBeginOpLowering,
         RangeEndOpLowering,
-        RangeStepOpLowering>(typeConverter);
+        RangeStepOpLowering>(typeConverter, symbolTableCollection);
+
+    // Variable operations.
+    patterns.insert<PoolVariableGetOpLowering>(typeConverter, symbolTableCollection);
   }
 
   std::unique_ptr<mlir::Pass> createBaseModelicaToLLVMConversionPass()
   {
     return std::make_unique<BaseModelicaToLLVMConversionPass>();
-  }
-
-  void registerConvertBaseModelicaToLLVMInterface(mlir::DialectRegistry& registry)
-  {
-    registry.addExtension(
-        +[](mlir::MLIRContext* context, BaseModelicaDialect* dialect) {
-          dialect->addInterfaces<BaseModelicaToLLVMDialectInterface>();
-        });
   }
 }

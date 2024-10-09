@@ -530,9 +530,6 @@ void CodeGenAction::registerMLIRExtensions() {
 
   mlir::runtime::registerAllDialectInterfaceImplementations(
       mlirDialectRegistry);
-
-  // Register conversions to LLVM dialect.
-  mlir::registerConvertBaseModelicaToLLVMInterface(mlirDialectRegistry);
 }
 
 void CodeGenAction::createMLIRContext() {
@@ -984,12 +981,13 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Perform the default conversions towards LLVM dialect.
   pm.addPass(mlir::createConvertToLLVMPass());
 
-  // The conversion of the support dialects to LLVM must be performed
+  // The conversion of the internal dialects to LLVM must be performed
   // separately because it requires a symbol table for efficiency reasons.
   // If MLIR will ever provide a SymbolTableCollection within the ToLLVM
   // conversion infrastructure, or if such information will be embedded in
   // the symbol table operations, then this separation will be not needed
   // anymore.
+  pm.addPass(mlir::createBaseModelicaToLLVMConversionPass());
   pm.addPass(mlir::createIDAToLLVMConversionPass());
   pm.addPass(mlir::createKINSOLToLLVMConversionPass());
   pm.addPass(mlir::createRuntimeToLLVMConversionPass());

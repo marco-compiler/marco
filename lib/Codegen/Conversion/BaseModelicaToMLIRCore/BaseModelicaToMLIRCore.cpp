@@ -98,6 +98,10 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations()
 
   target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp>();
 
+  target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
+    return !op.getType().isa<ArrayType>();
+  });
+
   target.addIllegalOp<
       AllocaOp,
       AllocOp,
