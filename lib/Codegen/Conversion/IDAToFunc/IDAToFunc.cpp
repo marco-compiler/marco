@@ -177,7 +177,7 @@ namespace
       rewriter.setInsertionPointToStart(entryBlock);
 
       // The arguments to be passed to the entry block of the old operation.
-      llvm::SmallVector<mlir::Value, 3> branchArgs;
+      llvm::SmallVector<mlir::Value, 5> branchArgs;
 
       // Map the "time" variable.
       branchArgs.push_back(newOp.getArgument(0));

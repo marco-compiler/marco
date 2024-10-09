@@ -537,7 +537,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
              derived.
           4. The IDA `alpha` parameter.
           5. The identifier of the memory pool used for allocating the AD seeds.
-          5. The identifiers of the AD buffers that have been allocated in the
+          6. The identifiers of the AD buffers that have been allocated in the
              memory pool with the given identifier.
 
         Example:
@@ -721,7 +721,7 @@ def IDA_AddJacobianOp
 
         %0 = ... : !ida.equation
         %1 = ... : !ida.variable
-        ida.add_jacobian @instance, %0, %1 { function : @foo, seeds = [3, 6, 2] } : !ida.equation, !ida.variable
+        ida.add_jacobian @instance, %0, %1 { function : @foo, seedSizes = [3, 6, 2] } : !ida.equation, !ida.variable
         ```
     }];
 
