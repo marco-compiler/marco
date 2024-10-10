@@ -80,8 +80,12 @@ void CallCSEPass::collectCallOps(ModelOp modelOp,
     templateOps.insert(equationOp.getTemplate());
   }
 
-  for (const auto templateOp : templateOps) {
-    templateOp->walk([&](const CallOp callOp) { callOps.push_back(callOp); });
+  for (auto templateOp : templateOps) {
+    // Skip templates with induction variables
+    if (!templateOp.getInductionVariables().empty()) {
+      continue;
+    }
+    templateOp->walk([&](CallOp callOp) { callOps.push_back(callOp); });
   }
 }
 
@@ -96,7 +100,7 @@ void CallCSEPass::buildCallEquivalenceGroups(
     auto *equivalenceGroup =
         find_if(callEquivalenceGroups, [&](llvm::SmallVector<CallOp> &group) {
           // front() is safe as there are no empty groups
-          const auto representative = mlir::cast<EquationExpressionOpInterface>(
+          auto representative = mlir::cast<EquationExpressionOpInterface>(
               group.front().getOperation());
           return callExpression.isEquivalent(representative,
                                              symbolTableCollection);
@@ -118,6 +122,7 @@ mlir::Operation *CallCSEPass::cloneDefUseChain(mlir::Operation *op,
   std::vector<mlir::Operation *> toClone;
   std::vector worklist({op});
 
+  // DFS through the def-use chain of `op`
   while (!worklist.empty()) {
     auto *current = worklist.back();
     worklist.pop_back();
@@ -134,13 +139,6 @@ mlir::Operation *CallCSEPass::cloneDefUseChain(mlir::Operation *op,
     root = rewriter.clone(*opToClone, mapping);
   }
   return root;
-  // for (auto operand : op->getOperands()) {
-  //   if (auto *defOp = operand.getDefiningOp()) {
-  //     cloneDefUseChain(defOp, mapping, rewriter);
-  //   }
-  // }
-
-  // return rewriter.clone(*op, mapping);
 }
 
 EquationTemplateOp
@@ -149,29 +147,27 @@ CallCSEPass::emitCse(ModelOp modelOp, const int emittedCSEs,
                      mlir::RewriterBase &rewriter) {
   assert(!equivalenceGroup.empty() && "equivalenceGroup cannot be empty");
   auto representative = equivalenceGroup.front();
+  const auto loc = representative.getLoc();
   // Emit CSE variable
   rewriter.setInsertionPointToStart(modelOp.getBody());
   auto cseVariable = rewriter.create<VariableOp>(
-      rewriter.getUnknownLoc(), "_cse" + std::to_string(emittedCSEs),
+      loc, "_cse" + std::to_string(emittedCSEs),
       VariableType::wrap(representative.getResult(0).getType()));
 
   // Create CSE variable driver equation
   rewriter.setInsertionPointToEnd(modelOp.getBody());
-  auto equationTemplateOp =
-      rewriter.create<EquationTemplateOp>(rewriter.getUnknownLoc());
+  auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
   rewriter.setInsertionPointToStart(equationTemplateOp.createBody(0));
 
   mlir::IRMapping mapping;
   auto *clonedRepresentative =
       cloneDefUseChain(representative, mapping, rewriter);
 
-  const auto cseGetOp =
-      rewriter.create<VariableGetOp>(rewriter.getUnknownLoc(), cseVariable);
-  auto lhsOp = rewriter.create<EquationSideOp>(rewriter.getUnknownLoc(),
-                                               cseGetOp->getResults());
-  auto rhsOp = rewriter.create<EquationSideOp>(
-      rewriter.getUnknownLoc(), clonedRepresentative->getResults());
-  rewriter.create<EquationSidesOp>(rewriter.getUnknownLoc(), lhsOp, rhsOp);
+  auto cseGetOp = rewriter.create<VariableGetOp>(loc, cseVariable);
+  auto lhsOp = rewriter.create<EquationSideOp>(loc, cseGetOp->getResults());
+  auto rhsOp =
+      rewriter.create<EquationSideOp>(loc, clonedRepresentative->getResults());
+  rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
 
   // Replace calls with get to CSE variable
   for (auto &callOp : equivalenceGroup) {
