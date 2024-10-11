@@ -181,7 +181,6 @@ CallCSEPass::emitCse(ModelOp modelOp, const int emittedCSEs,
 mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(modelOp);
   mlir::SymbolTableCollection symbolTableCollection;
-  symbolTableCollection.getSymbolTable(modelOp);
 
   llvm::SmallVector<CallOp> callOps;
   collectCallOps(modelOp, callOps);
