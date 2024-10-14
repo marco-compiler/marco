@@ -508,6 +508,11 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   llvm::SmallVector<MatchedEquationInstanceOp> originalEquations;
   scc.collectEquations(originalEquations);
 
+  if (static_cast<int64_t>(originalEquations.size()) > maxEquationsInSCC) {
+    // The SCC has too many equations.
+    return mlir::success();
+  }
+
   // The equations to be considered during an iteration.
   // Initially, they are the equations within the SCC.
   llvm::SmallVector<MatchedEquationInstanceOp> currentEquations(

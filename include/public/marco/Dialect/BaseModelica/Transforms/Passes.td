@@ -577,7 +577,9 @@ def SCCSolvingBySubstitutionPass
 
     let options = [
         Option<"maxIterations", "max-iterations", "int64_t", "1000",
-               "Set the maximum number of iterations">
+               "Set the maximum number of iterations">,
+        Option<"maxEquationsInSCC", "max-iterations", "int64_t", "5",
+               "Set the number of equations above which an SCC is ignored">,
     ];
 
     let constructor = "mlir::bmodelica::createSCCSolvingBySubstitutionPass()";
