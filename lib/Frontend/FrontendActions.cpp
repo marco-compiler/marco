@@ -837,7 +837,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   // Try to solve the cycles by substitution.
-  pm.addPass(mlir::bmodelica::createSCCSolvingBySubstitutionPass());
+  pm.addPass(createMLIRSCCSolvingBySubstitutionPass());
 
   // Simplify the possibly complex accesses introduced by equations
   // substitutions.
@@ -1060,6 +1060,20 @@ std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRIDAPass() {
   options.debugInformation = ci.getCodeGenOptions().debug;
 
   return mlir::bmodelica::createIDAPass(options);
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIRSCCSolvingBySubstitutionPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::bmodelica::SCCSolvingBySubstitutionPassOptions options;
+
+  options.maxEquationsInSCC =
+      ci.getCodeGenOptions().sccSolvingBySubstitutionMaxIterations;
+
+  options.maxEquationsInSCC =
+      ci.getCodeGenOptions().sccSolvingBySubstitutionMaxEquationsInSCC;
+
+  return mlir::bmodelica::createSCCSolvingBySubstitutionPass(options);
 }
 
 std::unique_ptr<mlir::Pass>
