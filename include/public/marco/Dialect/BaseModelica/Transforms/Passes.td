@@ -576,9 +576,9 @@ def SCCSolvingBySubstitutionPass
     ];
 
     let options = [
-        Option<"maxIterations", "max-iterations", "int64_t", "100",
+        Option<"maxIterations", "max-iterations-on-scc", "int64_t", "100",
                "Set the maximum number of iterations">,
-        Option<"maxEquationsInSCC", "max-iterations", "int64_t", "5",
+        Option<"maxEquationsInSCC", "max-equations-in-scc", "int64_t", "5",
                "Set the number of equations above which an SCC is ignored">,
     ];
 
