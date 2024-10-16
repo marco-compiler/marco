@@ -21,9 +21,12 @@ private:
   /// Replace all calls in the equivalence group with gets to a generated
   /// variable. The variable will be driven by an equation derived from the
   /// first call in the group.
-  EquationTemplateOp emitCse(ModelOp modelOp, int emittedCSEs,
-                             llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
-                             mlir::RewriterBase &rewriter);
+  ///
+  /// If the call is to a function with multiple return values one variable and
+  /// driver equation will be emitted per result.
+  void emitCse(int emittedCSEs, llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
+               ModelOp modelOp, DynamicOp dynamicOp,
+               mlir::RewriterBase &rewriter);
 };
 
 /// Get all callOps in the model.
@@ -35,11 +38,6 @@ void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
   modelOp.collectMainEquations(dynamicEquationOps);
 
   llvm::DenseSet<EquationTemplateOp> templateOps;
-
-  // TODO: Figure out if these should be included
-  // for (auto equationOp : initialEquationOps) {
-  //   templateOps.insert(equationOp.getTemplate());
-  // }
 
   for (auto equationOp : dynamicEquationOps) {
     templateOps.insert(equationOp.getTemplate());
@@ -116,40 +114,56 @@ mlir::Operation *cloneDefUseChain(mlir::Operation *op,
   return root;
 }
 
-EquationTemplateOp
-CallCSEPass::emitCse(ModelOp modelOp, const int emittedCSEs,
-                     llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
-                     mlir::RewriterBase &rewriter) {
+void CallCSEPass::emitCse(const int emittedCSEs,
+                          llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
+                          ModelOp modelOp, DynamicOp dynamicOp,
+                          mlir::RewriterBase &rewriter) {
   assert(!equivalenceGroup.empty() && "equivalenceGroup cannot be empty");
   auto representative = equivalenceGroup.front();
   const auto loc = representative.getLoc();
-  // Emit CSE variable
-  rewriter.setInsertionPointToStart(modelOp.getBody());
-  auto cseVariable = rewriter.create<VariableOp>(
-      loc, "_cse" + std::to_string(emittedCSEs),
-      VariableType::wrap(representative.getResult(0).getType()));
 
-  // Create CSE variable driver equation
-  rewriter.setInsertionPointToEnd(modelOp.getBody());
-  auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
-  rewriter.setInsertionPointToStart(equationTemplateOp.createBody(0));
+  // Emit one variable per function result
+  llvm::SmallVector<VariableOp> cseVariables;
+  for (auto result : llvm::enumerate(representative.getResults())) {
+    rewriter.setInsertionPointToStart(modelOp.getBody());
+    // Emit cse variable
+    auto variableName = "_cse" + std::to_string(emittedCSEs) + "_" +
+                        std::to_string(result.index());
+    auto cseVariable = rewriter.create<VariableOp>(
+        loc, variableName, VariableType::wrap(result.value().getType()));
+    cseVariables.push_back(cseVariable);
 
-  auto lhsOp = rewriter.create<EquationSideOp>(
-      loc, rewriter.create<VariableGetOp>(loc, cseVariable)->getResults());
+    // Emit driver equation
+    rewriter.setInsertionPoint(dynamicOp);
+    auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
+    rewriter.setInsertionPointToStart(equationTemplateOp.createBody(0));
+    auto lhsOp = rewriter.create<EquationSideOp>(
+        loc, rewriter.create<VariableGetOp>(loc, cseVariable)->getResults());
+    auto rhsOp = rewriter.create<EquationSideOp>(
+        loc,
+        cloneDefUseChain(representative, rewriter)->getResult(result.index()));
+    rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
 
-  auto rhsOp = rewriter.create<EquationSideOp>(
-      loc, cloneDefUseChain(representative, rewriter)->getResults());
-  rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
+    // Add driver equation to dynamic operation
+    rewriter.setInsertionPointToEnd(dynamicOp.getBody());
+    rewriter.create<EquationInstanceOp>(rewriter.getUnknownLoc(),
+                                        equationTemplateOp);
+  }
 
-  // Replace calls with get to CSE variable
+  // Replace calls with get(s) to CSE variable(s)
   for (auto &callOp : equivalenceGroup) {
     rewriter.setInsertionPoint(callOp);
-    rewriter.replaceOpWithNewOp<VariableGetOp>(callOp, cseVariable);
+
+    llvm::SmallVector<mlir::Value> results;
+    for (auto &cseVariable : cseVariables) {
+      results.push_back(
+          rewriter.create<VariableGetOp>(loc, cseVariable).getResult());
+    }
+    rewriter.replaceOp(callOp, results);
   }
+
   this->replacedCalls += equivalenceGroup.size();
   ++this->emittedCSEs;
-
-  return equationTemplateOp;
 }
 
 mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
@@ -165,21 +179,20 @@ mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
     return mlir::success();
   }
 
-  int emittedCSEs = 0;
-  llvm::SmallVector<EquationTemplateOp> cseEquationTemplateOps;
-  for (auto &equivalenceGroup : callEquivalenceGroups) {
-    cseEquationTemplateOps.push_back(
-        emitCse(modelOp, emittedCSEs++, equivalenceGroup, rewriter));
-  }
-
   rewriter.setInsertionPointToEnd(modelOp.getBody());
   auto dynamicOp = rewriter.create<DynamicOp>(rewriter.getUnknownLoc());
-  rewriter.setInsertionPointToStart(
-      rewriter.createBlock(&dynamicOp.getRegion()));
+  rewriter.createBlock(&dynamicOp.getRegion());
 
-  for (auto equationTemplateOp : cseEquationTemplateOps) {
-    rewriter.create<EquationInstanceOp>(rewriter.getUnknownLoc(),
-                                        equationTemplateOp);
+  int emittedCSEs = 0;
+  for (auto &equivalenceGroup : callEquivalenceGroups) {
+    // Only emit CSEs that will lead to an equivalent, or lower amount of calls
+    if (equivalenceGroup.size() >= equivalenceGroup.front().getNumResults()) {
+      emitCse(emittedCSEs++, equivalenceGroup, modelOp, dynamicOp, rewriter);
+    }
+  }
+
+  if (emittedCSEs == 0) {
+    rewriter.eraseOp(dynamicOp);
   }
 
   return mlir::success();
