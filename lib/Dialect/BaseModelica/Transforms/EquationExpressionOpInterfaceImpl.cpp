@@ -28,6 +28,33 @@ void printExpression(llvm::raw_ostream &os, const mlir::Value value,
   expressionOp.printExpression(os, inductions);
 }
 
+template <typename BinaryOpType>
+void printBinaryExpression(
+    mlir::Operation *op, llvm::raw_ostream &os,
+    const llvm::DenseMap<mlir::Value, int64_t> &inductions,
+    const llvm::StringLiteral opSymbol) {
+  auto castedOp = mlir::cast<BinaryOpType>(op);
+
+  os << "(";
+  ::printExpression(os, castedOp.getLhs(), inductions);
+  os << " " << opSymbol << " ";
+  ::printExpression(os, castedOp.getRhs(), inductions);
+  os << ")";
+}
+
+template <typename UnaryOpType>
+void printUnaryExpression(
+    mlir::Operation *op, llvm::raw_ostream &os,
+    const llvm::DenseMap<mlir::Value, int64_t> &inductions,
+    const llvm::StringLiteral opName) {
+
+  auto castedOp = mlir::cast<UnaryOpType>(op);
+
+  os << opName << "(";
+  ::printExpression(os, castedOp.getOperand(), inductions);
+  os << ")";
+}
+
 bool areExpressionOperandsEquivalent(
     mlir::ValueRange firstOperands, mlir::ValueRange secondOperands,
     mlir::SymbolTableCollection &symbolTableCollection) {
@@ -61,9 +88,367 @@ bool areEquationExpressionsEquivalent(
   return areExpressionOperandsEquivalent(
       firstOp->getOperands(), secondOp->getOperands(), symbolTableCollection);
 }
+
+template <typename OpType>
+bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                  mlir::SymbolTableCollection &symbolTableCollection) {
+  auto otherCasted = mlir::dyn_cast<OpType>(other);
+
+  if (!otherCasted) {
+    return false;
+  }
+
+  return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                          symbolTableCollection);
+}
 } // namespace
 
 namespace {
+struct ReductionOpInterface
+    : EquationExpressionOpInterface::ExternalModel<ReductionOpInterface,
+                                                   ReductionOp> {
+  void printExpression(
+      mlir::Operation *op, llvm::raw_ostream &os,
+      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
+    auto castedOp = mlir::cast<ReductionOp>(op);
+
+    // Add the inductions to the inductions map.
+    llvm::DenseMap<mlir::Value, int64_t> expandedInductions(inductions);
+    const auto inductionValues = castedOp.getInductions();
+
+    for (mlir::Value inductionValue : inductionValues) {
+      const auto id = static_cast<int64_t>(expandedInductions.size());
+      expandedInductions[inductionValue] = id;
+    }
+
+    // Print the operation.
+    os << castedOp.getAction();
+    os << "(";
+
+    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
+
+    interleaveComma(terminator.getValues(), os, [&](const mlir::Value exp) {
+      ::printExpression(os, exp, expandedInductions);
+    });
+
+    os << " for ";
+    const auto iterables = castedOp.getIterables();
+
+    for (size_t i = 0, e = inductionValues.size(); i < e; ++i) {
+      if (i != 0) {
+        os << ", ";
+      }
+
+      ::printExpression(os, inductionValues[i], expandedInductions);
+    }
+
+    os << " in ";
+
+    interleaveComma(iterables, os, [&](const mlir::Value exp) {
+      ::printExpression(os, exp, expandedInductions);
+    });
+
+    os << ")";
+  }
+
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<ReductionOp>(op);
+    auto otherCasted = mlir::dyn_cast<ReductionOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getAction() != otherCasted.getAction()) {
+      return false;
+    }
+
+    if (!areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                          symbolTableCollection)) {
+      return false;
+    }
+
+    auto yieldOp = mlir::cast<YieldOp>(casted.getBody()->getTerminator());
+    auto otherYieldOp =
+        mlir::cast<YieldOp>(otherCasted.getBody()->getTerminator());
+    return areExpressionOperandsEquivalent(
+        yieldOp.getValues(), otherYieldOp.getValues(), symbolTableCollection);
+  }
+
+  uint64_t getNumOfExpressionElements(mlir::Operation *op) const {
+    auto castedOp = mlir::cast<ReductionOp>(op);
+
+    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
+
+    return terminator.getValues().size();
+  }
+
+  mlir::Value getExpressionElement(mlir::Operation *op,
+                                   const uint64_t element) const {
+    auto castedOp = mlir::cast<ReductionOp>(op);
+
+    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
+
+    return terminator.getValues()[element];
+  }
+
+  llvm::SmallVector<mlir::Value>
+  getAdditionalInductions(mlir::Operation *op) const {
+    auto castedOp = mlir::cast<ReductionOp>(op);
+    llvm::SmallVector<mlir::Value> result;
+    const auto inductions = castedOp.getInductions();
+    result.append(inductions.begin(), inductions.end());
+    return result;
+  }
+
+  mlir::LogicalResult
+  mapAdditionalInductions(mlir::Operation *op,
+                          AdditionalInductions &additionalInductions) const {
+    auto castedOp = mlir::cast<ReductionOp>(op);
+
+    IndexSet indices;
+    llvm::SmallVector<std::pair<mlir::Value, uint64_t>> inductionsMap;
+
+    for (const auto &[induction, iterable] :
+         zip(castedOp.getInductions(), castedOp.getIterables())) {
+      auto constantOp = iterable.getDefiningOp<ConstantOp>();
+
+      if (!constantOp) {
+        return mlir::failure();
+      }
+
+      auto iterableAttr = constantOp.getValue();
+
+      if (auto rangeAttr = iterableAttr.dyn_cast<IntegerRangeAttr>()) {
+        assert(rangeAttr.getStep() == 1);
+
+        const auto lowerBound =
+            static_cast<Range::data_type>(rangeAttr.getLowerBound());
+
+        const auto upperBound =
+            static_cast<Range::data_type>(rangeAttr.getUpperBound());
+
+        Range range(lowerBound, upperBound + 1);
+        indices = indices.append(IndexSet(MultidimensionalRange(range)));
+
+        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
+        inductionsMap.emplace_back(induction, currentDimension);
+
+        continue;
+      }
+
+      if (auto rangeAttr = iterableAttr.dyn_cast<RealRangeAttr>()) {
+        assert(rangeAttr.getStep().convertToDouble() == 1);
+
+        const auto lowerBound = static_cast<Range::data_type>(
+            rangeAttr.getLowerBound().convertToDouble());
+
+        const auto upperBound = static_cast<Range::data_type>(
+            rangeAttr.getUpperBound().convertToDouble());
+
+        Range range(lowerBound, upperBound);
+        indices = indices.append(IndexSet(MultidimensionalRange(range)));
+
+        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
+        inductionsMap.emplace_back(induction, currentDimension);
+
+        continue;
+      }
+
+      return mlir::failure();
+    }
+
+    const uint64_t iterationSpace =
+        additionalInductions.addIterationSpace(std::move(indices));
+
+    for (size_t i = 0, e = inductionsMap.size(); i < e; ++i) {
+      additionalInductions.addInductionVariable(
+          inductionsMap[i].first, iterationSpace, inductionsMap[i].second);
+    }
+
+    return mlir::success();
+  }
+};
+
+struct CallOpInterface
+    : EquationExpressionOpInterface::ExternalModel<CallOpInterface, CallOp> {
+  void printExpression(
+      mlir::Operation *op, llvm::raw_ostream &os,
+      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
+    auto casted = mlir::cast<CallOp>(op);
+    os << casted.getCallee() << "(";
+
+    interleaveComma(casted.getArgs(), os, [&](const mlir::Value exp) {
+      ::printExpression(os, exp, inductions);
+    });
+
+    os << ")";
+  }
+
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
+    auto casted = mlir::cast<CallOp>(op);
+    auto otherCasted = mlir::dyn_cast<CallOp>(other);
+
+    if (!otherCasted) {
+      return false;
+    }
+
+    if (casted.getCallee() != otherCasted.getCallee()) {
+      return false;
+    }
+
+    if (casted->getResultTypes() != otherCasted->getResultTypes()) {
+      return false;
+    }
+
+    const auto argNames = casted.getArgNames();
+    const auto otherArgNames = otherCasted.getArgNames();
+
+    llvm::StringMap<size_t> argNamesPos;
+    llvm::StringMap<size_t> otherArgNamesPos;
+
+    if (argNames) {
+      getArgNamesPos(*argNames, argNamesPos);
+    }
+
+    if (otherArgNames) {
+      getArgNamesPos(*otherArgNames, otherArgNamesPos);
+    }
+
+    if (argNames && otherArgNames) {
+      if (!haveSameArgNames(argNamesPos, otherArgNamesPos)) {
+        return false;
+      }
+
+      for (const auto &entry : argNamesPos) {
+        const mlir::Value arg = casted.getArgs()[entry.getValue()];
+        const mlir::Value otherArg =
+            otherCasted.getArgs()[otherArgNamesPos[entry.getKey()]];
+
+        if (!areExpressionOperandsEquivalent(arg, otherArg,
+                                             symbolTableCollection)) {
+          return false;
+        }
+      }
+    } else if (argNames) {
+      if (failed(getArgNamesPos(otherCasted, symbolTableCollection,
+                                otherArgNamesPos))) {
+        return false;
+      }
+
+      if (!compareNamedUnnamedArgs(casted.getArgs(), argNamesPos,
+                                   otherCasted.getArgs(), otherArgNamesPos,
+                                   symbolTableCollection)) {
+        return false;
+      }
+    } else if (otherArgNames) {
+      if (failed(getArgNamesPos(casted, symbolTableCollection, argNamesPos))) {
+        return false;
+      }
+
+      if (!compareNamedUnnamedArgs(otherCasted.getArgs(), otherArgNamesPos,
+                                   casted.getArgs(), argNamesPos,
+                                   symbolTableCollection)) {
+        return false;
+      }
+    } else {
+      if (!areExpressionOperandsEquivalent(
+              casted.getArgs(), otherCasted.getArgs(), symbolTableCollection)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  static void getArgNamesPos(mlir::ArrayAttr argNames,
+                             llvm::StringMap<size_t> &pos) {
+    for (auto argName : llvm::enumerate(argNames)) {
+      const auto name =
+          argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
+      pos[name] = argName.index();
+    }
+  }
+
+  static mlir::LogicalResult
+  getArgNamesPos(CallOp callOp,
+                 mlir::SymbolTableCollection &symbolTableCollection,
+                 llvm::StringMap<size_t> &pos) {
+    auto otherFunctionOp = mlir::dyn_cast<FunctionOp>(callOp.getFunction(
+        callOp->getParentOfType<mlir::ModuleOp>(), symbolTableCollection));
+
+    if (!otherFunctionOp) {
+      return mlir::failure();
+    }
+
+    size_t variablePos = 0;
+
+    for (VariableOp variableOp : otherFunctionOp.getVariables()) {
+      if (variableOp.isInput()) {
+        pos[variableOp.getSymName()] = variablePos++;
+      }
+    }
+
+    return mlir::success();
+  }
+
+  bool containsArgNames(const llvm::StringMap<size_t> &parent,
+                        const llvm::StringMap<size_t> &child) const {
+    return all_of(child, [&](const auto &entry) {
+      return parent.contains(entry.getKey());
+    });
+  }
+
+  bool haveSameArgNames(const llvm::StringMap<size_t> &first,
+                        const llvm::StringMap<size_t> &second) const {
+    return containsArgNames(first, second) && containsArgNames(second, first);
+  }
+
+  bool compareNamedUnnamedArgs(
+      const mlir::ValueRange namedArgs,
+      const llvm::StringMap<size_t> &namedArgsPos, mlir::ValueRange unnamedArgs,
+      const llvm::StringMap<size_t> &unnamedArgsPos,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
+    if (namedArgs.size() != unnamedArgs.size()) {
+      return false;
+    }
+
+    llvm::DenseMap<size_t, std::string> inverseUnnamedArgsPos;
+
+    for (const auto &entry : unnamedArgsPos) {
+      inverseUnnamedArgsPos[entry.getValue()] = entry.getKey().str();
+    }
+
+    for (auto unnamedArg : llvm::enumerate(unnamedArgs)) {
+      auto inverseUnnamedArgPosIt =
+          inverseUnnamedArgsPos.find(unnamedArg.index());
+
+      if (inverseUnnamedArgPosIt == inverseUnnamedArgsPos.end()) {
+        return false;
+      }
+
+      auto namedArgsPosIt =
+          namedArgsPos.find(inverseUnnamedArgPosIt->getSecond());
+
+      if (namedArgsPosIt == namedArgsPos.end()) {
+        return false;
+      }
+
+      assert(namedArgsPosIt->getValue() < namedArgs.size());
+      mlir::Value namedArg = namedArgs[namedArgsPosIt->getValue()];
+
+      if (!areExpressionOperandsEquivalent(namedArg, unnamedArg.value(),
+                                           symbolTableCollection)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
 struct EquationSidesOpInterface
     : EquationExpressionOpInterface::ExternalModel<EquationSidesOpInterface,
                                                    EquationSidesOp> {
@@ -107,14 +492,8 @@ struct TensorFromElementsOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TensorFromElementsOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TensorFromElementsOp>(op, other,
+                                                symbolTableCollection);
   }
 };
 
@@ -142,14 +521,7 @@ struct TensorBroadcastOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TensorBroadcastOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TensorBroadcastOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -173,14 +545,7 @@ struct TensorViewOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TensorViewOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TensorViewOp>(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -240,14 +605,7 @@ struct TensorExtractOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TensorExtractOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TensorExtractOp>(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -306,14 +664,8 @@ struct ArrayFromElementsOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ArrayFromElementsOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ArrayFromElementsOp>(op, other,
+                                               symbolTableCollection);
   }
 };
 
@@ -341,14 +693,7 @@ struct ArrayBroadcastOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ArrayBroadcastOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ArrayBroadcastOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -364,14 +709,7 @@ struct ArrayCastOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ArrayCastOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ArrayCastOp>(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -422,14 +760,7 @@ struct DimOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DimOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DimOp>(op, other, symbolTableCollection);
   }
 
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const { return 1; }
@@ -462,14 +793,7 @@ struct SubscriptionOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SubscriptionOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SubscriptionOp>(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -528,14 +852,7 @@ struct LoadOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<LoadOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<LoadOp>(op, other, symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -754,14 +1071,7 @@ struct NegateOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<NegateOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<NegateOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -770,25 +1080,12 @@ struct AddOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AddOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " + ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<AddOp>(op, os, inductions, "+");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AddOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AddOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -797,25 +1094,12 @@ struct AddEWOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AddEWOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " .+ ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<AddEWOp>(op, os, inductions, ".+");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AddEWOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AddEWOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -824,25 +1108,12 @@ struct SubOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SubOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " - ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<SubOp>(op, os, inductions, "-");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SubOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SubOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -851,25 +1122,12 @@ struct SubEWOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SubEWOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " .- ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<SubEWOp>(op, os, inductions, ".-");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SubEWOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SubEWOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -878,25 +1136,12 @@ struct MulOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<MulOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " * ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<MulOp>(op, os, inductions, "*");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<MulOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<MulOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -905,25 +1150,12 @@ struct MulEWOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<MulEWOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " .* ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<MulEWOp>(op, os, inductions, ".*");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<MulEWOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<MulEWOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -932,25 +1164,12 @@ struct DivOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<DivOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " / ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<DivOp>(op, os, inductions, "/");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DivOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DivOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -959,25 +1178,12 @@ struct DivEWOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<DivEWOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " ./ ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<DivEWOp>(op, os, inductions, "./");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DivEWOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DivEWOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -997,14 +1203,7 @@ struct PowOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<PowOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<PowOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1024,14 +1223,7 @@ struct PowEWOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<PowEWOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<PowEWOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1040,25 +1232,12 @@ struct EqOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<EqOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " == ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<EqOp>(op, os, inductions, "==");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<EqOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<EqOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1067,25 +1246,12 @@ struct NotEqOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<NotEqOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " != ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<NotEqOp>(op, os, inductions, "!=");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<NotEqOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<NotEqOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1094,25 +1260,12 @@ struct GtOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<GtOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " > ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<GtOp>(op, os, inductions, ">");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<GtOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<GtOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1121,25 +1274,12 @@ struct GteOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<GteOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " >= ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<GteOp>(op, os, inductions, ">=");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<GteOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<GteOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1148,25 +1288,12 @@ struct LtOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<LtOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " < ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<LtOp>(op, os, inductions, "<");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<LtOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<LtOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1175,25 +1302,12 @@ struct LteOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<LteOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " <= ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<LteOp>(op, os, inductions, "<=");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<LteOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<LteOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1202,23 +1316,12 @@ struct NotOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<NotOp>(op);
-
-    os << "!(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<NotOp>(op, os, inductions, "!");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<NotOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<NotOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1227,25 +1330,12 @@ struct AndOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AndOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " && ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<AndOp>(op, os, inductions, "&&");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AndOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AndOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1254,25 +1344,12 @@ struct OrOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<OrOp>(op);
-
-    os << "(";
-    ::printExpression(os, castedOp.getLhs(), inductions);
-    os << " || ";
-    ::printExpression(os, castedOp.getRhs(), inductions);
-    os << ")";
+    ::printBinaryExpression<OrOp>(op, os, inductions, "||");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<OrOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<OrOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1302,14 +1379,7 @@ struct SelectOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SelectOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SelectOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1318,23 +1388,12 @@ struct AbsOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AbsOp>(op);
-
-    os << "abs(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<AbsOp>(op, os, inductions, "abs");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AbsOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AbsOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1343,23 +1402,12 @@ struct AcosOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AcosOp>(op);
-
-    os << "acos(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<AcosOp>(op, os, inductions, "acos");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AcosOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AcosOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1368,23 +1416,12 @@ struct AsinOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AsinOp>(op);
-
-    os << "asin(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<AsinOp>(op, os, inductions, "asin");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AsinOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AsinOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1393,23 +1430,12 @@ struct AtanOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<AtanOp>(op);
-
-    os << "atan(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<AtanOp>(op, os, inductions, "atan");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<AtanOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<AtanOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1429,14 +1455,7 @@ struct Atan2OpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<Atan2Op>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<Atan2Op>(op, other, symbolTableCollection);
   }
 };
 
@@ -1445,23 +1464,12 @@ struct CeilOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<CeilOp>(op);
-
-    os << "ceil(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<CeilOp>(op, os, inductions, "ceil");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<CeilOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<CeilOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1470,23 +1478,12 @@ struct CosOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<CosOp>(op);
-
-    os << "cos(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<CosOp>(op, os, inductions, "cos");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<CosOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<CosOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1495,23 +1492,12 @@ struct CoshOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<CoshOp>(op);
-
-    os << "cosh(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<CoshOp>(op, os, inductions, "cosh");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<CoshOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<CoshOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1521,23 +1507,12 @@ struct DiagonalOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<DiagonalOp>(op);
-
-    os << "diagonal(";
-    ::printExpression(os, castedOp.getValues(), inductions);
-    os << ")";
+    ::printUnaryExpression<DiagonalOp>(op, os, inductions, "diagonal");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DiagonalOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DiagonalOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1558,14 +1533,7 @@ struct DivTruncOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DivTruncOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DivTruncOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1574,23 +1542,12 @@ struct ExpOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<ExpOp>(op);
-
-    os << "exp(";
-    ::printExpression(os, castedOp.getExponent(), inductions);
-    os << ")";
+    ::printUnaryExpression<ExpOp>(op, os, inductions, "exp");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ExpOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ExpOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1599,23 +1556,12 @@ struct FillOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<FillOp>(op);
-
-    os << "fill(";
-    ::printExpression(os, castedOp.getValue(), inductions);
-    os << ")";
+    ::printUnaryExpression<FillOp>(op, os, inductions, "fill");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<FillOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<FillOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1624,23 +1570,12 @@ struct FloorOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<FloorOp>(op);
-
-    os << "floor(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<FloorOp>(op, os, inductions, "floor");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<FloorOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<FloorOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1650,23 +1585,12 @@ struct IdentityOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<IdentityOp>(op);
-
-    os << "identity(";
-    ::printExpression(os, castedOp.getSize(), inductions);
-    os << ")";
+    ::printUnaryExpression<IdentityOp>(op, os, inductions, "identity");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<IdentityOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<IdentityOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1676,23 +1600,12 @@ struct IntegerOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<IntegerOp>(op);
-
-    os << "integer(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<IntegerOp>(op, os, inductions, "integer");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<IntegerOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<IntegerOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1715,14 +1628,7 @@ struct LinspaceOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<LinspaceOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<LinspaceOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1731,23 +1637,12 @@ struct LogOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<LogOp>(op);
-
-    os << "log(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<LogOp>(op, os, inductions, "log");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<LogOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<LogOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1756,23 +1651,12 @@ struct Log10OpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<Log10Op>(op);
-
-    os << "log10(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<Log10Op>(op, os, inductions, "log10");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<Log10Op>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<Log10Op>(op, other, symbolTableCollection);
   }
 };
 
@@ -1796,14 +1680,7 @@ struct MaxOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<MaxOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<MaxOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1827,14 +1704,7 @@ struct MinOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<MinOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<MinOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1854,14 +1724,7 @@ struct ModOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ModOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ModOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1879,14 +1742,7 @@ struct NDimsOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<NDimsOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<NDimsOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1908,14 +1764,7 @@ struct OnesOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<OnesOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<OnesOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1934,14 +1783,7 @@ struct ProductOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ProductOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<ProductOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1961,14 +1803,7 @@ struct RemOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<RemOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<RemOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -1977,23 +1812,12 @@ struct SignOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SignOp>(op);
-
-    os << "sign(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SignOp>(op, os, inductions, "sign");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SignOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SignOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2002,23 +1826,12 @@ struct SinOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SinOp>(op);
-
-    os << "sin(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SinOp>(op, os, inductions, "sin");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SinOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SinOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2027,23 +1840,12 @@ struct SinhOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SinhOp>(op);
-
-    os << "sinh(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SinhOp>(op, os, inductions, "sinh");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SinhOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SinhOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2067,14 +1869,7 @@ struct SizeOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SizeOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SizeOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2083,23 +1878,12 @@ struct SqrtOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SqrtOp>(op);
-
-    os << "sqrt(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SqrtOp>(op, os, inductions, "sqrt");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SqrtOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SqrtOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2108,23 +1892,12 @@ struct SumOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SumOp>(op);
-
-    os << "sum(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SumOp>(op, os, inductions, "sum");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SumOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SumOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2134,23 +1907,12 @@ struct SymmetricOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<SymmetricOp>(op);
-
-    os << "symmetric(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<SymmetricOp>(op, os, inductions, "symmetric");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<SymmetricOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<SymmetricOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2159,23 +1921,12 @@ struct TanOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<TanOp>(op);
-
-    os << "tan(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<TanOp>(op, os, inductions, "tan");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TanOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TanOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2184,23 +1935,12 @@ struct TanhOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<TanhOp>(op);
-
-    os << "tanh(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<TanhOp>(op, os, inductions, "tanh");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TanhOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TanhOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2210,23 +1950,12 @@ struct TransposeOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<TransposeOp>(op);
-
-    os << "transpose(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<TransposeOp>(op, os, inductions, "transpose");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<TransposeOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<TransposeOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2248,181 +1977,7 @@ struct ZerosOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<ZerosOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
-  }
-};
-
-struct ReductionOpInterface
-    : EquationExpressionOpInterface::ExternalModel<ReductionOpInterface,
-                                                   ReductionOp> {
-  void printExpression(
-      mlir::Operation *op, llvm::raw_ostream &os,
-      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<ReductionOp>(op);
-
-    // Add the inductions to the inductions map.
-    llvm::DenseMap<mlir::Value, int64_t> expandedInductions(inductions);
-    const auto inductionValues = castedOp.getInductions();
-
-    for (mlir::Value inductionValue : inductionValues) {
-      const auto id = static_cast<int64_t>(expandedInductions.size());
-      expandedInductions[inductionValue] = id;
-    }
-
-    // Print the operation.
-    os << castedOp.getAction();
-    os << "(";
-
-    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
-
-    interleaveComma(terminator.getValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, expandedInductions);
-    });
-
-    os << " for ";
-    const auto iterables = castedOp.getIterables();
-
-    for (size_t i = 0, e = inductionValues.size(); i < e; ++i) {
-      if (i != 0) {
-        os << ", ";
-      }
-
-      ::printExpression(os, inductionValues[i], expandedInductions);
-    }
-
-    os << " in ";
-
-    interleaveComma(iterables, os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, expandedInductions);
-    });
-
-    os << ")";
-  }
-
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto casted = mlir::cast<ReductionOp>(op);
-    auto otherCasted = mlir::dyn_cast<ReductionOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    if (casted.getAction() != otherCasted.getAction()) {
-      return false;
-    }
-
-    if (!areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                          symbolTableCollection)) {
-      return false;
-    }
-
-    auto yieldOp = mlir::cast<YieldOp>(casted.getBody()->getTerminator());
-    auto otherYieldOp =
-        mlir::cast<YieldOp>(otherCasted.getBody()->getTerminator());
-    return areExpressionOperandsEquivalent(
-        yieldOp.getValues(), otherYieldOp.getValues(), symbolTableCollection);
-  }
-
-  uint64_t getNumOfExpressionElements(mlir::Operation *op) const {
-    auto castedOp = mlir::cast<ReductionOp>(op);
-
-    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
-
-    return terminator.getValues().size();
-  }
-
-  mlir::Value getExpressionElement(mlir::Operation *op,
-                                   const uint64_t element) const {
-    auto castedOp = mlir::cast<ReductionOp>(op);
-
-    auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
-
-    return terminator.getValues()[element];
-  }
-
-  llvm::SmallVector<mlir::Value>
-  getAdditionalInductions(mlir::Operation *op) const {
-    auto castedOp = mlir::cast<ReductionOp>(op);
-    llvm::SmallVector<mlir::Value> result;
-    const auto inductions = castedOp.getInductions();
-    result.append(inductions.begin(), inductions.end());
-    return result;
-  }
-
-  mlir::LogicalResult
-  mapAdditionalInductions(mlir::Operation *op,
-                          AdditionalInductions &additionalInductions) const {
-    auto castedOp = mlir::cast<ReductionOp>(op);
-
-    IndexSet indices;
-    llvm::SmallVector<std::pair<mlir::Value, uint64_t>> inductionsMap;
-
-    for (const auto &[induction, iterable] :
-         zip(castedOp.getInductions(), castedOp.getIterables())) {
-      auto constantOp = iterable.getDefiningOp<ConstantOp>();
-
-      if (!constantOp) {
-        return mlir::failure();
-      }
-
-      auto iterableAttr = constantOp.getValue();
-
-      if (auto rangeAttr = iterableAttr.dyn_cast<IntegerRangeAttr>()) {
-        assert(rangeAttr.getStep() == 1);
-
-        const auto lowerBound =
-            static_cast<Range::data_type>(rangeAttr.getLowerBound());
-
-        const auto upperBound =
-            static_cast<Range::data_type>(rangeAttr.getUpperBound());
-
-        Range range(lowerBound, upperBound + 1);
-        indices = indices.append(IndexSet(MultidimensionalRange(range)));
-
-        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
-        inductionsMap.emplace_back(induction, currentDimension);
-
-        continue;
-      }
-
-      if (auto rangeAttr = iterableAttr.dyn_cast<RealRangeAttr>()) {
-        assert(rangeAttr.getStep().convertToDouble() == 1);
-
-        const auto lowerBound = static_cast<Range::data_type>(
-            rangeAttr.getLowerBound().convertToDouble());
-
-        const auto upperBound = static_cast<Range::data_type>(
-            rangeAttr.getUpperBound().convertToDouble());
-
-        Range range(lowerBound, upperBound);
-        indices = indices.append(IndexSet(MultidimensionalRange(range)));
-
-        auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
-        inductionsMap.emplace_back(induction, currentDimension);
-
-        continue;
-      }
-
-      return mlir::failure();
-    }
-
-    const uint64_t iterationSpace =
-        additionalInductions.addIterationSpace(std::move(indices));
-
-    for (size_t i = 0, e = inductionsMap.size(); i < e; ++i) {
-      additionalInductions.addInductionVariable(
-          inductionsMap[i].first, iterationSpace, inductionsMap[i].second);
-    }
-
-    return mlir::success();
+    return ::isEquivalent<ZerosOp>(op, other, symbolTableCollection);
   }
 };
 
@@ -2431,215 +1986,25 @@ struct DerOpInterface
   void printExpression(
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto castedOp = mlir::cast<DerOp>(op);
-
-    os << "der(";
-    ::printExpression(os, castedOp.getOperand(), inductions);
-    os << ")";
+    ::printUnaryExpression<DerOp>(op, os, inductions, "der");
   }
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<DerOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<DerOp>(op, other, symbolTableCollection);
   }
 };
 
 struct TimeOpInterface
     : EquationExpressionOpInterface::ExternalModel<TimeOpInterface, TimeOp> {
-  void printExpression(
-      mlir::Operation *op, llvm::raw_ostream &os,
-      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
+  void printExpression(mlir::Operation *, llvm::raw_ostream &os,
+                       const llvm::DenseMap<mlir::Value, int64_t> &) const {
     os << "time";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(mlir::Operation *, mlir::Operation *other,
+                    mlir::SymbolTableCollection &) const {
     return mlir::isa<TimeOp>(other);
-  }
-};
-
-struct CallOpInterface
-    : EquationExpressionOpInterface::ExternalModel<CallOpInterface, CallOp> {
-  void printExpression(
-      mlir::Operation *op, llvm::raw_ostream &os,
-      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
-    auto casted = mlir::cast<CallOp>(op);
-    os << casted.getCallee() << "(";
-
-    interleaveComma(casted.getArgs(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
-
-    os << ")";
-  }
-
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto casted = mlir::cast<CallOp>(op);
-    auto otherCasted = mlir::dyn_cast<CallOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    if (casted.getCallee() != otherCasted.getCallee()) {
-      return false;
-    }
-
-    if (casted->getResultTypes() != otherCasted->getResultTypes()) {
-      return false;
-    }
-
-    const auto argNames = casted.getArgNames();
-    const auto otherArgNames = otherCasted.getArgNames();
-
-    llvm::StringMap<size_t> argNamesPos;
-    llvm::StringMap<size_t> otherArgNamesPos;
-
-    if (argNames) {
-      getArgNamesPos(*argNames, argNamesPos);
-    }
-
-    if (otherArgNames) {
-      getArgNamesPos(*otherArgNames, otherArgNamesPos);
-    }
-
-    if (argNames && otherArgNames) {
-      if (!haveSameArgNames(argNamesPos, otherArgNamesPos)) {
-        return false;
-      }
-
-      for (const auto &entry : argNamesPos) {
-        const mlir::Value arg = casted.getArgs()[entry.getValue()];
-        const mlir::Value otherArg =
-            otherCasted.getArgs()[otherArgNamesPos[entry.getKey()]];
-
-        if (!areExpressionOperandsEquivalent(arg, otherArg,
-                                             symbolTableCollection)) {
-          return false;
-        }
-      }
-    } else if (argNames) {
-      if (failed(getArgNamesPos(otherCasted, symbolTableCollection,
-                                otherArgNamesPos))) {
-        return false;
-      }
-
-      if (!compareNamedUnnamedArgs(casted.getArgs(), argNamesPos,
-                                   otherCasted.getArgs(), otherArgNamesPos,
-                                   symbolTableCollection)) {
-        return false;
-      }
-    } else if (otherArgNames) {
-      if (failed(getArgNamesPos(casted, symbolTableCollection, argNamesPos))) {
-        return false;
-      }
-
-      if (!compareNamedUnnamedArgs(otherCasted.getArgs(), otherArgNamesPos,
-                                   casted.getArgs(), argNamesPos,
-                                   symbolTableCollection)) {
-        return false;
-      }
-    } else {
-      if (!areExpressionOperandsEquivalent(
-              casted.getArgs(), otherCasted.getArgs(), symbolTableCollection)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  static void getArgNamesPos(mlir::ArrayAttr argNames,
-                             llvm::StringMap<size_t> &pos) {
-    for (auto argName : llvm::enumerate(argNames)) {
-      const auto name =
-          argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
-      pos[name] = argName.index();
-    }
-  }
-
-  static mlir::LogicalResult
-  getArgNamesPos(CallOp callOp,
-                 mlir::SymbolTableCollection &symbolTableCollection,
-                 llvm::StringMap<size_t> &pos) {
-    auto otherFunctionOp = mlir::dyn_cast<FunctionOp>(callOp.getFunction(
-        callOp->getParentOfType<mlir::ModuleOp>(), symbolTableCollection));
-
-    if (!otherFunctionOp) {
-      return mlir::failure();
-    }
-
-    size_t variablePos = 0;
-
-    for (VariableOp variableOp : otherFunctionOp.getVariables()) {
-      if (variableOp.isInput()) {
-        pos[variableOp.getSymName()] = variablePos++;
-      }
-    }
-
-    return mlir::success();
-  }
-
-  bool containsArgNames(const llvm::StringMap<size_t> &parent,
-                        const llvm::StringMap<size_t> &child) const {
-    return all_of(child, [&](const auto &entry) {
-      return parent.contains(entry.getKey());
-    });
-  }
-
-  bool haveSameArgNames(const llvm::StringMap<size_t> &first,
-                        const llvm::StringMap<size_t> &second) const {
-    return containsArgNames(first, second) && containsArgNames(second, first);
-  }
-
-  bool compareNamedUnnamedArgs(
-      const mlir::ValueRange namedArgs,
-      const llvm::StringMap<size_t> &namedArgsPos, mlir::ValueRange unnamedArgs,
-      const llvm::StringMap<size_t> &unnamedArgsPos,
-      mlir::SymbolTableCollection &symbolTableCollection) const {
-    if (namedArgs.size() != unnamedArgs.size()) {
-      return false;
-    }
-
-    llvm::DenseMap<size_t, std::string> inverseUnnamedArgsPos;
-
-    for (const auto &entry : unnamedArgsPos) {
-      inverseUnnamedArgsPos[entry.getValue()] = entry.getKey().str();
-    }
-
-    for (auto unnamedArg : llvm::enumerate(unnamedArgs)) {
-      auto inverseUnnamedArgPosIt =
-          inverseUnnamedArgsPos.find(unnamedArg.index());
-
-      if (inverseUnnamedArgPosIt == inverseUnnamedArgsPos.end()) {
-        return false;
-      }
-
-      auto namedArgsPosIt =
-          namedArgsPos.find(inverseUnnamedArgPosIt->getSecond());
-
-      if (namedArgsPosIt == namedArgsPos.end()) {
-        return false;
-      }
-
-      assert(namedArgsPosIt->getValue() < namedArgs.size());
-      mlir::Value namedArg = namedArgs[namedArgsPosIt->getValue()];
-
-      if (!areExpressionOperandsEquivalent(namedArg, unnamedArg.value(),
-                                           symbolTableCollection)) {
-        return false;
-      }
-    }
-
-    return true;
   }
 };
 
@@ -2654,14 +2019,7 @@ struct CastOpInterface
 
   bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
                     mlir::SymbolTableCollection &symbolTableCollection) const {
-    auto otherCasted = mlir::dyn_cast<CastOp>(other);
-
-    if (!otherCasted) {
-      return false;
-    }
-
-    return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                            symbolTableCollection);
+    return ::isEquivalent<CastOp>(op, other, symbolTableCollection);
   }
 };
 } // namespace
