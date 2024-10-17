@@ -72,7 +72,9 @@ bool areExpressionOperandsEquivalent(
       return false;
     }
 
-    return firstExp.isEquivalent(secondExp, symbolTableCollection);
+    if (!firstExp.isEquivalent(secondExp, symbolTableCollection)) {
+      return false;
+    }
   }
 
   return true;
@@ -104,6 +106,24 @@ bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
 } // namespace
 
 namespace {
+struct RangeOpInterface
+    : EquationExpressionOpInterface::ExternalModel<RangeOpInterface, RangeOp> {
+  void printExpression(
+      mlir::Operation *op, llvm::raw_ostream &os,
+      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
+    os << "range(";
+    interleaveComma(op->getOperands(), os, [&](const mlir::Value operand) {
+      ::printExpression(os, operand, inductions);
+    });
+    os << ")";
+  }
+
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
+                    mlir::SymbolTableCollection &symbolTableCollection) const {
+    return ::isEquivalent<RangeOp>(op, other, symbolTableCollection);
+  }
+};
+
 struct ReductionOpInterface
     : EquationExpressionOpInterface::ExternalModel<ReductionOpInterface,
                                                    ReductionOp> {
@@ -2119,6 +2139,7 @@ void registerEquationExpressionOpInterfaceExternalModels(
 
     // Various operations.
     ReductionOp::attachInterface<ReductionOpInterface>(*context);
+    RangeOp::attachInterface<RangeOpInterface>(*context);
     DerOp::attachInterface<DerOpInterface>(*context);
     TimeOp::attachInterface<TimeOpInterface>(*context);
     CallOp::attachInterface<::CallOpInterface>(*context);
