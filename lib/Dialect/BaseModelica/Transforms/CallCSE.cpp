@@ -90,7 +90,6 @@ void buildCallEquivalenceGroups(
 /// Clone `op` and its def-use chain, returning the cloned version of `op`.
 mlir::Operation *cloneDefUseChain(mlir::Operation *op,
                                   mlir::RewriterBase &rewriter) {
-  mlir::IRMapping mapping;
   // TODO - handle regions
   llvm::SmallVector<mlir::Operation *> toClone;
   llvm::SmallVector<mlir::Operation *> worklist({op});
@@ -105,10 +104,35 @@ mlir::Operation *cloneDefUseChain(mlir::Operation *op,
         worklist.push_back(defOp);
       }
     }
+    // Find the dependencies on operations not defined within the regions of
+    // `current`. No need to do this if it is isolated from above.
+    if (current->getNumRegions() > 0 &&
+        !current->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>()) {
+      // Find all uses of values defined outside `current`.
+      current->walk([&](mlir::Operation *subOp) {
+        // Walk includes current, so skip it.
+        if (subOp == current) {
+          return;
+        }
+        for (auto operand : subOp->getOperands()) {
+          // If an operand is defined in the same scope as `current`,
+          // i.e. the equation template scope, add it to the worklist.
+          if (auto *definingOp = operand.getDefiningOp();
+              definingOp->getBlock() == current->getBlock()) {
+            worklist.push_back(definingOp);
+          }
+        }
+      });
+    }
   }
 
+  mlir::IRMapping mapping;
   mlir::Operation *root = nullptr;
   for (auto *opToClone : llvm::reverse(toClone)) {
+    // Skip repeated dependencies on the same operation
+    if (mapping.contains(opToClone)) {
+      continue;
+    }
     root = rewriter.clone(*opToClone, mapping);
   }
   return root;
