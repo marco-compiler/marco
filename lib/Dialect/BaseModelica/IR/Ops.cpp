@@ -7151,7 +7151,9 @@ namespace mlir::bmodelica
     return {};
   }
   
-  void LogOp::generateRuntimeVerification(mlir::OpBuilder& builder, mlir::Location loc){
+  void LogOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
     mlir::Value operand = getOperand();
     // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
