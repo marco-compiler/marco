@@ -954,24 +954,40 @@ void DimOp::generateRuntimeVerification(
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getI64Type(), dimIndex);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value zero = builder.create<ConstantOp>(
       loc, builder.getI64IntegerAttr(0));
-  mlir::Value arrayShapeSize = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value arrayShapeSize = builder.create<ConstantOp>(
       loc, builder.getI64IntegerAttr(numDimensions));
 
-  mlir::Value firstCondition = builder.create<mlir::arith::CmpIOp>(
-      loc, mlir::arith::CmpIPredicate::sgt, argCast, zero);
+  auto assertOp1 = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "size_of_dimension_base_array failed (ndims out of bounds)"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard1(builder);
+  builder.createBlock(&assertOp1.getConditionRegion());
 
-  mlir::Value secondCondition = builder.create<mlir::arith::CmpIOp>(
-      loc, mlir::arith::CmpIPredicate::slt, argCast, arrayShapeSize);
+  mlir::Value firstCondition = builder.create<GtOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp1.getLoc(), firstCondition);
+  builder.setInsertionPointAfter(assertOp1);
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, firstCondition, builder.getStringAttr(
-        "size_of_dimension_base_array failed (ndims out of bounds)"));
+  auto assertOp2 = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "size_of_dimension_base_array failed (ndims out of bounds)"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard2(builder);
+  builder.createBlock(&assertOp2.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, secondCondition, builder.getStringAttr(
-        "size_of_dimension_base_array failed (ndims out of bounds)"));
+  mlir::Value secondCondition = builder.create<LtOp>(
+      loc, argCast, arrayShapeSize);
+  
+  builder.create<YieldOp>(assertOp2.getLoc(), secondCondition);
+  builder.setInsertionPointAfter(assertOp1);
 }
 } // namespace mlir::bmodelica
 
@@ -4623,15 +4639,22 @@ void DivOp::generateRuntimeVerification(
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value zero = builder.create<ConstantOp>(
       loc, builder.getF64FloatAttr(0));
 
-  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::ONE, argCast, zero);
+  auto assertOp = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: division by 0"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr(
-        "Model error: division by zero"));
+  mlir::Value condition = builder.create<NotEqOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
 } // namespace mlir::bmodelica
 
@@ -6136,27 +6159,42 @@ void AcosOp::generateRuntimeVerification(
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value minusone = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value minusone = builder.create<ConstantOp>(
       loc, builder.getF64FloatAttr(-1));
 
-  mlir::Value one = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value one = builder.create<ConstantOp>(
       loc, builder.getF64FloatAttr(1));
 
-  mlir::Value firstcondition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OGE, argCast, minusone);
+  auto assertOp1 = builder.create<AssertOp>(
+      loc, 
+      builder.getStringAttr(
+        "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard1(builder);
+  builder.createBlock(&assertOp1.getConditionRegion());
 
-  mlir::Value secondcondition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OLE, argCast, one);
+  mlir::Value firstcondition = builder.create<GteOp>(
+      loc, argCast, minusone);
+  
+  builder.create<YieldOp>(assertOp1.getLoc(), firstcondition);
+  builder.setInsertionPointAfter(assertOp1);
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, firstcondition, builder.getStringAttr(
-        "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"));
+  auto assertOp2 = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard2(builder);
+  builder.createBlock(&assertOp2.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, secondcondition, builder.getStringAttr(
-        "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"));
+  mlir::Value secondcondition = builder.create<LteOp>(
+      loc, argCast, one);
+  
+  builder.create<YieldOp>(assertOp2.getLoc(), secondcondition);
 }
-} // namespace mlir::bmodelica
+}
 
 
 //===---------------------------------------------------------------------===//
@@ -6203,19 +6241,34 @@ void AsinOp::generateRuntimeVerification(
   mlir::Value one = builder.create<mlir::arith::ConstantOp>(
       loc, builder.getF64FloatAttr(1));
 
-  mlir::Value firstcondition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OGE, argCast, minusone);
+  auto assertOp1 = builder.create<AssertOp>(
+      loc, 
+      builder.getStringAttr(
+        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard1(builder);
+  builder.createBlock(&assertOp1.getConditionRegion());
 
-  mlir::Value secondcondition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OLE, argCast, one);
+  mlir::Value firstcondition = builder.create<GteOp>(
+      loc, argCast, minusone);
+  
+  builder.create<YieldOp>(assertOp1.getLoc(), firstcondition);
+  builder.setInsertionPointAfter(assertOp1);
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, firstcondition, builder.getStringAttr(
-        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
+  auto assertOp2 = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"),
+      builder.getI64IntegerAttr(2));
+  
+  //mlir::OpBuilder::InsertionGuard guard2(builder);
+  builder.createBlock(&assertOp2.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, secondcondition, builder.getStringAttr(
-        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
+  mlir::Value secondcondition = builder.create<LteOp>(
+      loc, argCast, one);
+  
+  builder.create<YieldOp>(assertOp2.getLoc(), secondcondition);
 }
 } // namespace mlir::bmodelica
 
@@ -6392,15 +6445,22 @@ void DivTruncOp::generateRuntimeVerification(
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value zero = builder.create<ConstantOp>(
       loc, builder.getF64FloatAttr(0));
 
-  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::ONE, argCast, zero);
+  auto assertOp = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: division by 0"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr(
-        "Model error: division by zero"));
+  mlir::Value condition = builder.create<NotEqOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
 } // namespace mlir::bmodelica
 
@@ -6531,15 +6591,22 @@ void LogOp::generateRuntimeVerification(
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+  mlir::Value zero = builder.create<ConstantOp>(
       loc, builder.getF64FloatAttr(0));
 
-  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OGT, argCast, zero);
+  auto assertOp = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: Argument of log outside the domain. It should be > 0"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr(
-        "Model error: Argument of log outside the domain. It should be > 0"));
+  mlir::Value condition = builder.create<GtOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
 } // namespace mlir::bmodelica
 
@@ -6572,24 +6639,30 @@ mlir::OpFoldResult Log10Op::fold(FoldAdaptor adaptor) {
 
   return {};
 }
-
 void Log10Op::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value operand = getOperand();
+  mlir::Value operand = getOperand(); 
   // convert operand to arith-compatible type
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
-      loc, builder.getF64FloatAttr(0));
+  mlir::Value zero = builder.create<ConstantOp>(
+      loc, builder.getF64FloatAttr(0));  
 
-  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OGT, argCast, zero);
+  auto assertOp = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: Argument of log10 outside the domain. It should be > 0"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr(
-        "Model error: Argument of log10 outside the domain. It should be > 0"));
+  mlir::Value condition = builder.create<GtOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
 } // namespace mlir::bmodelica
 
@@ -7256,20 +7329,27 @@ mlir::OpFoldResult SqrtOp::fold(FoldAdaptor adaptor) {
 void SqrtOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value operand = getOperand();
+  mlir::Value operand = getOperand(); 
   // convert operand to arith-compatible type
   mlir::Value argCast = builder.create<CastOp>(
       loc, builder.getF64Type(), operand);
 
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
-      loc, builder.getF64FloatAttr(0));
+  mlir::Value zero = builder.create<ConstantOp>(
+      loc, builder.getF64FloatAttr(0));  
 
-  mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-      loc, mlir::arith::CmpFPredicate::OGE, argCast, zero);
+  auto assertOp = builder.create<AssertOp>(
+      loc,
+      builder.getStringAttr(
+        "Model error: Argument of sqrt outside the domain. It should be >= 0"),
+      builder.getI64IntegerAttr(2));
+  
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
 
-  builder.create<mlir::cf::AssertOp>(
-      loc, condition, builder.getStringAttr(
-        "Model error: Argument of sqrt outside the domain. It should be >= 0"));
+  mlir::Value condition = builder.create<GteOp>(
+      loc, argCast, zero);
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
 } // namespace mlir::bmodelica
 
