@@ -163,6 +163,8 @@ protected:
   std::unique_ptr<mlir::Pass> createMLIRRungeKuttaPass(llvm::StringRef variant);
   std::unique_ptr<mlir::Pass> createMLIREulerForwardPass();
   std::unique_ptr<mlir::Pass> createMLIRIDAPass();
+
+  std::unique_ptr<mlir::Pass> createMLIRSCCSolvingBySubstitutionPass();
   std::unique_ptr<mlir::Pass> createMLIRSCCSolvingWithKINSOLPass();
 
   /// }
