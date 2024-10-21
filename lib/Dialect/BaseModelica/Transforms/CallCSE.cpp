@@ -22,14 +22,14 @@ private:
   /// variable. The variable will be driven by an equation derived from the
   /// first call in the group.
   ///
-  /// If the call is to a function with multiple return values one variable and
-  /// driver equation will be emitted per result.
-  void emitCse(int emittedCSEs, llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
-               ModelOp modelOp, DynamicOp dynamicOp,
+  /// One variable and driver equation will be emitted per result,
+  /// if the call is to a function with multiple result values.
+  void emitCse(llvm::SmallVectorImpl<CallOp> &equivalenceGroup, ModelOp modelOp,
+               DynamicOp dynamicOp, mlir::SymbolTable &symbolTable,
                mlir::RewriterBase &rewriter);
 };
 
-/// Get all callOps in the model.
+/// Get all call operations in the model.
 void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
   llvm::SmallVector<EquationInstanceOp> initialEquationOps;
   llvm::SmallVector<EquationInstanceOp> dynamicEquationOps;
@@ -39,11 +39,11 @@ void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
 
   llvm::DenseSet<EquationTemplateOp> templateOps;
 
-  for (auto equationOp : dynamicEquationOps) {
+  for (EquationInstanceOp equationOp : dynamicEquationOps) {
     templateOps.insert(equationOp.getTemplate());
   }
 
-  for (auto templateOp : templateOps) {
+  for (EquationTemplateOp templateOp : templateOps) {
     // Skip templates with induction variables
     if (!templateOp.getInductionVariables().empty()) {
       continue;
@@ -60,11 +60,11 @@ void buildCallEquivalenceGroups(
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<llvm::SmallVector<CallOp>> tmpCallEquivalenceGroups;
 
-  for (auto callOp : callOps) {
+  for (CallOp callOp : callOps) {
     auto callExpression =
         mlir::cast<EquationExpressionOpInterface>(callOp.getOperation());
 
-    auto *equivalenceGroup = find_if(
+    llvm::SmallVector<CallOp> *equivalenceGroup = find_if(
         tmpCallEquivalenceGroups, [&](llvm::SmallVector<CallOp> &group) {
           assert(!group.empty() && "groups should never be empty");
           return callExpression.isEquivalent(group.front(),
@@ -80,9 +80,9 @@ void buildCallEquivalenceGroups(
     }
   }
 
-  for (auto &group : tmpCallEquivalenceGroups) {
+  for (llvm::SmallVector<CallOp> &group : tmpCallEquivalenceGroups) {
     if (group.size() > 1) {
-      callEquivalenceGroups.push_back(group);
+      callEquivalenceGroups.push_back(std::move(group));
     }
   }
 }
@@ -90,35 +90,33 @@ void buildCallEquivalenceGroups(
 /// Clone `op` and its def-use chain, returning the cloned version of `op`.
 mlir::Operation *cloneDefUseChain(mlir::Operation *op,
                                   mlir::RewriterBase &rewriter) {
-  // TODO - handle regions
   llvm::SmallVector<mlir::Operation *> toClone;
   llvm::SmallVector<mlir::Operation *> worklist({op});
 
   // DFS through the def-use chain of `op`
   while (!worklist.empty()) {
-    auto *current = worklist.back();
+    mlir::Operation *current = worklist.back();
     worklist.pop_back();
     toClone.push_back(current);
-    for (auto operand : current->getOperands()) {
-      if (auto *defOp = operand.getDefiningOp()) {
+    for (mlir::Value operand : current->getOperands()) {
+      if (mlir::Operation *defOp = operand.getDefiningOp()) {
         worklist.push_back(defOp);
       }
     }
     // Find the dependencies on operations not defined within the regions of
     // `current`. No need to do this if it is isolated from above.
-    if (current->getNumRegions() > 0 &&
-        !current->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>()) {
+    if (!current->hasTrait<mlir::OpTrait::IsIsolatedFromAbove>()) {
       // Find all uses of values defined outside `current`.
-      current->walk([&](mlir::Operation *subOp) {
+      current->walk([&](mlir::Operation *childOp) {
         // Walk includes current, so skip it.
-        if (subOp == current) {
+        if (childOp == current) {
           return;
         }
-        for (auto operand : subOp->getOperands()) {
+        for (mlir::Value operand : childOp->getOperands()) {
           // If an operand is defined in the same scope as `current`,
           // i.e. the equation template scope, add it to the worklist.
-          if (auto *definingOp = operand.getDefiningOp();
-              definingOp->getBlock() == current->getBlock()) {
+          mlir::Operation *definingOp = operand.getDefiningOp();
+          if (definingOp && definingOp->getBlock() == current->getBlock()) {
             worklist.push_back(definingOp);
           }
         }
@@ -128,7 +126,7 @@ mlir::Operation *cloneDefUseChain(mlir::Operation *op,
 
   mlir::IRMapping mapping;
   mlir::Operation *root = nullptr;
-  for (auto *opToClone : llvm::reverse(toClone)) {
+  for (mlir::Operation *opToClone : llvm::reverse(toClone)) {
     // Skip repeated dependencies on the same operation
     if (mapping.contains(opToClone)) {
       continue;
@@ -138,32 +136,32 @@ mlir::Operation *cloneDefUseChain(mlir::Operation *op,
   return root;
 }
 
-void CallCSEPass::emitCse(const int emittedCSEs,
-                          llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
+void CallCSEPass::emitCse(llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
                           ModelOp modelOp, DynamicOp dynamicOp,
+                          mlir::SymbolTable &symbolTable,
                           mlir::RewriterBase &rewriter) {
   assert(!equivalenceGroup.empty() && "equivalenceGroup cannot be empty");
-  auto representative = equivalenceGroup.front();
-  const auto loc = representative.getLoc();
+  CallOp representative = equivalenceGroup.front();
+  const mlir::Location loc = representative.getLoc();
 
   // Emit one variable per function result
   llvm::SmallVector<VariableOp> cseVariables;
   for (auto result : llvm::enumerate(representative.getResults())) {
     rewriter.setInsertionPointToStart(modelOp.getBody());
     // Emit cse variable
-    auto variableName = "_cse" + std::to_string(emittedCSEs) + "_" +
-                        std::to_string(result.index());
-    auto cseVariable = rewriter.create<VariableOp>(
-        loc, variableName, VariableType::wrap(result.value().getType()));
+    VariableOp cseVariable = rewriter.create<VariableOp>(
+        loc, "_cse", VariableType::wrap(result.value().getType()));
+    symbolTable.insert(cseVariable);
     cseVariables.push_back(cseVariable);
 
     // Emit driver equation
     rewriter.setInsertionPoint(dynamicOp);
-    auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
+    EquationTemplateOp equationTemplateOp =
+        rewriter.create<EquationTemplateOp>(loc);
     rewriter.setInsertionPointToStart(equationTemplateOp.createBody(0));
-    auto lhsOp = rewriter.create<EquationSideOp>(
+    EquationSideOp lhsOp = rewriter.create<EquationSideOp>(
         loc, rewriter.create<VariableGetOp>(loc, cseVariable)->getResults());
-    auto rhsOp = rewriter.create<EquationSideOp>(
+    EquationSideOp rhsOp = rewriter.create<EquationSideOp>(
         loc,
         cloneDefUseChain(representative, rewriter)->getResult(result.index()));
     rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
@@ -187,11 +185,12 @@ void CallCSEPass::emitCse(const int emittedCSEs,
   }
 
   this->replacedCalls += equivalenceGroup.size();
-  ++this->emittedCSEs;
+  ++this->newCSEVariables;
 }
 
 mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(modelOp);
+  mlir::SymbolTable symbolTable(modelOp);
 
   llvm::SmallVector<CallOp> callOps;
   collectCallOps(modelOp, callOps);
@@ -204,18 +203,17 @@ mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
   }
 
   rewriter.setInsertionPointToEnd(modelOp.getBody());
-  auto dynamicOp = rewriter.create<DynamicOp>(rewriter.getUnknownLoc());
+  DynamicOp dynamicOp = rewriter.create<DynamicOp>(rewriter.getUnknownLoc());
   rewriter.createBlock(&dynamicOp.getRegion());
 
-  int emittedCSEs = 0;
   for (auto &equivalenceGroup : callEquivalenceGroups) {
     // Only emit CSEs that will lead to an equivalent, or lower amount of calls
     if (equivalenceGroup.size() >= equivalenceGroup.front().getNumResults()) {
-      emitCse(emittedCSEs++, equivalenceGroup, modelOp, dynamicOp, rewriter);
+      emitCse(equivalenceGroup, modelOp, dynamicOp, symbolTable, rewriter);
     }
   }
 
-  if (emittedCSEs == 0) {
+  if (dynamicOp.getBody()->empty()) {
     rewriter.eraseOp(dynamicOp);
   }
 
@@ -241,7 +239,7 @@ void CallCSEPass::runOnOperation() {
 }
 
 namespace mlir::bmodelica {
-std::unique_ptr<Pass> createCallCSEPass() {
+std::unique_ptr<mlir::Pass> createCallCSEPass() {
   return std::make_unique<CallCSEPass>();
 }
 } // namespace mlir::bmodelica

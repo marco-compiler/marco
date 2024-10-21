@@ -319,8 +319,8 @@ def CallCSEPass
     ];
 
     let statistics = [
-        Statistic<"emittedCSEs", "emitted-cses", "How many common sub-expressions were emitted">,
-        Statistic<"replacedCalls", "replaced-calls", "How many calls were replaced by a CSEs">
+        Statistic<"newCSEVariables", "new-cse-variables", "How many CSE variables have been created">,
+        Statistic<"replacedCalls", "replaced-calls", "How many calls were replaced by a CSE variable usage">
     ];
 
     let constructor = "mlir::bmodelica::createCallCSEPass()";
