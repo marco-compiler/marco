@@ -112,9 +112,10 @@ struct RangeOpInterface
       mlir::Operation *op, llvm::raw_ostream &os,
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     os << "range(";
-    llvm::interleaveComma(op->getOperands(), os, [&](const mlir::Value operand) {
-      ::printExpression(os, operand, inductions);
-    });
+    llvm::interleaveComma(op->getOperands(), os,
+                          [&](const mlir::Value operand) {
+                            ::printExpression(os, operand, inductions);
+                          });
     os << ")";
   }
 
@@ -147,9 +148,10 @@ struct ReductionOpInterface
 
     auto terminator = mlir::cast<YieldOp>(castedOp.getBody()->getTerminator());
 
-    llvm::interleaveComma(terminator.getValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, expandedInductions);
-    });
+    llvm::interleaveComma(terminator.getValues(), os,
+                          [&](const mlir::Value exp) {
+                            ::printExpression(os, exp, expandedInductions);
+                          });
 
     os << " for ";
     const auto iterables = castedOp.getIterables();
@@ -479,15 +481,15 @@ struct EquationSidesOpInterface
 
     os << "{";
 
-    llvm::interleaveComma(castedOp.getLhsValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getLhsValues(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "} = {";
 
-    llvm::interleaveComma(castedOp.getRhsValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getRhsValues(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "}";
   }
@@ -616,9 +618,9 @@ struct TensorExtractOpInterface
     ::printExpression(os, castedOp.getTensor(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getIndices(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "]";
   }
@@ -804,9 +806,9 @@ struct SubscriptionOpInterface
     ::printExpression(os, castedOp.getSource(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getIndices(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "]";
   }
@@ -863,9 +865,9 @@ struct LoadOpInterface
     ::printExpression(os, castedOp.getArray(), inductions);
     os << "[";
 
-    llvm::interleaveComma(castedOp.getIndices(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getIndices(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << "]";
   }
@@ -1384,15 +1386,15 @@ struct SelectOpInterface
     ::printExpression(os, castedOp.getCondition(), inductions);
     os << " ? (";
 
-    llvm::interleaveComma(castedOp.getTrueValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getTrueValues(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << ") : (";
 
-    llvm::interleaveComma(castedOp.getFalseValues(), os, [&](const mlir::Value exp) {
-      ::printExpression(os, exp, inductions);
-    });
+    llvm::interleaveComma(
+        castedOp.getFalseValues(), os,
+        [&](const mlir::Value exp) { ::printExpression(os, exp, inductions); });
 
     os << ")";
   }
