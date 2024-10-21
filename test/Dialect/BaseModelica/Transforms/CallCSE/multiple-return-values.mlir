@@ -59,27 +59,24 @@ module @Test {
 			bmodelica.equation_instance %t1 : !bmodelica.equation
 		}
 
-		// CHECK:      %[[TEMPLATE1:.*]] = bmodelica.equation_template inductions = [] {
+		// CHECK:      %[[TEMPLATE1:.*]] = bmodelica.equation_template inductions = []
 		// CHECK-NEXT:     %[[RES2:.*]] = bmodelica.variable_get @[[CSE0]]
 		// CHECK-NEXT:     %[[LHS2:.*]] = bmodelica.equation_side %[[RES2]]
 		// CHECK-NEXT:     %[[RES3:.*]] = bmodelica.constant 1
 		// CHECK-NEXT:     %[[RES4:.*]]:2 = bmodelica.call @foo(%[[RES3]])
 		// CHECK-NEXT:     %[[RHS0:.*]] = bmodelica.equation_side %[[RES4]]#0
 		// CHECK-NEXT:     bmodelica.equation_sides %[[LHS2]], %[[RHS0]]
-		// CHECK-NEXT: }
 
-		// CHECK-NEXT: %[[TEMPLATE2:.*]] = bmodelica.equation_template inductions = [] {
+		// CHECK: %[[TEMPLATE2:.*]] = bmodelica.equation_template inductions = []
 		// CHECK-NEXT:     %[[RES2:.*]] = bmodelica.variable_get @[[CSE1]]
 		// CHECK-NEXT:     %[[LHS2:.*]] = bmodelica.equation_side %[[RES2]]
 		// CHECK-NEXT:     %[[RES3:.*]] = bmodelica.constant 1
 		// CHECK-NEXT:     %[[RES4:.*]]:2 = bmodelica.call @foo(%[[RES3]])
 		// CHECK-NEXT:     %[[RHS0:.*]] = bmodelica.equation_side %[[RES4]]#1
 		// CHECK-NEXT:     bmodelica.equation_sides %[[LHS2]], %[[RHS0]]
-		// CHECK-NEXT: }
 
-		// CHECK-NEXT: bmodelica.dynamic {
+		// CHECK: bmodelica.dynamic
 		// CHECK-NEXT:     bmodelica.equation_instance %[[TEMPLATE1]]
 		// CHECK-NEXT:     bmodelica.equation_instance %[[TEMPLATE2]]
-		// CHECK-NEXT: }
 	}
 }

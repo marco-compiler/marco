@@ -149,19 +149,18 @@ void CallCSEPass::emitCse(llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
   for (auto result : llvm::enumerate(representative.getResults())) {
     rewriter.setInsertionPointToStart(modelOp.getBody());
     // Emit cse variable
-    VariableOp cseVariable = rewriter.create<VariableOp>(
+    auto cseVariable = rewriter.create<VariableOp>(
         loc, "_cse", VariableType::wrap(result.value().getType()));
     symbolTable.insert(cseVariable);
     cseVariables.push_back(cseVariable);
 
     // Emit driver equation
     rewriter.setInsertionPoint(dynamicOp);
-    EquationTemplateOp equationTemplateOp =
-        rewriter.create<EquationTemplateOp>(loc);
+    auto equationTemplateOp = rewriter.create<EquationTemplateOp>(loc);
     rewriter.setInsertionPointToStart(equationTemplateOp.createBody(0));
-    EquationSideOp lhsOp = rewriter.create<EquationSideOp>(
+    auto lhsOp = rewriter.create<EquationSideOp>(
         loc, rewriter.create<VariableGetOp>(loc, cseVariable)->getResults());
-    EquationSideOp rhsOp = rewriter.create<EquationSideOp>(
+    auto rhsOp = rewriter.create<EquationSideOp>(
         loc,
         cloneDefUseChain(representative, rewriter)->getResult(result.index()));
     rewriter.create<EquationSidesOp>(loc, lhsOp, rhsOp);
@@ -177,7 +176,7 @@ void CallCSEPass::emitCse(llvm::SmallVectorImpl<CallOp> &equivalenceGroup,
     rewriter.setInsertionPoint(callOp);
 
     llvm::SmallVector<mlir::Value> results;
-    for (auto &cseVariable : cseVariables) {
+    for (VariableOp cseVariable : cseVariables) {
       results.push_back(
           rewriter.create<VariableGetOp>(loc, cseVariable).getResult());
     }
@@ -206,7 +205,7 @@ mlir::LogicalResult CallCSEPass::processModelOp(ModelOp modelOp) {
   DynamicOp dynamicOp = rewriter.create<DynamicOp>(rewriter.getUnknownLoc());
   rewriter.createBlock(&dynamicOp.getRegion());
 
-  for (auto &equivalenceGroup : callEquivalenceGroups) {
+  for (llvm::SmallVector<CallOp> &equivalenceGroup : callEquivalenceGroups) {
     // Only emit CSEs that will lead to an equivalent, or lower amount of calls
     if (equivalenceGroup.size() >= equivalenceGroup.front().getNumResults()) {
       emitCse(equivalenceGroup, modelOp, dynamicOp, symbolTable, rewriter);
