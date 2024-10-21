@@ -305,6 +305,27 @@ def EquationFunctionLoopHoistingPass
     let constructor = "mlir::bmodelica::createEquationFunctionLoopHoistingPass()";
 }
 
+def CallCSEPass
+    : Pass<"call-cse", "mlir::ModuleOp">
+{
+    let summary = "Move equal function calls to dedicated equation.";
+
+    let description = [{
+        Move equal function calls to dedicated equation.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let statistics = [
+        Statistic<"newCSEVariables", "new-cse-variables", "How many CSE variables have been created">,
+        Statistic<"replacedCalls", "replaced-calls", "How many calls were replaced by a CSE variable usage">
+    ];
+
+    let constructor = "mlir::bmodelica::createCallCSEPass()";
+}
+
 def ReadOnlyVariablesPropagationPass
     : Pass<"propagate-read-only-variables", "mlir::ModuleOp">
 {

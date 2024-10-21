@@ -91,6 +91,14 @@ def EquationExpressionOpInterface
             (ins "::llvm::raw_ostream&":$os,
                  "const ::llvm::DenseMap<::mlir::Value, int64_t>&":$inductions)>,
         InterfaceMethod<
+            "Check if two expressions are equivalent",
+            "bool", "isEquivalent",
+            (ins "mlir::Operation*":$other,
+                 "mlir::SymbolTableCollection&":$symbolTableCollection), "", [{
+                // Safely assume that the two expressions are different.
+                return false;
+            }]>,
+        InterfaceMethod<
             "Get the number of elements.",
             "uint64_t", "getNumOfExpressionElements",
             (ins), "", [{
