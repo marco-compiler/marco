@@ -563,6 +563,22 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
                    options::OPT_no_variables_to_parameters_promotion,
                    options.variablesToParametersPromotion);
 
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_scc_substitution_max_iterations)) {
+    llvm::StringRef value = arg->getValue();
+    llvm::APSInt numericValue(value);
+    options.sccSolvingBySubstitutionMaxIterations = numericValue.getSExtValue();
+  }
+
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_scc_substitution_max_equations)) {
+    llvm::StringRef value = arg->getValue();
+    llvm::APSInt numericValue(value);
+
+    options.sccSolvingBySubstitutionMaxEquationsInSCC =
+        numericValue.getSExtValue();
+  }
+
   options.cse =
       args.hasFlag(options::OPT_cse, options::OPT_no_cse, options.cse);
 
