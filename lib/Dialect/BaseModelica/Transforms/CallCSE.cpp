@@ -38,7 +38,7 @@ void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
 
   for (EquationInstanceOp equationOp : dynamicEquationOps) {
     EquationTemplateOp templateOp = equationOp.getTemplate();
-    if (!templateOp.getInductionVariables().empty() &&
+    if (!templateOp.getInductionVariables().empty() ||
         llvm::is_contained(templateOps, templateOp)) {
       continue;
     }
@@ -46,10 +46,6 @@ void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
   }
 
   for (EquationTemplateOp templateOp : templateOps) {
-    // Skip templates with induction variables
-    if (!templateOp.getInductionVariables().empty()) {
-      continue;
-    }
     templateOp->walk([&](CallOp callOp) { callOps.push_back(callOp); });
   }
 }
