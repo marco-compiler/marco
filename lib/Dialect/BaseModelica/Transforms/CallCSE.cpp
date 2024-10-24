@@ -31,16 +31,18 @@ private:
 
 /// Get all call operations in the model.
 void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
-  llvm::SmallVector<EquationInstanceOp> initialEquationOps;
   llvm::SmallVector<EquationInstanceOp> dynamicEquationOps;
-
-  modelOp.collectInitialEquations(initialEquationOps);
   modelOp.collectMainEquations(dynamicEquationOps);
 
-  llvm::DenseSet<EquationTemplateOp> templateOps;
+  llvm::SmallVector<EquationTemplateOp> templateOps;
 
   for (EquationInstanceOp equationOp : dynamicEquationOps) {
-    templateOps.insert(equationOp.getTemplate());
+    EquationTemplateOp templateOp = equationOp.getTemplate();
+    if (!templateOp.getInductionVariables().empty() &&
+        llvm::is_contained(templateOps, templateOp)) {
+      continue;
+    }
+    templateOps.push_back(templateOp);
   }
 
   for (EquationTemplateOp templateOp : templateOps) {
