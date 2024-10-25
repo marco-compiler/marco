@@ -1857,7 +1857,8 @@ def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew",
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Element-wise division.";
 
