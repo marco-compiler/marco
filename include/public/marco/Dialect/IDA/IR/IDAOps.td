@@ -225,28 +225,26 @@ def IDA_AddEquationOp
 
         ```mlir
         %0 = ... : !ida.variable
-        ida.add_equation @instance, %0 { equationRanges : #modeling<multidim_range [4,7][9,13][1,3]>, writeAccess : affine_map<(d0, d1, d2)[s0] -> (d1, d0 + s0, d2)> } : !ida.variable -> !ida.equation
+        ida.add_equation @instance { equationRanges : #modeling<multidim_range [4,7][9,13][1,3]> } : !ida.equation
         ```
     }];
 
     let arguments = (ins
         SymbolNameAttr:$instance,
         MultidimensionalRangeAttr:$equationRanges,
-        IDAVariable:$writtenVariable,
-        SymbolNameAttr:$writeAccessFunction,
         OptionalAttr<StrAttr>:$stringRepresentation);
 
     let results = (outs IDAEquation:$equation);
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$idaInstance, "MultidimensionalRangeAttr":$equationRanges, "Value":$writtenVariable, "llvm::StringRef":$writeAccessFunction), [{
+        OpBuilder<(ins "llvm::StringRef":$idaInstance, "MultidimensionalRangeAttr":$equationRanges), [{
             auto resultType = ida::EquationType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, equationRanges, writtenVariable, writeAccessFunction, nullptr);
+            build($_builder, $_state, resultType, idaInstance, equationRanges, nullptr);
         }]>
     ];
 
     let assemblyFormat = [{
-        $instance `,` $writtenVariable attr-dict `:` type($writtenVariable) `->` type($equation)
+        $instance attr-dict `:` type($equation)
     }];
 }
 

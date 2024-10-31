@@ -366,8 +366,8 @@ struct AddEquationOpLowering : public KINSOLOpConversion<AddEquationOp> {
 
     RuntimeFunctionsMangling mangling;
 
-    llvm::SmallVector<mlir::Value, 6> args;
-    llvm::SmallVector<std::string, 6> mangledArgsTypes;
+    llvm::SmallVector<mlir::Value, 4> args;
+    llvm::SmallVector<std::string, 4> mangledArgsTypes;
 
     // KINSOL instance.
     args.push_back(getInstance(rewriter, loc, adaptor.getInstance()));
@@ -392,18 +392,6 @@ struct AddEquationOpLowering : public KINSOLOpConversion<AddEquationOp> {
 
     mangledArgsTypes.push_back(
         mangling.getIntegerType(rank.getType().getIntOrFloatBitWidth()));
-
-    // Written variable.
-    args.push_back(adaptor.getWrittenVariable());
-
-    mangledArgsTypes.push_back(mangling.getIntegerType(
-        adaptor.getWrittenVariable().getType().getIntOrFloatBitWidth()));
-
-    // Write access function.
-    args.push_back(
-        getAccessFunctionAddress(rewriter, loc, op.getWriteAccessFunction()));
-
-    mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
     // String representation.
     mangledArgsTypes.push_back(mangling.getVoidPointerType());

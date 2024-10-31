@@ -630,8 +630,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       auto kinsolEquation = rewriter.create<mlir::kinsol::AddEquationOp>(
           equationOp.getLoc(), identifier,
           mlir::kinsol::MultidimensionalRangeAttr::get(rewriter.getContext(),
-                                                       range),
-          variablesMapping[writtenVar], accessFunctionOp.getSymName());
+                                                       range));
 
       if (debugInformation) {
         std::string stringRepresentation;
@@ -731,8 +730,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       auto kinsolEquation = rewriter.create<mlir::kinsol::AddEquationOp>(
           variableOp.getLoc(), identifier,
           mlir::kinsol::MultidimensionalRangeAttr::get(rewriter.getContext(),
-                                                       range),
-          variablesMapping[variableOp], accessFunctionOp.getSymName());
+                                                       range));
 
       if (debugInformation) {
         kinsolEquation.setStringRepresentationAttr(

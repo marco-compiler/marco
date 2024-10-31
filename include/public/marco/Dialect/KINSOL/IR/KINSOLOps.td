@@ -104,28 +104,26 @@ def KINSOL_AddEquationOp
 
         ```mlir
         %0 = ... : !kinsol.variable
-        kinsol.add_equation @instance, %0 { equationRanges : #modeling<multidim_range [4,7][9,13][1,3]>, writeAccess : affine_map<(d0, d1, d2)[s0] -> (d1, d0 + s0, d2)> } : !kinsol.variable -> !kinsol.equation
+        kinsol.add_equation @instance { equationRanges : #modeling<multidim_range [4,7][9,13][1,3]> } : !kinsol.equation
         ```
     }];
 
     let arguments = (ins
         SymbolNameAttr:$instance,
         MultidimensionalRangeAttr:$equationRanges,
-        KINSOLVariable:$writtenVariable,
-        SymbolNameAttr:$writeAccessFunction,
         OptionalAttr<StrAttr>:$stringRepresentation);
 
     let results = (outs KINSOLEquation:$equation);
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$kinsolInstance, "MultidimensionalRangeAttr":$equationRanges, "Value":$writtenVariable, "llvm::StringRef":$writeAccessFunction), [{
+        OpBuilder<(ins "llvm::StringRef":$kinsolInstance, "MultidimensionalRangeAttr":$equationRanges), [{
             auto resultType = kinsol::EquationType::get($_builder.getContext());
-            build($_builder, $_state, resultType, kinsolInstance, equationRanges, writtenVariable, writeAccessFunction, nullptr);
+            build($_builder, $_state, resultType, kinsolInstance, equationRanges, nullptr);
         }]>
     ];
 
     let assemblyFormat = [{
-        $instance `,` $writtenVariable attr-dict `:` type($writtenVariable) `->` type($equation)
+        $instance attr-dict `:` type($equation)
     }];
 }
 

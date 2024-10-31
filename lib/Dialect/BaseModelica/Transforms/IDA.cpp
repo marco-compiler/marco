@@ -821,8 +821,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       auto idaEquation = rewriter.create<mlir::ida::AddEquationOp>(
           equationOp.getLoc(), identifier,
           mlir::ida::MultidimensionalRangeAttr::get(rewriter.getContext(),
-                                                    range),
-          variablesMapping[writtenVar], accessFunctionOp.getSymName());
+                                                    range));
 
       if (debugInformation) {
         std::string stringRepresentation;
