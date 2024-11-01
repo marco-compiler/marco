@@ -93,3 +93,63 @@ module @InductionVariables {
         }
     }
 }
+
+// -----
+
+// CHECK-LABEL: @ArrayResult
+module @ArrayResult {
+    bmodelica.function @FuncWithArrayResult {
+        bmodelica.variable @x : !bmodelica.variable<f64, input>
+        bmodelica.variable @y : !bmodelica.variable<1xf64, output>
+        bmodelica.algorithm {
+          %0 = bmodelica.constant 0 : index
+          %1 = bmodelica.variable_get @x : f64
+          bmodelica.variable_set @y[%0], %1 : index, f64
+        }
+    }
+
+    bmodelica.model @M  {
+        bmodelica.variable @x : !bmodelica.variable<1xf64>
+        bmodelica.variable @y : !bmodelica.variable<1xf64>
+
+        // CHECK:      %[[T0:.*]] = bmodelica.equation_template
+        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable_get @x
+        // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[R0]]
+        // CHECK-NEXT:     %[[R1:.*]] = bmodelica.constant 1
+        // CHECK-NEXT:     %[[R2:.*]] = bmodelica.call @FuncWithArrayResult(%[[R1]])
+        // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[R2]]
+        // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
+        %t0 = bmodelica.equation_template inductions = [] {
+            %0 = bmodelica.variable_get @x : tensor<1xf64>
+            %1 = bmodelica.equation_side %0 : tuple<tensor<1xf64>>
+            %2 = bmodelica.constant 1.0 : f64
+            %3 = bmodelica.call @FuncWithArrayResult(%2) : (f64) -> tensor<1xf64>
+            %4 = bmodelica.equation_side %3 : tuple<tensor<1xf64>>
+            bmodelica.equation_sides %1, %4 : tuple<tensor<1xf64>>, tuple<tensor<1xf64>>
+        }
+
+        // CHECK:      %[[T1:.*]] = bmodelica.equation_template
+        // CHECK-NEXT:     %[[R0:.*]] = bmodelica.variable_get @y
+        // CHECK-NEXT:     %[[LHS:.*]] = bmodelica.equation_side %[[R0]]
+        // CHECK-NEXT:     %[[R1:.*]] = bmodelica.constant 1
+        // CHECK-NEXT:     %[[R2:.*]] = bmodelica.call @FuncWithArrayResult(%[[R1]])
+        // CHECK-NEXT:     %[[RHS:.*]] = bmodelica.equation_side %[[R2]]
+        // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
+        %t1 = bmodelica.equation_template inductions = [] {
+            %0 = bmodelica.variable_get @y : tensor<1xf64>
+            %1 = bmodelica.equation_side %0 : tuple<tensor<1xf64>>
+            %2 = bmodelica.constant 1.0 : f64
+            %3 = bmodelica.call @FuncWithArrayResult(%2) : (f64) -> tensor<1xf64>
+            %4 = bmodelica.equation_side %3 : tuple<tensor<1xf64>>
+            bmodelica.equation_sides %1, %4 : tuple<tensor<1xf64>>, tuple<tensor<1xf64>>
+        }
+
+        // CHECK: bmodelica.dynamic
+        bmodelica.dynamic {
+            // CHECK-DAG: bmodelica.equation_instance %[[T0]]
+            // CHECK-DAG: bmodelica.equation_instance %[[T1]]
+            bmodelica.equation_instance %t0 : !bmodelica.equation
+            bmodelica.equation_instance %t1 : !bmodelica.equation
+        }
+    }
+}

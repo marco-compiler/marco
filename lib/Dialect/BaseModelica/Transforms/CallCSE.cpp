@@ -42,7 +42,15 @@ void collectCallOps(ModelOp modelOp, llvm::SmallVectorImpl<CallOp> &callOps) {
       continue;
     }
     visitedTemplateOps.insert(templateOp);
-    templateOp->walk([&](CallOp callOp) { callOps.push_back(callOp); });
+    templateOp->walk([&](CallOp callOp) {
+      // Skip functions with tensor results
+      if (llvm::any_of(callOp.getResultTypes(), [](mlir::Type type) {
+            return type.isa<mlir::TensorType>();
+          })) {
+        return;
+      }
+      callOps.push_back(callOp);
+    });
   }
 }
 
