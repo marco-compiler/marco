@@ -8181,10 +8181,10 @@ namespace mlir::bmodelica
     mlir::Value operand = getOperand();
     mlir::Value operandAbs = builder.create<AbsOp>(
         loc, builder.getF64Type(), operand);
-    
+
     mlir::Value pi = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(M_PI));
-    
+
     mlir::Value piHalf = builder.create<ConstantOp>(
         loc, builder.getF64FloatAttr(M_PI/2));
 
@@ -8200,31 +8200,59 @@ namespace mlir::bmodelica
      * 2pi is multiple of both pi and pi/2 ==> ok
      * 1.5pi is multiple of pi/2 but not of pi ==> illegal
      */
-    
+
     mlir::Value modPiHalf = builder.create<ModOp>(
         loc, builder.getF64Type(), operandAbs, piHalf);
 
     mlir::Value modPi = builder.create<ModOp>(
         loc, builder.getF64Type(), operandAbs, pi);
-    
-    mlir::Value check1 = builder.create<GteOp>(
-        loc, modPiHalf, epsilon);
-    
-    mlir::Value check2 = builder.create<LteOp>(
+
+    // Remainder is not close to zero
+    // (accounts for when the argument is approaching pi from
+    // greater values)
+    mlir::Value isMulPiHigher = builder.create<LteOp>(
         loc, modPi, epsilon);
     
+    // Remainder is not close to pi
+    // (accounts for when the argument is approaching pi from
+    // lower values)
+    mlir::Value diff = builder.create<SubOp>(
+        loc, modPi, pi);
+    mlir::Value diffAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), diff);
+    mlir::Value isMulPiLower = builder.create<LteOp>(
+        loc, diffAbs, epsilon);
+
+    mlir::Value isMulPi = builder.create<OrOp>(
+        loc, isMulPiLower, isMulPiHigher);
+
+    // Same thing for pi/2
+
+    mlir::Value isNotMulPiHalfHigher = builder.create<GteOp>(
+        loc, modPiHalf, epsilon);
+
+    diff = builder.create<SubOp>(
+        loc, modPiHalf, piHalf);
+    diffAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), diff);
+    mlir::Value isNotMulPiHalfLower = builder.create<GteOp>(
+        loc, diffAbs, epsilon);
+
+    mlir::Value isNotMulPiHalf = builder.create<AndOp>(
+        loc, isNotMulPiHalfLower, isNotMulPiHalfHigher);
+
     auto assertOp = builder.create<AssertOp>(
         loc,
         builder.getStringAttr(
           "Model error: Argument of tan is invalid. It should be != k*(PI/2)\n"),
         builder.getI64IntegerAttr(2));
-    
+
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.createBlock(&assertOp.getConditionRegion());
 
     mlir::Value condition = builder.create<OrOp>(
-        loc, check1, check2);
-    
+        loc, isMulPi, isNotMulPiHalf);
+
     builder.create<YieldOp>(assertOp.getLoc(), condition);
   }
 }
