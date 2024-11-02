@@ -1,11 +1,11 @@
-// RUN: marco %s --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir -L %llvm_lib_dir -Wl,-rpath,%llvm_lib_dir
+// RUN: marco %s --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=4 | FileCheck %s --check-prefix="CHECK-EQUIDISTANT"
 
 // CHECK-EQUIDISTANT: "time","x"
 // CHECK-EQUIDISTANT: 0.0000,2.0000
 // CHECK-EQUIDISTANT: 1.0000,2.0000
 
-// RUN: marco --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir %s -L %llvm_lib_dir -Wl,-rpath,%llvm_lib_dir
+// RUN: marco %s --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --precision=6 | FileCheck %s --check-prefix="CHECK-NO-EQUIDISTANT"
 
 // CHECK-NO-EQUIDISTANT: "time","x"

@@ -1,4 +1,4 @@
-// RUN: marco %s --omc-bypass --model=Test --solver=euler-forward -o %basename_t -L %runtime_lib_dir -L %sundials_lib_dir -Wl,-rpath,%sundials_lib_dir -L %llvm_lib_dir -Wl,-rpath,%llvm_lib_dir
+// RUN: marco %s --omc-bypass --model=Test --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","a.x[1,1]","a.x[1,2]","a.x[2,1]","a.x[2,2]","a.x[3,1]","a.x[3,2]","y1[1]","y1[2]","y2[1]","y2[2]","y2[3]"

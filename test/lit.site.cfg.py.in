@@ -46,8 +46,6 @@ config.marco_libs_dir = "@MARCO_LIBS_DIR@"
 config.marco_runtime_found = "@MARCORuntime_FOUND@"
 config.marco_runtime_lib_dir = "@MARCORuntime_LIB_PATH@"
 
-config.marco_runtime_sundials_lib_dir = "@MARCORuntime_SUNDIALS_LIB_PATH@"
-
 config.marco_runtime_ida_enabled = "@MARCORuntime_IDA_ENABLE@"
 
 # Support substitution of the tools_dir with user parameters. This is
