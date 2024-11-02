@@ -8174,6 +8174,59 @@ namespace mlir::bmodelica
 
     return {};
   }
+
+  void TanOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value operand = getOperand();
+    mlir::Value operandAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), operand);
+    
+    mlir::Value pi = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(M_PI));
+    
+    mlir::Value piHalf = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(M_PI/2));
+
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(1E-4));
+
+    /* Multiples of pi are also multiples of pi/2
+     * therefore a trivial check as (operand % pi/2)
+     * would consider 2pi, 3pi, ... as illegal.
+     * Therefore we need to consider illegal only values
+     * multiples of pi/2 but NOT of pi.
+     * For example:
+     * 2pi is multiple of both pi and pi/2 ==> ok
+     * 1.5pi is multiple of pi/2 but not of pi ==> illegal
+     */
+    
+    mlir::Value modPiHalf = builder.create<ModOp>(
+        loc, builder.getF64Type(), operandAbs, piHalf);
+
+    mlir::Value modPi = builder.create<ModOp>(
+        loc, builder.getF64Type(), operandAbs, pi);
+    
+    mlir::Value check1 = builder.create<GteOp>(
+        loc, modPiHalf, epsilon);
+    
+    mlir::Value check2 = builder.create<LteOp>(
+        loc, modPi, epsilon);
+    
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: Argument of tan is invalid. It should be != k*(PI/2)\n"),
+        builder.getI64IntegerAttr(2));
+    
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+
+    mlir::Value condition = builder.create<OrOp>(
+        loc, check1, check2);
+    
+    builder.create<YieldOp>(assertOp.getLoc(), condition);
+  }
 }
 
 //===---------------------------------------------------------------------===//

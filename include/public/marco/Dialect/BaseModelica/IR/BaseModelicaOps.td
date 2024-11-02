@@ -3148,7 +3148,8 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
 }
 
 def Modelica_TanOp : BaseModelica_Op<"tan",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Trigonometric tangent function.";
 
