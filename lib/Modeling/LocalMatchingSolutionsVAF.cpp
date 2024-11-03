@@ -3,57 +3,49 @@
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;
 
-namespace
-{
-  class GeneratorDefault : public VAFSolutions::Generator
-  {
-    public:
-      GeneratorDefault(
-        const IndexSet& matrixEquationIndices,
-        const IndexSet& matrixVariableIndices,
-        const AccessFunction& accessFunction);
+namespace {
+class GeneratorDefault : public VAFSolutions::Generator {
+public:
+  GeneratorDefault(const IndexSet &matrixEquationIndices,
+                   const IndexSet &matrixVariableIndices,
+                   const AccessFunction &accessFunction);
 
-      bool hasValue() const override;
+  bool hasValue() const override;
 
-      MCIM getValue() const override;
+  MCIM getValue() const override;
 
-      void fetchNext() override;
+  void fetchNext() override;
 
-    private:
-      void initialize();
+private:
+  void initialize();
 
-    private:
-      // The domain upon which the matrix has to be constructed.
-      const IndexSet* matrixEquationIndices;
-      const IndexSet* matrixVariableIndices;
+private:
+  // The domain upon which the matrix has to be constructed.
+  const IndexSet *matrixEquationIndices;
+  const IndexSet *matrixVariableIndices;
 
-      // The access function.
-      const AccessFunction* accessFunction;
+  // The access function.
+  const AccessFunction *accessFunction;
 
-      // The next value to be returned.
-      std::unique_ptr<MCIM> value;
+  // The next value to be returned.
+  std::unique_ptr<MCIM> value;
 
-      // Data used for progressive computation.
-      std::unique_ptr<IndexSet::const_point_iterator> pointsIt;
-      std::unique_ptr<IndexSet::const_point_iterator> pointsEndIt;
-  };
-}
+  // Data used for progressive computation.
+  std::unique_ptr<IndexSet::const_point_iterator> pointsIt;
+  std::unique_ptr<IndexSet::const_point_iterator> pointsEndIt;
+};
+} // namespace
 
-GeneratorDefault::GeneratorDefault(
-    const IndexSet& matrixEquationIndices,
-    const IndexSet& matrixVariableIndices,
-    const AccessFunction& accessFunction)
+GeneratorDefault::GeneratorDefault(const IndexSet &matrixEquationIndices,
+                                   const IndexSet &matrixVariableIndices,
+                                   const AccessFunction &accessFunction)
     : matrixEquationIndices(&matrixEquationIndices),
       matrixVariableIndices(&matrixVariableIndices),
-      accessFunction(&accessFunction),
-      pointsIt(nullptr),
-      pointsEndIt(nullptr)
-{
+      accessFunction(&accessFunction), pointsIt(nullptr), pointsEndIt(nullptr) {
   initialize();
 }
 
-void GeneratorDefault::initialize()
-{
+void GeneratorDefault::initialize() {
   pointsIt = std::make_unique<IndexSet::const_point_iterator>(
       matrixEquationIndices->begin());
 
@@ -63,19 +55,14 @@ void GeneratorDefault::initialize()
   fetchNext();
 }
 
-bool GeneratorDefault::hasValue() const
-{
-  return value != nullptr;
-}
+bool GeneratorDefault::hasValue() const { return value != nullptr; }
 
-MCIM GeneratorDefault::getValue() const
-{
+MCIM GeneratorDefault::getValue() const {
   assert(hasValue());
   return *value;
 }
 
-void GeneratorDefault::fetchNext()
-{
+void GeneratorDefault::fetchNext() {
   if (*pointsIt == *pointsEndIt) {
     value = nullptr;
   } else {
@@ -92,80 +79,70 @@ void GeneratorDefault::fetchNext()
   }
 }
 
-namespace
-{
-  class GeneratorRotoTranslation : public VAFSolutions::Generator
-  {
-    public:
-      GeneratorRotoTranslation(
-          const IndexSet& matrixEquationIndices,
-          const IndexSet& matrixVariableIndices,
-          const AccessFunctionRotoTranslation& accessFunction);
+namespace {
+class GeneratorRotoTranslation : public VAFSolutions::Generator {
+public:
+  GeneratorRotoTranslation(const IndexSet &matrixEquationIndices,
+                           const IndexSet &matrixVariableIndices,
+                           const AccessFunctionRotoTranslation &accessFunction);
 
-      bool hasValue() const override;
+  bool hasValue() const override;
 
-      MCIM getValue() const override;
+  MCIM getValue() const override;
 
-      void fetchNext() override;
+  void fetchNext() override;
 
-    private:
-      void initialize();
+private:
+  void initialize();
 
-    private:
-      // The domain upon which the matrix has to be constructed.
-      const IndexSet* matrixEquationIndices;
-      const IndexSet* matrixVariableIndices;
+private:
+  // The domain upon which the matrix has to be constructed.
+  const IndexSet *matrixEquationIndices;
+  const IndexSet *matrixVariableIndices;
 
-      // The access function.
-      const AccessFunctionRotoTranslation* accessFunction;
+  // The access function.
+  const AccessFunctionRotoTranslation *accessFunction;
 
-      // The iterator for the current multidimensional range of the equation
-      // indices.
-      IndexSet::const_range_iterator currentEquationsRangeIt;
+  // The iterator for the current multidimensional range of the equation
+  // indices.
+  IndexSet::const_range_iterator currentEquationsRangeIt;
 
-      // The next value to be returned.
-      std::unique_ptr<MCIM> value;
+  // The next value to be returned.
+  std::unique_ptr<MCIM> value;
 
-      // Data used for progressive computation.
-      llvm::SmallVector<Range, 3> ranges;
-      std::unique_ptr<MultidimensionalRange> unusedRange;
-      llvm::SmallVector<size_t, 3> unusedRangeOriginalPosition;
-      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeIt;
-      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeEnd;
-  };
-}
+  // Data used for progressive computation.
+  llvm::SmallVector<Range, 3> ranges;
+  std::unique_ptr<MultidimensionalRange> unusedRange;
+  llvm::SmallVector<size_t, 3> unusedRangeOriginalPosition;
+  std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeIt;
+  std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeEnd;
+};
+} // namespace
 
 GeneratorRotoTranslation::GeneratorRotoTranslation(
-    const IndexSet& matrixEquationIndices,
-    const IndexSet& matrixVariableIndices,
-    const AccessFunctionRotoTranslation& accessFunction)
+    const IndexSet &matrixEquationIndices,
+    const IndexSet &matrixVariableIndices,
+    const AccessFunctionRotoTranslation &accessFunction)
     : matrixEquationIndices(&matrixEquationIndices),
       matrixVariableIndices(&matrixVariableIndices),
       accessFunction(&accessFunction),
       currentEquationsRangeIt(matrixEquationIndices.rangesBegin()),
-      value(nullptr)
-{
+      value(nullptr) {
   initialize();
 }
 
-void GeneratorRotoTranslation::initialize()
-{
-  fetchNext();
-}
+void GeneratorRotoTranslation::initialize() { fetchNext(); }
 
-bool GeneratorRotoTranslation::hasValue() const
-{
-  return value != nullptr;
-}
+bool GeneratorRotoTranslation::hasValue() const { return value != nullptr; }
 
-MCIM GeneratorRotoTranslation::getValue() const
-{
+MCIM GeneratorRotoTranslation::getValue() const {
   assert(hasValue());
+  assert(isValidLocalMatchingSolution(*value) &&
+         "Invalid VAF local matching solution");
   return *value;
 }
 
-void GeneratorRotoTranslation::fetchNext()
-{
+void GeneratorRotoTranslation::fetchNext() {
   if (currentEquationsRangeIt == matrixEquationIndices->rangesEnd()) {
     value = nullptr;
     return;
@@ -187,7 +164,7 @@ void GeneratorRotoTranslation::fetchNext()
     // the ones leading to repetitions among variable usages, and thus lead
     // to a new group for each time they change value.
 
-    for (const auto& usage: llvm::enumerate(inductionsUsage)) {
+    for (const auto &usage : llvm::enumerate(inductionsUsage)) {
       if (usage.value() == 0) {
         unusedRangeOriginalPosition[unusedRanges.size()] = usage.index();
         unusedRanges.push_back((*currentEquationsRangeIt)[usage.index()]);
@@ -218,13 +195,11 @@ void GeneratorRotoTranslation::fetchNext()
       unusedRange =
           std::make_unique<MultidimensionalRange>(std::move(unusedRanges));
 
-      unusedRangeIt =
-          std::make_unique<MultidimensionalRange::const_iterator>(
-              unusedRange->begin());
+      unusedRangeIt = std::make_unique<MultidimensionalRange::const_iterator>(
+          unusedRange->begin());
 
-      unusedRangeEnd =
-          std::make_unique<MultidimensionalRange::const_iterator>(
-              unusedRange->end());
+      unusedRangeEnd = std::make_unique<MultidimensionalRange::const_iterator>(
+          unusedRange->end());
     }
   }
 
@@ -252,172 +227,150 @@ void GeneratorRotoTranslation::fetchNext()
   }
 }
 
-namespace marco::modeling::internal
-{
-  VAFSolutions::VAFSolutions(
-      llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
-      IndexSet equationIndices,
-      IndexSet variableIndices)
-      : equationIndices(std::move(equationIndices)),
-        variableIndices(std::move(variableIndices))
-  {
-    for (const auto& accessFunction : accessFunctions) {
-      this->accessFunctions.push_back(accessFunction->clone());
-    }
-
-    initialize();
+namespace marco::modeling::internal {
+VAFSolutions::VAFSolutions(
+    llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
+    IndexSet equationIndices, IndexSet variableIndices)
+    : equationIndices(std::move(equationIndices)),
+      variableIndices(std::move(variableIndices)) {
+  for (const auto &accessFunction : accessFunctions) {
+    this->accessFunctions.push_back(accessFunction->clone());
   }
 
-  MCIM& VAFSolutions::operator[](size_t index)
-  {
-    assert(index < size());
+  initialize();
+}
 
-    while (matrices.size() <= index &&
-           currentAccessFunction < accessFunctions.size()) {
-      fetchNext();
-    }
+MCIM &VAFSolutions::operator[](size_t index) {
+  assert(index < size());
 
-    return matrices[index];
+  while (matrices.size() <= index) {
+    fetchNext();
   }
 
-  size_t VAFSolutions::size() const
-  {
-    return solutionsAmount;
-  }
+  return matrices[index];
+}
 
-  void VAFSolutions::initialize()
-  {
-    llvm::sort(accessFunctions, [&](const auto& lhs, const auto& rhs) -> bool {
-      return compareAccessFunctions(*lhs, *rhs);
-    });
+size_t VAFSolutions::size() const { return solutionsAmount; }
 
-    // Determine the amount of solutions. Precomputing it allows the actual
-    // solutions to be determined only when requested. This is useful when
-    // the solutions set will be processed only if a certain amount of
-    // solutions is found, as it may allow for skipping their computation.
+void VAFSolutions::initialize() {
+  llvm::sort(accessFunctions, [&](const auto &lhs, const auto &rhs) -> bool {
+    return compareAccessFunctions(*lhs, *rhs);
+  });
 
-    solutionsAmount = 0;
+  // Determine the amount of solutions. Precomputing it allows the actual
+  // solutions to be determined only when requested. This is useful when
+  // the solutions set will be processed only if a certain amount of
+  // solutions is found, as it may allow for skipping their computation.
 
-    for (const auto& accessFunction : accessFunctions) {
-      solutionsAmount += getSolutionsAmount(*accessFunction);
-    }
-  }
+  solutionsAmount = 0;
 
-  void VAFSolutions::fetchNext()
-  {
-    if (generator == nullptr) {
-      if (currentAccessFunction < accessFunctions.size()) {
-        generator = getGenerator(*accessFunctions[currentAccessFunction++]);
-        ++currentAccessFunction;
-      }
-    }
-
-    while (generator &&
-           !generator->hasValue() &&
-           currentAccessFunction < accessFunctions.size()) {
-      // Advance to the first generator with a valid value.
-      generator = getGenerator(*accessFunctions[currentAccessFunction++]);
-    }
-
-    if (generator && generator->hasValue()) {
-      matrices.push_back(generator->getValue());
-      generator->fetchNext();
-    } else {
-      generator = nullptr;
-    }
-  }
-
-  bool VAFSolutions::compareAccessFunctions(
-      const AccessFunction& lhs, const AccessFunction& rhs) const
-  {
-    if (auto casted = lhs.dyn_cast<AccessFunctionRotoTranslation>()) {
-      return compareAccessFunctions(*casted, rhs);
-    }
-
-    return false;
-  }
-
-  bool VAFSolutions::compareAccessFunctions(
-      const AccessFunctionRotoTranslation& lhs,
-      const AccessFunction& rhs) const
-  {
-    if (auto casted = rhs.dyn_cast<AccessFunctionRotoTranslation>()) {
-      return compareAccessFunctions(lhs, *casted);
-    }
-
-    return true;
-  }
-
-  bool VAFSolutions::compareAccessFunctions(
-      const AccessFunctionRotoTranslation& lhs,
-      const AccessFunctionRotoTranslation& rhs) const
-  {
-    // Sort the access functions so that we prefer the ones referring to
-    // induction variables. More in details, we prefer the ones covering the
-    // most of them, as they are the ones that lead to the least amount of
-    // groups.
-
-    llvm::SmallVector<size_t, 3> lhsUsages;
-    llvm::SmallVector<size_t, 3> rhsUsages;
-
-    lhs.countVariablesUsages(lhsUsages);
-    rhs.countVariablesUsages(rhsUsages);
-
-    auto counter = [](const size_t& usage) {
-      return usage == 1;
-    };
-
-    size_t lhsUniqueUsages = llvm::count_if(lhsUsages, counter);
-    size_t rhsUniqueUsages = llvm::count_if(rhsUsages, counter);
-
-    return lhsUniqueUsages >= rhsUniqueUsages;
-  }
-
-  size_t VAFSolutions::getSolutionsAmount(
-      const AccessFunction& accessFunction) const
-  {
-    if (auto casted =
-            accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
-      return getSolutionsAmount(*casted);
-    }
-
-    return equationIndices.flatSize();
-  }
-
-  size_t VAFSolutions::getSolutionsAmount(
-      const AccessFunctionRotoTranslation& accessFunction) const
-  {
-    size_t result = 0;
-
-    llvm::SmallVector<size_t, 3> inductionsUsage;
-    accessFunction.countVariablesUsages(inductionsUsage);
-
-    for (const MultidimensionalRange& range : llvm::make_range(
-             equationIndices.rangesBegin(), equationIndices.rangesEnd())) {
-      size_t count = 1;
-
-      for (const auto& usage : llvm::enumerate(inductionsUsage)) {
-        if (usage.value() == 0) {
-          count *= range[usage.index()].size();
-        }
-      }
-
-      result += count;
-    }
-
-    return result;
-  }
-
-  std::unique_ptr<VAFSolutions::Generator> VAFSolutions::getGenerator(
-      const AccessFunction& accessFunction) const
-  {
-    if (auto casted =
-            accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
-      return std::make_unique<GeneratorRotoTranslation>(
-          equationIndices, variableIndices, *casted);
-    }
-
-    return std::make_unique<GeneratorDefault>(
-        equationIndices, variableIndices, accessFunction);
+  for (const auto &accessFunction : accessFunctions) {
+    solutionsAmount += getSolutionsAmount(*accessFunction);
   }
 }
+
+void VAFSolutions::fetchNext() {
+  if (generator == nullptr) {
+    if (currentAccessFunction < accessFunctions.size()) {
+      generator = getGenerator(*accessFunctions[currentAccessFunction++]);
+      ++currentAccessFunction;
+    }
+  }
+
+  while (generator && !generator->hasValue() &&
+         currentAccessFunction < accessFunctions.size()) {
+    // Advance to the first generator with a valid value.
+    generator = getGenerator(*accessFunctions[currentAccessFunction++]);
+  }
+
+  if (generator && generator->hasValue()) {
+    matrices.push_back(generator->getValue());
+    generator->fetchNext();
+  } else {
+    generator = nullptr;
+  }
+}
+
+bool VAFSolutions::compareAccessFunctions(const AccessFunction &lhs,
+                                          const AccessFunction &rhs) const {
+  if (auto casted = lhs.dyn_cast<AccessFunctionRotoTranslation>()) {
+    return compareAccessFunctions(*casted, rhs);
+  }
+
+  return false;
+}
+
+bool VAFSolutions::compareAccessFunctions(
+    const AccessFunctionRotoTranslation &lhs, const AccessFunction &rhs) const {
+  if (auto casted = rhs.dyn_cast<AccessFunctionRotoTranslation>()) {
+    return compareAccessFunctions(lhs, *casted);
+  }
+
+  return true;
+}
+
+bool VAFSolutions::compareAccessFunctions(
+    const AccessFunctionRotoTranslation &lhs,
+    const AccessFunctionRotoTranslation &rhs) const {
+  // Sort the access functions so that we prefer the ones referring to
+  // induction variables. More in details, we prefer the ones covering the
+  // most of them, as they are the ones that lead to the least amount of
+  // groups.
+
+  llvm::SmallVector<size_t, 3> lhsUsages;
+  llvm::SmallVector<size_t, 3> rhsUsages;
+
+  lhs.countVariablesUsages(lhsUsages);
+  rhs.countVariablesUsages(rhsUsages);
+
+  auto counter = [](const size_t &usage) { return usage == 1; };
+
+  size_t lhsUniqueUsages = llvm::count_if(lhsUsages, counter);
+  size_t rhsUniqueUsages = llvm::count_if(rhsUsages, counter);
+
+  return lhsUniqueUsages >= rhsUniqueUsages;
+}
+
+size_t
+VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
+  if (auto casted = accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
+    return getSolutionsAmount(*casted);
+  }
+
+  return equationIndices.flatSize();
+}
+
+size_t VAFSolutions::getSolutionsAmount(
+    const AccessFunctionRotoTranslation &accessFunction) const {
+  size_t result = 0;
+
+  llvm::SmallVector<size_t, 3> inductionsUsage;
+  accessFunction.countVariablesUsages(inductionsUsage);
+
+  for (const MultidimensionalRange &range : llvm::make_range(
+           equationIndices.rangesBegin(), equationIndices.rangesEnd())) {
+    size_t count = 1;
+
+    for (const auto &usage : llvm::enumerate(inductionsUsage)) {
+      if (usage.value() == 0) {
+        count *= range[usage.index()].size();
+      }
+    }
+
+    result += count;
+  }
+
+  return result;
+}
+
+std::unique_ptr<VAFSolutions::Generator>
+VAFSolutions::getGenerator(const AccessFunction &accessFunction) const {
+  if (auto casted = accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
+    return std::make_unique<GeneratorRotoTranslation>(equationIndices,
+                                                      variableIndices, *casted);
+  }
+
+  return std::make_unique<GeneratorDefault>(equationIndices, variableIndices,
+                                            accessFunction);
+}
+} // namespace marco::modeling::internal

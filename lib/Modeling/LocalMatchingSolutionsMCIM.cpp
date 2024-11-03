@@ -1,26 +1,21 @@
 #include "marco/Modeling/LocalMatchingSolutionsMCIM.h"
 
-namespace marco::modeling::internal
-{
-  MCIMSolutions::MCIMSolutions(const MCIM& obj)
-  {
-    compute(obj);
-  }
+using namespace ::marco::modeling;
+using namespace ::marco::modeling::internal;
 
-  MCIM& MCIMSolutions::operator[](size_t index)
-  {
-    return solutions[index];
-  }
+namespace marco::modeling::internal {
+MCIMSolutions::MCIMSolutions(const MCIM &obj) { compute(obj); }
 
-  size_t MCIMSolutions::size() const
-  {
-    return solutions.size();
-  }
+MCIM &MCIMSolutions::operator[](size_t index) { return solutions[index]; }
 
-  void MCIMSolutions::compute(const MCIM& obj)
-  {
-    for (auto& solution: obj.splitGroups()) {
-      solutions.push_back(std::move(solution));
-    }
+size_t MCIMSolutions::size() const { return solutions.size(); }
+
+void MCIMSolutions::compute(const MCIM &obj) {
+  for (auto &solution : obj.splitGroups()) {
+    assert(isValidLocalMatchingSolution(solution) &&
+           "Invalid MCIM local matching solution");
+
+    solutions.push_back(std::move(solution));
   }
 }
+} // namespace marco::modeling::internal
