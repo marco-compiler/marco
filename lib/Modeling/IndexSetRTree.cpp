@@ -1418,6 +1418,10 @@ namespace marco::modeling::impl
   std::unique_ptr<IndexSet::Impl>
   RTreeIndexSet::takeFirstDimensions(size_t n) const
   {
+    if (root == nullptr) {
+      return clone();
+    }
+
     assert(n <= rank());
     llvm::SmallVector<MultidimensionalRange> result;
 
@@ -1432,6 +1436,10 @@ namespace marco::modeling::impl
   std::unique_ptr<IndexSet::Impl>
   RTreeIndexSet::takeLastDimensions(size_t n) const
   {
+    if (root == nullptr) {
+      return clone();
+    }
+
     assert(n <= rank());
     llvm::SmallVector<MultidimensionalRange> result;
 

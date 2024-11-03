@@ -868,6 +868,10 @@ namespace marco::modeling::impl
   std::unique_ptr<IndexSet::Impl>
   ListIndexSet::takeFirstDimensions(size_t n) const
   {
+    if (!initialized) {
+      return clone();
+    }
+
     assert(n < rank());
     llvm::SmallVector<MultidimensionalRange> result;
 
@@ -882,6 +886,10 @@ namespace marco::modeling::impl
   std::unique_ptr<IndexSet::Impl>
   ListIndexSet::takeLastDimensions(size_t n) const
   {
+    if (!initialized) {
+      return clone();
+    }
+
     assert(n < rank());
     llvm::SmallVector<MultidimensionalRange> result;
 
