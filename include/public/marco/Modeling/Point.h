@@ -6,55 +6,58 @@
 #include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
 
-namespace llvm
-{
-  class raw_ostream;
+namespace llvm {
+class raw_ostream;
 }
 
-namespace marco::modeling
-{
-  /// n-D point.
-  class Point
-  {
-    public:
-      using data_type = int64_t;
+namespace marco::modeling {
+/// n-D point.
+class Point {
+public:
+  using data_type = int64_t;
 
-    private:
-      using Container = llvm::SmallVector<data_type, 3>;
+private:
+  using Container = llvm::SmallVector<data_type, 3>;
 
-    public:
-      using const_iterator = Container::const_iterator;
+public:
+  using const_iterator = Container::const_iterator;
 
-      Point();
+  Point();
 
-      Point(data_type value);
+  Point(data_type value);
 
-      Point(std::initializer_list<data_type> values);
+  Point(std::initializer_list<data_type> values);
 
-      Point(llvm::ArrayRef<data_type> values);
+  Point(llvm::ArrayRef<data_type> values);
 
-      friend llvm::hash_code hash_value(const Point& value);
+  friend llvm::hash_code hash_value(const Point &value);
 
-      bool operator==(const Point& other) const;
+  bool operator==(const Point &other) const;
 
-      bool operator!=(const Point& other) const;
+  bool operator!=(const Point &other) const;
 
-      data_type operator[](size_t index) const;
+  data_type operator[](size_t index) const;
 
-      /// Get the number of dimensions.
-      size_t rank() const;
+  /// Get the number of dimensions.
+  size_t rank() const;
 
-      const_iterator begin() const;
+  const_iterator begin() const;
 
-      const_iterator end() const;
+  const_iterator end() const;
 
-      operator llvm::ArrayRef<data_type>() const;
+  Point append(const Point &other) const;
 
-    private:
-      Container values;
-  };
+  Point takeFront(size_t n) const;
 
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Point& obj);
-}
+  Point takeBack(size_t n) const;
+
+  operator llvm::ArrayRef<data_type>() const;
+
+private:
+  Container values;
+};
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Point &obj);
+} // namespace marco::modeling
 
 #endif // MARCO_MODELING_POINT_H

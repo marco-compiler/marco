@@ -1494,6 +1494,34 @@ namespace marco::modeling::impl
   }
 
   std::unique_ptr<IndexSet::Impl>
+  RTreeIndexSet::prepend(const IndexSet& other) const
+  {
+    llvm::SmallVector<MultidimensionalRange> result;
+
+    if (empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+        result.push_back(range);
+      }
+    } else if (other.empty()) {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        result.push_back(range);
+      }
+    } else {
+      for (const MultidimensionalRange& range :
+           llvm::make_range(rangesBegin(), rangesEnd())) {
+        for (const MultidimensionalRange& otherRange :
+             llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
+          result.push_back(range.prepend(otherRange));
+        }
+      }
+    }
+
+    return std::make_unique<RTreeIndexSet>(std::move(result));
+  }
+
+  std::unique_ptr<IndexSet::Impl>
   RTreeIndexSet::append(const IndexSet& other) const
   {
     llvm::SmallVector<MultidimensionalRange> result;
