@@ -26,6 +26,9 @@ set(SOURCES
     LocalMatchingSolutionsVAF.cpp
     Matching.cpp
     MCIM.cpp
+    MCIMGroup.cpp
+    MCIMGroupEmpty.cpp
+    MCIMGroupGeneric.cpp
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
