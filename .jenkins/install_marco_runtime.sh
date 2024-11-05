@@ -1,7 +1,8 @@
 #!/bin/bash
 
+rm -rf marco-runtime
 git clone https://github.com/marco-compiler/marco-runtime.git
-cd marco-runtime
+cd marco-runtime || exit 1
 git checkout ${MARCO_RUNTIME_COMMIT}
 
 rm -rf build

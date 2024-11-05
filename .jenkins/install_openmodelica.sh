@@ -1,7 +1,8 @@
 #!/bin/bash
 
+rm -rf OpenModelica
 git clone https://github.com/OpenModelica/OpenModelica.git
-cd OpenModelica
+cd OpenModelica || exit 1
 git checkout ${OPENMODELICA_COMMIT}
 git submodule update --force --init --recursive
 

@@ -1,10 +1,10 @@
 #!/bin/bash
 
+rm -rf llvm-project
 git clone https://github.com/marco-compiler/llvm-project.git
-cd llvm-project
+cd llvm-project || exit 1
 git checkout ${LLVM_COMMIT}
 
-rm -rf build
 mkdir build
 
 cmake \
