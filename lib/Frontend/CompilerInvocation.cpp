@@ -35,19 +35,17 @@ using ArgumentConsumer = CompilerInvocation::ArgumentConsumer;
 #include "clang/Driver/Options.inc"
 #undef SIMPLE_ENUM_VALUE_TABLE
 
-static std::optional<bool> normalizeSimpleFlag(OptSpecifier Opt,
-                                               unsigned TableIndex,
-                                               const ArgList &Args,
-                                               DiagnosticsEngine &Diags) {
+[[maybe_unused]] static std::optional<bool>
+normalizeSimpleFlag(OptSpecifier Opt, unsigned TableIndex, const ArgList &Args,
+                    DiagnosticsEngine &Diags) {
   if (Args.hasArg(Opt))
     return true;
   return std::nullopt;
 }
 
-static std::optional<bool> normalizeSimpleNegativeFlag(OptSpecifier Opt,
-                                                       unsigned,
-                                                       const ArgList &Args,
-                                                       DiagnosticsEngine &) {
+[[maybe_unused]] static std::optional<bool>
+normalizeSimpleNegativeFlag(OptSpecifier Opt, unsigned, const ArgList &Args,
+                            DiagnosticsEngine &) {
   if (Args.hasArg(Opt))
     return false;
   return std::nullopt;
@@ -57,9 +55,10 @@ static std::optional<bool> normalizeSimpleNegativeFlag(OptSpecifier Opt,
 /// denormalizeSimpleFlags never looks at it. Avoid bloating compile-time with
 /// unnecessary template instantiations and just ignore it with a variadic
 /// argument.
-static void denormalizeSimpleFlag(ArgumentConsumer Consumer,
-                                  const Twine &Spelling, Option::OptionClass,
-                                  unsigned, /*T*/...) {
+[[maybe_unused]] static void denormalizeSimpleFlag(ArgumentConsumer Consumer,
+                                                   const Twine &Spelling,
+                                                   Option::OptionClass,
+                                                   unsigned, /*T*/...) {
   Consumer(Spelling);
 }
 
@@ -97,7 +96,7 @@ static auto makeBooleanOptionNormalizer(bool Value, bool OtherValue,
   };
 }
 
-static auto makeBooleanOptionDenormalizer(bool Value) {
+[[maybe_unused]] static auto makeBooleanOptionDenormalizer(bool Value) {
   return [Value](ArgumentConsumer Consumer, const Twine &Spelling,
                  Option::OptionClass, unsigned, bool KeyPath) {
     if (KeyPath == Value)
@@ -227,11 +226,10 @@ normalizeStringVector(OptSpecifier Opt, int, const ArgList &Args,
   return Args.getAllArgValues(Opt);
 }
 
-static void denormalizeStringVector(ArgumentConsumer Consumer,
-                                    const Twine &Spelling,
-                                    Option::OptionClass OptClass,
-                                    unsigned TableIndex,
-                                    const std::vector<std::string> &Values) {
+[[maybe_unused]] static void
+denormalizeStringVector(ArgumentConsumer Consumer, const Twine &Spelling,
+                        Option::OptionClass OptClass, unsigned TableIndex,
+                        const std::vector<std::string> &Values) {
   switch (OptClass) {
   case Option::CommaJoinedClass: {
     std::string CommaJoinedValue;

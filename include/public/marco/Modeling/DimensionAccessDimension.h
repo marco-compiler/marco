@@ -3,78 +3,54 @@
 
 #include "marco/Modeling/DimensionAccess.h"
 
-namespace marco::modeling
-{
-  class DimensionAccessDimension : public DimensionAccess
-  {
-    public:
-      DimensionAccessDimension(mlir::MLIRContext* context, uint64_t dimension);
+namespace marco::modeling {
+class DimensionAccessDimension : public DimensionAccess {
+public:
+  DimensionAccessDimension(mlir::MLIRContext *context, uint64_t dimension);
 
-      DimensionAccessDimension(const DimensionAccessDimension& other);
+  static bool classof(const DimensionAccess *obj) {
+    return obj->getKind() == DimensionAccess::Kind::Dimension;
+  }
 
-      DimensionAccessDimension(DimensionAccessDimension&& other) noexcept;
+  [[nodiscard]] std::unique_ptr<DimensionAccess> clone() const override;
 
-      ~DimensionAccessDimension() override;
+  [[nodiscard]] bool operator==(const DimensionAccess &other) const override;
 
-      DimensionAccessDimension& operator=(const DimensionAccessDimension& other);
+  [[nodiscard]] bool operator==(const DimensionAccessDimension &other) const;
 
-      DimensionAccessDimension& operator=(
-          DimensionAccessDimension&& other) noexcept;
+  [[nodiscard]] bool operator!=(const DimensionAccess &other) const override;
 
-      friend void swap(
-          DimensionAccessDimension& first, DimensionAccessDimension& second);
+  [[nodiscard]] bool operator!=(const DimensionAccessDimension &other) const;
 
-      static bool classof(const DimensionAccess* obj)
-      {
-        return obj->getKind() == DimensionAccess::Kind::Dimension;
-      }
+  llvm::raw_ostream &dump(llvm::raw_ostream &os,
+                          const llvm::DenseMap<const IndexSet *, uint64_t>
+                              &iterationSpacesIds) const override;
 
-      [[nodiscard]] std::unique_ptr<DimensionAccess> clone() const override;
+  void collectIterationSpaces(
+      llvm::DenseSet<const IndexSet *> &iterationSpaces) const override;
 
-      [[nodiscard]] bool operator==(
-          const DimensionAccess& other) const override;
+  void collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
+      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+          &dependentDimensions) const override;
 
-      [[nodiscard]] bool operator==(
-          const DimensionAccessDimension& other) const;
+  [[nodiscard]] bool isAffine() const override;
 
-      [[nodiscard]] bool operator!=(
-          const DimensionAccess& other) const override;
+  [[nodiscard]] mlir::AffineExpr getAffineExpr() const override;
 
-      [[nodiscard]] bool operator!=(
-          const DimensionAccessDimension& other) const;
+  [[nodiscard]] mlir::AffineExpr
+  getAffineExpr(unsigned int numOfDimensions,
+                FakeDimensionsMap &fakeDimensionsMap) const override;
 
-      llvm::raw_ostream& dump(
-          llvm::raw_ostream& os,
-          const llvm::DenseMap<const IndexSet*, uint64_t>& iterationSpacesIds)
-          const override;
+  [[nodiscard]] IndexSet map(const Point &point,
+                             llvm::DenseMap<const IndexSet *, Point>
+                                 &currentIndexSetsPoint) const override;
 
-      void collectIterationSpaces(
-          llvm::DenseSet<const IndexSet*>& iterationSpaces) const override;
+  [[nodiscard]] uint64_t getDimension() const;
 
-      void collectIterationSpaces(
-          llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
-          llvm::DenseMap<
-              const IndexSet*,
-              llvm::DenseSet<uint64_t>>& dependentDimensions) const override;
-
-      [[nodiscard]] bool isAffine() const override;
-
-      [[nodiscard]] mlir::AffineExpr getAffineExpr() const override;
-
-      [[nodiscard]] mlir::AffineExpr getAffineExpr(
-          unsigned int numOfDimensions,
-          FakeDimensionsMap& fakeDimensionsMap) const override;
-
-      [[nodiscard]] IndexSet map(
-          const Point& point,
-          llvm::DenseMap<
-              const IndexSet*, Point>& currentIndexSetsPoint) const override;
-
-      [[nodiscard]] uint64_t getDimension() const;
-
-    private:
-      uint64_t dimension;
-  };
-}
+private:
+  uint64_t dimension;
+};
+} // namespace marco::modeling
 
 #endif // MARCO_MODELING_DIMENSIONACCESSDIMENSION_H

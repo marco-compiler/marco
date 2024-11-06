@@ -22,7 +22,7 @@ bool AccessFunctionConstant::canBeBuilt(
 
 bool AccessFunctionConstant::canBeBuilt(mlir::AffineMap affineMap) {
   return llvm::all_of(affineMap.getResults(), [](mlir::AffineExpr expression) {
-    return expression.isa<mlir::AffineConstantExpr>();
+    return mlir::isa<mlir::AffineConstantExpr>(expression);
   });
 }
 

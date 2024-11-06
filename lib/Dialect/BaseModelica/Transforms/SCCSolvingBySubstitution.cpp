@@ -30,7 +30,8 @@ struct CyclicEquation {
 
 using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 
-static void printCycle(llvm::raw_ostream &os, const Cycle &cycle) {
+[[maybe_unused]] static void printCycle(llvm::raw_ostream &os,
+                                        const Cycle &cycle) {
   for (const CyclicEquation &cyclicEquation : cycle) {
     os << cyclicEquation.writeAccess.getVariable() << " -> ";
   }

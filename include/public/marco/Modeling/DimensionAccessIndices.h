@@ -5,80 +5,56 @@
 #include "marco/Modeling/IndexSet.h"
 #include "llvm/ADT/DenseSet.h"
 
-namespace marco::modeling
-{
-  class DimensionAccessIndices : public DimensionAccess
-  {
-    public:
-      DimensionAccessIndices(
-          mlir::MLIRContext* context,
-          std::shared_ptr<IndexSet> space,
-          uint64_t dimension,
-          llvm::DenseSet<uint64_t> dimensionDependencies);
+namespace marco::modeling {
+class DimensionAccessIndices : public DimensionAccess {
+public:
+  DimensionAccessIndices(mlir::MLIRContext *context,
+                         std::shared_ptr<IndexSet> space, uint64_t dimension,
+                         llvm::DenseSet<uint64_t> dimensionDependencies);
 
-      DimensionAccessIndices(const DimensionAccessIndices& other);
+  static bool classof(const DimensionAccess *obj) {
+    return obj->getKind() == DimensionAccess::Kind::Indices;
+  }
 
-      DimensionAccessIndices(DimensionAccessIndices&& other) noexcept;
+  [[nodiscard]] std::unique_ptr<DimensionAccess> clone() const override;
 
-      ~DimensionAccessIndices() override;
+  [[nodiscard]] bool operator==(const DimensionAccess &other) const override;
 
-      DimensionAccessIndices& operator=(const DimensionAccessIndices& other);
+  [[nodiscard]] bool operator==(const DimensionAccessIndices &other) const;
 
-      DimensionAccessIndices& operator=(
-          DimensionAccessIndices&& other) noexcept;
+  [[nodiscard]] bool operator!=(const DimensionAccess &other) const override;
 
-      friend void swap(
-          DimensionAccessIndices& first, DimensionAccessIndices& second);
+  [[nodiscard]] bool operator!=(const DimensionAccessIndices &other) const;
 
-      static bool classof(const DimensionAccess* obj)
-      {
-        return obj->getKind() == DimensionAccess::Kind::Indices;
-      }
+  llvm::raw_ostream &dump(llvm::raw_ostream &os,
+                          const llvm::DenseMap<const IndexSet *, uint64_t>
+                              &iterationSpacesIds) const override;
 
-      [[nodiscard]] std::unique_ptr<DimensionAccess> clone() const override;
+  void collectIterationSpaces(
+      llvm::DenseSet<const IndexSet *> &iterationSpaces) const override;
 
-      [[nodiscard]] bool operator==(
-          const DimensionAccess& other) const override;
+  void collectIterationSpaces(
+      llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
+      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+          &dependentDimensions) const override;
 
-      [[nodiscard]] bool operator==(const DimensionAccessIndices& other) const;
+  [[nodiscard]] mlir::AffineExpr
+  getAffineExpr(unsigned int numOfDimensions,
+                FakeDimensionsMap &fakeDimensionsMap) const override;
 
-      [[nodiscard]] bool operator!=(
-          const DimensionAccess& other) const override;
+  [[nodiscard]] IndexSet map(const Point &point,
+                             llvm::DenseMap<const IndexSet *, Point>
+                                 &currentIndexSetsPoint) const override;
 
-      [[nodiscard]] bool operator!=(const DimensionAccessIndices& other) const;
+  [[nodiscard]] IndexSet &getIndices();
 
-      llvm::raw_ostream& dump(
-          llvm::raw_ostream& os,
-          const llvm::DenseMap<const IndexSet*, uint64_t>& iterationSpacesIds)
-          const override;
+  [[nodiscard]] const IndexSet &getIndices() const;
 
-      void collectIterationSpaces(
-          llvm::DenseSet<const IndexSet*>& iterationSpaces) const override;
-
-      void collectIterationSpaces(
-          llvm::SmallVectorImpl<const IndexSet*>& iterationSpaces,
-          llvm::DenseMap<
-              const IndexSet*,
-              llvm::DenseSet<uint64_t>>& dependentDimensions) const override;
-
-      [[nodiscard]] mlir::AffineExpr getAffineExpr(
-          unsigned int numOfDimensions,
-          FakeDimensionsMap& fakeDimensionsMap) const override;
-
-      [[nodiscard]] IndexSet map(
-          const Point& point,
-          llvm::DenseMap<
-              const IndexSet*, Point>& currentIndexSetsPoint) const override;
-
-      [[nodiscard]] IndexSet& getIndices();
-
-      [[nodiscard]] const IndexSet& getIndices() const;
-
-    private:
-      std::shared_ptr<IndexSet> space;
-      uint64_t dimension;
-      llvm::DenseSet<uint64_t> dimensionDependencies;
-  };
-}
+private:
+  std::shared_ptr<IndexSet> space;
+  uint64_t dimension;
+  llvm::DenseSet<uint64_t> dimensionDependencies;
+};
+} // namespace marco::modeling
 
 #endif // MARCO_MODELING_DIMENSIONACCESSINDICES_H

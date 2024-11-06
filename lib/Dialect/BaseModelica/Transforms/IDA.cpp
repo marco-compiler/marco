@@ -781,9 +781,6 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       return mlir::failure();
     }
 
-    auto writtenVar = symbolTableCollection->lookupSymbolIn<VariableOp>(
-        modelOp, writeAccess->getVariable());
-
     // Collect the independent variables for automatic differentiation.
     llvm::DenseSet<VariableOp> independentVariables;
 
