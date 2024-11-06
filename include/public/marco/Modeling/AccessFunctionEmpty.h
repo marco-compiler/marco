@@ -52,7 +52,11 @@ namespace marco::modeling
       [[nodiscard]] IndexSet map(const Point& point) const override;
 
       [[nodiscard]] IndexSet map(const IndexSet& indices) const override;
-  };
+
+      [[nodiscard]] IndexSet inverseMap(
+          const IndexSet& accessedIndices,
+          const IndexSet& parentIndices) const override;
+};
 }
 
 #endif // MARCO_MODELING_ACCESSFUNCTIONEMPTY_H
