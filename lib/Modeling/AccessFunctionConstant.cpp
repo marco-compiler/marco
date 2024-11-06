@@ -6,66 +6,59 @@
 
 using namespace ::marco::modeling;
 
-namespace marco::modeling
-{
-  bool AccessFunctionConstant::canBeBuilt(
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
-  {
-    if (results.empty()) {
-      return true;
-    }
-
-    return llvm::all_of(results, [](const auto& result) {
-      return result->template dyn_cast<DimensionAccessConstant>() ||
-          result->template dyn_cast<DimensionAccessRange>() ||
-          result->template dyn_cast<DimensionAccessIndices>();
-    });
+namespace marco::modeling {
+bool AccessFunctionConstant::canBeBuilt(
+    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results) {
+  if (results.empty()) {
+    return true;
   }
 
-  bool AccessFunctionConstant::canBeBuilt(mlir::AffineMap affineMap)
-  {
-    return llvm::all_of(
-        affineMap.getResults(), [](mlir::AffineExpr expression) {
-          return expression.isa<mlir::AffineConstantExpr>();
-        });
-  }
+  return llvm::all_of(results, [](const auto &result) {
+    return result->template dyn_cast<DimensionAccessConstant>() ||
+           result->template dyn_cast<DimensionAccessRange>() ||
+           result->template dyn_cast<DimensionAccessIndices>();
+  });
+}
 
-  AccessFunctionConstant::AccessFunctionConstant(
-      mlir::MLIRContext* context,
-      uint64_t numOfDimensions,
-      llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
-      : AccessFunctionGeneric(
-          Kind::Constant, context, numOfDimensions, results)
-  {
-    assert(canBeBuilt(results));
-  }
+bool AccessFunctionConstant::canBeBuilt(mlir::AffineMap affineMap) {
+  return llvm::all_of(affineMap.getResults(), [](mlir::AffineExpr expression) {
+    return expression.isa<mlir::AffineConstantExpr>();
+  });
+}
 
-  AccessFunctionConstant::AccessFunctionConstant(mlir::AffineMap affineMap)
-      : AccessFunctionConstant(
-            affineMap.getContext(),
-            affineMap.getNumDims(),
-            convertAffineExpressions(affineMap.getResults()))
-  {
-  }
+AccessFunctionConstant::AccessFunctionConstant(
+    mlir::MLIRContext *context, uint64_t numOfDimensions,
+    llvm::ArrayRef<std::unique_ptr<DimensionAccess>> results)
+    : AccessFunctionGeneric(Kind::Constant, context, numOfDimensions, results) {
+  assert(canBeBuilt(results));
+}
 
-  AccessFunctionConstant::~AccessFunctionConstant() = default;
+AccessFunctionConstant::AccessFunctionConstant(mlir::AffineMap affineMap)
+    : AccessFunctionConstant(affineMap.getContext(), affineMap.getNumDims(),
+                             convertAffineExpressions(affineMap.getResults())) {
+}
 
-  std::unique_ptr<AccessFunction> AccessFunctionConstant::clone() const
-  {
-    return std::make_unique<AccessFunctionConstant>(*this);
-  }
+AccessFunctionConstant::~AccessFunctionConstant() = default;
 
-  IndexSet AccessFunctionConstant::map(const IndexSet& indices) const
-  {
-    llvm::SmallVector<Point::data_type, 6> dummyCoordinates(getNumOfDims(), 0);
-    Point dummyPoint(dummyCoordinates);
-    return map(dummyPoint);
-  }
+std::unique_ptr<AccessFunction> AccessFunctionConstant::clone() const {
+  return std::make_unique<AccessFunctionConstant>(*this);
+}
 
-  IndexSet AccessFunctionConstant::inverseMap(
-      const IndexSet& accessedIndices,
-      const IndexSet& parentIndices) const
-  {
+IndexSet AccessFunctionConstant::map(const IndexSet &indices) const {
+  llvm::SmallVector<Point::data_type> dummyCoordinates(getNumOfDims(), 0);
+  Point dummyPoint(dummyCoordinates);
+  return map(dummyPoint);
+}
+
+IndexSet
+AccessFunctionConstant::inverseMap(const IndexSet &accessedIndices,
+                                   const IndexSet &parentIndices) const {
+  auto expectedAccessedIndices = map(parentIndices);
+
+  if (expectedAccessedIndices.contains(accessedIndices)) {
     return parentIndices;
   }
+
+  return {};
 }
+} // namespace marco::modeling
