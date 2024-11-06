@@ -771,6 +771,22 @@ IndexSet ListIndexSet::complement(const MultidimensionalRange &other) const {
 }
 
 std::unique_ptr<IndexSet::Impl>
+ListIndexSet::slice(const llvm::BitVector &filter) const {
+  if (!initialized) {
+    return clone();
+  }
+
+  llvm::SmallVector<MultidimensionalRange> result;
+
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    result.push_back(range.slice(filter));
+  }
+
+  return std::make_unique<ListIndexSet>(std::move(result));
+}
+
+std::unique_ptr<IndexSet::Impl>
 ListIndexSet::takeFirstDimensions(size_t n) const {
   if (!initialized) {
     return clone();

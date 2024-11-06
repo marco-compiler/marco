@@ -2,6 +2,7 @@
 #define MARCO_MODELING_POINT_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
@@ -17,7 +18,7 @@ public:
   using data_type = int64_t;
 
 private:
-  using Container = llvm::SmallVector<data_type, 3>;
+  using Container = llvm::SmallVector<data_type>;
 
 public:
   using const_iterator = Container::const_iterator;
@@ -50,6 +51,8 @@ public:
   Point takeFront(size_t n) const;
 
   Point takeBack(size_t n) const;
+
+  Point slice(const llvm::BitVector &filter) const;
 
   operator llvm::ArrayRef<data_type>() const;
 

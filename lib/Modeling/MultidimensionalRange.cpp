@@ -273,6 +273,19 @@ MultidimensionalRange MultidimensionalRange::slice(size_t dimensions) const {
 }
 
 MultidimensionalRange
+MultidimensionalRange::slice(const llvm::BitVector &filter) const {
+  llvm::SmallVector<Range> result;
+
+  for (size_t i = 0, e = rank(); i < e; ++i) {
+    if (filter[i]) {
+      result.push_back(ranges[i]);
+    }
+  }
+
+  return {result};
+}
+
+MultidimensionalRange
 MultidimensionalRange::takeFirstDimensions(size_t n) const {
   assert(n > 0 && n <= ranges.size());
   return MultidimensionalRange(llvm::ArrayRef(ranges).take_front(n));

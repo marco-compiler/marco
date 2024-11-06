@@ -4,6 +4,7 @@
 #include "marco/Modeling/Range.h"
 #include "mlir/IR/AffineMap.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -101,6 +102,8 @@ public:
 
   MultidimensionalRange slice(size_t dimensions) const;
 
+  MultidimensionalRange slice(const llvm::BitVector &filter) const;
+
   MultidimensionalRange takeFirstDimensions(size_t n) const;
 
   MultidimensionalRange takeLastDimensions(size_t n) const;
@@ -117,7 +120,7 @@ public:
   MultidimensionalRange append(const MultidimensionalRange &other) const;
 
 private:
-  llvm::SmallVector<Range, 2> ranges;
+  llvm::SmallVector<Range> ranges;
 };
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,

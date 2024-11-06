@@ -117,6 +117,9 @@ public:
 
   IndexSet complement(const MultidimensionalRange &other) const override;
 
+  std::unique_ptr<IndexSet::Impl>
+  slice(const llvm::BitVector &filter) const override;
+
   std::unique_ptr<IndexSet::Impl> takeFirstDimensions(size_t n) const override;
 
   std::unique_ptr<IndexSet::Impl> takeLastDimensions(size_t n) const override;

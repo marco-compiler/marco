@@ -57,6 +57,18 @@ Point Point::takeBack(size_t n) const {
   return Point(llvm::ArrayRef<data_type>(values).take_back(n));
 }
 
+Point Point::slice(const llvm::BitVector &filter) const {
+  Container result;
+
+  for (size_t i = 0, e = rank(); i < e; ++i) {
+    if (filter[i]) {
+      result.push_back(values[i]);
+    }
+  }
+
+  return {result};
+}
+
 Point::operator llvm::ArrayRef<data_type>() const { return values; }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Point &obj) {

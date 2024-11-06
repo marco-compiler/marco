@@ -116,6 +116,8 @@ public:
 
   virtual IndexSet complement(const MultidimensionalRange &other) const = 0;
 
+  virtual std::unique_ptr<Impl> slice(const llvm::BitVector &filter) const = 0;
+
   virtual std::unique_ptr<Impl> takeFirstDimensions(size_t n) const = 0;
 
   virtual std::unique_ptr<Impl> takeLastDimensions(size_t n) const = 0;

@@ -4,6 +4,7 @@
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "mlir/IR/AffineMap.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include <memory>
 
 namespace llvm {
@@ -182,6 +183,8 @@ public:
   IndexSet intersect(const IndexSet &other) const;
 
   IndexSet complement(const MultidimensionalRange &other) const;
+
+  IndexSet slice(const llvm::BitVector &filter) const;
 
   IndexSet takeFirstDimensions(size_t n) const;
 

@@ -295,6 +295,11 @@ IndexSet IndexSet::complement(const MultidimensionalRange &other) const {
   return impl->complement(other);
 }
 
+IndexSet IndexSet::slice(const llvm::BitVector &filter) const {
+  assert(impl != nullptr);
+  return {impl->slice(filter)};
+}
+
 IndexSet IndexSet::takeFirstDimensions(size_t n) const {
   assert(impl != nullptr);
   return {impl->takeFirstDimensions(n)};
