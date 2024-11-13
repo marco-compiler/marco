@@ -1,8 +1,12 @@
 #!/bin/sh
 
+# The path where the project was cloned.
 src_path=$1
+
+# The path where the project was installed.
 install_path=$2
 
+# Extract version and architecture from the control file.
 version=$(grep "^Version:" "${src_path}/.jenkins/package/debian-12/control" | cut -d' ' -f2)
 architecture=$(grep "^Architecture:" "${src_path}/.jenkins/package/debian-12/control" | cut -d' ' -f2)
 
