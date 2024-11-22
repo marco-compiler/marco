@@ -2978,7 +2978,8 @@ def BaseModelica_ProductOp : BaseModelica_Op<"product",
     }];
 }
 
-def Modelica_RemOp : BaseModelica_Op<"rem", []>
+def Modelica_RemOp : BaseModelica_Op<"rem",
+    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Get the modulus of a division of two numbers.";
 
