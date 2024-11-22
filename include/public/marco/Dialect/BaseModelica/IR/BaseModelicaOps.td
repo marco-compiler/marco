@@ -498,7 +498,8 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
     [TypesMatchWith<"result type matches element type of 'tensor'",
                      "tensor", "result",
                      "$_self.cast<mlir::TensorType>().getElementType()">,
-    NoMemoryEffect]>
+    NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let arguments = (ins
         AnyTensor:$tensor,

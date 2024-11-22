@@ -845,6 +845,43 @@ namespace mlir::bmodelica
   {
     patterns.add<MergeTensorViewIntoTensorExtractPattern>(context);
   }
+
+  void TensorExtractOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    int64_t rank = getTensor().getType().getRank();
+    auto tensorShapedType = getTensor().getType().dyn_cast<mlir::ShapedType>();
+    mlir::ValueRange indices = getIndices();
+
+    for(int64_t i = 0 ; i<rank; i++){
+      //take the i-th index
+      auto it = indices.begin()+i;
+      mlir::Value indexCast = builder.create<CastOp>(
+        loc, builder.getI64Type(), *it);
+      
+      //take the dimension
+      if(uint64_t dim = tensorShapedType.getDimSize(i);
+          dim != LONG_MIN){
+        mlir::Value dimConst = builder.create<ConstantOp>(
+          loc, builder.getI64IntegerAttr(dim));
+        
+        auto assertOp = builder.create<AssertOp>(
+          loc,
+          builder.getStringAttr(
+            "Model error: Index out of bound\n"),
+          builder.getI64IntegerAttr(2));
+        
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.createBlock(&assertOp.getConditionRegion());
+
+        mlir::Value condition = builder.create<LtOp>(
+            loc, indexCast, dimConst);
+        
+        builder.create<YieldOp>(assertOp.getLoc(), condition);
+      }
+    }
+      
+  }
 }
 
 //===---------------------------------------------------------------------===//
