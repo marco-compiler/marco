@@ -1797,7 +1797,8 @@ def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew",
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Element-wise division.";
 
@@ -3148,7 +3149,8 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
 }
 
 def Modelica_TanOp : BaseModelica_Op<"tan",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Trigonometric tangent function.";
 

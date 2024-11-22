@@ -5503,6 +5503,111 @@ namespace mlir::bmodelica
 
     return mlir::success();
   }
+
+  void DivEWOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(0));
+    
+    mlir::Value rhs = getRhs();
+    mlir::Value rhsCast;
+    mlir::Value condition;
+
+    bool isRhsScalar = isScalar(rhs.getType());
+    if(isRhsScalar) {
+      // Convert operand to arith-compatible type
+      rhsCast = builder.create<CastOp>(
+          loc, builder.getF64Type(), rhs);
+    } else {
+      auto rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
+      auto rhsArrayType = ArrayType::get(
+                rhsShapedType.getShape(),
+                rhsShapedType.getElementType());
+      rhsCast = builder.create<TensorToArrayOp>(loc,
+          rhsArrayType, rhs);
+    }
+    
+    auto assertOp = builder.create<AssertOp>(
+      loc, 
+      builder.getStringAttr(
+        "Model error: element-wise division by zero\n"),
+      builder.getI64IntegerAttr(2));
+  
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+    
+    if(isRhsScalar) {
+      condition = builder.create<NotEqOp>(
+          loc, rhsCast, zero);
+    } else {
+      auto rhsShapedType = rhsCast.getType().dyn_cast<mlir::ShapedType>();
+      uint64_t rank = rhsShapedType.getRank();
+      llvm::SmallVector<uint64_t, 10> shape;
+
+      // Get shape sizes
+      uint64_t maxDim = 0;
+      for(uint64_t dim = 0; dim < rank; dim++) {
+        uint64_t rhsDimSize = rhsShapedType.getDimSize(dim);
+        shape.push_back(rhsDimSize);
+        maxDim = std::max(maxDim, rhsDimSize);
+      }
+
+      /* 
+       * Generate array of indexes describing every
+       * element in the data structure
+       * e.g. for a 3-dimensional [n, m, k] array we'd have
+       * (0, 0, 0)
+       * (0, 0, 1)
+       * ...
+       * (n-1, m-1, k-1)
+       */
+      std::vector<std::vector<uint64_t>> indices;
+      for(uint64_t k = 0; k < shape[0]; k++)
+        indices.emplace_back(std::vector<uint64_t>{k});
+
+      for(uint64_t dim = 1; dim < rank; dim++) {
+        uint64_t oldSize = indices.size();
+        uint64_t dimSize = shape[dim];
+        for(uint64_t k = 0; k < oldSize; k++) {
+          for(uint64_t i = 0; i < dimSize; i++) {
+            std::vector<uint64_t> tmp(indices[k]);
+            tmp.emplace_back(i);
+            indices.emplace_back(tmp);
+          }
+        }
+
+        // Erase old tuples
+        indices.erase(indices.begin(), indices.begin()+oldSize);
+      }
+
+      // Materialize constants needed for indices
+      std::vector<mlir::Value>indicesConstants;
+      for(uint64_t i = 0; i < maxDim; i++)
+        indicesConstants.emplace_back(builder.create<ConstantOp>(
+            loc, builder.getIndexAttr(i)));
+
+      // Emit LoadOp + check for every array element
+      llvm::SmallVector<mlir::Value, 10> indicesSSA;
+      condition = builder.create<ConstantOp>(loc,
+          builder.getF64FloatAttr(1));
+      for(auto &tuple : indices) {        
+        // Materialize indices
+        for(auto &el : tuple)
+          indicesSSA.emplace_back(indicesConstants[el]);
+
+        mlir::ValueRange indexToLoadRange(indicesSSA);
+        auto arrayElement = builder.create<LoadOp>(loc,
+            rhsCast, indexToLoadRange);
+        condition = builder.create<AndOp>(loc,
+            condition, arrayElement);
+        
+        indicesSSA.clear();
+      }
+    }
+
+    builder.create<YieldOp>(assertOp.getLoc(), condition);
+  }
 }
 
 //===---------------------------------------------------------------------===//
@@ -8105,6 +8210,87 @@ namespace mlir::bmodelica
     }
 
     return {};
+  }
+
+  void TanOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value operand = getOperand();
+    mlir::Value operandAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), operand);
+
+    mlir::Value pi = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(M_PI));
+
+    mlir::Value piHalf = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(M_PI/2));
+
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(1E-4));
+
+    /* Multiples of pi are also multiples of pi/2
+     * therefore a trivial check as (operand % pi/2)
+     * would consider 2pi, 3pi, ... as illegal.
+     * Therefore we need to consider illegal only values
+     * multiples of pi/2 but NOT of pi.
+     * For example:
+     * 2pi is multiple of both pi and pi/2 ==> ok
+     * 1.5pi is multiple of pi/2 but not of pi ==> illegal
+     */
+
+    mlir::Value modPiHalf = builder.create<ModOp>(
+        loc, builder.getF64Type(), operandAbs, piHalf);
+
+    mlir::Value modPi = builder.create<ModOp>(
+        loc, builder.getF64Type(), operandAbs, pi);
+
+    // Remainder is not close to zero
+    // (accounts for when the argument is approaching pi from
+    // greater values)
+    mlir::Value isMulPiHigher = builder.create<LteOp>(
+        loc, modPi, epsilon);
+    
+    // Remainder is not close to pi
+    // (accounts for when the argument is approaching pi from
+    // lower values)
+    mlir::Value diff = builder.create<SubOp>(
+        loc, modPi, pi);
+    mlir::Value diffAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), diff);
+    mlir::Value isMulPiLower = builder.create<LteOp>(
+        loc, diffAbs, epsilon);
+
+    mlir::Value isMulPi = builder.create<OrOp>(
+        loc, isMulPiLower, isMulPiHigher);
+
+    // Same thing for pi/2
+
+    mlir::Value isNotMulPiHalfHigher = builder.create<GteOp>(
+        loc, modPiHalf, epsilon);
+
+    diff = builder.create<SubOp>(
+        loc, modPiHalf, piHalf);
+    diffAbs = builder.create<AbsOp>(
+        loc, builder.getF64Type(), diff);
+    mlir::Value isNotMulPiHalfLower = builder.create<GteOp>(
+        loc, diffAbs, epsilon);
+
+    mlir::Value isNotMulPiHalf = builder.create<AndOp>(
+        loc, isNotMulPiHalfLower, isNotMulPiHalfHigher);
+
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: Argument of tan is invalid. It should not be multiple of pi/2\n"),
+        builder.getI64IntegerAttr(2));
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+
+    mlir::Value condition = builder.create<OrOp>(
+        loc, isMulPi, isNotMulPiHalf);
+
+    builder.create<YieldOp>(assertOp.getLoc(), condition);
   }
 }
 
