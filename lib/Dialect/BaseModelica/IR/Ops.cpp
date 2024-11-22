@@ -7920,6 +7920,32 @@ namespace mlir::bmodelica
 
     return {};
   }
+
+  void RemOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value operand = getY();
+    // convert operand to arith-compatible type
+    mlir::Value argCast = builder.create<CastOp>(
+        loc, builder.getF64Type(), operand);
+
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, builder.getF64FloatAttr(0));
+
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: taking the remainder of a division by 0\n"),
+        builder.getI64IntegerAttr(2));
+    
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+
+    mlir::Value condition = builder.create<NotEqOp>(
+        loc, argCast, zero);
+    
+    builder.create<YieldOp>(assertOp.getLoc(), condition);
+  }
 }
 
 //===---------------------------------------------------------------------===//
