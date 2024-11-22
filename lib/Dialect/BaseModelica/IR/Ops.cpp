@@ -740,23 +740,23 @@ void TensorExtractOp::generateRuntimeVerification(
   auto tensorShapedType = getTensor().getType().dyn_cast<mlir::ShapedType>();
   mlir::ValueRange indices = getIndices();
 
-  for(int64_t i = 0 ; i<rank; i++){
+  for(int64_t i = 0; i < rank; i++) {
     //take the i-th index
     auto it = indices.begin()+i;
     mlir::Value indexCast = builder.create<CastOp>(
-      loc, builder.getI64Type(), *it);
+        loc, builder.getI64Type(), *it);
     
     //take the dimension
-    if(uint64_t dim = tensorShapedType.getDimSize(i);
-        dim != LONG_MIN){
+    if(int64_t dim = tensorShapedType.getDimSize(i);
+        dim != LONG_MIN) {
       mlir::Value dimConst = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(dim));
+          loc, builder.getI64IntegerAttr(dim));
       
       auto assertOp = builder.create<AssertOp>(
-        loc,
-        builder.getStringAttr(
-          "Model error: Index out of bound\n"),
-        builder.getI64IntegerAttr(2));
+          loc,
+          builder.getStringAttr(
+            "Model error: Index out of bound\n"),
+          builder.getI64IntegerAttr(2));
       
       mlir::OpBuilder::InsertionGuard guard(builder);
       builder.createBlock(&assertOp.getConditionRegion());
@@ -766,7 +766,7 @@ void TensorExtractOp::generateRuntimeVerification(
       
       builder.create<YieldOp>(assertOp.getLoc(), condition);
     }
-  }   
+  }
 }
 } // namespace mlir::bmodelica
 
