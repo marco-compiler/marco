@@ -513,7 +513,8 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
 
 def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
     [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">]>
+                    "destination", "result", "$_self">,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Insert a value into a tensor.";
 
