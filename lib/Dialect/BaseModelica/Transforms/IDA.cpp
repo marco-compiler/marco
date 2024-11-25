@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "ida"
+
 #include "marco/Dialect/BaseModelica/Transforms/IDA.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
@@ -8,8 +10,6 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
-
-#define DEBUG_TYPE "ida"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_IDAPASS

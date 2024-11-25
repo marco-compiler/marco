@@ -1,62 +1,56 @@
+#define DEBUG_TYPE "scc-detection"
+
 #include "marco/Dialect/BaseModelica/Transforms/SCCDetection.h"
-#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/DependencyGraph.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
 
-#define DEBUG_TYPE "scc-detection"
-
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCCDETECTIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::bridge;
 
-namespace
-{
-  class SCCDetectionPass
-      : public mlir::bmodelica::impl::SCCDetectionPassBase<SCCDetectionPass>
-  {
-    public:
-      using SCCDetectionPassBase<SCCDetectionPass>::SCCDetectionPassBase;
+namespace {
+class SCCDetectionPass
+    : public mlir::bmodelica::impl::SCCDetectionPassBase<SCCDetectionPass> {
+public:
+  using SCCDetectionPassBase<SCCDetectionPass>::SCCDetectionPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-      getVariableAccessAnalysis(
-          EquationTemplateOp equationTemplate,
-          mlir::SymbolTableCollection& symbolTableCollection);
+private:
+  std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+  getVariableAccessAnalysis(EquationTemplateOp equationTemplate,
+                            mlir::SymbolTableCollection &symbolTableCollection);
 
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      mlir::LogicalResult computeSCCs(
-          mlir::IRRewriter& rewriter,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          bool initial,
-          llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+  mlir::LogicalResult
+  computeSCCs(mlir::IRRewriter &rewriter,
+              mlir::SymbolTableCollection &symbolTableCollection,
+              ModelOp modelOp, bool initial,
+              llvm::ArrayRef<MatchedEquationInstanceOp> equations);
 
-      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
-  };
-}
+  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
+};
+} // namespace
 
-void SCCDetectionPass::runOnOperation()
-{
+void SCCDetectionPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
-  auto runFn = [&](mlir::Operation* op) {
+  auto runFn = [&](mlir::Operation *op) {
     auto modelOp = mlir::cast<ModelOp>(op);
     LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
@@ -72,8 +66,8 @@ void SCCDetectionPass::runOnOperation()
     return mlir::success();
   };
 
-  if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps, runFn))) {
+  if (mlir::failed(
+          mlir::failableParallelForEach(&getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
 }
@@ -81,11 +75,10 @@ void SCCDetectionPass::runOnOperation()
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SCCDetectionPass::getVariableAccessAnalysis(
     EquationTemplateOp equationTemplate,
-    mlir::SymbolTableCollection& symbolTableCollection)
-{
+    mlir::SymbolTableCollection &symbolTableCollection) {
   mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = equationTemplate->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
+  mlir::Operation *parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation *> parentOps;
 
   while (parentOp != moduleOp) {
     parentOps.push_back(parentOp);
@@ -94,7 +87,7 @@ SCCDetectionPass::getVariableAccessAnalysis(
 
   mlir::AnalysisManager analysisManager = getAnalysisManager();
 
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+  for (mlir::Operation *op : llvm::reverse(parentOps)) {
     analysisManager = analysisManager.nest(op);
   }
 
@@ -104,7 +97,7 @@ SCCDetectionPass::getVariableAccessAnalysis(
     return *analysis;
   }
 
-  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+  auto &analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
       equationTemplate);
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
@@ -114,8 +107,7 @@ SCCDetectionPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp)
-{
+mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
 
   // Collect the equations.
@@ -130,17 +122,16 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp)
 
   // Compute the SCCs of the 'initial conditions' model.
   if (!initialEquations.empty()) {
-    if (mlir::failed(computeSCCs(
-            rewriter, symbolTableCollection, modelOp, true,
-            initialEquations))) {
+    if (mlir::failed(computeSCCs(rewriter, symbolTableCollection, modelOp, true,
+                                 initialEquations))) {
       return mlir::failure();
     }
   }
 
   // Compute the SCCs of the 'main' model.
   if (!mainEquations.empty()) {
-    if (mlir::failed(computeSCCs(
-            rewriter, symbolTableCollection, modelOp, false, mainEquations))) {
+    if (mlir::failed(computeSCCs(rewriter, symbolTableCollection, modelOp,
+                                 false, mainEquations))) {
       return mlir::failure();
     }
   }
@@ -149,20 +140,17 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp)
 }
 
 mlir::LogicalResult SCCDetectionPass::computeSCCs(
-    mlir::IRRewriter& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    bool initial,
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations)
-{
+    mlir::IRRewriter &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    bool initial, llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
-  llvm::SmallVector<MatchedEquationBridge*> equationPtrs;
+  llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
-    auto& bridge = variableBridges.emplace_back(
-            VariableBridge::build(variableOp));
+    auto &bridge =
+        variableBridges.emplace_back(VariableBridge::build(variableOp));
 
     auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
     variablesMap[symbolRefAttr] = bridge.get();
@@ -172,16 +160,16 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto& bridge = equationBridges.emplace_back(
-        MatchedEquationBridge::build(
-            equation, symbolTableCollection, *variableAccessAnalysis,
-            variablesMap));
+    auto &bridge = equationBridges.emplace_back(
+        MatchedEquationBridge::build(equation, symbolTableCollection,
+                                     *variableAccessAnalysis, variablesMap));
 
     equationPtrs.push_back(bridge.get());
   }
 
-  using DependencyGraph = marco::modeling::DependencyGraph<
-      VariableBridge*, MatchedEquationBridge*>;
+  using DependencyGraph =
+      marco::modeling::DependencyGraph<VariableBridge *,
+                                       MatchedEquationBridge *>;
 
   DependencyGraph dependencyGraph(&getContext());
   dependencyGraph.addEquations(equationPtrs);
@@ -201,21 +189,21 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     rewriter.setInsertionPointToStart(dynamicOp.getBody());
   }
 
-  for (const DependencyGraph::SCC& scc : SCCs) {
+  for (const DependencyGraph::SCC &scc : SCCs) {
     auto sccOp = rewriter.create<SCCOp>(modelOp.getLoc());
     mlir::OpBuilder::InsertionGuard sccGuard(rewriter);
 
     rewriter.setInsertionPointToStart(
         rewriter.createBlock(&sccOp.getBodyRegion()));
 
-    for (const auto& sccElement : scc) {
-      const auto& equation = dependencyGraph[*sccElement];
-      const IndexSet& indices = sccElement.getIndices();
+    for (const auto &sccElement : scc) {
+      const auto &equation = dependencyGraph[*sccElement];
+      const IndexSet &indices = sccElement.getIndices();
 
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      for (const MultidimensionalRange& matchedEquationRange :
+      for (const MultidimensionalRange &matchedEquationRange :
            llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
         auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
             rewriter.clone(*equation->op.getOperation()));
@@ -238,17 +226,14 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
   return mlir::success();
 }
 
-mlir::LogicalResult SCCDetectionPass::cleanModelOp(ModelOp modelOp)
-{
+mlir::LogicalResult SCCDetectionPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createSCCDetectionPass()
-  {
-    return std::make_unique<SCCDetectionPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createSCCDetectionPass() {
+  return std::make_unique<SCCDetectionPass>();
 }
+} // namespace mlir::bmodelica

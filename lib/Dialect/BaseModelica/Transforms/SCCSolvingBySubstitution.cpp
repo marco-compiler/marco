@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "scc-solving-by-substitution"
+
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingBySubstitution.h"
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
@@ -6,8 +8,6 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
-
-#define DEBUG_TYPE "scc-solving-by-substitution"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCCSOLVINGBYSUBSTITUTIONPASS

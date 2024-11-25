@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "scc-solving-with-kinsol"
+
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingWithKINSOL.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
@@ -8,8 +10,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
-
-#define DEBUG_TYPE "scc-solving-with-kinsol"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCCSOLVINGWITHKINSOLPASS

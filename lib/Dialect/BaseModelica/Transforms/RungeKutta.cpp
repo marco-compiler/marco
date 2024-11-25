@@ -1,3 +1,5 @@
+#define DEBUG_TYPE "runge-kutta"
+
 #include "marco/Dialect/BaseModelica/Transforms/RungeKutta.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
@@ -6,8 +8,6 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Debug.h"
-
-#define DEBUG_TYPE "runge-kutta"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_RUNGEKUTTAPASS
