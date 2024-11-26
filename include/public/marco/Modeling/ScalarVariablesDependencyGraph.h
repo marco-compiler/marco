@@ -7,6 +7,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include <mutex>
 #include <set>
+#include <type_traits>
 #include <vector>
 
 namespace marco::modeling {
@@ -48,6 +49,8 @@ template <typename VariableProperty, typename EquationProperty,
                   internal::dependency::ScalarEquation<EquationProperty>>>
 class ScalarVariablesDependencyGraph {
 public:
+  using Base = Graph;
+
   using VectorEquationTraits =
       ::marco::modeling::internal::dependency ::VectorEquationTraits<
           EquationProperty>;
@@ -67,8 +70,28 @@ public:
 
   using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
+private:
+  mlir::MLIRContext *context;
+  std::shared_ptr<Graph> graph;
+  WritesMap writesMap;
+
+public:
+  template <
+      typename G = Graph,
+      typename = typename std::enable_if<std::is_same_v<
+          G, internal::dependency::SingleEntryWeaklyConnectedDigraph<
+                 typename G::VertexProperty, typename G::EdgeProperty>>>::type>
   explicit ScalarVariablesDependencyGraph(mlir::MLIRContext *context)
-      : context(context) {}
+      : context(context) {
+    graph = std::make_shared<Graph>();
+  }
+
+  ScalarVariablesDependencyGraph(mlir::MLIRContext *context,
+                                 std::shared_ptr<Graph> graph)
+      : context(context), graph(graph) {
+    mapWrites();
+    addEdges(graph->verticesBegin(), graph->verticesEnd());
+  }
 
   mlir::MLIRContext *getContext() const {
     assert(context != nullptr);
@@ -79,11 +102,11 @@ public:
   /// {
 
   ScalarEquation &operator[](ScalarEquationDescriptor descriptor) {
-    return graph[descriptor];
+    return (*graph)[descriptor];
   }
 
   const ScalarEquation &operator[](ScalarEquationDescriptor descriptor) const {
-    return graph[descriptor];
+    return (*graph)[descriptor];
   }
 
   /// }
@@ -95,33 +118,7 @@ public:
         addEquationsAndMapWrites(equations);
 
     // Determine the dependencies among the equations.
-    std::mutex graphMutex;
-
-    auto mapFn = [&](ScalarEquationDescriptor equationDescriptor) {
-      const ScalarEquation &scalarEquation = graph[equationDescriptor];
-
-      auto reads =
-          VectorEquationTraits::getReads(&scalarEquation.getProperty());
-
-      for (const Access &read : reads) {
-        auto readIndexes =
-            read.getAccessFunction().map(scalarEquation.getIndex());
-
-        auto writeInfos = writesMap.equal_range(read.getVariable());
-
-        for (const auto &[variableId, writeInfo] :
-             llvm::make_range(writeInfos.first, writeInfos.second)) {
-          const auto &writtenIndexes = writeInfo.getWrittenVariableIndexes();
-
-          if (writtenIndexes == readIndexes) {
-            std::lock_guard<std::mutex> lockGuard(graphMutex);
-            graph.addEdge(writeInfo.getEquation(), equationDescriptor);
-          }
-        }
-      }
-    };
-
-    mlir::parallelForEach(getContext(), vertices, mapFn);
+    addEdges(vertices.begin(), vertices.end());
   }
 
   /// Perform a post-order visit of the dependency graph and get the
@@ -131,9 +128,9 @@ public:
     std::set<ScalarEquationDescriptor> set;
 
     for (ScalarEquationDescriptor equation :
-         llvm::post_order_ext(&graph, set)) {
+         llvm::post_order_ext(&static_cast<const Graph &>(*graph), set)) {
       // Ignore the entry node.
-      if (equation != graph.getEntryNode()) {
+      if (equation != graph->getEntryNode()) {
         result.push_back(equation);
       }
     }
@@ -162,21 +159,22 @@ private:
       const auto &write = VectorEquationTraits::getWrite(&equationProperty);
       const auto &accessFunction = write.getAccessFunction();
 
-      for (const auto &equationIndices :
+      for (Point equationIndices :
            VectorEquationTraits::getIterationRanges(&equationProperty)) {
         std::unique_lock<std::mutex> graphLockGuard(graphMutex);
 
-        ScalarEquationDescriptor descriptor =
-            graph.addVertex(ScalarEquation(equationProperty, equationIndices));
+        ScalarEquationDescriptor scalarEquationDescriptor =
+            graph->addVertex(ScalarEquation(equationProperty, equationIndices));
 
-        vertices.push_back(descriptor);
+        vertices.push_back(scalarEquationDescriptor);
         graphLockGuard.unlock();
 
         IndexSet writtenIndices(accessFunction.map(equationIndices));
         std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
 
         writesMap.emplace(write.getVariable(),
-                          WriteInfo(graph, write.getVariable(), descriptor,
+                          WriteInfo(*graph, write.getVariable(),
+                                    scalarEquationDescriptor,
                                     std::move(writtenIndices)));
       }
     };
@@ -185,10 +183,70 @@ private:
     return vertices;
   }
 
-private:
-  mlir::MLIRContext *context;
-  Graph graph;
-  WritesMap writesMap;
+  void mapWrites() {
+    // Differentiate the mutexes to enable more parallelism.
+    std::mutex graphMutex;
+    std::mutex writesMapMutex;
+
+    auto mapFn = [&](ScalarEquationDescriptor equationDescriptor) {
+      std::unique_lock<std::mutex> equationLockGuard(graphMutex);
+      const ScalarEquation &scalarEquation = graph[equationDescriptor];
+      equationLockGuard.unlock();
+
+      const auto &vectorEquationProperty = scalarEquation.getProperty();
+
+      const auto &write =
+          VectorEquationTraits::getWrite(&vectorEquationProperty);
+
+      const auto &accessFunction = write.getAccessFunction();
+
+      IndexSet writtenIndices(accessFunction.map(scalarEquation.getIndex()));
+      std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
+
+      writesMap.emplace(write.getVariable(),
+                        WriteInfo(*graph, write.getVariable(),
+                                  equationDescriptor,
+                                  std::move(writtenIndices)));
+    };
+
+    mlir::parallelForEach(getContext(), graph->verticesBegin(),
+                          graph->verticesEnd(), mapFn);
+  }
+
+  /// Determine the dependencies among the equations.
+  template <typename EquationsIt>
+  void addEdges(EquationsIt equationsBeginIt, EquationsIt equationsEndIt) {
+    std::mutex graphMutex;
+
+    auto mapFn = [&](ScalarEquationDescriptor equationDescriptor) {
+      std::unique_lock<std::mutex> equationLockGuard(graphMutex);
+      const ScalarEquation &scalarEquation = (*graph)[equationDescriptor];
+      equationLockGuard.unlock();
+
+      auto reads =
+          VectorEquationTraits::getReads(&scalarEquation.getProperty());
+
+      for (const Access &read : reads) {
+        auto readIndexes =
+            read.getAccessFunction().map(scalarEquation.getIndex());
+
+        auto writeInfos = writesMap.equal_range(read.getVariable());
+
+        for (const auto &[variableId, writeInfo] :
+             llvm::make_range(writeInfos.first, writeInfos.second)) {
+          const auto &writtenIndexes = writeInfo.getWrittenVariableIndexes();
+
+          if (writtenIndexes == readIndexes) {
+            std::lock_guard<std::mutex> edgeLockGuard(graphMutex);
+            graph->addEdge(writeInfo.getEquation(), equationDescriptor);
+          }
+        }
+      }
+    };
+
+    mlir::parallelForEach(getContext(), equationsBeginIt, equationsEndIt,
+                          mapFn);
+  }
 };
 } // namespace marco::modeling
 
