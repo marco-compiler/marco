@@ -18,7 +18,7 @@ class ArrayEquationsDependencyGraph {
 public:
   using Base = Graph;
 
-  using Variable = internal::dependency::VariableWrapper<VariableProperty>;
+  using Variable = internal::dependency::ArrayVariable<VariableProperty>;
   using Equation = typename Graph::VertexProperty;
 
   using EquationDescriptor = typename Graph::VertexDescriptor;
@@ -30,6 +30,7 @@ public:
   using WriteInfo =
       internal::dependency::WriteInfo<Graph, typename Variable::Id,
                                       EquationDescriptor>;
+
   using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
   using SCC = internal::dependency::SCC<Graph>;

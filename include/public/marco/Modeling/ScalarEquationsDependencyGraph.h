@@ -55,7 +55,7 @@ public:
       typename ::marco::modeling::internal::dependency::ArrayEquation<
           EquationProperty>::Traits;
 
-  using Variable = internal::dependency::VariableWrapper<VariableProperty>;
+  using Variable = internal::dependency::ArrayVariable<VariableProperty>;
   using ScalarEquation = typename Graph::VertexProperty;
 
   using ScalarEquationDescriptor = typename Graph::VertexDescriptor;
