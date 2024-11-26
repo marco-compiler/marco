@@ -13,7 +13,7 @@ namespace marco::modeling {
 template <typename VariableProperty, typename EquationProperty,
           typename Graph =
               internal::dependency::SingleEntryWeaklyConnectedDigraph<
-                  internal::dependency::VectorEquation<EquationProperty>>>
+                  internal::dependency::ArrayEquation<EquationProperty>>>
 class ArrayVariablesDependencyGraph {
 public:
   using Base = Graph;

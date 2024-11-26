@@ -51,15 +51,15 @@ class ScalarVariablesDependencyGraph {
 public:
   using Base = Graph;
 
-  using VectorEquationTraits =
-      ::marco::modeling::internal::dependency ::VectorEquationTraits<
-          EquationProperty>;
+  using ArrayEquationTraits =
+      typename ::marco::modeling::internal::dependency::ArrayEquation<
+          EquationProperty>::Traits;
 
   using Variable = internal::dependency::VariableWrapper<VariableProperty>;
   using ScalarEquation = typename Graph::VertexProperty;
 
   using ScalarEquationDescriptor = typename Graph::VertexDescriptor;
-  using AccessProperty = typename VectorEquationTraits::AccessProperty;
+  using AccessProperty = typename ArrayEquationTraits::AccessProperty;
 
   using Access =
       ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
@@ -156,11 +156,11 @@ private:
     std::mutex writesMapMutex;
 
     auto mapFn = [&](const EquationProperty &equationProperty) {
-      const auto &write = VectorEquationTraits::getWrite(&equationProperty);
+      const auto &write = ArrayEquationTraits::getWrite(&equationProperty);
       const auto &accessFunction = write.getAccessFunction();
 
       for (Point equationIndices :
-           VectorEquationTraits::getIterationRanges(&equationProperty)) {
+           ArrayEquationTraits::getIterationRanges(&equationProperty)) {
         std::unique_lock<std::mutex> graphLockGuard(graphMutex);
 
         ScalarEquationDescriptor scalarEquationDescriptor =
@@ -196,7 +196,7 @@ private:
       const auto &vectorEquationProperty = scalarEquation.getProperty();
 
       const auto &write =
-          VectorEquationTraits::getWrite(&vectorEquationProperty);
+          ArrayEquationTraits::getWrite(&vectorEquationProperty);
 
       const auto &accessFunction = write.getAccessFunction();
 
@@ -223,8 +223,7 @@ private:
       const ScalarEquation &scalarEquation = (*graph)[equationDescriptor];
       equationLockGuard.unlock();
 
-      auto reads =
-          VectorEquationTraits::getReads(&scalarEquation.getProperty());
+      auto reads = ArrayEquationTraits::getReads(&scalarEquation.getProperty());
 
       for (const Access &read : reads) {
         auto readIndexes =

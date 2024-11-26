@@ -178,10 +178,10 @@ namespace marco::modeling
         VariableProperty property;
     };
 
-    /// Utility class to provide additional methods relying on the ones provided by
+    /// Utility class providing additional methods relying on the ones provided by
     /// the user specialization.
     template<typename EquationProperty>
-    class VectorEquationTraits
+    class ArrayEquationTraits
     {
       private:
         using Traits = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
@@ -226,20 +226,20 @@ namespace marco::modeling
 
     /// Wrapper for equations.
     template<typename EquationProperty>
-    class VectorEquation
+    class ArrayEquation
     {
       public:
         using Property = EquationProperty;
-        using Traits = VectorEquationTraits<EquationProperty>;
+        using Traits = ArrayEquationTraits<EquationProperty>;
         using Id = typename Traits::Id;
         using Access = typename Traits::Access;
 
-        explicit VectorEquation(EquationProperty property)
+        explicit ArrayEquation(EquationProperty property)
             : property(property)
         {
         }
 
-        bool operator==(const VectorEquation& other) const
+        bool operator==(const ArrayEquation& other) const
         {
           return getId() == other.getId();
         }
