@@ -391,7 +391,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   ::marco::modeling::SCCsDependencyGraph<SCC> sccDependencyGraph;
   sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
 
-  auto scheduledSCCs = sccDependencyGraph.reversePostOrder();
+  auto scheduledSCCs = sccDependencyGraph.postOrder();
 
   llvm::DenseSet<MatchedEquationInstanceOp> promotableEquations;
 

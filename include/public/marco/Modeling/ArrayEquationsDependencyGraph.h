@@ -10,6 +10,10 @@
 #include <type_traits>
 
 namespace marco::modeling {
+/// Graph storing the dependencies between array equations.
+/// An edge from equation A to equation B is created if the computations inside
+/// A depends on B, meaning that B needs to be computed first. The order of
+/// computations is therefore given by a post-order visit of the graph.
 template <typename VariableProperty, typename EquationProperty,
           typename Graph =
               internal::dependency::SingleEntryWeaklyConnectedDigraph<
@@ -208,8 +212,8 @@ private:
 
   /// Explore the read accesses in order to determine the dependencies among the
   /// equations. An equation e1 depends on another equation e2 if e1 reads (a
-  /// part) of a variable that is written by e2. In this case, an arc from e2
-  /// to e1 is inserted (meaning that e2 must be computed before e1).
+  /// part) of a variable that is written by e2. In this case, an arc from e1
+  /// to e2 is inserted (meaning that e1 needs the result of e2).
   template <typename EquationsIt>
   void addEdges(EquationsIt equationsBeginIt, EquationsIt equationsEndIt) {
     std::mutex graphMutex;
@@ -234,7 +238,7 @@ private:
 
           if (writtenIndices.overlaps(readIndices)) {
             std::lock_guard<std::mutex> edgeLockGuard(graphMutex);
-            graph->addEdge(writeInfo.getEquation(), equationDescriptor);
+            graph->addEdge(equationDescriptor, writeInfo.getEquation());
           }
         }
       }

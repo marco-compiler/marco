@@ -192,7 +192,7 @@ public:
     SCCsGraph SCCsDependencyGraph;
     SCCsDependencyGraph.addSCCs(SCCs);
 
-    for (SCCDescriptor sccDescriptor : SCCsDependencyGraph.reversePostOrder()) {
+    for (SCCDescriptor sccDescriptor : SCCsDependencyGraph.postOrder()) {
       const SCCProperty &scc = SCCsDependencyGraph[sccDescriptor];
       auto sccElements = SCCTraits::getElements(&scc);
 
@@ -244,7 +244,7 @@ public:
           scalarDependencyGraph.addEquations(scalarEquationViews);
 
           for (const auto &equationDescriptor :
-               scalarDependencyGraph.reversePostOrder()) {
+               scalarDependencyGraph.postOrder()) {
             const auto &scalarEquation =
                 scalarDependencyGraph[equationDescriptor];
 

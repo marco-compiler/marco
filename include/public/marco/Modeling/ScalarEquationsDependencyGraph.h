@@ -43,6 +43,10 @@ private:
 };
 } // namespace internal::dependency
 
+/// Graph storing the dependencies between scalar equations.
+/// An edge from equation A to equation B is created if the computations inside
+/// A depends on B, meaning that B needs to be computed first. The order of
+/// computations is therefore given by a post-order visit of the graph.
 template <typename VariableProperty, typename EquationProperty,
           typename Graph =
               internal::dependency ::SingleEntryWeaklyConnectedDigraph<
@@ -237,7 +241,7 @@ private:
 
           if (writtenIndexes == readIndexes) {
             std::lock_guard<std::mutex> edgeLockGuard(graphMutex);
-            graph->addEdge(writeInfo.getEquation(), equationDescriptor);
+            graph->addEdge(equationDescriptor, writeInfo.getEquation());
           }
         }
       }

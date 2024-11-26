@@ -7,175 +7,113 @@
 #include <set>
 #include <vector>
 
-namespace marco::modeling
-{
-  template<typename SCCProperty>
-  class SCCsDependencyGraph
-  {
-    public:
-      using Graph =
-          internal::dependency::SingleEntryWeaklyConnectedDigraph<SCCProperty>;
+namespace marco::modeling {
+/// Graph storing the dependencies between SCCs.
+/// An edge from SCC A to SCC B is created if the computations inside A depends
+/// on B, meaning that B needs to be computed first. The order of computations
+/// is therefore given by a post-order visit of the graph.
+template <typename SCCProperty>
+class SCCsDependencyGraph {
+public:
+  using Graph =
+      internal::dependency::SingleEntryWeaklyConnectedDigraph<SCCProperty>;
 
-      using SCCDescriptor = typename Graph::VertexDescriptor;
+  using SCCDescriptor = typename Graph::VertexDescriptor;
 
-      using SCCTraits =
-          typename ::marco::modeling::dependency::SCCTraits<SCCProperty>;
+  using SCCTraits =
+      typename ::marco::modeling::dependency::SCCTraits<SCCProperty>;
 
-      using ElementRef = typename SCCTraits::ElementRef;
+  using ElementRef = typename SCCTraits::ElementRef;
 
-    private:
-      // Keep track of the parent-children relationships.
-      llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
+private:
+  // Keep track of the parent-children relationships.
+  llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
 
-      Graph graph;
+  Graph graph;
 
-    public:
-      /// @name Forwarded methods
-      /// {
+public:
+  /// @name Forwarded methods
+  /// {
 
-      SCCProperty& operator[](SCCDescriptor descriptor)
-      {
-        return graph[descriptor];
+  SCCProperty &operator[](SCCDescriptor descriptor) {
+    return graph[descriptor];
+  }
+
+  const SCCProperty &operator[](SCCDescriptor descriptor) const {
+    return graph[descriptor];
+  }
+
+  /// }
+
+  void addSCCs(llvm::ArrayRef<SCCProperty> SCCs) {
+    // Internalize the SCCs.
+    llvm::SmallVector<SCCDescriptor> sccDescriptors;
+
+    for (const auto &scc : SCCs) {
+      SCCDescriptor sccDescriptor = graph.addVertex(scc);
+      sccDescriptors.push_back(sccDescriptor);
+
+      for (const auto &element :
+           SCCTraits::getElements(&graph[sccDescriptor])) {
+        parentSCC[element] = sccDescriptor;
       }
+    }
 
-      const SCCProperty& operator[](SCCDescriptor descriptor) const
-      {
-        return graph[descriptor];
-      }
+    // Connect the SCCs.
+    for (SCCDescriptor sccDescriptor : sccDescriptors) {
+      const SCCProperty &scc = graph[sccDescriptor];
 
-      /// }
+      // The set of SCCs that have already been connected to the current
+      // SCC. This allows to avoid duplicated edges.
+      llvm::DenseSet<SCCDescriptor> connectedSCCs;
 
-      void addSCCs(llvm::ArrayRef<SCCProperty> SCCs)
-      {
-        // Internalize the SCCs.
-        llvm::SmallVector<SCCDescriptor> sccDescriptors;
+      for (const auto &source : SCCTraits::getElements(&scc)) {
+        for (const auto &destination :
+             SCCTraits::getDependencies(&scc, source)) {
+          SCCDescriptor destinationSCC = parentSCC.find(destination)->second;
 
-        for (const auto& scc : SCCs) {
-          SCCDescriptor sccDescriptor = graph.addVertex(scc);
-          sccDescriptors.push_back(sccDescriptor);
-
-          for (const auto& element :
-               SCCTraits::getElements(&graph[sccDescriptor])) {
-            parentSCC[element] = sccDescriptor;
-          }
-        }
-
-        // Connect the SCCs.
-        for (SCCDescriptor sccDescriptor : sccDescriptors) {
-          const SCCProperty& scc = graph[sccDescriptor];
-
-          // The set of SCCs that have already been connected to the current
-          // SCC. This allows to avoid duplicated edges.
-          llvm::DenseSet<SCCDescriptor> connectedSCCs;
-
-          for (const auto& source : SCCTraits::getElements(&scc)) {
-            for (const auto& destination :
-                 SCCTraits::getDependencies(&scc, source)) {
-              SCCDescriptor sourceSCC = parentSCC.find(destination)->second;
-
-              if (!connectedSCCs.contains(sourceSCC)) {
-                graph.addEdge(sourceSCC, sccDescriptor);
-                connectedSCCs.insert(sourceSCC);
-              }
-            }
+          if (!connectedSCCs.contains(destinationSCC)) {
+            graph.addEdge(sccDescriptor, destinationSCC);
+            connectedSCCs.insert(destinationSCC);
           }
         }
       }
+    }
+  }
 
-      /// Perform a post-order visit of the dependency graph and get the
-      /// ordered SCC descriptors.
-      std::vector<SCCDescriptor> postOrder() const
-      {
-        std::vector<SCCDescriptor> result;
-        std::set<SCCDescriptor> set;
+  /// Perform a post-order visit of the dependency graph and get the
+  /// ordered SCC descriptors.
+  std::vector<SCCDescriptor> postOrder() const {
+    std::vector<SCCDescriptor> result;
+    std::set<SCCDescriptor> set;
 
-        for (SCCDescriptor scc : llvm::post_order_ext(&graph, set)) {
-          // Ignore the entry node.
-          if (scc != graph.getEntryNode()) {
-            result.push_back(scc);
-          }
-        }
-
-        return result;
+    for (SCCDescriptor scc : llvm::post_order_ext(&graph, set)) {
+      // Ignore the entry node.
+      if (scc != graph.getEntryNode()) {
+        result.push_back(scc);
       }
+    }
 
-      /// Perform a reverse post-order visit of the dependency graph
-      /// and get the ordered SCC descriptors.
-      std::vector<SCCDescriptor> reversePostOrder() const
-      {
-        auto result = postOrder();
-        std::reverse(result.begin(), result.end());
-        return result;
-      }
+    return result;
+  }
 
-      /// @name Forwarded methods
-      /// {
+  /// Perform a reverse post-order visit of the dependency graph
+  /// and get the ordered SCC descriptors.
+  std::vector<SCCDescriptor> reversePostOrder() const {
+    auto result = postOrder();
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
 
-      auto SCCsBegin() const
-      {
-        return graph.verticesBegin();
-      }
+  /// @name Forwarded methods
+  /// {
 
-      auto SCCsEnd() const
-      {
-        return graph.verticesEnd();
-      }
+  auto SCCsBegin() const { return graph.verticesBegin(); }
 
-      auto dependentSCCsBegin(SCCDescriptor scc) const
-      {
-        return graph.linkedVerticesBegin(std::move(scc));
-      }
+  auto SCCsEnd() const { return graph.verticesEnd(); }
 
-      auto dependentSCCsEnd(SCCDescriptor scc) const
-      {
-        return graph.linkedVerticesEnd(std::move(scc));
-      }
-
-      /// }
-
-      /*
-      std::vector<std::vector<SCCDescriptor>> getPaths() const
-      {
-        std::vector<std::vector<SCCDescriptor>> result;
-        std::stack<std::vector<SCCDescriptor>> paths;
-
-        SCCDescriptor entryNode = graph.getEntryNode();
-
-        for (SCCDescriptor root : llvm::make_range(
-                 graph.linkedVerticesBegin(entryNode),
-                 graph.linkedVerticesEnd(entryNode))) {
-          std::vector<SCCDescriptor> newPath;
-          newPath.push_back(root);
-          paths.push(std::move(newPath));
-        }
-
-        while (!paths.empty()) {
-          llvm::SmallVector<std::vector<SCCDescriptor>> newPaths;
-          auto& top = paths.top();
-
-          for (SCCDescriptor child : llvm::make_range(
-                   graph.linkedVerticesBegin(top.back()),
-                   graph.linkedVerticesEnd(top.back()))) {
-            auto newPath = newPaths.emplace_back(top);
-            newPath.push_back(child);
-          }
-
-          if (newPaths.empty()) {
-            result.push_back(std::move(top));
-            paths.pop();
-          } else {
-            paths.pop();
-
-            for (auto& newPath : newPaths) {
-              paths.push(std::move(newPath));
-            }
-          }
-        }
-
-        return result;
-      }
-       */
-  };
-}
+  /// }
+};
+} // namespace marco::modeling
 
 #endif // MARCO_MODELING_SCCSDEPENDENCYGRAPH_H
