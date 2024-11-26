@@ -4,7 +4,7 @@
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include "marco/Modeling/ArrayEquationsDependencyGraph.h"
 #include "marco/Modeling/SCCsDependencyGraph.h"
-#include "marco/Modeling/ScalarVariablesDependencyGraph.h"
+#include "marco/Modeling/ScalarEquationsDependencyGraph.h"
 #include <numeric>
 
 namespace marco::modeling {
@@ -166,7 +166,7 @@ private:
       internal::scheduling::EquationView<VariableProperty, EquationDescriptor>;
 
   using ScalarDependencyGraph =
-      ScalarVariablesDependencyGraph<VariableProperty, EquationView>;
+      ScalarEquationsDependencyGraph<VariableProperty, EquationView>;
 
   using ScheduledEquation = scheduling::ScheduledEquation<EquationDescriptor>;
 

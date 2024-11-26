@@ -1,5 +1,5 @@
-#ifndef MARCO_MODELING_SCALARVARIABLESDEPENDENCYGRAPH_H
-#define MARCO_MODELING_SCALARVARIABLESDEPENDENCYGRAPH_H
+#ifndef MARCO_MODELING_SCALAREQUATIONSDEPENDENCYGRAPH_H
+#define MARCO_MODELING_SCALAREQUATIONSDEPENDENCYGRAPH_H
 
 #include "marco/Modeling/Dependency.h"
 #include "marco/Modeling/SingleEntryWeaklyConnectedDigraph.h"
@@ -47,7 +47,7 @@ template <typename VariableProperty, typename EquationProperty,
           typename Graph =
               internal::dependency ::SingleEntryWeaklyConnectedDigraph<
                   internal::dependency::ScalarEquation<EquationProperty>>>
-class ScalarVariablesDependencyGraph {
+class ScalarEquationsDependencyGraph {
 public:
   using Base = Graph;
 
@@ -81,12 +81,12 @@ public:
       typename = typename std::enable_if<std::is_same_v<
           G, internal::dependency::SingleEntryWeaklyConnectedDigraph<
                  typename G::VertexProperty, typename G::EdgeProperty>>>::type>
-  explicit ScalarVariablesDependencyGraph(mlir::MLIRContext *context)
+  explicit ScalarEquationsDependencyGraph(mlir::MLIRContext *context)
       : context(context) {
     graph = std::make_shared<Graph>();
   }
 
-  ScalarVariablesDependencyGraph(mlir::MLIRContext *context,
+  ScalarEquationsDependencyGraph(mlir::MLIRContext *context,
                                  std::shared_ptr<Graph> graph)
       : context(context), graph(graph) {
     mapWrites();
@@ -249,4 +249,4 @@ private:
 };
 } // namespace marco::modeling
 
-#endif // MARCO_MODELING_SCALARVARIABLESDEPENDENCYGRAPH_H
+#endif // MARCO_MODELING_SCALAREQUATIONSDEPENDENCYGRAPH_H

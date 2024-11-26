@@ -32,9 +32,9 @@ set(SOURCES
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
+    ScalarEquationsDependencyGraph.cpp
     SCC.cpp
     SCCsDependencyGraph.cpp
-    ScalarVariablesDependencyGraph.cpp
     Scheduling.cpp
     SingleEntryDigraph.cpp
     SingleEntryWeaklyConnectedDigraph.cpp)
