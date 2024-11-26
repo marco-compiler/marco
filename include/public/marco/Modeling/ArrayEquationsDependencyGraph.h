@@ -1,5 +1,5 @@
-#ifndef MARCO_MODELING_ARRAYVARIABLESDEPENDENCYGRAPH_H
-#define MARCO_MODELING_ARRAYVARIABLESDEPENDENCYGRAPH_H
+#ifndef MARCO_MODELING_ARRAYEQUATIONSDEPENDENCYGRAPH_H
+#define MARCO_MODELING_ARRAYEQUATIONSDEPENDENCYGRAPH_H
 
 #include "marco/Modeling/Dependency.h"
 #include "marco/Modeling/SCC.h"
@@ -14,7 +14,7 @@ template <typename VariableProperty, typename EquationProperty,
           typename Graph =
               internal::dependency::SingleEntryWeaklyConnectedDigraph<
                   internal::dependency::ArrayEquation<EquationProperty>>>
-class ArrayVariablesDependencyGraph {
+class ArrayEquationsDependencyGraph {
 public:
   using Base = Graph;
 
@@ -45,12 +45,12 @@ public:
       typename = typename std::enable_if<std::is_same_v<
           G, internal::dependency::SingleEntryWeaklyConnectedDigraph<
                  typename G::VertexProperty, typename G::EdgeProperty>>>::type>
-  explicit ArrayVariablesDependencyGraph(mlir::MLIRContext *context)
+  explicit ArrayEquationsDependencyGraph(mlir::MLIRContext *context)
       : context(context) {
     graph = std::make_shared<Graph>();
   }
 
-  ArrayVariablesDependencyGraph(mlir::MLIRContext *context,
+  ArrayEquationsDependencyGraph(mlir::MLIRContext *context,
                                 std::shared_ptr<Graph> graph)
       : context(context), graph(graph) {
     mapWrites();
@@ -245,4 +245,4 @@ private:
 };
 } // namespace marco::modeling
 
-#endif // MARCO_MODELING_ARRAYVARIABLESDEPENDENCYGRAPH_H
+#endif // MARCO_MODELING_ARRAYEQUATIONSDEPENDENCYGRAPH_H

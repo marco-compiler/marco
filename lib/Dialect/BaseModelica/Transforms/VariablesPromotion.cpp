@@ -6,53 +6,48 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_VARIABLESPROMOTIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class VariablesPromotionPass
-      : public mlir::bmodelica::impl::VariablesPromotionPassBase<
+namespace {
+class VariablesPromotionPass
+    : public mlir::bmodelica::impl::VariablesPromotionPassBase<
           VariablesPromotionPass>,
-        public VariableAccessAnalysis::AnalysisProvider
-  {
-    public:
-      using VariablesPromotionPassBase<VariablesPromotionPass>
-          ::VariablesPromotionPassBase;
+      public VariableAccessAnalysis::AnalysisProvider {
+public:
+  using VariablesPromotionPassBase<
+      VariablesPromotionPass>::VariablesPromotionPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-      getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
+  std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+  getCachedVariableAccessAnalysis(EquationTemplateOp op) override;
 
-    private:
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
+private:
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
+  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 
-      std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-      getVariableAccessAnalysis(
-          EquationTemplateOp equationTemplate,
-          mlir::SymbolTableCollection& symbolTableCollection);
-  };
-}
+  std::optional<std::reference_wrapper<VariableAccessAnalysis>>
+  getVariableAccessAnalysis(EquationTemplateOp equationTemplate,
+                            mlir::SymbolTableCollection &symbolTableCollection);
+};
+} // namespace
 
-void VariablesPromotionPass::runOnOperation()
-{
+void VariablesPromotionPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
-  auto runFn = [&](mlir::Operation* op) {
+  auto runFn = [&](mlir::Operation *op) {
     auto modelOp = mlir::cast<ModelOp>(op);
 
     if (mlir::failed(processModelOp(modelOp))) {
@@ -66,18 +61,17 @@ void VariablesPromotionPass::runOnOperation()
     return mlir::success();
   };
 
-  if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps, runFn))) {
+  if (mlir::failed(
+          mlir::failableParallelForEach(&getContext(), modelOps, runFn))) {
     return signalPassFailure();
   }
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-VariablesPromotionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
-{
+VariablesPromotionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op) {
   mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = op->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
+  mlir::Operation *parentOp = op->getParentOp();
+  llvm::SmallVector<mlir::Operation *> parentOps;
 
   while (parentOp != moduleOp) {
     parentOps.push_back(parentOp);
@@ -86,15 +80,14 @@ VariablesPromotionPass::getCachedVariableAccessAnalysis(EquationTemplateOp op)
 
   mlir::AnalysisManager analysisManager = getAnalysisManager();
 
-  for (mlir::Operation* currentParentOp : llvm::reverse(parentOps)) {
+  for (mlir::Operation *currentParentOp : llvm::reverse(parentOps)) {
     analysisManager = analysisManager.nest(currentParentOp);
   }
 
   return analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
-static IndexSet getVariableIndices(VariableOp variableOp)
-{
+static IndexSet getVariableIndices(VariableOp variableOp) {
   IndexSet indices = variableOp.getIndices();
 
   if (indices.empty()) {
@@ -105,241 +98,206 @@ static IndexSet getVariableIndices(VariableOp variableOp)
   return indices;
 }
 
-namespace
-{
-  struct VariableBridge
-  {
-    VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
-        : name(name),
-          indices(std::move(indices))
-    {
+namespace {
+struct VariableBridge {
+  VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
+      : name(name), indices(std::move(indices)) {}
+
+  // Forbid copies to avoid dangling pointers by design.
+  VariableBridge(const VariableBridge &other) = delete;
+  VariableBridge(VariableBridge &&other) = delete;
+  VariableBridge &operator=(const VariableBridge &other) = delete;
+  VariableBridge &operator==(const VariableBridge &other) = delete;
+
+  mlir::SymbolRefAttr name;
+  IndexSet indices;
+};
+
+struct EquationBridge {
+  EquationBridge(
+      MatchedEquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+      VariableAccessAnalysis &accessAnalysis,
+      llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
+      : op(op), symbolTable(&symbolTable), accessAnalysis(&accessAnalysis),
+        variablesMap(&variablesMap) {}
+
+  // Forbid copies to avoid dangling pointers by design.
+  EquationBridge(const EquationBridge &other) = delete;
+  EquationBridge(EquationBridge &&other) = delete;
+  EquationBridge &operator=(const EquationBridge &other) = delete;
+  EquationBridge &operator==(const EquationBridge &other) = delete;
+
+  MatchedEquationInstanceOp op;
+  mlir::SymbolTableCollection *symbolTable;
+  VariableAccessAnalysis *accessAnalysis;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> *variablesMap;
+};
+} // namespace
+
+namespace marco::modeling::dependency {
+template <>
+struct VariableTraits<::VariableBridge *> {
+  using Variable = ::VariableBridge *;
+  using Id = ::VariableBridge *;
+
+  static Id getId(const Variable *variable) { return *variable; }
+
+  static size_t getRank(const Variable *variable) {
+    size_t rank = (*variable)->indices.rank();
+
+    if (rank == 0) {
+      return 1;
     }
 
-    // Forbid copies to avoid dangling pointers by design.
-    VariableBridge(const VariableBridge& other) = delete;
-    VariableBridge(VariableBridge&& other) = delete;
-    VariableBridge& operator=(const VariableBridge& other) = delete;
-    VariableBridge& operator==(const VariableBridge& other) = delete;
+    return rank;
+  }
 
-    mlir::SymbolRefAttr name;
-    IndexSet indices;
-  };
+  static IndexSet getIndices(const Variable *variable) {
+    const IndexSet &result = (*variable)->indices;
 
-  struct EquationBridge
-  {
-    EquationBridge(
-        MatchedEquationInstanceOp op,
-        mlir::SymbolTableCollection& symbolTable,
-        VariableAccessAnalysis& accessAnalysis,
-        llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>& variablesMap)
-        : op(op),
-          symbolTable(&symbolTable),
-          accessAnalysis(&accessAnalysis),
-          variablesMap(&variablesMap)
-    {
+    if (result.empty()) {
+      return {Point(0)};
     }
 
-    // Forbid copies to avoid dangling pointers by design.
-    EquationBridge(const EquationBridge& other) = delete;
-    EquationBridge(EquationBridge&& other) = delete;
-    EquationBridge& operator=(const EquationBridge& other) = delete;
-    EquationBridge& operator==(const EquationBridge& other) = delete;
+    return result;
+  }
+};
 
-    MatchedEquationInstanceOp op;
-    mlir::SymbolTableCollection* symbolTable;
-    VariableAccessAnalysis* accessAnalysis;
-    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*>* variablesMap;
-  };
-}
+template <>
+struct EquationTraits<::EquationBridge *> {
+  using Equation = ::EquationBridge *;
+  using Id = mlir::Operation *;
 
-namespace marco::modeling::dependency
-{
-  template<>
-  struct VariableTraits<::VariableBridge*>
-  {
-    using Variable = ::VariableBridge*;
-    using Id = ::VariableBridge*;
+  static Id getId(const Equation *equation) {
+    return (*equation)->op.getOperation();
+  }
 
-    static Id getId(const Variable* variable)
-    {
-      return *variable;
+  static size_t getNumOfIterationVars(const Equation *equation) {
+    auto numOfInductions =
+        static_cast<uint64_t>((*equation)->op.getInductionVariables().size());
+
+    if (numOfInductions == 0) {
+      // Scalar equation.
+      return 1;
     }
 
-    static size_t getRank(const Variable* variable)
-    {
-      size_t rank = (*variable)->indices.rank();
+    return static_cast<size_t>(numOfInductions);
+  }
 
-      if (rank == 0) {
-        return 1;
-      }
+  static IndexSet getIterationRanges(const Equation *equation) {
+    IndexSet iterationSpace = (*equation)->op.getIterationSpace();
 
-      return rank;
+    if (iterationSpace.empty()) {
+      // Scalar equation.
+      iterationSpace += MultidimensionalRange(Range(0, 1));
     }
 
-    static IndexSet getIndices(const Variable* variable)
-    {
-      const IndexSet& result = (*variable)->indices;
+    return iterationSpace;
+  }
 
-      if (result.empty()) {
-        return {Point(0)};
-      }
+  using VariableType = ::VariableBridge *;
+  using AccessProperty = EquationPath;
 
-      return result;
-    }
-  };
+  static std::vector<Access<VariableType, AccessProperty>>
+  getAccesses(const Equation *equation) {
+    std::vector<Access<VariableType, AccessProperty>> accesses;
 
-  template<>
-  struct EquationTraits<::EquationBridge*>
-  {
-    using Equation = ::EquationBridge*;
-    using Id = mlir::Operation*;
+    auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
+        (*equation)->op, *(*equation)->symbolTable);
 
-    static Id getId(const Equation* equation)
-    {
-      return (*equation)->op.getOperation();
-    }
+    if (cachedAccesses) {
+      for (auto &access : *cachedAccesses) {
+        auto accessFunction =
+            getAccessFunction((*equation)->op.getContext(), access);
 
-    static size_t getNumOfIterationVars(const Equation* equation)
-    {
-      auto numOfInductions = static_cast<uint64_t>(
-          (*equation)->op.getInductionVariables().size());
+        auto variableIt =
+            (*(*equation)->variablesMap).find(access.getVariable());
 
-      if (numOfInductions == 0) {
-        // Scalar equation.
-        return 1;
-      }
-
-      return static_cast<size_t>(numOfInductions);
-    }
-
-    static IndexSet getIterationRanges(const Equation* equation)
-    {
-      IndexSet iterationSpace = (*equation)->op.getIterationSpace();
-
-      if (iterationSpace.empty()) {
-        // Scalar equation.
-        iterationSpace += MultidimensionalRange(Range(0, 1));
-      }
-
-      return iterationSpace;
-    }
-
-    using VariableType = ::VariableBridge*;
-    using AccessProperty = EquationPath;
-
-    static std::vector<Access<VariableType, AccessProperty>>
-    getAccesses(const Equation* equation)
-    {
-      std::vector<Access<VariableType, AccessProperty>> accesses;
-
-      auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-          (*equation)->op, *(*equation)->symbolTable);
-
-      if (cachedAccesses) {
-        for (auto& access : *cachedAccesses) {
-          auto accessFunction = getAccessFunction(
-              (*equation)->op.getContext(), access);
-
-          auto variableIt =
-              (*(*equation)->variablesMap).find(access.getVariable());
-
-          if (variableIt != (*(*equation)->variablesMap).end()) {
-            accesses.emplace_back(
-                variableIt->getSecond(),
-                std::move(accessFunction),
-                access.getPath());
-          }
+        if (variableIt != (*(*equation)->variablesMap).end()) {
+          accesses.emplace_back(variableIt->getSecond(),
+                                std::move(accessFunction), access.getPath());
         }
       }
-
-      return accesses;
     }
 
-    static Access<VariableType, AccessProperty> getWrite(
-        const Equation* equation)
-    {
-      auto matchPath = (*equation)->op.getPath();
+    return accesses;
+  }
 
-      auto write = (*equation)->op.getAccessAtPath(
-          *(*equation)->symbolTable, matchPath.getValue());
+  static Access<VariableType, AccessProperty>
+  getWrite(const Equation *equation) {
+    auto matchPath = (*equation)->op.getPath();
 
-      assert(write.has_value() && "Can't get the write access");
+    auto write = (*equation)->op.getAccessAtPath(*(*equation)->symbolTable,
+                                                 matchPath.getValue());
 
-      auto accessFunction = getAccessFunction(
-          (*equation)->op.getContext(), *write);
+    assert(write.has_value() && "Can't get the write access");
 
-      return Access(
-          (*(*equation)->variablesMap)[write->getVariable()],
-          std::move(accessFunction),
-          write->getPath());
+    auto accessFunction =
+        getAccessFunction((*equation)->op.getContext(), *write);
+
+    return Access((*(*equation)->variablesMap)[write->getVariable()],
+                  std::move(accessFunction), write->getPath());
+  }
+
+  static std::vector<Access<VariableType, AccessProperty>>
+  getReads(const Equation *equation) {
+    IndexSet equationIndices = getIterationRanges(equation);
+
+    auto accesses = (*equation)->accessAnalysis->getAccesses(
+        (*equation)->op, *(*equation)->symbolTable);
+
+    llvm::SmallVector<VariableAccess> readAccesses;
+
+    if (!accesses) {
+      llvm_unreachable("Can't compute read accesses");
+      return {};
     }
 
-    static std::vector<Access<VariableType, AccessProperty>> getReads(
-        const Equation* equation)
-    {
-      IndexSet equationIndices = getIterationRanges(equation);
-
-      auto accesses = (*equation)->accessAnalysis->getAccesses(
-          (*equation)->op, *(*equation)->symbolTable);
-
-      llvm::SmallVector<VariableAccess> readAccesses;
-
-      if (!accesses) {
-        llvm_unreachable("Can't compute read accesses");
-        return {};
-      }
-
-      if (mlir::failed((*equation)->op.getReadAccesses(
-              readAccesses,
-              *(*equation)->symbolTable,
-              equationIndices,
-              *accesses))) {
-        llvm_unreachable("Can't compute read accesses");
-        return {};
-      }
-
-      std::vector<Access<VariableType, AccessProperty>> reads;
-
-      for (const VariableAccess& readAccess : readAccesses) {
-        auto variableIt =
-            (*(*equation)->variablesMap).find(readAccess.getVariable());
-
-        reads.emplace_back(
-            variableIt->getSecond(),
-            getAccessFunction((*equation)->op.getContext(), readAccess),
-            readAccess.getPath());
-      }
-
-      return reads;
+    if (mlir::failed((*equation)->op.getReadAccesses(
+            readAccesses, *(*equation)->symbolTable, equationIndices,
+            *accesses))) {
+      llvm_unreachable("Can't compute read accesses");
+      return {};
     }
 
-    static std::unique_ptr<AccessFunction> getAccessFunction(
-        mlir::MLIRContext* context,
-        const VariableAccess& access)
-    {
-      const AccessFunction& accessFunction = access.getAccessFunction();
+    std::vector<Access<VariableType, AccessProperty>> reads;
 
-      if (accessFunction.getNumOfResults() == 0) {
-        // Access to scalar variable.
-        return AccessFunction::build(mlir::AffineMap::get(
-            accessFunction.getNumOfDims(), 0,
-            mlir::getAffineConstantExpr(0, context)));
-      }
+    for (const VariableAccess &readAccess : readAccesses) {
+      auto variableIt =
+          (*(*equation)->variablesMap).find(readAccess.getVariable());
 
-      return accessFunction.clone();
+      reads.emplace_back(
+          variableIt->getSecond(),
+          getAccessFunction((*equation)->op.getContext(), readAccess),
+          readAccess.getPath());
     }
-  };
-}
 
-mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
-{
+    return reads;
+  }
+
+  static std::unique_ptr<AccessFunction>
+  getAccessFunction(mlir::MLIRContext *context, const VariableAccess &access) {
+    const AccessFunction &accessFunction = access.getAccessFunction();
+
+    if (accessFunction.getNumOfResults() == 0) {
+      // Access to scalar variable.
+      return AccessFunction::build(
+          mlir::AffineMap::get(accessFunction.getNumOfDims(), 0,
+                               mlir::getAffineConstantExpr(0, context)));
+    }
+
+    return accessFunction.clone();
+  }
+};
+} // namespace marco::modeling::dependency
+
+mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   VariableAccessAnalysis::IRListener variableAccessListener(*this);
   mlir::IRRewriter rewriter(&getContext(), &variableAccessListener);
   mlir::SymbolTableCollection symbolTableCollection;
 
   // Retrieve the derivatives map.
-  const DerivativesMap& derivativesMap =
-      modelOp.getProperties().derivativesMap;
+  const DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
 
   // Collect the variables.
   llvm::SmallVector<VariableOp> variables;
@@ -356,19 +314,16 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   // scalar variables.
   WritesMap<VariableOp, MatchedEquationInstanceOp> initialConditionsWritesMap;
 
-  if (mlir::failed(getWritesMap(
-          initialConditionsWritesMap,
-          modelOp,
-          initialEquations,
-          symbolTableCollection))) {
+  if (mlir::failed(getWritesMap(initialConditionsWritesMap, modelOp,
+                                initialEquations, symbolTableCollection))) {
     return mlir::failure();
   }
 
   // Get the writes map of the 'main' model.
   WritesMap<VariableOp, MatchedEquationInstanceOp> mainWritesMap;
 
-  if (mlir::failed(getWritesMap(
-          mainWritesMap, modelOp, mainEquations, symbolTableCollection))) {
+  if (mlir::failed(getWritesMap(mainWritesMap, modelOp, mainEquations,
+                                symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -394,39 +349,38 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   // doing a post-order visit.
 
   using VectorDependencyGraph =
-      ::marco::modeling::ArrayVariablesDependencyGraph<
-          ::VariableBridge*, ::EquationBridge*>;
+      ::marco::modeling::ArrayEquationsDependencyGraph<::VariableBridge *,
+                                                       ::EquationBridge *>;
 
   using SCC = VectorDependencyGraph::SCC;
 
   VectorDependencyGraph vectorDependencyGraph(&getContext());
 
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge*> variablesMap;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
-  llvm::SmallVector<EquationBridge*> equationPtrs;
+  llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : variables) {
     auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
 
-    auto& bridge = variableBridges.emplace_back(
-        std::make_unique<VariableBridge>(
-            symbolRefAttr,
-            getVariableIndices(variableOp)));
+    auto &bridge =
+        variableBridges.emplace_back(std::make_unique<VariableBridge>(
+            symbolRefAttr, getVariableIndices(variableOp)));
 
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
   for (MatchedEquationInstanceOp equationOp : mainEquations) {
-    auto accessAnalysis = getVariableAccessAnalysis(
-        equationOp.getTemplate(), symbolTableCollection);
+    auto accessAnalysis = getVariableAccessAnalysis(equationOp.getTemplate(),
+                                                    symbolTableCollection);
 
     if (!accessAnalysis) {
       return mlir::failure();
     }
 
-    auto& bridge = equationBridges.emplace_back(
-        std::make_unique<EquationBridge>(
+    auto &bridge =
+        equationBridges.emplace_back(std::make_unique<EquationBridge>(
             equationOp, symbolTableCollection, *accessAnalysis, variablesMap));
 
     equationPtrs.push_back(bridge.get());
@@ -441,14 +395,14 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 
   llvm::DenseSet<MatchedEquationInstanceOp> promotableEquations;
 
-  for (const auto& sccDescriptor : scheduledSCCs) {
-    const SCC& scc = sccDependencyGraph[sccDescriptor];
+  for (const auto &sccDescriptor : scheduledSCCs) {
+    const SCC &scc = sccDependencyGraph[sccDescriptor];
 
     // Collect the equations of the SCC for a faster lookup.
     llvm::DenseSet<MatchedEquationInstanceOp> sccEquations;
 
-    for (const auto& equationDescriptor : scc) {
-      EquationBridge* equation =
+    for (const auto &equationDescriptor : scc) {
+      EquationBridge *equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
       sccEquations.insert(equation->op);
@@ -459,8 +413,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 
     bool promotable = true;
 
-    for (const auto& equationDescriptor : scc) {
-      EquationBridge* equation =
+    for (const auto &equationDescriptor : scc) {
+      EquationBridge *equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
       auto accesses = equation->accessAnalysis->getAccesses(
@@ -475,9 +429,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       // must not be promoted to an initial equation.
       bool timeUsage = false;
 
-      equation->op.getTemplate().walk([&](TimeOp timeOp) {
-        timeUsage = true;
-      });
+      equation->op.getTemplate().walk([&](TimeOp timeOp) { timeUsage = true; });
 
       if (timeUsage) {
         promotable = false;
@@ -497,10 +449,9 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       }
 
       // Check the accesses to the variables.
-      promotable &= llvm::all_of(*accesses, [&](const VariableAccess& access) {
-        auto readVariableOp =
-            symbolTableCollection.lookupSymbolIn<VariableOp>(
-                modelOp, access.getVariable());
+      promotable &= llvm::all_of(*accesses, [&](const VariableAccess &access) {
+        auto readVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+            modelOp, access.getVariable());
 
         if (parameters.contains(readVariableOp)) {
           // If the read variable is a parameter, then there is no need for
@@ -508,7 +459,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
           return true;
         }
 
-        const AccessFunction& accessFunction = access.getAccessFunction();
+        const AccessFunction &accessFunction = access.getAccessFunction();
         IndexSet iterationSpace = equation->op.getIterationSpace();
         auto readIndices = accessFunction.map(iterationSpace);
 
@@ -521,9 +472,9 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
           return false;
         }
 
-        return llvm::all_of(writingEquations, [&](const auto& entry) {
+        return llvm::all_of(writingEquations, [&](const auto &entry) {
           MatchedEquationInstanceOp writingEquation = entry.second.second;
-          const IndexSet& writtenIndices = entry.second.first;
+          const IndexSet &writtenIndices = entry.second.first;
 
           if (promotableEquations.contains(writingEquation)) {
             // The writing equation (and the scalar variables it writes to) has
@@ -537,7 +488,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
             return true;
           }
 
-          if (!writtenIndices.empty() && !writtenIndices.overlaps(readIndices)) {
+          if (!writtenIndices.empty() &&
+              !writtenIndices.overlaps(readIndices)) {
             // Ignore the equation (consider it valid) if its written indices
             // don't overlap the read ones.
             return true;
@@ -550,8 +502,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
 
     if (promotable) {
       // Promote all the equations of the SCC.
-      for (const auto& equationDescriptor : scc) {
-        EquationBridge* equation =
+      for (const auto &equationDescriptor : scc) {
+        EquationBridge *equation =
             scc.getGraph()[equationDescriptor].getProperty();
 
         promotableEquations.insert(equation->op);
@@ -565,7 +517,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
             symbolTableCollection.lookupSymbolIn<VariableOp>(
                 modelOp, writeAccess->getVariable());
 
-        const AccessFunction& writeAccessFunction =
+        const AccessFunction &writeAccessFunction =
             writeAccess->getAccessFunction();
 
         std::optional<IndexSet> equationIndices =
@@ -606,15 +558,15 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
     IndexSet variableIndices;
 
     // Initially, consider all the variable indices.
-    for (const auto& entry : llvm::make_range(
-             mainWritesMap.equal_range(variableOp))) {
+    for (const auto &entry :
+         llvm::make_range(mainWritesMap.equal_range(variableOp))) {
       variableIndices += entry.second.first;
     }
 
     // Then, remove the indices that are written by already existing initial
     // equations.
-    for (const auto& entry : llvm::make_range(
-             initialConditionsWritesMap.equal_range(variableOp))) {
+    for (const auto &entry :
+         llvm::make_range(initialConditionsWritesMap.equal_range(variableOp))) {
       variableIndices -= entry.second.first;
     }
 
@@ -622,7 +574,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
     auto writingEquations =
         llvm::make_range(mainWritesMap.equal_range(variableOp));
 
-    for (const auto& entry : writingEquations) {
+    for (const auto &entry : writingEquations) {
       MatchedEquationInstanceOp equationOp = entry.second.second;
       IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
@@ -632,11 +584,10 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
         return mlir::failure();
       }
 
-      const AccessFunction& writeAccessFunction =
+      const AccessFunction &writeAccessFunction =
           writeAccess->getAccessFunction();
 
-      IndexSet writtenIndices =
-          writeAccessFunction.map(writingEquationIndices);
+      IndexSet writtenIndices = writeAccessFunction.map(writingEquationIndices);
 
       // Restrict the indices to the ones not handled by the initial
       // equations.
@@ -658,8 +609,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
       if (shouldCreateInitialEquations) {
         rewriter.setInsertionPoint(equationOp->getParentOfType<DynamicOp>());
 
-        auto initialOp =
-            rewriter.create<InitialOp>(modelOp.getLoc());
+        auto initialOp = rewriter.create<InitialOp>(modelOp.getLoc());
 
         rewriter.createBlock(&initialOp.getBodyRegion());
         rewriter.setInsertionPointToStart(initialOp.getBody());
@@ -673,14 +623,14 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
           writingEquationIndices =
               writingEquationIndices.getCanonicalRepresentation();
 
-          for (const MultidimensionalRange& range : llvm::make_range(
-                   writingEquationIndices.rangesBegin(),
-                   writingEquationIndices.rangesEnd())) {
+          for (const MultidimensionalRange &range :
+               llvm::make_range(writingEquationIndices.rangesBegin(),
+                                writingEquationIndices.rangesEnd())) {
             auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
                 rewriter.clone(*equationOp.getOperation()));
 
             clonedEquationOp.setIndicesAttr(
-                MultidimensionalRangeAttr::get(rewriter.getContext(),range));
+                MultidimensionalRangeAttr::get(rewriter.getContext(), range));
           }
 
           rewriter.eraseOp(equationOp);
@@ -697,8 +647,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp)
   return mlir::success();
 }
 
-mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp)
-{
+mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
@@ -707,11 +656,10 @@ mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp)
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 VariablesPromotionPass::getVariableAccessAnalysis(
     EquationTemplateOp equationTemplate,
-    mlir::SymbolTableCollection& symbolTableCollection)
-{
+    mlir::SymbolTableCollection &symbolTableCollection) {
   mlir::ModuleOp moduleOp = getOperation();
-  mlir::Operation* parentOp = equationTemplate->getParentOp();
-  llvm::SmallVector<mlir::Operation*> parentOps;
+  mlir::Operation *parentOp = equationTemplate->getParentOp();
+  llvm::SmallVector<mlir::Operation *> parentOps;
 
   while (parentOp != moduleOp) {
     parentOps.push_back(parentOp);
@@ -720,7 +668,7 @@ VariablesPromotionPass::getVariableAccessAnalysis(
 
   mlir::AnalysisManager analysisManager = getAnalysisManager();
 
-  for (mlir::Operation* op : llvm::reverse(parentOps)) {
+  for (mlir::Operation *op : llvm::reverse(parentOps)) {
     analysisManager = analysisManager.nest(op);
   }
 
@@ -730,7 +678,7 @@ VariablesPromotionPass::getVariableAccessAnalysis(
     return *analysis;
   }
 
-  auto& analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
+  auto &analysis = analysisManager.getChildAnalysis<VariableAccessAnalysis>(
       equationTemplate);
 
   if (mlir::failed(analysis.initialize(symbolTableCollection))) {
@@ -740,10 +688,8 @@ VariablesPromotionPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createVariablesPromotionPass()
-  {
-    return std::make_unique<VariablesPromotionPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createVariablesPromotionPass() {
+  return std::make_unique<VariablesPromotionPass>();
 }
+} // namespace mlir::bmodelica
