@@ -20,6 +20,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool outputArraysPromotion = false;
   bool heapToStackPromotion = false;
   bool readOnlyVariablesPropagation = false;
+  bool variablesPruning = false;
   bool variablesToParametersPromotion = false;
   int64_t sccSolvingBySubstitutionMaxIterations = 100;
   int64_t sccSolvingBySubstitutionMaxEquationsInSCC = 5;

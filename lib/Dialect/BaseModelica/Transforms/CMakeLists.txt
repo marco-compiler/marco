@@ -56,6 +56,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     Scheduling.cpp
     SingleValuedInductionElimination.cpp
     VariablesPromotion.cpp
+    VariablesPruning.cpp
     VectorizableOpInterfaceImpl.cpp
     ViewAccessFolding.cpp
 

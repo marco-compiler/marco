@@ -124,6 +124,9 @@ public:
     return result;
   }
 
+  /// Get the writes map of all the equations added to the graph.
+  const WritesMap &getWritesMap() const { return writesMap; }
+
   /// Map each array variable to the equations that write into some of its
   /// scalar positions.
   ///

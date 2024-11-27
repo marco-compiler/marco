@@ -42,6 +42,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/Scheduling.h"
 #include "marco/Dialect/BaseModelica/Transforms/SingleValuedInductionElimination.h"
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPromotion.h"
+#include "marco/Dialect/BaseModelica/Transforms/VariablesPruning.h"
 #include "marco/Dialect/BaseModelica/Transforms/ViewAccessFolding.h"
 
 namespace mlir::bmodelica {

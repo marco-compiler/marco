@@ -513,6 +513,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.outputArraysPromotion = true;
     options.heapToStackPromotion = true;
     options.readOnlyVariablesPropagation = true;
+    options.variablesPruning = true;
     options.variablesToParametersPromotion = true;
     options.inlining = true;
     options.cse = true;
@@ -525,6 +526,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.debug = false;
     options.cse = true;
     options.singleValuedInductionElimination = true;
+    options.variablesPruning = true;
     options.loopFusion = true;
     options.loopCoalescing = true;
   }

@@ -833,6 +833,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());
   }
 
+  if (ci.getCodeGenOptions().variablesPruning) {
+    pm.addPass(mlir::bmodelica::createVariablesPruningPass());
+  }
+
   pm.addPass(mlir::bmodelica::createSCCDetectionPass());
 
   if (ci.getCodeGenOptions().variablesToParametersPromotion) {

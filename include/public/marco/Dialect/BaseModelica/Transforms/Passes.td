@@ -400,6 +400,28 @@ def VariablesPromotionPass
     let constructor = "mlir::bmodelica::createVariablesPromotionPass()";
 }
 
+def VariablesPruningPass : Pass<"variables-pruning", "mlir::ModuleOp">
+{
+    let summary = "Remove the unneeded variables.";
+
+    let description = [{
+        Remove the variables and the associated matched equations that are not
+        needed to compute the output variables.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let options = [
+        Option<"outputVariables",
+               "output-variables", "std::string", "",
+               "Comma separated list of output variables">
+    ];
+
+    let constructor = "mlir::bmodelica::createVariablesPruningPass()";
+}
+
 //===---------------------------------------------------------------------===//
 // Model solving
 //===---------------------------------------------------------------------===//
