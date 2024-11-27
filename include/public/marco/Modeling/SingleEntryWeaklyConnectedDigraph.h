@@ -114,8 +114,9 @@ namespace llvm {
 // that are defined inside LLVM itself. This way we don't have to implement
 // them from scratch.
 template <typename VertexProperty, typename EdgeProperty>
-struct GraphTraits<const marco::modeling::internal::dependency ::
-                       SingleEntryWeaklyConnectedDigraph<VertexProperty, EdgeProperty> *> {
+struct GraphTraits<
+    const marco::modeling::internal::dependency ::
+        SingleEntryWeaklyConnectedDigraph<VertexProperty, EdgeProperty> *> {
   // The LLVM traits require the class specified as Graph to be copyable.
   // We use its address to overcome this limitation.
   using Graph = const marco::modeling::internal::dependency ::

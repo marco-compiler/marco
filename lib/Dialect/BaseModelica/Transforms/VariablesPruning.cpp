@@ -34,7 +34,7 @@ private:
   collectUsedVariables(llvm::DenseSet<VariableOp> &usedVariables,
                        mlir::SymbolTableCollection &symbolTableCollection,
                        ModelOp modelOp,
-                       const llvm::DenseSet<VariableOp>& outputVariables,
+                       const llvm::DenseSet<VariableOp> &outputVariables,
                        llvm::ArrayRef<MatchedEquationInstanceOp> equations);
 
   mlir::LogicalResult
@@ -149,20 +149,6 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   // Collect the used variables.
   llvm::DenseSet<VariableOp> usedVariables;
 
-  /*
-  if (mlir::failed(collectUsedVariables(usedVariables, symbolTableCollection,
-                                        modelOp, outputVariables,
-                                        initialEquations))) {
-    return mlir::failure();
-  }
-
-  if (mlir::failed(collectUsedVariables(usedVariables, symbolTableCollection,
-                                        modelOp, outputVariables,
-                                        dynamicEquations))) {
-    return mlir::failure();
-  }
-  */
-
   if (mlir::failed(collectUsedVariables(usedVariables, symbolTableCollection,
                                         modelOp, outputVariables,
                                         allEquations))) {
@@ -245,7 +231,7 @@ void walkDerivativeVariables(
 mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     llvm::DenseSet<VariableOp> &usedVariables,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    const llvm::DenseSet<VariableOp>& outputVariables,
+    const llvm::DenseSet<VariableOp> &outputVariables,
     llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
   // Create the dependency graph.
   using DependencyGraph = marco::modeling::ArrayEquationsDependencyGraph<
@@ -351,7 +337,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     auto writingEquations =
         graph.getWritesMap().equal_range(variablesMap[variableName]);
 
-    for (const auto& writeInfo : llvm::make_range(writingEquations)) {
+    for (const auto &writeInfo : llvm::make_range(writingEquations)) {
       baseGraph->addEdge(baseGraph->getEntryNode(),
                          writeInfo.second.getEquation());
     }
