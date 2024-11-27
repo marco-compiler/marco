@@ -1361,6 +1361,57 @@ namespace mlir::bmodelica
         getArray(),
         mlir::SideEffects::DefaultResource::get());
   }
+  
+  void LoadOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    auto operand = getArray();
+    uint64_t rank = operand.getType().getRank();
+    mlir::ValueRange indices = getIndices();
+
+    /* This operation is also used to load scalar variables
+     * so check how many indices we have.
+     * We can be sure that they match thanks to verify()
+     */
+    if(indices.size() > 0) {
+      mlir::Value zero = builder.create<ConstantOp>(
+          loc, builder.getI64IntegerAttr(0));
+        
+      for(uint64_t i = 0; i < rank; i++) {
+        //take the i-th index
+        auto it = indices.begin()+i;
+        mlir::Value indexCast = builder.create<CastOp>(
+            loc, builder.getI64Type(), *it);
+
+        mlir::Value dimIndex = builder.create<ConstantOp>(
+            loc, builder.getI64IntegerAttr(i));
+
+        //take the dimension
+        mlir::Value dim = builder.create<SizeOp>(
+            loc, builder.getI64Type(), operand, dimIndex);
+
+        auto assertOp = builder.create<AssertOp>(
+            loc,
+            builder.getStringAttr(
+              "Model error: Index out of bounds\n"),
+            builder.getI64IntegerAttr(2));
+            
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        builder.createBlock(&assertOp.getConditionRegion());
+          
+        mlir::Value cond1 = builder.create<GteOp>(
+            loc, indexCast, zero); 
+          
+        mlir::Value cond2 = builder.create<LtOp>(
+            loc, indexCast, dim);
+
+        mlir::Value condition = builder.create<AndOp>(
+          loc, cond1, cond2);
+
+        builder.create<YieldOp>(assertOp.getLoc(), condition);
+      }
+    }
+  }
 }
 
 //===---------------------------------------------------------------------===//

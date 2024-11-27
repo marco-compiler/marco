@@ -844,7 +844,8 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
     [TypesMatchWith<"result type matches element type of 'array'",
                      "array", "result",
                      "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Load a value from an array.";
 
