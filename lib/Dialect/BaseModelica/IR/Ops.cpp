@@ -1162,10 +1162,8 @@ void LoadOp::generateRuntimeVerification(
   uint64_t rank = operand.getType().getRank();
   mlir::ValueRange indices = getIndices();
 
-  /* This operation is also used to load scalar variables
-    * so check how many indices we have.
-    * We can be sure that they match thanks to verify()
-    */
+  // This operation is also used to load scalar variables
+  // so check how many indices we have.
   if(indices.size() > 0) {
     mlir::Value zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -5129,15 +5127,13 @@ void DivEWOp::generateRuntimeVerification(
       maxDim = std::max(maxDim, rhsDimSize);
     }
 
-    /* 
-    * Generate array of indexes describing every
-    * element in the data structure
-    * e.g. for a 3-dimensional [n, m, k] array we'd have
-    * (0, 0, 0)
-    * (0, 0, 1)
-    * ...
-    * (n-1, m-1, k-1)
-    */
+    // Generate array of indexes describing every
+    // element in the data structure
+    // e.g. for a 3-dimensional [n, m, k] array we'd have
+    // (0, 0, 0)
+    // (0, 0, 1)
+    // ...
+    // (n-1, m-1, k-1)
     std::vector<std::vector<uint64_t>> indices;
     for(uint64_t k = 0; k < shape[0]; k++)
       indices.emplace_back(std::vector<uint64_t>{k});
@@ -7669,15 +7665,14 @@ void TanOp::generateRuntimeVerification(
   mlir::Value epsilon = builder.create<ConstantOp>(
       loc, RealAttr::get(builder.getContext(), 1E-4));
 
-  /* Multiples of pi are also multiples of pi/2
-    * therefore a trivial check as (operand % pi/2)
-    * would consider 2pi, 3pi, ... as illegal.
-    * Therefore we need to consider illegal only values
-    * multiples of pi/2 but NOT of pi.
-    * For example:
-    * 2pi is multiple of both pi and pi/2 ==> ok
-    * 1.5pi is multiple of pi/2 but not of pi ==> illegal
-    */
+  // Multiples of pi are also multiples of pi/2
+  // therefore a trivial check as (operand % pi/2)
+  // would consider 2pi, 3pi, ... as illegal.
+  // Therefore we need to consider illegal only values
+  // multiples of pi/2 but NOT of pi.
+  // For example:
+  // 2pi is multiple of both pi and pi/2 ==> ok
+  // 1.5pi is multiple of pi/2 but not of pi ==> illegal
 
   mlir::Value modPiHalf = builder.create<ModOp>(
       loc, RealType::get(builder.getContext()), operandAbs, piHalf);
