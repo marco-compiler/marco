@@ -764,9 +764,6 @@ void CodeGenAction::setMLIRModuleDataLayout() {
   {
     CompilerInstance& ci = getInstance();
 
-    // enable crash reproduction for debug purposes
-    pm.enableCrashReproducerGeneration("/root/input/repr.mlir", false);
-
   if (!ci.getCodeGenOptions().debug) {
     // Remove the debug information if a non-debuggable executable has been
     // requested. By doing this at the beginning of the compilation pipeline
