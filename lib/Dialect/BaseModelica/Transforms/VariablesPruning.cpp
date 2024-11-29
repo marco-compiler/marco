@@ -1,9 +1,14 @@
+#define DEBUG_TYPE "variables-pruning"
+
 #include "marco/Dialect/BaseModelica/Transforms/VariablesPruning.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
-#include "marco/Modeling/ArrayEquationsDependencyGraph.h"
+#include "marco/Modeling/ArrayVariablesDependencyGraph.h"
 #include "marco/Modeling/SingleEntryDigraph.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/Debug.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_VARIABLESPRUNINGPASS
@@ -203,6 +208,14 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   return mlir::success();
 }
 
+using DependencyGraph = marco::modeling::ArrayVariablesDependencyGraph<
+    VariableBridge *, MatchedEquationBridge *,
+    marco::modeling::dependency::SingleEntryDigraph<
+        marco::modeling::internal::dependency::ArrayVariable<
+            VariableBridge *>>>;
+
+using DependencyGraphBase = typename DependencyGraph::Base;
+
 namespace {
 void walkDerivedVariables(ModelOp modelOp, mlir::SymbolRefAttr variable,
                           std::function<void(mlir::SymbolRefAttr)> callbackFn) {
@@ -234,19 +247,14 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     const llvm::DenseSet<VariableOp> &outputVariables,
     llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
   // Create the dependency graph.
-  using DependencyGraph = marco::modeling::ArrayEquationsDependencyGraph<
-      VariableBridge *, MatchedEquationBridge *,
-      marco::modeling::dependency::SingleEntryDigraph<
-          marco::modeling::internal::dependency::ArrayEquation<
-              MatchedEquationBridge *>>>;
-
-  using DependencyGraphBase = typename DependencyGraph::Base;
-
   auto baseGraph = std::make_shared<DependencyGraphBase>();
   DependencyGraph graph(&getContext(), baseGraph);
 
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  llvm::SmallVector<VariableBridge *> variablePtrs;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
+  llvm::DenseMap<mlir::SymbolRefAttr, DependencyGraph::VariableDescriptor>
+      variableDescriptors;
   llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
   llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
 
@@ -255,6 +263,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
         variableBridges.emplace_back(VariableBridge::build(variableOp));
 
     auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
+    variablePtrs.push_back(bridge.get());
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
@@ -269,85 +278,59 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     equationPtrs.push_back(bridge.get());
   }
 
+  for (VariableBridge *variable : variablePtrs) {
+    variableDescriptors[variable->name] = graph.addVariable(variable);
+  }
+
   graph.addEquations(equationPtrs);
 
-  // Add the implicit relations introduced by derivatives.
-  for (VariableOp outputVariable : outputVariables) {
-    walkDerivedVariables(
-        modelOp, mlir::SymbolRefAttr::get(outputVariable.getSymNameAttr()),
-        [&](mlir::SymbolRefAttr derivedVarName) {
-          auto writingEquations =
-              graph.getWritesMap().equal_range(variablesMap[derivedVarName]);
+  for (auto variableDescriptor :
+       llvm::make_range(graph.variablesBegin(), graph.variablesEnd())) {
+    const auto &variable = graph[variableDescriptor];
 
-          for (auto writeInfo : llvm::make_range(writingEquations)) {
-            baseGraph->addEdge(baseGraph->getEntryNode(),
-                               writeInfo.second.getEquation());
-          }
+    // Connect to the entry node if it is an output variable.
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        modelOp, variable->name);
+
+    if (outputVariables.contains(variableOp)) {
+      baseGraph->addEdge(baseGraph->getEntryNode(),
+                         variableDescriptors[variable->name]);
+    }
+
+    // Add the implicit relations introduced by derivatives.
+    walkDerivedVariables(
+        modelOp, variable->name, [&](mlir::SymbolRefAttr derivedVarName) {
+          graph.addEdge(variable, variablesMap[derivedVarName]);
+          graph.addEdge(variablesMap[derivedVarName], variable);
         });
 
     walkDerivativeVariables(
-        modelOp, mlir::SymbolRefAttr::get(outputVariable.getSymNameAttr()),
-        [&](mlir::SymbolRefAttr derivativeVarName) {
-          auto writingEquations =
-              graph.getWritesMap().equal_range(variablesMap[derivativeVarName]);
-
-          for (auto writeInfo : llvm::make_range(writingEquations)) {
-            baseGraph->addEdge(baseGraph->getEntryNode(),
-                               writeInfo.second.getEquation());
-          }
+        modelOp, variable->name, [&](mlir::SymbolRefAttr derivativeVarName) {
+          graph.addEdge(variable, variablesMap[derivativeVarName]);
+          graph.addEdge(variablesMap[derivativeVarName], variable);
         });
   }
 
-  for (auto equationDescriptor :
-       llvm::make_range(baseGraph->verticesBegin(), baseGraph->verticesEnd())) {
-    const auto &equationBridge = (*baseGraph)[equationDescriptor];
+  LLVM_DEBUG({
+    llvm::dbgs() << "----- Variables dependencies -----\n";
 
-    for (const auto &readAccess : equationBridge.getReads()) {
-      mlir::SymbolRefAttr readVariable = readAccess.getVariable()->name;
+    for (auto variableDescriptor : llvm::make_range(baseGraph->verticesBegin(),
+                                                    baseGraph->verticesEnd())) {
+      const auto &variable = (*baseGraph)[variableDescriptor];
 
-      walkDerivedVariables(
-          modelOp, readVariable, [&](mlir::SymbolRefAttr derivedVarName) {
-            auto writingEquations =
-                graph.getWritesMap().equal_range(variablesMap[derivedVarName]);
-
-            for (auto writeInfo : llvm::make_range(writingEquations)) {
-              baseGraph->addEdge(equationDescriptor,
-                                 writeInfo.second.getEquation());
-            }
-          });
-
-      walkDerivativeVariables(
-          modelOp, readVariable, [&](mlir::SymbolRefAttr derivativeVarName) {
-            auto writingEquations = graph.getWritesMap().equal_range(
-                variablesMap[derivativeVarName]);
-
-            for (auto writeInfo : llvm::make_range(writingEquations)) {
-              baseGraph->addEdge(writeInfo.second.getEquation(),
-                                 equationDescriptor);
-            }
-          });
+      for (auto dependencyDescriptor :
+           llvm::make_range(baseGraph->linkedVerticesBegin(variableDescriptor),
+                            baseGraph->linkedVerticesEnd(variableDescriptor))) {
+        const auto &dependency = (*baseGraph)[dependencyDescriptor];
+        llvm::dbgs() << "  |-> " << dependency.getProperty()->name << "\n";
+      }
     }
-  }
-
-  // Connect the entry node to the output variable.
-  for (VariableOp outputVariable : outputVariables) {
-    auto variableName =
-        mlir::SymbolRefAttr::get(outputVariable.getSymNameAttr());
-
-    auto writingEquations =
-        graph.getWritesMap().equal_range(variablesMap[variableName]);
-
-    for (const auto &writeInfo : llvm::make_range(writingEquations)) {
-      baseGraph->addEdge(baseGraph->getEntryNode(),
-                         writeInfo.second.getEquation());
-    }
-  }
+  });
 
   // Collect the variables.
   for (auto scc : graph.getSCCs()) {
-    for (auto equationDescriptor : scc) {
-      auto variableName =
-          scc[equationDescriptor].getWrite().getVariable()->name;
+    for (auto variableDescriptor : scc) {
+      auto variableName = scc[variableDescriptor].getProperty()->name;
 
       auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
           modelOp, variableName);
