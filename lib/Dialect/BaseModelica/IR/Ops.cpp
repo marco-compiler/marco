@@ -1,5 +1,6 @@
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Types.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -12,6 +13,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
+#include <mlir/IR/BuiltinAttributes.h>
 
 using namespace ::mlir::bmodelica;
 
@@ -855,15 +857,13 @@ namespace mlir::bmodelica
 
     for(int64_t i = 0; i < rank; i++) {
       //take the i-th index
-      auto it = indices.begin()+i;
-      mlir::Value indexCast = builder.create<CastOp>(
-          loc, builder.getI64Type(), *it);
-      
+      auto index = *(indices.begin()+i);
+
       //take the dimension
       if(int64_t dim = tensorShapedType.getDimSize(i);
          dim != LONG_MIN) {
         mlir::Value dimConst = builder.create<ConstantOp>(
-            loc, builder.getI64IntegerAttr(dim));
+            loc, IntegerAttr::get(builder.getContext(), dim));
         
         auto assertOp = builder.create<AssertOp>(
             loc,
@@ -875,7 +875,7 @@ namespace mlir::bmodelica
         builder.createBlock(&assertOp.getConditionRegion());
 
         mlir::Value condition = builder.create<LtOp>(
-            loc, indexCast, dimConst);
+            loc, index, dimConst);
         
         builder.create<YieldOp>(assertOp.getLoc(), condition);
       }
@@ -896,15 +896,13 @@ namespace mlir::bmodelica
 
     for(int64_t i = 0; i < rank; i++) {
       //take the i-th index
-      auto it = indices.begin()+i;
-      mlir::Value indexCast = builder.create<CastOp>(
-          loc, builder.getI64Type(), *it);
+      auto index = *(indices.begin()+i);
       
       //take the dimension
       if(int64_t dim = tensorShapedType.getDimSize(i);
          dim != LONG_MIN) {
         mlir::Value dimConst = builder.create<ConstantOp>(
-            loc, builder.getI64IntegerAttr(dim));
+            loc, IntegerAttr::get(builder.getContext(), dim));
         
         auto assertOp = builder.create<AssertOp>(
             loc,
@@ -916,7 +914,7 @@ namespace mlir::bmodelica
         builder.createBlock(&assertOp.getConditionRegion());
 
         mlir::Value condition = builder.create<LtOp>(
-            loc, indexCast, dimConst);
+            loc, index, dimConst);
         
         builder.create<YieldOp>(assertOp.getLoc(), condition);
       }
@@ -1170,18 +1168,15 @@ namespace mlir::bmodelica
   void DimOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    size_t numDimensions = getArray().getType().getShape().size();
-    mlir::Value dimIndex = getDimension();
-    
-    // convert operand to arith-compatible type
-    mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getI64Type(), dimIndex);
+    mlir::Value dim = getDimension();
+    auto arrayShapedType = getArray().getType().dyn_cast<mlir::ShapedType>();
+    int64_t rank = arrayShapedType.getRank();
 
     mlir::Value zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
 
     mlir::Value rankConst = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(rank));
+        loc, IntegerAttr::get(builder.getContext(), rank));
 
     mlir::Value cond1 = builder.create<GteOp>(
         loc, dim, zero);
@@ -1366,16 +1361,14 @@ namespace mlir::bmodelica
      */
     if(indices.size() > 0) {
       mlir::Value zero = builder.create<ConstantOp>(
-          loc, builder.getI64IntegerAttr(0));
+          loc, IntegerAttr::get(builder.getContext(), 0));
         
       for(uint64_t i = 0; i < rank; i++) {
         //take the i-th index
-        auto it = indices.begin()+i;
-        mlir::Value indexCast = builder.create<CastOp>(
-            loc, builder.getI64Type(), *it);
+        auto index = *(indices.begin()+i);
 
         mlir::Value dimIndex = builder.create<ConstantOp>(
-            loc, builder.getI64IntegerAttr(i));
+            loc, IntegerAttr::get(builder.getContext(), i));
 
         //take the dimension
         mlir::Value dim = builder.create<SizeOp>(
@@ -1391,10 +1384,10 @@ namespace mlir::bmodelica
         builder.createBlock(&assertOp.getConditionRegion());
           
         mlir::Value cond1 = builder.create<GteOp>(
-            loc, indexCast, zero); 
+            loc, index, zero); 
           
         mlir::Value cond2 = builder.create<LtOp>(
-            loc, indexCast, dim);
+            loc, index, dim);
 
         mlir::Value condition = builder.create<AndOp>(
           loc, cond1, cond2);
@@ -5238,13 +5231,12 @@ namespace mlir::bmodelica
   void DivOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    mlir::Value operand = getOperand(1);
-    // convert operand to arith-compatible type
+    mlir::Value operand = getRhs();
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));
+        loc, RealAttr::get(builder.getContext(), 0.0f));
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -5590,7 +5582,7 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));
+        loc, RealAttr::get(builder.getContext(), 0.0f));
     
     mlir::Value rhs = getRhs();
     mlir::Value rhsCast;
@@ -5598,9 +5590,8 @@ namespace mlir::bmodelica
 
     bool isRhsScalar = isScalar(rhs.getType());
     if(isRhsScalar) {
-      // Convert operand to arith-compatible type
       rhsCast = builder.create<CastOp>(
-          loc, builder.getF64Type(), rhs);
+          loc, RealType::get(builder.getContext()), rhs);
     } else {
       auto rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
       auto rhsArrayType = ArrayType::get(
@@ -5651,6 +5642,7 @@ namespace mlir::bmodelica
       for(uint64_t dim = 1; dim < rank; dim++) {
         uint64_t oldSize = indices.size();
         uint64_t dimSize = shape[dim];
+
         for(uint64_t k = 0; k < oldSize; k++) {
           for(uint64_t i = 0; i < dimSize; i++) {
             std::vector<uint64_t> tmp(indices[k]);
@@ -5671,8 +5663,8 @@ namespace mlir::bmodelica
 
       // Emit LoadOp + check for every array element
       llvm::SmallVector<mlir::Value, 10> indicesSSA;
-      condition = builder.create<ConstantOp>(loc,
-          builder.getF64FloatAttr(1));
+      condition = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 1.0f));
       for(auto &tuple : indices) {        
         // Materialize indices
         for(auto &el : tuple)
@@ -6989,15 +6981,14 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value operand = getOperand();
-    // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value minusone = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(-1));
+        loc, RealAttr::get(builder.getContext(), -1.0f));
 
     mlir::Value one = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(1));
+        loc, RealAttr::get(builder.getContext(), 1.0f));
 
     auto assertOp1 = builder.create<AssertOp>(
         loc, 
@@ -7284,13 +7275,12 @@ namespace mlir::bmodelica
   void DivTruncOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    mlir::Value operand = getOperand(1);
-    // convert operand to arith-compatible type
+    mlir::Value operand = getY();
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));
+        loc, RealAttr::get(builder.getContext(), 0.0f));
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -7439,12 +7429,11 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value operand = getOperand();
-    // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));
+        loc, RealAttr::get(builder.getContext(), 0.0f));
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -7498,12 +7487,11 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value operand = getOperand(); 
-    // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));  
+        loc, RealAttr::get(builder.getContext(), 0.0f));  
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -8008,12 +7996,11 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value operand = getY();
-    // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));
+        loc, RealAttr::get(builder.getContext(), 0.0f));
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -8236,13 +8223,13 @@ namespace mlir::bmodelica
     int64_t rank = arrayShapedType.getRank();
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(0));
+        loc, IntegerAttr::get(builder.getContext(), 0));
 
     mlir::Value rankConst = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(rank));
+        loc, IntegerAttr::get(builder.getContext(), rank));
 
     mlir::Value cond1 = builder.create<GteOp>(
-        loc, dim, zero); 
+        loc, dim, zero);
 
     mlir::Value cond2 = builder.create<LtOp>(
         loc, dim, rankConst);
@@ -8299,12 +8286,11 @@ namespace mlir::bmodelica
       mlir::OpBuilder& builder, mlir::Location loc)
   {
     mlir::Value operand = getOperand(); 
-    // convert operand to arith-compatible type
     mlir::Value argCast = builder.create<CastOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(0));  
+        loc, RealAttr::get(builder.getContext(), 0.0f));  
 
     auto assertOp = builder.create<AssertOp>(
         loc,
@@ -8359,16 +8345,16 @@ namespace mlir::bmodelica
   {
     mlir::Value operand = getOperand();
     mlir::Value operandAbs = builder.create<AbsOp>(
-        loc, builder.getF64Type(), operand);
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value pi = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(M_PI));
+        loc, RealAttr::get(builder.getContext(), M_PI));
 
     mlir::Value piHalf = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(M_PI/2));
+        loc, RealAttr::get(builder.getContext(), M_PI/2));
 
     mlir::Value epsilon = builder.create<ConstantOp>(
-        loc, builder.getF64FloatAttr(1E-4));
+        loc, RealAttr::get(builder.getContext(), 1E-4));
 
     /* Multiples of pi are also multiples of pi/2
      * therefore a trivial check as (operand % pi/2)
@@ -8381,10 +8367,10 @@ namespace mlir::bmodelica
      */
 
     mlir::Value modPiHalf = builder.create<ModOp>(
-        loc, builder.getF64Type(), operandAbs, piHalf);
+        loc, RealType::get(builder.getContext()), operandAbs, piHalf);
 
     mlir::Value modPi = builder.create<ModOp>(
-        loc, builder.getF64Type(), operandAbs, pi);
+        loc, RealType::get(builder.getContext()), operandAbs, pi);
 
     // Remainder is not close to zero
     // (accounts for when the argument is approaching pi from
@@ -8398,7 +8384,7 @@ namespace mlir::bmodelica
     mlir::Value diff = builder.create<SubOp>(
         loc, modPi, pi);
     mlir::Value diffAbs = builder.create<AbsOp>(
-        loc, builder.getF64Type(), diff);
+        loc, RealType::get(builder.getContext()), diff);
     mlir::Value isMulPiLower = builder.create<LteOp>(
         loc, diffAbs, epsilon);
 
@@ -8413,7 +8399,7 @@ namespace mlir::bmodelica
     diff = builder.create<SubOp>(
         loc, modPiHalf, piHalf);
     diffAbs = builder.create<AbsOp>(
-        loc, builder.getF64Type(), diff);
+        loc, RealType::get(builder.getContext()), diff);
     mlir::Value isNotMulPiHalfLower = builder.create<GteOp>(
         loc, diffAbs, epsilon);
 
