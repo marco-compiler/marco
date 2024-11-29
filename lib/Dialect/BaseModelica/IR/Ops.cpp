@@ -1178,39 +1178,30 @@ namespace mlir::bmodelica
         loc, builder.getI64Type(), dimIndex);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(0));
-    mlir::Value arrayShapeSize = builder.create<ConstantOp>(
-        loc, builder.getI64IntegerAttr(numDimensions));
+        loc, IntegerAttr::get(builder.getContext(), 0));
 
-    auto assertOp1 = builder.create<AssertOp>(
+    mlir::Value rankConst = builder.create<ConstantOp>(
+        loc, builder.getI64IntegerAttr(rank));
+
+    mlir::Value cond1 = builder.create<GteOp>(
+        loc, dim, zero);
+
+    mlir::Value cond2 = builder.create<LtOp>(
+        loc, dim, rankConst);
+
+    auto assertOp = builder.create<AssertOp>(
         loc,
         builder.getStringAttr(
-          "size_of_dimension_base_array failed (ndims out of bounds)\n"),
+          "Model error: ndims out of bounds\n"),
         builder.getI64IntegerAttr(2));
+            
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
     
-    mlir::OpBuilder::InsertionGuard guard1(builder);
-    builder.createBlock(&assertOp1.getConditionRegion());
+    mlir::Value condition = builder.create<AndOp>(
+      loc, cond1, cond2);
 
-    mlir::Value firstCondition = builder.create<GtOp>(
-        loc, argCast, zero);
-    
-    builder.create<YieldOp>(assertOp1.getLoc(), firstCondition);
-    builder.setInsertionPointAfter(assertOp1);
-
-    auto assertOp2 = builder.create<AssertOp>(
-        loc,
-        builder.getStringAttr(
-          "size_of_dimension_base_array failed (ndims out of bounds)"),
-        builder.getI64IntegerAttr(2));
-    
-    mlir::OpBuilder::InsertionGuard guard2(builder);
-    builder.createBlock(&assertOp2.getConditionRegion());
-
-    mlir::Value secondCondition = builder.create<LtOp>(
-        loc, argCast, arrayShapeSize);
-    
-    builder.create<YieldOp>(assertOp2.getLoc(), secondCondition);
-    builder.setInsertionPointAfter(assertOp1);
+    builder.create<YieldOp>(loc, condition);
   }
 }
 
