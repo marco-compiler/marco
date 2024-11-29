@@ -942,6 +942,7 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     let assemblyFormat = "$array `[` $indices `]` `,` $value attr-dict `:` type($array)";
 
     let hasVerifier = 1;
+    let hasCanonicalizer = 1;
     let skipDefaultBuilders = 1;
 
     let builders = [
