@@ -3028,7 +3028,8 @@ def BaseModelica_SinhOp : BaseModelica_Op<"sinh",
 
 def BaseModelica_SizeOp : BaseModelica_Op<"size",
     [AlwaysSpeculatable,
-    NoMemoryEffect]>
+    NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Get the dimensions of an array.";
 

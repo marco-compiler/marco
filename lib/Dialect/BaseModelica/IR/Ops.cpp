@@ -8236,6 +8236,40 @@ namespace mlir::bmodelica
 
     printer << " -> " << getResult().getType();
   }
+
+  void SizeOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    mlir::Value dim = getDimension();
+    auto arrayShapedType = getArray().getType().dyn_cast<mlir::ShapedType>();
+    int64_t rank = arrayShapedType.getRank();
+
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, builder.getI64IntegerAttr(0));
+
+    mlir::Value rankConst = builder.create<ConstantOp>(
+        loc, builder.getI64IntegerAttr(rank));
+
+    mlir::Value cond1 = builder.create<GteOp>(
+        loc, dim, zero); 
+
+    mlir::Value cond2 = builder.create<LtOp>(
+        loc, dim, rankConst);
+
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: ndims out of bounds\n"),
+        builder.getI64IntegerAttr(2));
+            
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+    
+    mlir::Value condition = builder.create<AndOp>(
+      loc, cond1, cond2);
+
+    builder.create<YieldOp>(loc, condition);
+  }
 }
 
 //===---------------------------------------------------------------------===//
