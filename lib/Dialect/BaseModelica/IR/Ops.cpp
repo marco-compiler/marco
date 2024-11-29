@@ -1024,48 +1024,40 @@ void DimOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
 void DimOp::generateRuntimeVerification(
   mlir::OpBuilder& builder, mlir::Location loc)
 {
-  size_t numDimensions = getArray().getType().getShape().size();
-  mlir::Value dimIndex = getDimension();
+  mlir::Value dim = getDimension();
+  auto arrayShapedType = getArray().getType().dyn_cast<mlir::ShapedType>();
+  int64_t rank = arrayShapedType.getRank();
 
   // convert operand to arith-compatible type
   mlir::Value argCast = builder.create<CastOp>(
-      loc, builder.getI64Type(), dimIndex);
+      loc, builder.getI64Type(), dim);
 
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, builder.getI64IntegerAttr(0));
-  mlir::Value arrayShapeSize = builder.create<ConstantOp>(
-      loc, builder.getI64IntegerAttr(numDimensions));
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
 
-  auto assertOp1 = builder.create<AssertOp>(
-      loc,
-      builder.getStringAttr(
-        "size_of_dimension_base_array failed (ndims out of bounds)\n"),
-      builder.getI64IntegerAttr(2));
-  
-  mlir::OpBuilder::InsertionGuard guard1(builder);
-  builder.createBlock(&assertOp1.getConditionRegion());
+    mlir::Value rankConst = builder.create<ConstantOp>(
+        loc, builder.getI64IntegerAttr(rank));
 
-  mlir::Value firstCondition = builder.create<GtOp>(
-      loc, argCast, zero);
-  
-  builder.create<YieldOp>(assertOp1.getLoc(), firstCondition);
-  builder.setInsertionPointAfter(assertOp1);
+    mlir::Value cond1 = builder.create<GteOp>(
+        loc, dim, zero);
 
-  auto assertOp2 = builder.create<AssertOp>(
-      loc,
-      builder.getStringAttr(
-        "size_of_dimension_base_array failed (ndims out of bounds)"),
-      builder.getI64IntegerAttr(2));
-  
-  mlir::OpBuilder::InsertionGuard guard2(builder);
-  builder.createBlock(&assertOp2.getConditionRegion());
+    mlir::Value cond2 = builder.create<LtOp>(
+        loc, dim, rankConst);
 
-  mlir::Value secondCondition = builder.create<LtOp>(
-      loc, argCast, arrayShapeSize);
-  
-  builder.create<YieldOp>(assertOp2.getLoc(), secondCondition);
-  builder.setInsertionPointAfter(assertOp1);
-}
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: ndims out of bounds\n"),
+        builder.getI64IntegerAttr(2));
+            
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+    
+    mlir::Value condition = builder.create<AndOp>(
+      loc, cond1, cond2);
+
+    builder.create<YieldOp>(loc, condition);
+  }
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
