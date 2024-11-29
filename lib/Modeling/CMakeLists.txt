@@ -6,6 +6,7 @@ set(SOURCES
     AccessFunctionGeneric.cpp
     AccessFunctionRotoTranslation.cpp
     ArrayEquationsDependencyGraph.cpp
+    ArrayVariablesDependencyGraph.cpp
     Dependency.cpp
     DimensionAccess.cpp
     DimensionAccessAdd.cpp

@@ -143,6 +143,10 @@ public:
 
   Id getId() const { return property.getId(); }
 
+  VariableProperty &getProperty() { return property; }
+
+  const VariableProperty &getProperty() const { return property; }
+
 private:
   // Custom variable property.
   VariableProperty property;
