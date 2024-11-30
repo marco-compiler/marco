@@ -520,6 +520,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.loopFusion = true;
     options.loopCoalescing = true;
     options.loopTiling = true;
+    options.vectorization = true;
   }
 
   if (options.optLevel.getSizeLevel() > 0) {

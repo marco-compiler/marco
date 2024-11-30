@@ -182,6 +182,9 @@ protected:
   std::unique_ptr<mlir::Pass> createMLIRLoopTilingPass();
   std::unique_ptr<mlir::Pass> createMLIRPromoteBuffersToStackPass();
 
+  std::unique_ptr<mlir::Pass> createMLIRAffineVectorizePass();
+  std::unique_ptr<mlir::Pass> createMLIRVectorToLLVMConversionPass();
+
   /// }
   /// @name LLVM-IR
   /// {

@@ -938,6 +938,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Perform bufferization.
   pm.addPass(createMLIROneShotBufferizePass());
 
+  // Promote the output arrays to arguments.
   if (ci.getCodeGenOptions().outputArraysPromotion) {
     pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
   }
@@ -945,7 +946,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Lower the linalg dialect.
   pm.addPass(mlir::createConvertLinalgToAffineLoopsPass());
 
-  // Optimize loops.
+  // Loop fusion.
   if (ci.getCodeGenOptions().loopFusion) {
     pm.addNestedPass<mlir::func::FuncOp>(mlir::affine::createLoopFusionPass());
 
@@ -955,15 +956,28 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
         mlir::affine::createAffineScalarReplacementPass());
   }
 
+  // Raise to affine representation and vectorize.
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::bmodelica::createEquationFunctionAffineRaisePass());
+
+    pm.addNestedPass<mlir::func::FuncOp>(createMLIRAffineVectorizePass());
+  }
+
+  /*
+  // Loop coalescing.
   if (ci.getCodeGenOptions().loopCoalescing) {
     pm.addNestedPass<mlir::func::FuncOp>(
         mlir::affine::createLoopCoalescingPass());
   }
 
+  // Loop tiling.
   if (ci.getCodeGenOptions().loopTiling) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRLoopTilingPass());
   }
+  */
 
+  // Promote heap allocations to stack allocations.
   if (ci.getCodeGenOptions().heapToStackPromotion) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRPromoteBuffersToStackPass());
   }
@@ -982,10 +996,19 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Lower to LLVM dialect.
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
   pm.addPass(mlir::memref::createExpandStridedMetadataPass());
+
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addPass(mlir::createConvertVectorToSCFPass());
+  }
+
   pm.addPass(mlir::createLowerAffinePass());
   pm.addPass(mlir::createConvertSCFToCFPass());
 
   // Perform the default conversions towards LLVM dialect.
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addPass(createMLIRVectorToLLVMConversionPass());
+  }
+
   pm.addPass(mlir::createConvertToLLVMPass());
 
   // The conversion of the internal dialects to LLVM must be performed
@@ -1154,6 +1177,30 @@ CodeGenAction::createMLIRPromoteBuffersToStackPass() {
   };
 
   return mlir::bufferization::createPromoteBuffersToStackPass(isSmallAllocFn);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRAffineVectorizePass() {
+  CompilerInstance &ci = getInstance();
+  mlir::affine::AffineVectorizeOptions options;
+  options.vectorSizes = ci.getCodeGenOptions().vectorSizes;
+  return mlir::affine::createAffineVectorize(options);
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIRVectorToLLVMConversionPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::ConvertVectorToLLVMPassOptions options;
+  const auto &triple = getTargetMachine().getTargetTriple();
+
+  if (triple.getArch() == llvm::Triple::x86 ||
+      triple.getArch() == llvm::Triple::x86_64) {
+    options.x86Vector = true;
+  } else if (triple.getArch() == llvm::Triple::aarch64) {
+    options.armNeon = ci.getCodeGenOptions().hasFeature("neon");
+    options.armSVE = ci.getCodeGenOptions().hasFeature("sve");
+  }
+
+  return mlir::createConvertVectorToLLVMPass(options);
 }
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {
