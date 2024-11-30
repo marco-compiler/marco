@@ -1,4 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
+#include "marco/Dialect/BaseModelica/Transforms/AffineLikeOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllocationOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/BufferizableOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/ConstantMaterializableTypeInterfaceImpl.h"
@@ -13,6 +14,7 @@ namespace mlir::bmodelica {
 void registerAllDialectInterfaceImplementations(
     mlir::DialectRegistry &registry) {
   // Operation interfaces.
+  registerAffineLikeOpInterfaceExternalModels(registry);
   registerAllocationOpInterfaceExternalModels(registry);
   registerBufferizableOpInterfaceExternalModels(registry);
   registerDerivableOpInterfaceExternalModels(registry);
