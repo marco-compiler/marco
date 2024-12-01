@@ -928,7 +928,8 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
 
 def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
     [ViewLikeOpInterface,
-    NoMemoryEffect]>
+    NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Create a view over an array.";
 

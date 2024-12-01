@@ -1716,6 +1716,59 @@ namespace mlir::bmodelica
 
     return source.withShape(shape);
   }
+  
+  void SubscriptionOp::generateRuntimeVerification(
+      mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    auto operand = getSource();
+    uint64_t rank = operand.getType().getRank();
+    mlir::ValueRange indices = getIndices();
+
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+
+    // Modelica arrays will eventually be converted to MLIR tensors
+    // at some point down the pipeline, so convert everything
+    // to tensor to avoid issues
+    auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
+    auto operandTensorType = mlir::RankedTensorType::get(
+              operandShapedType.getShape(),
+              operandShapedType.getElementType());
+    auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
+        operandTensorType, operand);
+
+    for(uint64_t i = 0; i < rank; i++) {
+      //take the i-th index
+      auto index = *(indices.begin()+i);
+
+      mlir::Value dimIndex = builder.create<ConstantOp>(
+          loc, builder.getIndexAttr(i));
+
+      //take the dimension
+      mlir::Value dim = builder.create<SizeOp>(
+          loc, IntegerType::get(builder.getContext()), tensorOperand, dimIndex);
+
+      auto assertOp = builder.create<AssertOp>(
+          loc,
+          builder.getStringAttr(
+            "Model error: Index out of bounds\n"),
+          builder.getI64IntegerAttr(2));
+          
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.createBlock(&assertOp.getConditionRegion());
+        
+      mlir::Value cond1 = builder.create<GteOp>(
+          loc, index, zero); 
+        
+      mlir::Value cond2 = builder.create<LtOp>(
+          loc, index, dim);
+
+      mlir::Value condition = builder.create<AndOp>(
+        loc, cond1, cond2);
+
+      builder.create<YieldOp>(assertOp.getLoc(), condition);
+    }
+  }
 }
 
 //===---------------------------------------------------------------------===//
