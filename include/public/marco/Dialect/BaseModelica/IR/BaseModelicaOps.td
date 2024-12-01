@@ -886,7 +886,8 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     [TypesMatchWith<"type of 'value' matches element type of 'array'",
                     "array", "value",
                     "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Store a value into an array.";
 
