@@ -1002,6 +1002,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Perform bufferization.
   pm.addPass(createMLIROneShotBufferizePass());
 
+  // Promote the output arrays to arguments.
   if (ci.getCodeGenOptions().outputArraysPromotion) {
     pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass());
   }
@@ -1019,10 +1020,22 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
         mlir::affine::createAffineScalarReplacementPass());
   }
 
+  // Raise to affine representation and vectorize.
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addNestedPass<mlir::func::FuncOp>(
+        createMLIREquationFunctionPeelingPass());
+
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::bmodelica::createEquationFunctionAffineRaisePass());
+
+    pm.addNestedPass<mlir::func::FuncOp>(createMLIRAffineVectorizePass());
+  }
+
   if (ci.getCodeGenOptions().loopTiling) {
     addMLIRLoopTilingPass(pm);
   }
 
+  // Promote heap allocations to stack allocations.
   if (ci.getCodeGenOptions().heapToStackPromotion) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRPromoteBuffersToStackPass());
   }
@@ -1041,6 +1054,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Lower to LLVM dialect.
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
   pm.addPass(mlir::memref::createExpandStridedMetadataPass());
+
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addPass(mlir::createConvertVectorToSCFPass());
+  }
+
   pm.addPass(mlir::createLowerAffinePass());
   pm.addPass(mlir::createConvertSCFToCFPass());
 
@@ -1050,6 +1068,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
 
   // Perform the default conversions towards LLVM dialect.
+  if (ci.getCodeGenOptions().vectorization) {
+    pm.addPass(createMLIRVectorToLLVMConversionPass());
+  }
+
   pm.addPass(mlir::createConvertToLLVMPass());
 
   // The conversion of the internal dialects to LLVM must be performed
@@ -1218,6 +1240,38 @@ CodeGenAction::createMLIRPromoteBuffersToStackPass() {
   };
 
   return mlir::bufferization::createPromoteBuffersToStackPass(isSmallAllocFn);
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIREquationFunctionPeelingPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::bmodelica::EquationFunctionPeelingPassOptions options;
+  options.widthFactors = ci.getCodeGenOptions().vectorSizes;
+  return mlir::bmodelica::createEquationFunctionPeelingPass(options);
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRAffineVectorizePass() {
+  CompilerInstance &ci = getInstance();
+  mlir::affine::AffineVectorizeOptions options;
+  options.vectorSizes = ci.getCodeGenOptions().vectorSizes;
+  return mlir::affine::createAffineVectorize(options);
+}
+
+std::unique_ptr<mlir::Pass>
+CodeGenAction::createMLIRVectorToLLVMConversionPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::ConvertVectorToLLVMPassOptions options;
+  const auto &triple = getTargetMachine().getTargetTriple();
+
+  if (triple.getArch() == llvm::Triple::x86 ||
+      triple.getArch() == llvm::Triple::x86_64) {
+    options.x86Vector = true;
+  } else if (triple.getArch() == llvm::Triple::aarch64) {
+    options.armNeon = ci.getCodeGenOptions().hasFeature("neon");
+    options.armSVE = ci.getCodeGenOptions().hasFeature("sve");
+  }
+
+  return mlir::createConvertVectorToLLVMPass(options);
 }
 
 void CodeGenAction::registerMLIRToLLVMIRTranslations() {
