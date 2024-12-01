@@ -1168,17 +1168,27 @@ void LoadOp::generateRuntimeVerification(
   if(indices.size() > 0) {
     mlir::Value zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
-      
+
+    // Modelica arrays will eventually be converted to MLIR tensors
+    // at some point down the pipeline, so convert everything
+    // to tensor to avoid issues
+    auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
+    auto operandTensorType = mlir::RankedTensorType::get(
+              operandShapedType.getShape(),
+              operandShapedType.getElementType());
+    auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
+        operandTensorType, operand);
+
     for(uint64_t i = 0; i < rank; i++) {
       //take the i-th index
       auto index = *(indices.begin()+i);
 
       mlir::Value dimIndex = builder.create<ConstantOp>(
-          loc, IntegerAttr::get(builder.getContext(), i));
+          loc, builder.getIndexAttr(i));
 
       //take the dimension
       mlir::Value dim = builder.create<SizeOp>(
-          loc, builder.getI64Type(), operand, dimIndex);
+          loc, IntegerType::get(builder.getContext()), tensorOperand, dimIndex);
 
       auto assertOp = builder.create<AssertOp>(
           loc,
@@ -1276,15 +1286,15 @@ void StoreOp::generateRuntimeVerification(
     mlir::Value zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
 
-    // Arrays will eventually be converted to tensors
-    // at some point down the pipeline, so convert everything
-    // to tensor to avoid issues
-    auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
-    auto operandTensorType = mlir::RankedTensorType::get(
-              operandShapedType.getShape(),
-              operandShapedType.getElementType());
-    auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
-        operandTensorType, operand);
+      // Arrays will eventually be converted to tensors
+      // at some point down the pipeline, so convert everything
+      // to tensor to avoid issues
+      auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
+      auto operandTensorType = mlir::RankedTensorType::get(
+                operandShapedType.getShape(),
+                operandShapedType.getElementType());
+      auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
+          operandTensorType, operand);
 
     for(uint64_t i = 0; i < rank; i++) {
       //take the i-th index
