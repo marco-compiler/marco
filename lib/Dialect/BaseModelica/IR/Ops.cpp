@@ -14,7 +14,6 @@
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
 #include <mlir/IR/BuiltinAttributes.h>
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 using namespace ::mlir::bmodelica;
 
