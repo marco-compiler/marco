@@ -1351,36 +1351,39 @@ namespace mlir::bmodelica
   void LoadOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    auto operand = getArray();
-    uint64_t rank = operand.getType().getRank();
     mlir::ValueRange indices = getIndices();
 
     // This operation is also used to load scalar variables
     // so check how many indices we have.
     if(indices.size() > 0) {
-      mlir::Value zero = builder.create<ConstantOp>(
-          loc, IntegerAttr::get(builder.getContext(), 0));
-
       // Modelica arrays will eventually be converted to MLIR tensors
       // at some point down the pipeline, so convert everything
       // to tensor to avoid issues
-      auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
-      auto operandTensorType = mlir::RankedTensorType::get(
-                operandShapedType.getShape(),
-                operandShapedType.getElementType());
-      auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
-          operandTensorType, operand);
+      mlir::Value operand;
+      if(getArrayType().isa<ArrayType>()) {
+        auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
+        auto operandTensorType = mlir::RankedTensorType::get(
+                  operandShapedType.getShape(),
+                  operandShapedType.getElementType());
+        operand = builder.create<ArrayToTensorOp>(loc,
+            operandTensorType, operand);
+      } else {
+        operand = getArray();
+      }
 
+      mlir::Value zero = builder.create<ConstantOp>(
+          loc, IntegerAttr::get(builder.getContext(), 0));
+      
+      uint64_t rank = getArrayType().getRank();
       for(uint64_t i = 0; i < rank; i++) {
-        //take the i-th index
+        // take the i-th index
         auto index = *(indices.begin()+i);
 
         mlir::Value dimIndex = builder.create<ConstantOp>(
             loc, builder.getIndexAttr(i));
-
-        //take the dimension
+        // take the dimension
         mlir::Value dim = builder.create<SizeOp>(
-            loc, IntegerType::get(builder.getContext()), tensorOperand, dimIndex);
+            loc, IntegerType::get(builder.getContext()), operand, dimIndex);
 
         auto assertOp = builder.create<AssertOp>(
             loc,
@@ -1393,10 +1396,8 @@ namespace mlir::bmodelica
           
         mlir::Value cond1 = builder.create<GteOp>(
             loc, index, zero); 
-          
         mlir::Value cond2 = builder.create<LtOp>(
             loc, index, dim);
-
         mlir::Value condition = builder.create<AndOp>(
           loc, cond1, cond2);
 
@@ -1514,36 +1515,39 @@ namespace mlir::bmodelica
   void StoreOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    auto operand = getArray();
-    uint64_t rank = operand.getType().getRank();
     mlir::ValueRange indices = getIndices();
-
+    
     // This operation is also used to store scalar variables
     // so check how many indices we have.
     if(indices.size() > 0) {
-      mlir::Value zero = builder.create<ConstantOp>(
-          loc, IntegerAttr::get(builder.getContext(), 0));
-
       // Modelica arrays will eventually be converted to MLIR tensors
       // at some point down the pipeline, so convert everything
       // to tensor to avoid issues
-      auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
-      auto operandTensorType = mlir::RankedTensorType::get(
-                operandShapedType.getShape(),
-                operandShapedType.getElementType());
-      auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
-          operandTensorType, operand);
+      mlir::Value operand;
+      if(getArrayType().isa<ArrayType>()) {
+        auto operandShapedType = getArrayType().dyn_cast<mlir::ShapedType>();
+        auto operandTensorType = mlir::RankedTensorType::get(
+                  operandShapedType.getShape(),
+                  operandShapedType.getElementType());
+        operand = builder.create<ArrayToTensorOp>(loc,
+            operandTensorType, getArray());
+      } else {
+        operand = getArray();
+      }
 
+      mlir::Value zero = builder.create<ConstantOp>(
+          loc, IntegerAttr::get(builder.getContext(), 0));
+
+      uint64_t rank = getArrayType().getRank();
       for(uint64_t i = 0; i < rank; i++) {
-        //take the i-th index
+        // take the i-th index
         auto index = *(indices.begin()+i);
 
         mlir::Value dimIndex = builder.create<ConstantOp>(
             loc, builder.getIndexAttr(i));
-
-        //take the dimension
+        // take the dimension
         mlir::Value dim = builder.create<SizeOp>(
-            loc, IntegerType::get(builder.getContext()), tensorOperand, dimIndex);
+            loc, IntegerType::get(builder.getContext()), operand, dimIndex);
 
         auto assertOp = builder.create<AssertOp>(
             loc,
@@ -1556,10 +1560,8 @@ namespace mlir::bmodelica
           
         mlir::Value cond1 = builder.create<GteOp>(
             loc, index, zero); 
-          
         mlir::Value cond2 = builder.create<LtOp>(
             loc, index, dim);
-
         mlir::Value condition = builder.create<AndOp>(
           loc, cond1, cond2);
 
@@ -1719,31 +1721,28 @@ namespace mlir::bmodelica
   void SubscriptionOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
-    auto operand = getSource();
-    uint64_t rank = operand.getType().getRank();
-    mlir::ValueRange indices = getIndices();
-
-    mlir::Value zero = builder.create<ConstantOp>(
-        loc, IntegerAttr::get(builder.getContext(), 0));
-
     // Modelica arrays will eventually be converted to MLIR tensors
     // at some point down the pipeline, so convert everything
     // to tensor to avoid issues
-    auto operandShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
+    auto operandShapedType = getSourceArrayType().dyn_cast<mlir::ShapedType>();
     auto operandTensorType = mlir::RankedTensorType::get(
               operandShapedType.getShape(),
               operandShapedType.getElementType());
     auto tensorOperand = builder.create<ArrayToTensorOp>(loc,
-        operandTensorType, operand);
+        operandTensorType, getSource());
 
+    mlir::Value zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+
+    uint64_t rank = getSourceArrayType().getRank();
+    mlir::ValueRange indices = getIndices();
     for(uint64_t i = 0; i < rank; i++) {
-      //take the i-th index
+      // take the i-th index
       auto index = *(indices.begin()+i);
 
+      // take the dimension
       mlir::Value dimIndex = builder.create<ConstantOp>(
           loc, builder.getIndexAttr(i));
-
-      //take the dimension
       mlir::Value dim = builder.create<SizeOp>(
           loc, IntegerType::get(builder.getContext()), tensorOperand, dimIndex);
 
@@ -1752,16 +1751,14 @@ namespace mlir::bmodelica
           builder.getStringAttr(
             "Model error: Index out of bounds\n"),
           builder.getI64IntegerAttr(2));
-          
+
       mlir::OpBuilder::InsertionGuard guard(builder);
       builder.createBlock(&assertOp.getConditionRegion());
-        
+
       mlir::Value cond1 = builder.create<GteOp>(
           loc, index, zero); 
-        
       mlir::Value cond2 = builder.create<LtOp>(
           loc, index, dim);
-
       mlir::Value condition = builder.create<AndOp>(
         loc, cond1, cond2);
 
