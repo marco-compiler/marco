@@ -520,6 +520,10 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.loopFusion = true;
   }
 
+  if (options.optLevel.getSpeedupLevel() > 2) {
+    options.loopTiling = true;
+  }
+
   if (options.optLevel.getSizeLevel() > 0) {
     options.debug = false;
     options.cse = true;
@@ -600,6 +604,9 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   }
 
   options.features = args.getAllArgValues(options::OPT_target_feature);
+
+  // Enable loop tiling only if the equations are statically scheduled.
+  options.loopTiling &= !options.equationsRuntimeScheduling;
 }
 
 static void parseSimulationArgs(marco::frontend::SimulationOptions &options,

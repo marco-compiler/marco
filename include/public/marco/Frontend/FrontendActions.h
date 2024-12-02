@@ -179,7 +179,7 @@ protected:
 
   std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass();
   void buildMLIRBufferDeallocationPipeline(mlir::OpPassManager &pm);
-  std::unique_ptr<mlir::Pass> createMLIRLoopTilingPass();
+  void addMLIRLoopTilingPass(mlir::OpPassManager &pm);
   std::unique_ptr<mlir::Pass> createMLIRPromoteBuffersToStackPass();
 
   /// }

@@ -956,7 +956,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   if (ci.getCodeGenOptions().loopTiling) {
-    pm.addNestedPass<mlir::func::FuncOp>(createMLIRLoopTilingPass());
+    addMLIRLoopTilingPass(pm);
   }
 
   if (ci.getCodeGenOptions().heapToStackPromotion) {
@@ -1114,15 +1114,15 @@ void CodeGenAction::buildMLIRBufferDeallocationPipeline(
   mlir::bufferization::buildBufferDeallocationPipeline(pm, options);
 }
 
-std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRLoopTilingPass() {
+void CodeGenAction::addMLIRLoopTilingPass(mlir::OpPassManager &pm) {
   const auto *subtargetInfo = getTargetMachine().getMCSubtargetInfo();
 
   if (auto cacheSize = subtargetInfo->getCacheSize(0);
       cacheSize && *cacheSize >= 1024) {
-    return mlir::affine::createLoopTilingPass(*cacheSize);
-  }
 
-  return mlir::affine::createLoopTilingPass();
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::affine::createLoopTilingPass(*cacheSize));
+  }
 }
 
 std::unique_ptr<mlir::Pass>
