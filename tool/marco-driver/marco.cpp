@@ -1,9 +1,9 @@
-#include "clang/Driver/Driver.h"
-#include "clang/Driver/Options.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -13,13 +13,16 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/Host.h"
 
-#define BUG_REPORT_URL "https://github.com/modelica-polimi/marco/issues/"
+#define BUG_REPORT_URL "https://github.com/marco-compiler/marco/issues/"
 
 static const char *BugReportMsg =
     "PLEASE submit a bug report to " BUG_REPORT_URL
     " and include the crash backtrace.\n";
 
 extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0);
+
+extern int cc1_main(llvm::ArrayRef<const char *> argv, const char *argv0,
+                    void *mainAddr);
 
 std::string getExecutablePath(const char *argv0) {
   // This just needs to be some symbol in the binary
@@ -29,7 +32,8 @@ std::string getExecutablePath(const char *argv0) {
 
 // This lets us create the DiagnosticsEngine with a properly-filled-out
 // DiagnosticOptions instance
-static clang::DiagnosticOptions* createAndPopulateDiagOpts(llvm::ArrayRef<const char *> argv) {
+static clang::DiagnosticOptions *
+createAndPopulateDiagOpts(llvm::ArrayRef<const char *> argv) {
   auto *diagOpts = new clang::DiagnosticOptions;
 
   // Ignore missingArgCount and the return value of ParseDiagnosticArgs.
@@ -40,7 +44,7 @@ static clang::DiagnosticOptions* createAndPopulateDiagOpts(llvm::ArrayRef<const 
       argv.slice(1), missingArgIndex, missingArgCount,
       llvm::opt::Visibility(clang::driver::options::MarcoOption));
 
-  //This is used by flang, but we don't use it
+  // This is used by flang, but we don't use it
   //(void)marco::frontend::parseDiagnosticArgs(*diagOpts, args);
 
   return diagOpts;
@@ -58,17 +62,26 @@ static void ExpandResponseFiles(llvm::StringSaver &saver,
 
 static int executeMC1Tool(llvm::SmallVectorImpl<const char *> &argv) {
   llvm::StringRef tool = argv[1];
-  if (tool == "-mc1")
-    return mc1_main(llvm::ArrayRef(argv).slice(2), argv[0]);
 
-  // Reject unknown tools.
-  llvm::errs() << "error: unknown integrated tool '" << tool << "'. "
-               << "Valid tools include '-mc1'.\n";
+  if (tool == "-mc1") {
+    return mc1_main(llvm::ArrayRef(argv).slice(2), argv[0]);
+  }
+
   return 1;
 }
 
-int main(int argc, const char** argv)
-{
+static int executeCC1Tool(llvm::SmallVectorImpl<const char *> &argv,
+                          void *mainAddr) {
+  llvm::StringRef tool = argv[1];
+
+  if (tool == "-cc1") {
+    return cc1_main(llvm::ArrayRef(argv).slice(2), argv[0], mainAddr);
+  }
+
+  return 1;
+}
+
+int main(int argc, const char **argv) {
   // Initialize variables to call the driver
   llvm::InitLLVM x(argc, argv);
   llvm::SmallVector<const char *, 256> args(argv, argv + argc);
@@ -86,9 +99,14 @@ int main(int argc, const char** argv)
   auto firstArg = std::find_if(args.begin() + 1, args.end(),
                                [](const char *a) { return a != nullptr; });
   if (firstArg != args.end()) {
-    // Call mc1 frontend
+    // Call mc1 frontend.
     if (llvm::StringRef(args[1]).equals("-mc1")) {
       return executeMC1Tool(args);
+    }
+
+    // Call cc1 frontend.
+    if (llvm::StringRef(args[1]).equals("-cc1")) {
+      return executeCC1Tool(args, (void *)(intptr_t)(driverPath.data()));
     }
   }
 
@@ -101,8 +119,7 @@ int main(int argc, const char** argv)
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
       new clang::DiagnosticIDs());
 
-  auto* diagClient =
-      new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
+  auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
 
   diagClient->setPrefix(
       std::string(llvm::sys::path::stem(getExecutablePath(args[0]))));

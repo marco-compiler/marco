@@ -1,5 +1,6 @@
 set(SOURCES
     marco.cpp
+    marco-cc1.cpp
     marco-mc1.cpp)
 
 set(LLVM_LINK_COMPONENTS
@@ -17,7 +18,9 @@ target_link_libraries(marco
 )
 
 clang_target_link_libraries(marco
-  PRIVATE
-  clangDriver
-  clangBasic
+    PRIVATE
+    clangDriver
+    clangBasic
+    clangFrontend
+    clangFrontendTool
 )
