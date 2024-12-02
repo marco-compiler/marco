@@ -955,11 +955,6 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
         mlir::affine::createAffineScalarReplacementPass());
   }
 
-  if (ci.getCodeGenOptions().loopCoalescing) {
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::affine::createLoopCoalescingPass());
-  }
-
   if (ci.getCodeGenOptions().loopTiling) {
     pm.addNestedPass<mlir::func::FuncOp>(createMLIRLoopTilingPass());
   }

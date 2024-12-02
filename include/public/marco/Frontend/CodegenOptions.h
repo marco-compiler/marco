@@ -29,7 +29,6 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool omp = false;
   bool singleValuedInductionElimination = false;
   bool loopFusion = false;
-  bool loopCoalescing = false;
   bool loopTiling = false;
 
   unsigned int bitWidth = 64;

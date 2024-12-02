@@ -518,8 +518,6 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.inlining = true;
     options.cse = true;
     options.loopFusion = true;
-    options.loopCoalescing = true;
-    options.loopTiling = true;
   }
 
   if (options.optLevel.getSizeLevel() > 0) {
@@ -528,7 +526,6 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.singleValuedInductionElimination = true;
     options.variablesPruning = true;
     options.loopFusion = true;
-    options.loopCoalescing = true;
   }
 
   if (options.optLevel.getSizeLevel() > 1) {
