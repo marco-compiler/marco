@@ -914,7 +914,7 @@ struct QualifiedVariableGetOpInterface
     builder.setInsertionPointAfter(castedOp);
 
     if (auto tensorType =
-            castedOp.getResult().getType().cast<mlir::TensorType>()) {
+            castedOp.getResult().getType().dyn_cast<mlir::TensorType>()) {
       auto elementType = tensorType.getElementType();
 
       auto materializableType =
@@ -934,7 +934,7 @@ struct QualifiedVariableGetOpInterface
       return mlir::success();
     }
 
-    if (auto arrayType = castedOp.getResult().getType().cast<ArrayType>()) {
+    if (auto arrayType = castedOp.getResult().getType().dyn_cast<ArrayType>()) {
       auto elementType = arrayType.getElementType();
 
       auto materializableType =
