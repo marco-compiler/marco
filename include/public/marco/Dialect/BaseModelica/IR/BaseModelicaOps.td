@@ -2816,7 +2816,8 @@ def BaseModelica_MinOp : BaseModelica_Op<"min",
     }];
 }
 
-def Modelica_ModOp : BaseModelica_Op<"mod", []>
+def Modelica_ModOp : BaseModelica_Op<"mod",
+    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Get the modulus of a division of two numbers.";
 
