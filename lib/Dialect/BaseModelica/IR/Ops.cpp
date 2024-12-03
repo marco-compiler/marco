@@ -4861,12 +4861,17 @@ DivOp::distributeDivOp(llvm::SmallVectorImpl<mlir::Value> &results,
 void DivOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value operand = getRhs();
-  mlir::Value argCast = builder.create<CastOp>(
-      loc, RealType::get(builder.getContext()), operand);
-
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 0.0f));
+  mlir::Value arg = getRhs();
+  mlir::Value zero; 
+  
+  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  if(isIntegerArg) {
+    zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+  } else {
+    zero = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 0.0f));
+  }
 
   auto assertOp = builder.create<AssertOp>(
       loc,
@@ -4878,7 +4883,7 @@ void DivOp::generateRuntimeVerification(
   builder.createBlock(&assertOp.getConditionRegion());
 
   mlir::Value condition = builder.create<NotEqOp>(
-      loc, argCast, zero);
+      loc, arg, zero);
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
@@ -6733,12 +6738,17 @@ mlir::OpFoldResult DivTruncOp::fold(FoldAdaptor adaptor) {
 void DivTruncOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value operand = getY();
-  mlir::Value argCast = builder.create<CastOp>(
-      loc, RealType::get(builder.getContext()), operand);
+  mlir::Value arg = getY();
+  mlir::Value zero;
 
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 0.0f));
+  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  if(isIntegerArg) {
+    zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+  } else {
+    zero = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 0.0f));
+  }
 
   auto assertOp = builder.create<AssertOp>(
       loc,
@@ -6750,7 +6760,7 @@ void DivTruncOp::generateRuntimeVerification(
   builder.createBlock(&assertOp.getConditionRegion());
 
   mlir::Value condition = builder.create<NotEqOp>(
-      loc, argCast, zero);
+      loc, arg, zero);
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
@@ -7402,12 +7412,17 @@ mlir::OpFoldResult RemOp::fold(FoldAdaptor adaptor) {
 void RemOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value operand = getY();
-  mlir::Value argCast = builder.create<CastOp>(
-      loc, RealType::get(builder.getContext()), operand);
+  mlir::Value arg = getY();
+  mlir::Value zero;
 
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 0.0f));
+  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  if(isIntegerArg) {
+    zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+  } else {
+    zero = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 0.0f));
+  }
 
   auto assertOp = builder.create<AssertOp>(
       loc,
@@ -7419,7 +7434,7 @@ void RemOp::generateRuntimeVerification(
   builder.createBlock(&assertOp.getConditionRegion());
 
   mlir::Value condition = builder.create<NotEqOp>(
-      loc, argCast, zero);
+      loc, arg, zero);
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
