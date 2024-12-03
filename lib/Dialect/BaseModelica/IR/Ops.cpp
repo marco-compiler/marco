@@ -5,6 +5,7 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
@@ -13,7 +14,6 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
-#include <mlir/IR/BuiltinAttributes.h>
 
 using namespace ::mlir::bmodelica;
 
@@ -5696,104 +5696,69 @@ namespace mlir::bmodelica
   void DivEWOp::generateRuntimeVerification(
       mlir::OpBuilder& builder, mlir::Location loc)
   {
+    mlir::Value rhs = getRhs();
+    mlir::Value condition;
+    AssertOp assertOp;
+    llvm::SmallVector<mlir::Value> inductionVars;
+
     mlir::Value zero = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), 0.0f));
     
-    mlir::Value rhs = getRhs();
-    mlir::Value rhsCast;
-    mlir::Value condition;
-
     bool isRhsScalar = isScalar(rhs.getType());
     if(isRhsScalar) {
-      rhsCast = builder.create<CastOp>(
+      rhs = builder.create<CastOp>(
           loc, RealType::get(builder.getContext()), rhs);
     } else {
+      mlir::Value zeroIdx = builder.create<ConstantOp>(
+          loc, builder.getIndexAttr(0));
+      mlir::Value oneIdx = builder.create<ConstantOp>(
+          loc, builder.getIndexAttr(1));
+
       auto rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
-      auto rhsArrayType = ArrayType::get(
-                rhsShapedType.getShape(),
-                rhsShapedType.getElementType());
-      rhsCast = builder.create<TensorToArrayOp>(loc,
-          rhsArrayType, rhs);
+      size_t rank = rhsShapedType.getRank();
+      
+      llvm::SmallVector<mlir::Value, 10> dimSizes;
+      for(size_t i = 0; i < rank; i++) {
+        mlir::Value dimIndex = builder.create<ConstantOp>(
+            loc, builder.getIndexAttr(i));
+        mlir::Value dim = builder.create<SizeOp>(
+            loc, IndexType::get(builder.getContext()), rhs, dimIndex);
+
+        dimSizes.emplace_back(dim);
+      }
+
+      for(size_t i = 0; i < rank; i++) {
+        auto forOp = builder.create<mlir::scf::ForOp>(
+            loc,
+            zeroIdx,
+            dimSizes[i],
+            oneIdx);
+        inductionVars.emplace_back(forOp.getInductionVar());
+
+        builder.setInsertionPointToStart(forOp.getBody());
+      }
     }
-    
-    auto assertOp = builder.create<AssertOp>(
+
+    assertOp = builder.create<AssertOp>(
       loc, 
       builder.getStringAttr(
         "Model error: element-wise division by zero\n"),
       builder.getI64IntegerAttr(2));
-  
+
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.createBlock(&assertOp.getConditionRegion());
-    
+
     if(isRhsScalar) {
       condition = builder.create<NotEqOp>(
-          loc, rhsCast, zero);
+          loc, rhs, zero);
+      builder.create<YieldOp>(assertOp.getLoc(), condition);
     } else {
-      auto rhsShapedType = rhsCast.getType().dyn_cast<mlir::ShapedType>();
-      uint64_t rank = rhsShapedType.getRank();
-      llvm::SmallVector<uint64_t, 10> shape;
-
-      // Get shape sizes
-      uint64_t maxDim = 0;
-      for(uint64_t dim = 0; dim < rank; dim++) {
-        uint64_t rhsDimSize = rhsShapedType.getDimSize(dim);
-        shape.push_back(rhsDimSize);
-        maxDim = std::max(maxDim, rhsDimSize);
-      }
-
-      // Generate array of indexes describing every
-      // element in the data structure
-      // e.g. for a 3-dimensional [n, m, k] array we'd have
-      // (0, 0, 0)
-      // (0, 0, 1)
-      // ...
-      // (n-1, m-1, k-1)
-      std::vector<std::vector<uint64_t>> indices;
-      for(uint64_t k = 0; k < shape[0]; k++)
-        indices.emplace_back(std::vector<uint64_t>{k});
-
-      for(uint64_t dim = 1; dim < rank; dim++) {
-        uint64_t oldSize = indices.size();
-        uint64_t dimSize = shape[dim];
-
-        for(uint64_t k = 0; k < oldSize; k++) {
-          for(uint64_t i = 0; i < dimSize; i++) {
-            std::vector<uint64_t> tmp(indices[k]);
-            tmp.emplace_back(i);
-            indices.emplace_back(tmp);
-          }
-        }
-
-        // Erase old tuples
-        indices.erase(indices.begin(), indices.begin()+oldSize);
-      }
-
-      // Materialize constants needed for indices
-      std::vector<mlir::Value>indicesConstants;
-      for(uint64_t i = 0; i < maxDim; i++)
-        indicesConstants.emplace_back(builder.create<ConstantOp>(
-            loc, builder.getIndexAttr(i)));
-
-      // Emit LoadOp + check for every array element
-      llvm::SmallVector<mlir::Value, 10> indicesSSA;
-      condition = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), 1.0f));
-      for(auto &tuple : indices) {        
-        // Materialize indices
-        for(auto &el : tuple)
-          indicesSSA.emplace_back(indicesConstants[el]);
-
-        mlir::ValueRange indexToLoadRange(indicesSSA);
-        auto arrayElement = builder.create<LoadOp>(loc,
-            rhsCast, indexToLoadRange);
-        condition = builder.create<AndOp>(loc,
-            condition, arrayElement);
-        
-        indicesSSA.clear();
-      }
+      auto tensorElem = builder.create<TensorExtractOp>(
+          loc, rhs, inductionVars);
+      condition = builder.create<NotEqOp>(
+          loc, tensorElem, zero);
+      builder.create<YieldOp>(assertOp.getLoc(), condition);
     }
-
-    builder.create<YieldOp>(assertOp.getLoc(), condition);
   }
 }
 
