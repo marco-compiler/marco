@@ -4455,10 +4455,8 @@ def BaseModelica_EquationSidesOp : BaseModelica_Op<"equation_sides",
 
     let arguments = (ins AnyTuple:$lhs, AnyTuple:$rhs);
     let results = (outs);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)
-    }];
+    let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)";
+    let hasVerifier = 1;
 
     let extraClassDeclaration = [{
         mlir::ValueRange getLhsValues() {

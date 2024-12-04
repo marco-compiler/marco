@@ -10421,6 +10421,48 @@ void EquationSideOp::getCanonicalizationPatterns(
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
+// EquationSidesOp
+
+namespace mlir::bmodelica {
+mlir::LogicalResult EquationSidesOp::verify() {
+  auto lhsTypes = getLhs().getType().getTypes();
+  auto rhsTypes = getRhs().getType().getTypes();
+
+  if (lhsTypes.size() != rhsTypes.size()) {
+    return emitOpError() << lhsTypes.size()
+                         << " elements on the left-hand side and "
+                         << rhsTypes.size() << " on the right-hand side";
+  }
+
+  for (auto [lhs, rhs] : llvm::zip(lhsTypes, rhsTypes)) {
+    auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhs);
+    auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhs);
+
+    if (!lhsShapedType && !rhsShapedType) {
+      continue;
+    }
+
+    if (!lhsShapedType || !rhsShapedType) {
+      return emitOpError() << "incompatible types";
+    }
+
+    if (lhsShapedType.getRank() != rhsShapedType.getRank()) {
+      return emitOpError() << "incompatible types";
+    }
+
+    for (int64_t dim = 0, rank = lhsShapedType.getRank(); dim < rank; ++dim) {
+      if (mlir::failed(mlir::verifyCompatibleShape(lhsShapedType.getShape(),
+                                                   rhsShapedType.getShape()))) {
+        return emitOpError() << "incompatible types";
+      }
+    }
+  }
+
+  return mlir::success();
+}
+} // namespace mlir::bmodelica
+
+//===---------------------------------------------------------------------===//
 // FunctionOp
 
 namespace mlir::bmodelica {
