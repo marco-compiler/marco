@@ -4861,10 +4861,11 @@ DivOp::distributeDivOp(llvm::SmallVectorImpl<mlir::Value> &results,
 void DivOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value arg = getRhs();
-  mlir::Value zero; 
+  mlir::Value rhs = getRhs();
+  mlir::Value zero;
+  mlir::Value condition; 
   
-  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  bool isIntegerArg = rhs.getType().isa<IntegerType>();
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -4882,11 +4883,20 @@ void DivOp::generateRuntimeVerification(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(&assertOp.getConditionRegion());
 
-  mlir::Value condition = builder.create<NotEqOp>(
-      loc, arg, zero);
-  
-  builder.create<YieldOp>(assertOp.getLoc(), condition);
-}
+    if(isIntegerArg) {
+      condition = builder.create<NotEqOp>(
+          loc, rhs, zero);
+    } else {
+      mlir::Value epsilon = builder.create<ConstantOp>(
+          loc, RealAttr::get(builder.getContext(), 1E-4));
+      mlir::Value rhsAbs = builder.create<AbsOp>(
+          loc, RealType::get(builder.getContext()), rhs);
+      condition = builder.create<GteOp>(
+          loc, rhsAbs, epsilon);
+    }
+    
+    builder.create<YieldOp>(assertOp.getLoc(), condition);
+  }
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
@@ -5207,24 +5217,33 @@ void DivEWOp::generateRuntimeVerification(
   mlir::Value rhs = getRhs();
   mlir::Value condition;
   AssertOp assertOp;
+  mlir::ShapedType rhsShapedType;
   llvm::SmallVector<mlir::Value> inductionVars;
 
-  mlir::Value zero = builder.create<ConstantOp>(
-      loc, RealAttr::get(builder.getContext(), 0.0f));
-  
   bool isRhsScalar = isScalar(rhs.getType());
+  bool isIntegerArg;
   if(isRhsScalar) {
-    rhs = builder.create<CastOp>(
-        loc, RealType::get(builder.getContext()), rhs);
+    isIntegerArg = rhs.getType().isa<IntegerType>();
   } else {
+    rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
+    isIntegerArg = rhsShapedType.getElementType().isa<IntegerType>();
+  }
+
+  mlir::Value zero;
+  if(isIntegerArg)
+    zero = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), 0));
+  else
+    zero = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 0.0f));
+
+  if(!isRhsScalar) {
     mlir::Value zeroIdx = builder.create<ConstantOp>(
         loc, builder.getIndexAttr(0));
     mlir::Value oneIdx = builder.create<ConstantOp>(
         loc, builder.getIndexAttr(1));
 
-    auto rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
     size_t rank = rhsShapedType.getRank();
-    
     llvm::SmallVector<mlir::Value, 10> dimSizes;
     for(size_t i = 0; i < rank; i++) {
       mlir::Value dimIndex = builder.create<ConstantOp>(
@@ -5257,14 +5276,32 @@ void DivEWOp::generateRuntimeVerification(
   builder.createBlock(&assertOp.getConditionRegion());
 
   if(isRhsScalar) {
-    condition = builder.create<NotEqOp>(
-        loc, rhs, zero);
+    if(isIntegerArg) {
+      condition = builder.create<NotEqOp>(
+          loc, rhs, zero);
+    } else {
+      mlir::Value epsilon = builder.create<ConstantOp>(
+          loc, RealAttr::get(builder.getContext(), 1E-4));
+      mlir::Value rhsAbs = builder.create<AbsOp>(
+          loc, RealType::get(builder.getContext()), rhs);
+      condition = builder.create<GteOp>(
+          loc, rhsAbs, epsilon);
+    }
     builder.create<YieldOp>(assertOp.getLoc(), condition);
   } else {
     auto tensorElem = builder.create<TensorExtractOp>(
         loc, rhs, inductionVars);
-    condition = builder.create<NotEqOp>(
-        loc, tensorElem, zero);
+    if(isIntegerArg) {
+      condition = builder.create<NotEqOp>(
+          loc, tensorElem, zero);
+    } else {
+      mlir::Value epsilon = builder.create<ConstantOp>(
+          loc, RealAttr::get(builder.getContext(), 1E-4));
+      mlir::Value elemAbs = builder.create<AbsOp>(
+          loc, RealType::get(builder.getContext()), tensorElem);
+      condition = builder.create<GteOp>(
+          loc, elemAbs, epsilon);
+    }
     builder.create<YieldOp>(assertOp.getLoc(), condition);
   }
 }
@@ -6738,10 +6775,11 @@ mlir::OpFoldResult DivTruncOp::fold(FoldAdaptor adaptor) {
 void DivTruncOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value arg = getY();
+  mlir::Value rhs = getY();
   mlir::Value zero;
+  mlir::Value condition;
 
-  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  bool isIntegerArg = rhs.getType().isa<IntegerType>();
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -6759,8 +6797,17 @@ void DivTruncOp::generateRuntimeVerification(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(&assertOp.getConditionRegion());
 
-  mlir::Value condition = builder.create<NotEqOp>(
-      loc, arg, zero);
+  if(isIntegerArg) {
+    condition = builder.create<NotEqOp>(
+        loc, rhs, zero);
+  } else {
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 1E-4));
+    mlir::Value rhsAbs = builder.create<AbsOp>(
+        loc, RealType::get(builder.getContext()), rhs);
+    condition = builder.create<GteOp>(
+        loc, rhsAbs, epsilon);
+  }
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
@@ -7368,10 +7415,11 @@ mlir::OpFoldResult ModOp::fold(FoldAdaptor adaptor) {
 void ModOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value arg = getY();
+  mlir::Value y = getY();
   mlir::Value zero;
+  mlir::Value condition;
 
-  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  bool isIntegerArg = y.getType().isa<IntegerType>();
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -7389,8 +7437,17 @@ void ModOp::generateRuntimeVerification(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(&assertOp.getConditionRegion());
 
-  mlir::Value condition = builder.create<NotEqOp>(
-      loc, arg, zero);
+  if(isIntegerArg) {
+    condition = builder.create<NotEqOp>(
+        loc, y, zero);
+  } else {
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 1E-4));
+    mlir::Value yAbs = builder.create<AbsOp>(
+        loc, RealType::get(builder.getContext()), y);
+    condition = builder.create<GteOp>(
+        loc, yAbs, epsilon);
+  }
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
@@ -7442,10 +7499,11 @@ mlir::OpFoldResult RemOp::fold(FoldAdaptor adaptor) {
 void RemOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  mlir::Value arg = getY();
+  mlir::Value y = getY();
   mlir::Value zero;
+  mlir::Value condition;
 
-  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  bool isIntegerArg = y.getType().isa<IntegerType>();
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -7463,8 +7521,17 @@ void RemOp::generateRuntimeVerification(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(&assertOp.getConditionRegion());
 
-  mlir::Value condition = builder.create<NotEqOp>(
-      loc, arg, zero);
+  if(isIntegerArg) {
+    condition = builder.create<NotEqOp>(
+        loc, y, zero);
+  } else {
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 1E-4));
+    mlir::Value yAbs = builder.create<AbsOp>(
+        loc, RealType::get(builder.getContext()), y);
+    condition = builder.create<GteOp>(
+        loc, yAbs, epsilon);
+  }
   
   builder.create<YieldOp>(assertOp.getLoc(), condition);
 }
