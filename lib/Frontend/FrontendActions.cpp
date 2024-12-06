@@ -1096,7 +1096,7 @@ CodeGenAction::createMLIRBaseModelicaToRuntimeConversionPass() {
   CompilerInstance &ci = getInstance();
 
   mlir::BaseModelicaToRuntimeConversionPassOptions options;
-  options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+  options.variableFilter = ci.getFrontendOptions().variableFilter;
 
   return mlir::createBaseModelicaToRuntimeConversionPass(options);
 }

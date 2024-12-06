@@ -283,7 +283,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::processModelOp(
   }
 
   auto expectedVariablesFilter =
-      marco::VariableFilter::fromString(variablesFilter);
+      marco::VariableFilter::fromString(variableFilter);
 
   std::unique_ptr<marco::VariableFilter> variablesFilterInstance;
 

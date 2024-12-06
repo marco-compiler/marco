@@ -469,8 +469,8 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
   options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
   if (const llvm::opt::Arg *arg =
-          args.getLastArg(options::OPT_variables_filter)) {
-    options.variablesFilter = arg->getValue();
+          args.getLastArg(options::OPT_variable_filter)) {
+    options.variableFilter = arg->getValue();
   }
 }
 

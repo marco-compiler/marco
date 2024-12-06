@@ -309,7 +309,7 @@ def BaseModelicaToRuntimeConversionPass
     ];
 
     let options = [
-        Option<"variablesFilter", "variables-filter",
+        Option<"variableFilter", "variable-filter",
                "std::string", "",
                "Set a print filter for the variables of the simulation">,
     ];
