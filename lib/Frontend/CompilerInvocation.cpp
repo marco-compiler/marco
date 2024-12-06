@@ -517,6 +517,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.variablesToParametersPromotion = true;
     options.inlining = true;
     options.cse = true;
+    options.functionCallsCSE = true;
     options.loopFusion = true;
   }
 
@@ -527,6 +528,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (options.optLevel.getSizeLevel() > 0) {
     options.debug = false;
     options.cse = true;
+    options.functionCallsCSE = true;
     options.singleValuedInductionElimination = true;
     options.variablesPruning = true;
     options.loopFusion = true;
@@ -582,6 +584,10 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
 
   options.cse =
       args.hasFlag(options::OPT_cse, options::OPT_no_cse, options.cse);
+
+  options.functionCallsCSE = args.hasFlag(options::OPT_function_calls_cse,
+                                          options::OPT_no_function_calls_cse,
+                                          options.functionCallsCSE);
 
   options.equationsRuntimeScheduling =
       args.hasFlag(options::OPT_equations_runtime_scheduling,

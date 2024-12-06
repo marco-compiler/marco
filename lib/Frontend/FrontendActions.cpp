@@ -809,7 +809,9 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::bmodelica::createEquationTemplatesCreationPass());
 
   // Eliminate repeated function calls
-  pm.addPass(mlir::bmodelica::createCallCSEPass());
+  if (ci.getCodeGenOptions().functionCallsCSE) {
+    pm.addPass(mlir::bmodelica::createCallCSEPass());
+  }
 
   // Materialize the derivatives.
   pm.addPass(mlir::bmodelica::createDerivativesMaterializationPass());

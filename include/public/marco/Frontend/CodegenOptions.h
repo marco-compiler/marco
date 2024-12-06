@@ -25,6 +25,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   int64_t sccSolvingBySubstitutionMaxIterations = 100;
   int64_t sccSolvingBySubstitutionMaxEquationsInSCC = 5;
   bool cse = false;
+  bool functionCallsCSE = false;
   bool equationsRuntimeScheduling = false;
   bool omp = false;
   bool singleValuedInductionElimination = false;
