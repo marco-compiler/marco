@@ -762,13 +762,15 @@ def Runtime_ReturnOp : Runtime_Op<"return",
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
-// TODO symbol user interface
-def Modelica_CallOp : Runtime_Op<"call", [CallOpInterface]>
+def Runtime_CallOp : Runtime_Op<"call", [
+    CallOpInterface,
+    DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
     let summary = "Call operation.";
 
     let description = [{
-        TODO
+        The operation represents a direct call to a function defined in the
+        runtime libraries.
     }];
 
     let arguments = (ins
@@ -780,6 +782,8 @@ def Modelica_CallOp : Runtime_Op<"call", [CallOpInterface]>
     let assemblyFormat = [{
         $callee `(` $args `)` attr-dict `:` functional-type($args, results)
     }];
+
+    let hasVerifier = 1;
 
     let builders = [
         OpBuilder<(ins
