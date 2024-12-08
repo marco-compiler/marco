@@ -91,9 +91,10 @@ def EquationExpressionOpInterface
             (ins "::llvm::raw_ostream&":$os,
                  "const ::llvm::DenseMap<::mlir::Value, int64_t>&":$inductions)>,
         InterfaceMethod<
-            "Check if two expressions are equivalent",
+            "Check if two expressions are equivalent. Induction accesses are treated as equal, and are returned in [inductionAccesses]",
             "bool", "isEquivalent",
             (ins "mlir::Operation*":$other,
+                 "llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>&":$inductionAccesses,
                  "mlir::SymbolTableCollection&":$symbolTableCollection), "", [{
                 // Safely assume that the two expressions are different.
                 return false;
