@@ -66,6 +66,12 @@ struct FrontendOptions {
   bool printStatistics = false;
 
   bool multithreading = true;
+
+  std::string printIRBeforePass = "";
+  std::string printIRAfterPass = "";
+  bool printIROnFailure = false;
+
+  bool shouldPrintIR() const;
 };
 } // namespace marco::frontend
 

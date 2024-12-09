@@ -693,8 +693,35 @@ bool CodeGenAction::generateMLIRLLVM() {
     pm.enableStatistics();
   }
 
+  if (ci.getFrontendOptions().shouldPrintIR()) {
+    // IR printing requires multithreading to be disabled.
+    pm.getContext()->disableMultithreading();
+
+    auto shouldPrintBeforePass = [&](mlir::Pass *pass,
+                                     mlir::Operation *) -> bool {
+      return pass->getArgument() == ci.getFrontendOptions().printIRBeforePass;
+    };
+
+    auto shouldPrintAfterPass = [&](mlir::Pass *pass,
+                                    mlir::Operation *) -> bool {
+      return pass->getArgument() == ci.getFrontendOptions().printIRAfterPass;
+    };
+
+    pm.enableIRPrinting(shouldPrintBeforePass, shouldPrintAfterPass, true,
+                        false, false, llvm::errs());
+  }
+
   buildMLIRLoweringPipeline(pm);
-  return mlir::succeeded(pm.run(*mlirModule));
+
+  if (mlir::failed(pm.run(*mlirModule))) {
+    if (ci.getFrontendOptions().printIROnFailure) {
+      llvm::errs() << *mlirModule << "\n";
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
 void CodeGenAction::setMLIRModuleTargetTriple() {
