@@ -441,6 +441,20 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
       args.hasFlag(options::OPT_multithreading, options::OPT_no_multithreading,
                    options.multithreading);
 
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_print_ir_before_pass)) {
+    llvm::StringRef value = arg->getValue();
+    options.printIRBeforePass = value.str();
+  }
+
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_print_ir_after_pass)) {
+    llvm::StringRef value = arg->getValue();
+    options.printIRAfterPass = value.str();
+  }
+
+  options.printIROnFailure = args.hasArg(options::OPT_print_ir_on_failure);
+
   // Collect the input files and save them in our instance of FrontendOptions
   std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);
   options.inputs.clear();
