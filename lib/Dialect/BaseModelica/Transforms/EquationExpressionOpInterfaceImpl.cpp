@@ -57,10 +57,15 @@ void printUnaryExpression(
 
 bool areExpressionOperandsEquivalent(
     mlir::ValueRange firstOperands, mlir::ValueRange secondOperands,
+    llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+        &inductionAccesses,
     mlir::SymbolTableCollection &symbolTableCollection) {
   if (firstOperands.size() != secondOperands.size()) {
     return false;
   }
+
+  llvm::SmallVector<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+      tmpInductionAccesses;
 
   for (auto [firstOperand, secondOperand] :
        llvm::zip(firstOperands, secondOperands)) {
@@ -68,41 +73,80 @@ bool areExpressionOperandsEquivalent(
     auto secondExp =
         secondOperand.getDefiningOp<EquationExpressionOpInterface>();
 
-    if (!firstExp || !secondExp) {
-      return false;
+    // For expression operations, continue the recursion
+    if (firstExp && secondExp) {
+      if (!firstExp.isEquivalent(secondExp, inductionAccesses,
+                                 symbolTableCollection)) {
+        return false;
+      }
+      continue;
     }
 
-    if (!firstExp.isEquivalent(secondExp, symbolTableCollection)) {
+    // Check if both are induction variables
+    auto firstArg = firstOperand.dyn_cast<mlir::BlockArgument>();
+    auto secondArg = secondOperand.dyn_cast<mlir::BlockArgument>();
+    if (!firstArg || !secondArg) {
+      return false;
+    }
+    // The args may come from a nested operation, not the template loop args.
+    auto firstIsInduction =
+        llvm::isa<EquationTemplateOp>(firstArg.getOwner()->getParentOp());
+    auto secondIsInduction =
+        llvm::isa<EquationTemplateOp>(secondArg.getOwner()->getParentOp());
+    if (firstIsInduction && secondIsInduction) {
+      // If both are inductions we have a match
+      tmpInductionAccesses.push_back({firstArg, secondArg});
+    } else if (firstIsInduction || secondIsInduction) {
+      // If one of them was then its a miss
       return false;
     }
   }
 
+  // Add collected inductions to the total (only if all were a match).
+  inductionAccesses.append(tmpInductionAccesses);
   return true;
 }
 
 bool areEquationExpressionsEquivalent(
     mlir::Operation *firstOp, mlir::Operation *secondOp,
+    llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+        &inductionAccesses,
     mlir::SymbolTableCollection &symbolTableCollection) {
   if (firstOp->getResultTypes() != secondOp->getResultTypes()) {
     return false;
   }
 
   return areExpressionOperandsEquivalent(
-      firstOp->getOperands(), secondOp->getOperands(), symbolTableCollection);
+      firstOp->getOperands(), secondOp->getOperands(), inductionAccesses,
+      symbolTableCollection);
 }
 
 template <typename OpType>
-bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                  mlir::SymbolTableCollection &symbolTableCollection) {
+bool isEquivalent(
+    mlir::Operation *op, mlir::Operation *other,
+    llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+        &inductionAccesses,
+    mlir::SymbolTableCollection &symbolTableCollection) {
   auto otherCasted = mlir::dyn_cast<OpType>(other);
 
   if (!otherCasted) {
     return false;
   }
 
-  return areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
-                                          symbolTableCollection);
+  return areEquationExpressionsEquivalent(
+      op, otherCasted.getOperation(), inductionAccesses, symbolTableCollection);
 }
+
+#define DEFINE_DEFAULT_IS_EQUIVALENT(T)                                        \
+  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,               \
+                    llvm::SmallVectorImpl<                                     \
+                        std::pair<mlir::BlockArgument, mlir::BlockArgument>>   \
+                        &inductionAccesses,                                    \
+                    mlir::SymbolTableCollection &symbolTableCollection)        \
+      const {                                                                  \
+    return ::isEquivalent<T>(op, other, inductionAccesses,                     \
+                             symbolTableCollection);                           \
+  }
 } // namespace
 
 namespace {
@@ -119,10 +163,7 @@ struct RangeOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<RangeOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(RangeOp)
 };
 
 struct ReductionOpInterface
@@ -172,8 +213,11 @@ struct ReductionOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<ReductionOp>(op);
     auto otherCasted = mlir::dyn_cast<ReductionOp>(other);
 
@@ -186,6 +230,7 @@ struct ReductionOpInterface
     }
 
     if (!areEquationExpressionsEquivalent(op, otherCasted.getOperation(),
+                                          inductionAccesses,
                                           symbolTableCollection)) {
       return false;
     }
@@ -194,7 +239,8 @@ struct ReductionOpInterface
     auto otherYieldOp =
         mlir::cast<YieldOp>(otherCasted.getBody()->getTerminator());
     return areExpressionOperandsEquivalent(
-        yieldOp.getValues(), otherYieldOp.getValues(), symbolTableCollection);
+        yieldOp.getValues(), otherYieldOp.getValues(), inductionAccesses,
+        symbolTableCollection);
   }
 
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const {
@@ -308,8 +354,11 @@ struct CallOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<CallOp>(op);
     auto otherCasted = mlir::dyn_cast<CallOp>(other);
 
@@ -349,7 +398,7 @@ struct CallOpInterface
         mlir::Value otherArg =
             otherCasted.getArgs()[otherArgNamesPos[entry.getKey()]];
 
-        if (!areExpressionOperandsEquivalent(arg, otherArg,
+        if (!areExpressionOperandsEquivalent(arg, otherArg, inductionAccesses,
                                              symbolTableCollection)) {
           return false;
         }
@@ -362,6 +411,7 @@ struct CallOpInterface
 
       if (!compareNamedUnnamedArgs(casted.getArgs(), argNamesPos,
                                    otherCasted.getArgs(), otherArgNamesPos,
+                                   false, inductionAccesses,
                                    symbolTableCollection)) {
         return false;
       }
@@ -372,13 +422,14 @@ struct CallOpInterface
       }
 
       if (!compareNamedUnnamedArgs(otherCasted.getArgs(), otherArgNamesPos,
-                                   casted.getArgs(), argNamesPos,
-                                   symbolTableCollection)) {
+                                   casted.getArgs(), argNamesPos, true,
+                                   inductionAccesses, symbolTableCollection)) {
         return false;
       }
     } else {
       if (!areExpressionOperandsEquivalent(
-              casted.getArgs(), otherCasted.getArgs(), symbolTableCollection)) {
+              casted.getArgs(), otherCasted.getArgs(), inductionAccesses,
+              symbolTableCollection)) {
         return false;
       }
     }
@@ -431,6 +482,9 @@ struct CallOpInterface
       mlir::ValueRange namedArgs, const llvm::StringMap<size_t> &namedArgsPos,
       mlir::ValueRange unnamedArgs,
       const llvm::StringMap<size_t> &unnamedArgsPos,
+      const bool invertValueOrder,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
       mlir::SymbolTableCollection &symbolTableCollection) const {
     if (namedArgs.size() != unnamedArgs.size()) {
       return false;
@@ -460,9 +514,20 @@ struct CallOpInterface
       assert(namedArgsPosIt->getValue() < namedArgs.size());
       mlir::Value namedArg = namedArgs[namedArgsPosIt->getValue()];
 
-      if (!areExpressionOperandsEquivalent(namedArg, unnamedArg.value(),
-                                           symbolTableCollection)) {
-        return false;
+      // To preserve the association of inductionAccesses to each original
+      // operation we might have to reorder the operand checking order.
+      if (!invertValueOrder) {
+        if (!areExpressionOperandsEquivalent(namedArg, unnamedArg.value(),
+                                             inductionAccesses,
+                                             symbolTableCollection)) {
+          return false;
+        }
+      } else {
+        if (!areExpressionOperandsEquivalent(unnamedArg.value(), namedArg,
+                                             inductionAccesses,
+                                             symbolTableCollection)) {
+          return false;
+        }
       }
     }
 
@@ -511,11 +576,7 @@ struct TensorFromElementsOpInterface
     os << "}";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TensorFromElementsOp>(op, other,
-                                                symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TensorFromElementsOp)
 };
 
 struct TensorBroadcastOpInterface
@@ -540,10 +601,7 @@ struct TensorBroadcastOpInterface
     os << "}";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TensorBroadcastOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TensorBroadcastOp)
 };
 
 struct TensorViewOpInterface
@@ -564,10 +622,7 @@ struct TensorViewOpInterface
     os << "]";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TensorViewOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TensorViewOp)
 
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
@@ -624,10 +679,7 @@ struct TensorExtractOpInterface
     os << "]";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TensorExtractOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TensorExtractOp)
 
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
@@ -683,11 +735,7 @@ struct ArrayFromElementsOpInterface
     os << "}";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ArrayFromElementsOp>(op, other,
-                                               symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ArrayFromElementsOp)
 };
 
 struct ArrayBroadcastOpInterface
@@ -712,10 +760,7 @@ struct ArrayBroadcastOpInterface
     os << "}";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ArrayBroadcastOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ArrayBroadcastOp)
 };
 
 struct ArrayCastOpInterface
@@ -728,10 +773,7 @@ struct ArrayCastOpInterface
     ::printExpression(os, castedOp.getOperand(), inductions);
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ArrayCastOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ArrayCastOp)
 
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
@@ -780,10 +822,7 @@ struct DimOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DimOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DimOp)
 
   uint64_t getNumOfExpressionElements(mlir::Operation *op) const { return 1; }
 
@@ -813,10 +852,7 @@ struct SubscriptionOpInterface
     os << "]";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SubscriptionOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SubscriptionOp)
 
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
@@ -873,10 +909,7 @@ struct LoadOpInterface
     os << "]";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<LoadOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(LoadOp)
 
   mlir::LogicalResult getEquationAccesses(
       mlir::Operation *op, llvm::SmallVectorImpl<VariableAccess> &accesses,
@@ -925,8 +958,11 @@ struct VariableGetOpInterface
     os << castedOp.getVariable();
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<VariableGetOp>(op);
     auto otherCasted = mlir::dyn_cast<VariableGetOp>(other);
 
@@ -938,7 +974,8 @@ struct VariableGetOpInterface
       return false;
     }
 
-    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, inductionAccesses,
+                                            symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -996,8 +1033,11 @@ struct GlobalVariableGetOpInterface
     os << castedOp.getVariable();
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<GlobalVariableGetOp>(op);
     auto otherCasted = mlir::dyn_cast<GlobalVariableGetOp>(other);
 
@@ -1009,7 +1049,8 @@ struct GlobalVariableGetOpInterface
       return false;
     }
 
-    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, inductionAccesses,
+                                            symbolTableCollection);
   }
 
   mlir::LogicalResult getEquationAccesses(
@@ -1060,8 +1101,11 @@ struct ConstantOpInterface
     castedOp.getValue().print(os, true);
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
+  bool isEquivalent(
+      mlir::Operation *op, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &inductionAccesses,
+      mlir::SymbolTableCollection &symbolTableCollection) const {
     auto casted = mlir::cast<ConstantOp>(op);
     auto otherCasted = mlir::dyn_cast<ConstantOp>(other);
 
@@ -1073,7 +1117,8 @@ struct ConstantOpInterface
       return false;
     }
 
-    return areEquationExpressionsEquivalent(op, other, symbolTableCollection);
+    return areEquationExpressionsEquivalent(op, other, inductionAccesses,
+                                            symbolTableCollection);
   }
 };
 
@@ -1090,10 +1135,7 @@ struct NegateOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<NegateOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(NegateOp)
 };
 
 struct AddOpInterface
@@ -1105,10 +1147,7 @@ struct AddOpInterface
     ::printBinaryExpression<AddOp>(op, os, inductions, "+");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AddOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AddOp)
 };
 
 struct AddEWOpInterface
@@ -1120,10 +1159,7 @@ struct AddEWOpInterface
     ::printBinaryExpression<AddEWOp>(op, os, inductions, ".+");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AddEWOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AddEWOp)
 };
 
 struct SubOpInterface
@@ -1135,10 +1171,7 @@ struct SubOpInterface
     ::printBinaryExpression<SubOp>(op, os, inductions, "-");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SubOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SubOp)
 };
 
 struct SubEWOpInterface
@@ -1150,10 +1183,7 @@ struct SubEWOpInterface
     ::printBinaryExpression<SubEWOp>(op, os, inductions, ".-");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SubEWOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SubEWOp)
 };
 
 struct MulOpInterface
@@ -1165,10 +1195,7 @@ struct MulOpInterface
     ::printBinaryExpression<MulOp>(op, os, inductions, "*");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<MulOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(MulOp)
 };
 
 struct MulEWOpInterface
@@ -1180,10 +1207,7 @@ struct MulEWOpInterface
     ::printBinaryExpression<MulEWOp>(op, os, inductions, ".*");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<MulEWOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(MulEWOp)
 };
 
 struct DivOpInterface
@@ -1195,10 +1219,7 @@ struct DivOpInterface
     ::printBinaryExpression<DivOp>(op, os, inductions, "/");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DivOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DivOp)
 };
 
 struct DivEWOpInterface
@@ -1210,10 +1231,7 @@ struct DivEWOpInterface
     ::printBinaryExpression<DivEWOp>(op, os, inductions, "./");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DivEWOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DivEWOp)
 };
 
 struct PowOpInterface
@@ -1231,10 +1249,7 @@ struct PowOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<PowOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(PowOp)
 };
 
 struct PowEWOpInterface
@@ -1252,10 +1267,7 @@ struct PowEWOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<PowEWOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(PowEWOp)
 };
 
 struct EqOpInterface
@@ -1267,10 +1279,7 @@ struct EqOpInterface
     ::printBinaryExpression<EqOp>(op, os, inductions, "==");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<EqOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(EqOp)
 };
 
 struct NotEqOpInterface
@@ -1282,10 +1291,7 @@ struct NotEqOpInterface
     ::printBinaryExpression<NotEqOp>(op, os, inductions, "!=");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<NotEqOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(NotEqOp)
 };
 
 struct GtOpInterface
@@ -1297,10 +1303,7 @@ struct GtOpInterface
     ::printBinaryExpression<GtOp>(op, os, inductions, ">");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<GtOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(GtOp)
 };
 
 struct GteOpInterface
@@ -1312,10 +1315,7 @@ struct GteOpInterface
     ::printBinaryExpression<GteOp>(op, os, inductions, ">=");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<GteOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(GteOp)
 };
 
 struct LtOpInterface
@@ -1327,10 +1327,7 @@ struct LtOpInterface
     ::printBinaryExpression<LtOp>(op, os, inductions, "<");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<LtOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(LtOp)
 };
 
 struct LteOpInterface
@@ -1342,10 +1339,7 @@ struct LteOpInterface
     ::printBinaryExpression<LteOp>(op, os, inductions, "<=");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<LteOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(LteOp)
 };
 
 struct NotOpInterface
@@ -1357,10 +1351,7 @@ struct NotOpInterface
     ::printUnaryExpression<NotOp>(op, os, inductions, "!");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<NotOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(NotOp)
 };
 
 struct AndOpInterface
@@ -1372,10 +1363,7 @@ struct AndOpInterface
     ::printBinaryExpression<AndOp>(op, os, inductions, "&&");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AndOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AndOp)
 };
 
 struct OrOpInterface
@@ -1387,10 +1375,7 @@ struct OrOpInterface
     ::printBinaryExpression<OrOp>(op, os, inductions, "||");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<OrOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(OrOp)
 };
 
 struct SelectOpInterface
@@ -1417,10 +1402,7 @@ struct SelectOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SelectOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SelectOp)
 };
 
 struct AbsOpInterface
@@ -1432,10 +1414,7 @@ struct AbsOpInterface
     ::printUnaryExpression<AbsOp>(op, os, inductions, "abs");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AbsOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AbsOp)
 };
 
 struct AcosOpInterface
@@ -1447,10 +1426,7 @@ struct AcosOpInterface
     ::printUnaryExpression<AcosOp>(op, os, inductions, "acos");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AcosOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AcosOp)
 };
 
 struct AsinOpInterface
@@ -1462,10 +1438,7 @@ struct AsinOpInterface
     ::printUnaryExpression<AsinOp>(op, os, inductions, "asin");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AsinOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AsinOp)
 };
 
 struct AtanOpInterface
@@ -1477,10 +1450,7 @@ struct AtanOpInterface
     ::printUnaryExpression<AtanOp>(op, os, inductions, "atan");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<AtanOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(AtanOp)
 };
 
 struct Atan2OpInterface
@@ -1498,10 +1468,7 @@ struct Atan2OpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<Atan2Op>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(Atan2Op)
 };
 
 struct CeilOpInterface
@@ -1513,10 +1480,7 @@ struct CeilOpInterface
     ::printUnaryExpression<CeilOp>(op, os, inductions, "ceil");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<CeilOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(CeilOp)
 };
 
 struct CosOpInterface
@@ -1528,10 +1492,7 @@ struct CosOpInterface
     ::printUnaryExpression<CosOp>(op, os, inductions, "cos");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<CosOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(CosOp)
 };
 
 struct CoshOpInterface
@@ -1543,10 +1504,7 @@ struct CoshOpInterface
     ::printUnaryExpression<CoshOp>(op, os, inductions, "cosh");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<CoshOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(CoshOp)
 };
 
 struct DiagonalOpInterface
@@ -1558,10 +1516,7 @@ struct DiagonalOpInterface
     ::printUnaryExpression<DiagonalOp>(op, os, inductions, "diagonal");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DiagonalOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DiagonalOp)
 };
 
 struct DivTruncOpInterface
@@ -1579,10 +1534,7 @@ struct DivTruncOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DivTruncOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DivTruncOp)
 };
 
 struct ExpOpInterface
@@ -1594,10 +1546,7 @@ struct ExpOpInterface
     ::printUnaryExpression<ExpOp>(op, os, inductions, "exp");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ExpOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ExpOp)
 };
 
 struct FillOpInterface
@@ -1609,10 +1558,7 @@ struct FillOpInterface
     ::printUnaryExpression<FillOp>(op, os, inductions, "fill");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<FillOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(FillOp)
 };
 
 struct FloorOpInterface
@@ -1624,10 +1570,7 @@ struct FloorOpInterface
     ::printUnaryExpression<FloorOp>(op, os, inductions, "floor");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<FloorOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(FloorOp)
 };
 
 struct IdentityOpInterface
@@ -1639,10 +1582,7 @@ struct IdentityOpInterface
     ::printUnaryExpression<IdentityOp>(op, os, inductions, "identity");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<IdentityOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(IdentityOp)
 };
 
 struct IntegerOpInterface
@@ -1654,10 +1594,7 @@ struct IntegerOpInterface
     ::printUnaryExpression<IntegerOp>(op, os, inductions, "integer");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<IntegerOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(IntegerOp)
 };
 
 struct LinspaceOpInterface
@@ -1677,10 +1614,7 @@ struct LinspaceOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<LinspaceOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(LinspaceOp)
 };
 
 struct LogOpInterface
@@ -1692,10 +1626,7 @@ struct LogOpInterface
     ::printUnaryExpression<LogOp>(op, os, inductions, "log");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<LogOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(LogOp)
 };
 
 struct Log10OpInterface
@@ -1707,10 +1638,7 @@ struct Log10OpInterface
     ::printUnaryExpression<Log10Op>(op, os, inductions, "log10");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<Log10Op>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(Log10Op)
 };
 
 struct MaxOpInterface
@@ -1732,10 +1660,7 @@ struct MaxOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<MaxOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(MaxOp)
 };
 
 struct MinOpInterface
@@ -1757,10 +1682,7 @@ struct MinOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<MinOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(MinOp)
 };
 
 struct ModOpInterface
@@ -1778,10 +1700,7 @@ struct ModOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ModOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ModOp)
 };
 
 struct NDimsOpInterface
@@ -1797,10 +1716,7 @@ struct NDimsOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<NDimsOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(NDimsOp)
 };
 
 struct OnesOpInterface
@@ -1820,10 +1736,7 @@ struct OnesOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<OnesOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(OnesOp)
 };
 
 struct ProductOpInterface
@@ -1839,10 +1752,7 @@ struct ProductOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ProductOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ProductOp)
 };
 
 struct RemOpInterface
@@ -1860,10 +1770,7 @@ struct RemOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<RemOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(RemOp)
 };
 
 struct SignOpInterface
@@ -1875,10 +1782,7 @@ struct SignOpInterface
     ::printUnaryExpression<SignOp>(op, os, inductions, "sign");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SignOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SignOp)
 };
 
 struct SinOpInterface
@@ -1890,10 +1794,7 @@ struct SinOpInterface
     ::printUnaryExpression<SinOp>(op, os, inductions, "sin");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SinOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SinOp)
 };
 
 struct SinhOpInterface
@@ -1905,10 +1806,7 @@ struct SinhOpInterface
     ::printUnaryExpression<SinhOp>(op, os, inductions, "sinh");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SinhOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SinhOp)
 };
 
 struct SizeOpInterface
@@ -1930,10 +1828,7 @@ struct SizeOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SizeOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SizeOp)
 };
 
 struct SqrtOpInterface
@@ -1945,10 +1840,7 @@ struct SqrtOpInterface
     ::printUnaryExpression<SqrtOp>(op, os, inductions, "sqrt");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SqrtOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SqrtOp)
 };
 
 struct SumOpInterface
@@ -1960,10 +1852,7 @@ struct SumOpInterface
     ::printUnaryExpression<SumOp>(op, os, inductions, "sum");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SumOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SumOp)
 };
 
 struct SymmetricOpInterface
@@ -1975,10 +1864,7 @@ struct SymmetricOpInterface
     ::printUnaryExpression<SymmetricOp>(op, os, inductions, "symmetric");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<SymmetricOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(SymmetricOp)
 };
 
 struct TanOpInterface
@@ -1990,10 +1876,7 @@ struct TanOpInterface
     ::printUnaryExpression<TanOp>(op, os, inductions, "tan");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TanOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TanOp)
 };
 
 struct TanhOpInterface
@@ -2005,10 +1888,7 @@ struct TanhOpInterface
     ::printUnaryExpression<TanhOp>(op, os, inductions, "tanh");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TanhOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TanhOp)
 };
 
 struct TransposeOpInterface
@@ -2020,10 +1900,7 @@ struct TransposeOpInterface
     ::printUnaryExpression<TransposeOp>(op, os, inductions, "transpose");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<TransposeOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(TransposeOp)
 };
 
 struct ZerosOpInterface
@@ -2043,10 +1920,7 @@ struct ZerosOpInterface
     os << ")";
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<ZerosOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(ZerosOp)
 };
 
 struct DerOpInterface
@@ -2058,10 +1932,7 @@ struct DerOpInterface
     ::printUnaryExpression<DerOp>(op, os, inductions, "der");
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<DerOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(DerOp)
 };
 
 struct TimeOpInterface
@@ -2072,8 +1943,11 @@ struct TimeOpInterface
     os << "time";
   }
 
-  bool isEquivalent(mlir::Operation *, mlir::Operation *other,
-                    mlir::SymbolTableCollection &) const {
+  bool isEquivalent(
+      mlir::Operation *, mlir::Operation *other,
+      llvm::SmallVectorImpl<std::pair<mlir::BlockArgument, mlir::BlockArgument>>
+          &,
+      mlir::SymbolTableCollection &) const {
     return mlir::isa<TimeOp>(other);
   }
 };
@@ -2088,10 +1962,7 @@ struct CastOpInterface
     ::printExpression(os, casted.getValue(), inductions);
   }
 
-  bool isEquivalent(mlir::Operation *op, mlir::Operation *other,
-                    mlir::SymbolTableCollection &symbolTableCollection) const {
-    return ::isEquivalent<CastOp>(op, other, symbolTableCollection);
-  }
+  DEFINE_DEFAULT_IS_EQUIVALENT(CastOp)
 };
 } // namespace
 

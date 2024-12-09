@@ -91,12 +91,25 @@ def EquationExpressionOpInterface
             (ins "::llvm::raw_ostream&":$os,
                  "const ::llvm::DenseMap<::mlir::Value, int64_t>&":$inductions)>,
         InterfaceMethod<
-            "Check if two expressions are equivalent",
+            "Check if two expressions are equivalent. Induction accesses are treated as equal, and are returned in [pairedInductions]",
             "bool", "isEquivalent",
-            (ins "mlir::Operation*":$other,
-                 "mlir::SymbolTableCollection&":$symbolTableCollection), "", [{
+            (ins "::mlir::Operation*":$other,
+                 "::llvm::SmallVectorImpl<std::pair<::mlir::BlockArgument, ::mlir::BlockArgument>>&":$pairedInductions,
+                 "::mlir::SymbolTableCollection&":$symbolTableCollection), "", [{
                 // Safely assume that the two expressions are different.
                 return false;
+            }]>,
+        InterfaceMethod<
+            "Check if two expressions are equivalent. Induction to the same variable are treated as equal.",
+            "bool", "isEquivalentDefault",
+            (ins "::mlir::Operation*":$other,
+                 "::mlir::SymbolTableCollection&":$symbolTableCollection), "", [{
+                 ::llvm::SmallVector<std::pair<mlir::BlockArgument, mlir::BlockArgument>> pairedInductions;
+                 auto opInterface = mlir::cast<EquationExpressionOpInterface>($_op.getOperation());
+                 bool equivalent = opInterface.isEquivalent(other, pairedInductions, symbolTableCollection);
+                 return equivalent && llvm::all_of(pairedInductions, [&](auto accessPair) {
+                     return accessPair.first == accessPair.second;
+                 });
             }]>,
         InterfaceMethod<
             "Get the number of elements.",
