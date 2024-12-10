@@ -103,6 +103,8 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
     llvm::SmallVector<mlir::OpFoldResult, 10> sizes;
     llvm::SmallVector<mlir::OpFoldResult, 10> strides;
 
+    llvm::SmallVector<int64_t, 10> resultShape;
+
     for (mlir::Value subscript : adaptor.getSubscriptions()) {
       if (subscript.getType().isa<RangeType>()) {
         mlir::Value begin = rewriter.create<RangeBeginOp>(loc, subscript);
@@ -127,6 +129,7 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
         offsets.push_back(begin);
         sizes.push_back(size);
         strides.push_back(step);
+        resultShape.push_back(mlir::ShapedType::kDynamic);
       } else {
         offsets.push_back(subscript);
         sizes.push_back(rewriter.getI64IntegerAttr(1));
@@ -145,6 +148,7 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
     for (int64_t i = numOfSubscripts; i < sourceRank; ++i) {
       offsets.push_back(rewriter.getI64IntegerAttr(0));
       int64_t sourceDimension = sourceTensorType.getDimSize(i);
+      resultShape.push_back(sourceDimension);
 
       if (sourceDimension == mlir::ShapedType::kDynamic) {
         mlir::Value dimensionSize =
@@ -164,9 +168,8 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
     auto requestedResultTensorType =
         requestedResultType.cast<mlir::TensorType>();
 
-    auto resultType =
-        mlir::RankedTensorType::get(requestedResultTensorType.getShape(),
-                                    sourceTensorType.getElementType());
+    auto resultType = requestedResultTensorType.clone(
+        resultShape, requestedResultTensorType.getElementType());
 
     mlir::Value result = rewriter.create<mlir::tensor::ExtractSliceOp>(
         loc, resultType, adaptor.getSource(), offsets, sizes, strides);
