@@ -778,34 +778,34 @@ namespace mlir::bmodelica
 void TensorInsertOp::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
-  int64_t rank = getDestination().getType().getRank();
-  auto tensorShapedType = getDestination().getType().dyn_cast<mlir::ShapedType>();
+  mlir::Value operand = getDestination();
+  auto tensorShapedType = operand.getType().dyn_cast<mlir::ShapedType>();
   mlir::ValueRange indices = getIndices();
 
+  int64_t rank = tensorShapedType.getRank();
   for(int64_t i = 0; i < rank; i++) {
     //take the i-th index
     auto index = *(indices.begin()+i);
-    
-    //take the dimension
-    if(int64_t dim = tensorShapedType.getDimSize(i);
-        dim != LONG_MIN) {
-      mlir::Value dimConst = builder.create<ConstantOp>(
-          loc, IntegerAttr::get(builder.getContext(), dim));
-      
-      auto assertOp = builder.create<AssertOp>(
-          loc,
-          builder.getStringAttr(
-            "Model error: Index out of bound\n"),
-          builder.getI64IntegerAttr(2));
-      
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.createBlock(&assertOp.getConditionRegion());
 
-      mlir::Value condition = builder.create<LtOp>(
-          loc, index, dimConst);
+    //take the dimension
+    mlir::Value idx = builder.create<ConstantOp>(
+        loc, IntegerAttr::get(builder.getContext(), i));
+    mlir::Value dim = builder.create<SizeOp>(
+        loc, IntegerType::get(builder.getContext()), operand, idx);
+    
+    auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr(
+          "Model error: Index out of bound\n"),
+        builder.getI64IntegerAttr(2));
+    
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.createBlock(&assertOp.getConditionRegion());
+
+    mlir::Value condition = builder.create<LtOp>(
+        loc, index, dim);
       
       builder.create<YieldOp>(assertOp.getLoc(), condition);
-    }
   }
 }
 } // namespace mlir::bmodelica
