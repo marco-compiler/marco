@@ -718,6 +718,29 @@ struct TensorExtractOpInterface
   }
 };
 
+struct TensorInsertOpInterface
+    : public EquationExpressionOpInterface::ExternalModel<
+          ::TensorInsertOpInterface, TensorInsertOp> {
+  void printExpression(
+      mlir::Operation *op, llvm::raw_ostream &os,
+      const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
+    auto castedOp = mlir::cast<TensorInsertOp>(op);
+
+    ::printExpression(os, castedOp.getValue(), inductions);
+    os << " into ";
+    ::printExpression(os, castedOp.getDestination(), inductions);
+    os << "[";
+
+    llvm::interleaveComma(castedOp.getIndices(), os, [&](mlir::Value exp) {
+      ::printExpression(os, exp, inductions);
+    });
+
+    os << "]";
+  }
+
+  DEFINE_DEFAULT_IS_EQUIVALENT(TensorInsertOp)
+};
+
 struct ArrayFromElementsOpInterface
     : public EquationExpressionOpInterface::ExternalModel<
           ::ArrayFromElementsOpInterface, ArrayFromElementsOp> {
@@ -1980,6 +2003,7 @@ void registerEquationExpressionOpInterfaceExternalModels(
     TensorBroadcastOp::attachInterface<::TensorBroadcastOpInterface>(*context);
     TensorViewOp::attachInterface<::TensorViewOpInterface>(*context);
     TensorExtractOp::attachInterface<::TensorExtractOpInterface>(*context);
+    TensorInsertOp::attachInterface<::TensorInsertOpInterface>(*context);
 
     // Array operations.
     ArrayFromElementsOp::attachInterface<::ArrayFromElementsOpInterface>(*context);
