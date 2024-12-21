@@ -974,16 +974,18 @@ FunctionOp RungeKuttaPass::createEquationFunction(
   rewriter.setInsertionPointToStart(algorithmOp.getBody());
 
   mlir::IRMapping mapping;
+  llvm::DenseSet<VariableGetOp> mappedInductions;
 
   // Get the values of the induction variables.
   auto originalInductions = explicitEquationOp.getInductionVariables();
 
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
-    mlir::Value mappedInduction = rewriter.create<VariableGetOp>(
+    auto mappedInduction = rewriter.create<VariableGetOp>(
         inductionVariablesOps[i].getLoc(),
         inductionVariablesOps[i].getVariableType().unwrap(),
         inductionVariablesOps[i].getSymName());
 
+    mappedInductions.insert(mappedInduction);
     mapping.map(originalInductions[i], mappedInduction);
   }
 
@@ -1050,6 +1052,12 @@ FunctionOp RungeKuttaPass::createEquationFunction(
   }
 
   for (VariableGetOp variableGetOp : variableGetOps) {
+    if (mappedInductions.contains(variableGetOp)) {
+      // Skip the variables that have been introduced to map the original
+      // inductions.
+      continue;
+    }
+
     rewriter.setInsertionPoint(variableGetOp);
 
     if (variableGetOp.getVariable() == mappedStateVariableOp.getSymName()) {
@@ -1059,6 +1067,7 @@ FunctionOp RungeKuttaPass::createEquationFunction(
       VariableOp variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
           modelOp, variableGetOp.getVariableAttr());
 
+      assert(variableOp && "Variable not found");
       auto futureVariableIt = futureVariables.find(variableOp);
 
       if (futureVariableIt == futureVariables.end()) {
