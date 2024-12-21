@@ -795,7 +795,8 @@ VariableOp declareSlopeVariable(mlir::OpBuilder &builder, VariableOp variableOp,
       "__rk_k" + std::to_string(order) + "_" + variableOp.getSymName().str();
 
   auto variableType =
-      VariableType::get(std::nullopt, RealType::get(builder.getContext()),
+      VariableType::get(variableOp.getVariableType().getShape(),
+                        RealType::get(builder.getContext()),
                         VariabilityProperty::none, IOProperty::none);
 
   return builder.create<VariableOp>(variableOp.getLoc(), name, variableType);
@@ -806,7 +807,8 @@ VariableOp declareErrorVariable(mlir::OpBuilder &builder,
   std::string name = "__rk_e_" + variableOp.getSymName().str();
 
   auto variableType =
-      VariableType::get(std::nullopt, RealType::get(builder.getContext()),
+      VariableType::get(variableOp.getVariableType().getShape(),
+                        RealType::get(builder.getContext()),
                         VariabilityProperty::none, IOProperty::none);
 
   return builder.create<VariableOp>(variableOp.getLoc(), name, variableType);
@@ -1293,6 +1295,7 @@ mlir::LogicalResult createSlopeEquation(
   }
 
   callArgs.push_back(secondArg);
+  llvm::append_range(callArgs, templateOp.getInductionVariables());
 
   auto callOp = rewriter.create<CallOp>(loc, eqRhsFunc.functionOp, callArgs);
   mlir::Value rhs = callOp.getResult(0);
