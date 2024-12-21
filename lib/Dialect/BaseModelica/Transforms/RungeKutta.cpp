@@ -934,6 +934,7 @@ FunctionOp RungeKuttaPass::createEquationFunction(
   auto functionOp =
       rewriter.create<FunctionOp>(explicitEquationOp.getLoc(), "rk_eq");
 
+  symbolTableCollection.getSymbolTable(moduleOp).insert(functionOp);
   rewriter.createBlock(&functionOp.getBodyRegion());
 
   // Declare the variables.
