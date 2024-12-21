@@ -1009,6 +1009,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createLowerAffinePass());
   pm.addPass(mlir::createConvertSCFToCFPass());
 
+  // Perform again the conversion of bmodelica to core dialects,
+  // as additional operations may have been introduced by the canonicalization
+  // patterns.
+  pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
+
   // Perform the default conversions towards LLVM dialect.
   pm.addPass(mlir::createConvertToLLVMPass());
 
