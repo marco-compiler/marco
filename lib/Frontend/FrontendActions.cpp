@@ -1103,7 +1103,7 @@ CodeGenAction::createMLIRSCCSolvingBySubstitutionPass() {
   CompilerInstance &ci = getInstance();
   mlir::bmodelica::SCCSolvingBySubstitutionPassOptions options;
 
-  options.maxEquationsInSCC =
+  options.maxIterations =
       ci.getCodeGenOptions().sccSolvingBySubstitutionMaxIterations;
 
   options.maxEquationsInSCC =
