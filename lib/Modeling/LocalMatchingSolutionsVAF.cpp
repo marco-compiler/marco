@@ -216,7 +216,7 @@ void GeneratorRotoTranslation::fetchNext() {
     }
 
     MultidimensionalRange equations(ranges);
-    matrix.apply(*currentEquationsRangeIt, *accessFunction);
+    matrix.apply(equations, *accessFunction);
     value = std::make_unique<MCIM>(std::move(matrix));
 
     ++(*unusedRangeIt);
