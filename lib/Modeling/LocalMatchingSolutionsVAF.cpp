@@ -19,6 +19,8 @@ public:
 private:
   void initialize();
 
+  void setValue(std::unique_ptr<MCIM> newValue);
+
 private:
   // The domain upon which the matrix has to be constructed.
   const IndexSet *matrixEquationIndices;
@@ -62,6 +64,13 @@ MCIM GeneratorDefault::getValue() const {
   return *value;
 }
 
+void GeneratorDefault::setValue(std::unique_ptr<MCIM> newValue) {
+  assert(isValidLocalMatchingSolution(*newValue) &&
+         "Invalid VAF local matching solution");
+
+  value = std::move(newValue);
+}
+
 void GeneratorDefault::fetchNext() {
   if (*pointsIt == *pointsEndIt) {
     value = nullptr;
@@ -72,7 +81,7 @@ void GeneratorDefault::fetchNext() {
     for (Point variablePoint : variablePoints) {
       MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
       matrix.set(equationPoint, variablePoint);
-      value = std::make_unique<MCIM>(std::move(matrix));
+      setValue(std::make_unique<MCIM>(std::move(matrix)));
 
       ++(*pointsIt);
     }
@@ -94,6 +103,8 @@ public:
 
 private:
   void initialize();
+
+  void setValue(std::unique_ptr<MCIM> newValue);
 
 private:
   // The domain upon which the matrix has to be constructed.
@@ -137,9 +148,14 @@ bool GeneratorRotoTranslation::hasValue() const { return value != nullptr; }
 
 MCIM GeneratorRotoTranslation::getValue() const {
   assert(hasValue());
-  assert(isValidLocalMatchingSolution(*value) &&
-         "Invalid VAF local matching solution");
   return *value;
+}
+
+void GeneratorRotoTranslation::setValue(std::unique_ptr<MCIM> newValue) {
+  assert(isValidLocalMatchingSolution(*newValue) &&
+         "Invalid VAF local matching solution");
+
+  value = std::move(newValue);
 }
 
 void GeneratorRotoTranslation::fetchNext() {
@@ -180,7 +196,7 @@ void GeneratorRotoTranslation::fetchNext() {
       MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
       MultidimensionalRange equations(ranges);
       matrix.apply(*currentEquationsRangeIt, *accessFunction);
-      value = std::make_unique<MCIM>(std::move(matrix));
+      setValue(std::make_unique<MCIM>(std::move(matrix)));
 
       unusedRange = nullptr;
       ++currentEquationsRangeIt;
@@ -217,7 +233,7 @@ void GeneratorRotoTranslation::fetchNext() {
 
     MultidimensionalRange equations(ranges);
     matrix.apply(equations, *accessFunction);
-    value = std::make_unique<MCIM>(std::move(matrix));
+    setValue(std::make_unique<MCIM>(std::move(matrix)));
 
     ++(*unusedRangeIt);
 
