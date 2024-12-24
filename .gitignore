@@ -91,6 +91,7 @@ fabric.properties
 .vscode
 dist
 /build*
+.cache
 
 # Sundials libraries
 sundials_libraries/install
