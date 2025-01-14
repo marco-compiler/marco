@@ -1,5 +1,5 @@
 Package: marco
-Version: 0.1
+Version: $VERSION
 Architecture: amd64
 Maintainer: Michele Scuttari <michele@mscuttari.it>
 Depends: build-essential, marco-runtime (=0.1)

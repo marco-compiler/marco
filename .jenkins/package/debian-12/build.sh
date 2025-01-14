@@ -17,8 +17,9 @@ mkdir -p "${package_name}"/DEBIAN
 mkdir -p "${package_name}"/usr/bin
 mkdir -p "${package_name}"/usr/lib/marco
 
-# Copy the control file.
-cp "${src_path}/.jenkins/package/debian-12/control" "${package_name}"/DEBIAN/control
+# Instantiate the control file.
+TAG=$(git -C "${src_path}" describe --tags --abbrev=0)
+VERSION="${TAG}" envsubst < "${src_path}/.jenkins/package/debian-12/control" > "${package_name}"/DEBIAN/control
 
 # Copy the driver.
 cp "${install_path}/bin/marco" "${package_name}"/usr/lib/marco/marco
