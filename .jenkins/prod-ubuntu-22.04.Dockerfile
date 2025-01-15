@@ -37,3 +37,6 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     /tmp/install_marco_runtime.sh
 
 RUN pip install nltk
+
+RUN apt update -y && \
+    apt install -y gettext-base

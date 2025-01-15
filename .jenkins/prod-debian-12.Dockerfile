@@ -48,3 +48,6 @@ RUN chmod +x /tmp/install_openmodelica.sh && \
     cd /root && \
     OPENMODELICA_COMMIT=$(cat /tmp/version_openmodelica.txt) \
     /tmp/install_openmodelica.sh
+
+RUN apt update -y && \
+    apt install -y gettext-base
