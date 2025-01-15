@@ -2,7 +2,7 @@ Package: marco
 Version: $VERSION
 Architecture: amd64
 Maintainer: Michele Scuttari <michele@mscuttari.it>
-Depends: build-essential, marco-runtime (=0.1)
+Depends: build-essential
 Section: devel
 Priority: optional
 Homepage: https://marco-compiler.com/
