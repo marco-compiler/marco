@@ -5,13 +5,16 @@ LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
 ARG LLVM_PARALLEL_COMPILE_JOBS=4
 ARG LLVM_PARALLEL_LINK_JOBS=1
 
+# Install compilation dependencies.
 RUN apt update -y && \
     apt install -y build-essential gfortran ninja-build lld mold cmake ccache \
     git python3-pip python3-venv libxml2-dev libtinfo-dev wget doxygen
 
+# Create a Python virtual environment.
 COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
 
+# Install LLVM.
 COPY ./version_llvm.txt /tmp/
 COPY ./install_llvm.sh /tmp/
 
@@ -22,6 +25,7 @@ RUN chmod +x /tmp/install_llvm.sh && \
     LLVM_ENABLE_ASSERTIONS=ON \
     /tmp/install_llvm.sh
 
+# Install MARCO runtime libraries.
 RUN apt update -y && \
     apt install -y libopenblas-dev=0.3.20+ds-1 \
     libsuitesparse-dev=1:5.10.1+dfsg-4build1 \
@@ -36,4 +40,5 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     MARCO_RUNTIME_BUILD_TYPE=Debug \
     /tmp/install_marco_runtime.sh
 
+# Install additional MARCO dependencies.
 RUN pip install nltk
