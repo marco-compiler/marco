@@ -1,0 +1,44 @@
+github:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+
+jenkins:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .jenkins/**
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+
+ast:
+  - changed-files:
+      - any-glob-to-any-file:
+          - include/public/marco/AST/**
+          - include/public/marco/Parser/**
+          - lib/AST/**
+          - lib/Parser/**
+
+codegen:
+  - changed-files:
+      - any-glob-to-any-file:
+          - include/private/marco/Modeling/**
+          - include/public/marco/Codegen/**
+          - include/public/marco/Dialect/**
+          - include/public/marco/Modeling/**
+          - lib/Codegen/**
+          - lib/Dialect/**
+          - lib/Modeling/**
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - include/public/marco/Frontend/**
+          - lib/Frontend/**
+
+tool:
+  - changed-files:
+      - any-glob-to-any-file:
+          - lib/tool/**
