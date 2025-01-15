@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or generic support
+    url: https://github.com/marco-compiler/marco/discussions/categories/q-a
+    about: Check the Q&A category and open a new discussion if you can't find an answer.
+  - name: Feature request
+    url: https://github.com/marco-compiler/marco/discussions/categories/features
+    about: Open a new discussion in the Features category if your idea has not been proposed yet.
+  - name: Other
+    url: https://github.com/marco-compiler/marco/discussions/categories/general
+    about: You can open a new discussion in the General category for any other uncovered topic.
