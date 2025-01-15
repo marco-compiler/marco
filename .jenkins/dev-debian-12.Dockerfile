@@ -54,3 +54,7 @@ RUN chmod +x /tmp/install_openmodelica.sh && \
     cd /root && \
     OPENMODELICA_COMMIT=$(cat /tmp/version_openmodelica.txt) \
     /tmp/install_openmodelica.sh
+
+# Reduce image size.
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

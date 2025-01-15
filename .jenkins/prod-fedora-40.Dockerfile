@@ -46,3 +46,7 @@ RUN pip install nltk
 # Install packaging tools.
 RUN dnf update -y && \
     dnf install -y gettext
+
+# Reduce image size.
+RUN rm -rf llvm-project marco-runtime OpenModelica
+RUN dnf clean all

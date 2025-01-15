@@ -58,3 +58,9 @@ RUN chmod +x /tmp/install_openmodelica.sh && \
 # Install packaging tools.
 RUN apt update -y && \
     apt install -y gettext-base
+
+# Reduce image size.
+RUN rm -rf llvm-project marco-runtime OpenModelica
+
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
