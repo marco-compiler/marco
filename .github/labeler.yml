@@ -7,11 +7,19 @@ jenkins:
   - changed-files:
       - any-glob-to-any-file:
           - .jenkins/**
+          - '**/*.Jenkinsfile'
+
+docker:
+  - changed_files:
+      - any-glob-to-any-file:
+          - docker/**
+          - '**/*.Dockerfile'
 
 documentation:
   - changed-files:
       - any-glob-to-any-file:
           - docs/**
+          - '**/*.md'
 
 ast:
   - changed-files:
