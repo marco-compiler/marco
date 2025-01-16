@@ -17,13 +17,16 @@ It is also suggested to use Ninja as Makefiles generator, and the `-DLLVM_PARALL
 See the LLVM official CMake configuration guide for further details.
 
 ```bash
-git clone https://github.com/marco-compiler/llvm-project.git
-cd llvm-project
-git checkout marco-llvm
-mkdir build && cd build
+# Use the commit specified in the .jenkins/llvm_version.txt file of the MARCO repository.
+LLVM_COMMIT=llvm_commit
 
 # Set the installation path.
 LLVM_INSTALL_PATH=llvm_install_path
+
+git clone https://github.com/marco-compiler/llvm-project.git
+cd llvm-project
+git checkout ${LLVM_COMMIT}
+mkdir build && cd build
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
