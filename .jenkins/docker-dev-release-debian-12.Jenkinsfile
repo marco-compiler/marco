@@ -1,6 +1,6 @@
 String configName = "debian-12"
 String dockerfile = "debian-12.Dockerfile"
-String checkName = "docker-dev-image-release"
+String checkName = "docker-dev-release-image"
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
