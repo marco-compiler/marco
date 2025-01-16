@@ -4,6 +4,10 @@ LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
 
 ARG LLVM_PARALLEL_COMPILE_JOBS=4
 ARG LLVM_PARALLEL_LINK_JOBS=1
+ARG LLVM_BUILD_TYPE=Release
+ARG LLVM_ENABLE_ASSERTIONS=ON
+
+ARG MARCO_RUNTIME_BUILD_TYPE=Debug
 
 # Install compilation dependencies.
 RUN apt update -y && \
@@ -21,8 +25,6 @@ COPY ./install_llvm.sh /tmp/
 RUN chmod +x /tmp/install_llvm.sh && \
     cd /root && \
     LLVM_COMMIT=$(cat /tmp/version_llvm.txt) \
-    LLVM_BUILD_TYPE=Release \
-    LLVM_ENABLE_ASSERTIONS=ON \
     /tmp/install_llvm.sh
 
 # Install MARCO runtime libraries.
@@ -37,7 +39,6 @@ COPY ./install_marco_runtime.sh /tmp/
 RUN chmod +x /tmp/install_marco_runtime.sh && \
     cd /root && \
     MARCO_RUNTIME_COMMIT=$(cat /tmp/version_marco_runtime.txt) \
-    MARCO_RUNTIME_BUILD_TYPE=Debug \
     /tmp/install_marco_runtime.sh
 
 # Install additional MARCO dependencies.

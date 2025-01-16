@@ -1,5 +1,5 @@
 String configName = "ubuntu-22.04"
-String dockerfile = "dev-ubuntu-22.04.Dockerfile"
+String dockerfile = "ubuntu-22.04.Dockerfile"
 String checkName = "ci-" + configName
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')

@@ -1,6 +1,6 @@
 String configName = "debian-12"
 String dockerfile = "debian-12.Dockerfile"
-String checkName = "docker-prod-image"
+String checkName = "docker-dev-image-release"
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
@@ -16,7 +16,6 @@ node {
     String installPath = localWorkspace + "/install"
 
     String marcoSrcPath = srcPath + "/marco"
-    String marcoBuildPath = buildPath + "/marco"
 
     stage("Checkout") {
         dir(marcoSrcPath) {
@@ -24,11 +23,14 @@ node {
         }
     }
 
-    String dockerMARCOImageName = 'marco-compiler/marco-prod-' + configName
+    String dockerMARCOImageName = 'marco-compiler/marco-dev-' + configName + "-release"
 
     String dockerArgs =
         " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
         " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
+        " --build-arg LLVM_BUILD_TYPE=Release" +
+        " --build-arg LLVM_ENABLE_ASSERTIONS=OFF" +
+        " --build-arg MARCO_RUNTIME_BUILD_TYPE=Release" +
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
@@ -41,19 +43,6 @@ node {
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
-        stage('Configure') {
-            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath, installation: 'InSearchPath', label: 'Configure'
-        }
-
-        stage('Install') {
-            cmake arguments: "--build " + marcoBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
-        }
-
-        stage('Clean') {
-            sh "rm -rf " + marcoSrcPath
-            sh "rm -rf " + marcoBuildPath
-        }
-
         stage('Publish') {
             dockerImage.push()
         }

@@ -1,5 +1,5 @@
 String configName = "debian-12"
-String dockerfile = "dev-debian-12.Dockerfile"
+String dockerfile = "debian-12.Dockerfile"
 String checkName = "ci-" + configName
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')

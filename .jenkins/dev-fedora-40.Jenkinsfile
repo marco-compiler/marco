@@ -1,5 +1,5 @@
 String configName = "fedora-40"
-String dockerfile = "dev-fedora-40.Dockerfile"
+String dockerfile = "fedora-40.Dockerfile"
 String checkName = "ci-" + configName
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
