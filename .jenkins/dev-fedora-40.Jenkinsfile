@@ -31,6 +31,9 @@ node {
     String dockerArgs =
         " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
         " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
+        " --build-arg LLVM_BUILD_TYPE=Release" +
+        " --build-arg LLVM_ENABLE_ASSERTIONS=ON" +
+        " --build-arg MARCO_RUNTIME_BUILD_TYPE=Debug" +
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
         " " + marcoSrcPath + "/.jenkins";
 

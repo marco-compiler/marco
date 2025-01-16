@@ -5,9 +5,9 @@ LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
 ARG LLVM_PARALLEL_COMPILE_JOBS=4
 ARG LLVM_PARALLEL_LINK_JOBS=1
 ARG LLVM_BUILD_TYPE=Release
-ARG LLVM_ENABLE_ASSERTIONS=ON
+ARG LLVM_ENABLE_ASSERTIONS=OFF
 
-ARG MARCO_RUNTIME_BUILD_TYPE=Debug
+ARG MARCO_RUNTIME_BUILD_TYPE=Release
 
 # Install compilation dependencies.
 RUN apt update -y && \
