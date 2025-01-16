@@ -17,7 +17,6 @@ node {
 
     String marcoSrcPath = srcPath + "/marco"
     String marcoBuildPath = buildPath + "/marco"
-    String marcoInstallPath = installPath + "/marco"
 
     stage("Checkout") {
         dir(marcoSrcPath) {
@@ -42,6 +41,19 @@ node {
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
+        stage('Configure') {
+            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath, installation: 'InSearchPath', label: 'Configure'
+        }
+
+        stage('Install') {
+            cmake arguments: "--build " + marcoBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
+        }
+
+        stage('Clean') {
+            sh "rm -rf " + marcoSrcPath
+            sh "rm -rf " + marcoBuildPath
+        }
+
         stage('Publish') {
             dockerImage.push()
         }
