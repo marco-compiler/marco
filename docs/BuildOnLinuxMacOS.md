@@ -1,6 +1,6 @@
 # Building on Linux / macOS
 We provide here directions to install MARCO on Linux and macOS.
-The commands for installing some packages are based on the `apt` package manager, but it can be easily adapted to others.
+The commands for installing some packages are based on the `apt` package manager, but they can be easily adapted to others.
 
 ## Requirements
 ### LLVM
