@@ -12,8 +12,9 @@ More in detail, a customized version of LLVM is used to take advantage of the Cl
 In order to ease the process for newcomers, the instructions needed to build LLVM are reported here.
 
 The build type is set to `Release` in order to allow for faster build and execution times, but it strongly suggested setting it to `Debug` when developing on MARCO.
-
 The `LLVM_INSTALL_PATH` variable must be set to the desired installation path.
+It is also suggested to use Ninja as Makefiles generator, and the `-DLLVM_PARALLEL_{COMPILE,LINK}_JOBS` variables to control the use of machine resources.
+See the LLVM official CMake configuration guide for further details.
 
 ```bash
 git clone https://github.com/marco-compiler/llvm-project.git
@@ -29,46 +30,19 @@ cmake \
   -DCMAKE_INSTALL_PREFIX=${LLVM_INSTALL_PATH} \
   -DLLVM_TARGETS_TO_BUILD="host" \
   -DLLVM_INSTALL_UTILS=True \
-  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;mlir;openmp" \
+  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;mlir" \
   ../llvm
 
 cmake --build . --target install
 ```
 
 ### OpenModelica
-In order to relieve MARCO from the object-oriented characteristics of Modelica, the frontend leverages the OpenModelica frontend to obtain a flattened version of the Modelica sources.
-The way it is used by MARCO is transparent to the end-user, but yet the compiler must be installed within the system.
+In order to relieve MARCO from the object-oriented features of Modelica, the frontend leverages the OpenModelica frontend to obtain a flattened version of the Modelica sources.
 
 The details on how to install OpenModelica are available on its dedicated [website](https://openmodelica.org/).
 It is recommended installing the nighly version, because some features leveraged by MARCO may not be present in the stable branch yet.
 
 For macOS users, OpenModelica is available through Homebrew.
-
-### SUNDIALS
-The SUNDIALS libraries can usually be installed through package managers.
-
-```bash
-sudo apt install libsundials-dev
-```
-
-If needed, a build script is also available inside the repository to manually build and install them.
-The following dependencies must be installed before attempting a build:
-
-```bash
-sudo apt install libgmp-dev libmpc-dev
-```
-
-The libraries can then be built by running the `sundials.sh` script inside the `dependencies` folder.
-
-The `SUNDIALS_INSTALL_PATH` variable must be set to the desired installation path.
-
-```bash
-# Set the installation path.
-SUNDIALS_INSTALL_PATH=sundials_install_path
-
-cd marco/dependencies
-./sundials.sh ${SUNDIALS_INSTALL_PATH}
-```
 
 ### LIT
 LLVM's LIT is used to run the regression tests.
@@ -79,40 +53,9 @@ sudo apt install python-pip
 pip install lit
 ```
 
-## Building and installing the runtime libraries
+### Runtime libraries
 The runtime libraries project provides the libraries to be linked for generating the simulation.
-
-The `RUNTIME_INSTALL_PATH` variable must be set to the desired installation path.
-
-The `LLVM_PATH` variable must be set to the installation path that was used during the LLVM installation process.
-
-By default, the CMake configuration searches for SUNDIALS libraries within the OS.
-If the Sundials library have been built manually, the build system of MARCO must be instructed to use them by setting the `MARCO_USE_BUILTIN_SUNDIALS` CMake option must to `ON` and the `SUNDIALS_PATH` variable to their installation path.
-
-The `LLVM_EXTERNAL_LIT` variable represent the path (including the executable name) to the `lit` tool. If it has been installed in user mode, it is usually `/home/user/.local/bin/lit`.
-
-```bash
-git clone https://github.com/marco-compiler/marco-runtime.git
-cd marco-runtime
-mkdir build && cd build
-
-# Set the installation path.
-RUNTIME_INSTALL_PATH=runtime_install_path
-
-cmake \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=${RUNTIME_INSTALL_PATH} \
-  -DLLVM_PATH=${LLVM_INSTALL_PATH} \
-  ..
-
-cmake --build .
-
-# Run the unit tests.
-cmake --build . --target test
-
-# Install the runtime library.
-cmake --build . --target install
-```
+The instructions for their compilation and installation can be found in the [dedicated repository](https://github.com/marco-compiler/marco-runtime).
 
 ## Building and installing the compiler
 With all the requirements set in place, the compiler can be now built through the following procedure.
@@ -126,13 +69,15 @@ To use the script shown below you have to set or replace the following environme
 | `LLVM_INSTALL_PATH` | Path to the installation of the adapted LLVM project (see LLVM above) |
 | `LIT_PATH` | Path to the executable LLVM Integrated Tester (`lit`) |
 
-
 ```bash
 cd marco
 mkdir build && cd build
 
 # Set the installation path.
 MARCO_INSTALL_PATH=marco_install_path
+
+# Set the path of the runtime libraries.
+MARCO_RUNTIME_PATH=marco_runtime_install_path
 
 # Set the path of LIT.
 LIT_PATH=/home/user/.local/bin/lit
