@@ -446,14 +446,27 @@ private:
       return;
     }
 
+    // Traverse the path backwards.
     auto prevIt = it;
 
     while (++it != endIt) {
+      // Propagate the indices written by the current equation as the indices
+      // read by the equation preceding in the path.
       it->readVariableIndices = prevIt->writtenVariableIndices;
+
+      // Compute the indices of the equation that lead to that read access.
       const Access &readAccess = it->readAccess;
 
-      it->equationIndices = readAccess.getAccessFunction().inverseMap(
+      IndexSet newEquationIndices = readAccess.getAccessFunction().inverseMap(
           it->readVariableIndices, it->equationIndices);
+
+      if (newEquationIndices == it->equationIndices) {
+        // Stop iterating through the path.
+        // No further modifications will be performed.
+        return;
+      }
+
+      it->equationIndices = std::move(newEquationIndices);
 
       it->writtenVariableIndices =
           it->writeAccess.getAccessFunction().map(it->equationIndices);
