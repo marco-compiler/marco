@@ -14,7 +14,7 @@ In order to ease the process for newcomers, the instructions needed to build LLV
 The build type is set to `Release` in order to allow for faster build and execution times, but it strongly suggested setting it to `Debug` when developing on MARCO.
 The `LLVM_INSTALL_PATH` variable must be set to the desired installation path.
 It is also suggested to use Ninja as Makefiles generator, and the `-DLLVM_PARALLEL_{COMPILE,LINK}_JOBS` variables to control the use of machine resources.
-See the LLVM official CMake configuration guide for further details.
+See the official LLVM CMake configuration [guide](https://llvm.org/docs/CMake.html) for further details.
 
 ```bash
 # Use the commit specified in the .jenkins/llvm_version.txt file of the MARCO repository.
