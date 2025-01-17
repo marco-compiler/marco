@@ -48,7 +48,7 @@ Additional parameters can be also be provided when running the simulation. Their
 ```
 
 ## Building MARCO
-Two development Docker images, `marco-dev-debug-debian-12` and `marco-dev-release-debian-12` are made available.
+Two development Docker images, `marco-dev-debug-debian-12` and `marco-dev-release-debian-12`, are made available.
 Both the images provide all the dependencies that are needed to compile MARCO, but do not contain the compiler itself.
 The images different in the build characteristics of the installed software:
 
