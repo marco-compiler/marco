@@ -42,7 +42,7 @@ node {
     def dockerImage
 
     stage("Docker image") {
-        dockerImage = docker.build(dockerMARCOImageName + ':' + env.GIT_COMMIT, dockerArgs)
+        dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
     }
 
     dockerImage.inside() {
