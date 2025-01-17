@@ -18,9 +18,13 @@ node {
     String marcoSrcPath = srcPath + "/marco"
     String marcoBuildPath = buildPath + "/marco"
 
+    def scmVars
+
     stage("Checkout") {
         dir(marcoSrcPath) {
-            checkout(scm)
+            def scmVars = checkout(scm)
+            env.GIT_COMMIT = scmVars.GIT_COMMIT
+            tag = sh(script: 'git describe --tags --abbrev=0', returnStdout: true).trim()
         }
     }
 
@@ -40,7 +44,7 @@ node {
     def dockerImage
 
     stage('Build') {
-        dockerImage = docker.build(dockerMARCOImageName + ':latest', dockerArgs)
+        dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
@@ -59,6 +63,11 @@ node {
 
         stage('Publish') {
             dockerImage.push()
+            dockerImage.push("latest")
+
+            if (tag != "") {
+                dockerImage.push(tag)
+            }
         }
     }
 
