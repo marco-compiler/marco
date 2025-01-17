@@ -21,7 +21,8 @@ node {
 
     stage("Checkout") {
         dir(marcoSrcPath) {
-            checkout(scm)
+            def scmVars = checkout(scm)
+            env.GIT_COMMIT = scmVars.GIT_COMMIT
         }
     }
 
@@ -41,7 +42,7 @@ node {
     def dockerImage
 
     stage('Docker image') {
-        dockerImage = docker.build(dockerMARCOImageName + ':latest', dockerArgs)
+        dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
     }
 
     dockerImage.inside() {
