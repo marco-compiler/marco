@@ -18,8 +18,6 @@ node {
     String marcoSrcPath = srcPath + "/marco"
     String marcoBuildPath = buildPath + "/marco"
 
-    def scmVars
-
     stage("Checkout") {
         dir(marcoSrcPath) {
             def scmVars = checkout(scm)
