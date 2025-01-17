@@ -1,5 +1,6 @@
 String configName = "debian-12"
-String dockerfile = "debian-12.Dockerfile"
+String devDockerfile = "debian-12.Dockerfile"
+String prodDockerfile = "prod-image.Dockerfile"
 String checkName = "docker-prod-image"
 
 publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
@@ -12,10 +13,7 @@ node {
     String localWorkspace = "${WORKSPACE}/" + configName
 
     String srcPath = localWorkspace + "/src"
-    String buildPath = localWorkspace + "/build"
-
     String marcoSrcPath = srcPath + "/marco"
-    String marcoBuildPath = buildPath + "/marco"
 
     stage("Checkout") {
         dir(marcoSrcPath) {
@@ -25,15 +23,22 @@ node {
         }
     }
 
-    String dockerMARCOImageName = 'marco-compiler/marco-prod-' + configName
+    String dockerDevImageName = 'marco-compiler/marco-dev-release-' + configName
 
-    String dockerArgs =
+    String dockerDevArgs =
         " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
         " --build-arg LLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}" +
         " --build-arg LLVM_BUILD_TYPE=Release" +
         " --build-arg LLVM_ENABLE_ASSERTIONS=OFF" +
         " --build-arg MARCO_RUNTIME_BUILD_TYPE=Release" +
-        " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
+        " -f " + marcoSrcPath + "/.jenkins/" + devDockerfile +
+        " " + marcoSrcPath + "/.jenkins";
+
+    String dockerProdImageName = 'marco-compiler/marco-prod-' + configName
+
+    String dockerProdArgs =
+        " --build-arg BASE_IMAGE=" + dockerDevImageName +
+        " -f " + marcoSrcPath + "/.jenkins/" + prodDockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
     publishChecks(name: checkName, status: 'IN_PROGRESS', summary: 'In progress')
@@ -41,23 +46,11 @@ node {
     def dockerImage
 
     stage('Build') {
-        dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        docker.build(dockerDevImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        dockerImage = docker.build(dockerProdImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
-        stage('Configure') {
-            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_LINKER_TYPE=MOLD", installation: 'InSearchPath', label: 'Configure'
-        }
-
-        stage('Install') {
-            cmake arguments: "--build " + marcoBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
-        }
-
-        stage('Clean') {
-            sh "rm -rf " + marcoSrcPath
-            sh "rm -rf " + marcoBuildPath
-        }
-
         stage('Publish') {
             dockerImage.push()
 

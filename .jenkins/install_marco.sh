@@ -1,0 +1,18 @@
+#!/bin/bash
+
+rm -rf marco
+git clone https://github.com/marco-compiler/marco.git
+cd marco || exit 1
+git checkout ${MARCO_COMMIT}
+
+mkdir build
+
+cmake \
+  -S marco \
+  -B build \
+  -G Ninja \
+  -DCMAKE_LINKER_TYPE=MOLD \
+  -DCMAKE_BUILD_TYPE=${MARCO_BUILD_TYPE}
+
+cmake --build build --target install
+rm -rf build
