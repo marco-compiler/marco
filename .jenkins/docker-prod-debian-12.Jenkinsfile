@@ -60,11 +60,12 @@ node {
 
         stage('Publish') {
             dockerImage.push()
-            dockerImage.push("latest")
 
             if (tag != "") {
                 dockerImage.push(tag)
             }
+
+            dockerImage.push("latest")
         }
     }
 
