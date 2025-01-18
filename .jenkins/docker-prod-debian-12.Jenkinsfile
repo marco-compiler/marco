@@ -47,7 +47,7 @@ node {
 
     stage('Build') {
         docker.build(dockerDevImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
-        dockerImage = docker.build(dockerProdImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        dockerImage = docker.build(dockerProdImageName + ":" + env.GIT_COMMIT[0..6], dockerProdArgs)
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
