@@ -41,7 +41,7 @@ node {
     def dockerImage
 
     stage('Build') {
-        docker.build(dockerDevImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
+        docker.build(dockerDevImageName + ":" + env.GIT_COMMIT[0..6], dockerDevArgs)
         dockerImage = docker.build(dockerProdImageName + ":" + env.GIT_COMMIT[0..6], dockerProdArgs)
     }
 
