@@ -2,13 +2,6 @@ FROM fedora:40
 
 LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"
 
-ARG LLVM_PARALLEL_COMPILE_JOBS=4
-ARG LLVM_PARALLEL_LINK_JOBS=1
-ARG LLVM_BUILD_TYPE=Release
-ARG LLVM_ENABLE_ASSERTIONS=OFF
-
-ARG MARCO_RUNTIME_BUILD_TYPE=Release
-
 # Install compilation dependencies.
 RUN dnf update -y && \
     dnf install -y gcc gcc-c++ gfortran perl ninja-build mold cmake ccache \
@@ -19,6 +12,11 @@ COPY ./setup_venv.sh /tmp/
 RUN chmod +x /tmp/setup_venv.sh && /tmp/setup_venv.sh
 
 # Install LLVM.
+ARG LLVM_PARALLEL_COMPILE_JOBS=4
+ARG LLVM_PARALLEL_LINK_JOBS=1
+ARG LLVM_BUILD_TYPE=Release
+ARG LLVM_ENABLE_ASSERTIONS=OFF
+
 COPY ./version_llvm.txt /tmp/
 COPY ./install_llvm.sh /tmp/
 
@@ -28,6 +26,8 @@ RUN chmod +x /tmp/install_llvm.sh && \
     /tmp/install_llvm.sh
 
 # Install MARCO runtime libraries.
+ARG MARCO_RUNTIME_BUILD_TYPE=Release
+
 RUN dnf update -y && \
     dnf install -y openblas-devel-0.3.26-4.fc40 \
     suitesparse-devel-7.6.0-1.fc40 \
