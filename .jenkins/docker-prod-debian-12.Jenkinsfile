@@ -20,7 +20,7 @@ node {
         }
     }
 
-    String dockerDevImageName = 'marco-compiler/marco-dev-release-' + configName
+    String dockerDevImageName = 'marco-compiler/marco-dev-release-' + configName + ":" + env.GIT_COMMIT[0..6]
 
     String dockerDevArgs =
         " --build-arg LLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS}" +
@@ -31,7 +31,7 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + devDockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    String dockerProdImageName = 'marco-compiler/marco-prod-' + configName
+    String dockerProdImageName = 'marco-compiler/marco-prod-' + configName + ":" + env.GIT_COMMIT[0..6]
 
     String dockerProdArgs =
         " --build-arg BASE_IMAGE=" + dockerDevImageName +
@@ -41,8 +41,8 @@ node {
     def dockerImage
 
     stage('Build') {
-        docker.build(dockerDevImageName + ":" + env.GIT_COMMIT[0..6], dockerDevArgs)
-        dockerImage = docker.build(dockerProdImageName + ":" + env.GIT_COMMIT[0..6], dockerProdArgs)
+        docker.build(dockerDevImageName, dockerDevArgs)
+        dockerImage = docker.build(dockerProdImageName, dockerProdArgs)
     }
 
     docker.withRegistry('https://ghcr.io', 'marco-ci') {
