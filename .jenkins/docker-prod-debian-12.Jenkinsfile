@@ -35,6 +35,7 @@ node {
 
     String dockerProdArgs =
         " --build-arg BASE_IMAGE=" + dockerDevImageName +
+        " --build-arg MARCO_COMMIT=" + env.GIT_COMMIT +
         " -f " + marcoSrcPath + "/.jenkins/" + prodDockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
