@@ -1,9 +1,6 @@
 String configName = "debian-12"
 String devDockerfile = "debian-12.Dockerfile"
 String prodDockerfile = "prod-image.Dockerfile"
-String checkName = "docker-prod-image"
-
-publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
 node {
     agent {
@@ -41,8 +38,6 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + prodDockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    publishChecks(name: checkName, status: 'IN_PROGRESS', summary: 'In progress')
-
     def dockerImage
 
     stage('Build') {
@@ -61,6 +56,4 @@ node {
             dockerImage.push("latest")
         }
     }
-
-    publishChecks(name: checkName, conclusion: 'SUCCESS', summary: 'Completed')
 }

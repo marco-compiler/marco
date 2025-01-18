@@ -1,8 +1,5 @@
 String configName = "fedora-40"
 String dockerfile = "fedora-40.Dockerfile"
-String checkName = "ci-" + configName
-
-publishChecks(name: checkName, status: 'QUEUED', summary: 'Queued')
 
 node {
     agent {
@@ -37,8 +34,6 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    publishChecks(name: checkName, status: 'IN_PROGRESS', summary: 'In progress')
-
     def dockerImage
 
     stage("Docker image") {
@@ -46,32 +41,28 @@ node {
     }
 
     dockerImage.inside() {
-        withChecks(name: checkName) {
-            stage("OS information") {
-                sh "cat /etc/os-release"
-            }
+        stage("OS information") {
+            sh "cat /etc/os-release"
+        }
 
-            stage('Configure') {
-                cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DLLVM_EXTERNAL_LIT=/virtualenv/bin/lit", installation: 'InSearchPath', label: 'Configure'
-            }
+        stage('Configure') {
+            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DLLVM_EXTERNAL_LIT=/virtualenv/bin/lit", installation: 'InSearchPath', label: 'Configure'
+        }
 
-            stage('Build') {
-                cmake arguments: "--build " + marcoBuildPath, installation: 'InSearchPath', label: 'Build'
-            }
+        stage('Build') {
+            cmake arguments: "--build " + marcoBuildPath, installation: 'InSearchPath', label: 'Build'
+        }
 
-            stage('Unit test') {
-                cmake arguments: "--build " + marcoBuildPath + " --target test", installation: 'InSearchPath', label: 'Unit tests'
-            }
+        stage('Unit test') {
+            cmake arguments: "--build " + marcoBuildPath + " --target test", installation: 'InSearchPath', label: 'Unit tests'
+        }
 
-            stage('Regression test') {
-                cmake arguments: "--build " + marcoBuildPath + " --target check", installation: 'InSearchPath', label: 'Regression tests'
-            }
+        stage('Regression test') {
+            cmake arguments: "--build " + marcoBuildPath + " --target check", installation: 'InSearchPath', label: 'Regression tests'
+        }
 
-            stage('Install') {
-                cmake arguments: "--build " + marcoBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
-            }
+        stage('Install') {
+            cmake arguments: "--build " + marcoBuildPath + " --target install", installation: 'InSearchPath', label: 'Install'
         }
     }
-
-    publishChecks(name: checkName, conclusion: 'SUCCESS', summary: 'Completed')
 }
