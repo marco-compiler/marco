@@ -8,7 +8,7 @@ git checkout ${MARCO_COMMIT}
 mkdir build
 
 cmake \
-  -S marco \
+  -S . \
   -B build \
   -G Ninja \
   -DCMAKE_LINKER_TYPE=MOLD \
