@@ -30,7 +30,7 @@ ARG MARCO_RUNTIME_BUILD_TYPE=Release
 
 RUN dnf update -y && \
     dnf install -y openblas-devel-0.3.26-4.fc40 \
-    suitesparse-devel-7.6.0-1.fc40 \
+    suitesparse64-devel-7.6.0-1.fc40 \
     sundials-devel-6.6.2-7.fc40
 
 COPY ./version_marco_runtime.txt /tmp/
