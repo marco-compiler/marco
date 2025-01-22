@@ -12,7 +12,8 @@ cmake \
   -B build \
   -G Ninja \
   -DCMAKE_LINKER_TYPE=MOLD \
-  -DCMAKE_BUILD_TYPE=${MARCO_BUILD_TYPE}
+  -DCMAKE_BUILD_TYPE=${MARCO_BUILD_TYPE} \
+  || exit 1
 
-cmake --build build --target install
+cmake --build build --target install || exit 1
 rm -rf build

@@ -18,7 +18,8 @@ cmake \
   -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;mlir;openmp" \
   -DLLVM_ENABLE_ASSERTIONS=${LLVM_ENABLE_ASSERTIONS} \
   -DLLVM_PARALLEL_COMPILE_JOBS=${LLVM_PARALLEL_COMPILE_JOBS} \
-  -DLLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS}
+  -DLLVM_PARALLEL_LINK_JOBS=${LLVM_PARALLEL_LINK_JOBS} \
+  || exit 1
 
-cmake --build build --target install
+cmake --build build --target install || exit 1
 rm -rf build

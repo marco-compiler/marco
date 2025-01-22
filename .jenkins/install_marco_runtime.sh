@@ -12,7 +12,8 @@ cmake \
   -S . -B build -G Ninja \
   -DCMAKE_LINKER_TYPE=MOLD \
   -DCMAKE_BUILD_TYPE=${MARCO_RUNTIME_BUILD_TYPE} \
-  -DMARCO_USE_BUILTIN_SUNDIALS=OFF
+  -DMARCO_USE_BUILTIN_SUNDIALS=OFF \
+  || exit 1
 
-cmake --build build --target install
+cmake --build build --target install || exit 1
 rm -rf build
