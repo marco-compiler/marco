@@ -29,10 +29,10 @@ def main():
 
     proc.wait()
 
-    if proc.returncode != 0:
-        for line in proc.stdout:
-            print(line.decode("utf-8"), end = "")
+    for line in proc.stdout:
+        print(line.decode("utf-8"), end = "")
 
+    if proc.returncode != 0:
         exit(proc.returncode)
 
     # Prepare the arguments for running MARCO inside a container.
@@ -42,7 +42,6 @@ def main():
     mounted_dirs = []
 
     for arg in sys.argv:
-
         if arg.endswith(INPUT_FILE_TYPES):
             file_path = os.path.abspath(arg)
             parent_dir_path = os.path.dirname(file_path)
@@ -65,6 +64,7 @@ def main():
     cmd += sys.argv[1:]
 
     # Run MARCO inside a container.
+    print("Compiling with MARCO inside a container...")
     proc = subprocess.Popen(cmd)
     proc.wait()
     exit(proc.returncode)

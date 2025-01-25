@@ -28,10 +28,10 @@ def main():
 
     proc.wait()
 
-    if proc.returncode != 0:
-        for line in proc.stdout:
-            print(line.decode("utf-8"), end = "")
+    for line in proc.stdout:
+        print(line.decode("utf-8"), end = "")
 
+    if proc.returncode != 0:
         exit(proc.returncode)
 
     # Prepare the arguments for running MARCO inside a container.
@@ -55,6 +55,7 @@ def main():
     cmd += sys.argv[1:]
 
     # Run MARCO inside a container.
+    print("Running the simulation inside a container...")
     proc = subprocess.Popen(cmd)
     proc.wait()
     exit(proc.returncode)
