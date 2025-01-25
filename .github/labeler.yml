@@ -10,7 +10,7 @@ jenkins:
           - '**/*.Jenkinsfile'
 
 docker:
-  - changed_files:
+  - changed-files:
       - any-glob-to-any-file:
           - docker/**
           - '**/*.Dockerfile'
