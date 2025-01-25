@@ -54,6 +54,9 @@ def main():
     # Match user id and group id.
     cmd += ["-u", str(os.geteuid()) + ":" + str(os.getegid())]
 
+    # Set the working directory.
+    cmd += ["-w", os.getcwd()]
+
     # Add the Docker image name.
     cmd += [DOCKER_IMAGE]
 
