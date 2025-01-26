@@ -50,7 +50,7 @@ node {
         stage('Publish') {
             dockerImage.push()
 
-            if (tag != "") {
+            if (${PUBLISH_VERSION_TAG} && tag != "") {
                 dockerImage.push(tag)
             }
 
