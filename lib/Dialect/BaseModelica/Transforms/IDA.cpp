@@ -535,22 +535,11 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       }
 
       const AccessFunction &accessFunction = access.getAccessFunction();
-      std::optional<IndexSet> accessedVariableIndices = std::nullopt;
-
-      if (!equationIndices.empty()) {
-        accessedVariableIndices = accessFunction.map(equationIndices);
-      }
+      IndexSet accessedVariableIndices = accessFunction.map(equationIndices);
 
       LLVM_DEBUG({
-        llvm::dbgs() << "Accessed variable indices: ";
-
-        if (accessedVariableIndices) {
-          llvm::dbgs() << *accessedVariableIndices;
-        } else {
-          llvm::dbgs() << "{}";
-        }
-
-        llvm::dbgs() << "\n";
+        llvm::dbgs() << "Accessed variable indices: " << accessedVariableIndices
+                     << "\n";
       });
 
       auto accessedVariableName = access.getVariable();
@@ -591,8 +580,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           LLVM_DEBUG(llvm::dbgs() << "Scalar replacement\n");
           overlaps = true;
         } else {
-          if (!accessedVariableIndices ||
-              accessedVariableIndices->overlaps(writtenVariableIndices)) {
+          if (accessedVariableIndices.overlaps(writtenVariableIndices)) {
             // Vectorized replacement.
             LLVM_DEBUG(llvm::dbgs() << "Vectorized replacement\n");
             overlaps = true;
@@ -618,6 +606,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         auto eraseExplicitWritingEquation = llvm::make_scope_exit(
             [&]() { rewriter.eraseOp(explicitWritingEquationOp); });
 
+        IndexSet replacedAccessedVariableIndices =
+            accessedVariableIndices.intersect(writtenVariableIndices);
+
         llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
         auto writeAccess =
@@ -630,11 +621,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         std::optional<IndexSet> newEquationsIndices = std::nullopt;
 
         if (!equationIndices.empty()) {
-          newEquationsIndices = equationIndices;
-
           newEquationsIndices =
               equationIndices.intersect(accessFunction.inverseMap(
-                  writtenVariableIndices, equationIndices));
+                  replacedAccessedVariableIndices, equationIndices));
         }
 
         std::optional<std::reference_wrapper<const IndexSet>>
