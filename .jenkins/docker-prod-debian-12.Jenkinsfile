@@ -39,8 +39,6 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + prodDockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    def dockerImage
-
     stage('Build') {
         docker.build(dockerDevImageName, dockerDevArgs)
         dockerImage = docker.build(dockerProdImageName, dockerProdArgs)

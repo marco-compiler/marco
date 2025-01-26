@@ -34,8 +34,6 @@ node {
         " -f " + marcoSrcPath + "/.jenkins/" + dockerfile +
         " " + marcoSrcPath + "/.jenkins";
 
-    def dockerImage
-
     stage('Docker image') {
         dockerImage = docker.build(dockerMARCOImageName + ":" + env.GIT_COMMIT[0..6], dockerArgs)
     }
