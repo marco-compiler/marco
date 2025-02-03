@@ -862,6 +862,8 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Add additional inductions in case of equalities between arrays.
   pm.addPass(mlir::bmodelica::createEquationInductionsExplicitationPass());
 
+  pm.addPass(mlir::bmodelica::createResultRematerializationPass());
+
   // Fold accesses operating on views.
   pm.addPass(mlir::bmodelica::createViewAccessFoldingPass());
 
@@ -945,6 +947,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Explicitate the equations.
   pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
 
+
   // Lift loop-independent code from loops of equations.
   if (ci.getCodeGenOptions().loopHoisting) {
     pm.addNestedPass<mlir::bmodelica::EquationFunctionOp>(
@@ -953,6 +956,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Export the unsolved SCCs to KINSOL.
   pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
+
 
   // Parallelize the scheduled blocks.
   pm.addPass(mlir::bmodelica::createScheduleParallelizationPass());
