@@ -21,6 +21,10 @@ struct UnwrappedVertex
   VertexProperty property;
 };
 
+// Deduction guide
+template <typename VertexProperty>
+UnwrappedVertex(VertexProperty) -> UnwrappedVertex<VertexProperty>;
+
 template<typename Graph, typename Range>
 std::vector<UnwrappedVertex<typename Graph::VertexProperty>>
 unwrapVertices(const Graph& graph, Range edges)
@@ -52,6 +56,10 @@ struct UnwrappedEdge
   VertexDescriptor to;
   EdgeProperty property;
 };
+
+// Deduction guide
+template <typename VertexDescriptor, typename EdgeProperty>
+UnwrappedEdge(VertexDescriptor, VertexDescriptor, EdgeProperty) -> UnwrappedEdge<VertexDescriptor, EdgeProperty>;
 
 template<typename Graph, typename Range>
 std::vector<UnwrappedEdge<
