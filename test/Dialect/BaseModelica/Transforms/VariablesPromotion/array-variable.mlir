@@ -21,7 +21,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -63,11 +63,11 @@ bmodelica.model @Test {
     }
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -94,7 +94,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -152,12 +152,12 @@ bmodelica.model @Test {
     }
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -201,8 +201,8 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -266,9 +266,9 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -299,7 +299,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -339,8 +339,8 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -379,7 +379,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }

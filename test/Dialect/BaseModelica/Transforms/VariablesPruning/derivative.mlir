@@ -26,7 +26,7 @@ bmodelica.model @Test der = [<@x, @der_x>] {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -58,6 +58,6 @@ bmodelica.model @Test der = [<@x, @der_x>] {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
     }
 }

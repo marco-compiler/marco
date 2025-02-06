@@ -25,7 +25,7 @@ module {
 
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [R, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [R, 0]>}
             }
         }
     }
@@ -62,7 +62,7 @@ module {
 
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, path = #bmodelica<equation_path [R, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,1]>, path = #bmodelica<equation_path [R, 0]>}
             }
         }
     }

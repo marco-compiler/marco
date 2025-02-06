@@ -19,6 +19,6 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
     }
 }

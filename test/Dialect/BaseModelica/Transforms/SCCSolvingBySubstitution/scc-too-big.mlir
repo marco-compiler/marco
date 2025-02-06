@@ -60,10 +60,10 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         bmodelica.scc {
-            bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-            bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-            bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-            bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+            bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+            bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+            bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
+            bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
         }
     }
 }

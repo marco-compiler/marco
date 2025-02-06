@@ -30,8 +30,8 @@ bmodelica.model @Test {
     bmodelica.dynamic {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.equation_instance %t0 : !bmodelica.equation
-        bmodelica.equation_instance %t1 : !bmodelica.equation
+        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t1
     }
 }
 
@@ -71,7 +71,7 @@ bmodelica.model @Test {
     bmodelica.dynamic {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.equation_instance %t0 : !bmodelica.equation
-        bmodelica.equation_instance %t1 : !bmodelica.equation
+        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t1
     }
 }

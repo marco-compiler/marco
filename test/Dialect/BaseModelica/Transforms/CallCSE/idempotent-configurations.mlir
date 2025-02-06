@@ -29,7 +29,7 @@ module @SingleCall {
         // CHECK: bmodelica.dynamic
         bmodelica.dynamic {
             // CHECK-DAG: bmodelica.equation_instance %[[T]]
-            bmodelica.equation_instance %t0 : !bmodelica.equation
+            bmodelica.equation_instance %t0
         }
     }
 }
@@ -83,8 +83,8 @@ module @ArrayResult {
         bmodelica.dynamic {
             // CHECK-DAG: bmodelica.equation_instance %[[T0]]
             // CHECK-DAG: bmodelica.equation_instance %[[T1]]
-            bmodelica.equation_instance %t0 : !bmodelica.equation
-            bmodelica.equation_instance %t1 : !bmodelica.equation
+            bmodelica.equation_instance %t0
+            bmodelica.equation_instance %t1
         }
     }
 }
@@ -148,9 +148,9 @@ module @ConflictingIndices {
             // CHECK-DAG: bmodelica.equation_instance %[[T0]] {indices = #modeling<multidim_range [1,4][1,5]>}
             // CHECK-DAG: bmodelica.equation_instance %[[T0]] {indices = #modeling<multidim_range [1,4][1,6]>}
             // CHECK-DAG: bmodelica.equation_instance %[[T1]] {indices = #modeling<multidim_range [1,4][1,5]>}
-            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,4][1,5]>} : !bmodelica.equation
-            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,4][1,6]>} : !bmodelica.equation
-            bmodelica.equation_instance %1 {indices = #modeling<multidim_range [1,4][1,5]>} : !bmodelica.equation
+            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,4][1,5]>}
+            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,4][1,6]>}
+            bmodelica.equation_instance %1 {indices = #modeling<multidim_range [1,4][1,5]>}
         }
     }
 }

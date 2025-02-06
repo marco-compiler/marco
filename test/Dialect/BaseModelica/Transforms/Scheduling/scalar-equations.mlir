@@ -39,10 +39,10 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
             }
         }
     }

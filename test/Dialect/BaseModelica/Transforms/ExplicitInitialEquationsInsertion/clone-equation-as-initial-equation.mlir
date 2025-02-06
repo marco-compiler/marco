@@ -18,6 +18,6 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 : !bmodelica.equation
+        bmodelica.equation_instance %t0
     }
 }

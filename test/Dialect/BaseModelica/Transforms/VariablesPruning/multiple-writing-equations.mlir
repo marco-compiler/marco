@@ -64,13 +64,13 @@ bmodelica.model @InitialWithDependency {
     }
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
@@ -140,12 +140,12 @@ bmodelica.model @DynamicWithDependency {
     }
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
-        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
     }
 }

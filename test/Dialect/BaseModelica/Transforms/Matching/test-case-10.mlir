@@ -57,8 +57,8 @@ bmodelica.model @Test {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]]
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>} : !bmodelica.equation
-        bmodelica.equation_instance %t1 : !bmodelica.equation
-        bmodelica.equation_instance %t2 : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>}
+        bmodelica.equation_instance %t1
+        bmodelica.equation_instance %t2
     }
 }

@@ -8,14 +8,14 @@
 // CHECK:       bmodelica.schedule @ic {
 // CHECK-NEXT:      bmodelica.initial {
 // CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %2 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+// CHECK-NEXT:              bmodelica.scheduled_equation_instance %2 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NEXT:          }
 // CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %3 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+// CHECK-NEXT:              bmodelica.scheduled_equation_instance %3 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NEXT:          }
-// CHECK-NEXT:          bmodelica.start_equation_instance %0 : !bmodelica.equation
+// CHECK-NEXT:          bmodelica.start_equation_instance %0
 // CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %1 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+// CHECK-NEXT:              bmodelica.scheduled_equation_instance %1 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
@@ -63,15 +63,15 @@ bmodelica.model @Test {
 
     bmodelica.schedule @ic {
         bmodelica.initial {
-            bmodelica.start_equation_instance %t0 : !bmodelica.equation
+            bmodelica.start_equation_instance %t0
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
             }
         }
     }

@@ -40,7 +40,7 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, iteration_directions = [#bmodelica<equation_schedule_direction forward>], path = #bmodelica<equation_path [L, 0]>} : !bmodelica.equation
+                bmodelica.scheduled_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, iteration_directions = [#bmodelica<equation_schedule_direction forward>], path = #bmodelica<equation_path [L, 0]>}
             }
         }
     }

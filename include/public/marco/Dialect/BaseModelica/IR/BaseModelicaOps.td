@@ -4057,13 +4057,13 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
-        BaseModelicaEquation:$base,
+        EquationType:$base,
         OptionalAttr<MultidimensionalRangeAttr>:$indices);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $base attr-dict `:` type($base)
+        $base attr-dict
     }];
 
     let hasVerifier = 1;
@@ -4114,13 +4114,13 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
-        BaseModelicaEquation:$base,
+        EquationType:$base,
         OptionalAttr<MultidimensionalRangeAttr>:$indices);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $base attr-dict `:` type($base)
+        $base attr-dict
     }];
 
     let hasVerifier = 1;
@@ -4166,14 +4166,14 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
-        BaseModelicaEquation:$base,
+        EquationType:$base,
         OptionalAttr<MultidimensionalRangeAttr>:$indices,
         EquationPathAttr:$path);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $base attr-dict `:` type($base)
+        $base attr-dict
     }];
 
     let hasVerifier = 1;
@@ -4305,7 +4305,7 @@ def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equati
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
-        BaseModelicaEquation:$base,
+        EquationType:$base,
         OptionalAttr<MultidimensionalRangeAttr>:$indices,
         EquationPathAttr:$path,
         TypedArrayAttrBase<
@@ -4315,7 +4315,7 @@ def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equati
     let results = (outs);
 
     let assemblyFormat = [{
-        $base attr-dict `:` type($base)
+        $base attr-dict
     }];
 
     let hasVerifier = 1;

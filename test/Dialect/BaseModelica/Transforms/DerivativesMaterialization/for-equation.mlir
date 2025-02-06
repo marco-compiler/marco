@@ -21,7 +21,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
     }
 }
 
@@ -53,7 +53,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
     }
 }
 
@@ -82,7 +82,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
     }
 }
 
@@ -118,6 +118,6 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>} : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
     }
 }

@@ -52,8 +52,8 @@ bmodelica.model @Test {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2]>, path = #bmodelica<equation_path [R, 0]>}
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>} : !bmodelica.equation
-        bmodelica.equation_instance %t1 : !bmodelica.equation
-        bmodelica.equation_instance %t2 : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>}
+        bmodelica.equation_instance %t1
+        bmodelica.equation_instance %t2
     }
 }

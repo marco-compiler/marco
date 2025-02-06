@@ -22,6 +22,6 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,4]>} : !bmodelica.equation
+        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,4]>}
     }
 }
