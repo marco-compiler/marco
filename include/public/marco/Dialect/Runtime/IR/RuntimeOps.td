@@ -124,7 +124,7 @@ def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler_add_equation",
         SymbolNameAttr:$scheduler,
         FlatSymbolRefAttr:$function,
         OptionalAttr<MultidimensionalRangeAttr>:$ranges,
-        DefaultValuedAttr<BoolAttr, "false">:$independentIndices);
+        I32Attr:$dependencyKind);
 
     let results = (outs);
     let assemblyFormat = "$scheduler attr-dict";

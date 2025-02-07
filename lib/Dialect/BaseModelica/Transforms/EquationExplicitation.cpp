@@ -273,13 +273,16 @@ mlir::LogicalResult EquationExplicitationPass::processStartEquation(
     assert(steps[i] == 1);
   }
 
-  auto callOp = rewriter.create<EquationCallOp>(
-      eqFunc.getLoc(), eqFunc.getSymName(), nullptr, true);
+  MultidimensionalRangeAttr callIndices = nullptr;
 
   if (!ranges.empty()) {
-    callOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-        rewriter.getContext(), MultidimensionalRange(ranges)));
+    callIndices = MultidimensionalRangeAttr::get(rewriter.getContext(),
+                                                 MultidimensionalRange(ranges));
   }
+
+  rewriter.create<EquationCallOp>(eqFunc.getLoc(), eqFunc.getSymName(),
+                                  callIndices,
+                                  EquationDependencyKind::Independent);
 
   rewriter.eraseOp(equation);
   return mlir::success();
@@ -356,23 +359,28 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
       }
 
       auto iterationDirections = equation.getIterationDirections();
-      bool independentIndices = !iterationDirections.empty();
 
-      if (independentIndices) {
-        independentIndices &= llvm::all_of(
-            equation.getIterationDirections(), [](mlir::Attribute attr) {
-              return attr.cast<EquationScheduleDirectionAttr>().getValue() ==
-                     EquationScheduleDirection::Any;
-            });
+      EquationDependencyKind dependencyKind = EquationDependencyKind::Other;
+
+      if (!iterationDirections.empty()) {
+        if (llvm::all_of(
+                equation.getIterationDirections(), [](mlir::Attribute attr) {
+                  return attr.cast<EquationScheduleDirectionAttr>()
+                             .getValue() == EquationScheduleDirection::Any;
+                })) {
+          dependencyKind = EquationDependencyKind::Independent;
+        }
       }
 
-      auto callOp = rewriter.create<EquationCallOp>(
-          eqFunc.getLoc(), eqFunc.getSymName(), nullptr, independentIndices);
+      MultidimensionalRangeAttr callIndices = nullptr;
 
       if (!ranges.empty()) {
-        callOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-            rewriter.getContext(), MultidimensionalRange(ranges)));
+        callIndices = MultidimensionalRangeAttr::get(
+            rewriter.getContext(), MultidimensionalRange(ranges));
       }
+
+      rewriter.create<EquationCallOp>(eqFunc.getLoc(), eqFunc.getSymName(),
+                                      callIndices, dependencyKind);
 
       rewriter.eraseOp(explicitEquation);
     } else {

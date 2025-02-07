@@ -286,7 +286,8 @@ static void createStateUpdateFunctionCall(mlir::OpBuilder &builder,
   builder.setInsertionPointToStart(blockOp.getBody());
 
   builder.create<EquationCallOp>(equationFuncOp.getLoc(),
-                                 equationFuncOp.getSymName(), ranges, true);
+                                 equationFuncOp.getSymName(), ranges,
+                                 EquationDependencyKind::Independent);
 }
 
 mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(

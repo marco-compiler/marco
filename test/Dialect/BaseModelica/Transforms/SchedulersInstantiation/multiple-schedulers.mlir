@@ -21,7 +21,12 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler_0]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_0]] {function = @[[equation_0_wrapper:.*]], ranges = #[[range]]}
+
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_0]]
+// CHECK-SAME:      {
+// CHECK-SAME:          function = @[[equation_0_wrapper:[a-zA-Z0-9_]*]]
+// CHECK-SAME:          ranges = #[[range]]
+// CHECK-SAME:      }
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {
@@ -37,7 +42,11 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler_1]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_1]] {function = @[[equation_1_wrapper:.*]], ranges = #[[range]]}
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_1]]
+// CHECK-SAME:      {
+// CHECK-SAME:          function = @[[equation_1_wrapper:[a-zA-Z0-9_]*]],
+// CHECK-SAME:          ranges = #[[range]]
+// CHECK-SAME:      }
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_1_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {

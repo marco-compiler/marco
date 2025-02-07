@@ -18,6 +18,7 @@ using namespace ::mlir::bmodelica;
 //===---------------------------------------------------------------------===//
 
 namespace mlir::bmodelica {
+
 void BaseModelicaDialect::registerOperations() {
   addOperations<
 #define GET_OP_LIST

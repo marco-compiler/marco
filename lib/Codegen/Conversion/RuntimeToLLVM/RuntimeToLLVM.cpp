@@ -324,7 +324,7 @@ struct SchedulerAddEquationOpLowering
 
     // Independent indices property.
     mlir::Value independentIndices = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getBoolAttr(op.getIndependentIndices()));
+        loc, rewriter.getI32IntegerAttr(op.getDependencyKind()));
 
     args.push_back(independentIndices);
     mangledArgsTypes.push_back(mangling.getIntegerType(1));

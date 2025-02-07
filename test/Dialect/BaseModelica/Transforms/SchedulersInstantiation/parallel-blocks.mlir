@@ -14,8 +14,13 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]] {function = @[[equation_0_wrapper:.*]]}
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]] {function = @[[equation_1_wrapper:.*]]}
+
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]]
+// CHECK-SAME:      function = @[[equation_0_wrapper:[a-zA-Z0-9_]*]]
+
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]]
+// CHECK-SAME:      function = @[[equation_1_wrapper:[a-zA-Z0-9_]*]]
+// CHECK-SAME:      }
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]]() {
