@@ -1,16 +1,15 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
-// for i in 0:2
-//   x[i] + y[i] = 0
-// for i in 0:5
-//   x[i] + y[1] = 0
+// COM: for i in 0:2
+// COM:   x[i] + y[i] = 0
+// COM: for i in 0:5
+// COM:   x[i] + y[1] = 0
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<6x!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.real>
 
-    // x[i] + y[i] = 0
-    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+    // COM: x[i] + y[i] = 0
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<6x!bmodelica.real>
         %1 = bmodelica.variable_get @y : tensor<3x!bmodelica.real>
@@ -23,8 +22,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // x[i] + y[1] = 0
-    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+
+    // COM: x[i] + y[1] = 0
     %t1 = bmodelica.equation_template inductions = [%i0] attributes {id = "t1"} {
         %0 = bmodelica.variable_get @x : tensor<6x!bmodelica.real>
         %1 = bmodelica.variable_get @y : tensor<3x!bmodelica.real>
@@ -38,10 +38,13 @@ bmodelica.model @Test {
         bmodelica.equation_sides %7, %8 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
+
     bmodelica.dynamic {
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
         bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,2]>}
         bmodelica.equation_instance %t1 {indices = #modeling<multidim_range [0,5]>}
+
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
     }
 }

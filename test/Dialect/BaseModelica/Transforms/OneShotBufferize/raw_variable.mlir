@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --one-shot-bufferize | FileCheck %s
 
-// CHECK:       func.func @unusedScalarVariable() {
+// CHECK-LABEL: @unusedScalarVariable
+// CHECK-SAME:  ()
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
@@ -11,7 +12,8 @@ func.func @unusedScalarVariable() {
 
 // -----
 
-// CHECK:       func.func @scalarVariableGet() -> f64 {
+// CHECK-LABEL: @scalarVariableGet
+// CHECK-SAME:  () -> f64
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<f64>
 // CHECK-NEXT:      %[[result:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<f64> -> f64
 // CHECK-NEXT:      return %[[result]]
@@ -25,7 +27,8 @@ func.func @scalarVariableGet() -> f64 {
 
 // -----
 
-// CHECK:       func.func @scalarVariableSet(%[[arg0:.*]]: f64) {
+// CHECK-LABEL: @scalarVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: f64)
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<f64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0]] : memref<f64>, f64
 // CHECK-NEXT:      return
@@ -39,7 +42,8 @@ func.func @scalarVariableSet(%arg0: f64) {
 
 // -----
 
-// CHECK:       func.func @scalarVariableSetAndGet(%[[arg0:.*]]: f64) -> f64 {
+// CHECK-LABEL: @scalarVariableSetAndGet
+// CHECK-SAME:  (%[[arg0:.*]]: f64) -> f64
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<f64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0]] : memref<f64>, f64
 // CHECK-NEXT:      %[[result:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<f64> -> f64
@@ -55,7 +59,8 @@ func.func @scalarVariableSetAndGet(%arg0: f64) -> f64 {
 
 // -----
 
-// CHECK:       func.func @unusedStaticArrayVariable() {
+// CHECK-LABEL: @unusedStaticArrayVariable
+// CHECK-SAME:  ()
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
@@ -66,7 +71,8 @@ func.func @unusedStaticArrayVariable() {
 
 // -----
 
-// CHECK:       func.func @staticArrayVariableGet() -> tensor<3x4xf64> {
+// CHECK-LABEL: @staticArrayVariableGet
+// CHECK-SAME:  () -> tensor<3x4xf64>
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
 // CHECK-NEXT:      %[[get:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<3x4xf64> -> memref<3x4xf64>
 // CHECK-NEXT:      %[[result:.*]] = bufferization.to_tensor %[[get]] : memref<3x4xf64>
@@ -81,7 +87,8 @@ func.func @staticArrayVariableGet() -> tensor<3x4xf64> {
 
 // -----
 
-// CHECK:       func.func @staticArrayVariableSet(%[[arg0:.*]]: tensor<3x4xf64>) {
+// CHECK-LABEL: @staticArrayVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: tensor<3x4xf64>)
 // CHECK-DAG:       %[[value:.*]] = bufferization.to_memref %[[arg0]]
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
 // CHECK:           bmodelica.raw_variable_set %[[variable]], %[[value]]
@@ -96,7 +103,8 @@ func.func @staticArrayVariableSet(%arg0: tensor<3x4xf64>) {
 
 // -----
 
-// CHECK:       func.func @staticArrayVariableSetAndGet(%[[arg0:.*]]: tensor<3x4xf64>) -> tensor<3x4xf64> {
+// CHECK-LABEL: @staticArrayVariableSetAndGet
+// CHECK-SAME:  (%[[arg0:.*]]: tensor<3x4xf64>) -> tensor<3x4xf64>
 // CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : memref<3x4xf64, strided<[?, ?], offset: ?>>
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0_to_memref]] : memref<3x4xf64>, memref<3x4xf64, strided<[?, ?], offset: ?>>
@@ -114,7 +122,8 @@ func.func @staticArrayVariableSetAndGet(%arg0: tensor<3x4xf64>) -> tensor<3x4xf6
 
 // -----
 
-// CHECK:       func.func @unusedDynamicArrayVariable() {
+// CHECK-LABEL: @unusedDynamicArrayVariable
+// CHECK-SAME:  ()
 // CHECK-NEXT:      return
 // CHECK-NEXT:  }
 
@@ -125,8 +134,8 @@ func.func @unusedDynamicArrayVariable() {
 
 // -----
 
-
-// CHECK:       func.func @dynamicArrayVariableGet() -> tensor<3x?xf64> {
+// CHECK-LABEL: @dynamicArrayVariableGet
+// CHECK-SAME:  () -> tensor<3x?xf64>
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
 // CHECK-NEXT:      %[[get:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<3x?xf64> -> memref<3x?xf64>
 // CHECK-NEXT:      %[[result:.*]] = bufferization.to_tensor %[[get]] : memref<3x?xf64>
@@ -141,7 +150,8 @@ func.func @dynamicArrayVariableGet() -> tensor<3x?xf64> {
 
 // -----
 
-// CHECK:       func.func @dynamicArrayVariableSet(%[[arg0:.*]]: tensor<3x?xf64>) {
+// CHECK-LABEL: @dynamicArrayVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: tensor<3x?xf64>)
 // CHECK-DAG:       %[[value:.*]] = bufferization.to_memref %[[arg0]]
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
 // CHECK:           bmodelica.raw_variable_set %[[variable]], %[[value]]
@@ -156,7 +166,8 @@ func.func @dynamicArrayVariableSet(%arg0: tensor<3x?xf64>) {
 
 // -----
 
-// CHECK:       func.func @dynamicArrayVariableSetAndGet(%[[arg0:.*]]: tensor<3x?xf64>) -> tensor<3x?xf64> {
+// CHECK-LABEL: @dynamicArrayVariableSetAndGet
+// CHECK-SAME:  (%[[arg0:.*]]: tensor<3x?xf64>) -> tensor<3x?xf64>
 // CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : memref<3x?xf64, strided<[?, ?], offset: ?>>
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0_to_memref]] : memref<3x?xf64>, memref<3x?xf64, strided<[?, ?], offset: ?>>

@@ -1,12 +1,12 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-arith --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @foo
+// CHECK-LABEL: @add1D
 // CHECK-DAG: %[[lowerBound:.*]] = bmodelica.constant 23 : index
 // CHECK-DAG: %[[upperBound:.*]] = arith.constant 51 : index
 // CHECK-DAG: %[[step:.*]] = bmodelica.constant 9 : index
 // CHECK: scf.parallel (%{{.*}}) = (%[[lowerBound]]) to (%[[upperBound]]) step (%[[step]]) init (%{{.*}})
 
-func.func @foo(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
+func.func @add1D(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
     %begin = bmodelica.constant 23 : index
     %end = bmodelica.constant 57 : index
     %step = bmodelica.constant 9 : index
@@ -22,7 +22,7 @@ func.func @foo(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
 
 // -----
 
-// CHECK-LABEL: @foo
+// CHECK-LABEL: @add2D
 // CHECK-SAME: (%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %[[tensor:.*]]: tensor<2x3x!bmodelica.real>)
 // CHECK:       %[[init:.*]] = arith.constant 0.000000e+00 : f64
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
@@ -35,9 +35,9 @@ func.func @foo(%tensor: tensor<6x!bmodelica.real>) -> !bmodelica.real {
 // CHECK:           }
 // CHECK:       }
 
-func.func @foo(%begin0: index, %end0: index, %step0: index,
-               %begin1: index, %end1: index, %step1: index,
-               %tensor: tensor<2x3x!bmodelica.real>) -> !bmodelica.real {
+func.func @add2D(%begin0: index, %end0: index, %step0: index,
+                 %begin1: index, %end1: index, %step1: index,
+                 %tensor: tensor<2x3x!bmodelica.real>) -> !bmodelica.real {
     %0 = bmodelica.range %begin0, %end0, %step0 : (index, index, index) -> !bmodelica<range index>
     %1 = bmodelica.range %begin1, %end1, %step1 : (index, index, index) -> !bmodelica<range index>
 
@@ -51,7 +51,7 @@ func.func @foo(%begin0: index, %end0: index, %step0: index,
 
 // -----
 
-// CHECK-LABEL: @foo
+// CHECK-LABEL: @mul
 // CHECK-SAME:  (%{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %[[tensor:.*]]: tensor<2x3x!bmodelica.real>)
 // CHECK:       %[[init:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK:       %[[result:.*]] = scf.parallel (%[[i0:.*]], %[[i1:.*]]) = (%{{.*}}, %{{.*}}) to (%{{.*}}, %{{.*}}) step (%{{.*}}, %{{.*}}) init (%[[init]]) -> f64 {
@@ -64,7 +64,7 @@ func.func @foo(%begin0: index, %end0: index, %step0: index,
 // CHECK:           }
 // CHECK:       }
 
-func.func @foo(%begin0: index, %end0: index, %step0: index,
+func.func @mul(%begin0: index, %end0: index, %step0: index,
                %begin1: index, %end1: index, %step1: index,
                %tensor: tensor<2x3x!bmodelica.real>) -> !bmodelica.real {
     %0 = bmodelica.range %begin0, %end0, %step0 : (index, index, index) -> !bmodelica<range index>

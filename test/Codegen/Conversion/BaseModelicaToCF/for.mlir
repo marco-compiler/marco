@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i64, %[[z:.*]]: i64) {
+// CHECK-LABEL: @for
+// CHECK-SAME: (%[[x:.*]]: i1, %[[y:.*]]: i64, %[[z:.*]]: i64)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[for_condition:.*]]
@@ -19,7 +20,7 @@
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT: }
 
-bmodelica.function @foo {
+bmodelica.function @for {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i64, input>
     bmodelica.variable @z : !bmodelica.variable<i64, input>

@@ -1,35 +1,38 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @Test0
 
-func.func @test() -> (!bmodelica.real) {
+func.func @Test0() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 0.0>
     %result = bmodelica.cos %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 0.866025
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @Test1
 
-func.func @test() -> (!bmodelica.real) {
+func.func @Test1() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 0.523598775>
     %result = bmodelica.cos %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 0.866025
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 0.707106
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @Test2
 
-func.func @test() -> (!bmodelica.real) {
+func.func @Test2() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 0.785398163>
     %result = bmodelica.cos %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 0.707106
+    // CHECK: return %[[cst]]
 }

@@ -1,27 +1,13 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
-// Extract.
-
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<3x!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<3x!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[index:.*]] = bmodelica.constant 0 : index
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x!bmodelica.real>
-// CHECK-DAG:       %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[index]]]
-// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x!bmodelica.real>
-// CHECK-DAG:       %[[y_extract:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @extract
+
+bmodelica.model @extract {
     bmodelica.variable @r : !bmodelica.variable<3x!bmodelica<record @R>>
 
     bmodelica.dynamic {
@@ -34,36 +20,29 @@ bmodelica.model @Test {
             %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
             %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
             bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
+            // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x!bmodelica.real>
+            // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[index]]]
+            // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x!bmodelica.real>
+            // CHECK-DAG:   %[[y_extract:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }
 
 // -----
 
-// View and extract.
-
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<3x5x!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<3x5x!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[index:.*]] = bmodelica.constant 0 : index
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x5x!bmodelica.real>
-// CHECK-DAG:       %[[x_view:.*]] = bmodelica.tensor_view %[[x]][%[[index]]]
-// CHECK-DAG:       %[[x_extract:.*]] = bmodelica.tensor_extract %[[x_view]][%[[index]]]
-// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x5x!bmodelica.real>
-// CHECK-DAG:       %[[y_view:.*]] = bmodelica.tensor_view %[[y]][%[[index]]]
-// CHECK-DAG:       %[[y_extract:.*]] = bmodelica.tensor_extract %[[y_view]][%[[index]]]
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @viewAndExtract
+
+bmodelica.model @viewAndExtract {
     bmodelica.variable @r : !bmodelica.variable<3x5x!bmodelica<record @R>>
 
     bmodelica.dynamic {
@@ -77,27 +56,22 @@ bmodelica.model @Test {
             %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
             %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
             bmodelica.equation_sides %6, %7 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
+            // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x5x!bmodelica.real>
+            // CHECK-DAG:   %[[x_view:.*]] = bmodelica.tensor_view %[[x]][%[[index]]]
+            // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor_extract %[[x_view]][%[[index]]]
+            // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x5x!bmodelica.real>
+            // CHECK-DAG:   %[[y_view:.*]] = bmodelica.tensor_view %[[y]][%[[index]]]
+            // CHECK-DAG:   %[[y_extract:.*]] = bmodelica.tensor_extract %[[y_view]][%[[index]]]
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }
 
 // -----
-
-// Call argument.
-
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<3x!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<3x!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK:           %[[index:.*]] = bmodelica.constant 0 : index
-// CHECK:           %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x!bmodelica.real>
-// CHECK:           %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[index]]]
-// CHECK:           %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x!bmodelica.real>
-// CHECK:           %[[y_extract:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
-// CHECK:           %[[call:.*]] = bmodelica.call @Foo(%[[x_extract]], %[[y_extract]]) : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
-// CHECK:           %[[lhs:.*]] = bmodelica.equation_side %[[call]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %{{.*}}
-// CHECK-NEXT:  }
 
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
@@ -109,7 +83,9 @@ bmodelica.function @Foo {
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real, output>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @callArgument
+
+bmodelica.model @callArgument {
     bmodelica.variable @r : !bmodelica.variable<3x!bmodelica<record @R>>
 
     bmodelica.dynamic {
@@ -122,24 +98,20 @@ bmodelica.model @Test {
             %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
             %6 = bmodelica.equation_side %4 : tuple<!bmodelica.real>
             bmodelica.equation_sides %5, %6 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
+            // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : tensor<3x!bmodelica.real>
+            // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor_extract %[[x]][%[[index]]]
+            // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : tensor<3x!bmodelica.real>
+            // CHECK-DAG:   %[[y_extract:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
+            // CHECK:       %[[call:.*]] = bmodelica.call @Foo(%[[x_extract]], %[[y_extract]]) : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+            // CHECK:       %[[lhs:.*]] = bmodelica.equation_side %[[call]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %{{.*}}
         }
     }
 }
 
 // -----
-
-// Call result.
-
-// CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[index:.*]] = bmodelica.constant 0 : index
-// CHECK-DAG:       %[[call:.*]]:2 = bmodelica.call @Foo(%{{.*}}, %{{.*}}) : (!bmodelica.real, !bmodelica.real) -> (tensor<3x!bmodelica.real>, tensor<3x!bmodelica.real>)
-// CHECK-DAG:       %[[x_extract:.*]] = bmodelica.tensor_extract %[[call]]#0[%[[index]]]
-// CHECK-DAG:       %[[y_extract:.*]] = bmodelica.tensor_extract %[[call]]#1[%[[index]]]
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
 
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
@@ -152,7 +124,9 @@ bmodelica.function @Foo {
     bmodelica.variable @r : !bmodelica.variable<3x!bmodelica<record @R>, output>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @callResult
+
+bmodelica.model @callResult {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 
@@ -168,6 +142,14 @@ bmodelica.model @Test {
             %7 = bmodelica.equation_side %5 : tuple<!bmodelica.real>
             %8 = bmodelica.equation_side %6 : tuple<!bmodelica.real>
             bmodelica.equation_sides %7, %8 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[index:.*]] = bmodelica.constant 0 : index
+            // CHECK-DAG:   %[[call:.*]]:2 = bmodelica.call @Foo(%{{.*}}, %{{.*}}) : (!bmodelica.real, !bmodelica.real) -> (tensor<3x!bmodelica.real>, tensor<3x!bmodelica.real>)
+            // CHECK-DAG:   %[[x_extract:.*]] = bmodelica.tensor_extract %[[call]]#0[%[[index]]]
+            // CHECK-DAG:   %[[y_extract:.*]] = bmodelica.tensor_extract %[[call]]#1[%[[index]]]
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x_extract]]
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y_extract]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }

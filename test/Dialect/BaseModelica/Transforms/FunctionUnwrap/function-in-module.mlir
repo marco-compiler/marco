@@ -4,13 +4,12 @@
 // CHECK-NEXT:      bmodelica.model @M2 {
 // CHECK-NEXT:          bmodelica.dynamic {
 // CHECK-NEXT:              bmodelica.algorithm {
-// CHECK-NEXT:                  bmodelica.call @foo() : () -> ()
+// CHECK-NEXT:                  bmodelica.call @foo()
 // CHECK-NEXT:              }
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  bmodelica.function @foo {
-// CHECK-NEXT:  }
+// CHECK-NEXT:  bmodelica.function @foo
 
 module {
     bmodelica.model @M1 {

@@ -1,20 +1,11 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<5x3x!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<5x3x!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : tensor<5x3x!bmodelica.real>
-// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : tensor<5x3x!bmodelica.real>
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.real>
 }
+
+// CHECK-LABEL: @Test
 
 bmodelica.model @Test {
     bmodelica.variable @r : !bmodelica.variable<5x!bmodelica<record @R>>
@@ -28,5 +19,12 @@ bmodelica.model @Test {
             %4 = bmodelica.equation_side %2 : tuple<tensor<5x3x!bmodelica.real>>
             bmodelica.equation_sides %3, %4 : tuple<tensor<5x3x!bmodelica.real>>, tuple<tensor<5x3x!bmodelica.real>>
         }
+
+        // CHECK:       bmodelica.equation
+        // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : tensor<5x3x!bmodelica.real>
+        // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : tensor<5x3x!bmodelica.real>
+        // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x]]
+        // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y]]
+        // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
     }
 }

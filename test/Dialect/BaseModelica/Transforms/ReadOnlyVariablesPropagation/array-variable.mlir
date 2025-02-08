@@ -1,22 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(propagate-read-only-variables{model-name=Test})" | FileCheck %s
 
-// Propagated array constant.
+// CHECK-LABEL: @propagatedArrayConstant
 
-// CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-NEXT:      %[[el0:.*]] = bmodelica.constant #bmodelica<int 0>
-// CHECK-NEXT:      %[[el1:.*]] = bmodelica.constant #bmodelica<int 1>
-// CHECK-NEXT:      %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
-// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[index:.*]]]
-// CHECK-NEXT:      %[[y:.*]] = bmodelica.variable_get @y
-// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
-// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
-bmodelica.model @Test {
+bmodelica.model @propagatedArrayConstant {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, constant>
     bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
 
@@ -41,27 +27,25 @@ bmodelica.model @Test {
             }
         }
     }
+
+    // CHECK:       bmodelica.equation
+    // CHECK-DAG:       %[[el0:.*]] = bmodelica.constant #bmodelica<int 0>
+    // CHECK-DAG:       %[[el1:.*]] = bmodelica.constant #bmodelica<int 1>
+    // CHECK-DAG:       %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
+    // CHECK:           %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
+    // CHECK:           %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i:.*]]]
+    // CHECK:           %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK:           %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[i]]]
+    // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+    // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+    // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 }
 
 // -----
 
-// Propagated array parameter.
+// CHECK-LABEL: @propagatedArrayParameter
 
-// CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-NEXT:      %[[el0:.*]] = bmodelica.constant #bmodelica<int 0>
-// CHECK-NEXT:      %[[el1:.*]] = bmodelica.constant #bmodelica<int 1>
-// CHECK-NEXT:      %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT:      %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
-// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[index:.*]]]
-// CHECK-NEXT:      %[[y:.*]] = bmodelica.variable_get @y
-// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[index]]]
-// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
-bmodelica.model @Test {
+bmodelica.model @propagatedArrayParameter {
     bmodelica.variable @x : !bmodelica.variable<3x!bmodelica.int, parameter>
     bmodelica.variable @y : !bmodelica.variable<3x!bmodelica.int>
 
@@ -86,4 +70,16 @@ bmodelica.model @Test {
             }
         }
     }
+
+    // CHECK:       bmodelica.equation
+    // CHECK-DAG:       %[[el0:.*]] = bmodelica.constant #bmodelica<int 0>
+    // CHECK-DAG:       %[[el1:.*]] = bmodelica.constant #bmodelica<int 1>
+    // CHECK-DAG:       %[[el2:.*]] = bmodelica.constant #bmodelica<int 2>
+    // CHECK:           %[[tensor:.*]] = bmodelica.tensor_from_elements %[[el0]], %[[el1]], %[[el2]]
+    // CHECK:           %[[lhsValue:.*]] = bmodelica.tensor_extract %[[tensor]][%[[i:.*]]]
+    // CHECK:           %[[y:.*]] = bmodelica.variable_get @y
+    // CHECK:           %[[rhsValue:.*]] = bmodelica.tensor_extract %[[y]][%[[i]]]
+    // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+    // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+    // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 }

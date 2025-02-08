@@ -1,490 +1,454 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// Boolean -> Boolean
+// CHECK-LABEL: @BooleanToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @BooleanToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Boolean -> Integer
+// CHECK-LABEL: @BooleanToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 1>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @BooleanToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 1>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Boolean -> Real
+// CHECK-LABEL: @BooleanToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @BooleanToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Boolean -> MLIR index
+// CHECK-LABEL: @BooleanToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 1 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @BooleanToIndex() -> (index) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 1 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Boolean -> MLIR integer
+// CHECK-LABEL: @BooleanToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 1 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @BooleanToI64() -> (i64) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 1 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Boolean -> MLIR float
+// CHECK-LABEL: @BooleanToF64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 1.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @BooleanToF64() -> (f64) {
     %x = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.cast %x: !bmodelica.bool -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 1.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> Integer
+// CHECK-LABEL: @IntegerToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @IntegerToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> Boolean
+// CHECK-LABEL: @IntegerToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @IntegerToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> Real
+// CHECK-LABEL: @IntegerToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @IntegerToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> MLIR index
+// CHECK-LABEL: @IntegerToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @IntegerToIndex() -> (index) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> MLIR integer
+// CHECK-LABEL: @IntegerToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @IntegerToI64() -> (i64) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Integer -> MLIR float
+// CHECK-LABEL: @IntegerToF64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @IntegerToF64() -> (f64) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.cast %x: !bmodelica.int -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real -> Real
+// CHECK-LABEL: @RealToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @RealToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %result = bmodelica.cast %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real -> Boolean
+// CHECK-LABEL: @RealToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @RealToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %result = bmodelica.cast %x : !bmodelica.real -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real -> Integer
+// CHECK-LABEL: @RealToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @RealToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<real 3.5>
     %result = bmodelica.cast %x : !bmodelica.real -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real -> MLIR index
+// CHECK-LABEL: @RealToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @RealToIndex() -> (index) {
     %x = bmodelica.constant #bmodelica<real 3.5>
     %result = bmodelica.cast %x : !bmodelica.real -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real -> MLIR integer
+// CHECK-LABEL: @RealToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @RealToI64() -> (i64) {
     %x = bmodelica.constant #bmodelica<real 3.5>
     %result = bmodelica.cast %x : !bmodelica.real -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> MLIR index
+// CHECK-LABEL: @IndexToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @IndexToIndex() -> (index) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> Boolean
+// CHECK-LABEL: @IndexToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @IndexToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> Integer
+// CHECK-LABEL: @IndexToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @IndexToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> Real
+// CHECK-LABEL: @IndexToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @IndexToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> MLIR integer
+// CHECK-LABEL: @IndexToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @IndexToI64() -> (i64) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index -> MLIR float
+// CHECK-LABEL: @IndexToF64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @IndexToF64() -> (f64) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.cast %x : index -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> MLIR integer
+// CHECK-LABEL: @I64ToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @I64ToI64() -> (i64) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> Boolean
+// CHECK-LABEL: @I64ToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @I64ToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> Integer
+// CHECK-LABEL: @I64ToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @I64ToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> Real
+// CHECK-LABEL: @I64ToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @I64ToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> MLIR index
+// CHECK-LABEL: @I64ToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @I64ToIndex() -> (index) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer -> MLIR float
+// CHECK-LABEL: @I64ToF64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @I64ToF64() -> (f64) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.cast %x : i64 -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> MLIR float
+// CHECK-LABEL: @F64ToF64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @F64ToF64() -> (f64) {
     %x = bmodelica.constant 3.0 : f64
     %result = bmodelica.cast %x : f64 -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> Boolean
+// CHECK-LABEL: @F64ToBoolean
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.bool) {
+func.func @F64ToBoolean() -> (!bmodelica.bool) {
     %x = bmodelica.constant 3.0 : f64
     %result = bmodelica.cast %x : f64 -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> Integer
+// CHECK-LABEL: @F64ToInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @F64ToInteger() -> (!bmodelica.int) {
     %x = bmodelica.constant 3.5 : f64
     %result = bmodelica.cast %x : f64 -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> Real
+// CHECK-LABEL: @F64ToReal
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.500000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @F64ToReal() -> (!bmodelica.real) {
     %x = bmodelica.constant 3.5 : f64
     %result = bmodelica.cast %x : f64 -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 3.500000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> MLIR index
+// CHECK-LABEL: @F64ToIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @F64ToIndex() -> (index) {
     %x = bmodelica.constant 3.5 : f64
     %result = bmodelica.cast %x : f64 -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float -> MLIR integer
+// CHECK-LABEL: @F64ToI64
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant 3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @F64ToI64() -> (i64) {
     %x = bmodelica.constant 3.5 : f64
     %result = bmodelica.cast %x : f64 -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant 3 : i64
+    // CHECK: return %[[cst]]
 }
-

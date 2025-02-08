@@ -1,22 +1,13 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.real
-// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.real
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @componentsEquality
+
+bmodelica.model @componentsEquality {
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
     bmodelica.dynamic {
@@ -28,29 +19,26 @@ bmodelica.model @Test {
             %4 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
             %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
             bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.real
+            // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.real
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x]]
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }
 
 // -----
 
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r.x : !bmodelica.variable<!bmodelica.real>
-// CHECK: bmodelica.variable @r.y : !bmodelica.variable<!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.real
-// CHECK-DAG:       %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.real
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[y]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @componentsEqualitySharedRecordGet
+
+bmodelica.model @componentsEqualitySharedRecordGet {
     bmodelica.variable @r : !bmodelica.variable<!bmodelica<record @R>>
 
     bmodelica.dynamic {
@@ -61,35 +49,28 @@ bmodelica.model @Test {
             %3 = bmodelica.equation_side %1 : tuple<!bmodelica.real>
             %4 = bmodelica.equation_side %2 : tuple<!bmodelica.real>
             bmodelica.equation_sides %3, %4 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
+
+            // CHECK-DAG:   %[[x:.*]] = bmodelica.variable_get @r.x : !bmodelica.real
+            // CHECK-DAG:   %[[y:.*]] = bmodelica.variable_get @r.y : !bmodelica.real
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x]]
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[y]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }
 
 // -----
 
-// Equality between two records.
-
-// CHECK-LABEL: @Test
-// CHECK: bmodelica.variable @r1.x : !bmodelica.variable<!bmodelica.real>
-// CHECK: bmodelica.variable @r1.y : !bmodelica.variable<!bmodelica.real>
-// CHECK: bmodelica.variable @r2.x : !bmodelica.variable<!bmodelica.real>
-// CHECK: bmodelica.variable @r2.y : !bmodelica.variable<!bmodelica.real>
-// CHECK:       bmodelica.equation {
-// CHECK-DAG:       %[[x_1:.*]] = bmodelica.variable_get @r1.x : !bmodelica.real
-// CHECK-DAG:       %[[y_1:.*]] = bmodelica.variable_get @r1.y : !bmodelica.real
-// CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[x_1]], %[[y_1]]
-// CHECK-DAG:       %[[x_2:.*]] = bmodelica.variable_get @r2.x : !bmodelica.real
-// CHECK-DAG:       %[[y_2:.*]] = bmodelica.variable_get @r2.y : !bmodelica.real
-// CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[x_2]], %[[y_2]]
-// CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
+// COM: Equality between two records.
 
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.real>
 }
 
-bmodelica.model @Test {
+// CHECK-LABEL: @recordsEquality
+
+bmodelica.model @recordsEquality {
     bmodelica.variable @r1 : !bmodelica.variable<!bmodelica<record @R>>
     bmodelica.variable @r2 : !bmodelica.variable<!bmodelica<record @R>>
 
@@ -100,6 +81,14 @@ bmodelica.model @Test {
             %2 = bmodelica.equation_side %0 : tuple<!bmodelica<record @R>>
             %3 = bmodelica.equation_side %1 : tuple<!bmodelica<record @R>>
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica<record @R>>, tuple<!bmodelica<record @R>>
+
+            // CHECK-DAG:   %[[x_1:.*]] = bmodelica.variable_get @r1.x : !bmodelica.real
+            // CHECK-DAG:   %[[y_1:.*]] = bmodelica.variable_get @r1.y : !bmodelica.real
+            // CHECK-DAG:   %[[lhs:.*]] = bmodelica.equation_side %[[x_1]], %[[y_1]]
+            // CHECK-DAG:   %[[x_2:.*]] = bmodelica.variable_get @r2.x : !bmodelica.real
+            // CHECK-DAG:   %[[y_2:.*]] = bmodelica.variable_get @r2.y : !bmodelica.real
+            // CHECK-DAG:   %[[rhs:.*]] = bmodelica.equation_side %[[x_2]], %[[y_2]]
+            // CHECK:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
         }
     }
 }

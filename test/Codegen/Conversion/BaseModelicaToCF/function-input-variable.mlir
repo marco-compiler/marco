@@ -1,8 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf --canonicalize --cse | FileCheck %s
 
-// Scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariable(%{{.*}}: !bmodelica.int) {
+// CHECK-LABEL: @scalarVariable
+// CHECK-SAME:  (%{{.*}}: !bmodelica.int)
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
@@ -12,9 +11,8 @@ bmodelica.function @scalarVariable {
 
 // -----
 
-// Get a scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariableGet(%[[x:.*]]: !bmodelica.int) {
+// CHECK-LABEL: @scalarVariableGet
+// CHECK-SAME:  (%[[x:.*]]: !bmodelica.int)
 // CHECK-NEXT:      bmodelica.print %[[x]]
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
@@ -30,9 +28,8 @@ bmodelica.function @scalarVariableGet {
 
 // -----
 
-// Static array.
-
-// CHECK:       bmodelica.raw_function @staticArray(%{{.*}}: tensor<3x2x!bmodelica.int>) {
+// CHECK-LABEL: @staticArray
+// CHECK-SAME:  (%{{.*}}: tensor<3x2x!bmodelica.int>)
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
@@ -42,9 +39,8 @@ bmodelica.function @staticArray {
 
 // -----
 
-// Get a static array.
-
-// CHECK:       bmodelica.raw_function @staticArrayGet(%[[x:.*]]: tensor<3x2x!bmodelica.int>) {
+// CHECK-LABEL: @staticArrayGet
+// CHECK-SAME:  (%[[x:.*]]: tensor<3x2x!bmodelica.int>)
 // CHECK:           %[[value:.*]] = bmodelica.tensor_extract %[[x]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      bmodelica.print %[[value]]
 // CHECK-NEXT:      bmodelica.raw_return
@@ -63,9 +59,8 @@ bmodelica.function @staticArrayGet {
 
 // -----
 
-// Dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArray(%{{.*}}: tensor<3x?x!bmodelica.int>) {
+// CHECK-LABEL: @dynamicArray
+// CHECK-SAME:  (%{{.*}}: tensor<3x?x!bmodelica.int>)
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
@@ -75,9 +70,8 @@ bmodelica.function @dynamicArray {
 
 // -----
 
-// Get a dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArrayGet(%[[x:.*]]: tensor<3x?x!bmodelica.int>) {
+// CHECK-LABEL: @dynamicArrayGet
+// CHECK-SAME:  (%[[x:.*]]: tensor<3x?x!bmodelica.int>)
 // CHECK-NEXT:      %[[index:.*]]= arith.constant 0 : index
 // CHECK-NEXT:      %[[value:.*]] = bmodelica.tensor_extract %[[x]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      bmodelica.print %[[value]]

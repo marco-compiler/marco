@@ -1,8 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
-// Get a scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariableGet() {
+// CHECK-LABEL: @scalarVariableGet
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<i64>
@@ -24,9 +22,7 @@ bmodelica.function @scalarVariableGet {
 
 // -----
 
-// Set a scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariableSet() {
+// CHECK-LABEL: @scalarVariableSet
 // CHECK-NEXT:      %[[value:.*]] = arith.constant 0 : i64
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
@@ -48,9 +44,7 @@ bmodelica.function @scalarVariableSet {
 
 // -----
 
-// Get a static array.
-
-// CHECK:       bmodelica.raw_function @staticArrayGet() {
+// CHECK-LABEL: @staticArrayGet
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<3x2xi64>
@@ -72,9 +66,7 @@ bmodelica.function @staticArrayGet {
 
 // -----
 
-// Set a static array.
-
-// CHECK:       bmodelica.raw_function @staticArraySet() {
+// CHECK-LABEL: @staticArraySet
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %0 = bmodelica.raw_variable {name = "x"} : tensor<3x2xi64>
@@ -96,9 +88,7 @@ bmodelica.function @staticArraySet {
 
 // -----
 
-// Get a dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArrayGet() {
+// CHECK-LABEL: @dynamicArrayGet
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<3x?xi64>
@@ -120,9 +110,7 @@ bmodelica.function @dynamicArrayGet {
 
 // -----
 
-// Set a dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArraySet() {
+// CHECK-LABEL: @dynamicArraySet
 // CHECK-NEXT:      cf.br ^[[bb1]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<3x?xi64>

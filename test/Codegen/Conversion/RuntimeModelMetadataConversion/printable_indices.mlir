@@ -1,5 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
 
+// COM: Non-printable scalar variable.
+
 // CHECK:       func.func @isPrintable(%[[variable:.*]]: i64) -> i1 {
 // CHECK-NEXT:      %[[false:.*]] = arith.constant false
 // CHECK-NEXT:      cf.switch %[[variable]] : i64, [
@@ -18,11 +20,11 @@
 // CHECK-NEXT:          return %[[result]]
 // CHECK-NEXT:  }
 
-// Non-printable scalar variable.
-
 runtime.printable_indices [false]
 
 // -----
+
+// COM: Printable scalar variable.
 
 // CHECK:       func.func @isPrintable(%[[variable:.*]]: i64) -> i1 {
 // CHECK-NEXT:      %[[false:.*]] = arith.constant false
@@ -46,11 +48,11 @@ runtime.printable_indices [false]
 // CHECK-NEXT:          return %[[result]]
 // CHECK-NEXT:  }
 
-// Printable scalar variable.
-
 runtime.printable_indices [true]
 
 // -----
+
+// COM: Non-printable array variable.
 
 // CHECK:       func.func @isPrintable(%[[variable:.*]]: i64) -> i1 {
 // CHECK-NEXT:      %[[false:.*]] = arith.constant false
@@ -70,13 +72,11 @@ runtime.printable_indices [true]
 // CHECK-NEXT:          return %[[result]]
 // CHECK-NEXT:  }
 
-// Non-printable array variable.
-
 runtime.printable_indices [{}]
 
 // -----
 
-// Printable array variable.
+// COM: Printable array variable.
 
 // CHECK:       func.func @isPrintable(%[[variable:.*]]: i64) -> i1 {
 // CHECK-NEXT:      %[[false:.*]] = arith.constant false

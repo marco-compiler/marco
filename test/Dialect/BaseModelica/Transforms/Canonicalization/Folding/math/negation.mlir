@@ -1,69 +1,64 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// Integer operand.
+// CHECK-LABEL: @Integer
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<int -3>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.int) {
+func.func @Integer() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.neg %x: !bmodelica.int -> !bmodelica.int
     return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int -3>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// Real operand.
+// CHECK-LABEL: @Real
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant #bmodelica<real -3.000000e+00>
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (!bmodelica.real) {
+func.func @Real() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %result = bmodelica.neg %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real -3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR index operand.
+// CHECK-LABEL: @mlirIndex
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3 : index
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (index) {
+func.func @mlirIndex() -> (index) {
     %x = bmodelica.constant 3 : index
     %result = bmodelica.neg %x : index -> index
     return %result : index
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant -3 : index
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR integer operand.
+// CHECK-LABEL: @mlirInteger
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3 : i64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (i64) {
+func.func @mlirInteger() -> (i64) {
     %x = bmodelica.constant 3 : i64
     %result = bmodelica.neg %x : i64 -> i64
     return %result : i64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant -3 : i64
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// MLIR float operand.
+// CHECK-LABEL: @mlirFloat
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[cst:.*]] = bmodelica.constant -3.000000e+00 : f64
-// CHECK-NEXT: return %[[cst]]
-
-func.func @test() -> (f64) {
+func.func @mlirFloat() -> (f64) {
     %x = bmodelica.constant 3.0 : f64
     %result = bmodelica.neg %x : f64 -> f64
     return %result : f64
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant -3.000000e+00 : f64
+    // CHECK: return %[[cst]]
 }

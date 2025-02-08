@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-runtime-model-metadata | FileCheck %s
 
-// No derivatives
+// COM: No derivatives
 
 // CHECK:       func.func @getDerivative(%[[variable:.*]]: i64) -> i64 {
 // CHECK-NEXT:      %[[default:.*]] = arith.constant -1 : i64

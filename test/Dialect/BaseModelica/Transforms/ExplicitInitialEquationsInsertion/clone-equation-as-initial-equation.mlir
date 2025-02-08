@@ -1,15 +1,11 @@
 // RUN: modelica-opt %s --split-input-file --insert-explicit-initial-equations | FileCheck %s
 
-// CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
-// CHECK: bmodelica.initial
-// CHECK-NEXT: bmodelica.equation_instance %[[t0]]
-// CHECK: bmodelica.dynamic
-// CHECK-NEXT: bmodelica.equation_instance %[[t0]]
+// CHECK-LABEL: @scalarVariable
 
-bmodelica.model @Test {
+bmodelica.model @scalarVariable {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
+    %t0 = bmodelica.equation_template inductions = [] {
         %0 = bmodelica.variable_get @x : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 0>
         %lhs = bmodelica.equation_side %0 : tuple<!bmodelica.int>
@@ -20,4 +16,12 @@ bmodelica.model @Test {
     bmodelica.dynamic {
         bmodelica.equation_instance %t0
     }
+
+    // CHECK: %[[t0:.*]] = bmodelica.equation_template
+
+    // CHECK:       bmodelica.initial
+    // CHECK-NEXT:  bmodelica.equation_instance %[[t0]]
+
+    // CHECK:       bmodelica.dynamic
+    // CHECK-NEXT:  bmodelica.equation_instance %[[t0]]
 }

@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
-// CHECK:       bmodelica.raw_function @foo
+// CHECK-LABEL: @return
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[out:.*]]
@@ -8,7 +8,7 @@
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @return {
     bmodelica.algorithm {
         bmodelica.return
     }
@@ -16,7 +16,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1) {
+// CHECK-LABEL: @if
+// CHECK-SAME:  (%[[x:.*]]: i1)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.cond_br %[[x]], ^[[if_true:.*]], ^[[if_out:.*]]
@@ -29,7 +30,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:       bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @if {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
 
     bmodelica.algorithm {
@@ -45,7 +46,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1) {
+// CHECK-LABEL: @while
+// CHECK-SAME:  (%[[x:.*]]: i1)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[while_condition:.*]]
@@ -60,7 +62,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @while {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
 
     bmodelica.algorithm {
@@ -78,7 +80,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i1) {
+// CHECK-LABEL: @ifInsideWhile
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i1)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[while_condition:.*]]
@@ -98,7 +101,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @ifInsideWhile {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i1, input>
 
@@ -123,7 +126,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i1) {
+// CHECK-LABEL: @ifInsideNestedWhile
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i1)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[while_1_condition:.*]]
@@ -150,7 +154,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @ifInsideNestedWhile {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i1, input>
     bmodelica.variable @z : !bmodelica.variable<i1, input>
@@ -184,7 +188,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i64, %[[z:.*]]: i64) {
+// CHECK-LABEL: @for
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i64, %[[z:.*]]: i64)
 // CHECK:           cf.cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
 // CHECK-NEXT:  ^[[for_body]]:
 // CHECK-NEXT:      bmodelica.print %[[y]]
@@ -196,7 +201,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @for {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i64, input>
     bmodelica.variable @z : !bmodelica.variable<i64, input>
@@ -222,7 +227,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i64) {
+// CHECK-LABEL: @ifInsideFor
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i64)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[for_condition:.*]]
@@ -245,7 +251,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @ifInsideFor {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i1, input>
     bmodelica.variable @z : !bmodelica.variable<i64, input>
@@ -276,7 +282,8 @@ bmodelica.function @foo {
 
 // -----
 
-// CHECK:       bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i1, %[[t:.*]]: i64, %[[k:.*]]: i64) {
+// CHECK-LABEL: @ifInsideNestedFor
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i1, %[[z:.*]]: i1, %[[t:.*]]: i64, %[[k:.*]]: i64)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      cf.br ^[[for_1_condition:.*]]
@@ -309,7 +316,7 @@ bmodelica.function @foo {
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @ifInsideNestedFor {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i1, input>
     bmodelica.variable @z : !bmodelica.variable<i1, input>

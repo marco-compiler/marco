@@ -1,17 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(propagate-read-only-variables{model-name=Test})" | FileCheck %s
 
-// Propagated scalar constant.
+// CHECK-LABEL: @propagatedScalarConstant
 
-// CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
-// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.variable_get @y
-// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
-bmodelica.model @Test {
+bmodelica.model @propagatedScalarConstant {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, constant>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
 
@@ -29,22 +20,20 @@ bmodelica.model @Test {
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
         }
     }
+
+    // CHECK:       bmodelica.equation
+    // CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
+    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+    // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+    // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
 }
 
 // -----
 
-// Propagated scalar parameter.
+// CHECK-LABEL: @propagatedScalarParameter
 
-// CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
-// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.variable_get @y
-// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
-bmodelica.model @Test {
+bmodelica.model @propagatedScalarParameter {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, parameter>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
 
@@ -62,4 +51,11 @@ bmodelica.model @Test {
             bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
         }
     }
+
+    // CHECK:       bmodelica.equation
+    // CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.constant #bmodelica<int 0>
+    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+    // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+    // CHECK-DAG:       bmodelica.equation_sides %[[lhs]], %[[rhs]]
 }

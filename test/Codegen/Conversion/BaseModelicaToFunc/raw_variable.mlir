@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-raw-variables | FileCheck %s
 
-// CHECK:       func.func @scalarVariableGet() -> f64 {
+// CHECK-LABEL: @scalarVariableGet
 // CHECK-NEXT:      %[[alloca:.*]] = memref.alloc() : memref<f64>
 // CHECK-NEXT:      %[[result:.*]] = memref.load %[[alloca]][] : memref<f64>
 // CHECK-NEXT:      return %[[result]] : f64
@@ -14,7 +14,8 @@ func.func @scalarVariableGet() -> f64 {
 
 // -----
 
-// CHECK:       func.func @scalarVariableSet(%[[arg0:.*]]: f64) {
+// CHECK-LABEL: @scalarVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: f64)
 // CHECK-NEXT:      %[[alloca:.*]] = memref.alloc() : memref<f64>
 // CHECK-NEXT:      memref.store %[[arg0]], %[[alloca]][] : memref<f64>
 // CHECK-NEXT:      return
@@ -28,7 +29,7 @@ func.func @scalarVariableSet(%arg0: f64) {
 
 // -----
 
-// CHECK:       func.func @staticArrayVariableGet() -> memref<3x4xf64> {
+// CHECK-LABEL: @staticArrayVariableGet
 // CHECK-NEXT:      %[[alloc:.*]] = memref.alloc() : memref<3x4xf64>
 // CHECK-NEXT:      return %[[alloc]] : memref<3x4xf64>
 // CHECK-NEXT:  }
@@ -41,7 +42,8 @@ func.func @staticArrayVariableGet() -> memref<3x4xf64> {
 
 // -----
 
-// CHECK:       func.func @staticArrayVariableSet(%[[arg0:.*]]: memref<3x4xf64>) {
+// CHECK-LABEL: @staticArrayVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: memref<3x4xf64>)
 // CHECK-NEXT:      %[[alloc:.*]] = memref.alloc() : memref<3x4xf64>
 // CHECK-NEXT:      memref.copy %[[arg0]], %[[alloc]] : memref<3x4xf64> to memref<3x4xf64>
 // CHECK-NEXT:      return
@@ -55,7 +57,7 @@ func.func @staticArrayVariableSet(%arg0: memref<3x4xf64>) {
 
 // -----
 
-// CHECK:       func.func @dynamicArrayVariableGet() -> memref<3x?xf64> {
+// CHECK-LABEL: @dynamicArrayVariableGet
 // CHECK-NEXT:      %[[alloca:.*]] = memref.alloca() : memref<memref<3x?xf64>>
 // CHECK-NEXT:      %[[alloc:.*]] = memref.alloc() : memref<3x0xf64>
 // CHECK-NEXT:      %[[cast:.*]] = memref.cast %[[alloc]] : memref<3x0xf64> to memref<3x?xf64>
@@ -72,7 +74,8 @@ func.func @dynamicArrayVariableGet() -> memref<3x?xf64> {
 
 // -----
 
-// CHECK:       func.func @dynamicArrayVariableSet(%[[arg0:.*]]: memref<3x?xf64>) {
+// CHECK-LABEL: @dynamicArrayVariableSet
+// CHECK-SAME:  (%[[arg0:.*]]: memref<3x?xf64>)
 // CHECK-NEXT:      %[[alloca:.*]] = memref.alloca() : memref<memref<3x?xf64>>
 // CHECK-NEXT:      %[[alloc_1:.*]] = memref.alloc() : memref<3x0xf64>
 // CHECK-NEXT:      %[[cast:.*]] = memref.cast %[[alloc_1]] : memref<3x0xf64> to memref<3x?xf64>

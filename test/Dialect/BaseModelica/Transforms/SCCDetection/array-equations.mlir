@@ -1,21 +1,12 @@
 // RUN: modelica-opt %s --split-input-file --detect-scc --canonicalize-model-for-debug | FileCheck %s
 
-// CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
-// CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
-// CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t2"}
-// CHECK:       bmodelica.dynamic {
-// CHECK-NEXT:      bmodelica.scc {
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:      }
-// CHECK-NEXT:  }
+// CHECK-LABEL: @Test
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.int>
     bmodelica.variable @y : !bmodelica.variable<5x!bmodelica.int>
 
-    // x[i] = y[i]
+    // COM: x[i] = y[i]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.int>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.int>
@@ -26,7 +17,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    // y[i] = 1 - x[i]
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+
+    // COM: y[i] = 1 - x[i]
     %t1 = bmodelica.equation_template inductions = [%i0] attributes {id = "t1"} {
         %0 = bmodelica.variable_get @y : tensor<5x!bmodelica.int>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.int>
@@ -39,7 +32,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    // y[i] = 2 - x[i]
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t1"}
+
+    // COM: y[i] = 2 - x[i]
     %t2 = bmodelica.equation_template inductions = [%i0] attributes {id = "t2"} {
         %0 = bmodelica.variable_get @y : tensor<5x!bmodelica.int>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<5x!bmodelica.int>
@@ -52,9 +47,18 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
+    // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t2"}
+
     bmodelica.dynamic {
         bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
         bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
         bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
     }
+
+    // CHECK:     bmodelica.scc
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
+
+    // CHECK-NOT: bmodelica.matched_equation_instance
 }

@@ -1,139 +1,167 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @test_integerScalars_firstGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerFirst
 
-func.func @test_integerScalars_firstGreater() -> (!bmodelica.bool) {
+func.func @IntegerFirst() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<int 10>
     %y = bmodelica.constant #bmodelica<int 9>
     %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
     return %result : !bmodelica.bool
-}
 
-// CHECK-LABEL: @test_integerScalars_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_integerScalars_equal() -> (!bmodelica.bool) {
-    %x = bmodelica.constant #bmodelica<int 10>
-    %y = bmodelica.constant #bmodelica<int 10>
-    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    return %result : !bmodelica.bool
-}
-
-// CHECK-LABEL: @test_integerScalars_secondGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_integerScalars_secondGreater() -> (!bmodelica.bool) {
-    %x = bmodelica.constant #bmodelica<int 9>
-    %y = bmodelica.constant #bmodelica<int 10>
-    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    return %result : !bmodelica.bool
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_realScalars_firstGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerEqual
 
-func.func @test_realScalars_firstGreater() -> (!bmodelica.bool) {
+func.func @IntegerEqual() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica<int 10>
+    %y = bmodelica.constant #bmodelica<int 10>
+    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
+    return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @IntegerSecond
+
+func.func @IntegerSecond() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica<int 9>
+    %y = bmodelica.constant #bmodelica<int 10>
+    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
+    return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @RealFirst
+
+func.func @RealFirst() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 10.0>
     %y = bmodelica.constant #bmodelica<real 9.0>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_realScalars_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_realScalars_equal() -> (!bmodelica.bool) {
+// CHECK-LABEL: @RealEqual
+
+func.func @RealEqual() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 10.0>
     %y = bmodelica.constant #bmodelica<real 10.0>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_realScalars_secondGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_realScalars_secondGreater() -> (!bmodelica.bool) {
+// CHECK-LABEL: @RealSecond
+
+func.func @RealSecond() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 9.0>
     %y = bmodelica.constant #bmodelica<real 10.0>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_mixedScalars_integerReal_firstGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerRealFirst
 
-func.func @test_mixedScalars_integerReal_firstGreater() -> (!bmodelica.bool) {
+func.func @IntegerRealFirst() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<int 10>
     %y = bmodelica.constant #bmodelica<real 9.7>
     %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_mixedScalars_integerReal_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_mixedScalars_integerReal_equal() -> (!bmodelica.bool) {
+// CHECK-LABEL: @IntegerRealEqual
+
+func.func @IntegerRealEqual() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<int 10>
     %y = bmodelica.constant #bmodelica<real 10.0>
     %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.bool
     return %result : !bmodelica.bool
-}
 
-// CHECK-LABEL: @test_mixedScalars_integerReal_secondGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_mixedScalars_integerReal_secondGreater() -> (!bmodelica.bool) {
-    %x = bmodelica.constant #bmodelica<int 9>
-    %y = bmodelica.constant #bmodelica<real 9.7>
-    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.bool
-    return %result : !bmodelica.bool
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_firstGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerRealSecond
 
-func.func @test_mixedScalars_realInteger_firstGreater() -> (!bmodelica.bool) {
+func.func @IntegerRealSecond() -> (!bmodelica.bool) {
+    %x = bmodelica.constant #bmodelica<int 9>
+    %y = bmodelica.constant #bmodelica<real 9.7>
+    %result = bmodelica.gt %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.bool
+    return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @RealIntegerFirst
+
+func.func @RealIntegerFirst() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 9.7>
     %y = bmodelica.constant #bmodelica<int 9>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_mixedScalars_realInteger_equal() -> (!bmodelica.bool) {
+// CHECK-LABEL: @RealIntegerEqual
+
+func.func @RealIntegerEqual() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 10.0>
     %y = bmodelica.constant #bmodelica<int 10>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_secondGreater
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_mixedScalars_realInteger_secondGreater() -> (!bmodelica.bool) {
+// CHECK-LABEL: @RealIntegerSecond
+
+func.func @RealIntegerSecond() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<real 9.7>
     %y = bmodelica.constant #bmodelica<int 10>
     %result = bmodelica.gt %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.bool
     return %result : !bmodelica.bool
+
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }

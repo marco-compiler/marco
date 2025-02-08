@@ -2,7 +2,7 @@
 
 // CHECK:       bmodelica.function @M1_M2_foo {
 // CHECK-NEXT:      bmodelica.algorithm {
-// CHECK-NEXT:          bmodelica.call @M1_M2_foo() : () -> ()
+// CHECK-NEXT:          bmodelica.call @M1_M2_foo()
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 

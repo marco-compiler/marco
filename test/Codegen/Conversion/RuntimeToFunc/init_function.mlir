@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-runtime-to-func | FileCheck %s
 
-// Empty function.
+// COM: Empty function.
 
 // CHECK:       func.func @init() {
 // CHECK:           return
@@ -12,7 +12,7 @@ runtime.init_function {
 
 // -----
 
-// Non-empty function.
+// COM: Non-empty function.
 
 // CHECK:       func.func @init() {
 // CHECK:           %[[cst:.*]] = bmodelica.constant #bmodelica<int 0>

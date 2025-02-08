@@ -1,8 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
-// Get a scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariableGet() -> i64 {
+// CHECK-LABEL: @scalarVariableGet
+// CHECK-SAME:  () -> i64
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x", output} : tensor<i64>
@@ -24,9 +23,8 @@ bmodelica.function @scalarVariableGet {
 
 // -----
 
-// Set a scalar variable.
-
-// CHECK:       bmodelica.raw_function @scalarVariableSet() -> i64 {
+// CHECK-LABEL: @scalarVariableSet
+// CHECK-SAME:  () -> i64
 // CHECK-NEXT:      %[[value:.*]] = arith.constant 0 : i64
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
@@ -48,9 +46,8 @@ bmodelica.function @scalarVariableSet {
 
 // -----
 
-// Get a static array.
-
-// CHECK:       bmodelica.raw_function @staticArrayGet() -> tensor<3x2xi64> {
+// CHECK-LABEL: @staticArrayGet
+// CHECK-SAME:  () -> tensor<3x2xi64>
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x", output} : tensor<3x2xi64>
@@ -72,9 +69,8 @@ bmodelica.function @staticArrayGet {
 
 // -----
 
-// Set a static array.
-
-// CHECK:       bmodelica.raw_function @staticArraySet() -> tensor<3x2xi64> {
+// CHECK-LABEL: @staticArraySet
+// CHECK-SAME:  () -> tensor<3x2xi64>
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x", output} : tensor<3x2xi64>
@@ -96,9 +92,8 @@ bmodelica.function @staticArraySet {
 
 // -----
 
-// Get a dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArrayGet() -> tensor<3x?xi64> {
+// CHECK-LABEL: @dynamicArrayGet
+// CHECK-SAME:  () -> tensor<3x?xi64>
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x", output} : tensor<3x?xi64>
@@ -120,9 +115,8 @@ bmodelica.function @dynamicArrayGet {
 
 // -----
 
-// Set a dynamic array.
-
-// CHECK:       bmodelica.raw_function @dynamicArraySet() -> tensor<3x?xi64> {
+// CHECK-LABEL: @dynamicArraySet
+// CHECK-SAME:  () -> tensor<3x?xi64>
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x", output} : tensor<3x?xi64>

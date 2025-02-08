@@ -1,139 +1,167 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @test_integerScalars_first
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerFirst
 
-func.func @test_integerScalars_first() -> (!bmodelica.int) {
+func.func @IntegerFirst() -> (!bmodelica.int) {
     %x = bmodelica.constant #bmodelica<int 2>
     %y = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
     return %result : !bmodelica.int
-}
-
-// CHECK-LABEL: @test_integerScalars_second
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_integerScalars_second() -> (!bmodelica.int) {
-    %x = bmodelica.constant #bmodelica<int 3>
-    %y = bmodelica.constant #bmodelica<int 2>
-    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
-    return %result : !bmodelica.int
-}
-
-// CHECK-LABEL: @test_integerScalars_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<int 2>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_integerScalars_equal() -> (!bmodelica.int) {
-    %x = bmodelica.constant #bmodelica<int 2>
-    %y = bmodelica.constant #bmodelica<int 2>
-    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
-    return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 2>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_realScalars_first
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerSecond
 
-func.func @test_realScalars_first() -> (!bmodelica.real) {
+func.func @IntegerSecond() -> (!bmodelica.int) {
+    %x = bmodelica.constant #bmodelica<int 3>
+    %y = bmodelica.constant #bmodelica<int 2>
+    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 2>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @IntegerEqual
+
+func.func @IntegerEqual() -> (!bmodelica.int) {
+    %x = bmodelica.constant #bmodelica<int 2>
+    %y = bmodelica.constant #bmodelica<int 2>
+    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+    return %result : !bmodelica.int
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<int 2>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @RealFirst
+
+func.func @RealFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<real 3.0>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_realScalars_second
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_realScalars_second() -> (!bmodelica.real) {
+// CHECK-LABEL: @RealSecond
+
+func.func @RealSecond() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<real 2.0>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_realScalars_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_realScalars_equal() -> (!bmodelica.real) {
+// CHECK-LABEL: @RealEqual
+
+func.func @RealEqual() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<real 2.0>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_mixedScalars_integerReal_first
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerRealFirst
 
-func.func @test_mixedScalars_integerReal_first() -> (!bmodelica.real) {
+func.func @IntegerRealFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<int 2>
     %y = bmodelica.constant #bmodelica<real 3.0>
     %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
     return %result : !bmodelica.real
-}
-
-// CHECK-LABEL: @test_mixedScalars_integerReal_second
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_mixedScalars_integerReal_second() -> (!bmodelica.real) {
-    %x = bmodelica.constant #bmodelica<int 3>
-    %y = bmodelica.constant #bmodelica<real 2.0>
-    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
-    return %result : !bmodelica.real
-}
-
-// CHECK-LABEL: @test_mixedScalars_integerReal_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
-
-func.func @test_mixedScalars_integerReal_equal() -> (!bmodelica.real) {
-    %x = bmodelica.constant #bmodelica<int 2>
-    %y = bmodelica.constant #bmodelica<real 2.0>
-    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
-    return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_first
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @IntegerRealSecond
 
-func.func @test_mixedScalars_realInteger_first() -> (!bmodelica.real) {
+func.func @IntegerRealSecond() -> (!bmodelica.real) {
+    %x = bmodelica.constant #bmodelica<int 3>
+    %y = bmodelica.constant #bmodelica<real 2.0>
+    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @IntegerRealEqual
+
+func.func @IntegerRealEqual() -> (!bmodelica.real) {
+    %x = bmodelica.constant #bmodelica<int 2>
+    %y = bmodelica.constant #bmodelica<real 2.0>
+    %result = bmodelica.min %x, %y : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+    return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
+}
+
+// -----
+
+// CHECK-LABEL: @RealIntegerFirst
+
+func.func @RealIntegerFirst() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<int 3>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_second
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_mixedScalars_realInteger_second() -> (!bmodelica.real) {
+// CHECK-LABEL: @RealIntegerSecond
+
+func.func @RealIntegerSecond() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.0>
     %y = bmodelica.constant #bmodelica<int 2>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
-// CHECK-LABEL: @test_mixedScalars_realInteger_equal
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// -----
 
-func.func @test_mixedScalars_realInteger_equal() -> (!bmodelica.real) {
+// CHECK-LABEL: @RealIntegerEqual
+
+func.func @RealIntegerEqual() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 2.0>
     %y = bmodelica.constant #bmodelica<int 2>
     %result = bmodelica.min %x, %y : (!bmodelica.real, !bmodelica.int) -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 2.000000e+00>
+    // CHECK: return %[[cst]]
 }

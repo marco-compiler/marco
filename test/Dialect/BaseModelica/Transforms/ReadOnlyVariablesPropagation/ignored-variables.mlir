@@ -1,17 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(propagate-read-only-variables{model-name=Test ignored-variables="x,y"})" | FileCheck %s
 
-// Multiple variables set as not to be propagated.
+// COM: Multiple variables set as not to be propagated.
 
 // CHECK-LABEL: @Test
-// CHECK:       bmodelica.equation {
-// CHECK-NEXT:      %[[xValue:.*]] = bmodelica.variable_get @x
-// CHECK-NEXT:      %[[yValue:.*]] = bmodelica.variable_get @y
-// CHECK-NEXT:      %[[lhsValue:.*]] = bmodelica.add %[[xValue]], %[[yValue]]
-// CHECK-NEXT:      %[[rhsValue:.*]] = bmodelica.variable_get @z
-// CHECK-NEXT:      %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
-// CHECK-NEXT:      %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
-// CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int, constant>
@@ -39,4 +30,13 @@ bmodelica.model @Test {
             bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
         }
     }
+
+    // CHECK:       bmodelica.equation
+    // CHECK-DAG:       %[[xValue:.*]] = bmodelica.variable_get @x
+    // CHECK-DAG:       %[[yValue:.*]] = bmodelica.variable_get @y
+    // CHECK-DAG:       %[[lhsValue:.*]] = bmodelica.add %[[xValue]], %[[yValue]]
+    // CHECK-DAG:       %[[rhsValue:.*]] = bmodelica.variable_get @z
+    // CHECK-DAG:       %[[lhs:.*]] = bmodelica.equation_side %[[lhsValue]]
+    // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[rhsValue]]
+    // CHECK:           bmodelica.equation_sides %[[lhs]], %[[rhs]]
 }

@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf --canonicalize --cse | FileCheck %s
 
-// CHECK:       bmodelica.raw_function @foo(%{{.*}}: i64) -> i64 {
+// CHECK-LABEL: @if
+// CHECK-SAME:  (%{{.*}}: i64)
 // CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_else:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
 // CHECK-NEXT:      bmodelica.raw_variable_set
@@ -13,7 +14,7 @@
 // CHECK:           bmodelica.raw_return
 // CHECK-NEXT:  }
 
-bmodelica.function @foo {
+bmodelica.function @if {
     bmodelica.variable @x : !bmodelica.variable<i64, input>
     bmodelica.variable @y : !bmodelica.variable<i64, output>
 

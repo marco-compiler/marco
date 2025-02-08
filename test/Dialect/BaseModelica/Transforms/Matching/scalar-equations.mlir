@@ -1,14 +1,13 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
-// y = x
-// y = 0
+// COOM: y = x
+// COM: y = 0
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
     bmodelica.variable @y : !bmodelica.variable<!bmodelica.int>
 
-    // y = x
-    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
+    // COM: y = x
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @y : !bmodelica.int
         %1 = bmodelica.variable_get @x : !bmodelica.int
@@ -17,8 +16,7 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    // y = 0
-    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+    // COM: y = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = bmodelica.variable_get @y : !bmodelica.int
         %1 = bmodelica.constant #bmodelica<int 0>
@@ -27,24 +25,27 @@ bmodelica.model @Test {
         bmodelica.equation_sides %2, %3 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+
     bmodelica.dynamic {
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
         bmodelica.equation_instance %t0
         bmodelica.equation_instance %t1
+
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
     }
 }
 
 // -----
 
-// x[0] = x[1]
-// x[0] = 0
+// COM: x[0] = x[1]
+// COM: x[0] = 0
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<2x!bmodelica.int>
 
-    // x[0] = x[1]
-    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
+    // COM: x[0] = x[1]
     %t0 = bmodelica.equation_template inductions = [] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 0 : index
@@ -56,8 +57,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %5, %6 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
-    // x[0] = 0
-    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
+
+    // COM: x[0] = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = bmodelica.variable_get @x : tensor<2x!bmodelica.int>
         %1 = bmodelica.constant 0 : index
@@ -68,10 +70,13 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+
     bmodelica.dynamic {
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
         bmodelica.equation_instance %t0
         bmodelica.equation_instance %t1
+
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [R, 0]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
     }
 }

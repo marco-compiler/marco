@@ -1,16 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --inline-records | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK-DAG:   bmodelica.variable @r1.x : !bmodelica.variable<!bmodelica.real>
-// CHECK-DAG:   bmodelica.variable @r1.y : !bmodelica.variable<!bmodelica.real>
-// CHECK-DAG:   bmodelica.variable @r2.x : !bmodelica.variable<!bmodelica.real>
-// CHECK-DAG:   bmodelica.variable @r2.y : !bmodelica.variable<!bmodelica.real>
-// CHECK:       bmodelica.algorithm {
-// CHECK-DAG:       %[[r1_x:.*]] = bmodelica.variable_get @r1.x
-// CHECK-DAG:       bmodelica.variable_set @r2.x, %[[r1_x]]
-// CHECK-DAG:       %[[r1_y:.*]] = bmodelica.variable_get @r1.y
-// CHECK-DAG:       bmodelica.variable_set @r2.y, %[[r1_y]]
-// CHECK-NEXT:  }
 
 bmodelica.record @R {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
@@ -25,4 +15,10 @@ bmodelica.function @Test {
         %0 = bmodelica.variable_get @r1 : !bmodelica<record @R>
         bmodelica.variable_set @r2, %0 : !bmodelica<record @R>
     }
+
+    // CHECK:       bmodelica.algorithm
+    // CHECK-DAG:   %[[r1_x:.*]] = bmodelica.variable_get @r1.x
+    // CHECK-DAG:   bmodelica.variable_set @r2.x, %[[r1_x]]
+    // CHECK-DAG:   %[[r1_y:.*]] = bmodelica.variable_get @r1.y
+    // CHECK-DAG:   bmodelica.variable_set @r2.y, %[[r1_y]]
 }

@@ -1,51 +1,55 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool false>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @FalseFalse
 
-func.func @test() -> (!bmodelica.bool) {
+func.func @FalseFalse() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<bool false>
     %y = bmodelica.constant #bmodelica<bool false>
     %result = bmodelica.or %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool false>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @FalseTrue
 
-func.func @test() -> (!bmodelica.bool) {
+func.func @FalseTrue() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<bool false>
     %y = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.or %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @TrueFalse
 
-func.func @test() -> (!bmodelica.bool) {
+func.func @TrueFalse() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<bool true>
     %y = bmodelica.constant #bmodelica<bool false>
     %result = bmodelica.or %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<bool true>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @TrueTrue
 
-func.func @test() -> (!bmodelica.bool) {
+func.func @TrueTrue() -> (!bmodelica.bool) {
     %x = bmodelica.constant #bmodelica<bool true>
     %y = bmodelica.constant #bmodelica<bool true>
     %result = bmodelica.or %x, %y : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
     return %result : !bmodelica.bool
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<bool true>
+    // CHECK: return %[[cst]]
 }

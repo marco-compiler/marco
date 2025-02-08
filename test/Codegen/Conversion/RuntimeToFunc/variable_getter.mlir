@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-runtime-to-func --canonicalize | FileCheck %s
 
-// Scalar variable.
+// COM: Scalar variable.
 
 // CHECK:       func.func @getter(%arg0: !llvm.ptr) -> f64 {
 // CHECK-NEXT:      %[[cst:.*]] = bmodelica.constant 0.000000e+00 : f64
@@ -15,7 +15,7 @@ runtime.variable_getter @getter() -> f64 {
 
 // -----
 
-// Array variable.
+// COM: Array variable.
 
 // CHECK:       func.func @getter(%[[ptr:.*]]: !llvm.ptr) -> f64 {
 // CHECK-DAG:       %[[array:.*]] = bmodelica.alloc : <2x3x4x!bmodelica.real>

@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --convert-bmodelica-to-cf | FileCheck %s
 
-// CHECK:      bmodelica.raw_function @foo(%[[x:.*]]: i1, %[[y:.*]]: i64) {
+// CHECK-LABEL: @while
+// CHECK-SAME:  (%[[x:.*]]: i1, %[[y:.*]]: i64)
 // CHECK-NEXT:      cf.br ^[[body:.*]]
 // CHECK-NEXT:  ^[[body]]:
 // CHECK-NEXT:      br ^[[while_condition:.*]]
@@ -16,7 +17,7 @@
 // CHECK-NEXT:      bmodelica.raw_return
 // CHECK-NEXT: }
 
-bmodelica.function @foo {
+bmodelica.function @while {
     bmodelica.variable @x : !bmodelica.variable<i1, input>
     bmodelica.variable @y : !bmodelica.variable<i64, input>
 

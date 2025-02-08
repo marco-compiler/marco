@@ -1,23 +1,25 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real -3.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @negative
 
-func.func @test() -> (!bmodelica.real) {
+func.func @negative() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real -3.14>
     %result = bmodelica.ceil %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real -3.000000e+00>
+    // CHECK: return %[[cst]]
 }
 
 // -----
 
-// CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:.*]] = bmodelica.constant #bmodelica<real 4.000000e+00>
-// CHECK-NEXT: return %[[VALUE]]
+// CHECK-LABEL: @positive
 
-func.func @test() -> (!bmodelica.real) {
+func.func @positive() -> (!bmodelica.real) {
     %x = bmodelica.constant #bmodelica<real 3.14>
     %result = bmodelica.ceil %x : !bmodelica.real -> !bmodelica.real
     return %result : !bmodelica.real
+    
+    // CHECK: %[[cst:.*]] = bmodelica.constant #bmodelica<real 4.000000e+00>
+    // CHECK: return %[[cst]]
 }

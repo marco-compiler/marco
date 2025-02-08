@@ -1,19 +1,18 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
-// for i in 0:4
-//   x[i] - y[i] = 0
-// x[0] + x[1] + x[2] + x[3] + x[4] = 2
-// y[0] + y[1] + y[2] + y[3] + y[4] = 3
-// x[0] - x[1] + x[2] + x[3] + x[4] = 2
-// y[0] + y[1] - y[2] + y[3] + y[4] = 3
-// x[0] + x[1] + x[2] - x[3] + x[4] = 2
+// COM: for i in 0:4
+// COM:   x[i] - y[i] = 0
+// COM: x[0] + x[1] + x[2] + x[3] + x[4] = 2
+// COM: y[0] + y[1] + y[2] + y[3] + y[4] = 3
+// COM: x[0] - x[1] + x[2] + x[3] + x[4] = 2
+// COM: y[0] + y[1] - y[2] + y[3] + y[4] = 3
+// COM: x[0] + x[1] + x[2] - x[3] + x[4] = 2
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<5x!bmodelica.real>
     bmodelica.variable @y : !bmodelica.variable<5x!bmodelica.real>
 
-    // x[i] - y[i] = 0
-    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+    // COM: x[i] - y[i] = 0
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.variable_get @y : tensor<5x!bmodelica.real>
@@ -26,8 +25,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // x[0] + x[1] + x[2] + x[3] + x[4] = 2
-    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
+
+    // COM: x[0] + x[1] + x[2] + x[3] + x[4] = 2
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
@@ -50,8 +50,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // y[0] + y[1] + y[2] + y[3] + y[4] = 3
-    // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t2"}
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+
+    // COM: y[0] + y[1] + y[2] + y[3] + y[4] = 3
     %t2 = bmodelica.equation_template inductions = [] attributes {id = "t2"} {
         %0 = bmodelica.variable_get @y : tensor<5x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
@@ -74,8 +75,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // x[0] - x[1] + x[2] + x[3] + x[4] = 2
-    // CHECK-DAG: %[[t3:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t3"}
+    // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t2"}
+
+    // COM: x[0] - x[1] + x[2] + x[3] + x[4] = 2
     %t3 = bmodelica.equation_template inductions = [] attributes {id = "t3"} {
         %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
@@ -98,8 +100,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // y[0] + y[1] - y[2] + y[3] + y[4] = 3
-    // CHECK-DAG: %[[t4:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t4"}
+    // CHECK-DAG: %[[t3:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t3"}
+
+    // COM: y[0] + y[1] - y[2] + y[3] + y[4] = 3
     %t4 = bmodelica.equation_template inductions = [] attributes {id = "t4"} {
         %0 = bmodelica.variable_get @y : tensor<5x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
@@ -122,8 +125,9 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
-    // x[0] + x[1] + x[2] - x[3] + x[4] = 2
-    // CHECK-DAG: %[[t5:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t5"}
+    // CHECK-DAG: %[[t4:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t4"}
+
+    // COM: x[0] + x[1] + x[2] - x[3] + x[4] = 2
     %t5 = bmodelica.equation_template inductions = [] attributes {id = "t5"} {
         %0 = bmodelica.variable_get @x : tensor<5x!bmodelica.real>
         %1 = bmodelica.constant 0 : index
@@ -146,18 +150,21 @@ bmodelica.model @Test {
         bmodelica.equation_sides %16, %17 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
     }
 
+    // CHECK-DAG: %[[t5:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t5"}
+
     bmodelica.dynamic {
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]]
         bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,4]>}
         bmodelica.equation_instance %t1
         bmodelica.equation_instance %t2
         bmodelica.equation_instance %t3
         bmodelica.equation_instance %t4
         bmodelica.equation_instance %t5
+
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]]
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]]
     }
 }
