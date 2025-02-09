@@ -13,7 +13,7 @@ config.llvm_shlib_dir = "@SHLIBDIR@"
 config.llvm_shlib_ext = "@SHLIBEXT@"
 config.llvm_exe_ext = "@EXEEXT@"
 config.lit_tools_dir = "@LLVM_LIT_TOOLS_DIR@"
-config.python_executable = "@PYTHON_EXECUTABLE@"
+config.python_executable = "@Python3_EXECUTABLE@"
 config.gold_executable = "@GOLD_EXECUTABLE@"
 config.ld64_executable = "@LD64_EXECUTABLE@"
 config.enable_shared = @ENABLE_SHARED@
@@ -48,19 +48,8 @@ config.marco_runtime_lib_dir = "@MARCORuntime_LIB_PATH@"
 
 config.marco_runtime_ida_enabled = "@MARCORuntime_IDA_ENABLE@"
 
-# Support substitution of the tools_dir with user parameters. This is
-# used when we can't determine the tool dir at configuration time.
-try:
-    config.llvm_tools_dir = config.llvm_tools_dir % lit_config.params
-    config.llvm_libs_dir = config.llvm_libs_dir % lit_config.params
-    config.llvm_shlib_dir = config.llvm_shlib_dir % lit_config.params
-except KeyError:
-    e = sys.exc_info()[1]
-    key, = e.args
-    lit_config.fatal("unable to find %r parameter, use '--param=%s=VALUE'" % (key,key))
-
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
 
 # Let the main config do the real work.
-lit_config.load_config(config, "@CMAKE_CURRENT_SOURCE_DIR@/lit.cfg.py")
+lit_config.load_config(config, os.path.join(config.marco_src_root, "test/lit.cfg.py"))

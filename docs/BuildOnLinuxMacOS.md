@@ -65,12 +65,18 @@ With all the requirements set in place, the compiler can be now built through th
 
 To use the script shown below you have to set or replace the following environment variables:
 
-| Name | Value |
-| :--- | :--- |
-| `MARCO_INSTALL_PATH` | Path to final installation directory of the compiler |
-| `MARCO_RUNTIME_PATH` | Path to the installation directory of the runtime libraries |
-| `LLVM_INSTALL_PATH` | Path to the installation of the adapted LLVM project (see LLVM above) |
-| `LIT_PATH` | Path to the executable LLVM Integrated Tester (`lit`) |
+| Name                 | Description                                                           |
+|:---------------------|:----------------------------------------------------------------------|
+| `MARCO_INSTALL_PATH` | Path to final installation directory of the compiler                  |
+| `MARCO_RUNTIME_PATH` | Path to the installation directory of the runtime libraries           |
+| `LLVM_INSTALL_PATH`  | Path to the installation of the adapted LLVM project (see LLVM above) |
+
+Furthermore, the following CMake variables can optionally be used:
+
+| Name                 | Description                                                          |
+|:---------------------|:---------------------------------------------------------------------|
+| `Python3_EXECUTABLE` | Path to the Python interpreter                                     |
+| `LLVM_EXTERNAL_LIT`  | Path to the executable LLVM Integrated Tester (`lit`)                |
 
 ```bash
 cd marco
@@ -82,15 +88,11 @@ MARCO_INSTALL_PATH=marco_install_path
 # Set the path of the runtime libraries.
 MARCO_RUNTIME_PATH=marco_runtime_install_path
 
-# Set the path of LIT.
-LIT_PATH=/home/user/.local/bin/lit
-
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=${MARCO_INSTALL_PATH} \
   -DLLVM_PATH=${LLVM_INSTALL_PATH} \
   -DMARCO_RUNTIME_PATH=${RUNTIME_INSTALL_PATH} \
-  -DLLVM_EXTERNAL_LIT=${LIT_PATH} \
   ..
 
 cmake --build .
