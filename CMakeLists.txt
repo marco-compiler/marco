@@ -238,8 +238,8 @@ enable_testing()
 
 FetchContent_Declare(
 	googletest
-	URL https://github.com/google/googletest/archive/f7902802f1a61140e188223fb6d1c95925cbec4a.zip
-)
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.16.0)
 
 set(INSTALL_GTEST OFF CACHE INTERNAL "")
 
