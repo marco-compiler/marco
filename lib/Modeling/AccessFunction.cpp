@@ -252,6 +252,12 @@ namespace marco::modeling
         getGeneralizedAccesses());
   }
 
+  bool AccessFunction::isScalarIndependent(
+      const AccessFunction& other, const IndexSet& sourceIndices) const
+  {
+    return false;
+  }
+
   llvm::raw_ostream& operator<<(
       llvm::raw_ostream& os, const AccessFunction& obj)
   {

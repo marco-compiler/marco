@@ -73,11 +73,15 @@ namespace marco::modeling
 
       [[nodiscard]] int64_t getOffset(uint64_t expressionIndex) const;
 
+      bool isScalarIndependent(const AccessFunction &other, const IndexSet &sourceIndices) const override;
+
     private:
       [[nodiscard]] std::optional<uint64_t>
       getInductionVariableIndex(mlir::AffineExpr expression) const;
 
       [[nodiscard]] int64_t getOffset(mlir::AffineExpr expression) const;
+
+      bool isScalarIndependent(const AccessFunctionRotoTranslation &other, const IndexSet &sourceIndices) const;
   };
 }
 

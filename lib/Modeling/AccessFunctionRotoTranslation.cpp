@@ -358,4 +358,41 @@ AccessFunctionRotoTranslation::getOffset(mlir::AffineExpr expression) const {
   llvm_unreachable("Incompatible access expression");
   return 0;
 }
+
+bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunction &other, const IndexSet &sourceIndices) const
+{
+  if (auto otherCasted = other.dyn_cast<AccessFunctionRotoTranslation>()) {
+    return isScalarIndependent(*otherCasted, sourceIndices);
+  }
+
+  return false;
+}
+
+bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunctionRotoTranslation &other, const IndexSet &sourceIndices) const
+{
+  if (getNumOfResults() != other.getNumOfResults()) {
+    return false;
+  }
+
+  uint64_t numOfResults = getNumOfResults();
+
+  for (uint64_t result = 0; result < numOfResults; ++result) {
+    auto firstRotation = getInductionVariableIndex(result);
+    auto secondRotation = other.getInductionVariableIndex(result);
+
+    if (firstRotation != secondRotation) {
+      return false;
+    }
+
+    if (!firstRotation && !secondRotation) {
+      if (getOffset(result) != other.getOffset(result)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+
 } // namespace marco::modeling

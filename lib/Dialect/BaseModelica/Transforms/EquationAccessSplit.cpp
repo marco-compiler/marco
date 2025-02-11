@@ -83,7 +83,12 @@ namespace
         partitions.push_back(equationIndices);
 
         for (const VariableAccess& access : accesses) {
-          const AccessFunction& readAccessFunction =
+          if (access.getPath() == matchedAccess->getPath()) {
+            // Ignore the matched access.
+            continue;
+          }
+
+          const AccessFunction& accessFunction =
               access.getAccessFunction();
 
           auto readVariable = access.getVariable();
@@ -92,8 +97,7 @@ namespace
             continue;
           }
 
-          IndexSet accessedVariableIndices =
-              readAccessFunction.map(equationIndices);
+          IndexSet accessedVariableIndices = accessFunction.map(equationIndices);
 
           // Restrict the read indices to the written ones.
           accessedVariableIndices =
@@ -109,6 +113,12 @@ namespace
           // variables reached by the current access.
           IndexSet writingEquationIndices = writeAccessFunction.inverseMap(
               accessedVariableIndices, equationIndices);
+
+          if (writeAccessFunction.isScalarIndependent(accessFunction, writingEquationIndices)) {
+            // The accesses overlap only on the array representation, but not on
+            // the actual scalar indices.
+            continue;
+          }
 
           // Determine the new partitions.
           llvm::SmallVector<IndexSet> newPartitions;
