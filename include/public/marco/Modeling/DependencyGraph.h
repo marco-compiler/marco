@@ -421,8 +421,22 @@ private:
                     usedWritingEquationIndices);
               });
 
+          // Check if the path involves more than one array equation.
+          auto isSelfLoop = [&]() {
+            for (const PathDependency& dependency : extendedPath) {
+              if (dependency.equation != extendedPath.begin()->equation) {
+                return false;
+              }
+            }
+
+            return true;
+          };
+
           if (dependencyIt == extendedPath.begin()) {
-            cycles.push_back(extendedPath);
+            if (!isSelfLoop()) {
+              cycles.push_back(extendedPath);
+            }
+
             continue;
           }
 
