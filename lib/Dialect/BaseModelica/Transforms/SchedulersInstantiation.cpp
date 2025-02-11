@@ -406,7 +406,7 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
 
     builder.create<mlir::runtime::SchedulerAddEquationOp>(
         callOp.getLoc(), schedulerName, wrapperFunction.getSymName(), ranges,
-        uint32_t(callOp.getDependencyKind()));
+        callOp.getDependencyKind());
   }
 
   return mlir::success();

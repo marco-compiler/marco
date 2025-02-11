@@ -323,11 +323,20 @@ struct SchedulerAddEquationOpLowering
         mangling.getPointerType(mangling.getIntegerType(64)));
 
     // Independent indices property.
-    mlir::Value independentIndices = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getI32IntegerAttr(op.getDependencyKind()));
+    int32_t dependencyKind = 0;
 
-    args.push_back(independentIndices);
-    mangledArgsTypes.push_back(mangling.getIntegerType(1));
+    if (op.getDependencyKind() ==
+        mlir::modeling::EquationDependencyKind::Independent) {
+      dependencyKind = 1;
+    } else if (op.getDependencyKind() ==
+               mlir::modeling::EquationDependencyKind::BackwardNeighbour) {
+      dependencyKind = 2;
+    }
+
+    args.push_back(rewriter.create<mlir::LLVM::ConstantOp>(
+        loc, rewriter.getI32IntegerAttr(dependencyKind)));
+
+    mangledArgsTypes.push_back(mangling.getIntegerType(32));
 
     // Create the call to the runtime library.
     auto resultType = getVoidType();

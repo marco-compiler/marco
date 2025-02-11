@@ -370,6 +370,14 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
                              .getValue() == EquationScheduleDirection::Any;
                 })) {
           dependencyKind = EquationDependencyKind::Independent;
+        } else if (llvm::all_of(
+                       equation.getIterationDirections(),
+                       [](mlir::Attribute attr) {
+                         return attr.cast<EquationScheduleDirectionAttr>()
+                                    .getValue() ==
+                                EquationScheduleDirection::Forward1Pos;
+                       })) {
+          dependencyKind = EquationDependencyKind::BackwardNeighbour;
         }
       }
 
