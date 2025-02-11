@@ -226,6 +226,9 @@ public:
         if (isSchedulableAsRange) {
           const auto &equation = sccElements[0];
 
+          size_t equationRank =
+              EquationTraits::getNumOfIterationVars(&equation);
+
           llvm::SmallVector<scheduling::IterationDirection> directions;
 
           for (DirectionPossibility direction : directionPossibilities) {
@@ -234,12 +237,21 @@ public:
             } else if (direction == DirectionPossibility::Forward) {
               directions.push_back(scheduling::IterationDirection::Forward);
             } else if (direction == DirectionPossibility::Forward1Pos) {
-              directions.push_back(scheduling::IterationDirection::Forward1Pos);
+              if (equationRank == 2) {
+                directions.push_back(
+                    scheduling::IterationDirection::Forward1Pos);
+              } else {
+                directions.push_back(scheduling::IterationDirection::Forward);
+              }
             } else if (direction == DirectionPossibility::Backward) {
               directions.push_back(scheduling::IterationDirection::Backward);
             } else if (direction == DirectionPossibility::Backward1Pos) {
-              directions.push_back(
-                  scheduling::IterationDirection::Backward1Pos);
+              if (equationRank == 2) {
+                directions.push_back(
+                    scheduling::IterationDirection::Backward1Pos);
+              } else {
+                directions.push_back(scheduling::IterationDirection::Backward);
+              }
             } else {
               directions.push_back(scheduling::IterationDirection::Unknown);
             }
