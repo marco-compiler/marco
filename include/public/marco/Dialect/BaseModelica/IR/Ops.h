@@ -9,6 +9,7 @@
 #include "marco/Dialect/BaseModelica/IR/Types.h"
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
 #include "marco/Dialect/Modeling/IR/Attributes.h"
+#include "marco/Dialect/Modeling/IR/Enums.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"

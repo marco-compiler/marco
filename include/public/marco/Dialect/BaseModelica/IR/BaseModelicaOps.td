@@ -5,6 +5,7 @@ include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaEnums.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.td"
+include "marco/Dialect/Modeling/IR/ModelingEnums.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -3965,7 +3966,7 @@ def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
     let arguments = (ins
         SymbolNameAttr:$callee,
         OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        DefaultValuedAttr<EquationDependencyKind, "EquationDependencyKind::Other">:$dependencyKind);
+        DefaultValuedAttr<EquationDependencyKind, "mlir::modeling::EquationDependencyKind::Other">:$dependencyKind);
 
     let results = (outs);
     let assemblyFormat = "$callee attr-dict";

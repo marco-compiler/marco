@@ -11,6 +11,7 @@ namespace mlir::bmodelica {
 } // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
+using namespace ::mlir::modeling;
 
 namespace {
 class EquationExplicitationPass
