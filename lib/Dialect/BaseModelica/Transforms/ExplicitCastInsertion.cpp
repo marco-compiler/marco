@@ -4,18 +4,15 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EXPLICITCASTINSERTIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-static void getArgumentTypes(
-    mlir::Operation* function,
-    llvm::SmallVectorImpl<mlir::Type>& argumentTypes)
-{
+static void getArgumentTypes(mlir::Operation *function,
+                             llvm::SmallVectorImpl<mlir::Type> &argumentTypes) {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(function)) {
     argumentTypes.clear();
 
@@ -43,142 +40,127 @@ static void getArgumentTypes(
   }
 }
 
-namespace
-{
-  class CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
-  {
-    public:
-      CallOpScalarPattern(
-          mlir::MLIRContext* context, mlir::SymbolTableCollection& symbolTable)
-          : mlir::OpRewritePattern<CallOp>(context),
-            symbolTable(&symbolTable)
-      {
+namespace {
+class CallOpScalarPattern : public mlir::OpRewritePattern<CallOp> {
+public:
+  CallOpScalarPattern(mlir::MLIRContext *context,
+                      mlir::SymbolTableCollection &symbolTable)
+      : mlir::OpRewritePattern<CallOp>(context), symbolTable(&symbolTable) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(CallOp op, mlir::PatternRewriter &rewriter) const override {
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Operation *calleeOp = op.getFunction(moduleOp, *symbolTable);
+    llvm::SmallVector<mlir::Type, 3> argumentTypes;
+    getArgumentTypes(calleeOp, argumentTypes);
+
+    assert(op.getArgs().size() == argumentTypes.size());
+
+    for (auto [arg, type] : llvm::zip(op.getArgs(), argumentTypes)) {
+      mlir::Type actualType = arg.getType();
+
+      if (!actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
+        continue;
       }
 
-      mlir::LogicalResult matchAndRewrite(
-          CallOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-
-        mlir::Operation* calleeOp = op.getFunction(moduleOp, *symbolTable);
-        llvm::SmallVector<mlir::Type, 3> argumentTypes;
-        getArgumentTypes(calleeOp, argumentTypes);
-
-        assert(op.getArgs().size() == argumentTypes.size());
-
-        for (auto [ arg, type ] : llvm::zip(op.getArgs(), argumentTypes)) {
-          mlir::Type actualType = arg.getType();
-
-          if (!actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
-            continue;
-          }
-
-          if (!actualType.isa<ArrayType>() && type.isa<ArrayType>()) {
-            return mlir::failure();
-          }
-
-          if (actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
-            return mlir::failure();
-          }
-
-          if (actualType.cast<ArrayType>().getRank() !=
-              type.cast<ArrayType>().getRank()) {
-            return mlir::failure();
-          }
-        }
-
-        mlir::Location location = op->getLoc();
-        llvm::SmallVector<mlir::Value, 3> args;
-
-        for (auto [ arg, type ] : llvm::zip(op.getArgs(), argumentTypes)) {
-          if (arg.getType() != type) {
-            if (arg.getType().isa<ArrayType>()) {
-              arg = rewriter.create<ArrayCastOp>(location, type, arg);
-            } else {
-              arg = rewriter.create<CastOp>(location, type, arg);
-            }
-          }
-
-          args.push_back(arg);
-        }
-
-        rewriter.replaceOpWithNewOp<CallOp>(
-            op, op.getCallee(), op.getResultTypes(), args);
-
-        return mlir::success();
+      if (!actualType.isa<ArrayType>() && type.isa<ArrayType>()) {
+        return mlir::failure();
       }
 
-    private:
-      mlir::SymbolTableCollection* symbolTable;
-  };
-
-  struct SubscriptionOpPattern : public mlir::OpRewritePattern<SubscriptionOp>
-  {
-    using mlir::OpRewritePattern<SubscriptionOp>::OpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        SubscriptionOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      mlir::Location location = op->getLoc();
-      llvm::SmallVector<mlir::Value, 3> indexes;
-
-      for (mlir::Value index : op.getIndices()) {
-        if (!index.getType().isa<mlir::IndexType>()) {
-          index = rewriter.create<CastOp>(
-              location, rewriter.getIndexType(), index);
-        }
-
-        indexes.push_back(index);
+      if (actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
+        return mlir::failure();
       }
 
-      rewriter.replaceOpWithNewOp<SubscriptionOp>(op, op.getSource(), indexes);
-      return mlir::success();
+      if (actualType.cast<ArrayType>().getRank() !=
+          type.cast<ArrayType>().getRank()) {
+        return mlir::failure();
+      }
     }
-  };
 
-  struct ConditionOpPattern : public mlir::OpRewritePattern<ConditionOp>
-  {
-    using mlir::OpRewritePattern<ConditionOp>::OpRewritePattern;
+    mlir::Location location = op->getLoc();
+    llvm::SmallVector<mlir::Value, 3> args;
 
-    mlir::LogicalResult matchAndRewrite(
-        ConditionOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      mlir::Location location = op->getLoc();
-      mlir::Value condition = rewriter.create<CastOp>(
-          location, BooleanType::get(op.getContext()), op.getCondition());
-      rewriter.replaceOpWithNewOp<ConditionOp>(op, condition);
-      return mlir::success();
+    for (auto [arg, type] : llvm::zip(op.getArgs(), argumentTypes)) {
+      if (arg.getType() != type) {
+        if (arg.getType().isa<ArrayType>()) {
+          arg = rewriter.create<ArrayCastOp>(location, type, arg);
+        } else {
+          arg = rewriter.create<CastOp>(location, type, arg);
+        }
+      }
+
+      args.push_back(arg);
     }
-  };
-}
+
+    rewriter.replaceOpWithNewOp<CallOp>(op, op.getCallee(), op.getResultTypes(),
+                                        args);
+
+    return mlir::success();
+  }
+
+private:
+  mlir::SymbolTableCollection *symbolTable;
+};
+
+struct SubscriptionOpPattern : public mlir::OpRewritePattern<SubscriptionOp> {
+  using mlir::OpRewritePattern<SubscriptionOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(SubscriptionOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    mlir::Location location = op->getLoc();
+    llvm::SmallVector<mlir::Value, 3> indexes;
+
+    for (mlir::Value index : op.getIndices()) {
+      if (!index.getType().isa<mlir::IndexType>()) {
+        index =
+            rewriter.create<CastOp>(location, rewriter.getIndexType(), index);
+      }
+
+      indexes.push_back(index);
+    }
+
+    rewriter.replaceOpWithNewOp<SubscriptionOp>(op, op.getSource(), indexes);
+    return mlir::success();
+  }
+};
+
+struct ConditionOpPattern : public mlir::OpRewritePattern<ConditionOp> {
+  using mlir::OpRewritePattern<ConditionOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(ConditionOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    mlir::Location location = op->getLoc();
+    mlir::Value condition = rewriter.create<CastOp>(
+        location, BooleanType::get(op.getContext()), op.getCondition());
+    rewriter.replaceOpWithNewOp<ConditionOp>(op, condition);
+    return mlir::success();
+  }
+};
+} // namespace
 
 static void populateExplicitCastInsertionPatterns(
-    mlir::RewritePatternSet& patterns,
-    mlir::MLIRContext* context,
-    mlir::SymbolTableCollection& symbolTable)
-{
-	patterns.insert<CallOpScalarPattern>(context, symbolTable);
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    mlir::SymbolTableCollection &symbolTable) {
+  patterns.insert<CallOpScalarPattern>(context, symbolTable);
 
-  patterns.insert<
-      SubscriptionOpPattern,
-      ConditionOpPattern>(context);
+  patterns.insert<SubscriptionOpPattern, ConditionOpPattern>(context);
 }
 
-namespace
-{
-  class ExplicitCastInsertionPass
-      : public impl::ExplicitCastInsertionPassBase<ExplicitCastInsertionPass>
-  {
-    public:
-      using ExplicitCastInsertionPassBase<ExplicitCastInsertionPass>
-          ::ExplicitCastInsertionPassBase;
+namespace {
+class ExplicitCastInsertionPass
+    : public impl::ExplicitCastInsertionPassBase<ExplicitCastInsertionPass> {
+public:
+  using ExplicitCastInsertionPassBase<
+      ExplicitCastInsertionPass>::ExplicitCastInsertionPassBase;
 
-      void runOnOperation() override;
-  };
-}
+  void runOnOperation() override;
+};
+} // namespace
 
-void ExplicitCastInsertionPass::runOnOperation()
-{
+void ExplicitCastInsertionPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
 
   mlir::ConversionTarget target(getContext());
@@ -202,8 +184,7 @@ void ExplicitCastInsertionPass::runOnOperation()
     assert(op.getArgs().size() == argumentTypes.size());
 
     return llvm::all_of(
-        llvm::zip(op.getArgs(), argumentTypes),
-        [&](const auto& pair) {
+        llvm::zip(op.getArgs(), argumentTypes), [&](const auto &pair) {
           return std::get<0>(pair).getType() == std::get<1>(pair);
         });
   });
@@ -223,22 +204,18 @@ void ExplicitCastInsertionPass::runOnOperation()
 
   mlir::RewritePatternSet patterns(&getContext());
 
-  populateExplicitCastInsertionPatterns(
-      patterns, &getContext(), symbolTable);
+  populateExplicitCastInsertionPatterns(patterns, &getContext(), symbolTable);
 
-  if (mlir::failed(applyPartialConversion(
-          moduleOp, target, std::move(patterns)))) {
-    mlir::emitError(
-        moduleOp.getLoc(), "Error in inserting the explicit casts");
+  if (mlir::failed(
+          applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+    mlir::emitError(moduleOp.getLoc(), "Error in inserting the explicit casts");
 
     return signalPassFailure();
   }
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass()
-  {
-    return std::make_unique<ExplicitCastInsertionPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass() {
+  return std::make_unique<ExplicitCastInsertionPass>();
 }
+} // namespace mlir::bmodelica

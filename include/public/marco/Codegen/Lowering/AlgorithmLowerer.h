@@ -2,22 +2,19 @@
 #define MARCO_CODEGEN_LOWERING_ALGORITHMLOWERER_H
 
 #include "marco/AST/AST.h"
-#include "marco/Codegen/Lowering/Lowerer.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
+#include "marco/Codegen/Lowering/Lowerer.h"
 
-namespace marco::codegen::lowering
-{
-  class AlgorithmLowerer : public Lowerer
-  {
-    public:
-      explicit AlgorithmLowerer(BridgeInterface* bridge);
+namespace marco::codegen::lowering {
+class AlgorithmLowerer : public Lowerer {
+public:
+  explicit AlgorithmLowerer(BridgeInterface *bridge);
 
-      [[nodiscard]] bool lower(const ast::Algorithm& algorithm) override;
+  [[nodiscard]] bool lower(const ast::Algorithm &algorithm) override;
 
-    protected:
-      using Lowerer::lower;
-
-  };
-}
+protected:
+  using Lowerer::lower;
+};
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_ALGORITHMLOWERER_H

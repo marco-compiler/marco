@@ -5,53 +5,50 @@
 #include "marco/AST/Node/Type.h"
 #include <string>
 
-namespace marco::ast
-{
-  class ComponentReferenceEntry;
+namespace marco::ast {
+class ComponentReferenceEntry;
 
-	class ComponentReference : public Expression
-	{
-		public:
-      explicit ComponentReference(SourceRange location);
+class ComponentReference : public Expression {
+public:
+  explicit ComponentReference(SourceRange location);
 
-      ComponentReference(const ComponentReference& other);
+  ComponentReference(const ComponentReference &other);
 
-      ~ComponentReference() override;
+  ~ComponentReference() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_ComponentReference;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Expression_ComponentReference;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isLValue() const override;
+  bool isLValue() const override;
 
-      bool isDummy() const;
+  bool isDummy() const;
 
-      void setDummy(bool value);
+  void setDummy(bool value);
 
-      bool isGlobalLookup() const;
+  bool isGlobalLookup() const;
 
-      void setGlobalLookup(bool global);
+  void setGlobalLookup(bool global);
 
-      size_t getPathLength() const;
+  size_t getPathLength() const;
 
-      ComponentReferenceEntry* getElement(size_t index);
+  ComponentReferenceEntry *getElement(size_t index);
 
-      const ComponentReferenceEntry* getElement(size_t index) const;
+  const ComponentReferenceEntry *getElement(size_t index) const;
 
-      void setPath(llvm::ArrayRef<std::unique_ptr<ASTNode>> newPath);
+  void setPath(llvm::ArrayRef<std::unique_ptr<ASTNode>> newPath);
 
-      std::string getName() const;
+  std::string getName() const;
 
-    private:
-      bool dummy;
-      bool globalLookup;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> path;
-	};
-}
+private:
+  bool dummy;
+  bool globalLookup;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> path;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_COMPONENTREFERENCE_H

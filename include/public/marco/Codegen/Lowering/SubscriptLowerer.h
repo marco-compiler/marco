@@ -2,21 +2,19 @@
 #define MARCO_CODEGEN_LOWERING_SUBSCRIPTLOWERER_H
 
 #include "marco/AST/AST.h"
-#include "marco/Codegen/Lowering/Lowerer.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
+#include "marco/Codegen/Lowering/Lowerer.h"
 
-namespace marco::codegen::lowering
-{
-  class SubscriptLowerer : public Lowerer
-  {
-    public:
-      explicit SubscriptLowerer(BridgeInterface* bridge);
+namespace marco::codegen::lowering {
+class SubscriptLowerer : public Lowerer {
+public:
+  explicit SubscriptLowerer(BridgeInterface *bridge);
 
-      std::optional<Results> lower(const ast::Subscript& subscript) override;
+  std::optional<Results> lower(const ast::Subscript &subscript) override;
 
-    protected:
-      using Lowerer::lower;
-  };
-}
+protected:
+  using Lowerer::lower;
+};
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_SUBSCRIPTLOWERER_H

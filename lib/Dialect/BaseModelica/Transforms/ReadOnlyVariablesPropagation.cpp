@@ -5,49 +5,42 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_READONLYVARIABLESPROPAGATIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class ReadOnlyVariablesPropagationPass
-      : public mlir::bmodelica::impl::ReadOnlyVariablesPropagationPassBase<
-            ReadOnlyVariablesPropagationPass>
-  {
-    public:
-      using ReadOnlyVariablesPropagationPassBase
-        ::ReadOnlyVariablesPropagationPassBase;
+namespace {
+class ReadOnlyVariablesPropagationPass
+    : public mlir::bmodelica::impl::ReadOnlyVariablesPropagationPassBase<
+          ReadOnlyVariablesPropagationPass> {
+public:
+  using ReadOnlyVariablesPropagationPassBase ::
+      ReadOnlyVariablesPropagationPassBase;
 
-      void runOnOperation() override
-      {
-        llvm::SmallVector<ModelOp, 1> modelOps;
+  void runOnOperation() override {
+    llvm::SmallVector<ModelOp, 1> modelOps;
 
-        getOperation()->walk([&](ModelOp modelOp) {
-          modelOps.push_back(modelOp);
-        });
+    getOperation()->walk([&](ModelOp modelOp) { modelOps.push_back(modelOp); });
 
-        for (ModelOp modelOp : modelOps) {
-          if (mlir::failed(processModelOp(modelOp))) {
-            return signalPassFailure();
-          }
-        }
+    for (ModelOp modelOp : modelOps) {
+      if (mlir::failed(processModelOp(modelOp))) {
+        return signalPassFailure();
       }
+    }
+  }
 
-    private:
-      llvm::DenseSet<llvm::StringRef> getIgnoredVariableNames() const;
+private:
+  llvm::DenseSet<llvm::StringRef> getIgnoredVariableNames() const;
 
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
-  };
-}
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
+};
+} // namespace
 
 llvm::DenseSet<llvm::StringRef>
-ReadOnlyVariablesPropagationPass::getIgnoredVariableNames() const
-{
+ReadOnlyVariablesPropagationPass::getIgnoredVariableNames() const {
   llvm::DenseSet<llvm::StringRef> result;
   llvm::SmallVector<llvm::StringRef> names;
   llvm::StringRef(ignoredVariables).split(names, ',');
@@ -56,18 +49,17 @@ ReadOnlyVariablesPropagationPass::getIgnoredVariableNames() const
 }
 
 mlir::LogicalResult
-ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
-{
+ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp) {
   mlir::SymbolTable symbolTable(modelOp);
 
   llvm::DenseSet<llvm::StringRef> nonPropagatableVariables =
       getIgnoredVariableNames();
 
   // Collect the regions into which the replacement has to be performed.
-  llvm::SmallVector<mlir::Region*> regions;
+  llvm::SmallVector<mlir::Region *> regions;
 
-  for (auto& op : modelOp.getOps()) {
-    for (mlir::Region& region : op.getRegions()) {
+  for (auto &op : modelOp.getOps()) {
+    for (mlir::Region &region : op.getRegions()) {
       regions.push_back(&region);
     }
   }
@@ -82,14 +74,12 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
 
   return mlir::failableParallelForEach(
       &getContext(), regions,
-      [&symbolTable, &nonPropagatableVariables, &bindingEquations]
-      (mlir::Region* region) {
+      [&symbolTable, &nonPropagatableVariables,
+       &bindingEquations](mlir::Region *region) {
         mlir::OpBuilder builder(region->getContext());
         llvm::SmallVector<VariableGetOp> getOps;
 
-        region->walk([&](VariableGetOp getOp) {
-          getOps.push_back(getOp);
-        });
+        region->walk([&](VariableGetOp getOp) { getOps.push_back(getOp); });
 
         for (VariableGetOp getOp : getOps) {
           if (nonPropagatableVariables.contains(getOp.getVariable())) {
@@ -118,7 +108,7 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
           builder.setInsertionPoint(getOp);
           mlir::IRMapping mapping;
 
-          for (auto& op : bindingEquationOp.getBodyRegion().getOps()) {
+          for (auto &op : bindingEquationOp.getBodyRegion().getOps()) {
             if (!mlir::isa<YieldOp>(op)) {
               builder.clone(op, mapping);
             }
@@ -139,16 +129,13 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
       });
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass()
-  {
-    return std::make_unique<ReadOnlyVariablesPropagationPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass(
-      const ReadOnlyVariablesPropagationPassOptions& options)
-  {
-    return std::make_unique<ReadOnlyVariablesPropagationPass>(options);
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass() {
+  return std::make_unique<ReadOnlyVariablesPropagationPass>();
 }
+
+std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass(
+    const ReadOnlyVariablesPropagationPassOptions &options) {
+  return std::make_unique<ReadOnlyVariablesPropagationPass>(options);
+}
+} // namespace mlir::bmodelica

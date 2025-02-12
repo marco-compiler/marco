@@ -1,16 +1,14 @@
-#include "gtest/gtest.h"
 #include "marco/Parser/IntegerLexer.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco;
 
-TEST(IntegerLexer, defaultShouldBeZero)
-{
+TEST(IntegerLexer, defaultShouldBeZero) {
   IntegerLexer<10> lex;
   EXPECT_EQ(lex.get(), 0);
 }
 
-TEST(IntegerLexer, insertionShouldWork)
-{
+TEST(IntegerLexer, insertionShouldWork) {
   IntegerLexer<10> lex;
 
   lex += 9;

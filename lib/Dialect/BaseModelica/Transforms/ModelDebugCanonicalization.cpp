@@ -2,37 +2,33 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_MODELDEBUGCANONICALIZATIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class ModelDebugCanonicalizationPass
-      : public mlir::bmodelica::impl::ModelDebugCanonicalizationPassBase<
-            ModelDebugCanonicalizationPass>
-  {
-    public:
-      using ModelDebugCanonicalizationPassBase<ModelDebugCanonicalizationPass>
-          ::ModelDebugCanonicalizationPassBase;
+namespace {
+class ModelDebugCanonicalizationPass
+    : public mlir::bmodelica::impl::ModelDebugCanonicalizationPassBase<
+          ModelDebugCanonicalizationPass> {
+public:
+  using ModelDebugCanonicalizationPassBase<
+      ModelDebugCanonicalizationPass>::ModelDebugCanonicalizationPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult cleanModel(ModelOp modelOp);
+private:
+  mlir::LogicalResult cleanModel(ModelOp modelOp);
 
-      void sortSCCs(llvm::ArrayRef<SCCOp> SCCs);
+  void sortSCCs(llvm::ArrayRef<SCCOp> SCCs);
 
-      void sortEquations(llvm::ArrayRef<MatchedEquationInstanceOp> equations);
-  };
-}
+  void sortEquations(llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+};
+} // namespace
 
-void ModelDebugCanonicalizationPass::runOnOperation()
-{
+void ModelDebugCanonicalizationPass::runOnOperation() {
   ModelOp modelOp = getOperation();
 
   // Sort the SCCs and their equations.
@@ -57,20 +53,19 @@ void ModelDebugCanonicalizationPass::runOnOperation()
   }
 }
 
-mlir::LogicalResult ModelDebugCanonicalizationPass::cleanModel(ModelOp modelOp)
-{
+mlir::LogicalResult
+ModelDebugCanonicalizationPass::cleanModel(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-static MatchedEquationInstanceOp getFirstEquation(SCCOp scc)
-{
+static MatchedEquationInstanceOp getFirstEquation(SCCOp scc) {
   if (scc.getBodyRegion().empty()) {
     return nullptr;
   }
 
-  for (auto& op : scc.getBodyRegion().getOps()) {
+  for (auto &op : scc.getBodyRegion().getOps()) {
     if (auto equation = mlir::dyn_cast<MatchedEquationInstanceOp>(op)) {
       return equation;
     }
@@ -79,8 +74,7 @@ static MatchedEquationInstanceOp getFirstEquation(SCCOp scc)
   return nullptr;
 }
 
-void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs)
-{
+void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs) {
   for (SCCOp scc : SCCs) {
     llvm::SmallVector<MatchedEquationInstanceOp> equations;
     scc.collectEquations(equations);
@@ -89,23 +83,21 @@ void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs)
 
   llvm::SmallVector<SCCOp> sorted(SCCs.begin(), SCCs.end());
 
-  std::sort(
-      sorted.begin(), sorted.end(),
-      [](SCCOp first, SCCOp second) {
-        auto firstEquation = getFirstEquation(first);
-        auto secondEquation = getFirstEquation(second);
+  std::sort(sorted.begin(), sorted.end(), [](SCCOp first, SCCOp second) {
+    auto firstEquation = getFirstEquation(first);
+    auto secondEquation = getFirstEquation(second);
 
-        if (!secondEquation) {
-          return true;
-        }
+    if (!secondEquation) {
+      return true;
+    }
 
-        if (!firstEquation) {
-          return false;
-        }
+    if (!firstEquation) {
+      return false;
+    }
 
-        return firstEquation.getTemplate()->isBeforeInBlock(
-            secondEquation.getTemplate());
-      });
+    return firstEquation.getTemplate()->isBeforeInBlock(
+        secondEquation.getTemplate());
+  });
 
   for (size_t i = 1, e = sorted.size(); i < e; ++i) {
     sorted[i]->moveAfter(sorted[i - 1]);
@@ -113,10 +105,9 @@ void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs)
 }
 
 void ModelDebugCanonicalizationPass::sortEquations(
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations)
-{
-  llvm::SmallVector<MatchedEquationInstanceOp> sorted(
-      equations.begin(), equations.end());
+    llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+  llvm::SmallVector<MatchedEquationInstanceOp> sorted(equations.begin(),
+                                                      equations.end());
 
   std::sort(
       sorted.begin(), sorted.end(),
@@ -129,10 +120,8 @@ void ModelDebugCanonicalizationPass::sortEquations(
   }
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createModelDebugCanonicalizationPass()
-  {
-    return std::make_unique<ModelDebugCanonicalizationPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createModelDebugCanonicalizationPass() {
+  return std::make_unique<ModelDebugCanonicalizationPass>();
 }
+} // namespace mlir::bmodelica

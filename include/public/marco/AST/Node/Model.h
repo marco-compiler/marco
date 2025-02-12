@@ -3,22 +3,19 @@
 
 #include "marco/AST/Node/Class.h"
 
-namespace marco::ast
-{
-  class Model : public Class
-  {
-    public:
-      explicit Model(SourceRange location);
+namespace marco::ast {
+class Model : public Class {
+public:
+  explicit Model(SourceRange location);
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Class_Model;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Class_Model;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
-  };
-}
+  llvm::json::Value toJSON() const override;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_MODEL_H

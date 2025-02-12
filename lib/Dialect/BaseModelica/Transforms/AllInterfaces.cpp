@@ -8,21 +8,19 @@
 #include "marco/Dialect/BaseModelica/Transforms/InvertibleOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/VectorizableOpInterfaceImpl.h"
 
-namespace mlir::bmodelica
-{
-  void registerAllDialectInterfaceImplementations(
-      mlir::DialectRegistry& registry)
-  {
-    // Operation interfaces.
-    registerAllocationOpInterfaceExternalModels(registry);
-    registerBufferizableOpInterfaceExternalModels(registry);
-    registerDerivableOpInterfaceExternalModels(registry);
-    registerEquationExpressionOpInterfaceExternalModels(registry);
-    registerInvertibleOpInterfaceExternalModels(registry);
-    registerVectorizableOpInterfaceExternalModels(registry);
+namespace mlir::bmodelica {
+void registerAllDialectInterfaceImplementations(
+    mlir::DialectRegistry &registry) {
+  // Operation interfaces.
+  registerAllocationOpInterfaceExternalModels(registry);
+  registerBufferizableOpInterfaceExternalModels(registry);
+  registerDerivableOpInterfaceExternalModels(registry);
+  registerEquationExpressionOpInterfaceExternalModels(registry);
+  registerInvertibleOpInterfaceExternalModels(registry);
+  registerVectorizableOpInterfaceExternalModels(registry);
 
-    // Type interfaces.
-    registerConstantMaterializableTypeInterfaceExternalModels(registry);
-    registerDerivableTypeInterfaceExternalModels(registry);
-  }
+  // Type interfaces.
+  registerConstantMaterializableTypeInterfaceExternalModels(registry);
+  registerDerivableTypeInterfaceExternalModels(registry);
 }
+} // namespace mlir::bmodelica

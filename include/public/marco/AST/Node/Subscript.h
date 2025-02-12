@@ -3,39 +3,36 @@
 
 #include "marco/AST/Node/Expression.h"
 
-namespace marco::ast
-{
-  // Following the official Modelica grammar specification, Subscript should
-  // not be an expression. However, Flat Modelica requires it to be.
-  class Subscript : public ASTNode
-  {
-    public:
-      Subscript(SourceRange location);
+namespace marco::ast {
+// Following the official Modelica grammar specification, Subscript should
+// not be an expression. However, Flat Modelica requires it to be.
+class Subscript : public ASTNode {
+public:
+  Subscript(SourceRange location);
 
-      Subscript(const Subscript& other);
+  Subscript(const Subscript &other);
 
-      ~Subscript() override;
+  ~Subscript() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_Subscript;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Expression_Subscript;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isUnbounded() const;
+  bool isUnbounded() const;
 
-      Expression* getExpression();
+  Expression *getExpression();
 
-      const Expression* getExpression() const;
+  const Expression *getExpression() const;
 
-      void setExpression(std::unique_ptr<ASTNode> node);
+  void setExpression(std::unique_ptr<ASTNode> node);
 
-    private:
-      std::unique_ptr<ASTNode> expression;
-  };
-}
+private:
+  std::unique_ptr<ASTNode> expression;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_SUBSCRIPT_H

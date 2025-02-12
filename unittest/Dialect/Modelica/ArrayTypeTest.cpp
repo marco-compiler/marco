@@ -4,13 +4,12 @@
 
 using namespace ::mlir::bmodelica;
 
-TEST(ArrayType, staticShape)
-{
+TEST(ArrayType, staticShape) {
   mlir::MLIRContext context;
   context.loadDialect<BaseModelicaDialect>();
 
   mlir::Type elementType = IntegerType::get(&context);
-  auto arrayType = ArrayType::get({ 3, 5 }, elementType);
+  auto arrayType = ArrayType::get({3, 5}, elementType);
 
   EXPECT_EQ(arrayType.getRank(), 2);
   EXPECT_EQ(arrayType.getNumElements(), 15);
@@ -22,13 +21,12 @@ TEST(ArrayType, staticShape)
   EXPECT_EQ(arrayType.getDimSize(1), 5);
 }
 
-TEST(ArrayType, dynamicShape)
-{
+TEST(ArrayType, dynamicShape) {
   mlir::MLIRContext context;
   context.loadDialect<BaseModelicaDialect>();
 
   mlir::Type elementType = IntegerType::get(&context);
-  auto arrayType = ArrayType::get({ 3, ArrayType::kDynamic }, elementType);
+  auto arrayType = ArrayType::get({3, ArrayType::kDynamic}, elementType);
 
   EXPECT_EQ(arrayType.getRank(), 2);
   EXPECT_FALSE(arrayType.isDynamicDim(0));

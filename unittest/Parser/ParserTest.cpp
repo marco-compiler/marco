@@ -1,33 +1,32 @@
-#include "gtest/gtest.h"
 #include "marco/Parser/Parser.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine()
-{
+std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
   clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
       new clang::DiagnosticOptions();
 
   return std::make_unique<clang::DiagnosticsEngine>(
-      llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs()),
+      llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(
+          new clang::DiagnosticIDs()),
       std::move(diagOpts),
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
 
-TEST(Parser, rawValue_true)
-{
+TEST(Parser, rawValue_true) {
   auto str = R"(true)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -46,15 +45,14 @@ TEST(Parser, rawValue_true)
   EXPECT_EQ(node->getLocation().end.column, 4);
 }
 
-TEST(Parser, rawValue_false)
-{
+TEST(Parser, rawValue_false) {
   auto str = R"(false)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -73,15 +71,14 @@ TEST(Parser, rawValue_false)
   EXPECT_EQ(node->getLocation().end.column, 5);
 }
 
-TEST(Parser, rawValue_integer)
-{
+TEST(Parser, rawValue_integer) {
   auto str = R"(012345)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -100,15 +97,14 @@ TEST(Parser, rawValue_integer)
   EXPECT_EQ(node->getLocation().end.column, 6);
 }
 
-TEST(Parser, rawValue_float)
-{
+TEST(Parser, rawValue_float) {
   auto str = R"(1.23)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -127,15 +123,14 @@ TEST(Parser, rawValue_float)
   EXPECT_EQ(node->getLocation().end.column, 4);
 }
 
-TEST(Parser, rawValue_string)
-{
+TEST(Parser, rawValue_string) {
   auto str = R"("test")";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -154,15 +149,14 @@ TEST(Parser, rawValue_string)
   EXPECT_EQ(node->getLocation().end.column, 6);
 }
 
-TEST(Parser, identifier)
-{
+TEST(Parser, identifier) {
   auto str = R"(x)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -181,15 +175,14 @@ TEST(Parser, identifier)
   EXPECT_EQ(node->getValue(), "x");
 }
 
-TEST(Parser, componentReference)
-{
+TEST(Parser, componentReference) {
   auto str = R"(x.y.z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -209,24 +202,29 @@ TEST(Parser, componentReference)
   ASSERT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 3);
 
   EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      (*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+      0);
 
   EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(1)->getName(), "y");
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(1)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      (*node)->cast<ComponentReference>()->getElement(1)->getNumOfSubscripts(),
+      0);
 
   EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(2)->getName(), "z");
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(2)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      (*node)->cast<ComponentReference>()->getElement(2)->getNumOfSubscripts(),
+      0);
 }
 
-TEST(Parser, algorithm_emptyBody)
-{
+TEST(Parser, algorithm_emptyBody) {
   auto str = R"(algorithm)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -246,10 +244,9 @@ TEST(Parser, algorithm_emptyBody)
   EXPECT_TRUE((*node)->cast<Algorithm>()->getStatements().empty());
 }
 
-TEST(Parser, model)
-{
+TEST(Parser, model) {
   auto str =
-R"(model M "comment"
+      R"(model M "comment"
   Real x;
   Real y;
 equation
@@ -260,7 +257,7 @@ end M;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -280,10 +277,9 @@ end M;)";
   EXPECT_EQ((*node)->cast<Model>()->getName(), "M");
 }
 
-TEST(Parser, standardFunction)
-{
+TEST(Parser, standardFunction) {
   auto str =
-R"(function foo
+      R"(function foo
   input Real x;
   output Real y;
 algorithm
@@ -294,7 +290,7 @@ end foo;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -318,15 +314,14 @@ end foo;)";
   EXPECT_EQ(function->getAlgorithms().size(), 1);
 }
 
-TEST(Parser, partialDerFunction)
-{
+TEST(Parser, partialDerFunction) {
   auto str = R"(function Bar = der(Foo, x, y);)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -346,27 +341,61 @@ TEST(Parser, partialDerFunction)
   auto function = (*node)->cast<PartialDerFunction>();
 
   ASSERT_TRUE(function->getDerivedFunction()->isa<ComponentReference>());
-  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getElement(0)->getName(), "Foo");
-  EXPECT_EQ(function->getDerivedFunction()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(function->getDerivedFunction()
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(function->getDerivedFunction()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "Foo");
+  EXPECT_EQ(function->getDerivedFunction()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   EXPECT_EQ(function->getIndependentVariables().size(), 2);
 
-  ASSERT_TRUE(function->getIndependentVariables()[0]->isa<ComponentReference>());
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(
+      function->getIndependentVariables()[0]->isa<ComponentReference>());
+  EXPECT_EQ(function->getIndependentVariables()[0]
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(function->getIndependentVariables()[0]
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "x");
+  EXPECT_EQ(function->getIndependentVariables()[0]
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
-  ASSERT_TRUE(function->getIndependentVariables()[1]->isa<ComponentReference>());
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(
+      function->getIndependentVariables()[1]->isa<ComponentReference>());
+  EXPECT_EQ(function->getIndependentVariables()[1]
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(function->getIndependentVariables()[1]
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "y");
+  EXPECT_EQ(function->getIndependentVariables()[1]
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, algorithm_statementsCount)
-{
+TEST(Parser, algorithm_statementsCount) {
   auto str =
-R"(algorithm
+      R"(algorithm
   x := 1;
   y := 2;
   z := 3;)";
@@ -375,7 +404,7 @@ R"(algorithm
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -395,15 +424,14 @@ R"(algorithm
   EXPECT_EQ((*node)->cast<Algorithm>()->getStatements().size(), 3);
 }
 
-TEST(Parser, equalityEquation)
-{
+TEST(Parser, equalityEquation) {
   auto str = R"(y = x)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -425,24 +453,25 @@ TEST(Parser, equalityEquation)
   ASSERT_TRUE(lhs->isa<ComponentReference>());
   EXPECT_EQ(lhs->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(lhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      lhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto rhs = (*node)->cast<EqualityEquation>()->getRhsExpression();
   ASSERT_TRUE(rhs->isa<ComponentReference>());
   EXPECT_EQ(rhs->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(rhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      rhs->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
-TEST(Parser, statement_assignment)
-{
+TEST(Parser, statement_assignment) {
   auto str = R"(y := x)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -468,25 +497,45 @@ TEST(Parser, statement_assignment)
   ASSERT_EQ(destinations->size(), 1);
 
   ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "y");
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(statement->getExpression()->isa<ComponentReference>());
-  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(statement->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      statement->getExpression()->cast<ComponentReference>()->getPathLength(),
+      1);
+  EXPECT_EQ(statement->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "x");
+  EXPECT_EQ(statement->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, statement_assignmentWithMultipleDestinations)
-{
+TEST(Parser, statement_assignmentWithMultipleDestinations) {
   auto str = R"((x, y) := Foo())";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -507,22 +556,44 @@ TEST(Parser, statement_assignmentWithMultipleDestinations)
   auto statement = (*node)->cast<AssignmentStatement>();
 
   ASSERT_TRUE(statement->getDestinations()->isa<Tuple>());
-  auto* destinations = statement->getDestinations()->cast<Tuple>();
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
 
   ASSERT_EQ(destinations->size(), 2);
 
   ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "x");
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(destinations->getExpression(1)->isa<ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(destinations->getExpression(1)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(destinations->getExpression(1)
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(destinations->getExpression(1)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "y");
+  EXPECT_EQ(destinations->getExpression(1)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
+TEST(Parser, statement_assignmentWithIgnoredResults) // NOLINT
 {
   auto str = R"((x, , z) := Foo())";
 
@@ -530,7 +601,7 @@ TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -551,28 +622,50 @@ TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
   auto statement = (*node)->cast<AssignmentStatement>();
 
   ASSERT_TRUE(statement->getDestinations()->isa<Tuple>());
-  auto* destinations = statement->getDestinations()->cast<Tuple>();
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
 
   ASSERT_EQ(destinations->size(), 3);
 
   ASSERT_TRUE(destinations->getExpression(0)->isa<ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(destinations->getExpression(0)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "x");
+  EXPECT_EQ(destinations->getExpression(0)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(destinations->getExpression(1)->isa<ComponentReference>());
-  EXPECT_TRUE(destinations->getExpression(1)->cast<ComponentReference>()->isDummy());
+  EXPECT_TRUE(
+      destinations->getExpression(1)->cast<ComponentReference>()->isDummy());
 
   ASSERT_TRUE(destinations->getExpression(2)->isa<ComponentReference>());
-  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(destinations->getExpression(2)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(destinations->getExpression(2)
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(destinations->getExpression(2)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "z");
+  EXPECT_EQ(destinations->getExpression(2)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, statement_if)
-{
+TEST(Parser, statement_if) {
   auto str =
-R"(if false then
+      R"(if false then
   x := 1;
   y := 2;
 end if;)";
@@ -581,7 +674,7 @@ end if;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -605,10 +698,9 @@ end if;)";
   EXPECT_FALSE(statement->hasElseBlock());
 }
 
-TEST(Parser, statement_ifElse)
-{
+TEST(Parser, statement_ifElse) {
   auto str =
-R"(if false then
+      R"(if false then
   x := 1;
   y := 2;
 else
@@ -619,7 +711,7 @@ end if;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -645,10 +737,9 @@ end if;)";
   EXPECT_EQ(statement->getElseBlock()->size(), 1);
 }
 
-TEST(Parser, statement_ifElseIfElse)
-{
+TEST(Parser, statement_ifElseIfElse) {
   auto str =
-R"(if false then
+      R"(if false then
   x := 1;
   y := 2;
   z := 3;
@@ -668,7 +759,7 @@ end if;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -697,10 +788,9 @@ end if;)";
   EXPECT_EQ(statement->getElseBlock()->size(), 1);
 }
 
-TEST(Parser, statement_for)
-{
+TEST(Parser, statement_for) {
   auto str =
-R"(for i in 1:10 loop
+      R"(for i in 1:10 loop
   x := 1;
   y := 2;
 end for;)";
@@ -709,7 +799,7 @@ end for;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -731,10 +821,9 @@ end for;)";
   EXPECT_EQ(statement->getStatements().size(), 2);
 }
 
-TEST(Parser, statement_while)
-{
+TEST(Parser, statement_while) {
   auto str =
-R"(while false loop
+      R"(while false loop
   x := 1;
   y := 2;
 end while;)";
@@ -743,7 +832,7 @@ end while;)";
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -765,15 +854,14 @@ end while;)";
   EXPECT_EQ(statement->getStatements().size(), 2);
 }
 
-TEST(Parser, statement_break)
-{
+TEST(Parser, statement_break) {
   auto str = R"(break)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -792,15 +880,14 @@ TEST(Parser, statement_break)
   EXPECT_TRUE((*node)->isa<BreakStatement>());
 }
 
-TEST(Parser, statement_return)
-{
+TEST(Parser, statement_return) {
   auto str = R"(return)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -819,15 +906,14 @@ TEST(Parser, statement_return)
   EXPECT_TRUE((*node)->isa<ReturnStatement>());
 }
 
-TEST(Parser, expression_constant)
-{
+TEST(Parser, expression_constant) {
   auto str = R"(012345)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -847,15 +933,14 @@ TEST(Parser, expression_constant)
   EXPECT_EQ((*node)->cast<Constant>()->as<int64_t>(), 12345);
 }
 
-TEST(Parser, expression_not)
-{
+TEST(Parser, expression_not) {
   auto str = R"(not x)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -872,18 +957,18 @@ TEST(Parser, expression_not)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lnot);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::lnot);
 }
 
-TEST(Parser, expression_and)
-{
+TEST(Parser, expression_and) {
   auto str = R"(x and y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -900,18 +985,18 @@ TEST(Parser, expression_and)
   EXPECT_EQ((*node)->getLocation().end.column, 7);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::land);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::land);
 }
 
-TEST(Parser, expression_or)
-{
+TEST(Parser, expression_or) {
   auto str = R"(x or y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -931,15 +1016,14 @@ TEST(Parser, expression_or)
   EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lor);
 }
 
-TEST(Parser, expression_equal)
-{
+TEST(Parser, expression_equal) {
   auto str = R"(x == y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -956,18 +1040,18 @@ TEST(Parser, expression_equal)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::equal);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::equal);
 }
 
-TEST(Parser, expression_notEqual)
-{
+TEST(Parser, expression_notEqual) {
   auto str = R"(x <> y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -984,18 +1068,18 @@ TEST(Parser, expression_notEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::different);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::different);
 }
 
-TEST(Parser, expression_less)
-{
+TEST(Parser, expression_less) {
   auto str = R"(x < y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1012,18 +1096,18 @@ TEST(Parser, expression_less)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::less);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::less);
 }
 
-TEST(Parser, expression_lessEqual)
-{
+TEST(Parser, expression_lessEqual) {
   auto str = R"(x <= y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1040,18 +1124,18 @@ TEST(Parser, expression_lessEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lessEqual);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::lessEqual);
 }
 
-TEST(Parser, expression_greater)
-{
+TEST(Parser, expression_greater) {
   auto str = R"(x > y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1068,18 +1152,18 @@ TEST(Parser, expression_greater)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::greater);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::greater);
 }
 
-TEST(Parser, expression_greaterEqual)
-{
+TEST(Parser, expression_greaterEqual) {
   auto str = R"(x >= y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1096,18 +1180,18 @@ TEST(Parser, expression_greaterEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::greaterEqual);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::greaterEqual);
 }
 
-TEST(Parser, expression_addition)
-{
+TEST(Parser, expression_addition) {
   auto str = R"(x + y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1127,15 +1211,14 @@ TEST(Parser, expression_addition)
   EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 }
 
-TEST(Parser, expression_additionElementWise)
-{
+TEST(Parser, expression_additionElementWise) {
   auto str = R"(x .+ y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1152,18 +1235,18 @@ TEST(Parser, expression_additionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::addEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::addEW);
 }
 
-TEST(Parser, expression_subtraction)
-{
+TEST(Parser, expression_subtraction) {
   auto str = R"(x - y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1180,18 +1263,18 @@ TEST(Parser, expression_subtraction)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subtract);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::subtract);
 }
 
-TEST(Parser, expression_subtractionElementWise)
-{
+TEST(Parser, expression_subtractionElementWise) {
   auto str = R"(x .- y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1208,18 +1291,18 @@ TEST(Parser, expression_subtractionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subtractEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::subtractEW);
 }
 
-TEST(Parser, expression_multiplication)
-{
+TEST(Parser, expression_multiplication) {
   auto str = R"(x * y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1236,18 +1319,18 @@ TEST(Parser, expression_multiplication)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::multiply);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::multiply);
 }
 
-TEST(Parser, expression_multiplicationElementWise)
-{
+TEST(Parser, expression_multiplicationElementWise) {
   auto str = R"(x .* y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1264,18 +1347,18 @@ TEST(Parser, expression_multiplicationElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::multiplyEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::multiplyEW);
 }
 
-TEST(Parser, expression_division)
-{
+TEST(Parser, expression_division) {
   auto str = R"(x / y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1292,18 +1375,18 @@ TEST(Parser, expression_division)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::divide);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::divide);
 }
 
-TEST(Parser, expression_divisionElementWise)
-{
+TEST(Parser, expression_divisionElementWise) {
   auto str = R"(x ./ y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1320,18 +1403,18 @@ TEST(Parser, expression_divisionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::divideEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::divideEW);
 }
 
-TEST(Parser, expression_additionAndMultiplication)
-{
+TEST(Parser, expression_additionAndMultiplication) {
   auto str = R"(x + y * z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1350,39 +1433,41 @@ TEST(Parser, expression_additionAndMultiplication)
   ASSERT_TRUE((*node)->isa<Operation>());
   ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 
-  auto* addition = (*node)->cast<Operation>();
+  auto *addition = (*node)->cast<Operation>();
 
-  auto* x = addition->getArgument(0);
+  auto *x = addition->getArgument(0);
   ASSERT_TRUE(x->isa<ComponentReference>());
   EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* multiplication = addition->getArgument(1)->cast<Operation>();
+  auto *multiplication = addition->getArgument(1)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* y = multiplication->getArgument(0);
+  auto *y = multiplication->getArgument(0);
   ASSERT_TRUE(y->isa<ComponentReference>());
   EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* z = multiplication->getArgument(1);
+  auto *z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ComponentReference>());
   EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, expression_multiplicationAndAddition)
-{
+TEST(Parser, expression_multiplicationAndAddition) {
   auto str = R"(x * y + z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1401,41 +1486,43 @@ TEST(Parser, expression_multiplicationAndAddition)
   ASSERT_TRUE((*node)->isa<Operation>());
   ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 
-  auto* addition = (*node)->cast<Operation>();
+  auto *addition = (*node)->cast<Operation>();
 
-  auto* z = addition->getArgument(1);
+  auto *z = addition->getArgument(1);
   ASSERT_TRUE(z->isa<ComponentReference>());
   EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(addition->getArgument(0)->isa<Operation>());
 
-  auto* multiplication = addition->getArgument(0)->cast<Operation>();
+  auto *multiplication = addition->getArgument(0)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* x = multiplication->getArgument(0);
+  auto *x = multiplication->getArgument(0);
   ASSERT_TRUE(x->isa<ComponentReference>());
   EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* y = multiplication->getArgument(1);
+  auto *y = multiplication->getArgument(1);
   ASSERT_TRUE(y->isa<ComponentReference>());
   EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, expression_multiplicationAndDivision)
-{
+TEST(Parser, expression_multiplicationAndDivision) {
   auto str = R"(x * y / z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1453,42 +1540,44 @@ TEST(Parser, expression_multiplicationAndDivision)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* division = (*node)->cast<Operation>();
+  auto *division = (*node)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* z = division->getArgument(1);
+  auto *z = division->getArgument(1);
   ASSERT_TRUE(z->isa<ComponentReference>());
   EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(division->getArgument(0)->isa<Operation>());
 
-  auto* multiplication = division->getArgument(0)->cast<Operation>();
+  auto *multiplication = division->getArgument(0)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* x = multiplication->getArgument(0);
+  auto *x = multiplication->getArgument(0);
   ASSERT_TRUE(x->isa<ComponentReference>());
   EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* y = multiplication->getArgument(1);
+  auto *y = multiplication->getArgument(1);
   ASSERT_TRUE(y->isa<ComponentReference>());
   EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, expression_divisionAndMultiplication)
-{
+TEST(Parser, expression_divisionAndMultiplication) {
   auto str = R"(x / y * z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1506,42 +1595,44 @@ TEST(Parser, expression_divisionAndMultiplication)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* multiplication = (*node)->cast<Operation>();
+  auto *multiplication = (*node)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* z = multiplication->getArgument(1);
+  auto *z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ComponentReference>());
   EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(multiplication->getArgument(0)->isa<Operation>());
 
-  auto* division = multiplication->getArgument(0)->cast<Operation>();
+  auto *division = multiplication->getArgument(0)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* x = division->getArgument(0);
+  auto *x = division->getArgument(0);
   ASSERT_TRUE(x->isa<ComponentReference>());
   EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* y = division->getArgument(1);
+  auto *y = division->getArgument(1);
   ASSERT_TRUE(y->isa<ComponentReference>());
   EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, expression_arithmeticExpressionWithParentheses)
-{
+TEST(Parser, expression_arithmeticExpressionWithParentheses) {
   auto str = R"(x / (y * z))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1559,42 +1650,44 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* division = (*node)->cast<Operation>();
+  auto *division = (*node)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* x = division->getArgument(0);
+  auto *x = division->getArgument(0);
   ASSERT_TRUE(x->isa<ComponentReference>());
   EXPECT_EQ(x->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(x->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(division->getArgument(1)->isa<Operation>());
 
-  auto* multiplication = division->getArgument(1)->cast<Operation>();
+  auto *multiplication = division->getArgument(1)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* y = multiplication->getArgument(0);
+  auto *y = multiplication->getArgument(0);
   ASSERT_TRUE(y->isa<ComponentReference>());
   EXPECT_EQ(y->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getName(), "y");
-  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(y->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 
-  auto* z = multiplication->getArgument(1);
+  auto *z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ComponentReference>());
   EXPECT_EQ(z->cast<ComponentReference>()->getPathLength(), 1);
   EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getName(), "z");
-  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(z->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+            0);
 }
 
-TEST(Parser, expression_pow)
-{
+TEST(Parser, expression_pow) {
   auto str = R"(x ^ y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1611,18 +1704,18 @@ TEST(Parser, expression_pow)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::powerOf);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::powerOf);
 }
 
-TEST(Parser, expression_powElementWise)
-{
+TEST(Parser, expression_powElementWise) {
   auto str = R"(x .^ y)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1639,18 +1732,18 @@ TEST(Parser, expression_powElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::powerOfEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::powerOfEW);
 }
 
-TEST(Parser, expression_tuple_empty)
-{
+TEST(Parser, expression_tuple_empty) {
   auto str = R"(())";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1670,15 +1763,14 @@ TEST(Parser, expression_tuple_empty)
   EXPECT_EQ((*node)->cast<Tuple>()->size(), 0);
 }
 
-TEST(Parser, expression_componentReference)
-{
+TEST(Parser, expression_componentReference) {
   auto str = R"(var)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1696,19 +1788,21 @@ TEST(Parser, expression_componentReference)
 
   ASSERT_TRUE((*node)->isa<ComponentReference>());
   EXPECT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "var");
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(),
+            "var");
+  EXPECT_EQ(
+      (*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+      0);
 }
 
-TEST(Parser, expression_array)
-{
+TEST(Parser, expression_array) {
   auto str = R"({1, 2, 3, 4, 5})";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1725,7 +1819,7 @@ TEST(Parser, expression_array)
   EXPECT_EQ((*node)->getLocation().end.column, 15);
 
   ASSERT_TRUE((*node)->isa<ArrayConstant>());
-  const auto& array = *(*node)->cast<ArrayConstant>();
+  const auto &array = *(*node)->cast<ArrayConstant>();
   ASSERT_EQ(array.size(), 5);
 
   ASSERT_TRUE(array[0]->isa<Constant>());
@@ -1744,15 +1838,14 @@ TEST(Parser, expression_array)
   EXPECT_EQ(array[4]->cast<Constant>()->as<int64_t>(), 5);
 }
 
-TEST(Parser, expression_array_induction)
-{
+TEST(Parser, expression_array_induction) {
   auto str = R"({666 for i in 1:3, j in 7:12, k in 8:39})";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1769,22 +1862,21 @@ TEST(Parser, expression_array_induction)
   EXPECT_EQ((*node)->getLocation().end.column, 40);
 
   ASSERT_TRUE((*node)->isa<ArrayForGenerator>());
-  const auto& array = *(*node)->cast<ArrayForGenerator>();
+  const auto &array = *(*node)->cast<ArrayForGenerator>();
   ASSERT_EQ(array.getNumIndices(), 3);
 
   ASSERT_TRUE(array.getValue()->isa<Constant>());
   EXPECT_EQ(array.getValue()->cast<Constant>()->as<int64_t>(), 666);
 }
 
-TEST(Parser, expression_subscription)
-{
+TEST(Parser, expression_subscription) {
   auto str = R"(var[3,i,:])";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1803,31 +1895,85 @@ TEST(Parser, expression_subscription)
   ASSERT_TRUE((*node)->isa<ComponentReference>());
 
   EXPECT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "var");
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 3);
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(),
+            "var");
+  EXPECT_EQ(
+      (*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(),
+      3);
 
-  ASSERT_FALSE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->isUnbounded());
-  ASSERT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->getExpression()->isa<Constant>());
-  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(0)->getExpression()->cast<Constant>()->as<int64_t>(), 3);
+  ASSERT_FALSE((*node)
+                   ->cast<ComponentReference>()
+                   ->getElement(0)
+                   ->getSubscript(0)
+                   ->isUnbounded());
+  ASSERT_TRUE((*node)
+                  ->cast<ComponentReference>()
+                  ->getElement(0)
+                  ->getSubscript(0)
+                  ->getExpression()
+                  ->isa<Constant>());
+  EXPECT_EQ((*node)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getSubscript(0)
+                ->getExpression()
+                ->cast<Constant>()
+                ->as<int64_t>(),
+            3);
 
-  ASSERT_FALSE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->isUnbounded());
-  ASSERT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->isa<ComponentReference>());
-  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
-  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "i");
-  ASSERT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(1)->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_FALSE((*node)
+                   ->cast<ComponentReference>()
+                   ->getElement(0)
+                   ->getSubscript(1)
+                   ->isUnbounded());
+  ASSERT_TRUE((*node)
+                  ->cast<ComponentReference>()
+                  ->getElement(0)
+                  ->getSubscript(1)
+                  ->getExpression()
+                  ->isa<ComponentReference>());
+  ASSERT_EQ((*node)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getSubscript(1)
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  ASSERT_EQ((*node)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getSubscript(1)
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "i");
+  ASSERT_EQ((*node)
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getSubscript(1)
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
-  EXPECT_TRUE((*node)->cast<ComponentReference>()->getElement(0)->getSubscript(2)->isUnbounded());
+  EXPECT_TRUE((*node)
+                  ->cast<ComponentReference>()
+                  ->getElement(0)
+                  ->getSubscript(2)
+                  ->isUnbounded());
 }
 
-TEST(Parser, expression_subscriptionOfInlineArray)
-{
+TEST(Parser, expression_subscriptionOfInlineArray) {
   auto str = R"({1, 2, 3, 4, 5}[i])";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1844,25 +1990,26 @@ TEST(Parser, expression_subscriptionOfInlineArray)
   EXPECT_EQ((*node)->getLocation().end.column, 18);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subscription);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::subscription);
 
   auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<ArrayConstant>());
-  
+
   ASSERT_FALSE(args[1]->cast<Subscript>()->isUnbounded());
-  ASSERT_TRUE(args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
+  ASSERT_TRUE(
+      args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
 }
 
-TEST(Parser, expression_subscriptionOfFunctionCall)
-{
+TEST(Parser, expression_subscriptionOfFunctionCall) {
   auto str = R"(foo()[i])";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1879,25 +2026,26 @@ TEST(Parser, expression_subscriptionOfFunctionCall)
   EXPECT_EQ((*node)->getLocation().end.column, 8);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subscription);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(),
+            OperationKind::subscription);
 
   auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<Call>());
 
   ASSERT_FALSE(args[1]->cast<Subscript>()->isUnbounded());
-  EXPECT_TRUE(args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
+  EXPECT_TRUE(
+      args[1]->cast<Subscript>()->getExpression()->isa<ComponentReference>());
 }
 
-TEST(Parser, expression_functionCall_noArgs)
-{
+TEST(Parser, expression_functionCall_noArgs) {
   auto str = R"(foo())";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1922,15 +2070,14 @@ TEST(Parser, expression_functionCall_noArgs)
   EXPECT_TRUE(args.empty());
 }
 
-TEST(Parser, expression_functionCall_unnamedArgs)
-{
+TEST(Parser, expression_functionCall_unnamedArgs) {
   auto str = R"(foo(x, 1, 2))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -1951,36 +2098,77 @@ TEST(Parser, expression_functionCall_unnamedArgs)
 
   ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
   EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(),
+      "foo");
+  EXPECT_EQ(call->getCallee()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
   ASSERT_TRUE(args[0]->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->isa<ComponentReference>());
-  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "x");
-  EXPECT_EQ(args[0]->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<ComponentReference>());
+  EXPECT_EQ(args[0]
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(args[0]
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "x");
+  EXPECT_EQ(args[0]
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(args[1]->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[1]->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<Constant>());
+  EXPECT_EQ(args[1]
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<Constant>()
+                ->as<int64_t>(),
+            1);
 
   ASSERT_TRUE(args[2]->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[2]->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<Constant>());
+  EXPECT_EQ(args[2]
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<Constant>()
+                ->as<int64_t>(),
+            2);
 }
 
-TEST(Parser, expression_functionCall_namedArgs)
-{
+TEST(Parser, expression_functionCall_namedArgs) {
   auto str = R"(foo(x = k, y = 1, z = 2))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2001,39 +2189,105 @@ TEST(Parser, expression_functionCall_namedArgs)
 
   ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
   EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(),
+      "foo");
+  EXPECT_EQ(call->getCallee()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
   ASSERT_TRUE(args[0]->isa<NamedFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<ComponentReference>());
-  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getName(), "k");
-  EXPECT_EQ(args[0]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  ASSERT_TRUE(args[0]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[0]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<ComponentReference>());
+  EXPECT_EQ(args[0]
+                ->cast<NamedFunctionArgument>()
+                ->getValue()
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getPathLength(),
+            1);
+  EXPECT_EQ(args[0]
+                ->cast<NamedFunctionArgument>()
+                ->getValue()
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getName(),
+            "k");
+  EXPECT_EQ(args[0]
+                ->cast<NamedFunctionArgument>()
+                ->getValue()
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   ASSERT_TRUE(args[1]->isa<NamedFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[1]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[1]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 1);
+  ASSERT_TRUE(args[1]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[1]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<Constant>());
+  EXPECT_EQ(args[1]
+                ->cast<NamedFunctionArgument>()
+                ->getValue()
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<Constant>()
+                ->as<int64_t>(),
+            1);
 
   ASSERT_TRUE(args[2]->isa<NamedFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<NamedFunctionArgument>()->getValue()->isa<ExpressionFunctionArgument>());
-  ASSERT_TRUE(args[2]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->isa<Constant>());
-  EXPECT_EQ(args[2]->cast<NamedFunctionArgument>()->getValue()->cast<ExpressionFunctionArgument>()->getExpression()->cast<Constant>()->as<int64_t>(), 2);
+  ASSERT_TRUE(args[2]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->isa<ExpressionFunctionArgument>());
+  ASSERT_TRUE(args[2]
+                  ->cast<NamedFunctionArgument>()
+                  ->getValue()
+                  ->cast<ExpressionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<Constant>());
+  EXPECT_EQ(args[2]
+                ->cast<NamedFunctionArgument>()
+                ->getValue()
+                ->cast<ExpressionFunctionArgument>()
+                ->getExpression()
+                ->cast<Constant>()
+                ->as<int64_t>(),
+            2);
 }
 
-TEST(Parser, expression_functionCall_reductionArg)
-{
+TEST(Parser, expression_functionCall_reductionArg) {
   auto str = R"(foo(x[i,j] for i in 1:3, j in 2:4))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2054,35 +2308,68 @@ TEST(Parser, expression_functionCall_reductionArg)
 
   ASSERT_TRUE(call->getCallee()->isa<ComponentReference>());
   EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "foo");
-  EXPECT_EQ(call->getCallee()->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+  EXPECT_EQ(
+      call->getCallee()->cast<ComponentReference>()->getElement(0)->getName(),
+      "foo");
+  EXPECT_EQ(call->getCallee()
+                ->cast<ComponentReference>()
+                ->getElement(0)
+                ->getNumOfSubscripts(),
+            0);
 
   auto args = call->getArguments();
   EXPECT_EQ(args.size(), 1);
 
   ASSERT_TRUE(args[0]->isa<ReductionFunctionArgument>());
-  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getExpression()->isa<ComponentReference>());
+  ASSERT_TRUE(args[0]
+                  ->cast<ReductionFunctionArgument>()
+                  ->getExpression()
+                  ->isa<ComponentReference>());
 
-  ASSERT_EQ(args[0]->cast<ReductionFunctionArgument>()->getNumOfForIndices(), 2);
+  ASSERT_EQ(args[0]->cast<ReductionFunctionArgument>()->getNumOfForIndices(),
+            2);
 
-  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getName(), "i");
-  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getExpression()->isa<Operation>());
-  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getExpression()->cast<Operation>()->getOperationKind(), OperationKind::range);
+  EXPECT_EQ(
+      args[0]->cast<ReductionFunctionArgument>()->getForIndex(0)->getName(),
+      "i");
+  ASSERT_TRUE(args[0]
+                  ->cast<ReductionFunctionArgument>()
+                  ->getForIndex(0)
+                  ->getExpression()
+                  ->isa<Operation>());
+  EXPECT_EQ(args[0]
+                ->cast<ReductionFunctionArgument>()
+                ->getForIndex(0)
+                ->getExpression()
+                ->cast<Operation>()
+                ->getOperationKind(),
+            OperationKind::range);
 
-  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getName(), "j");
-  ASSERT_TRUE(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getExpression()->isa<Operation>());
-  EXPECT_EQ(args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getExpression()->cast<Operation>()->getOperationKind(), OperationKind::range);
+  EXPECT_EQ(
+      args[0]->cast<ReductionFunctionArgument>()->getForIndex(1)->getName(),
+      "j");
+  ASSERT_TRUE(args[0]
+                  ->cast<ReductionFunctionArgument>()
+                  ->getForIndex(1)
+                  ->getExpression()
+                  ->isa<Operation>());
+  EXPECT_EQ(args[0]
+                ->cast<ReductionFunctionArgument>()
+                ->getForIndex(1)
+                ->getExpression()
+                ->cast<Operation>()
+                ->getOperationKind(),
+            OperationKind::range);
 }
 
-TEST(Parser, annotation_inlineTrue)
-{
+TEST(Parser, annotation_inlineTrue) {
   auto str = R"(annotation(inline = true))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2102,15 +2389,14 @@ TEST(Parser, annotation_inlineTrue)
   EXPECT_TRUE((*node)->cast<Annotation>()->getInlineProperty());
 }
 
-TEST(Parser, annotation_inlineFalse)
-{
+TEST(Parser, annotation_inlineFalse) {
   auto str = R"(annotation(inline = false))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2130,15 +2416,14 @@ TEST(Parser, annotation_inlineFalse)
   EXPECT_FALSE((*node)->cast<Annotation>()->getInlineProperty());
 }
 
-TEST(Parser, annotation_inverseFunction)
-{
+TEST(Parser, annotation_inverseFunction) {
   auto str = R"(annotation(inverse(y = foo1(x, z), z = foo2(x, y))))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2170,15 +2455,14 @@ TEST(Parser, annotation_inverseFunction)
   EXPECT_EQ(annotation.getInverseArgs("z")[1], "y");
 }
 
-TEST(Parser, annotation_functionDerivativeWithOrder)
-{
+TEST(Parser, annotation_functionDerivativeWithOrder) {
   auto str = R"(annotation(derivative(order=2)=foo1))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());
@@ -2201,15 +2485,14 @@ TEST(Parser, annotation_functionDerivativeWithOrder)
   EXPECT_EQ(annotation.getOrder(), 2);
 }
 
-TEST(Parser, annotation_functionDerivativeWithoutOrder)
-{
+TEST(Parser, annotation_functionDerivativeWithoutOrder) {
   auto str = R"(annotation(derivative=foo1))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
   auto diagnostics = getDiagnosticsEngine();
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto& sourceManager = fileSourceMgr.get();
+  auto &sourceManager = fileSourceMgr.get();
 
   auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
   sourceFile->setMemoryBuffer(buffer.get());

@@ -5,15 +5,14 @@
 #include "llvm/ADT/StringRef.h"
 #include <string>
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DECL_SCCSOLVINGBYSUBSTITUTIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
 
-  std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass();
+std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass();
 
-  std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass(
-      const SCCSolvingBySubstitutionPassOptions& options);
-}
+std::unique_ptr<mlir::Pass> createSCCSolvingBySubstitutionPass(
+    const SCCSolvingBySubstitutionPassOptions &options);
+} // namespace mlir::bmodelica
 
 #endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_SCCSOLVINGBYSUBSTITUTION_H

@@ -8,17 +8,16 @@ using namespace ::mlir::sundials;
 // SUNDIALS dialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::sundials
-{
-  void SUNDIALSDialect::initialize() {
-    addOperations<
+namespace mlir::sundials {
+void SUNDIALSDialect::initialize() {
+  addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALSOps.cpp.inc"
-        >();
+      >();
 
-    addTypes<
+  addTypes<
 #define GET_TYPEDEF_LIST
 #include "marco/Dialect/SUNDIALS/IR/SUNDIALSTypes.cpp.inc"
-        >();
-  }
+      >();
 }
+} // namespace mlir::sundials

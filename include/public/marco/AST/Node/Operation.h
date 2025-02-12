@@ -5,74 +5,70 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-	enum class OperationKind
-	{
-    unknown,
-		negate,
-		add,
-    addEW,
-		subtract,
-    subtractEW,
-		multiply,
-    multiplyEW,
-		divide,
-    divideEW,
-		ifelse,
-		greater,
-		greaterEqual,
-		equal,
-		different,
-		lessEqual,
-		less,
-		land,
-		lor,
-    lnot,
-		subscription,
-		powerOf,
-    powerOfEW,
-		range,
-	};
+namespace marco::ast {
+enum class OperationKind {
+  unknown,
+  negate,
+  add,
+  addEW,
+  subtract,
+  subtractEW,
+  multiply,
+  multiplyEW,
+  divide,
+  divideEW,
+  ifelse,
+  greater,
+  greaterEqual,
+  equal,
+  different,
+  lessEqual,
+  less,
+  land,
+  lor,
+  lnot,
+  subscription,
+  powerOf,
+  powerOfEW,
+  range,
+};
 
-	class Operation : public Expression
-	{
-		public:
-      explicit Operation(SourceRange location);
+class Operation : public Expression {
+public:
+  explicit Operation(SourceRange location);
 
-      Operation(const Operation& other);
+  Operation(const Operation &other);
 
-      ~Operation() override;
+  ~Operation() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_Operation;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Expression_Operation;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isLValue() const override;
+  bool isLValue() const override;
 
-      OperationKind getOperationKind() const;
+  OperationKind getOperationKind() const;
 
-      void setOperationKind(OperationKind newOperationKind);
+  void setOperationKind(OperationKind newOperationKind);
 
-      size_t getNumOfArguments() const;
+  size_t getNumOfArguments() const;
 
-      Expression* getArgument(size_t index);
+  Expression *getArgument(size_t index);
 
-      const Expression* getArgument(size_t index) const;
+  const Expression *getArgument(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 
-      void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      OperationKind kind;
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> arguments;
-	};
-}
+private:
+  OperationKind kind;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> arguments;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_OPERATION_H

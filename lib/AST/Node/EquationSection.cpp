@@ -4,90 +4,67 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  EquationSection::EquationSection(SourceRange location)
-      : ASTNode(ASTNode::Kind::EquationSection, std::move(location))
-  {
+namespace marco::ast {
+EquationSection::EquationSection(SourceRange location)
+    : ASTNode(ASTNode::Kind::EquationSection, std::move(location)) {}
+
+EquationSection::EquationSection(const EquationSection &other)
+    : ASTNode(other), initial(other.initial) {
+  setEquations(other.equations);
+}
+
+EquationSection::~EquationSection() = default;
+
+std::unique_ptr<ASTNode> EquationSection::clone() const {
+  return std::make_unique<EquationSection>(*this);
+}
+
+llvm::json::Value EquationSection::toJSON() const {
+  llvm::json::Object result;
+  result["initial"] = isInitial();
+
+  llvm::SmallVector<llvm::json::Value> equationsJson;
+
+  for (const auto &equation : equations) {
+    equationsJson.push_back(equation->toJSON());
   }
 
-  EquationSection::EquationSection(const EquationSection& other)
-      : ASTNode(other),
-        initial(other.initial)
-  {
-    setEquations(other.equations);
-  }
+  result["equations"] = llvm::json::Array(equationsJson);
 
-  EquationSection::~EquationSection() = default;
+  addJSONProperties(result);
+  return result;
+}
 
-  std::unique_ptr<ASTNode> EquationSection::clone() const
-  {
-    return std::make_unique<EquationSection>(*this);
-  }
+bool EquationSection::isInitial() const { return initial; }
 
-  llvm::json::Value EquationSection::toJSON() const
-  {
-    llvm::json::Object result;
-    result["initial"] = isInitial();
+void EquationSection::setInitial(bool value) { initial = value; }
 
-    llvm::SmallVector<llvm::json::Value> equationsJson;
+size_t EquationSection::getNumOfEquations() const { return equations.size(); }
 
-    for (const auto& equation : equations) {
-      equationsJson.push_back(equation->toJSON());
-    }
+bool EquationSection::empty() const { return equations.empty(); }
 
-    result["equations"] = llvm::json::Array(equationsJson);
+Equation *EquationSection::getEquation(size_t index) {
+  assert(index < equations.size());
+  return equations[index]->cast<Equation>();
+}
 
-    addJSONProperties(result);
-    return result;
-  }
+const Equation *EquationSection::getEquation(size_t index) const {
+  assert(index < equations.size());
+  return equations[index]->cast<Equation>();
+}
 
-  bool EquationSection::isInitial() const
-  {
-    return initial;
-  }
+llvm::ArrayRef<std::unique_ptr<ASTNode>> EquationSection::getEquations() {
+  return equations;
+}
 
-  void EquationSection::setInitial(bool value)
-  {
-    initial = value;
-  }
+void EquationSection::setEquations(
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+  equations.clear();
 
-  size_t EquationSection::getNumOfEquations() const
-  {
-    return equations.size();
-  }
-
-  bool EquationSection::empty() const
-  {
-    return equations.empty();
-  }
-
-  Equation* EquationSection::getEquation(size_t index)
-  {
-    assert(index < equations.size());
-    return equations[index]->cast<Equation>();
-  }
-
-  const Equation* EquationSection::getEquation(size_t index) const
-  {
-    assert(index < equations.size());
-    return equations[index]->cast<Equation>();
-  }
-
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> EquationSection::getEquations()
-  {
-    return equations;
-  }
-
-  void EquationSection::setEquations(
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
-  {
-    equations.clear();
-
-    for (const auto& node : nodes) {
-      assert(node->isa<Equation>());
-      auto& clone = equations.emplace_back(node->clone());
-      clone->setParent(this);
-    }
+  for (const auto &node : nodes) {
+    assert(node->isa<Equation>());
+    auto &clone = equations.emplace_back(node->clone());
+    clone->setParent(this);
   }
 }
+} // namespace marco::ast

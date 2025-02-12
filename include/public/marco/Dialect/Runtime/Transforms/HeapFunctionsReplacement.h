@@ -3,12 +3,11 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace mlir::runtime
-{
+namespace mlir::runtime {
 #define GEN_PASS_DECL_HEAPFUNCTIONSREPLACEMENTPASS
 #include "marco/Dialect/Runtime/Transforms/Passes.h.inc"
 
-  std::unique_ptr<mlir::Pass> createHeapFunctionsReplacementPass();
-}
+std::unique_ptr<mlir::Pass> createHeapFunctionsReplacementPass();
+} // namespace mlir::runtime
 
 #endif // MARCO_DIALECT_RUNTIME_TRANSFORMS_HEAPFUNCTIONSREPLACEMENT_H

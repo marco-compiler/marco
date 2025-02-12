@@ -6,45 +6,43 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-	class ArrayGenerator;
-  class ForIndex;
+namespace marco::ast {
+class ArrayGenerator;
+class ForIndex;
 
-	class ArrayForGenerator : public ArrayGenerator
-	{
-		public:
-      explicit ArrayForGenerator(SourceRange location);
+class ArrayForGenerator : public ArrayGenerator {
+public:
+  explicit ArrayForGenerator(SourceRange location);
 
-      ArrayForGenerator(const ArrayForGenerator& other);
+  ArrayForGenerator(const ArrayForGenerator &other);
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() ==
+           ASTNode::Kind::Expression_ArrayGenerator_ArrayForGenerator;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      Expression* getValue();
+  Expression *getValue();
 
-      const Expression* getValue() const;
+  const Expression *getValue() const;
 
-      void setValue(std::unique_ptr<ASTNode> node);
+  void setValue(std::unique_ptr<ASTNode> node);
 
-      unsigned getNumIndices() const;
+  unsigned getNumIndices() const;
 
-      ForIndex* getIndex(unsigned index);
+  ForIndex *getIndex(unsigned index);
 
-      const ForIndex* getIndex(unsigned index) const;
+  const ForIndex *getIndex(unsigned index) const;
 
-      void setIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      std::unique_ptr<ASTNode> value;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> indices;
-	};
-}
+private:
+  std::unique_ptr<ASTNode> value;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> indices;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ARRAY_FOR_GENERATOR_H

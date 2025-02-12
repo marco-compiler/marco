@@ -1,5 +1,5 @@
-#include "gtest/gtest.h"
 #include "marco/AST/AST.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -39,25 +39,26 @@ TEST(AST, expression_call)
   node->setCallee(std::move(callee));
 
   ASSERT_TRUE(node->isa<Call>());
-  EXPECT_EQ(node->cast<Call>()->getCallee()->cast<ReferenceAccess>()->getName(), "Foo");
+  EXPECT_EQ(node->cast<Call>()->getCallee()->cast<ReferenceAccess>()->getName(),
+"Foo");
 }
 
 TEST(AST, expression_constant)
 {
-	auto node = std::make_unique<Constant>(LOC);
+        auto node = std::make_unique<Constant>(LOC);
   node->setValue(0);
 
-	ASSERT_TRUE(node->isa<Constant>());
-	EXPECT_EQ(node->cast<Constant>()->as<int64_t>(), 0);
+        ASSERT_TRUE(node->isa<Constant>());
+        EXPECT_EQ(node->cast<Constant>()->as<int64_t>(), 0);
 }
 
 TEST(AST, expression_reference)
 {
-	auto node = std::make_unique<ReferenceAccess>(LOC);
+        auto node = std::make_unique<ReferenceAccess>(LOC);
   node->setName("x");
 
-	ASSERT_TRUE(node->isa<ReferenceAccess>());
-	EXPECT_EQ(node->cast<ReferenceAccess>()->getName(), "x");
+        ASSERT_TRUE(node->isa<ReferenceAccess>());
+        EXPECT_EQ(node->cast<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(AST, expression_operation)
@@ -72,12 +73,13 @@ TEST(AST, expression_operation)
   arg1->setName("y");
   args.push_back(std::move(arg1));
 
-	auto node = std::make_unique<Operation>(LOC);
+        auto node = std::make_unique<Operation>(LOC);
   node->setOperationKind(OperationKind::add);
   node->setArguments(args);
 
-	ASSERT_TRUE(node->isa<Operation>());
-	EXPECT_EQ(node->cast<Operation>()->getOperationKind(), OperationKind::add);
+        ASSERT_TRUE(node->isa<Operation>());
+        EXPECT_EQ(node->cast<Operation>()->getOperationKind(),
+OperationKind::add);
 }
 
 TEST(AST, expression_tuple)
@@ -100,8 +102,11 @@ TEST(AST, expression_tuple)
   node->setExpressions(values);
 
   ASSERT_TRUE(node->isa<Tuple>());
-  EXPECT_EQ((*node->cast<Tuple>()).getExpression(0)->cast<ReferenceAccess>()->getName(), "x");
-  EXPECT_EQ((*node->cast<Tuple>()).getExpression(1)->cast<ReferenceAccess>()->getName(), "y");
-  EXPECT_EQ((*node->cast<Tuple>()).getExpression(2)->cast<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(0)->cast<ReferenceAccess>()->getName(),
+"x");
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(1)->cast<ReferenceAccess>()->getName(),
+"y");
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(2)->cast<ReferenceAccess>()->getName(),
+"z");
 }
 */

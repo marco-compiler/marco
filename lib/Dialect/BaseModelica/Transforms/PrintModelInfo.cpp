@@ -1,41 +1,33 @@
 #include "marco/Dialect/BaseModelica/Transforms/PrintModelInfo.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_PRINTMODELINFOPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class PrintModelInfoPass
-      : public mlir::bmodelica::impl::PrintModelInfoPassBase<PrintModelInfoPass>
-  {
-    public:
-      using PrintModelInfoPassBase<PrintModelInfoPass>::PrintModelInfoPassBase;
+namespace {
+class PrintModelInfoPass
+    : public mlir::bmodelica::impl::PrintModelInfoPassBase<PrintModelInfoPass> {
+public:
+  using PrintModelInfoPassBase<PrintModelInfoPass>::PrintModelInfoPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(
-        ModelOp modelOp, llvm::raw_ostream& os);
+private:
+  mlir::LogicalResult processModelOp(ModelOp modelOp, llvm::raw_ostream &os);
 
-      int64_t getScalarEquationsCount(
-          llvm::ArrayRef<EquationInstanceOp> equations);
-  };
-}
+  int64_t getScalarEquationsCount(llvm::ArrayRef<EquationInstanceOp> equations);
+};
+} // namespace
 
-void PrintModelInfoPass::runOnOperation()
-{
+void PrintModelInfoPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
   llvm::SmallVector<ModelOp> modelOps;
 
-  moduleOp.walk([&](ModelOp modelOp) {
-    modelOps.push_back(modelOp);
-  });
+  moduleOp.walk([&](ModelOp modelOp) { modelOps.push_back(modelOp); });
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(modelOp, llvm::errs()))) {
@@ -46,9 +38,8 @@ void PrintModelInfoPass::runOnOperation()
   markAllAnalysesPreserved();
 }
 
-mlir::LogicalResult PrintModelInfoPass::processModelOp(
-    ModelOp modelOp, llvm::raw_ostream& os)
-{
+mlir::LogicalResult PrintModelInfoPass::processModelOp(ModelOp modelOp,
+                                                       llvm::raw_ostream &os) {
   os << "Model name: " << modelOp.getSymName() << "\n";
 
   llvm::SmallVector<EquationInstanceOp> initialEquations;
@@ -70,8 +61,7 @@ mlir::LogicalResult PrintModelInfoPass::processModelOp(
 }
 
 int64_t PrintModelInfoPass::getScalarEquationsCount(
-    llvm::ArrayRef<EquationInstanceOp> equations)
-{
+    llvm::ArrayRef<EquationInstanceOp> equations) {
   int64_t result = 0;
 
   for (EquationInstanceOp equationOp : equations) {
@@ -89,10 +79,8 @@ int64_t PrintModelInfoPass::getScalarEquationsCount(
   return result;
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createPrintModelInfoPass()
-  {
-    return std::make_unique<PrintModelInfoPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createPrintModelInfoPass() {
+  return std::make_unique<PrintModelInfoPass>();
 }
+} // namespace mlir::bmodelica

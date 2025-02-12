@@ -3,23 +3,20 @@
 
 #include "marco/AST/Node/ASTNode.h"
 
-namespace marco::ast
-{
-	class Expression : public ASTNode
-	{
-		public:
-      using ASTNode::ASTNode;
+namespace marco::ast {
+class Expression : public ASTNode {
+public:
+  using ASTNode::ASTNode;
 
-      virtual ~Expression();
+  virtual ~Expression();
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() >= ASTNode::Kind::Expression &&
-            node->getKind() <= ASTNode::Kind::Expression_LastExpression;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() >= ASTNode::Kind::Expression &&
+           node->getKind() <= ASTNode::Kind::Expression_LastExpression;
+  }
 
-      virtual bool isLValue() const = 0;
-	};
-}
+  virtual bool isLValue() const = 0;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_EXPRESSION_H

@@ -3,14 +3,12 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  FunctionArgument::FunctionArgument(const FunctionArgument& other) = default;
+namespace marco::ast {
+FunctionArgument::FunctionArgument(const FunctionArgument &other) = default;
 
-  FunctionArgument::~FunctionArgument() = default;
+FunctionArgument::~FunctionArgument() = default;
 
-  void FunctionArgument::addJSONProperties(llvm::json::Object& obj) const
-  {
-    ASTNode::addJSONProperties(obj);
-  }
+void FunctionArgument::addJSONProperties(llvm::json::Object &obj) const {
+  ASTNode::addJSONProperties(obj);
 }
+} // namespace marco::ast

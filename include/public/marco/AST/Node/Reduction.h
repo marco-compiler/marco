@@ -5,55 +5,52 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-  class Reduction : public Expression
-  {
-    public:
-      explicit Reduction(SourceRange location);
+namespace marco::ast {
+class Reduction : public Expression {
+public:
+  explicit Reduction(SourceRange location);
 
-      Reduction(const Reduction& other);
+  Reduction(const Reduction &other);
 
-      ~Reduction() override;
+  ~Reduction() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_Reduction;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Expression_Reduction;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isLValue() const override;
+  bool isLValue() const override;
 
-      Expression* getCallee();
+  Expression *getCallee();
 
-      const Expression* getCallee() const;
+  const Expression *getCallee() const;
 
-      void setCallee(std::unique_ptr<ASTNode> node);
+  void setCallee(std::unique_ptr<ASTNode> node);
 
-      Expression* getExpression();
+  Expression *getExpression();
 
-      const Expression* getExpression() const;
+  const Expression *getExpression() const;
 
-      void setExpression(std::unique_ptr<ASTNode> node);
+  void setExpression(std::unique_ptr<ASTNode> node);
 
-      size_t getNumOfIterators() const;
+  size_t getNumOfIterators() const;
 
-      Expression* getIterator(size_t index);
+  Expression *getIterator(size_t index);
 
-      const Expression* getIterator(size_t index) const;
+  const Expression *getIterator(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getIterators() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getIterators() const;
 
-      void setIterators(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setIterators(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      std::unique_ptr<ASTNode> callee;
-      std::unique_ptr<ASTNode> expression;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> iterators;
-  };
-}
+private:
+  std::unique_ptr<ASTNode> callee;
+  std::unique_ptr<ASTNode> expression;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> iterators;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_REDUCTION_H

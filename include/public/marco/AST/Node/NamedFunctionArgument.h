@@ -3,42 +3,39 @@
 
 #include "marco/AST/Node/FunctionArgument.h"
 
-namespace marco::ast
-{
-  class Expression;
+namespace marco::ast {
+class Expression;
 
-  class NamedFunctionArgument : public FunctionArgument
-  {
-    public:
-      NamedFunctionArgument(SourceRange location);
+class NamedFunctionArgument : public FunctionArgument {
+public:
+  NamedFunctionArgument(SourceRange location);
 
-      NamedFunctionArgument(const NamedFunctionArgument& other);
+  NamedFunctionArgument(const NamedFunctionArgument &other);
 
-      ~NamedFunctionArgument() override;
+  ~NamedFunctionArgument() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::FunctionArgument_Named;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::FunctionArgument_Named;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      llvm::StringRef getName() const;
+  llvm::StringRef getName() const;
 
-      void setName(llvm::StringRef newName);
+  void setName(llvm::StringRef newName);
 
-      FunctionArgument* getValue();
+  FunctionArgument *getValue();
 
-      const FunctionArgument* getValue() const;
+  const FunctionArgument *getValue() const;
 
-      void setValue(std::unique_ptr<ASTNode> node);
+  void setValue(std::unique_ptr<ASTNode> node);
 
-    private:
-      std::string name;
-      std::unique_ptr<ASTNode> value;
-  };
-}
+private:
+  std::string name;
+  std::unique_ptr<ASTNode> value;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_NAMEDFUNCTIONCALLARGUMENT_H

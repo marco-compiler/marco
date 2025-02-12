@@ -8,18 +8,16 @@ using namespace ::mlir::kinsol;
 // KINSOL dialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::kinsol
-{
-  void KINSOLDialect::initialize()
-  {
-    addOperations<
+namespace mlir::kinsol {
+void KINSOLDialect::initialize() {
+  addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/KINSOL/IR/KINSOLOps.cpp.inc"
-        >();
+      >();
 
-    addTypes<
+  addTypes<
 #define GET_TYPEDEF_LIST
 #include "marco/Dialect/KINSOL/IR/KINSOLTypes.cpp.inc"
-        >();
-  }
+      >();
 }
+} // namespace mlir::kinsol

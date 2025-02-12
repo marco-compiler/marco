@@ -6,60 +6,54 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
-namespace marco::vf
-{
-  class ASTNode
-  {
-    public:
-      virtual ~ASTNode();
-  };
+namespace marco::vf {
+class ASTNode {
+public:
+  virtual ~ASTNode();
+};
 
-  class VariableExpression : public ASTNode
-  {
-    public:
-      VariableExpression(llvm::StringRef identifier);
+class VariableExpression : public ASTNode {
+public:
+  VariableExpression(llvm::StringRef identifier);
 
-      llvm::StringRef getIdentifier() const;
+  llvm::StringRef getIdentifier() const;
 
-    private:
-      std::string identifier;
-  };
+private:
+  std::string identifier;
+};
 
-  class ArrayExpression : public ASTNode
-  {
-    public:
-      ArrayExpression(VariableExpression variable, llvm::ArrayRef<Range> ranges);
+class ArrayExpression : public ASTNode {
+public:
+  ArrayExpression(VariableExpression variable, llvm::ArrayRef<Range> ranges);
 
-      VariableExpression getVariable() const;
+  VariableExpression getVariable() const;
 
-      llvm::ArrayRef<Range> getRanges() const;
+  llvm::ArrayRef<Range> getRanges() const;
 
-    private:
-      VariableExpression variable;
-      llvm::SmallVector<Range> ranges;
-  };
+private:
+  VariableExpression variable;
+  llvm::SmallVector<Range> ranges;
+};
 
-  class DerivativeExpression : public ASTNode
-  {
-    public:
-      DerivativeExpression(VariableExpression derivedVariable);
+class DerivativeExpression : public ASTNode {
+public:
+  DerivativeExpression(VariableExpression derivedVariable);
 
-      VariableExpression getDerivedVariable() const;
+  VariableExpression getDerivedVariable() const;
 
-    private:
-      VariableExpression derivedVariable;
-  };
+private:
+  VariableExpression derivedVariable;
+};
 
-  class RegexExpression : public ASTNode
-  {
-    public:
-      RegexExpression(llvm::StringRef regex);
+class RegexExpression : public ASTNode {
+public:
+  RegexExpression(llvm::StringRef regex);
 
-      llvm::StringRef getRegex() const;
+  llvm::StringRef getRegex() const;
 
-    private:
-      std::string regex;
-  };
-}
+private:
+  std::string regex;
+};
+} // namespace marco::vf
 
 #endif // MARCO_VARIABLEFILTER_AST_H

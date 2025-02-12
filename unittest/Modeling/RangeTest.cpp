@@ -1,25 +1,22 @@
 #include "marco/Modeling/Range.h"
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco::modeling;
 
-TEST(Range, borders)
-{
+TEST(Range, borders) {
   Range range(1, 5);
 
   EXPECT_EQ(range.getBegin(), 1);
   EXPECT_EQ(range.getEnd(), 5);
 }
 
-TEST(Range, size)
-{
+TEST(Range, size) {
   Range range(1, 5);
   EXPECT_EQ(range.size(), 4);
 }
 
-TEST(Range, iteration)
-{
+TEST(Range, iteration) {
   Range range(1, 5);
 
   auto begin = range.begin();
@@ -32,8 +29,7 @@ TEST(Range, iteration)
   }
 }
 
-TEST(Range, containsValue)
-{
+TEST(Range, containsValue) {
   Range range(3, 6);
 
   EXPECT_FALSE(range.contains(2));
@@ -43,8 +39,7 @@ TEST(Range, containsValue)
   EXPECT_FALSE(range.contains(6));
 }
 
-TEST(Range, containsRange)
-{
+TEST(Range, containsRange) {
   Range range(3, 6);
 
   EXPECT_FALSE(range.contains(Range(1, 2)));
@@ -58,8 +53,7 @@ TEST(Range, containsRange)
   EXPECT_FALSE(range.contains(Range(7, 9)));
 }
 
-TEST(Range, overlap)
-{
+TEST(Range, overlap) {
   Range x(1, 5);
   Range y(2, 7);
 
@@ -67,8 +61,7 @@ TEST(Range, overlap)
   EXPECT_TRUE(y.overlaps(x));
 }
 
-TEST(Range, touchingBordersDoNotOverlap)
-{
+TEST(Range, touchingBordersDoNotOverlap) {
   Range x(1, 5);
   Range y(5, 7);
 
@@ -76,8 +69,7 @@ TEST(Range, touchingBordersDoNotOverlap)
   EXPECT_FALSE(y.overlaps(x));
 }
 
-TEST(Range, merge)
-{
+TEST(Range, merge) {
   Range x(1, 5);
 
   // Overlapping.
@@ -105,8 +97,7 @@ TEST(Range, merge)
   EXPECT_EQ(z.merge(x).getEnd(), 7);
 }
 
-TEST(Range, subtraction)
-{
+TEST(Range, subtraction) {
   Range a(3, 7);
 
   // Overlapping.
@@ -121,7 +112,8 @@ TEST(Range, subtraction)
   Range e(7, 11);
 
   EXPECT_THAT(a.subtract(c), testing::IsEmpty());
-  EXPECT_THAT(c.subtract(a), testing::UnorderedElementsAre(Range(2, 3), Range(7, 11)));
+  EXPECT_THAT(c.subtract(a),
+              testing::UnorderedElementsAre(Range(2, 3), Range(7, 11)));
   EXPECT_THAT(c.subtract(d), testing::UnorderedElementsAre(Range(5, 11)));
   EXPECT_THAT(c.subtract(e), testing::UnorderedElementsAre(Range(2, 7)));
 }

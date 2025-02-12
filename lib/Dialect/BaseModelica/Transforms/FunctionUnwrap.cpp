@@ -2,132 +2,120 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_FUNCTIONUNWRAPPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class FunctionUnwrapPass
-      : public mlir::bmodelica::impl::FunctionUnwrapPassBase<FunctionUnwrapPass>
-  {
-    public:
-      using FunctionUnwrapPassBase<FunctionUnwrapPass>::FunctionUnwrapPassBase;
+namespace {
+class FunctionUnwrapPass
+    : public mlir::bmodelica::impl::FunctionUnwrapPassBase<FunctionUnwrapPass> {
+public:
+  using FunctionUnwrapPassBase<FunctionUnwrapPass>::FunctionUnwrapPassBase;
 
-      void runOnOperation() override;
-  };
-}
+  void runOnOperation() override;
+};
+} // namespace
 
 using CallsMap = llvm::DenseMap<FunctionOp, llvm::SmallVector<CallOp>>;
 
-namespace
-{
-  class FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
-  {
-    public:
-      FunctionOpPattern(
-          mlir::MLIRContext* context,
-          mlir::SymbolTableCollection& symbolTableCollection,
-          const CallsMap& callsMap)
-          : mlir::OpRewritePattern<FunctionOp>(context),
-            symbolTableCollection(&symbolTableCollection),
-            callsMap(&callsMap)
-      {
+namespace {
+class FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp> {
+public:
+  FunctionOpPattern(mlir::MLIRContext *context,
+                    mlir::SymbolTableCollection &symbolTableCollection,
+                    const CallsMap &callsMap)
+      : mlir::OpRewritePattern<FunctionOp>(context),
+        symbolTableCollection(&symbolTableCollection), callsMap(&callsMap) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(FunctionOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+    rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
+    // Compute the new name.
+    llvm::SmallVector<std::string> namesStack;
+    namesStack.push_back(op.getSymName().str());
+    mlir::Operation *parentOp = op->getParentOp();
+
+    while (parentOp && !mlir::isa<mlir::ModuleOp>(parentOp)) {
+      if (auto classInterface = mlir::dyn_cast<ClassInterface>(parentOp)) {
+        auto symbolInt =
+            mlir::cast<mlir::SymbolOpInterface>(classInterface.getOperation());
+
+        namesStack.push_back(symbolInt.getName().str());
       }
 
-      mlir::LogicalResult matchAndRewrite(
-          FunctionOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+      parentOp = parentOp->getParentOp();
+    }
 
-        // Compute the new name.
-        llvm::SmallVector<std::string> namesStack;
-        namesStack.push_back(op.getSymName().str());
-        mlir::Operation* parentOp = op->getParentOp();
+    assert(!namesStack.empty());
+    std::string newName = namesStack.back();
 
-        while (parentOp && !mlir::isa<mlir::ModuleOp>(parentOp)) {
-          if (auto classInterface = mlir::dyn_cast<ClassInterface>(parentOp)) {
-            auto symbolInt = mlir::cast<mlir::SymbolOpInterface>(
-                classInterface.getOperation());
+    for (size_t i = 1, e = namesStack.size(); i < e; ++i) {
+      newName += "_" + namesStack[e - i - 1];
+    }
 
-            namesStack.push_back(symbolInt.getName().str());
-          }
+    auto newFunctionOp = rewriter.create<FunctionOp>(op.getLoc(), newName);
 
-          parentOp = parentOp->getParentOp();
-        }
+    rewriter.inlineRegionBefore(op.getBodyRegion(),
+                                newFunctionOp.getBodyRegion(),
+                                newFunctionOp.getBodyRegion().end());
 
-        assert(!namesStack.empty());
-        std::string newName = namesStack.back();
+    // Add the new function to the module and to the symbol table.
+    // This ensures that no name clash happens.
+    symbolTableCollection->getSymbolTable(moduleOp).insert(newFunctionOp);
 
-        for (size_t i = 1, e = namesStack.size(); i < e; ++i) {
-          newName += "_" + namesStack[e - i - 1];
-        }
+    // Update the calls to the old function.
+    for (CallOp callOp : getCallOps(op)) {
+      rewriter.setInsertionPoint(callOp);
 
-        auto newFunctionOp = rewriter.create<FunctionOp>(op.getLoc(), newName);
+      rewriter.replaceOpWithNewOp<CallOp>(
+          callOp, newFunctionOp, callOp.getArgs(), callOp.getArgNames());
+    }
 
-        rewriter.inlineRegionBefore(
-            op.getBodyRegion(),
-            newFunctionOp.getBodyRegion(),
-            newFunctionOp.getBodyRegion().end());
+    // Erase the old function.
+    mlir::Operation *oldParentSymbolTable =
+        op->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-        // Add the new function to the module and to the symbol table.
-        // This ensures that no name clash happens.
-        symbolTableCollection->getSymbolTable(moduleOp).insert(newFunctionOp);
+    if (oldParentSymbolTable) {
+      auto &oldSymbolTable =
+          symbolTableCollection->getSymbolTable(oldParentSymbolTable);
 
-        // Update the calls to the old function.
-        for (CallOp callOp : getCallOps(op)) {
-          rewriter.setInsertionPoint(callOp);
+      oldSymbolTable.remove(op);
+    }
 
-          rewriter.replaceOpWithNewOp<CallOp>(
-              callOp, newFunctionOp, callOp.getArgs(), callOp.getArgNames());
-        }
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
 
-        // Erase the old function.
-        mlir::Operation* oldParentSymbolTable =
-            op->getParentWithTrait<mlir::OpTrait::SymbolTable>();
+private:
+  llvm::ArrayRef<CallOp> getCallOps(FunctionOp functionOp) const {
+    auto it = callsMap->find(functionOp);
 
-        if (oldParentSymbolTable) {
-          auto& oldSymbolTable =
-              symbolTableCollection->getSymbolTable(oldParentSymbolTable);
+    if (it == callsMap->end()) {
+      return std::nullopt;
+    }
 
-          oldSymbolTable.remove(op);
-        }
+    return it->getSecond();
+  }
 
-        rewriter.eraseOp(op);
-        return mlir::success();
-      }
+private:
+  mlir::SymbolTableCollection *symbolTableCollection;
+  const CallsMap *callsMap;
+};
+} // namespace
 
-    private:
-      llvm::ArrayRef<CallOp> getCallOps(FunctionOp functionOp) const
-      {
-        auto it = callsMap->find(functionOp);
-
-        if (it == callsMap->end()) {
-          return std::nullopt;
-        }
-
-        return it->getSecond();
-      }
-
-    private:
-      mlir::SymbolTableCollection* symbolTableCollection;
-      const CallsMap* callsMap;
-  };
-}
-
-void FunctionUnwrapPass::runOnOperation()
-{
+void FunctionUnwrapPass::runOnOperation() {
   auto moduleOp = getOperation();
   mlir::SymbolTableCollection symbolTableCollection;
   CallsMap callsMap;
 
   moduleOp.walk([&](CallOp callOp) {
-    mlir::Operation* callee =
+    mlir::Operation *callee =
         callOp.getFunction(moduleOp, symbolTableCollection);
 
     if (callee && mlir::isa<FunctionOp>(callee)) {
@@ -142,25 +130,22 @@ void FunctionUnwrapPass::runOnOperation()
     return mlir::isa<mlir::ModuleOp>(op->getParentOp());
   });
 
-  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-    return true;
-  });
+  target.markUnknownOpDynamicallyLegal(
+      [](mlir::Operation *op) { return true; });
 
   mlir::RewritePatternSet patterns(&getContext());
 
-  patterns.insert<FunctionOpPattern>(
-      &getContext(), symbolTableCollection, callsMap);
+  patterns.insert<FunctionOpPattern>(&getContext(), symbolTableCollection,
+                                     callsMap);
 
-  if (mlir::failed(applyPartialConversion(
-          moduleOp, target, std::move(patterns)))) {
+  if (mlir::failed(
+          applyPartialConversion(moduleOp, target, std::move(patterns)))) {
     return signalPassFailure();
   }
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createFunctionUnwrapPass()
-  {
-    return std::make_unique<FunctionUnwrapPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createFunctionUnwrapPass() {
+  return std::make_unique<FunctionUnwrapPass>();
 }
+} // namespace mlir::bmodelica

@@ -3,49 +3,46 @@
 
 #include "marco/AST/Node/FunctionArgument.h"
 
-namespace marco::ast
-{
-  class Expression;
-  class ForIndex;
+namespace marco::ast {
+class Expression;
+class ForIndex;
 
-  class ReductionFunctionArgument : public FunctionArgument
-  {
-    public:
-      ReductionFunctionArgument(SourceRange location);
+class ReductionFunctionArgument : public FunctionArgument {
+public:
+  ReductionFunctionArgument(SourceRange location);
 
-      ReductionFunctionArgument(const ReductionFunctionArgument& other);
+  ReductionFunctionArgument(const ReductionFunctionArgument &other);
 
-      ~ReductionFunctionArgument() override;
+  ~ReductionFunctionArgument() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::FunctionArgument_Reduction;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::FunctionArgument_Reduction;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      Expression* getExpression();
+  Expression *getExpression();
 
-      const Expression* getExpression() const;
+  const Expression *getExpression() const;
 
-      void setExpression(std::unique_ptr<ASTNode> node);
+  void setExpression(std::unique_ptr<ASTNode> node);
 
-      size_t getNumOfForIndices() const;
+  size_t getNumOfForIndices() const;
 
-      ForIndex* getForIndex(size_t index);
+  ForIndex *getForIndex(size_t index);
 
-      const ForIndex* getForIndex(size_t index) const;
+  const ForIndex *getForIndex(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getForIndices() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getForIndices() const;
 
-      void setForIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setForIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      std::unique_ptr<ASTNode> expression;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> forIndices;
-  };
-}
+private:
+  std::unique_ptr<ASTNode> expression;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> forIndices;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_REDUCTIONFUNCTIONCALLARGUMENT_H

@@ -1,12 +1,11 @@
-#include "gmock/gmock.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "gmock/gmock.h"
 
 using namespace ::mlir::bmodelica;
 
-TEST(TypeConverterTest, array)
-{
+TEST(TypeConverterTest, array) {
   /*
   mlir::MLIRContext context;
   context.loadDialect<ModelicaDialect>();
@@ -15,7 +14,7 @@ TEST(TypeConverterTest, array)
   mlir::LowerToLLVMOptions options(&context);
 
   TypeConverter typeConverter(&context, options, 64);
-  auto arrayType = ArrayType::get(&context, IntegerType::get(&context), { 3, 5 });
-  typeConverter.convertType(arrayType).dump();
+  auto arrayType = ArrayType::get(&context, IntegerType::get(&context), { 3, 5
+  }); typeConverter.convertType(arrayType).dump();
    */
 }

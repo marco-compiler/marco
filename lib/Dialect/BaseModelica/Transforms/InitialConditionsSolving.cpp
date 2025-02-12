@@ -2,60 +2,53 @@
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_INITIALCONDITIONSSOLVINGPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class InitialConditionsSolvingPass
-      : public mlir::bmodelica::impl::InitialConditionsSolvingPassBase<
-            InitialConditionsSolvingPass>
-  {
-    public:
-      using InitialConditionsSolvingPassBase<InitialConditionsSolvingPass>
-          ::InitialConditionsSolvingPassBase;
+namespace {
+class InitialConditionsSolvingPass
+    : public mlir::bmodelica::impl::InitialConditionsSolvingPassBase<
+          InitialConditionsSolvingPass> {
+public:
+  using InitialConditionsSolvingPassBase<
+      InitialConditionsSolvingPass>::InitialConditionsSolvingPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          mlir::ModuleOp moduleOp,
-          ModelOp modelOp);
-  };
-}
+private:
+  mlir::LogicalResult
+  processModelOp(mlir::SymbolTableCollection &symbolTableCollection,
+                 mlir::ModuleOp moduleOp, ModelOp modelOp);
+};
+} // namespace
 
-void InitialConditionsSolvingPass::runOnOperation()
-{
+void InitialConditionsSolvingPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<ModelOp> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
   for (ModelOp modelOp : modelOps) {
-    if (mlir::failed(processModelOp(
-            symbolTableCollection, moduleOp, modelOp))) {
+    if (mlir::failed(
+            processModelOp(symbolTableCollection, moduleOp, modelOp))) {
       return signalPassFailure();
     }
   }
 }
 
-static EquationTemplateOp createEquationTemplate(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    StartOp startOp)
-{
+static EquationTemplateOp
+createEquationTemplate(mlir::RewriterBase &rewriter,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       ModelOp modelOp, StartOp startOp) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToStart(modelOp.getBody());
 
@@ -70,7 +63,7 @@ static EquationTemplateOp createEquationTemplate(
   int64_t numOfInductions = variableType.getRank();
 
   auto templateOp = rewriter.create<EquationTemplateOp>(startOp.getLoc());
-  mlir::Block* templateBody = templateOp.createBody(numOfInductions);
+  mlir::Block *templateBody = templateOp.createBody(numOfInductions);
   rewriter.mergeBlocks(startOp.getBody(), templateBody);
 
   auto clonedYieldedOp = mlir::cast<YieldOp>(templateBody->getTerminator());
@@ -83,8 +76,8 @@ static EquationTemplateOp createEquationTemplate(
   mlir::Value rhs = clonedYieldedValue;
 
   if (!variableType.isScalar()) {
-    lhs = rewriter.create<TensorExtractOp>(
-        lhs.getLoc(), lhs, templateOp.getInductionVariables());
+    lhs = rewriter.create<TensorExtractOp>(lhs.getLoc(), lhs,
+                                           templateOp.getInductionVariables());
   }
 
   if (auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>()) {
@@ -102,20 +95,18 @@ static EquationTemplateOp createEquationTemplate(
   return templateOp;
 }
 
-static mlir::LogicalResult addStartEquationsToSchedule(
-    mlir::RewriterBase& rewriter,
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    InitialOp initialOp,
-    llvm::ArrayRef<StartOp> startOps)
-{
+static mlir::LogicalResult
+addStartEquationsToSchedule(mlir::RewriterBase &rewriter,
+                            mlir::SymbolTableCollection &symbolTableCollection,
+                            ModelOp modelOp, InitialOp initialOp,
+                            llvm::ArrayRef<StartOp> startOps) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   for (StartOp startOp : startOps) {
     assert(!startOp.getFixed());
 
-    auto templateOp = createEquationTemplate(
-        rewriter, symbolTableCollection, modelOp, startOp);
+    auto templateOp = createEquationTemplate(rewriter, symbolTableCollection,
+                                             modelOp, startOp);
 
     if (!templateOp) {
       return mlir::failure();
@@ -136,7 +127,7 @@ static mlir::LogicalResult addStartEquationsToSchedule(
     if (variableIndices.empty()) {
       rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
     } else {
-      for (const MultidimensionalRange& range : llvm::make_range(
+      for (const MultidimensionalRange &range : llvm::make_range(
                variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
         rewriter.create<StartEquationInstanceOp>(
             startOp.getLoc(), templateOp,
@@ -149,16 +140,14 @@ static mlir::LogicalResult addStartEquationsToSchedule(
 }
 
 mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    mlir::ModuleOp moduleOp,
-    ModelOp modelOp)
-{
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
   llvm::SmallVector<StartOp> unfixedStartOps;
   llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<SCCOp> SCCs;
 
-  for (auto& op : modelOp.getOps()) {
+  for (auto &op : modelOp.getOps()) {
     if (auto startOp = mlir::dyn_cast<StartOp>(op)) {
       if (!startOp.getFixed() && !startOp.getImplicit()) {
         unfixedStartOps.push_back(startOp);
@@ -184,7 +173,7 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
       modelOp.getLoc(), "solveICModel",
       rewriter.getFunctionType(std::nullopt, std::nullopt));
 
-  mlir::Block* entryBlock = functionOp.addEntryBlock();
+  mlir::Block *entryBlock = functionOp.addEntryBlock();
   rewriter.setInsertionPointToStart(entryBlock);
 
   if (!SCCs.empty() || !unfixedStartOps.empty()) {
@@ -199,9 +188,9 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
     rewriter.createBlock(&initialOp.getBodyRegion());
     rewriter.setInsertionPointToStart(initialOp.getBody());
 
-    if (mlir::failed(addStartEquationsToSchedule(
-            rewriter, symbolTableCollection, modelOp, initialOp,
-            unfixedStartOps))) {
+    if (mlir::failed(addStartEquationsToSchedule(rewriter,
+                                                 symbolTableCollection, modelOp,
+                                                 initialOp, unfixedStartOps))) {
       return mlir::failure();
     }
 
@@ -224,10 +213,8 @@ mlir::LogicalResult InitialConditionsSolvingPass::processModelOp(
   return mlir::success();
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createInitialConditionsSolvingPass()
-  {
-    return std::make_unique<InitialConditionsSolvingPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createInitialConditionsSolvingPass() {
+  return std::make_unique<InitialConditionsSolvingPass>();
 }
+} // namespace mlir::bmodelica

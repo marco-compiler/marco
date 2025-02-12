@@ -3,9 +3,8 @@
 
 #include "marco/Modeling/IndexSet.h"
 
-namespace mlir::modeling
-{
-  using Point = ::marco::modeling::Point;
+namespace mlir::modeling {
+using Point = ::marco::modeling::Point;
 }
 
 #endif // MARCO_DIALECT_MODELING_IR_POINT_H

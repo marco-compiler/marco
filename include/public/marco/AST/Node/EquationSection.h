@@ -5,48 +5,45 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-  class Equation;
+namespace marco::ast {
+class Equation;
 
-  class EquationSection : public ASTNode
-  {
-    public:
-      explicit EquationSection(SourceRange location);
+class EquationSection : public ASTNode {
+public:
+  explicit EquationSection(SourceRange location);
 
-      EquationSection(const EquationSection& other);
+  EquationSection(const EquationSection &other);
 
-      ~EquationSection() override;
+  ~EquationSection() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::EquationSection;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::EquationSection;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isInitial() const;
+  bool isInitial() const;
 
-      void setInitial(bool value);
+  void setInitial(bool value);
 
-      size_t getNumOfEquations() const;
+  size_t getNumOfEquations() const;
 
-      bool empty() const;
+  bool empty() const;
 
-      Equation* getEquation(size_t index);
+  Equation *getEquation(size_t index);
 
-      const Equation* getEquation(size_t index) const;
+  const Equation *getEquation(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquations();
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquations();
 
-      void setEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      bool initial{false};
-      llvm::SmallVector<std::unique_ptr<ASTNode>> equations;
-  };
-}
+private:
+  bool initial{false};
+  llvm::SmallVector<std::unique_ptr<ASTNode>> equations;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_EQUATIONSECTION_H

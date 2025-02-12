@@ -3,42 +3,36 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_VIEWACCESSFOLDINGPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class ViewAccessFoldingPass
-      : public mlir::bmodelica::impl::ViewAccessFoldingPassBase<
-            ViewAccessFoldingPass>
-  {
-    public:
-      using ViewAccessFoldingPassBase<ViewAccessFoldingPass>
-          ::ViewAccessFoldingPassBase;
+namespace {
+class ViewAccessFoldingPass
+    : public mlir::bmodelica::impl::ViewAccessFoldingPassBase<
+          ViewAccessFoldingPass> {
+public:
+  using ViewAccessFoldingPassBase<
+      ViewAccessFoldingPass>::ViewAccessFoldingPassBase;
 
-      void runOnOperation() override;
-  };
-}
+  void runOnOperation() override;
+};
+} // namespace
 
-static bool isSlicingSubscription(TensorViewOp op)
-{
+static bool isSlicingSubscription(TensorViewOp op) {
   int64_t sourceRank = op.getSource().getType().getRank();
   auto numOfIndices = static_cast<int64_t>(op.getSubscriptions().size());
   int64_t resultRank = op.getResult().getType().getRank();
   return sourceRank + numOfIndices != resultRank;
 }
 
-static mlir::LogicalResult concatSubscripts(
-    llvm::SmallVectorImpl<mlir::Value>& result,
-    mlir::OpBuilder& builder,
-    mlir::ValueRange firstSubscripts,
-    mlir::ValueRange secondSubscripts)
-{
+static mlir::LogicalResult
+concatSubscripts(llvm::SmallVectorImpl<mlir::Value> &result,
+                 mlir::OpBuilder &builder, mlir::ValueRange firstSubscripts,
+                 mlir::ValueRange secondSubscripts) {
   for (mlir::Value subscript : firstSubscripts) {
     if (subscript.getType().isa<IterableTypeInterface>()) {
       if (!subscript.getType().isa<RangeType>()) {
@@ -51,21 +45,19 @@ static mlir::LogicalResult concatSubscripts(
 
   for (mlir::Value subscript : firstSubscripts) {
     if (subscript.getType().isa<RangeType>()) {
-      auto beginOp = builder.create<RangeBeginOp>(
-          subscript.getLoc(), subscript);
+      auto beginOp =
+          builder.create<RangeBeginOp>(subscript.getLoc(), subscript);
 
-      auto stepOp = builder.create<RangeStepOp>(
-          subscript.getLoc(), subscript);
+      auto stepOp = builder.create<RangeStepOp>(subscript.getLoc(), subscript);
 
       mlir::Value secondSubscript = secondSubscripts[pos++];
 
-      auto mulOp = builder.create<MulOp>(
-          secondSubscript.getLoc(), builder.getIndexType(),
-          secondSubscript, stepOp);
+      auto mulOp = builder.create<MulOp>(secondSubscript.getLoc(),
+                                         builder.getIndexType(),
+                                         secondSubscript, stepOp);
 
       auto addOp = builder.create<AddOp>(
-          secondSubscript.getLoc(), builder.getIndexType(),
-          mulOp, beginOp);
+          secondSubscript.getLoc(), builder.getIndexType(), mulOp, beginOp);
 
       result.push_back(addOp);
     } else {
@@ -80,89 +72,82 @@ static mlir::LogicalResult concatSubscripts(
   return mlir::success();
 }
 
-namespace
-{
-  class TensorViewOpPattern
-      : public mlir::OpRewritePattern<TensorViewOp>
-  {
-    public:
-      using mlir::OpRewritePattern<TensorViewOp>::OpRewritePattern;
+namespace {
+class TensorViewOpPattern : public mlir::OpRewritePattern<TensorViewOp> {
+public:
+  using mlir::OpRewritePattern<TensorViewOp>::OpRewritePattern;
 
-      mlir::LogicalResult matchAndRewrite(
-          TensorViewOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        if (isSlicingSubscription(op)) {
-          return mlir::failure();
-        }
+  mlir::LogicalResult
+  matchAndRewrite(TensorViewOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    if (isSlicingSubscription(op)) {
+      return mlir::failure();
+    }
 
-        mlir::Value tensor = op.getViewSource();
-        auto tensorViewOp = tensor.getDefiningOp<TensorViewOp>();
+    mlir::Value tensor = op.getViewSource();
+    auto tensorViewOp = tensor.getDefiningOp<TensorViewOp>();
 
-        if (!tensorViewOp) {
-          return mlir::failure();
-        }
+    if (!tensorViewOp) {
+      return mlir::failure();
+    }
 
-        if (!isSlicingSubscription(tensorViewOp)) {
-          return mlir::failure();
-        }
+    if (!isSlicingSubscription(tensorViewOp)) {
+      return mlir::failure();
+    }
 
-        llvm::SmallVector<mlir::Value> subscripts;
+    llvm::SmallVector<mlir::Value> subscripts;
 
-        if (mlir::failed(concatSubscripts(
-                subscripts, rewriter, tensorViewOp.getSubscriptions(),
-                op.getSubscriptions()))) {
-          return mlir::failure();
-        }
+    if (mlir::failed(concatSubscripts(subscripts, rewriter,
+                                      tensorViewOp.getSubscriptions(),
+                                      op.getSubscriptions()))) {
+      return mlir::failure();
+    }
 
-        rewriter.replaceOpWithNewOp<TensorViewOp>(
-            op, tensorViewOp.getViewSource(), subscripts);
+    rewriter.replaceOpWithNewOp<TensorViewOp>(op, tensorViewOp.getViewSource(),
+                                              subscripts);
 
-        return mlir::success();
-      }
-  };
+    return mlir::success();
+  }
+};
 
-  class TensorExtractOpPattern : public mlir::OpRewritePattern<TensorExtractOp>
-  {
-    public:
-      using mlir::OpRewritePattern<TensorExtractOp>::OpRewritePattern;
+class TensorExtractOpPattern : public mlir::OpRewritePattern<TensorExtractOp> {
+public:
+  using mlir::OpRewritePattern<TensorExtractOp>::OpRewritePattern;
 
-      mlir::LogicalResult matchAndRewrite(
-          TensorExtractOp op, mlir::PatternRewriter& rewriter) const override
-      {
-        mlir::Value tensor = op.getTensor();
-        auto tensorViewOp = tensor.getDefiningOp<TensorViewOp>();
+  mlir::LogicalResult
+  matchAndRewrite(TensorExtractOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    mlir::Value tensor = op.getTensor();
+    auto tensorViewOp = tensor.getDefiningOp<TensorViewOp>();
 
-        if (!tensorViewOp) {
-          return mlir::failure();
-        }
+    if (!tensorViewOp) {
+      return mlir::failure();
+    }
 
-        if (!isSlicingSubscription(tensorViewOp)) {
-          return mlir::failure();
-        }
+    if (!isSlicingSubscription(tensorViewOp)) {
+      return mlir::failure();
+    }
 
-        llvm::SmallVector<mlir::Value> subscripts;
+    llvm::SmallVector<mlir::Value> subscripts;
 
-        if (mlir::failed(concatSubscripts(
-                subscripts, rewriter, tensorViewOp.getSubscriptions(),
-                op.getIndices()))) {
-          return mlir::failure();
-        }
+    if (mlir::failed(concatSubscripts(subscripts, rewriter,
+                                      tensorViewOp.getSubscriptions(),
+                                      op.getIndices()))) {
+      return mlir::failure();
+    }
 
-        rewriter.replaceOpWithNewOp<TensorExtractOp>(
-            op, tensorViewOp.getViewSource(), subscripts);
+    rewriter.replaceOpWithNewOp<TensorExtractOp>(
+        op, tensorViewOp.getViewSource(), subscripts);
 
-        return mlir::success();
-      }
-  };
-}
+    return mlir::success();
+  }
+};
+} // namespace
 
-void ViewAccessFoldingPass::runOnOperation()
-{
+void ViewAccessFoldingPass::runOnOperation() {
   mlir::RewritePatternSet patterns(&getContext());
 
-  patterns.insert<
-      TensorViewOpPattern,
-      TensorExtractOpPattern>(&getContext());
+  patterns.insert<TensorViewOpPattern, TensorExtractOpPattern>(&getContext());
 
   RangeBeginOp::getCanonicalizationPatterns(patterns, &getContext());
   RangeStepOp::getCanonicalizationPatterns(patterns, &getContext());
@@ -176,10 +161,8 @@ void ViewAccessFoldingPass::runOnOperation()
   }
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createViewAccessFoldingPass()
-  {
-    return std::make_unique<ViewAccessFoldingPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createViewAccessFoldingPass() {
+  return std::make_unique<ViewAccessFoldingPass>();
 }
+} // namespace mlir::bmodelica

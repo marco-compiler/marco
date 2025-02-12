@@ -4,46 +4,43 @@
 #include "marco/AST/Node/ASTNode.h"
 #include <memory>
 
-namespace marco::ast
-{
-	class ClassModification;
-	class DerivativeAnnotation;
-	class InverseFunctionAnnotation;
+namespace marco::ast {
+class ClassModification;
+class DerivativeAnnotation;
+class InverseFunctionAnnotation;
 
-	class Annotation : public ASTNode
-	{
-		public:
-      explicit Annotation(SourceRange location);
+class Annotation : public ASTNode {
+public:
+  explicit Annotation(SourceRange location);
 
-      Annotation(const Annotation& other);
+  Annotation(const Annotation &other);
 
-      ~Annotation() override;
+  ~Annotation() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Annotation;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Annotation;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      ClassModification* getProperties();
+  ClassModification *getProperties();
 
-      const ClassModification* getProperties() const;
+  const ClassModification *getProperties() const;
 
-      void setProperties(std::unique_ptr<ASTNode> newProperties);
+  void setProperties(std::unique_ptr<ASTNode> newProperties);
 
-      bool getInlineProperty() const;
+  bool getInlineProperty() const;
 
-      bool hasDerivativeAnnotation() const;
-      DerivativeAnnotation getDerivativeAnnotation() const;
+  bool hasDerivativeAnnotation() const;
+  DerivativeAnnotation getDerivativeAnnotation() const;
 
-      InverseFunctionAnnotation getInverseFunctionAnnotation() const;
+  InverseFunctionAnnotation getInverseFunctionAnnotation() const;
 
-		private:
-		  std::unique_ptr<ASTNode> properties;
-	};
-}
+private:
+  std::unique_ptr<ASTNode> properties;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ANNOTATION_H

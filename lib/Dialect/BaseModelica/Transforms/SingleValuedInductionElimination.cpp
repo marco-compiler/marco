@@ -3,66 +3,59 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SINGLEVALUEDINDUCTIONELIMINATIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class SingleValuedInductionEliminationPass
-      : public mlir::bmodelica::impl::SingleValuedInductionEliminationPassBase<
-            SingleValuedInductionEliminationPass>
-  {
-    public:
-      using SingleValuedInductionEliminationPassBase<
-          SingleValuedInductionEliminationPass>::
-        SingleValuedInductionEliminationPassBase;
+namespace {
+class SingleValuedInductionEliminationPass
+    : public mlir::bmodelica::impl::SingleValuedInductionEliminationPassBase<
+          SingleValuedInductionEliminationPass> {
+public:
+  using SingleValuedInductionEliminationPassBase<
+      SingleValuedInductionEliminationPass>::
+      SingleValuedInductionEliminationPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
+private:
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      mlir::LogicalResult processEquation(
-          mlir::RewriterBase& rewriter,
-          MatchedEquationInstanceOp equation);
+  mlir::LogicalResult processEquation(mlir::RewriterBase &rewriter,
+                                      MatchedEquationInstanceOp equation);
 
-      EquationTemplateOp createReducedTemplate(
-          mlir::RewriterBase& rewriter,
-          EquationTemplateOp templateOp,
-          const MultidimensionalRange& indices,
-          const llvm::SmallBitVector& singleValuedInductions);
+  EquationTemplateOp
+  createReducedTemplate(mlir::RewriterBase &rewriter,
+                        EquationTemplateOp templateOp,
+                        const MultidimensionalRange &indices,
+                        const llvm::SmallBitVector &singleValuedInductions);
 
-      mlir::LogicalResult cleanModelOp(ModelOp modelOp);
-  };
-}
+  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
+};
+} // namespace
 
-void SingleValuedInductionEliminationPass::runOnOperation()
-{
+void SingleValuedInductionEliminationPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
   if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps,
-          [&](mlir::Operation* op) {
+          &getContext(), modelOps, [&](mlir::Operation *op) {
             return processModelOp(mlir::cast<ModelOp>(op));
           }))) {
     return signalPassFailure();
   }
 }
 
-mlir::LogicalResult SingleValuedInductionEliminationPass::processModelOp(
-    ModelOp modelOp)
-{
+mlir::LogicalResult
+SingleValuedInductionEliminationPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
   llvm::SmallVector<MatchedEquationInstanceOp> equations;
 
@@ -84,9 +77,7 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processModelOp(
 }
 
 mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
-    mlir::RewriterBase& rewriter,
-    MatchedEquationInstanceOp equation)
-{
+    mlir::RewriterBase &rewriter, MatchedEquationInstanceOp equation) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   if (auto indices = equation.getIndices()) {
@@ -100,9 +91,9 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
     }
 
     if (singleValuedInductions.any()) {
-      EquationTemplateOp reducedTemplate = createReducedTemplate(
-          rewriter, equation.getTemplate(), indices->getValue(),
-          singleValuedInductions);
+      EquationTemplateOp reducedTemplate =
+          createReducedTemplate(rewriter, equation.getTemplate(),
+                                indices->getValue(), singleValuedInductions);
 
       if (!reducedTemplate) {
         return mlir::failure();
@@ -140,13 +131,11 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
   return mlir::success();
 }
 
-EquationTemplateOp
-SingleValuedInductionEliminationPass::createReducedTemplate(
-    mlir::RewriterBase& rewriter,
+EquationTemplateOp SingleValuedInductionEliminationPass::createReducedTemplate(
+    mlir::RewriterBase &rewriter,
     mlir::bmodelica::EquationTemplateOp templateOp,
-    const MultidimensionalRange& indices,
-    const llvm::SmallBitVector& singleValuedInductions)
-{
+    const MultidimensionalRange &indices,
+    const llvm::SmallBitVector &singleValuedInductions) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPoint(templateOp);
 
@@ -156,9 +145,9 @@ SingleValuedInductionEliminationPass::createReducedTemplate(
   // Preserve the attributes of the original template.
   reducedTemplateOp->setAttrs(templateOp->getAttrs());
 
-  mlir::Block* bodyBlock = reducedTemplateOp.createBody(
-      templateOp.getInductionVariables().size() -
-      singleValuedInductions.count());
+  mlir::Block *bodyBlock =
+      reducedTemplateOp.createBody(templateOp.getInductionVariables().size() -
+                                   singleValuedInductions.count());
 
   rewriter.setInsertionPointToStart(bodyBlock);
   mlir::IRMapping mapping;
@@ -167,8 +156,7 @@ SingleValuedInductionEliminationPass::createReducedTemplate(
   for (size_t i = 0, rank = indices.rank(); i < rank; ++i) {
     if (singleValuedInductions[i]) {
       mlir::Value constantValue = rewriter.create<ConstantOp>(
-          templateOp.getLoc(),
-          rewriter.getIndexAttr(indices[i].getBegin()));
+          templateOp.getLoc(), rewriter.getIndexAttr(indices[i].getBegin()));
 
       mapping.map(templateOp.getInductionVariables()[i], constantValue);
     } else {
@@ -177,7 +165,7 @@ SingleValuedInductionEliminationPass::createReducedTemplate(
     }
   }
 
-  for (auto& op : templateOp.getOps()) {
+  for (auto &op : templateOp.getOps()) {
     rewriter.clone(op, mapping);
   }
 
@@ -185,17 +173,14 @@ SingleValuedInductionEliminationPass::createReducedTemplate(
 }
 
 mlir::LogicalResult
-SingleValuedInductionEliminationPass::cleanModelOp(ModelOp modelOp)
-{
+SingleValuedInductionEliminationPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createSingleValuedInductionEliminationPass()
-  {
-    return std::make_unique<SingleValuedInductionEliminationPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createSingleValuedInductionEliminationPass() {
+  return std::make_unique<SingleValuedInductionEliminationPass>();
 }
+} // namespace mlir::bmodelica

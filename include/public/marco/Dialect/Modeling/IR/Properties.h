@@ -8,61 +8,54 @@
 #include "mlir/Bytecode/BytecodeReader.h"
 #include "mlir/Bytecode/BytecodeWriter.h"
 
-namespace mlir::modeling
-{
-  //===-------------------------------------------------------------------===//
-  // IndexSet
-  //===-------------------------------------------------------------------===//
+namespace mlir::modeling {
+//===-------------------------------------------------------------------===//
+// IndexSet
+//===-------------------------------------------------------------------===//
 
-  mlir::LogicalResult setPropertiesFromAttribute(
-      IndexSet& prop,
-      mlir::Attribute attr,
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitError);
+mlir::LogicalResult setPropertiesFromAttribute(
+    IndexSet &prop, mlir::Attribute attr,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError);
 
-  mlir::ArrayAttr getPropertiesAsAttribute(
-      mlir::MLIRContext* context, const IndexSet& prop);
+mlir::ArrayAttr getPropertiesAsAttribute(mlir::MLIRContext *context,
+                                         const IndexSet &prop);
 
-  llvm::hash_code computeHash(const IndexSet& prop);
+llvm::hash_code computeHash(const IndexSet &prop);
 
-  mlir::LogicalResult readFromMlirBytecode(
-      mlir::DialectBytecodeReader& reader,
-      IndexSet& prop);
+mlir::LogicalResult readFromMlirBytecode(mlir::DialectBytecodeReader &reader,
+                                         IndexSet &prop);
 
-  void writeToMlirBytecode(
-      mlir::DialectBytecodeWriter& writer,
-      const IndexSet& prop);
+void writeToMlirBytecode(mlir::DialectBytecodeWriter &writer,
+                         const IndexSet &prop);
 
-  mlir::LogicalResult parse(mlir::OpAsmParser& parser, IndexSet& prop);
+mlir::LogicalResult parse(mlir::OpAsmParser &parser, IndexSet &prop);
 
-  void print(mlir::OpAsmPrinter& printer, const IndexSet& prop);
+void print(mlir::OpAsmPrinter &printer, const IndexSet &prop);
 
-  //===-------------------------------------------------------------------===//
-  // IndexSetsList
-  //===-------------------------------------------------------------------===//
+//===-------------------------------------------------------------------===//
+// IndexSetsList
+//===-------------------------------------------------------------------===//
 
-  using IndexSetsList = llvm::SmallVector<IndexSet, 10>;
+using IndexSetsList = llvm::SmallVector<IndexSet, 10>;
 
-  mlir::LogicalResult setPropertiesFromAttribute(
-      IndexSetsList& prop,
-      mlir::Attribute attr,
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitError);
+mlir::LogicalResult setPropertiesFromAttribute(
+    IndexSetsList &prop, mlir::Attribute attr,
+    llvm::function_ref<mlir::InFlightDiagnostic()> emitError);
 
-  mlir::ArrayAttr getPropertiesAsAttribute(
-      mlir::MLIRContext* context, const IndexSetsList& prop);
+mlir::ArrayAttr getPropertiesAsAttribute(mlir::MLIRContext *context,
+                                         const IndexSetsList &prop);
 
-  llvm::hash_code computeHash(const IndexSetsList& prop);
+llvm::hash_code computeHash(const IndexSetsList &prop);
 
-  mlir::LogicalResult readFromMlirBytecode(
-      mlir::DialectBytecodeReader& reader,
-      IndexSetsList& prop);
+mlir::LogicalResult readFromMlirBytecode(mlir::DialectBytecodeReader &reader,
+                                         IndexSetsList &prop);
 
-  void writeToMlirBytecode(
-      mlir::DialectBytecodeWriter& writer,
-      const IndexSetsList& prop);
+void writeToMlirBytecode(mlir::DialectBytecodeWriter &writer,
+                         const IndexSetsList &prop);
 
-  mlir::LogicalResult parse(mlir::OpAsmParser& parser, IndexSetsList& prop);
+mlir::LogicalResult parse(mlir::OpAsmParser &parser, IndexSetsList &prop);
 
-  void print(mlir::OpAsmPrinter& printer, const IndexSetsList& prop);
-}
+void print(mlir::OpAsmPrinter &printer, const IndexSetsList &prop);
+} // namespace mlir::modeling
 
 #endif // MARCO_DIALAECT_MODELING_IR_PROPERTIES_H

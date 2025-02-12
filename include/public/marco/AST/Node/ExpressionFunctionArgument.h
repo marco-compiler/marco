@@ -3,37 +3,34 @@
 
 #include "marco/AST/Node/FunctionArgument.h"
 
-namespace marco::ast
-{
-  class Expression;
+namespace marco::ast {
+class Expression;
 
-  class ExpressionFunctionArgument : public FunctionArgument
-  {
-    public:
-      explicit ExpressionFunctionArgument(SourceRange location);
+class ExpressionFunctionArgument : public FunctionArgument {
+public:
+  explicit ExpressionFunctionArgument(SourceRange location);
 
-      ExpressionFunctionArgument(const ExpressionFunctionArgument& other);
+  ExpressionFunctionArgument(const ExpressionFunctionArgument &other);
 
-      ~ExpressionFunctionArgument() override;
+  ~ExpressionFunctionArgument() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::FunctionArgument_Expression;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::FunctionArgument_Expression;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      Expression* getExpression();
+  Expression *getExpression();
 
-      const Expression* getExpression() const;
+  const Expression *getExpression() const;
 
-      void setExpression(std::unique_ptr<ASTNode> node);
+  void setExpression(std::unique_ptr<ASTNode> node);
 
-    private:
-      std::unique_ptr<ASTNode> expression;
-  };
-}
+private:
+  std::unique_ptr<ASTNode> expression;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_EXPRESSIONFUNCTIONCALLARGUMENT_H

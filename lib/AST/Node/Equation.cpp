@@ -3,7 +3,6 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  Equation::~Equation() = default;
+namespace marco::ast {
+Equation::~Equation() = default;
 }

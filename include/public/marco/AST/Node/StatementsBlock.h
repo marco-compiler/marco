@@ -4,39 +4,36 @@
 #include "marco/AST/Node/ASTNode.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace marco::ast
-{
-  class Statement;
+namespace marco::ast {
+class Statement;
 
-  class StatementsBlock : public ASTNode
-  {
-    public:
-      StatementsBlock(SourceRange location);
+class StatementsBlock : public ASTNode {
+public:
+  StatementsBlock(SourceRange location);
 
-      StatementsBlock(const StatementsBlock& other);
+  StatementsBlock(const StatementsBlock &other);
 
-      ~StatementsBlock();
+  ~StatementsBlock();
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::StatementsBlock;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::StatementsBlock;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      size_t size() const;
+  size_t size() const;
 
-      Statement* operator[](size_t index);
+  Statement *operator[](size_t index);
 
-      const Statement* operator[](size_t index) const;
+  const Statement *operator[](size_t index) const;
 
-      void setBody(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setBody(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
-  };
-}
+private:
+  llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_STATEMENTSBLOCK_H

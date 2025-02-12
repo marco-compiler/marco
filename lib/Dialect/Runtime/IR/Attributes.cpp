@@ -15,16 +15,14 @@ using namespace ::mlir::runtime;
 // RuntimeDialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::runtime
-{
-  void RuntimeDialect::registerAttributes()
-  {
-    addAttributes<
+namespace mlir::runtime {
+void RuntimeDialect::registerAttributes() {
+  addAttributes<
 #define GET_ATTRDEF_LIST
 #include "marco/Dialect/Runtime/IR/RuntimeAttributes.cpp.inc"
-        >();
-  }
+      >();
 }
+} // namespace mlir::runtime
 
 //===---------------------------------------------------------------------===//
 // Attributes
@@ -33,10 +31,6 @@ namespace mlir::runtime
 //===---------------------------------------------------------------------===//
 // VariableAttr
 
-namespace mlir::runtime
-{
-  int64_t VariableAttr::getRank() const
-  {
-    return getDimensions().size();
-  }
-}
+namespace mlir::runtime {
+int64_t VariableAttr::getRank() const { return getDimensions().size(); }
+} // namespace mlir::runtime

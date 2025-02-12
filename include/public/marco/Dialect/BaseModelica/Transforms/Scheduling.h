@@ -3,13 +3,12 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DECL_SCHEDULINGPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
 
-  /// Create a pass performing the scheduling process on a matched model.
-  std::unique_ptr<mlir::Pass> createSchedulingPass();
-}
+/// Create a pass performing the scheduling process on a matched model.
+std::unique_ptr<mlir::Pass> createSchedulingPass();
+} // namespace mlir::bmodelica
 
 #endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_SCHEDULING_H

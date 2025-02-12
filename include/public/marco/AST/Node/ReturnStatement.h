@@ -3,26 +3,23 @@
 
 #include "marco/AST/Node/Statement.h"
 
-namespace marco::ast
-{
-  class ReturnStatement : public Statement
-  {
-    public:
-      explicit ReturnStatement(SourceRange location);
+namespace marco::ast {
+class ReturnStatement : public Statement {
+public:
+  explicit ReturnStatement(SourceRange location);
 
-      ReturnStatement(const ReturnStatement& other);
+  ReturnStatement(const ReturnStatement &other);
 
-      ~ReturnStatement() override;
+  ~ReturnStatement() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Statement_Return;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Statement_Return;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
-  };
-}
+  llvm::json::Value toJSON() const override;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_RETURNSTATEMENT_H

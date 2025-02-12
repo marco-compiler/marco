@@ -1,6 +1,6 @@
 #include "marco/Modeling/MCIM.h"
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;
@@ -9,23 +9,17 @@ using namespace ::marco::modeling::internal;
 // Equally dimensioned equations and variables
 //===----------------------------------------------------------------------===//
 
-TEST(MCIM_SameRank, indexesIterator)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, indexesIterator) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 3)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 3)});
 
   MCIM mcim(eq, var);
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
+  for (auto [equation, variable] :
+       llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -37,37 +31,29 @@ TEST(MCIM_SameRank, indexesIterator)
     }
   }
 
-  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(),
+                                                         expected.end()));
 }
 
 //===----------------------------------------------------------------------===//
 // Equally dimensioned equations and variables, but ragged
 //===----------------------------------------------------------------------===//
 
-TEST(MCIM_SameRank, indexesIteratorRagged)
-{
+TEST(MCIM_SameRank, indexesIteratorRagged) {
   // IndexSet representing the indexes of an array of shape [2,{2,3}]
-  IndexSet eq({  
-    MultidimensionalRange({
-      Range(0, 3),
-      Range(0, 3)
-    }),
-    MultidimensionalRange({
-      Range(0, 3),
-      Range(0, 4)
-    }),
+  IndexSet eq({
+      MultidimensionalRange({Range(0, 3), Range(0, 3)}),
+      MultidimensionalRange({Range(0, 3), Range(0, 4)}),
   });
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 3)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 3)});
 
   MCIM mcim(eq, IndexSet(var));
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
+  for (auto [equation, variable] :
+       llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -79,7 +65,8 @@ TEST(MCIM_SameRank, indexesIteratorRagged)
     }
   }
 
-  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(),
+                                                         expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
@@ -90,17 +77,10 @@ TEST(MCIM_SameRank, indexesIteratorRagged)
 // (5,2)   0      0      0      0      0      0      0      0
 // (5,3)   1      0      0      0      0      0      0      1
 
-TEST(MCIM_SameRank, set)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, set) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 4),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 4), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set({4, 2}, {0, 0});
@@ -153,24 +133,14 @@ TEST(MCIM_SameRank, set)
 // (5,2)   0      0      0      0      0      0      0      0
 // (5,3)   1      0      0      0      0      0      0      1
 // (5,4)   0      0      0      0      0      0      0      1
-TEST(MCIM_SameRank, setRagged)
-{
+TEST(MCIM_SameRank, setRagged) {
 
-  IndexSet eq({  
-    MultidimensionalRange({
-      Range(4, 6),
-      Range(2, 4)
-    }),
-    MultidimensionalRange({
-      Range(5, 6),
-      Range(4, 5)
-    }),
+  IndexSet eq({
+      MultidimensionalRange({Range(4, 6), Range(2, 4)}),
+      MultidimensionalRange({Range(5, 6), Range(4, 5)}),
   });
 
-  MultidimensionalRange var({
-      Range(0, 4),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 4), Range(0, 2)});
 
   MCIM mcim(eq, IndexSet(var));
   mcim.set({4, 2}, {0, 0});
@@ -247,17 +217,10 @@ TEST(MCIM_SameRank, setRagged)
 // (5,2)   0      1      1      1
 // (5,3)   1      1      1      1
 
-TEST(MCIM_SameRank, sum)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, sum) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim1(eq, var);
   mcim1.set({4, 2}, {0, 1});
@@ -321,17 +284,10 @@ TEST(MCIM_SameRank, sum)
 // (5,2)   0      0      0      1
 // (5,3)   1      0      0      1
 
-TEST(MCIM_SameRank, difference)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, difference) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim1(eq, var);
   mcim1.set({4, 2}, {0, 1});
@@ -374,8 +330,8 @@ TEST(MCIM_SameRank, difference)
 }
 
 // Input:
-// 			 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)  (4,0)  (4,1)
-// (4,2)   0      1      0      0      0      0      1      1      1      1
+// 			 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)
+// (4,0)  (4,1) (4,2)   0      1      0      0      0      0      1      1 1 1
 // (4,3)   0      0      1      0      0      0      1      0      0      1
 // (5,2)   0      0      0      1      0      0      0      1      0      1
 // (5,3)   0      0      0      0      1      0      0      0      1      1
@@ -383,17 +339,10 @@ TEST(MCIM_SameRank, difference)
 // Expected result:
 // {(0,1), (1,0), (1,1), (2,0), (3,0), (3,1), (4,0), (4,1)}
 
-TEST(MCIM_SameRank, flattenRows)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, flattenRows) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 5),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 5), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set({4, 2}, {0, 1});
@@ -440,17 +389,10 @@ TEST(MCIM_SameRank, flattenRows)
 // Expected result:
 // {(4,1), (4,2), (4,3), (5,1), (5,2), (5,3), (6,1), (6,2), (6,3)}
 
-TEST(MCIM_SameRank, flattenColumns)
-{
-  MultidimensionalRange eq({
-      Range(4, 7),
-      Range(1, 4)
-  });
+TEST(MCIM_SameRank, flattenColumns) {
+  MultidimensionalRange eq({Range(4, 7), Range(1, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set({4, 2}, {0, 0});
@@ -499,17 +441,10 @@ TEST(MCIM_SameRank, flattenColumns)
 // (5,2)   0      0      0      0
 // (5,3)   1      0      1      0
 
-TEST(MCIM_SameRank, rowsFilter)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, rowsFilter) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set({4, 2}, {0, 1});
@@ -566,17 +501,10 @@ TEST(MCIM_SameRank, rowsFilter)
 // (5,2)   0      0      0      1
 // (5,3)   1      0      0      0
 
-TEST(MCIM_SameRank, columnsFilter)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_SameRank, columnsFilter) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set({4, 2}, {0, 1});
@@ -619,12 +547,8 @@ TEST(MCIM_SameRank, columnsFilter)
 // Underdimensioned variables
 //===----------------------------------------------------------------------===//
 
-TEST(MCIM_UnderdimensionedVariables, indexesIterator)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, indexesIterator) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 6));
 
@@ -632,7 +556,8 @@ TEST(MCIM_UnderdimensionedVariables, indexesIterator)
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
+  for (auto [equation, variable] :
+       llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -644,7 +569,8 @@ TEST(MCIM_UnderdimensionedVariables, indexesIterator)
     }
   }
 
-  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(),
+                                                         expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
@@ -655,12 +581,8 @@ TEST(MCIM_UnderdimensionedVariables, indexesIterator)
 // (5,2)  0    0    0    0    0    0    0    0    0
 // (5,3)  1    0    0    0    0    0    0    0    1
 
-TEST(MCIM_UnderdimensionedVariables, set)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, set) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 9));
 
@@ -733,12 +655,8 @@ TEST(MCIM_UnderdimensionedVariables, set)
 // (5,2)  0    1    1    1
 // (5,3)  1    1    1    1
 
-TEST(MCIM_UnderdimensionedVariables, sum)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, sum) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 4));
 
@@ -804,12 +722,8 @@ TEST(MCIM_UnderdimensionedVariables, sum)
 // (5,2)  0    0    0    1
 // (5,3)  1    0    0    1
 
-TEST(MCIM_UnderdimensionedVariables, difference)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, difference) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 4));
 
@@ -863,12 +777,8 @@ TEST(MCIM_UnderdimensionedVariables, difference)
 // Expected result:
 // {1, 2, 3, 4, 5, 6, 7, 8}
 
-TEST(MCIM_UnderdimensionedVariables, flattenRows)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, flattenRows) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 9));
 
@@ -916,12 +826,8 @@ TEST(MCIM_UnderdimensionedVariables, flattenRows)
 // Expected result:
 // {(4,2), (4,3), (5,1), (5,2), (5,3), (6,1), (6,2), (6,3)}
 
-TEST(MCIM_UnderdimensionedVariables, flattenColumns)
-{
-  MultidimensionalRange eq({
-      Range(4, 7),
-      Range(1, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, flattenColumns) {
+  MultidimensionalRange eq({Range(4, 7), Range(1, 4)});
 
   MultidimensionalRange var(Range(0, 4));
 
@@ -972,12 +878,8 @@ TEST(MCIM_UnderdimensionedVariables, flattenColumns)
 // (5,2)  0    0    0    0
 // (5,3)  1    0    1    0
 
-TEST(MCIM_UnderdimensionedVariables, rowsFilter)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, rowsFilter) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 4));
 
@@ -1036,12 +938,8 @@ TEST(MCIM_UnderdimensionedVariables, rowsFilter)
 // (5,2)  0    0    0    1
 // (5,3)  1    0    0    0
 
-TEST(MCIM_UnderdimensionedVariables, columnsFilter)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedVariables, columnsFilter) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
   MultidimensionalRange var(Range(0, 4));
 
@@ -1086,23 +984,17 @@ TEST(MCIM_UnderdimensionedVariables, columnsFilter)
 // Underdimensioned equations
 //===----------------------------------------------------------------------===//
 
-TEST(MCIM_UnderdimensionedEquations, indexesIterator)
-{
-  MultidimensionalRange eq({
-      Range(4, 6),
-      Range(2, 4)
-  });
+TEST(MCIM_UnderdimensionedEquations, indexesIterator) {
+  MultidimensionalRange eq({Range(4, 6), Range(2, 4)});
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 3)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 3)});
 
   MCIM mcim(eq, var);
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
+  for (auto [equation, variable] :
+       llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -1114,7 +1006,8 @@ TEST(MCIM_UnderdimensionedEquations, indexesIterator)
     }
   }
 
-  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(),
+                                                         expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
@@ -1125,14 +1018,10 @@ TEST(MCIM_UnderdimensionedEquations, indexesIterator)
 // (5)   0      0      0      0      0      0      0      0
 // (6)   1      0      0      0      0      0      0      1
 
-TEST(MCIM_UnderdimensionedEquations, set)
-{
+TEST(MCIM_UnderdimensionedEquations, set) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 4),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 4), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set(3, {0, 0});
@@ -1199,14 +1088,10 @@ TEST(MCIM_UnderdimensionedEquations, set)
 // (5)   0      1      1      1
 // (6)   1      1      1      1
 
-TEST(MCIM_UnderdimensionedEquations, sum)
-{
+TEST(MCIM_UnderdimensionedEquations, sum) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim1(eq, var);
   mcim1.set(3, {0, 1});
@@ -1270,14 +1155,10 @@ TEST(MCIM_UnderdimensionedEquations, sum)
 // (5)   0      0      0      1
 // (6)   1      0      0      1
 
-TEST(MCIM_UnderdimensionedEquations, difference)
-{
+TEST(MCIM_UnderdimensionedEquations, difference) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim1(eq, var);
   mcim1.set(3, {0, 1});
@@ -1320,8 +1201,8 @@ TEST(MCIM_UnderdimensionedEquations, difference)
 }
 
 // Input:
-// 		 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)  (4,0)  (4,1)
-// (3)   0      1      0      0      0      0      1      1      1      1
+// 		 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)  (4,0)
+// (4,1) (3)   0      1      0      0      0      0      1      1      1      1
 // (4)   0      0      1      0      0      0      1      0      0      1
 // (5)   0      0      0      1      0      0      0      1      0      1
 // (6)   0      0      0      0      1      0      0      0      1      1
@@ -1329,14 +1210,10 @@ TEST(MCIM_UnderdimensionedEquations, difference)
 // Expected result:
 // {(0,1), (1,0), (1,1), (2,0), (3,0), (3,1), (4,0), (4,1)}
 
-TEST(MCIM_UnderdimensionedEquations, flattenRows)
-{
+TEST(MCIM_UnderdimensionedEquations, flattenRows) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 5),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 5), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set(3, {0, 1});
@@ -1383,14 +1260,10 @@ TEST(MCIM_UnderdimensionedEquations, flattenRows)
 // Expected result:
 // {4, 5, 6, 7, 8, 9, 10, 11}
 
-TEST(MCIM_UnderdimensionedEquations, flattenColumns)
-{
+TEST(MCIM_UnderdimensionedEquations, flattenColumns) {
   MultidimensionalRange eq(Range(3, 12));
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set(4, {0, 0});
@@ -1439,14 +1312,10 @@ TEST(MCIM_UnderdimensionedEquations, flattenColumns)
 // (5)   0      0      0      0
 // (6)   1      0      1      0
 
-TEST(MCIM_UnderdimensionedEquations, rowsFilter)
-{
+TEST(MCIM_UnderdimensionedEquations, rowsFilter) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set(3, {0, 1});
@@ -1503,14 +1372,10 @@ TEST(MCIM_UnderdimensionedEquations, rowsFilter)
 // (5)   0      0      0      1
 // (6)   1      0      0      0
 
-TEST(MCIM_UnderdimensionedEquations, columnsFilter)
-{
+TEST(MCIM_UnderdimensionedEquations, columnsFilter) {
   MultidimensionalRange eq(Range(3, 7));
 
-  MultidimensionalRange var({
-      Range(0, 2),
-      Range(0, 2)
-  });
+  MultidimensionalRange var({Range(0, 2), Range(0, 2)});
 
   MCIM mcim(eq, var);
   mcim.set(3, {0, 1});

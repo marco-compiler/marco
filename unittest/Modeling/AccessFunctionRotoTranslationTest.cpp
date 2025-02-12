@@ -7,15 +7,13 @@
 using namespace ::marco::modeling;
 using namespace ::marco::test;
 
-TEST(AccessFunctionRotoTranslation, creation_empty)
-{
+TEST(AccessFunctionRotoTranslation, creation_empty) {
   mlir::MLIRContext ctx;
   auto affineMap = mlir::AffineMap::get(0, 0, std::nullopt, &ctx);
   EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_emptyDimensions)
-{
+TEST(AccessFunctionRotoTranslation, creation_emptyDimensions) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -25,15 +23,13 @@ TEST(AccessFunctionRotoTranslation, creation_emptyDimensions)
   EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_emptyResults)
-{
+TEST(AccessFunctionRotoTranslation, creation_emptyResults) {
   mlir::MLIRContext ctx;
   auto affineMap = mlir::AffineMap::get(1, 0, std::nullopt, &ctx);
   EXPECT_FALSE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_dimensions)
-{
+TEST(AccessFunctionRotoTranslation, creation_dimensions) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -44,8 +40,7 @@ TEST(AccessFunctionRotoTranslation, creation_dimensions)
   EXPECT_TRUE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_dimensionsWithOffsets)
-{
+TEST(AccessFunctionRotoTranslation, creation_dimensionsWithOffsets) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -56,8 +51,7 @@ TEST(AccessFunctionRotoTranslation, creation_dimensionsWithOffsets)
   EXPECT_TRUE(AccessFunctionRotoTranslation::canBeBuilt(affineMap));
 }
 
-TEST(AccessFunctionRotoTranslation, creation_mixedDimensionAccesses)
-{
+TEST(AccessFunctionRotoTranslation, creation_mixedDimensionAccesses) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -73,8 +67,7 @@ TEST(AccessFunctionRotoTranslation, creation_mixedDimensionAccesses)
   EXPECT_TRUE(accessFunction);
 }
 
-TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess)
-{
+TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -92,8 +85,7 @@ TEST(AccessFunctionRotoTranslation, mapPoint_offsetAccess)
   EXPECT_EQ(mapped, IndexSet(Point({-2, 1})));
 }
 
-TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)
-{
+TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -122,8 +114,7 @@ TEST(AccessFunctionRotoTranslation, mapRange_offsetAccess)
   EXPECT_EQ(mapped[1].getEnd(), 7);
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentity_1d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentity_1d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -137,8 +128,7 @@ TEST(AccessFunctionRotoTranslation, isIdentity_1d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentity_2d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentity_2d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -153,8 +143,7 @@ TEST(AccessFunctionRotoTranslation, isIdentity_2d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentity_3d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentity_3d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -170,8 +159,7 @@ TEST(AccessFunctionRotoTranslation, isIdentity_3d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentityLike_1d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentityLike_1d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -185,8 +173,7 @@ TEST(AccessFunctionRotoTranslation, isIdentityLike_1d)
   EXPECT_TRUE(accessFunction->isIdentityLike());
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentityLike_2d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentityLike_2d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -201,8 +188,7 @@ TEST(AccessFunctionRotoTranslation, isIdentityLike_2d)
   EXPECT_TRUE(accessFunction->isIdentityLike());
 }
 
-TEST(AccessFunctionRotoTranslation, isIdentityLike_3d)
-{
+TEST(AccessFunctionRotoTranslation, isIdentityLike_3d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -218,8 +204,7 @@ TEST(AccessFunctionRotoTranslation, isIdentityLike_3d)
   EXPECT_TRUE(accessFunction->isIdentityLike());
 }
 
-TEST(AccessFunctionRotoTranslation, canBeInverted)
-{
+TEST(AccessFunctionRotoTranslation, canBeInverted) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -234,8 +219,7 @@ TEST(AccessFunctionRotoTranslation, canBeInverted)
   EXPECT_TRUE(accessFunction->isInvertible());
 }
 
-TEST(AccessFunctionRotoTranslation, constantAccessCantBeInverted)
-{
+TEST(AccessFunctionRotoTranslation, constantAccessCantBeInverted) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -250,8 +234,7 @@ TEST(AccessFunctionRotoTranslation, constantAccessCantBeInverted)
   EXPECT_FALSE(accessFunction->isInvertible());
 }
 
-TEST(AccessFunctionRotoTranslation, incompleteAccessCantBeInverted)
-{
+TEST(AccessFunctionRotoTranslation, incompleteAccessCantBeInverted) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -266,8 +249,7 @@ TEST(AccessFunctionRotoTranslation, incompleteAccessCantBeInverted)
   EXPECT_FALSE(accessFunction->isInvertible());
 }
 
-TEST(AccessFunctionRotoTranslation, inverse)
-{
+TEST(AccessFunctionRotoTranslation, inverse) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;

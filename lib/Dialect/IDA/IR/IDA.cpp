@@ -8,18 +8,16 @@ using namespace ::mlir::ida;
 // IDA dialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::ida
-{
-  void IDADialect::initialize()
-  {
-    addOperations<
+namespace mlir::ida {
+void IDADialect::initialize() {
+  addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/IDA/IR/IDAOps.cpp.inc"
-        >();
+      >();
 
-    addTypes<
+  addTypes<
 #define GET_TYPEDEF_LIST
 #include "marco/Dialect/IDA/IR/IDATypes.cpp.inc"
-        >();
-  }
+      >();
 }
+} // namespace mlir::ida

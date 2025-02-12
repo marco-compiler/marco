@@ -3,27 +3,24 @@
 
 #include "marco/AST/Node/ASTNode.h"
 
-namespace marco::ast
-{
-  class FunctionArgument : public ASTNode
-  {
-    public:
-      using ASTNode::ASTNode;
+namespace marco::ast {
+class FunctionArgument : public ASTNode {
+public:
+  using ASTNode::ASTNode;
 
-      FunctionArgument(const FunctionArgument& other);
+  FunctionArgument(const FunctionArgument &other);
 
-      ~FunctionArgument() override;
+  ~FunctionArgument() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() >= ASTNode::Kind::FunctionArgument &&
-            node->getKind() <=
-                ASTNode::Kind::FunctionArgument_LastFunctionArgument;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() >= ASTNode::Kind::FunctionArgument &&
+           node->getKind() <=
+               ASTNode::Kind::FunctionArgument_LastFunctionArgument;
+  }
 
-      protected:
-        virtual void addJSONProperties(llvm::json::Object& obj) const override;
-  };
-}
+protected:
+  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_FUNCTIONARGUMENT_H

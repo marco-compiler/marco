@@ -1,5 +1,5 @@
-#include "marco/Dialect/Modeling/IR/Modeling.h"
 #include "marco/Dialect/Modeling/IR/Ops.h"
+#include "marco/Dialect/Modeling/IR/Modeling.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"

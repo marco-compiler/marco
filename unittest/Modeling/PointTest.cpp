@@ -3,16 +3,14 @@
 
 using namespace ::marco::modeling;
 
-TEST(Point, 1d)
-{
+TEST(Point, 1d) {
   Point p(2);
 
   EXPECT_EQ(p.rank(), 1);
   EXPECT_EQ(p[0], 2);
 }
 
-TEST(Point, 2d)
-{
+TEST(Point, 2d) {
   Point p({2, 5});
 
   EXPECT_EQ(p.rank(), 2);
@@ -21,8 +19,7 @@ TEST(Point, 2d)
   EXPECT_EQ(p[1], 5);
 }
 
-TEST(Point, 3d)
-{
+TEST(Point, 3d) {
   Point p({2, 5, 3});
 
   EXPECT_EQ(p.rank(), 3);
@@ -32,8 +29,7 @@ TEST(Point, 3d)
   EXPECT_EQ(p[2], 3);
 }
 
-TEST(Point, iteration)
-{
+TEST(Point, iteration) {
   Point p({2, 5, 3});
 
   size_t counter = 0;
@@ -42,15 +38,14 @@ TEST(Point, iteration)
   expected.push_back(5);
   expected.push_back(3);
 
-  for (const auto& value : p) {
+  for (const auto &value : p) {
     EXPECT_EQ(value, expected[counter++]);
   }
 
   EXPECT_EQ(counter, 3);
 }
 
-TEST(Point, equality)
-{
+TEST(Point, equality) {
   Point a({2, 5, 3});
   Point b({2, 5, 3});
   Point c({2, 4, 3});
@@ -66,8 +61,7 @@ TEST(Point, equality)
   EXPECT_FALSE(d == a);
 }
 
-TEST(Point, inequality)
-{
+TEST(Point, inequality) {
   Point a({2, 5, 3});
   Point b({2, 5, 3});
   Point c({2, 4, 3});

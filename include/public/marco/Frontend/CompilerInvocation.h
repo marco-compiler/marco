@@ -9,116 +9,109 @@
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/TargetOptions.h"
-#include "llvm/Option/ArgList.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include <memory>
 
-namespace marco::frontend
-{
-  class CompilerInvocationBase
-  {
-    private:
-      /// Options controlling the language variant.
-      llvm::IntrusiveRefCntPtr<LanguageOptions> languageOptions;
+namespace marco::frontend {
+class CompilerInvocationBase {
+private:
+  /// Options controlling the language variant.
+  llvm::IntrusiveRefCntPtr<LanguageOptions> languageOptions;
 
-      /// Options controlling the target.
-      std::shared_ptr<clang::TargetOptions> targetOptions;
+  /// Options controlling the target.
+  std::shared_ptr<clang::TargetOptions> targetOptions;
 
-      /// Options controlling the diagnostic engine.
-      llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOptions;
+  /// Options controlling the diagnostic engine.
+  llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOptions;
 
-      /// Options controlling file system operations.
-      std::shared_ptr<clang::FileSystemOptions> fileSystemOptions;
+  /// Options controlling file system operations.
+  std::shared_ptr<clang::FileSystemOptions> fileSystemOptions;
 
-      /// Options controlling the frontend.
-      std::shared_ptr<FrontendOptions> frontendOptions;
+  /// Options controlling the frontend.
+  std::shared_ptr<FrontendOptions> frontendOptions;
 
-      std::shared_ptr<CodegenOptions> codegenOptions;
-      std::shared_ptr<SimulationOptions> simulationOptions;
+  std::shared_ptr<CodegenOptions> codegenOptions;
+  std::shared_ptr<SimulationOptions> simulationOptions;
 
-    protected:
-      /// Dummy tag type whose instance can be passed into the constructor to
-      /// prevent creation of the reference-counted option objects.
-      struct EmptyConstructor {};
+protected:
+  /// Dummy tag type whose instance can be passed into the constructor to
+  /// prevent creation of the reference-counted option objects.
+  struct EmptyConstructor {};
 
-      CompilerInvocationBase();
+  CompilerInvocationBase();
 
-      CompilerInvocationBase(EmptyConstructor);
+  CompilerInvocationBase(EmptyConstructor);
 
-      CompilerInvocationBase(const CompilerInvocationBase& other) = delete;
+  CompilerInvocationBase(const CompilerInvocationBase &other) = delete;
 
-      CompilerInvocationBase(CompilerInvocationBase&& other);
+  CompilerInvocationBase(CompilerInvocationBase &&other);
 
-      CompilerInvocationBase& operator=(
-          const CompilerInvocationBase& other) = delete;
+  CompilerInvocationBase &
+  operator=(const CompilerInvocationBase &other) = delete;
 
-      CompilerInvocationBase& deepCopyAssign(
-          const CompilerInvocationBase& other);
+  CompilerInvocationBase &deepCopyAssign(const CompilerInvocationBase &other);
 
-      CompilerInvocationBase& shallowCopyAssign(
-          const CompilerInvocationBase& other);
+  CompilerInvocationBase &
+  shallowCopyAssign(const CompilerInvocationBase &other);
 
-      CompilerInvocationBase& operator=(CompilerInvocationBase&& other);
+  CompilerInvocationBase &operator=(CompilerInvocationBase &&other);
 
-      ~CompilerInvocationBase();
+  ~CompilerInvocationBase();
 
-    public:
-      /// @name Getters.
-      /// {
+public:
+  /// @name Getters.
+  /// {
 
-      LanguageOptions& getLanguageOptions();
+  LanguageOptions &getLanguageOptions();
 
-      const LanguageOptions& getLanguageOptions() const;
+  const LanguageOptions &getLanguageOptions() const;
 
-      clang::TargetOptions& getTargetOptions();
+  clang::TargetOptions &getTargetOptions();
 
-      const clang::TargetOptions& getTargetOptions() const;
+  const clang::TargetOptions &getTargetOptions() const;
 
-      std::shared_ptr<clang::TargetOptions> getTargetOptionsPtr();
+  std::shared_ptr<clang::TargetOptions> getTargetOptionsPtr();
 
-      clang::DiagnosticOptions& getDiagnosticOptions();
+  clang::DiagnosticOptions &getDiagnosticOptions();
 
-      const clang::DiagnosticOptions& getDiagnosticOptions() const;
+  const clang::DiagnosticOptions &getDiagnosticOptions() const;
 
-      clang::FileSystemOptions& getFileSystemOptions();
+  clang::FileSystemOptions &getFileSystemOptions();
 
-      const clang::FileSystemOptions& getFileSystemOptions() const;
+  const clang::FileSystemOptions &getFileSystemOptions() const;
 
-      FrontendOptions& getFrontendOptions();
+  FrontendOptions &getFrontendOptions();
 
-      const FrontendOptions& getFrontendOptions() const;
+  const FrontendOptions &getFrontendOptions() const;
 
-      CodegenOptions& getCodeGenOptions();
+  CodegenOptions &getCodeGenOptions();
 
-      const CodegenOptions& getCodeGenOptions() const;
+  const CodegenOptions &getCodeGenOptions() const;
 
-      SimulationOptions& getSimulationOptions();
+  SimulationOptions &getSimulationOptions();
 
-      const SimulationOptions& getSimulationOptions() const;
+  const SimulationOptions &getSimulationOptions() const;
 
-      /// }
-  };
+  /// }
+};
 
-  class CompilerInvocation : public CompilerInvocationBase
-  {
-    public:
-      /// Create a compiler invocation from a list of input options.
-      static bool createFromArgs(
-        CompilerInvocation& res,
-        llvm::ArrayRef<const char*> commandLineArgs,
-        clang::DiagnosticsEngine& diagnostics);
-  };
+class CompilerInvocation : public CompilerInvocationBase {
+public:
+  /// Create a compiler invocation from a list of input options.
+  static bool createFromArgs(CompilerInvocation &res,
+                             llvm::ArrayRef<const char *> commandLineArgs,
+                             clang::DiagnosticsEngine &diagnostics);
+};
 
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-  createVFSFromCompilerInvocation(
-      const CompilerInvocation& ci, clang::DiagnosticsEngine& diags);
+llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
+createVFSFromCompilerInvocation(const CompilerInvocation &ci,
+                                clang::DiagnosticsEngine &diags);
 
-  llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-  createVFSFromCompilerInvocation(
-      const CompilerInvocation& ci,
-      clang::DiagnosticsEngine& diags,
-      llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> baseFS);
-}
+llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFSFromCompilerInvocation(
+    const CompilerInvocation &ci, clang::DiagnosticsEngine &diags,
+    llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> baseFS);
+} // namespace marco::frontend
 
 #endif // MARCO_FRONTEND_COMPILERINVOCATION_H

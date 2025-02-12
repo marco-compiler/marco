@@ -1,53 +1,47 @@
 #include "marco/Dialect/BaseModelica/Transforms/ExplicitStartValueInsertion.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EXPLICITSTARTVALUEINSERTIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class ExplicitStartValueInsertionPass
-      : public impl::ExplicitStartValueInsertionPassBase<
-          ExplicitStartValueInsertionPass>
-  {
-    public:
-      using ExplicitStartValueInsertionPassBase
-        ::ExplicitStartValueInsertionPassBase;
+namespace {
+class ExplicitStartValueInsertionPass
+    : public impl::ExplicitStartValueInsertionPassBase<
+          ExplicitStartValueInsertionPass> {
+public:
+  using ExplicitStartValueInsertionPassBase ::
+      ExplicitStartValueInsertionPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
-  };
-}
+private:
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
+};
+} // namespace
 
-void ExplicitStartValueInsertionPass::runOnOperation()
-{
+void ExplicitStartValueInsertionPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
   if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps,
-          [&](mlir::Operation* op) {
+          &getContext(), modelOps, [&](mlir::Operation *op) {
             return processModelOp(mlir::cast<ModelOp>(op));
           }))) {
     return signalPassFailure();
   }
 }
 
-mlir::LogicalResult ExplicitStartValueInsertionPass::processModelOp(
-    ModelOp modelOp)
-{
+mlir::LogicalResult
+ExplicitStartValueInsertionPass::processModelOp(ModelOp modelOp) {
   mlir::OpBuilder builder(modelOp);
 
   // Collect the variables.
@@ -85,13 +79,12 @@ mlir::LogicalResult ExplicitStartValueInsertionPass::processModelOp(
 
     auto startOp = builder.create<StartOp>(
         variableOp.getLoc(),
-        mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()),
-        false, false, true);
+        mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()), false, false,
+        true);
 
     assert(startOp.getBodyRegion().empty());
 
-    mlir::Block* bodyBlock =
-        builder.createBlock(&startOp.getBodyRegion());
+    mlir::Block *bodyBlock = builder.createBlock(&startOp.getBodyRegion());
 
     builder.setInsertionPointToStart(bodyBlock);
 
@@ -111,10 +104,8 @@ mlir::LogicalResult ExplicitStartValueInsertionPass::processModelOp(
   return mlir::success();
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createExplicitStartValueInsertionPass()
-  {
-    return std::make_unique<ExplicitStartValueInsertionPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createExplicitStartValueInsertionPass() {
+  return std::make_unique<ExplicitStartValueInsertionPass>();
 }
+} // namespace mlir::bmodelica

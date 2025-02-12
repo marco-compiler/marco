@@ -3,9 +3,8 @@
 
 #include "marco/Modeling/IndexSet.h"
 
-namespace mlir::modeling
-{
-  using IndexSet = ::marco::modeling::IndexSet;
+namespace mlir::modeling {
+using IndexSet = ::marco::modeling::IndexSet;
 }
 
 #endif // MARCO_DIALECT_MODELING_IR_INDEXSET_H

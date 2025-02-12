@@ -4,23 +4,20 @@
 #include "marco/AST/Node/ASTNode.h"
 #include "llvm/ADT/STLExtras.h"
 
-namespace marco::ast
-{
-  class Statement : public ASTNode
-  {
-    public:
-      using ASTNode::ASTNode;
+namespace marco::ast {
+class Statement : public ASTNode {
+public:
+  using ASTNode::ASTNode;
 
-      Statement(const Statement& other);
+  Statement(const Statement &other);
 
-      ~Statement();
+  ~Statement();
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() >= ASTNode::Kind::Statement &&
-            node->getKind() <= ASTNode::Kind::Statement_LastStatement;
-      }
-  };
-}
+  static bool classof(const ASTNode *node) {
+    return node->getKind() >= ASTNode::Kind::Statement &&
+           node->getKind() <= ASTNode::Kind::Statement_LastStatement;
+  }
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_STATEMENT_H

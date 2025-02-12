@@ -8,23 +8,21 @@
 #include "mlir/IR/MLIRContext.h"
 #include <memory>
 
-namespace marco::codegen::lowering
-{
-  class Bridge
-  {
-    private:
-      class Impl;
-      std::unique_ptr<Impl> impl;
+namespace marco::codegen::lowering {
+class Bridge {
+private:
+  class Impl;
+  std::unique_ptr<Impl> impl;
 
-    public:
-      Bridge(mlir::MLIRContext& context);
+public:
+  Bridge(mlir::MLIRContext &context);
 
-      ~Bridge();
+  ~Bridge();
 
-      [[nodiscard]] bool lower(const ast::Root& root);
+  [[nodiscard]] bool lower(const ast::Root &root);
 
-      std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
-  };
-}
+  std::unique_ptr<mlir::ModuleOp> &getMLIRModule();
+};
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_BRIDGE_H

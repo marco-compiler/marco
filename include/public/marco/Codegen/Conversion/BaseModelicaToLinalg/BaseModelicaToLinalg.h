@@ -4,17 +4,15 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir
-{
+namespace mlir {
 #define GEN_PASS_DECL_BASEMODELICATOLINALGCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
-  void populateBaseModelicaToLinalgConversionPatterns(
-      mlir::RewritePatternSet& patterns,
-      mlir::MLIRContext* context,
-      mlir::TypeConverter& typeConverter);
+void populateBaseModelicaToLinalgConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    mlir::TypeConverter &typeConverter);
 
-  std::unique_ptr<mlir::Pass> createBaseModelicaToLinalgConversionPass();
-}
+std::unique_ptr<mlir::Pass> createBaseModelicaToLinalgConversionPass();
+} // namespace mlir
 
 #endif // MARCO_CODEGEN_CONVERSION_BASEMODELICATOLINALG_BASEMODELICATOLINALG_H

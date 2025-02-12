@@ -1,41 +1,36 @@
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation.h"
-#include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation/ForwardAD.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_AUTOMATICDIFFERENTIATIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class AutomaticDifferentiationPass
-      : public impl::AutomaticDifferentiationPassBase<
-          AutomaticDifferentiationPass>
-  {
-    public:
-      using AutomaticDifferentiationPassBase<AutomaticDifferentiationPass>
-          ::AutomaticDifferentiationPassBase;
+namespace {
+class AutomaticDifferentiationPass
+    : public impl::AutomaticDifferentiationPassBase<
+          AutomaticDifferentiationPass> {
+public:
+  using AutomaticDifferentiationPassBase<
+      AutomaticDifferentiationPass>::AutomaticDifferentiationPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult createTimeDerFunctions();
+private:
+  mlir::LogicalResult createTimeDerFunctions();
 
-      mlir::LogicalResult createPartialDerFunctions();
+  mlir::LogicalResult createPartialDerFunctions();
 
-      mlir::LogicalResult convertPartialDerFunction(
-          mlir::OpBuilder& builder,
-          ad::forward::State& state,
-          DerFunctionOp derFunctionOp);
-  };
-}
+  mlir::LogicalResult convertPartialDerFunction(mlir::OpBuilder &builder,
+                                                ad::forward::State &state,
+                                                DerFunctionOp derFunctionOp);
+};
+} // namespace
 
-void AutomaticDifferentiationPass::runOnOperation()
-{
+void AutomaticDifferentiationPass::runOnOperation() {
   if (mlir::failed(createTimeDerFunctions())) {
     return signalPassFailure();
   }
@@ -45,8 +40,7 @@ void AutomaticDifferentiationPass::runOnOperation()
   }
 }
 
-mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions()
-{
+mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions() {
   auto moduleOp = getOperation();
   mlir::OpBuilder builder(moduleOp);
   ad::forward::State state;
@@ -64,8 +58,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions()
     uint64_t order = functionOp.getTimeDerivativeOrder();
 
     if (!ad::forward::createFunctionTimeDerivative(
-            builder, state, functionOp, order,
-            derivativeAttr.getName(), derivativeAttr.getOrder())) {
+            builder, state, functionOp, order, derivativeAttr.getName(),
+            derivativeAttr.getOrder())) {
       return mlir::failure();
     }
   }
@@ -73,22 +67,19 @@ mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions()
   return mlir::success();
 }
 
-mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions()
-{
+mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions() {
   auto moduleOp = getOperation();
   mlir::OpBuilder builder(moduleOp);
 
   llvm::SmallVector<DerFunctionOp> toBeProcessed;
 
-  moduleOp->walk([&](DerFunctionOp op) {
-    toBeProcessed.push_back(op);
-  });
+  moduleOp->walk([&](DerFunctionOp op) { toBeProcessed.push_back(op); });
 
   ad::forward::State state;
 
   for (DerFunctionOp derFunctionOp : toBeProcessed) {
-    if (mlir::failed(convertPartialDerFunction(
-            builder, state, derFunctionOp))) {
+    if (mlir::failed(
+            convertPartialDerFunction(builder, state, derFunctionOp))) {
       return mlir::failure();
     }
   }
@@ -97,19 +88,17 @@ mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions()
 }
 
 mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
-    mlir::OpBuilder& builder,
-    ad::forward::State& state,
-    DerFunctionOp derFunctionOp)
-{
+    mlir::OpBuilder &builder, ad::forward::State &state,
+    DerFunctionOp derFunctionOp) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(derFunctionOp);
 
   // Get the function to be derived.
   auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-  auto baseFunctionOp = resolveSymbol<FunctionOp>(
-      moduleOp, state.getSymbolTableCollection(),
-      derFunctionOp.getDerivedFunction());
+  auto baseFunctionOp =
+      resolveSymbol<FunctionOp>(moduleOp, state.getSymbolTableCollection(),
+                                derFunctionOp.getDerivedFunction());
 
   assert(baseFunctionOp && "Can't find the function to be derived");
 
@@ -126,7 +115,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
 
     if (order != 0) {
       // Erase the temporary template functions.
-      mlir::Operation* templateParentSymbolTable =
+      mlir::Operation *templateParentSymbolTable =
           (*templateFunction)->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
       state.getSymbolTableCollection()
@@ -145,10 +134,10 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   mlir::Location loc = derFunctionOp.getLoc();
 
   // Get the symbol table.
-  mlir::Operation* parentSymbolTable =
+  mlir::Operation *parentSymbolTable =
       derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-  auto& symbolTable =
+  auto &symbolTable =
       state.getSymbolTableCollection().getSymbolTable(parentSymbolTable);
 
   // Create the derived function.
@@ -166,12 +155,12 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
 
   for (VariableOp variableOp : baseFunctionOp.getVariables()) {
     if (variableOp.isInput() || variableOp.isOutput()) {
-      auto clonedVariableOp = mlir::cast<VariableOp>(
-          builder.clone(*variableOp.getOperation()));
+      auto clonedVariableOp =
+          mlir::cast<VariableOp>(builder.clone(*variableOp.getOperation()));
 
       if (clonedVariableOp.isInput()) {
         inputVariables.push_back(clonedVariableOp);
-      } else if (clonedVariableOp.isOutput()){
+      } else if (clonedVariableOp.isOutput()) {
         outputVariables.push_back(clonedVariableOp);
       }
     }
@@ -193,8 +182,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   }
 
   // Append the seeds.
-  size_t numberOfSeeds = llvm::count_if(
-      baseFunctionOp.getVariables(), [](VariableOp variableOp) {
+  size_t numberOfSeeds =
+      llvm::count_if(baseFunctionOp.getVariables(), [](VariableOp variableOp) {
         return variableOp.isInput();
       });
 
@@ -251,15 +240,15 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
                 tensorType.getElementType());
 
         if (!constantMaterializableType) {
-          derFunctionOp.emitOpError() << "Can't create seed with type "
-                                      << tensorType.getElementType();
+          derFunctionOp.emitOpError()
+              << "Can't create seed with type " << tensorType.getElementType();
 
           return mlir::failure();
         }
 
         mlir::Value seedValue =
-            constantMaterializableType.materializeFloatConstant(
-                builder, loc, seed);
+            constantMaterializableType.materializeFloatConstant(builder, loc,
+                                                                seed);
 
         mlir::Value tensor = builder.create<TensorBroadcastOp>(
             loc, tensorType, seedValue, dynamicSizes);
@@ -277,8 +266,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
         }
 
         mlir::Value seedValue =
-            constantMaterializableType.materializeFloatConstant(
-                builder, loc, seed);
+            constantMaterializableType.materializeFloatConstant(builder, loc,
+                                                                seed);
 
         args.push_back(seedValue);
       }
@@ -291,7 +280,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   auto callOp = builder.create<CallOp>(loc, *templateFunction, args);
   assert(callOp->getNumResults() == outputVariables.size());
 
-  for (const auto& [variable, result] :
+  for (const auto &[variable, result] :
        llvm::zip(outputVariables, callOp->getResults())) {
     builder.create<VariableSetOp>(loc, variable, result);
   }
@@ -303,10 +292,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   return mlir::success();
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass()
-  {
-    return std::make_unique<AutomaticDifferentiationPass>();
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass() {
+  return std::make_unique<AutomaticDifferentiationPass>();
 }
+} // namespace mlir::bmodelica

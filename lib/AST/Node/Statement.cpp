@@ -3,12 +3,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  Statement::Statement(const Statement& other)
-      : ASTNode(other)
-  {
-  }
+namespace marco::ast {
+Statement::Statement(const Statement &other) : ASTNode(other) {}
 
-  Statement::~Statement() = default;
-}
+Statement::~Statement() = default;
+} // namespace marco::ast

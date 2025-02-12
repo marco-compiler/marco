@@ -7,8 +7,7 @@
 using namespace ::marco::modeling;
 using namespace ::marco::test;
 
-TEST(AccessFunction, mapPoint_constantAccess)
-{
+TEST(AccessFunction, mapPoint_constantAccess) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -22,8 +21,7 @@ TEST(AccessFunction, mapPoint_constantAccess)
   EXPECT_EQ(mapped, Point(5));
 }
 
-TEST(AccessFunction, mapPoint_offsetAccess)
-{
+TEST(AccessFunction, mapPoint_offsetAccess) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -38,8 +36,7 @@ TEST(AccessFunction, mapPoint_offsetAccess)
   EXPECT_EQ(mapped, Point({-2, 1}));
 }
 
-TEST(AccessFunction, isIdentity_empty)
-{
+TEST(AccessFunction, isIdentity_empty) {
   mlir::MLIRContext ctx;
 
   auto affineMap = mlir::AffineMap::get(0, 0, std::nullopt, &ctx);
@@ -48,8 +45,7 @@ TEST(AccessFunction, isIdentity_empty)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, isIdentity_emptyDimensions)
-{
+TEST(AccessFunction, isIdentity_emptyDimensions) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -61,8 +57,7 @@ TEST(AccessFunction, isIdentity_emptyDimensions)
   EXPECT_FALSE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, isIdentity_emptyResults)
-{
+TEST(AccessFunction, isIdentity_emptyResults) {
   mlir::MLIRContext ctx;
 
   auto affineMap = mlir::AffineMap::get(1, 0, std::nullopt, &ctx);
@@ -71,8 +66,7 @@ TEST(AccessFunction, isIdentity_emptyResults)
   EXPECT_FALSE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, isIdentity_1d)
-{
+TEST(AccessFunction, isIdentity_1d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -84,8 +78,7 @@ TEST(AccessFunction, isIdentity_1d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, isIdentity_2d)
-{
+TEST(AccessFunction, isIdentity_2d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -98,8 +91,7 @@ TEST(AccessFunction, isIdentity_2d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, isIdentity_3d)
-{
+TEST(AccessFunction, isIdentity_3d) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions;
@@ -113,8 +105,7 @@ TEST(AccessFunction, isIdentity_3d)
   EXPECT_TRUE(accessFunction->isIdentity());
 }
 
-TEST(AccessFunction, combine)
-{
+TEST(AccessFunction, combine) {
   mlir::MLIRContext ctx;
 
   llvm::SmallVector<mlir::AffineExpr> expressions1;

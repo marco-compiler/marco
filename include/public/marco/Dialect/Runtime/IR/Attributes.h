@@ -6,15 +6,14 @@
 #include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/Support/StorageUniquer.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Hashing.h"
 
-namespace mlir::runtime
-{
-  using RangeAttr = ::mlir::modeling::RangeAttr;
-  using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
-}
+namespace mlir::runtime {
+using RangeAttr = ::mlir::modeling::RangeAttr;
+using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
+} // namespace mlir::runtime
 
 #define GET_ATTRDEF_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeAttributes.h.inc"

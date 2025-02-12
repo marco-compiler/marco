@@ -6,98 +6,92 @@
 using namespace ::marco::frontend;
 using namespace clang::driver;
 
-static std::unique_ptr<FrontendAction> createFrontendBaseAction(
-    CompilerInstance& ci)
-{
+static std::unique_ptr<FrontendAction>
+createFrontendBaseAction(CompilerInstance &ci) {
   ActionKind action = ci.getFrontendOptions().programAction;
 
   switch (action) {
-    case InitOnly:
-      return std::make_unique<InitOnlyAction>();
+  case InitOnly:
+    return std::make_unique<InitOnlyAction>();
 
-    case EmitBaseModelica:
-      return std::make_unique<EmitBaseModelicaAction>();
+  case EmitBaseModelica:
+    return std::make_unique<EmitBaseModelicaAction>();
 
-    case EmitAST:
-      return std::make_unique<EmitASTAction>();
+  case EmitAST:
+    return std::make_unique<EmitASTAction>();
 
-    case EmitMLIR:
-      return std::make_unique<EmitMLIRAction>();
+  case EmitMLIR:
+    return std::make_unique<EmitMLIRAction>();
 
-    case EmitMLIRModelica:
-      return std::make_unique<EmitMLIRModelicaAction>();
+  case EmitMLIRModelica:
+    return std::make_unique<EmitMLIRModelicaAction>();
 
-    case EmitMLIRLLVM:
-      return std::make_unique<EmitMLIRLLVMAction>();
+  case EmitMLIRLLVM:
+    return std::make_unique<EmitMLIRLLVMAction>();
 
-    case EmitLLVMIR:
-      return std::make_unique<EmitLLVMIRAction>();
+  case EmitLLVMIR:
+    return std::make_unique<EmitLLVMIRAction>();
 
-    case EmitLLVMBitcode:
-      return std::make_unique<EmitBitcodeAction>();
+  case EmitLLVMBitcode:
+    return std::make_unique<EmitBitcodeAction>();
 
-    case EmitAssembly:
-      return std::make_unique<EmitAssemblyAction>();
+  case EmitAssembly:
+    return std::make_unique<EmitAssemblyAction>();
 
-    case EmitObject:
-      return std::make_unique<EmitObjAction>();
+  case EmitObject:
+    return std::make_unique<EmitObjAction>();
 
-    default:
-      break;
+  default:
+    break;
   }
 
   llvm_unreachable("Invalid program action");
   return nullptr;
 }
 
-namespace marco::frontend
-{
-  std::unique_ptr<FrontendAction> createFrontendAction(CompilerInstance& ci)
-  {
-    // Create the underlying action.
-    std::unique_ptr<FrontendAction> act = createFrontendBaseAction(ci);
+namespace marco::frontend {
+std::unique_ptr<FrontendAction> createFrontendAction(CompilerInstance &ci) {
+  // Create the underlying action.
+  std::unique_ptr<FrontendAction> act = createFrontendBaseAction(ci);
 
-    if (!act) {
-      return nullptr;
-    }
-
-    return act;
+  if (!act) {
+    return nullptr;
   }
 
-  bool executeCompilerInvocation(CompilerInstance* ci)
-  {
-    // Honor --help.
-    if (ci->getFrontendOptions().showHelp) {
-      getDriverOptTable().printHelp(
-          llvm::outs(),
-          "marco -mc1 [options] file...", "MARCO Modelica frontend",
-          llvm::opt::DriverFlag::HelpHidden,
-          false,
-          llvm::opt::Visibility(clang::driver::options::MC1Option));
-
-      return true;
-    }
-
-    // Honor --version.
-    if (ci->getFrontendOptions().showVersion) {
-      //TODO: print marco version
-      llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
-      llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
-      return true;
-    }
-
-    // If there were errors in processing arguments, don't do anything else.
-    if (ci->getDiagnostics().hasErrorOccurred()) {
-      return false;
-    }
-
-    // Create and execute the frontend action.
-    std::unique_ptr<FrontendAction> act(createFrontendAction(*ci));
-
-    if (!act) {
-      return false;
-    }
-
-    return ci->executeAction(*act);
-  }
+  return act;
 }
+
+bool executeCompilerInvocation(CompilerInstance *ci) {
+  // Honor --help.
+  if (ci->getFrontendOptions().showHelp) {
+    getDriverOptTable().printHelp(
+        llvm::outs(), "marco -mc1 [options] file...", "MARCO Modelica frontend",
+        llvm::opt::DriverFlag::HelpHidden, false,
+        llvm::opt::Visibility(clang::driver::options::MC1Option));
+
+    return true;
+  }
+
+  // Honor --version.
+  if (ci->getFrontendOptions().showVersion) {
+    // TODO: print marco version
+    llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
+    llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
+    return true;
+  }
+
+  // If there were errors in processing arguments, don't do anything else.
+  if (ci->getDiagnostics().hasErrorOccurred()) {
+    return false;
+  }
+
+  // Create and execute the frontend action.
+  std::unique_ptr<FrontendAction> act(createFrontendAction(*ci));
+
+  if (!act) {
+    return false;
+  }
+
+  return ci->executeAction(*act);
+}
+} // namespace marco::frontend

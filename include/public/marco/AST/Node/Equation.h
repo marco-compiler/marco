@@ -4,21 +4,18 @@
 #include "marco/AST/Node/ASTNode.h"
 #include <memory>
 
-namespace marco::ast
-{
-	class Equation : public ASTNode
-	{
-		public:
-      using ASTNode::ASTNode;
+namespace marco::ast {
+class Equation : public ASTNode {
+public:
+  using ASTNode::ASTNode;
 
-      virtual ~Equation();
+  virtual ~Equation();
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() >= ASTNode::Kind::Equation &&
-            node->getKind() <= ASTNode::Kind::Equation_LastEquation;
-      }
-	};
-}
+  static bool classof(const ASTNode *node) {
+    return node->getKind() >= ASTNode::Kind::Equation &&
+           node->getKind() <= ASTNode::Kind::Equation_LastEquation;
+  }
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_EQUATION_H

@@ -5,50 +5,47 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-  class FunctionArgument;
+namespace marco::ast {
+class FunctionArgument;
 
-	class Call : public Expression
-	{
-		public:
-      explicit Call(SourceRange location);
+class Call : public Expression {
+public:
+  explicit Call(SourceRange location);
 
-      Call(const Call& other);
+  Call(const Call &other);
 
-      ~Call() override;
+  ~Call() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_Call;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Expression_Call;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isLValue() const override;
+  bool isLValue() const override;
 
-      Expression* getCallee();
+  Expression *getCallee();
 
-      const Expression* getCallee() const;
+  const Expression *getCallee() const;
 
-      void setCallee(std::unique_ptr<ASTNode> node);
+  void setCallee(std::unique_ptr<ASTNode> node);
 
-      size_t getNumOfArguments() const;
+  size_t getNumOfArguments() const;
 
-      FunctionArgument* getArgument(size_t index);
+  FunctionArgument *getArgument(size_t index);
 
-      const FunctionArgument* getArgument(size_t index) const;
+  const FunctionArgument *getArgument(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 
-      void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      std::unique_ptr<ASTNode> callee;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
-	};
-}
+private:
+  std::unique_ptr<ASTNode> callee;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_CALL_H

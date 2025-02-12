@@ -1,81 +1,71 @@
 #include "marco/Dialect/BaseModelica/Transforms/ScheduleParallelization.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 
-namespace mlir::bmodelica
-{
+namespace mlir::bmodelica {
 #define GEN_PASS_DEF_SCHEDULEPARALLELIZATIONPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
-}
+} // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
 
-namespace
-{
-  class ScheduleParallelizationPass
-      : public mlir::bmodelica::impl::ScheduleParallelizationPassBase<
-            ScheduleParallelizationPass>
-  {
-    public:
-      static const int64_t kUnlimitedGroupBlocks = -1;
+namespace {
+class ScheduleParallelizationPass
+    : public mlir::bmodelica::impl::ScheduleParallelizationPassBase<
+          ScheduleParallelizationPass> {
+public:
+  static const int64_t kUnlimitedGroupBlocks = -1;
 
-    public:
-      using ScheduleParallelizationPassBase<ScheduleParallelizationPass>
-          ::ScheduleParallelizationPassBase;
+public:
+  using ScheduleParallelizationPassBase<
+      ScheduleParallelizationPass>::ScheduleParallelizationPassBase;
 
-      void runOnOperation() override;
+  void runOnOperation() override;
 
-    private:
-      mlir::LogicalResult processModelOp(ModelOp modelOp);
+private:
+  mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-      mlir::LogicalResult processScheduleOp(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          ScheduleOp scheduleOp);
+  mlir::LogicalResult
+  processScheduleOp(mlir::SymbolTableCollection &symbolTableCollection,
+                    ModelOp modelOp, ScheduleOp scheduleOp);
 
-      mlir::LogicalResult processInitialOp(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          InitialOp initialOp);
+  mlir::LogicalResult
+  processInitialOp(mlir::SymbolTableCollection &symbolTableCollection,
+                   ModelOp modelOp, InitialOp initialOp);
 
-      mlir::LogicalResult processDynamicOp(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          DynamicOp dynamicOp);
+  mlir::LogicalResult
+  processDynamicOp(mlir::SymbolTableCollection &symbolTableCollection,
+                   ModelOp modelOp, DynamicOp dynamicOp);
 
-      mlir::LogicalResult parallelizeBlocks(
-          mlir::SymbolTableCollection& symbolTableCollection,
-          ModelOp modelOp,
-          llvm::ArrayRef<ScheduleBlockOp> blocks);
-  };
-}
+  mlir::LogicalResult
+  parallelizeBlocks(mlir::SymbolTableCollection &symbolTableCollection,
+                    ModelOp modelOp, llvm::ArrayRef<ScheduleBlockOp> blocks);
+};
+} // namespace
 
-void ScheduleParallelizationPass::runOnOperation()
-{
+void ScheduleParallelizationPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
-  walkClasses(getOperation(), [&](mlir::Operation* op) {
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
     if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
       modelOps.push_back(modelOp);
     }
   });
 
   if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps,
-          [&](mlir::Operation* op) {
+          &getContext(), modelOps, [&](mlir::Operation *op) {
             return processModelOp(mlir::cast<ModelOp>(op));
           }))) {
     return signalPassFailure();
   }
 }
 
-mlir::LogicalResult ScheduleParallelizationPass::processModelOp(
-    ModelOp modelOp)
-{
+mlir::LogicalResult
+ScheduleParallelizationPass::processModelOp(ModelOp modelOp) {
   mlir::SymbolTableCollection symbolTableCollection;
 
   for (ScheduleOp scheduleOp : modelOp.getOps<ScheduleOp>()) {
-    if (mlir::failed(processScheduleOp(
-            symbolTableCollection, modelOp, scheduleOp))) {
+    if (mlir::failed(
+            processScheduleOp(symbolTableCollection, modelOp, scheduleOp))) {
       return mlir::failure();
     }
   }
@@ -84,14 +74,12 @@ mlir::LogicalResult ScheduleParallelizationPass::processModelOp(
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    ScheduleOp scheduleOp)
-{
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    ScheduleOp scheduleOp) {
   llvm::SmallVector<InitialOp> initialOps;
   llvm::SmallVector<DynamicOp> dynamicOps;
 
-  for (auto& op : scheduleOp.getOps()) {
+  for (auto &op : scheduleOp.getOps()) {
     if (auto initialOp = mlir::dyn_cast<InitialOp>(op)) {
       initialOps.push_back(initialOp);
       continue;
@@ -104,15 +92,15 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
   }
 
   for (InitialOp initialOp : initialOps) {
-    if (mlir::failed(processInitialOp(
-            symbolTableCollection, modelOp, initialOp))) {
+    if (mlir::failed(
+            processInitialOp(symbolTableCollection, modelOp, initialOp))) {
       return mlir::failure();
     }
   }
 
   for (DynamicOp dynamicOp : dynamicOps) {
-    if (mlir::failed(processDynamicOp(
-            symbolTableCollection, modelOp, dynamicOp))) {
+    if (mlir::failed(
+            processDynamicOp(symbolTableCollection, modelOp, dynamicOp))) {
       return mlir::failure();
     }
   }
@@ -121,27 +109,25 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::processInitialOp(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    InitialOp initialOp)
-{
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    InitialOp initialOp) {
   llvm::SmallVector<ScheduleBlockOp> blocks;
 
-  for (auto& op : llvm::make_early_inc_range(initialOp.getOps())) {
+  for (auto &op : llvm::make_early_inc_range(initialOp.getOps())) {
     if (auto blockOp = mlir::dyn_cast<ScheduleBlockOp>(op)) {
       if (blockOp.getParallelizable()) {
         blocks.push_back(blockOp);
       } else {
-        if (mlir::failed(parallelizeBlocks(
-                symbolTableCollection, modelOp, blocks))) {
+        if (mlir::failed(
+                parallelizeBlocks(symbolTableCollection, modelOp, blocks))) {
           return mlir::failure();
         }
 
         blocks.clear();
       }
     } else {
-      if (mlir::failed(parallelizeBlocks(
-              symbolTableCollection, modelOp, blocks))) {
+      if (mlir::failed(
+              parallelizeBlocks(symbolTableCollection, modelOp, blocks))) {
         return mlir::failure();
       }
 
@@ -154,27 +140,25 @@ mlir::LogicalResult ScheduleParallelizationPass::processInitialOp(
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::processDynamicOp(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    DynamicOp dynamicOp)
-{
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    DynamicOp dynamicOp) {
   llvm::SmallVector<ScheduleBlockOp> blocks;
 
-  for (auto& op : llvm::make_early_inc_range(dynamicOp.getOps())) {
+  for (auto &op : llvm::make_early_inc_range(dynamicOp.getOps())) {
     if (auto blockOp = mlir::dyn_cast<ScheduleBlockOp>(op)) {
       if (blockOp.getParallelizable()) {
         blocks.push_back(blockOp);
       } else {
-        if (mlir::failed(parallelizeBlocks(
-                symbolTableCollection, modelOp, blocks))) {
+        if (mlir::failed(
+                parallelizeBlocks(symbolTableCollection, modelOp, blocks))) {
           return mlir::failure();
         }
 
         blocks.clear();
       }
     } else {
-      if (mlir::failed(parallelizeBlocks(
-              symbolTableCollection, modelOp, blocks))) {
+      if (mlir::failed(
+              parallelizeBlocks(symbolTableCollection, modelOp, blocks))) {
         return mlir::failure();
       }
 
@@ -187,10 +171,8 @@ mlir::LogicalResult ScheduleParallelizationPass::processDynamicOp(
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
-    mlir::SymbolTableCollection& symbolTableCollection,
-    ModelOp modelOp,
-    llvm::ArrayRef<ScheduleBlockOp> blocks)
-{
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    llvm::ArrayRef<ScheduleBlockOp> blocks) {
   if (blocks.empty()) {
     return mlir::success();
   }
@@ -198,15 +180,14 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   // Compute the writes map.
   WritesMap<VariableOp, ScheduleBlockOp> writesMap;
 
-  if (mlir::failed(getWritesMap(
-          writesMap, modelOp, blocks, symbolTableCollection))) {
+  if (mlir::failed(
+          getWritesMap(writesMap, modelOp, blocks, symbolTableCollection))) {
     return mlir::failure();
   }
 
   // Compute the outgoing arcs and the in-degree of each block.
-  llvm::DenseMap<
-      ScheduleBlockOp,
-      llvm::DenseSet<ScheduleBlockOp>> dependantBlocks;
+  llvm::DenseMap<ScheduleBlockOp, llvm::DenseSet<ScheduleBlockOp>>
+      dependantBlocks;
 
   llvm::DenseMap<ScheduleBlockOp, size_t> inDegrees;
 
@@ -215,12 +196,12 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   }
 
   for (ScheduleBlockOp readingBlock : blocks) {
-    for (const Variable& readVariable :
+    for (const Variable &readVariable :
          readingBlock.getProperties().readVariables) {
       auto readVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
           modelOp, readVariable.name);
 
-      for (const auto& writingBlock :
+      for (const auto &writingBlock :
            llvm::make_range(writesMap.equal_range(readVariableOp))) {
         if (writingBlock.second.second == readingBlock) {
           // Ignore self-loops.
@@ -282,13 +263,13 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   mlir::IRRewriter rewriter(&getContext());
   rewriter.setInsertionPointAfter(blocks.back());
 
-  for (const auto& group : groups) {
+  for (const auto &group : groups) {
     auto parallelBlocksOp =
         rewriter.create<ParallelScheduleBlocksOp>(modelOp.getLoc());
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
 
-    mlir::Block* bodyBlock =
+    mlir::Block *bodyBlock =
         rewriter.createBlock(&parallelBlocksOp.getBodyRegion());
 
     for (ScheduleBlockOp block : group) {
@@ -299,16 +280,13 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   return mlir::success();
 }
 
-namespace mlir::bmodelica
-{
-  std::unique_ptr<mlir::Pass> createScheduleParallelizationPass()
-  {
-    return std::make_unique<ScheduleParallelizationPass>();
-  }
-
-  std::unique_ptr<mlir::Pass> createScheduleParallelizationPass(
-      const ScheduleParallelizationPassOptions& options)
-  {
-    return std::make_unique<ScheduleParallelizationPass>(options);
-  }
+namespace mlir::bmodelica {
+std::unique_ptr<mlir::Pass> createScheduleParallelizationPass() {
+  return std::make_unique<ScheduleParallelizationPass>();
 }
+
+std::unique_ptr<mlir::Pass> createScheduleParallelizationPass(
+    const ScheduleParallelizationPassOptions &options) {
+  return std::make_unique<ScheduleParallelizationPass>(options);
+}
+} // namespace mlir::bmodelica

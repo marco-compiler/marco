@@ -6,37 +6,35 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-	class ArrayGenerator;
+namespace marco::ast {
+class ArrayGenerator;
 
-	class ArrayConstant : public ArrayGenerator
-	{
-		public:
-      explicit ArrayConstant(SourceRange location);
+class ArrayConstant : public ArrayGenerator {
+public:
+  explicit ArrayConstant(SourceRange location);
 
-      ArrayConstant(const ArrayConstant& other);
+  ArrayConstant(const ArrayConstant &other);
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() ==
+           ASTNode::Kind::Expression_ArrayGenerator_ArrayConstant;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      size_t size() const;
+  size_t size() const;
 
-      Expression* operator[](size_t index);
+  Expression *operator[](size_t index);
 
-      const Expression* operator[](size_t index) const;
+  const Expression *operator[](size_t index) const;
 
-      void setValues(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setValues(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      llvm::SmallVector<std::unique_ptr<ASTNode>> values;
-	};
-}
+private:
+  llvm::SmallVector<std::unique_ptr<ASTNode>> values;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ARRAY_CONSTANT_H

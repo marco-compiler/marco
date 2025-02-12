@@ -1,17 +1,15 @@
-#include "gtest/gtest.h"
 #include "marco/Parser/FloatLexer.h"
+#include "gtest/gtest.h"
 
 using namespace ::marco;
 
-TEST(FloatLexerTest, defaultShouldBeZero)
-{
+TEST(FloatLexerTest, defaultShouldBeZero) {
   FloatLexer<10> lex;
   EXPECT_DOUBLE_EQ(lex.get(), 0);
   EXPECT_EQ(lex.getUpperPart(), 0);
 }
 
-TEST(FloatLexerTest, upperPartOnly)
-{
+TEST(FloatLexerTest, upperPartOnly) {
   FloatLexer<10> lex;
 
   lex.addUpper(9);
@@ -21,8 +19,7 @@ TEST(FloatLexerTest, upperPartOnly)
   EXPECT_DOUBLE_EQ(lex.get(), 97);
 }
 
-TEST(FloatLexerTest, noExponentSpecified)
-{
+TEST(FloatLexerTest, noExponentSpecified) {
   FloatLexer<10> lex;
 
   lex.addUpper(9);
@@ -33,8 +30,7 @@ TEST(FloatLexerTest, noExponentSpecified)
   EXPECT_NEAR(lex.get(), 9.53, 0.01);
 }
 
-TEST(FloatLexerTest, exponent)
-{
+TEST(FloatLexerTest, exponent) {
   FloatLexer<10> lex;
 
   lex.addUpper(9);
@@ -49,8 +45,7 @@ TEST(FloatLexerTest, exponent)
   EXPECT_NEAR(lex.get(), 0.95, 0.01);
 }
 
-TEST(FloatLexerTest, smallPositiveNumber)
-{
+TEST(FloatLexerTest, smallPositiveNumber) {
   FloatLexer<10> lex;
 
   lex.addUpper(0);

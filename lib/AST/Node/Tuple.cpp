@@ -3,73 +3,56 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  Tuple::Tuple(SourceRange location)
-      : Expression(ASTNode::Kind::Expression_Tuple, std::move(location))
-  {
+namespace marco::ast {
+Tuple::Tuple(SourceRange location)
+    : Expression(ASTNode::Kind::Expression_Tuple, std::move(location)) {}
+
+Tuple::Tuple(const Tuple &other) : Expression(other) {
+  setExpressions(other.expressions);
+}
+
+Tuple::~Tuple() = default;
+
+std::unique_ptr<ASTNode> Tuple::clone() const {
+  return std::make_unique<Tuple>(*this);
+}
+
+llvm::json::Value Tuple::toJSON() const {
+  llvm::json::Object result;
+
+  llvm::SmallVector<llvm::json::Value> expressionsJson;
+
+  for (const auto &expression : expressions) {
+    expressionsJson.push_back(expression->toJSON());
   }
 
-  Tuple::Tuple(const Tuple& other)
-      : Expression(other)
-  {
-    setExpressions(other.expressions);
-  }
+  result["expressions"] = llvm::json::Array(expressionsJson);
 
-  Tuple::~Tuple() = default;
+  addJSONProperties(result);
+  return result;
+}
 
-  std::unique_ptr<ASTNode> Tuple::clone() const
-  {
-    return std::make_unique<Tuple>(*this);
-  }
+bool Tuple::isLValue() const { return false; }
 
-  llvm::json::Value Tuple::toJSON() const
-  {
-    llvm::json::Object result;
+size_t Tuple::size() const { return expressions.size(); }
 
-    llvm::SmallVector<llvm::json::Value> expressionsJson;
+Expression *Tuple::getExpression(size_t index) {
+  assert(index < expressions.size());
+  return expressions[index]->cast<Expression>();
+}
 
-    for (const auto& expression : expressions) {
-      expressionsJson.push_back(expression->toJSON());
-    }
+const Expression *Tuple::getExpression(size_t index) const {
+  assert(index < expressions.size());
+  return expressions[index]->cast<Expression>();
+}
 
-    result["expressions"] = llvm::json::Array(expressionsJson);
+void Tuple::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+  expressions.clear();
 
-    addJSONProperties(result);
-    return result;
-  }
-
-  bool Tuple::isLValue() const
-  {
-    return false;
-  }
-
-  size_t Tuple::size() const
-  {
-    return expressions.size();
-  }
-
-  Expression* Tuple::getExpression(size_t index)
-  {
-    assert(index < expressions.size());
-    return expressions[index]->cast<Expression>();
-  }
-
-  const Expression* Tuple::getExpression(size_t index) const
-  {
-    assert(index < expressions.size());
-    return expressions[index]->cast<Expression>();
-  }
-
-  void Tuple::setExpressions(
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
-  {
-    expressions.clear();
-
-    for (const auto& node : nodes) {
-      assert(node->isa<Expression>());
-      auto& clone = expressions.emplace_back(node->clone());
-      clone->setParent(this);
-    }
+  for (const auto &node : nodes) {
+    assert(node->isa<Expression>());
+    auto &clone = expressions.emplace_back(node->clone());
+    clone->setParent(this);
   }
 }
+} // namespace marco::ast

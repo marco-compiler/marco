@@ -3,12 +3,11 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace mlir
-{
+namespace mlir {
 #define GEN_PASS_DECL_RUNTIMEMODELMETADATACONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
-  std::unique_ptr<mlir::Pass> createRuntimeModelMetadataConversionPass();
-}
+std::unique_ptr<mlir::Pass> createRuntimeModelMetadataConversionPass();
+} // namespace mlir
 
 #endif // MARCO_CODEGEN_CONVERSION_RUNTIMEMODELMETADATACONVERSION_RUNTIMEMODELMETADATACONVERSION_H

@@ -4,89 +4,66 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  Algorithm::Algorithm(SourceRange location)
-      : ASTNode(ASTNode::Kind::Algorithm, std::move(location))
-  {
+namespace marco::ast {
+Algorithm::Algorithm(SourceRange location)
+    : ASTNode(ASTNode::Kind::Algorithm, std::move(location)) {}
+
+Algorithm::Algorithm(const Algorithm &other)
+    : ASTNode(other), initial(other.initial) {
+  setStatements(other.statements);
+}
+
+Algorithm::~Algorithm() = default;
+
+std::unique_ptr<ASTNode> Algorithm::clone() const {
+  return std::make_unique<Algorithm>(*this);
+}
+
+llvm::json::Value Algorithm::toJSON() const {
+  llvm::json::Object result;
+
+  result["initial"] = initial;
+  llvm::SmallVector<llvm::json::Value> statementsJson;
+
+  for (const auto &statement : statements) {
+    statementsJson.push_back(statement->toJSON());
   }
 
-  Algorithm::Algorithm(const Algorithm& other)
-      : ASTNode(other),
-        initial(other.initial)
-  {
-    setStatements(other.statements);
-  }
+  result["statements"] = llvm::json::Array(statementsJson);
 
-  Algorithm::~Algorithm() = default;
+  addJSONProperties(result);
+  return result;
+}
 
-  std::unique_ptr<ASTNode> Algorithm::clone() const
-  {
-    return std::make_unique<Algorithm>(*this);
-  }
+bool Algorithm::isInitial() const { return initial; }
 
-  llvm::json::Value Algorithm::toJSON() const
-  {
-    llvm::json::Object result;
+void Algorithm::setInitial(bool value) { initial = value; }
 
-    result["initial"] = initial;
-    llvm::SmallVector<llvm::json::Value> statementsJson;
+size_t Algorithm::size() const { return statements.size(); }
 
-    for (const auto& statement : statements) {
-      statementsJson.push_back(statement->toJSON());
-    }
+bool Algorithm::empty() const { return statements.empty(); }
 
-    result["statements"] = llvm::json::Array(statementsJson);
+Statement *Algorithm::operator[](size_t index) {
+  assert(index < statements.size());
+  return statements[index]->cast<Statement>();
+}
 
-    addJSONProperties(result);
-    return result;
-  }
+const Statement *Algorithm::operator[](size_t index) const {
+  assert(index < statements.size());
+  return statements[index]->cast<Statement>();
+}
 
-  bool Algorithm::isInitial() const
-  {
-    return initial;
-  }
+llvm::ArrayRef<std::unique_ptr<ASTNode>> Algorithm::getStatements() {
+  return statements;
+}
 
-  void Algorithm::setInitial(bool value)
-  {
-    initial = value;
-  }
+void Algorithm::setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+  statements.clear();
 
-  size_t Algorithm::size() const
-  {
-    return statements.size();
-  }
-
-  bool Algorithm::empty() const
-  {
-    return statements.empty();
-  }
-
-  Statement* Algorithm::operator[](size_t index)
-  {
-    assert(index < statements.size());
-    return statements[index]->cast<Statement>();
-  }
-
-  const Statement* Algorithm::operator[](size_t index) const
-  {
-    assert(index < statements.size());
-    return statements[index]->cast<Statement>();
-  }
-
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> Algorithm::getStatements()
-  {
-    return statements;
-  }
-
-  void Algorithm::setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
-  {
-    statements.clear();
-
-    for (const auto& node : nodes) {
-      assert(node->isa<Statement>());
-      auto& clone = statements.emplace_back(node->clone());
-      clone->setParent(this);
-    }
+  for (const auto &node : nodes) {
+    assert(node->isa<Statement>());
+    auto &clone = statements.emplace_back(node->clone());
+    clone->setParent(this);
   }
 }
+} // namespace marco::ast

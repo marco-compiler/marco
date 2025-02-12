@@ -3,80 +3,76 @@
 
 #include "marco/AST/Node/Equation.h"
 
-namespace marco::ast
-{
-  class Expression;
+namespace marco::ast {
+class Expression;
 
-  class WhenEquation : public Equation
-  {
-    public:
-      WhenEquation(SourceRange location);
+class WhenEquation : public Equation {
+public:
+  WhenEquation(SourceRange location);
 
-      WhenEquation(const WhenEquation& other);
+  WhenEquation(const WhenEquation &other);
 
-      ~WhenEquation() override;
+  ~WhenEquation() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Equation_When;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Equation_When;
+  }
 
+  std::unique_ptr<ASTNode> clone() const override;
 
-      std::unique_ptr<ASTNode> clone() const override;
+  llvm::json::Value toJSON() const override;
 
-      llvm::json::Value toJSON() const override;
+  Expression *getWhenCondition();
 
-      Expression* getWhenCondition();
+  const Expression *getWhenCondition() const;
 
-      const Expression* getWhenCondition() const;
+  void setWhenCondition(std::unique_ptr<ASTNode> node);
 
-      void setWhenCondition(std::unique_ptr<ASTNode> node);
+  size_t getNumOfWhenEquations() const;
 
-      size_t getNumOfWhenEquations() const;
+  Equation *getWhenEquation(size_t index);
 
-      Equation* getWhenEquation(size_t index);
+  const Equation *getWhenEquation(size_t index) const;
 
-      const Equation* getWhenEquation(size_t index) const;
+  void setWhenEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      void setWhenEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  size_t getNumOfElseWhenConditions() const;
 
-      size_t getNumOfElseWhenConditions() const;
+  Expression *getElseWhenCondition(size_t index);
 
-      Expression* getElseWhenCondition(size_t index);
+  const Expression *getElseWhenCondition(size_t index) const;
 
-      const Expression* getElseWhenCondition(size_t index) const;
+  void setElseWhenConditions(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      void setElseWhenConditions(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  size_t getNumOfElseWhenEquations(size_t condition) const;
 
-      size_t getNumOfElseWhenEquations(size_t condition) const;
+  Equation *getElseWhenEquation(size_t condition, size_t equation);
 
-      Equation* getElseWhenEquation(size_t condition, size_t equation);
+  const Equation *getElseWhenEquation(size_t condition, size_t equation) const;
 
-      const Equation* getElseWhenEquation(size_t condition, size_t equation) const;
+  void setElseWhenEquations(size_t condition,
+                            llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      void setElseWhenEquations(
-          size_t condition,
-          llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  size_t getNumOfElseEquations() const;
 
-      size_t getNumOfElseEquations() const;
+  bool hasElseEquations() const;
 
-      bool hasElseEquations() const;
+  Equation *getElseEquation(size_t index);
 
-      Equation* getElseEquation(size_t index);
+  const Equation *getElseEquation(size_t index) const;
 
-      const Equation* getElseEquation(size_t index) const;
+  void setElseEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      void setElseEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+private:
+  std::unique_ptr<ASTNode> whenCondition;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> whenEquations;
 
-    private:
-      std::unique_ptr<ASTNode> whenCondition;
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> whenEquations;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseWhenConditions;
+  llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ASTNode>, 3>>
+      elseWhenEquations;
 
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseWhenConditions;
-      llvm::SmallVector<llvm::SmallVector<std::unique_ptr<ASTNode>, 3>> elseWhenEquations;
-
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseEquations;
-  };
-}
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> elseEquations;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_WHENEQUATION_H

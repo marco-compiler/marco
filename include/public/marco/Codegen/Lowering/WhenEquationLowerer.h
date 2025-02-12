@@ -2,21 +2,19 @@
 #define MARCO_CODEGEN_LOWERING_WHENEQUATIONLOWERER_H
 
 #include "marco/AST/AST.h"
-#include "marco/Codegen/Lowering/Lowerer.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
+#include "marco/Codegen/Lowering/Lowerer.h"
 
-namespace marco::codegen::lowering
-{
-  class WhenEquationLowerer : public Lowerer
-  {
-    public:
-      explicit WhenEquationLowerer(BridgeInterface* bridge);
+namespace marco::codegen::lowering {
+class WhenEquationLowerer : public Lowerer {
+public:
+  explicit WhenEquationLowerer(BridgeInterface *bridge);
 
-      [[nodiscard]] bool lower(const ast::WhenEquation& equation) override;
+  [[nodiscard]] bool lower(const ast::WhenEquation &equation) override;
 
-    protected:
-      using Lowerer::lower;
-  };
-}
+protected:
+  using Lowerer::lower;
+};
+} // namespace marco::codegen::lowering
 
 #endif // MARCO_CODEGEN_LOWERING_WHENEQUATIONLOWERER_H

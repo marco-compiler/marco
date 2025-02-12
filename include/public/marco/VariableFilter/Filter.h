@@ -4,23 +4,21 @@
 #include "marco/VariableFilter/Range.h"
 #include "llvm/ADT/ArrayRef.h"
 
-namespace marco::vf
-{
-  class Filter
-  {
-    public:
-      Filter(bool visibility, llvm::ArrayRef<Range> ranges);
+namespace marco::vf {
+class Filter {
+public:
+  Filter(bool visibility, llvm::ArrayRef<Range> ranges);
 
-      static Filter visibleScalar();
-      static Filter visibleArray(llvm::ArrayRef<long> shape);
+  static Filter visibleScalar();
+  static Filter visibleArray(llvm::ArrayRef<long> shape);
 
-      bool isVisible() const;
-      llvm::ArrayRef<Range> getRanges() const;
+  bool isVisible() const;
+  llvm::ArrayRef<Range> getRanges() const;
 
-    private:
-      bool visibility;
-      llvm::SmallVector<Range, 3> ranges;
-  };
-}
+private:
+  bool visibility;
+  llvm::SmallVector<Range, 3> ranges;
+};
+} // namespace marco::vf
 
 #endif // MARCO_VARIABLEFILTER_FILTER_H

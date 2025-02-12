@@ -3,52 +3,49 @@
 
 #include "marco/AST/Node/Statement.h"
 
-namespace marco::ast
-{
-  class ForIndex;
+namespace marco::ast {
+class ForIndex;
 
-  class ForStatement : public Statement
-  {
-    public:
-      explicit ForStatement(SourceRange location);
+class ForStatement : public Statement {
+public:
+  explicit ForStatement(SourceRange location);
 
-      ForStatement(const ForStatement& other);
+  ForStatement(const ForStatement &other);
 
-      ~ForStatement() override;
+  ~ForStatement() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Statement_For;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Statement_For;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      size_t getNumOfForIndices() const;
+  size_t getNumOfForIndices() const;
 
-      ForIndex* getForIndex(size_t index);
+  ForIndex *getForIndex(size_t index);
 
-      const ForIndex* getForIndex(size_t index) const;
+  const ForIndex *getForIndex(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getForIndices() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getForIndices() const;
 
-      void setForIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setForIndices(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      size_t getNumOfStatements() const;
+  size_t getNumOfStatements() const;
 
-      Statement* getStatement(size_t index);
+  Statement *getStatement(size_t index);
 
-      const Statement* getStatement(size_t index) const;
+  const Statement *getStatement(size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getStatements() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getStatements() const;
 
-      void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      llvm::SmallVector<std::unique_ptr<ASTNode>> forIndices;
-      llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
-  };
-}
+private:
+  llvm::SmallVector<std::unique_ptr<ASTNode>> forIndices;
+  llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_FORSTATEMENT_H

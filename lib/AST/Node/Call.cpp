@@ -4,99 +4,78 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-namespace marco::ast
-{
-  Call::Call(SourceRange location)
-      : Expression(ASTNode::Kind::Expression_Call, std::move(location))
-  {
+namespace marco::ast {
+Call::Call(SourceRange location)
+    : Expression(ASTNode::Kind::Expression_Call, std::move(location)) {}
+
+Call::Call(const Call &other) : Expression(other) {
+  setCallee(other.callee->clone());
+  setArguments(other.arguments);
+}
+
+Call::~Call() = default;
+
+std::unique_ptr<ASTNode> Call::clone() const {
+  return std::make_unique<Call>(*this);
+}
+
+llvm::json::Value Call::toJSON() const {
+  llvm::json::Object result;
+  result["callee"] = getCallee()->toJSON();
+
+  llvm::SmallVector<llvm::json::Value> argsJson;
+
+  for (const auto &arg : arguments) {
+    argsJson.push_back(arg->toJSON());
   }
 
-  Call::Call(const Call& other)
-      : Expression(other)
-  {
-    setCallee(other.callee->clone());
-    setArguments(other.arguments);
-  }
+  result["args"] = llvm::json::Array(argsJson);
 
-  Call::~Call() = default;
+  addJSONProperties(result);
+  return result;
+}
 
-  std::unique_ptr<ASTNode> Call::clone() const
-  {
-    return std::make_unique<Call>(*this);
-  }
+bool Call::isLValue() const { return false; }
 
-  llvm::json::Value Call::toJSON() const
-  {
-    llvm::json::Object result;
-    result["callee"] = getCallee()->toJSON();
+Expression *Call::getCallee() {
+  assert(callee != nullptr && "Callee not set");
+  return callee->cast<Expression>();
+}
 
-    llvm::SmallVector<llvm::json::Value> argsJson;
+const Expression *Call::getCallee() const {
+  assert(callee != nullptr && "Callee not set");
+  return callee->cast<Expression>();
+}
 
-    for (const auto& arg : arguments) {
-      argsJson.push_back(arg->toJSON());
-    }
+void Call::setCallee(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<Expression>());
+  callee = std::move(node);
+  callee->setParent(this);
+}
 
-    result["args"] = llvm::json::Array(argsJson);
+size_t Call::getNumOfArguments() const { return arguments.size(); }
 
-    addJSONProperties(result);
-    return result;
-  }
+FunctionArgument *Call::getArgument(size_t index) {
+  assert(index < arguments.size());
+  return arguments[index]->cast<FunctionArgument>();
+}
 
-  bool Call::isLValue() const
-  {
-    return false;
-  }
+const FunctionArgument *Call::getArgument(size_t index) const {
+  assert(index < arguments.size());
+  return arguments[index]->cast<FunctionArgument>();
+}
 
-  Expression* Call::getCallee()
-  {
-    assert(callee != nullptr && "Callee not set");
-    return callee->cast<Expression>();
-  }
+llvm::ArrayRef<std::unique_ptr<ASTNode>> Call::getArguments() const {
+  return arguments;
+}
 
-  const Expression* Call::getCallee() const
-  {
-    assert(callee != nullptr && "Callee not set");
-    return callee->cast<Expression>();
-  }
+void Call::setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+  arguments.clear();
 
-  void Call::setCallee(std::unique_ptr<ASTNode> node)
-  {
-    assert(node->isa<Expression>());
-    callee = std::move(node);
-    callee->setParent(this);
-  }
-
-  size_t Call::getNumOfArguments() const
-  {
-    return arguments.size();
-  }
-
-  FunctionArgument* Call::getArgument(size_t index)
-  {
-    assert(index < arguments.size());
-    return arguments[index]->cast<FunctionArgument>();
-  }
-
-  const FunctionArgument* Call::getArgument(size_t index) const
-  {
-    assert(index < arguments.size());
-    return arguments[index]->cast<FunctionArgument>();
-  }
-
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> Call::getArguments() const
-  {
-    return arguments;
-  }
-
-  void Call::setArguments(
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
-  {
-    arguments.clear();
-
-    for (const auto& node : nodes) {
-      assert(node->isa<FunctionArgument>());
-      auto& clone = arguments.emplace_back(node->clone());
-      clone->setParent(this);
-    }
+  for (const auto &node : nodes) {
+    assert(node->isa<FunctionArgument>());
+    auto &clone = arguments.emplace_back(node->clone());
+    clone->setParent(this);
   }
 }
+} // namespace marco::ast

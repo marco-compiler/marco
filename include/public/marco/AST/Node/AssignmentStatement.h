@@ -3,49 +3,46 @@
 
 #include "marco/AST/Node/Statement.h"
 
-namespace marco::ast
-{
-  class Expression;
-  class Tuple;
+namespace marco::ast {
+class Expression;
+class Tuple;
 
-  class AssignmentStatement : public Statement
-  {
-    public:
-      explicit AssignmentStatement(SourceRange location);
+class AssignmentStatement : public Statement {
+public:
+  explicit AssignmentStatement(SourceRange location);
 
-      AssignmentStatement(const AssignmentStatement& other);
+  AssignmentStatement(const AssignmentStatement &other);
 
-      ~AssignmentStatement() override;
+  ~AssignmentStatement() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Statement_Assignment;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Statement_Assignment;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      Tuple* getDestinations();
+  Tuple *getDestinations();
 
-      const Tuple* getDestinations() const;
+  const Tuple *getDestinations() const;
 
-      void setDestinations(std::unique_ptr<ASTNode> nodes);
+  void setDestinations(std::unique_ptr<ASTNode> nodes);
 
-      Expression* getExpression();
+  Expression *getExpression();
 
-      const Expression* getExpression() const;
+  const Expression *getExpression() const;
 
-      void setExpression(std::unique_ptr<ASTNode> node);
+  void setExpression(std::unique_ptr<ASTNode> node);
 
-    private:
-      // Where the result of the expression has to be stored.
-      // It is always a tuple, because functions may have multiple outputs.
-      std::unique_ptr<ASTNode> destinations;
+private:
+  // Where the result of the expression has to be stored.
+  // It is always a tuple, because functions may have multiple outputs.
+  std::unique_ptr<ASTNode> destinations;
 
-      // Right-hand side expression of the assignment.
-      std::unique_ptr<ASTNode> expression;
-  };
-}
+  // Right-hand side expression of the assignment.
+  std::unique_ptr<ASTNode> expression;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ASSIGNMENTSTATEMENT_H

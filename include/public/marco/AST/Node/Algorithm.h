@@ -5,48 +5,45 @@
 #include "llvm/ADT/STLExtras.h"
 #include <memory>
 
-namespace marco::ast
-{
-	class Statement;
+namespace marco::ast {
+class Statement;
 
-	class Algorithm : public ASTNode
-	{
-		public:
-      explicit Algorithm(SourceRange location);
+class Algorithm : public ASTNode {
+public:
+  explicit Algorithm(SourceRange location);
 
-      Algorithm(const Algorithm& other);
+  Algorithm(const Algorithm &other);
 
-      ~Algorithm() override;
+  ~Algorithm() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() == ASTNode::Kind::Algorithm;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Algorithm;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isInitial() const;
+  bool isInitial() const;
 
-      void setInitial(bool value);
+  void setInitial(bool value);
 
-      size_t size() const;
+  size_t size() const;
 
-      bool empty() const;
+  bool empty() const;
 
-      Statement* operator[](size_t index);
+  Statement *operator[](size_t index);
 
-      const Statement* operator[](size_t index) const;
+  const Statement *operator[](size_t index) const;
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getStatements();
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getStatements();
 
-      void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      bool initial{false};
-      llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
-	};
-}
+private:
+  bool initial{false};
+  llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_ALGORITHM_H

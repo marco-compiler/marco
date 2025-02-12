@@ -1,144 +1,135 @@
 #ifndef MARCO_AST_NODE_FUNCTION_H
 #define MARCO_AST_NODE_FUNCTION_H
 
+#include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/AST/Node/Annotation.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 
-namespace marco::ast
-{
-	class Algorithm;
-	class Annotation;
-	class Member;
-  class VariableType;
+namespace marco::ast {
+class Algorithm;
+class Annotation;
+class Member;
+class VariableType;
 
-  class FunctionType
-  {
-    public:
-      FunctionType(
-        llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
-        llvm::ArrayRef<std::unique_ptr<ASTNode>> results);
+class FunctionType {
+public:
+  FunctionType(llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
+               llvm::ArrayRef<std::unique_ptr<ASTNode>> results);
 
-      size_t getNumOfArgs() const;
+  size_t getNumOfArgs() const;
 
-      const VariableType* getArg(size_t index) const;
+  const VariableType *getArg(size_t index) const;
 
-      size_t getNumOfResults() const;
+  size_t getNumOfResults() const;
 
-      const VariableType* getResult(size_t index) const;
+  const VariableType *getResult(size_t index) const;
 
-    private:
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> args;
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 1> results;
-  };
+private:
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> args;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 1> results;
+};
 
-	class Function : public Class
-	{
-		public:
-      using Class::Class;
+class Function : public Class {
+public:
+  using Class::Class;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() >= ASTNode::Kind::Class_Function &&
-          node->getKind() <= ASTNode::Kind::Class_Function_LastFunction;
-      }
-	};
+  static bool classof(const ASTNode *node) {
+    return node->getKind() >= ASTNode::Kind::Class_Function &&
+           node->getKind() <= ASTNode::Kind::Class_Function_LastFunction;
+  }
+};
 
-	class PartialDerFunction : public Function
-	{
-		public:
-      explicit PartialDerFunction(SourceRange location);
+class PartialDerFunction : public Function {
+public:
+  explicit PartialDerFunction(SourceRange location);
 
-      PartialDerFunction(const PartialDerFunction& other);
+  PartialDerFunction(const PartialDerFunction &other);
 
-      ~PartialDerFunction() override;
+  ~PartialDerFunction() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() ==
-            ASTNode::Kind::Class_Function_PartialDerFunction;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Class_Function_PartialDerFunction;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      Expression* getDerivedFunction() const;
+  Expression *getDerivedFunction() const;
 
-      void setDerivedFunction(std::unique_ptr<ASTNode> node);
+  void setDerivedFunction(std::unique_ptr<ASTNode> node);
 
-      llvm::ArrayRef<std::unique_ptr<ASTNode>> getIndependentVariables() const;
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getIndependentVariables() const;
 
-      void setIndependentVariables(
-          llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setIndependentVariables(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-    private:
-      std::unique_ptr<ASTNode> derivedFunction;
-      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> independentVariables;
-	};
+private:
+  std::unique_ptr<ASTNode> derivedFunction;
+  llvm::SmallVector<std::unique_ptr<ASTNode>, 3> independentVariables;
+};
 
-	class StandardFunction : public Function
-	{
-		public:
-      explicit StandardFunction(SourceRange location);
+class StandardFunction : public Function {
+public:
+  explicit StandardFunction(SourceRange location);
 
-      StandardFunction(const StandardFunction& other);
+  StandardFunction(const StandardFunction &other);
 
-      ~StandardFunction() override;
+  ~StandardFunction() override;
 
-      static bool classof(const ASTNode* node)
-      {
-        return node->getKind() ==
-            ASTNode::Kind::Class_Function_StandardFunction;
-      }
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::Class_Function_StandardFunction;
+  }
 
-      std::unique_ptr<ASTNode> clone() const override;
+  std::unique_ptr<ASTNode> clone() const override;
 
-      llvm::json::Value toJSON() const override;
+  llvm::json::Value toJSON() const override;
 
-      bool isPure() const;
+  bool isPure() const;
 
-      void setPure(bool value);
+  void setPure(bool value);
 
-      bool shouldBeInlined() const;
+  bool shouldBeInlined() const;
 
-      FunctionType getType() const;
+  FunctionType getType() const;
 
-    private:
-      bool pure;
-	};
+private:
+  bool pure;
+};
 
-	class DerivativeAnnotation
-	{
-		public:
-		  DerivativeAnnotation(llvm::StringRef name, unsigned int order = 1);
+class DerivativeAnnotation {
+public:
+  DerivativeAnnotation(llvm::StringRef name, unsigned int order = 1);
 
-      [[nodiscard]] llvm::StringRef getName() const;
-      [[nodiscard]] unsigned int getOrder() const;
+  [[nodiscard]] llvm::StringRef getName() const;
+  [[nodiscard]] unsigned int getOrder() const;
 
-		private:
-      std::string name;
-      unsigned int order;
-	};
+private:
+  std::string name;
+  unsigned int order;
+};
 
-	class InverseFunctionAnnotation
-	{
-		private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
+class InverseFunctionAnnotation {
+private:
+  template <typename T>
+  using Container = llvm::SmallVector<T, 3>;
 
-		public:
-      InverseFunctionAnnotation();
+public:
+  InverseFunctionAnnotation();
 
-      [[nodiscard]] bool isInvertible(llvm::StringRef arg) const;
-      [[nodiscard]] llvm::StringRef getInverseFunction(llvm::StringRef invertibleArg) const;
-      [[nodiscard]] llvm::ArrayRef<std::string> getInverseArgs(llvm::StringRef invertibleArg) const;
-      void addInverse(llvm::StringRef invertedArg, llvm::StringRef inverseFunctionName, llvm::ArrayRef<std::string> args);
+  [[nodiscard]] bool isInvertible(llvm::StringRef arg) const;
+  [[nodiscard]] llvm::StringRef
+  getInverseFunction(llvm::StringRef invertibleArg) const;
+  [[nodiscard]] llvm::ArrayRef<std::string>
+  getInverseArgs(llvm::StringRef invertibleArg) const;
+  void addInverse(llvm::StringRef invertedArg,
+                  llvm::StringRef inverseFunctionName,
+                  llvm::ArrayRef<std::string> args);
 
-		private:
-		  llvm::StringMap<std::pair<std::string, Container<std::string>>> map;
-	};
-}
+private:
+  llvm::StringMap<std::pair<std::string, Container<std::string>>> map;
+};
+} // namespace marco::ast
 
 #endif // MARCO_AST_NODE_FUNCTION_H
