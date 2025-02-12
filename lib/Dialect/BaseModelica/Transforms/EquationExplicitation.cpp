@@ -497,13 +497,15 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
       auto iterationDirection = iterationDirectionAttr.getValue();
 
       if (iterationDirection == EquationScheduleDirection::Any ||
-          iterationDirection == EquationScheduleDirection::Forward) {
+          iterationDirection == EquationScheduleDirection::Forward ||
+          iterationDirection == EquationScheduleDirection::Forward1Pos) {
         auto upperBound = indicesAttr->getValue()[i].getEnd() -
                           indicesAttr->getValue()[i].getBegin();
 
         upperBounds.push_back(upperBound);
       } else {
-        assert(iterationDirection == EquationScheduleDirection::Backward);
+        assert(iterationDirection == EquationScheduleDirection::Backward ||
+               iterationDirection == EquationScheduleDirection::Backward1Pos);
 
         auto upperBound = indicesAttr->getValue()[i].getBegin() -
                           indicesAttr->getValue()[i].getEnd();
@@ -566,13 +568,16 @@ void EquationExplicitationPass::shiftInductions(
     auto iterationDirection = iterationDirectionAttr.getValue();
 
     if (iterationDirection == EquationScheduleDirection::Any ||
-        iterationDirection == EquationScheduleDirection::Forward) {
+        iterationDirection == EquationScheduleDirection::Forward ||
+        iterationDirection == EquationScheduleDirection::Forward1Pos) {
       mlir::Value mappedInduction = rewriter.create<mlir::arith::AddIOp>(
           induction.getLoc(), rewriter.getIndexType(), fromValue, induction);
 
       shiftedInductions.push_back(mappedInduction);
     } else {
-      assert(iterationDirection == EquationScheduleDirection::Backward);
+      assert(iterationDirection == EquationScheduleDirection::Backward ||
+             iterationDirection == EquationScheduleDirection::Backward1Pos);
+
       mlir::Value mappedInduction = rewriter.create<mlir::arith::SubIOp>(
           induction.getLoc(), rewriter.getIndexType(), fromValue, induction);
 

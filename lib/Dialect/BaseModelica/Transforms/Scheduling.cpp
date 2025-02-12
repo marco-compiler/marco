@@ -374,7 +374,7 @@ mlir::LogicalResult SchedulingPass::schedule(
       // Determine the iteration directions.
       llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
 
-      for (marco::modeling::scheduling::Direction direction :
+      for (marco::modeling::scheduling::IterationDirection direction :
            scheduledEquation.getIterationDirections()) {
         iterationDirections.push_back(
             EquationScheduleDirectionAttr::get(&getContext(), direction));

@@ -67,8 +67,12 @@ struct FieldParser<mlir::bmodelica::EquationScheduleDirection> {
       direction = EquationScheduleDirection::Any;
     } else if (mlir::succeeded(parser.parseOptionalKeyword("forward"))) {
       direction = EquationScheduleDirection::Forward;
+    } else if (mlir::succeeded(parser.parseOptionalKeyword("forward_1pos"))) {
+      direction = EquationScheduleDirection::Forward1Pos;
     } else if (mlir::succeeded(parser.parseOptionalKeyword("backward"))) {
       direction = EquationScheduleDirection::Backward;
+    } else if (mlir::succeeded(parser.parseOptionalKeyword("backward_1pos"))) {
+      direction = EquationScheduleDirection::Backward1Pos;
     } else if (parser.parseKeyword("unknown")) {
       return mlir::failure();
     }
@@ -89,8 +93,16 @@ operator<<(mlir::AsmPrinter &printer,
     printer << "forward";
     break;
 
+  case EquationScheduleDirection::Forward1Pos:
+    printer << "forward_1pos";
+    break;
+
   case EquationScheduleDirection::Backward:
     printer << "backward";
+    break;
+
+  case EquationScheduleDirection::Backward1Pos:
+    printer << "backward_1pos";
     break;
 
   case EquationScheduleDirection::Unknown:

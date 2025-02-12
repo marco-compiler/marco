@@ -56,7 +56,14 @@ private:
   IndexSet indices;
 };
 
-enum class DirectionPossibility { Any, Forward, Backward, Scalar };
+enum class DirectionPossibility {
+  Any,
+  Forward,
+  Forward1Pos,
+  Backward,
+  Backward1Pos,
+  Scalar
+};
 } // namespace internal::scheduling
 
 namespace dependency {
@@ -93,13 +100,20 @@ struct EquationTraits<internal::scheduling::EquationView<VP, EP>> {
 namespace scheduling {
 /// The direction to be used by the equations loop to update its iteration
 /// variable.
-enum class Direction { Any, Forward, Backward, Unknown };
+enum class IterationDirection {
+  Any,
+  Forward,
+  Forward1Pos,
+  Backward,
+  Backward1Pos,
+  Unknown
+};
 
 template <typename EquationProperty>
 class ScheduledEquation {
 public:
   ScheduledEquation(EquationProperty property, IndexSet indices,
-                    llvm::ArrayRef<Direction> directions)
+                    llvm::ArrayRef<IterationDirection> directions)
       : property(std::move(property)), indices(std::move(indices)),
         directions(directions.begin(), directions.end()) {}
 
@@ -107,14 +121,14 @@ public:
 
   const IndexSet &getIndexes() const { return indices; }
 
-  llvm::ArrayRef<Direction> getIterationDirections() const {
+  llvm::ArrayRef<IterationDirection> getIterationDirections() const {
     return directions;
   }
 
 private:
   EquationProperty property;
   IndexSet indices;
-  llvm::SmallVector<Direction> directions;
+  llvm::SmallVector<IterationDirection> directions;
 };
 
 template <typename ElementType>
@@ -204,23 +218,30 @@ public:
             directionPossibilities, [](DirectionPossibility direction) {
               return direction == DirectionPossibility::Any ||
                      direction == DirectionPossibility::Forward ||
-                     direction == DirectionPossibility::Backward;
+                     direction == DirectionPossibility::Forward1Pos ||
+                     direction == DirectionPossibility::Backward ||
+                     direction == DirectionPossibility::Backward1Pos;
             });
 
         if (isSchedulableAsRange) {
           const auto &equation = sccElements[0];
 
-          llvm::SmallVector<scheduling::Direction> directions;
+          llvm::SmallVector<scheduling::IterationDirection> directions;
 
           for (DirectionPossibility direction : directionPossibilities) {
             if (direction == DirectionPossibility::Any) {
-              directions.push_back(scheduling::Direction::Any);
+              directions.push_back(scheduling::IterationDirection::Any);
             } else if (direction == DirectionPossibility::Forward) {
-              directions.push_back(scheduling::Direction::Forward);
+              directions.push_back(scheduling::IterationDirection::Forward);
+            } else if (direction == DirectionPossibility::Forward1Pos) {
+              directions.push_back(scheduling::IterationDirection::Forward1Pos);
             } else if (direction == DirectionPossibility::Backward) {
-              directions.push_back(scheduling::Direction::Backward);
+              directions.push_back(scheduling::IterationDirection::Backward);
+            } else if (direction == DirectionPossibility::Backward1Pos) {
+              directions.push_back(
+                  scheduling::IterationDirection::Backward1Pos);
             } else {
-              directions.push_back(scheduling::Direction::Unknown);
+              directions.push_back(scheduling::IterationDirection::Unknown);
             }
           }
 
@@ -248,9 +269,9 @@ public:
             const auto &scalarEquation =
                 scalarDependencyGraph[equationDescriptor];
 
-            llvm::SmallVector<scheduling::Direction> directions(
+            llvm::SmallVector<scheduling::IterationDirection> directions(
                 scalarEquation.getProperty().getNumOfIterationVars(),
-                scheduling::Direction::Any);
+                scheduling::IterationDirection::Any);
 
             ScheduledEquation scheduledEquation(
                 *scalarEquation.getProperty(),
@@ -267,9 +288,9 @@ public:
         llvm::SmallVector<ScheduledEquation> SCC;
 
         for (const auto &equation : sccElements) {
-          llvm::SmallVector<scheduling::Direction> directions(
+          llvm::SmallVector<scheduling::IterationDirection> directions(
               EquationTraits::getNumOfIterationVars(&equation),
-              scheduling::Direction::Unknown);
+              scheduling::IterationDirection::Unknown);
 
           SCC.push_back(ScheduledEquation(
               equation, EquationTraits::getIterationRanges(&equation),
@@ -397,8 +418,12 @@ private:
 
         if (offset == 0) {
           directions.push_back(DirectionPossibility::Any);
+        } else if (offset == 1) {
+          directions.push_back(DirectionPossibility::Backward1Pos);
         } else if (offset > 0) {
           directions.push_back(DirectionPossibility::Backward);
+        } else if (offset == -1) {
+          directions.push_back(DirectionPossibility::Forward1Pos);
         } else {
           directions.push_back(DirectionPossibility::Forward);
         }
@@ -436,6 +461,20 @@ private:
 
     if (rhs == DirectionPossibility::Any) {
       return lhs;
+    }
+
+    if ((lhs == DirectionPossibility::Forward &&
+         rhs == DirectionPossibility::Forward1Pos) ||
+        (lhs == DirectionPossibility::Forward1Pos &&
+         rhs == DirectionPossibility::Forward)) {
+      return DirectionPossibility::Forward;
+    }
+
+    if ((lhs == DirectionPossibility::Backward &&
+         rhs == DirectionPossibility::Backward1Pos) ||
+        (lhs == DirectionPossibility::Backward1Pos &&
+         rhs == DirectionPossibility::Backward)) {
+      return DirectionPossibility::Backward;
     }
 
     if (lhs != rhs) {
