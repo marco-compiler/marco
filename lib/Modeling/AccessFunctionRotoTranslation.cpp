@@ -359,8 +359,8 @@ AccessFunctionRotoTranslation::getOffset(mlir::AffineExpr expression) const {
   return 0;
 }
 
-bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunction &other, const IndexSet &sourceIndices) const
-{
+bool AccessFunctionRotoTranslation::isScalarIndependent(
+    const AccessFunction &other, const IndexSet &sourceIndices) const {
   if (auto otherCasted = other.dyn_cast<AccessFunctionRotoTranslation>()) {
     return isScalarIndependent(*otherCasted, sourceIndices);
   }
@@ -368,8 +368,9 @@ bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunction &ot
   return false;
 }
 
-bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunctionRotoTranslation &other, const IndexSet &sourceIndices) const
-{
+bool AccessFunctionRotoTranslation::isScalarIndependent(
+    const AccessFunctionRotoTranslation &other,
+    const IndexSet &sourceIndices) const {
   if (getNumOfResults() != other.getNumOfResults()) {
     return false;
   }
@@ -393,6 +394,5 @@ bool AccessFunctionRotoTranslation::isScalarIndependent(const AccessFunctionRoto
 
   return true;
 }
-
 
 } // namespace marco::modeling

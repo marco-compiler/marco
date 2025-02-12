@@ -423,7 +423,7 @@ private:
 
           // Check if the path involves more than one array equation.
           auto isSelfLoop = [&]() {
-            for (const PathDependency& dependency : extendedPath) {
+            for (const PathDependency &dependency : extendedPath) {
               if (dependency.equation != extendedPath.begin()->equation) {
                 return false;
               }
