@@ -393,26 +393,22 @@ public:
         candidates(std::move(candidates)), edge(std::nullopt),
         mappedFlow(std::nullopt) {}
 
-  BFSStep(const Graph &graph, BFSStep previous, EdgeDescriptor edge,
-          VertexDescriptor node, IndexSet candidates, MCIM mappedFlow)
-      : graph(&graph), previous(std::make_unique<BFSStep>(std::move(previous))),
-        node(std::move(node)), candidates(std::move(candidates)),
-        edge(std::move(edge)), mappedFlow(std::move(mappedFlow)) {}
+  BFSStep(const Graph &graph, std::shared_ptr<BFSStep> previous,
+          EdgeDescriptor edge, VertexDescriptor node, IndexSet candidates,
+          MCIM mappedFlow)
+      : graph(&graph), previous(previous), node(std::move(node)),
+        candidates(std::move(candidates)), edge(std::move(edge)),
+        mappedFlow(std::move(mappedFlow)) {}
 
-  BFSStep(const BFSStep &other)
-      : graph(other.graph),
-        previous(other.hasPrevious()
-                     ? std::make_unique<BFSStep>(*other.previous)
-                     : nullptr),
-        node(other.node), candidates(other.candidates), edge(other.edge),
-        mappedFlow(other.mappedFlow) {}
+  BFSStep(const BFSStep &other) = default;
+
+  BFSStep(BFSStep &&other) = default;
 
   ~BFSStep() = default;
 
-  BFSStep &operator=(const BFSStep &other);
+  BFSStep &operator=(const BFSStep &other) = default;
 
-  template <typename G, typename V, typename E>
-  friend void swap(BFSStep<G, V, E> &first, BFSStep<G, V, E> &second);
+  BFSStep &operator=(BFSStep &&other) = default;
 
   using Dumpable::dump;
 
@@ -472,39 +468,18 @@ private:
   // Stored for debugging purpose
   const Graph *graph;
 
-  std::unique_ptr<BFSStep> previous;
+  std::shared_ptr<BFSStep> previous;
   VertexDescriptor node;
   IndexSet candidates;
   std::optional<EdgeDescriptor> edge;
   std::optional<MCIM> mappedFlow;
 };
 
-template <typename Graph, typename Variable, typename Equation>
-void swap(BFSStep<Graph, Variable, Equation> &first,
-          BFSStep<Graph, Variable, Equation> &second) {
-  using std::swap;
-
-  swap(first.previous, second.previous);
-  swap(first.node, second.node);
-  swap(first.candidates, second.candidates);
-  swap(first.edge, second.edge);
-  swap(first.mappedFlow, second.mappedFlow);
-}
-
-template <typename Graph, typename Variable, typename Equation>
-BFSStep<Graph, Variable, Equation> &
-BFSStep<Graph, Variable, Equation>::operator=(
-    const BFSStep<Graph, Variable, Equation> &other) {
-  BFSStep<Graph, Variable, Equation> result(other);
-  swap(*this, result);
-  return *this;
-}
-
 template <typename BFSStep>
 class Frontier : public Dumpable {
 private:
   template <typename T>
-  using Container = std::vector<T>;
+  using Container = std::vector<std::shared_ptr<T>>;
 
 public:
   using iterator = typename Container<BFSStep>::iterator;
@@ -516,7 +491,7 @@ public:
     os << "Frontier\n";
 
     for (const auto &step : steps) {
-      step.dump(os);
+      step->dump(os);
       os << "\n";
     }
   }
@@ -541,7 +516,7 @@ public:
 
   template <typename... Args>
   void emplace(Args &&...args) {
-    steps.emplace_back(args...);
+    steps.emplace_back(std::make_shared<BFSStep>(std::forward<Args>(args)...));
   }
 
   void clear() { steps.clear(); }
@@ -1393,9 +1368,10 @@ private:
   }
 
   void getAugmentingPaths(llvm::SmallVectorImpl<AugmentingPath> &paths) const {
-    auto sortHeuristic = [](const BFSStep &first, const BFSStep &second) {
-      return first.getCandidates().flatSize() >
-             second.getCandidates().flatSize();
+    auto sortHeuristic = [](const std::shared_ptr<BFSStep> &first,
+                            const std::shared_ptr<BFSStep> &second) {
+      return first->getCandidates().flatSize() >
+             second->getCandidates().flatSize();
     };
 
     Frontier frontier;
@@ -1407,10 +1383,10 @@ private:
     for (VertexDescriptor equationDescriptor : equations) {
       const Equation &equation = getEquationFromDescriptor(equationDescriptor);
 
-      if (auto unmatchedEquations = equation.getUnmatched();
+      if (IndexSet unmatchedEquations = equation.getUnmatched();
           !unmatchedEquations.empty()) {
-        frontier.emplace(
-            BFSStep(graph, equationDescriptor, std::move(unmatchedEquations)));
+        frontier.emplace(graph, equationDescriptor,
+                         std::move(unmatchedEquations));
       }
     }
 
@@ -1421,8 +1397,8 @@ private:
     Frontier foundPaths;
 
     while (!frontier.empty() && foundPaths.empty()) {
-      for (const BFSStep &step : frontier) {
-        const VertexDescriptor &vertexDescriptor = step.getNode();
+      for (const auto &step : frontier) {
+        const VertexDescriptor &vertexDescriptor = step->getNode();
 
         for (EdgeDescriptor edgeDescriptor : llvm::make_range(
                  edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
@@ -1434,7 +1410,7 @@ private:
             assert(isVariable(nextNode));
             auto unmatchedMatrix = edge.getUnmatched();
             auto filteredMatrix =
-                unmatchedMatrix.filterRows(step.getCandidates());
+                unmatchedMatrix.filterRows(step->getCandidates());
             internal::LocalMatchingSolutions solutions =
                 internal::solveLocalMatchingProblem(filteredMatrix);
 
@@ -1454,7 +1430,8 @@ private:
           } else {
             assert(isEquation(nextNode));
             auto filteredMatrix =
-                edge.getMatched().filterColumns(step.getCandidates());
+                edge.getMatched().filterColumns(step->getCandidates());
+
             internal::LocalMatchingSolutions solutions =
                 internal::solveLocalMatchingProblem(filteredMatrix);
 
@@ -1480,9 +1457,9 @@ private:
     // accepted only if it does not traverse any of them.
     std::map<VertexDescriptor, IndexSet> visited;
 
-    for (const BFSStep &pathEnd : foundPaths) {
+    for (const auto &pathEnd : foundPaths) {
       // All the candidate paths consist in at least two nodes by construction
-      assert(pathEnd.hasPrevious());
+      assert(pathEnd->hasPrevious());
 
       std::list<Flow> flows;
 
@@ -1491,7 +1468,7 @@ private:
       // then the new visits will be merged with the already found ones.
       std::map<VertexDescriptor, IndexSet> newVisits;
 
-      const BFSStep *curStep = &pathEnd;
+      const BFSStep *curStep = pathEnd.get();
       MCIM map = curStep->getMappedFlow();
       bool validPath = true;
 
