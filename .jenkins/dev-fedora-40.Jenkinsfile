@@ -44,7 +44,7 @@ node {
         }
 
         stage('Configure') {
-            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DPython3_EXECUTABLE=/virtualenv/bin/python -DCMAKE_EXPORT_COMPILE_COMMANDS=ON", installation: 'InSearchPath', label: 'Configure'
+            cmake arguments: "-S " + marcoSrcPath + " -B " + marcoBuildPath + " -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_LINKER_TYPE=MOLD -DCMAKE_INSTALL_PREFIX=" + marcoInstallPath + " -DPython3_EXECUTABLE=/virtualenv/bin/python -DMARCO_SANITIZER=address -DCMAKE_EXPORT_COMPILE_COMMANDS=ON", installation: 'InSearchPath', label: 'Configure'
         }
 
         stage('Build') {

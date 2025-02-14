@@ -42,6 +42,9 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     /tmp/install_marco_runtime.sh
 
 # Install additional MARCO dependencies.
+RUN apt update -y && \
+    apt install -y libasan6
+
 RUN pip install nltk
 
 # Reduce image size.

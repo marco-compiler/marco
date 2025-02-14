@@ -42,7 +42,8 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     /tmp/install_marco_runtime.sh
 
 # Install additional MARCO dependencies.
-RUN apt install -y python3-nltk
+RUN apt update -y && \
+    apt install -y libasan6 python3-nltk
 
 # Install OpenModelica.
 RUN apt update -y && \

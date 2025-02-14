@@ -42,6 +42,9 @@ RUN chmod +x /tmp/install_marco_runtime.sh && \
     /tmp/install_marco_runtime.sh
 
 # Install additional MARCO dependencies.
+RUN dnf update -y && \
+    dnf install -y libasan
+
 RUN pip install nltk
 
 # Install packaging tools.
