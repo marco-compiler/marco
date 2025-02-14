@@ -208,15 +208,37 @@ MatchingPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
+using MatchingGraph =
+    ::marco::modeling::MatchingGraph<VariableBridge *, EquationBridge *>;
+
+namespace {
+void printMatchingGraph(const MatchingGraph &graph) {
+  for (auto vertexDescriptor :
+       llvm::make_range(graph.variablesBegin(), graph.variablesEnd())) {
+    const auto &variable = graph.getVariable(vertexDescriptor);
+    llvm::errs() << "Variable " << variable.getProperty()->name << "\n";
+    llvm::errs() << "  - Indices: " << variable.getIndices() << "\n";
+    llvm::errs() << "  - Matched indices: " << variable.getMatched() << "\n";
+  }
+
+  for (auto vertexDescriptor :
+       llvm::make_range(graph.equationsBegin(), graph.equationsEnd())) {
+    const auto &equation = graph.getEquation(vertexDescriptor);
+    llvm::errs() << "Equation ";
+    equation.getProperty()->op.printInline(llvm::errs());
+    llvm::errs() << "\n";
+    llvm::errs() << "  - Indices: " << equation.getIterationRanges() << "\n";
+    llvm::errs() << "  - Matched indices: " << equation.getMatched() << "\n";
+  }
+}
+} // namespace
+
 mlir::LogicalResult
 MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
                     llvm::ArrayRef<EquationInstanceOp> equations,
                     mlir::SymbolTableCollection &symbolTableCollection,
                     llvm::function_ref<std::optional<IndexSet>(VariableOp)>
                         matchableIndicesFn) {
-  using MatchingGraph =
-      ::marco::modeling::MatchingGraph<VariableBridge *, EquationBridge *>;
-
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
@@ -278,6 +300,7 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
       modelOp.emitError()
           << "Inconsistency found during the matching simplification process";
 
+      printMatchingGraph(matchingGraph);
       return mlir::failure();
     }
   }
@@ -288,6 +311,7 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     modelOp.emitError()
         << "Generic matching algorithm could not solve the matching problem";
 
+    printMatchingGraph(matchingGraph);
     return mlir::failure();
   }
 
