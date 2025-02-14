@@ -146,6 +146,13 @@ else()
 	set(MARCO_LIB_TYPE STATIC)
 endif()
 
+# Add sanitizer
+if (DEFINED MARCO_SANITIZER)
+    message(STATUS "Using sanitizer: ${MARCO_SANITIZER}")
+    add_compile_options("-fsanitize=${MARCO_SANITIZER}")
+    add_link_options("-fsanitize=${MARCO_SANITIZER}")
+endif()
+
 # Paths
 set(MARCO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 

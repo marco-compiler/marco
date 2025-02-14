@@ -73,10 +73,11 @@ To use the script shown below you have to set or replace the following environme
 
 Furthermore, the following CMake variables can optionally be used:
 
-| Name                 | Description                                                          |
-|:---------------------|:---------------------------------------------------------------------|
-| `Python3_EXECUTABLE` | Path to the Python interpreter                                     |
-| `LLVM_EXTERNAL_LIT`  | Path to the executable LLVM Integrated Tester (`lit`)                |
+| Name                 | Description                                                 |
+|:---------------------|:------------------------------------------------------------|
+| `Python3_EXECUTABLE` | Path to the Python interpreter                              |
+| `LLVM_EXTERNAL_LIT`  | Path to the executable LLVM Integrated Tester (`lit`)       |
+| `MARCO_SANITIZER`    | The sanitizer to be used for the compiler (e.g., `address`) |
 
 ```bash
 cd marco
