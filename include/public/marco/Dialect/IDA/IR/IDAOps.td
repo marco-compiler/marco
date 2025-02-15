@@ -58,19 +58,6 @@ def IDA_InternalEquationsOp : IDA_Op<"internal_equations",
     let assemblyFormat = "$bodyRegion attr-dict";
 }
 
-def IDA_ExternalEquationsOp : IDA_Op<"external_equations",
-    [SingleBlock, NoTerminator, IsolatedFromAbove]>
-{
-    let arguments = (ins);
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$bodyRegion
-    );
-
-    let assemblyFormat = "$bodyRegion attr-dict";
-}
-
 def IDA_InstanceOp : IDA_Op<"instance",
     [Symbol,
     HasParent<"mlir::ModuleOp">]>
