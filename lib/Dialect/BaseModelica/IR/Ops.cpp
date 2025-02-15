@@ -979,52 +979,24 @@ struct MergeSubscriptionsIntoLoadPattern
 } // namespace
 
 namespace mlir::bmodelica {
-mlir::ParseResult LoadOp::parse(mlir::OpAsmParser &parser,
-                                mlir::OperationState &result) {
-  auto loc = parser.getCurrentLocation();
-  mlir::OpAsmParser::UnresolvedOperand array;
-  mlir::Type arrayType;
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
-  llvm::SmallVector<mlir::Type, 3> indicesTypes;
+void LoadOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                   mlir::Value array, mlir::ValueRange indices) {
+  llvm::SmallVector<mlir::Value> castedIndices;
 
-  if (parser.parseOperand(array) ||
-      parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
-      parser.parseColonType(arrayType) ||
-      parser.resolveOperand(array, arrayType, result.operands)) {
-    return mlir::failure();
-  }
-
-  indicesTypes.resize(indices.size(),
-                      mlir::IndexType::get(result.getContext()));
-
-  size_t i = 0;
-
-  while (mlir::succeeded(parser.parseOptionalComma())) {
-    if (parser.parseType(indicesTypes[i++])) {
-      return mlir::failure();
+  for (mlir::Value index : indices) {
+    if (index.getType().isa<mlir::IndexType>()) {
+      castedIndices.push_back(index);
+    } else {
+      castedIndices.push_back(builder.create<CastOp>(
+          index.getLoc(), builder.getIndexType(), index));
     }
   }
 
-  if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
-    return mlir::failure();
-  }
+  state.operands.push_back(array);
+  state.operands.append(castedIndices);
 
-  result.addTypes(arrayType.cast<mlir::ShapedType>().getElementType());
-  return mlir::success();
-}
-
-void LoadOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getArray() << "[" << getIndices() << "]";
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : " << getArray().getType();
-
-  if (!llvm::all_of(getIndices(), [](mlir::Value index) {
-        return index.getType().isa<mlir::IndexType>();
-      })) {
-    for (mlir::Value index : getIndices()) {
-      printer << ", " << index.getType();
-    }
-  }
+  auto arrayType = array.getType().cast<ArrayType>();
+  state.types.push_back(arrayType.getElementType());
 }
 
 mlir::LogicalResult LoadOp::verify() {

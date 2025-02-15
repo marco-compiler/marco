@@ -857,12 +857,20 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
 
     let arguments = (ins
         AnyBaseModelicaArray:$array,
-        Variadic<AnyTypeOf<[Index, BaseModelicaInteger]>>:$indices);
+        Variadic<Index>:$indices);
 
     let results = (outs AnyType:$result);
-    let hasCustomAssemblyFormat = 1;
+
+    let assemblyFormat = "$array `[` $indices `]` attr-dict `:` type($array)";
+
     let hasVerifier = 1;
     let hasCanonicalizer = 1;
+
+    let skipDefaultBuilders = 1;
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$array, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+    ];
 
     let extraClassDeclaration = [{
         /// Get the array type.

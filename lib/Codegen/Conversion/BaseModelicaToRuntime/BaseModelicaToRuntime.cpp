@@ -1060,8 +1060,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeGetterOp(
 
   mlir::Value array = builder.create<GlobalVariableGetOp>(loc, timeVariableOp);
 
-  mlir::Value result =
-      builder.create<LoadOp>(loc, RealType::get(builder.getContext()), array);
+  mlir::Value result = builder.create<LoadOp>(loc, array);
 
   result = builder.create<CastOp>(loc, builder.getF64Type(), result);
   builder.create<mlir::runtime::ReturnOp>(loc, result);
@@ -1110,9 +1109,7 @@ public:
     auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
         op.getLoc(), ArrayType::get(std::nullopt, timeType), "time");
 
-    rewriter.replaceOpWithNewOp<LoadOp>(op, timeType, globalGetOp,
-                                        std::nullopt);
-
+    rewriter.replaceOpWithNewOp<LoadOp>(op, globalGetOp, std::nullopt);
     return mlir::success();
   }
 };
