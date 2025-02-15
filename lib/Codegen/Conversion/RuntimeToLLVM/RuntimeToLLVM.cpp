@@ -522,9 +522,10 @@ mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps() {
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
   target.addLegalDialect<mlir::memref::MemRefDialect>();
 
-  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-
+  mlir::DataLayout dataLayout(moduleOp);
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
   mlir::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 

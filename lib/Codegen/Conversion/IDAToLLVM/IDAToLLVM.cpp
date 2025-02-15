@@ -1048,7 +1048,8 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations() {
   target.addIllegalDialect<mlir::ida::IDADialect>();
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
-  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  mlir::DataLayout dataLayout(moduleOp);
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
 
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
   mlir::RewritePatternSet patterns(&getContext());

@@ -284,7 +284,8 @@ private:
     target.markUnknownOpDynamicallyLegal(
         [](mlir::Operation *op) { return true; });
 
-    mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+    mlir::DataLayout dataLayout(moduleOp);
+    mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
     LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
     mlir::RewritePatternSet patterns(&getContext());
