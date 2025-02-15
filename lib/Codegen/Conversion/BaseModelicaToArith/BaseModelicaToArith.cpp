@@ -113,14 +113,20 @@ struct CastOpIntegerLowering : public mlir::OpConversionPattern<CastOp> {
     auto bitWidth = result.getType().getIntOrFloatBitWidth();
     auto requestedBitWidth = resultType.getIntOrFloatBitWidth();
 
+    mlir::Type requestedBitWidthIntegerType =
+        rewriter.getIntegerType(requestedBitWidth);
+
     if (bitWidth < requestedBitWidth) {
       if (bitWidth == 1) {
-        result = rewriter.create<mlir::arith::ExtUIOp>(loc, resultType, result);
+        result = rewriter.create<mlir::arith::ExtUIOp>(
+            loc, requestedBitWidthIntegerType, result);
       } else {
-        result = rewriter.create<mlir::arith::ExtSIOp>(loc, resultType, result);
+        result = rewriter.create<mlir::arith::ExtSIOp>(
+            loc, requestedBitWidthIntegerType, result);
       }
     } else if (bitWidth > requestedBitWidth) {
-      result = rewriter.create<mlir::arith::TruncIOp>(loc, resultType, result);
+      result = rewriter.create<mlir::arith::TruncIOp>(
+          loc, requestedBitWidthIntegerType, result);
     }
 
     if (resultType.isa<mlir::FloatType>()) {
@@ -162,6 +168,7 @@ struct CastOpFloatLowering : public mlir::OpConversionPattern<CastOp> {
 
     mlir::Value result = operand;
     auto bitWidth = result.getType().getIntOrFloatBitWidth();
+    auto requestedBitWidth = resultType.getIntOrFloatBitWidth();
 
     if (resultType.isa<mlir::IndexType, mlir::IntegerType>()) {
       if (bitWidth == 1) {
@@ -169,13 +176,22 @@ struct CastOpFloatLowering : public mlir::OpConversionPattern<CastOp> {
             loc, rewriter.getIntegerType(1), result);
       } else {
         result = rewriter.create<mlir::arith::FPToSIOp>(
-            loc, rewriter.getIntegerType(bitWidth), result);
+            loc, rewriter.getIntegerType(requestedBitWidth), result);
       }
     }
 
     if (resultType.isa<mlir::IndexType>()) {
       result =
           rewriter.create<mlir::arith::IndexCastOp>(loc, resultType, result);
+    }
+
+    if (resultType.isa<mlir::FloatType>()) {
+      if (bitWidth < requestedBitWidth) {
+        result = rewriter.create<mlir::arith::ExtFOp>(loc, resultType, result);
+      } else if (bitWidth > requestedBitWidth) {
+        result =
+            rewriter.create<mlir::arith::TruncFOp>(loc, resultType, result);
+      }
     }
 
     rewriter.replaceOp(op, result);
@@ -1143,7 +1159,8 @@ private:
     }
 
     if (auto integerAttribute = attribute.dyn_cast<IntegerAttr>()) {
-      return builder.getIntegerAttr(resultType, integerAttribute.getValue());
+      return builder.getIntegerAttr(resultType,
+                                    integerAttribute.getValue().getSExtValue());
     }
 
     if (auto realAttribute = attribute.dyn_cast<RealAttr>()) {
