@@ -675,52 +675,25 @@ struct MergeTensorViewIntoTensorExtractPattern
 } // namespace
 
 namespace mlir::bmodelica {
-mlir::ParseResult TensorExtractOp::parse(mlir::OpAsmParser &parser,
-                                         mlir::OperationState &result) {
-  auto loc = parser.getCurrentLocation();
-  mlir::OpAsmParser::UnresolvedOperand array;
-  mlir::Type tensorType;
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
-  llvm::SmallVector<mlir::Type, 3> indicesTypes;
+void TensorExtractOp::build(mlir::OpBuilder &builder,
+                            mlir::OperationState &state, mlir::Value tensor,
+                            mlir::ValueRange indices) {
+  llvm::SmallVector<mlir::Value> castedIndices;
 
-  if (parser.parseOperand(array) ||
-      parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
-      parser.parseColonType(tensorType) ||
-      parser.resolveOperand(array, tensorType, result.operands)) {
-    return mlir::failure();
-  }
-
-  indicesTypes.resize(indices.size(),
-                      mlir::IndexType::get(result.getContext()));
-
-  size_t i = 0;
-
-  while (mlir::succeeded(parser.parseOptionalComma())) {
-    if (parser.parseType(indicesTypes[i++])) {
-      return mlir::failure();
+  for (mlir::Value index : indices) {
+    if (index.getType().isa<mlir::IndexType>()) {
+      castedIndices.push_back(index);
+    } else {
+      castedIndices.push_back(builder.create<CastOp>(
+          index.getLoc(), builder.getIndexType(), index));
     }
   }
 
-  if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
-    return mlir::failure();
-  }
+  state.operands.push_back(tensor);
+  state.operands.append(castedIndices);
 
-  result.addTypes(tensorType.cast<mlir::ShapedType>().getElementType());
-  return mlir::success();
-}
-
-void TensorExtractOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getTensor() << "[" << getIndices() << "]";
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : " << getTensor().getType();
-
-  if (!llvm::all_of(getIndices(), [](mlir::Value index) {
-        return index.getType().isa<mlir::IndexType>();
-      })) {
-    for (mlir::Value index : getIndices()) {
-      printer << ", " << index.getType();
-    }
-  }
+  auto tensorType = tensor.getType().cast<mlir::TensorType>();
+  state.types.push_back(tensorType.getElementType());
 }
 
 mlir::LogicalResult TensorExtractOp::verify() {

@@ -491,12 +491,19 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
 {
     let arguments = (ins
         AnyTensor:$tensor,
-        Variadic<AnyTypeOf<[Index, BaseModelicaInteger]>>:$indices);
+        Variadic<Index>:$indices);
 
     let results = (outs AnyType:$result);
-    let hasCustomAssemblyFormat = 1;
+
+    let assemblyFormat = "$tensor `[` $indices `]` attr-dict `:` type($tensor)";
+
     let hasVerifier = 1;
     let hasCanonicalizer = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$tensor, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+    ];
 }
 
 def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
