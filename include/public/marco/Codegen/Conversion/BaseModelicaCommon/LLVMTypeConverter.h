@@ -12,7 +12,8 @@ namespace mlir::bmodelica {
 class LLVMTypeConverter : public mlir::LLVMTypeConverter {
 public:
   LLVMTypeConverter(mlir::MLIRContext *context,
-                    const mlir::LowerToLLVMOptions &options);
+                    const mlir::LowerToLLVMOptions &options,
+                    int integerBitWidth = 64, int realBitWidth = 64);
 
 private:
   mlir::Type forwardConversion(mlir::Type type);

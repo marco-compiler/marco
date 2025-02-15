@@ -10,7 +10,7 @@
 namespace mlir::bmodelica {
 class TypeConverter : public mlir::TypeConverter {
 public:
-  TypeConverter();
+  TypeConverter(int integerBitWidth = 64, int realBitWidth = 64);
 
 private:
   mlir::Type convertBooleanType(mlir::bmodelica::BooleanType type);
@@ -21,6 +21,10 @@ private:
   mlir::Type convertUnrankedArrayType(mlir::bmodelica::UnrankedArrayType type);
 
   mlir::Type convertTensorType(mlir::TensorType type);
+
+private:
+  int integerBitWidth{64};
+  int realBitWidth{64};
 };
 } // namespace mlir::bmodelica
 
