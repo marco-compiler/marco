@@ -532,6 +532,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
     options.cse = true;
     options.functionCallsCSE = true;
     options.loopFusion = true;
+    options.loopHoisting = true;
   }
 
   if (options.optLevel.getSpeedupLevel() > 2) {

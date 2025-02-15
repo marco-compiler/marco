@@ -913,8 +913,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
 
   // Lift loop-independent code from loops of equations.
-  pm.addNestedPass<mlir::bmodelica::EquationFunctionOp>(
-      mlir::bmodelica::createEquationFunctionLoopHoistingPass());
+  if (ci.getCodeGenOptions().loopHoisting) {
+    pm.addNestedPass<mlir::bmodelica::EquationFunctionOp>(
+        mlir::bmodelica::createEquationFunctionLoopHoistingPass());
+  }
 
   // Export the unsolved SCCs to KINSOL.
   pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
