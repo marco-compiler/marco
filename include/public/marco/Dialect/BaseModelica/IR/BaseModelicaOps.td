@@ -909,11 +909,18 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     let arguments = (ins
         AnyType:$value,
         AnyBaseModelicaArray:$array,
-        Variadic<AnyTypeOf<[Index, BaseModelicaInteger]>>:$indices);
+        Variadic<Index>:$indices);
 
     let results = (outs);
-    let hasCustomAssemblyFormat = 1;
+
+    let assemblyFormat = "$array `[` $indices `]` `,` $value attr-dict `:` type($array)";
+
     let hasVerifier = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [
+        OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$array, CArg<"mlir::ValueRange", "std::nullopt">:$indices)>
+    ];
 
     let extraClassDeclaration = [{
         /// Get the array type.

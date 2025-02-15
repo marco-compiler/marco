@@ -1043,58 +1043,23 @@ void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 // StoreOp
 
 namespace mlir::bmodelica {
-mlir::ParseResult StoreOp::parse(mlir::OpAsmParser &parser,
-                                 mlir::OperationState &result) {
-  auto loc = parser.getCurrentLocation();
-  mlir::OpAsmParser::UnresolvedOperand array;
-  mlir::Type arrayType;
-  mlir::OpAsmParser::UnresolvedOperand value;
-  llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
-  llvm::SmallVector<mlir::Type, 3> indicesTypes;
+void StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                    mlir::Value value, mlir::Value array,
+                    mlir::ValueRange indices) {
+  llvm::SmallVector<mlir::Value> castedIndices;
 
-  if (parser.parseOperand(array) ||
-      parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
-      parser.parseComma() || parser.parseOperand(value) ||
-      parser.parseColonType(arrayType) ||
-      parser.resolveOperand(value,
-                            arrayType.cast<mlir::ShapedType>().getElementType(),
-                            result.operands) ||
-      parser.resolveOperand(array, arrayType, result.operands)) {
-    return mlir::failure();
-  }
-
-  indicesTypes.resize(indices.size(),
-                      mlir::IndexType::get(result.getContext()));
-
-  size_t i = 0;
-
-  while (mlir::succeeded(parser.parseOptionalComma())) {
-    if (parser.parseType(indicesTypes[i++])) {
-      return mlir::failure();
+  for (mlir::Value index : indices) {
+    if (index.getType().isa<mlir::IndexType>()) {
+      castedIndices.push_back(index);
+    } else {
+      castedIndices.push_back(builder.create<CastOp>(
+          index.getLoc(), builder.getIndexType(), index));
     }
   }
 
-  if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-void StoreOp::print(mlir::OpAsmPrinter &printer) {
-  printer << " " << getArray() << "[" << getIndices() << "]"
-          << ", " << getValue();
-
-  printer.printOptionalAttrDict(getOperation()->getAttrs());
-  printer << " : " << getArray().getType();
-
-  if (!llvm::all_of(getIndices(), [](mlir::Value index) {
-        return index.getType().isa<mlir::IndexType>();
-      })) {
-    for (mlir::Value index : getIndices()) {
-      printer << ", " << index.getType();
-    }
-  }
+  state.operands.push_back(value);
+  state.operands.push_back(array);
+  state.operands.append(castedIndices);
 }
 
 mlir::LogicalResult StoreOp::verify() {
