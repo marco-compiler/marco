@@ -2,7 +2,6 @@
 #define MARCO_DIALECT_BASEMODELICA_IR_VARIABLESDEPENDENCYGRAPH_H
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include <set>
 
 namespace mlir::bmodelica {
 class VariablesDependencyGraph {
@@ -72,8 +71,8 @@ public:
   llvm::SmallVector<VariableOp> reversePostOrder() const;
 
 protected:
-  // TODO replace llvm::StringRef with mlir::StringAttr for safety.
-  virtual std::set<llvm::StringRef> getDependencies(VariableOp variable) = 0;
+  virtual llvm::SmallVector<std::string>
+  getDependencies(VariableOp variable) = 0;
 
 private:
   llvm::DenseMap<mlir::Operation *, std::set<Node>> arcs;

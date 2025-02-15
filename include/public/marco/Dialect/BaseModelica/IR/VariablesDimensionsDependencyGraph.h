@@ -9,7 +9,7 @@ namespace mlir::bmodelica {
 /// dimensions of their types.
 class VariablesDimensionsDependencyGraph : public VariablesDependencyGraph {
 protected:
-  std::set<llvm::StringRef> getDependencies(VariableOp variable) override;
+  llvm::SmallVector<std::string> getDependencies(VariableOp variable) override;
 };
 } // namespace mlir::bmodelica
 

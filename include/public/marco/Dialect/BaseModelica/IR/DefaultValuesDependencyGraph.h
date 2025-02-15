@@ -14,7 +14,7 @@ public:
       : defaultOps(&defaultOps) {}
 
 protected:
-  std::set<llvm::StringRef> getDependencies(VariableOp variable) override;
+  llvm::SmallVector<std::string> getDependencies(VariableOp variable) override;
 
 private:
   const llvm::StringMap<DefaultOp> *defaultOps;
