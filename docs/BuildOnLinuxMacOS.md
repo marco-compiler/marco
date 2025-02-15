@@ -57,8 +57,12 @@ pip install lit
 ```
 
 ### Runtime libraries
-The runtime libraries project provides the libraries to be linked for generating the simulation.
-The instructions for their compilation and installation can be found in the [dedicated repository](https://github.com/marco-compiler/marco-runtime).
+
+The runtime libraries project provides the libraries to be linked while generating the simulation binary.
+They are not strictly needed for building the compiler and, if not installed, the regression test suite of MARCO will
+just skip the simulation tests.
+The instructions for the compilation and installation of the libraries can be found in
+the [dedicated repository](https://github.com/marco-compiler/marco-runtime).
 
 ## Building and installing the compiler
 With all the requirements set in place, the compiler can be now built through the following procedure.
@@ -87,6 +91,7 @@ mkdir build && cd build
 MARCO_INSTALL_PATH=marco_install_path
 
 # Set the path of the runtime libraries.
+# Remove the following line and the correspondent variable in the CMake invocation if the libraries have not been installed.
 MARCO_RUNTIME_PATH=marco_runtime_install_path
 
 cmake \
