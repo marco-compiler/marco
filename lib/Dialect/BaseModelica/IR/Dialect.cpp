@@ -182,18 +182,17 @@ mlir::Type getMostGenericScalarType(mlir::Value x, mlir::Value y) {
   return getMostGenericScalarType(x.getType(), y.getType());
 }
 
+// clang-format off
 /// Get the most generic scalar type among two.
 ///
-///                 |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR
-///                 Integer  |  MLIR Float
-/// Boolean         |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR
-/// Integer  |  MLIR Float Integer         |     -     |  Integer  |  Real  |
-/// Integer   |     Integer    |  MLIR Float Real            |     -     |     -
-/// |  Real  |     Real     |      Real      |     Real MLIR Index      |     -
-/// |     -     |   -    |  MLIR Index  |  MLIR Integer  |  MLIR Float MLIR
-/// Integer    |     -     |     -     |   -    |       -      |  MLIR Integer
-/// |  MLIR Float MLIR Float      |     -     |     -     |   -    |       - |
-/// -       |  MLIR Float
+///                 |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR Integer  |  MLIR Float
+/// Boolean         |  Boolean  |  Integer  |  Real  |  MLIR Index  |  MLIR Integer  |  MLIR Float
+/// Integer         |     -     |  Integer  |  Real  |  Integer     |     Integer    |  MLIR Float
+/// Real            |     -     |     -     |  Real  |     Real     |      Real      |     Real
+/// MLIR Index      |     -     |     -     |   -    |  MLIR Index  |  MLIR Integer  |  MLIR Float
+/// MLIR Integer    |     -     |     -     |   -    |       -      |  MLIR Integer  |  MLIR Float
+/// MLIR Float      |     -     |     -     |   -    |       -      |       -        |  MLIR Float
+// clang-format on
 mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second) {
   assert(isScalar(first) && isScalar(second));
 
