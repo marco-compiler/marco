@@ -127,9 +127,9 @@ int main(int argc, const char **argv) {
   clang::DiagnosticsEngine diags(diagID, &*diagOpts, diagClient);
 
   // Prepare the driver
-  clang::driver::Driver theDriver(driverPath,
-                                  llvm::sys::getDefaultTargetTriple(), diags,
-                                  "marco LLVM compiler");
+  clang::driver::Driver theDriver(
+      driverPath, llvm::sys::getDefaultTargetTriple(), diags, "marco compiler");
+
   theDriver.setTargetAndMode(targetAndMode);
   std::unique_ptr<clang::driver::Compilation> c(
       theDriver.BuildCompilation(args));

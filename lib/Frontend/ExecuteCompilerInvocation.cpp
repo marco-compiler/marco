@@ -65,7 +65,7 @@ bool executeCompilerInvocation(CompilerInstance *ci) {
   // Honor --help.
   if (ci->getFrontendOptions().showHelp) {
     getDriverOptTable().printHelp(
-        llvm::outs(), "marco -mc1 [options] file...", "MARCO Modelica frontend",
+        llvm::outs(), "marco -mc1 [options] file...", "MARCO frontend",
         llvm::opt::DriverFlag::HelpHidden, false,
         llvm::opt::Visibility(clang::driver::options::MC1Option));
 
@@ -74,9 +74,12 @@ bool executeCompilerInvocation(CompilerInstance *ci) {
 
   // Honor --version.
   if (ci->getFrontendOptions().showVersion) {
-    // TODO: print marco version
-    llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
-    llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
+    llvm::outs() << "MARCO frontend\n";
+
+#ifdef MARCO_VERSION
+    llvm::outs() << "Version: " << MARCO_VERSION << "\n";
+#endif
+
     return true;
   }
 

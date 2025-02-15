@@ -153,6 +153,23 @@ if (DEFINED MARCO_SANITIZER)
     add_link_options("-fsanitize=${MARCO_SANITIZER}")
 endif()
 
+# Add a compile-time definition for the version.
+if (DEFINED MARCO_VERSION)
+    add_compile_definitions(MARCO_VERSION="${MARCO_VERSION}")
+else ()
+    execute_process(
+            COMMAND git rev-parse --short HEAD
+            RESULT_VARIABLE MARCO_VERSION_RESULT
+            OUTPUT_VARIABLE MARCO_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if (MARCO_VERSION_RESULT EQUAL "0")
+        add_compile_definitions(MARCO_VERSION="${MARCO_VERSION}")
+    else ()
+        message(WARNING "Can't get commit hash. Error: ${MARCO_VERSION_RESULT}")
+    endif ()
+endif ()
+
 # Paths
 set(MARCO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
