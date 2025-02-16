@@ -765,6 +765,8 @@ void CodeGenAction::setMLIRModuleDataLayout() {
   mlir::DataLayoutSpecInterface dlSpecAttr =
       mlir::translateDataLayout(dl, &getMLIRContext());
 
+  dlSpecAttr = dlSpecAttr.combineWith(buildBaseModelicaDataLayoutSpec());
+
   auto existingDlSpecAttr =
       (*mlirModule)
           ->getAttrOfType<mlir::DataLayoutSpecInterface>(dlSpecAttrName);
@@ -784,6 +786,37 @@ void CodeGenAction::setMLIRModuleDataLayout() {
 
   (*mlirModule)
       ->setAttr(dlSpecAttrName, mlir::cast<mlir::Attribute>(dlSpecAttr));
+}
+
+namespace {
+mlir::Attribute getTypeSizeAttr(mlir::MLIRContext *context,
+                                uint64_t sizeInBits) {
+  llvm::SmallVector<mlir::Attribute, 2> attrs;
+  attrs.push_back(mlir::StringAttr::get(context, "size"));
+
+  auto integerType = mlir::IntegerType::get(context, 64);
+  attrs.push_back(mlir::IntegerAttr::get(integerType, sizeInBits));
+
+  return mlir::ArrayAttr::get(context, attrs);
+}
+} // namespace
+
+mlir::DataLayoutSpecInterface CodeGenAction::buildBaseModelicaDataLayoutSpec() {
+  llvm::SmallVector<mlir::DataLayoutEntryInterface> entries;
+
+  // Integer type.
+  entries.push_back(mlir::DataLayoutEntryAttr::get(
+      mlir::bmodelica::IntegerType::get(&getMLIRContext()),
+      getTypeSizeAttr(&getMLIRContext(),
+                      getInstance().getCodeGenOptions().bitWidth)));
+
+  // Real type.
+  entries.push_back(mlir::DataLayoutEntryAttr::get(
+      mlir::bmodelica::RealType::get(&getMLIRContext()),
+      getTypeSizeAttr(&getMLIRContext(),
+                      getInstance().getCodeGenOptions().bitWidth)));
+
+  return mlir::DataLayoutSpecAttr::get(&getMLIRContext(), entries);
 }
 
 void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {

@@ -149,6 +149,8 @@ protected:
   /// Set the data layout inside the MLIR module.
   void setMLIRModuleDataLayout();
 
+  mlir::DataLayoutSpecInterface buildBaseModelicaDataLayoutSpec();
+
   /// Given a pass manager, append the passes to lower the MLIR module to
   /// the LLVM dialect.
   void buildMLIRLoweringPipeline(mlir::PassManager &pm);
