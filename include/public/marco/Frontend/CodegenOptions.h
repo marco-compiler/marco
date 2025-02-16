@@ -33,7 +33,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool loopHoisting = false;
   bool loopTiling = false;
 
-  unsigned int bitWidth = 64;
+  uint64_t bitWidth = 64;
 
   std::string cpu = "generic";
   std::vector<std::string> features;

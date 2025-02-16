@@ -614,7 +614,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   if (const llvm::opt::Arg *arg = args.getLastArg(options::OPT_bit_width)) {
     llvm::StringRef value = arg->getValue();
     llvm::APSInt numericValue(value);
-    options.bitWidth = numericValue.getSExtValue();
+    options.bitWidth = numericValue.getZExtValue();
   }
 
   // Target-specific options.
