@@ -28,7 +28,144 @@ void BaseModelicaDialect::registerTypes() {
 }
 } // namespace mlir::bmodelica
 
+namespace {
+template <typename Attr>
+Attr getTypeDLDictValue(mlir::DataLayoutEntryInterface entry,
+                        llvm::StringRef key) {
+  auto arrayAttr = mlir::dyn_cast<mlir::ArrayAttr>(entry.getValue());
+
+  if (!arrayAttr) {
+    return {};
+  }
+
+  if (arrayAttr.size() != 2) {
+    return {};
+  }
+
+  auto keyAttr = mlir::dyn_cast<mlir::StringAttr>(arrayAttr[0]);
+
+  if (!keyAttr || keyAttr != key) {
+    return {};
+  }
+
+  return mlir::dyn_cast<Attr>(arrayAttr[1]);
+}
+
+std::optional<uint64_t> getTypeSizeInBits(mlir::DataLayoutEntryListRef params) {
+  for (mlir::DataLayoutEntryInterface entry : params) {
+    auto valueAttr = getTypeDLDictValue<mlir::IntegerAttr>(entry, "size");
+
+    if (!valueAttr) {
+      continue;
+    }
+
+    return valueAttr.getValue().getZExtValue();
+  }
+
+  return std::nullopt;
+}
+} // namespace
+
 namespace mlir::bmodelica {
+//===---------------------------------------------------------------------===//
+// BooleanType
+//===---------------------------------------------------------------------===//
+llvm::TypeSize
+BooleanType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                               mlir::DataLayoutEntryListRef params) const {
+  if (auto size = ::getTypeSizeInBits(params)) {
+    return llvm::TypeSize::getFixed(*size);
+  }
+
+  return llvm::TypeSize::getFixed(1);
+}
+
+uint64_t
+BooleanType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                             ::mlir::DataLayoutEntryListRef params) const {
+  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
+
+  if (size >= 8) {
+    return 4;
+  }
+
+  return llvm::bit_ceil(size);
+}
+
+uint64_t BooleanType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
+
+  if (size >= 8) {
+    return 4;
+  }
+
+  return llvm::bit_ceil(size);
+}
+
+//===---------------------------------------------------------------------===//
+// IntegerType
+//===---------------------------------------------------------------------===//
+llvm::TypeSize
+IntegerType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                               mlir::DataLayoutEntryListRef params) const {
+  if (auto size = ::getTypeSizeInBits(params)) {
+    return llvm::TypeSize::getFixed(*size);
+  }
+
+  return llvm::TypeSize::getFixed(64);
+}
+
+uint64_t
+IntegerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                             ::mlir::DataLayoutEntryListRef params) const {
+  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
+
+  if (size >= 8) {
+    return 4;
+  }
+
+  return llvm::bit_ceil(size);
+}
+
+uint64_t IntegerType::getPreferredAlignment(
+    const ::mlir::DataLayout &dataLayout,
+    ::mlir::DataLayoutEntryListRef params) const {
+  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
+
+  if (size >= 8) {
+    return 4;
+  }
+
+  return llvm::bit_ceil(size);
+}
+
+//===---------------------------------------------------------------------===//
+// RealType
+//===---------------------------------------------------------------------===//
+llvm::TypeSize
+RealType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
+                            mlir::DataLayoutEntryListRef params) const {
+  if (auto size = ::getTypeSizeInBits(params)) {
+    return llvm::TypeSize::getFixed(*size);
+  }
+
+  return llvm::TypeSize::getFixed(64);
+}
+
+uint64_t
+RealType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
+                          ::mlir::DataLayoutEntryListRef params) const {
+  return 64;
+}
+
+uint64_t
+RealType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
+                                ::mlir::DataLayoutEntryListRef params) const {
+  return 64;
+}
+
 //===-------------------------------------------------------------------===//
 // BaseArrayType
 //===-------------------------------------------------------------------===//

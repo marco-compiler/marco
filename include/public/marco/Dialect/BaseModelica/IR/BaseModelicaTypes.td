@@ -5,6 +5,7 @@ include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypeInterfaces.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
+include "mlir/Interfaces/DataLayoutInterfaces.td"
 
 //===---------------------------------------------------------------------===//
 // Base Modelica type definitions
@@ -22,7 +23,8 @@ class BaseModelica_Type<
 
 def BooleanType : BaseModelica_Type<"Boolean",
     [ElementaryType,
-    MemRefElementTypeInterface]>
+    MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]>
 {
     let summary = "Boolean type";
     let mnemonic = "bool";
@@ -34,7 +36,8 @@ def BooleanType : BaseModelica_Type<"Boolean",
 
 def IntegerType : BaseModelica_Type<"Integer",
     [ElementaryType,
-    MemRefElementTypeInterface]>
+    MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]>
 {
     let summary = "Integer type";
     let mnemonic = "int";
@@ -46,7 +49,8 @@ def IntegerType : BaseModelica_Type<"Integer",
 
 def RealType : BaseModelica_Type<"Real",
     [ElementaryType,
-    MemRefElementTypeInterface]>
+    MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface>]>
 {
     let summary = "Real type";
     let mnemonic = "real";
