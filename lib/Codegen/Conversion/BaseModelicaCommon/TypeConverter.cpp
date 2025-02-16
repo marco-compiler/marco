@@ -62,21 +62,24 @@ mlir::Type TypeConverter::convertIntegerType(IntegerType type) {
 }
 
 mlir::Type TypeConverter::convertRealType(RealType type) {
-  switch (realBitWidth) {
-  case 16:
+  if (realBitWidth <= 16) {
     return mlir::FloatType::getF16(type.getContext());
-  case 32:
-    return mlir::FloatType::getF32(type.getContext());
-  case 64:
-    return mlir::FloatType::getF64(type.getContext());
-  case 80:
-    return mlir::FloatType::getF80(type.getContext());
-  case 128:
-    return mlir::FloatType::getF128(type.getContext());
   }
 
-  llvm_unreachable("Incompatible bit-width for Real type");
-  return mlir::FloatType::getF64(type.getContext());
+  if (realBitWidth <= 32) {
+    return mlir::FloatType::getF32(type.getContext());
+  }
+
+  if (realBitWidth <= 64) {
+    return mlir::FloatType::getF64(type.getContext());
+  }
+
+  if (realBitWidth <= 80) {
+    return mlir::FloatType::getF80(type.getContext());
+  }
+
+  return mlir::FloatType::getF128(type.getContext());
+  ;
 }
 
 mlir::Type TypeConverter::convertArrayType(ArrayType type) {
