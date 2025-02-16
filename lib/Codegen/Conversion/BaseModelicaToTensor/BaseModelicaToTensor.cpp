@@ -492,7 +492,7 @@ struct FillOpLowering : public mlir::OpRewritePattern<FillOp> {
 } // namespace
 
 mlir::LogicalResult BaseModelicaToTensorConversionPass::convertOperations() {
-  auto module = getOperation();
+  auto moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addLegalDialect<mlir::arith::ArithDialect>();
@@ -505,13 +505,15 @@ mlir::LogicalResult BaseModelicaToTensorConversionPass::convertOperations() {
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
 
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
+
   mlir::RewritePatternSet patterns(&getContext());
-  TypeConverter typeConverter;
 
   populateBaseModelicaToTensorConversionPatterns(patterns, &getContext(),
                                                  typeConverter);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir {

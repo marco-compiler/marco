@@ -1700,7 +1700,7 @@ void addDynamicallyLegalVectorizedOneOperandAndResultOp(
 } // namespace
 
 mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
-  auto module = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addLegalDialect<mlir::arith::ArithDialect>();
@@ -1902,13 +1902,15 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
 
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
+
   mlir::RewritePatternSet patterns(&getContext());
-  TypeConverter typeConverter;
 
   populateBaseModelicaToLinalgConversionPatterns(patterns, &getContext(),
                                                  typeConverter);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace {

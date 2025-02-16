@@ -372,8 +372,9 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   mlir::DataLayout dataLayout(moduleOp);
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
+  LLVMTypeConverter typeConverter(&getContext(), dataLayout,
+                                  llvmLoweringOptions);
 
-  LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
   mlir::SymbolTableCollection symbolTableCollection;
 
   mlir::RewritePatternSet patterns(&getContext());

@@ -10,7 +10,7 @@
 namespace mlir::bmodelica {
 class TypeConverter : public mlir::TypeConverter {
 public:
-  TypeConverter(int integerBitWidth = 64, int realBitWidth = 64);
+  TypeConverter(mlir::MLIRContext *context, const mlir::DataLayout &dataLayout);
 
 private:
   mlir::Type convertBooleanType(mlir::bmodelica::BooleanType type);

@@ -41,7 +41,7 @@ void BaseModelicaToRuntimeCallConversionPass::runOnOperation() {
 
 mlir::LogicalResult
 BaseModelicaToRuntimeCallConversionPass::convertOperations() {
-  mlir::ModuleOp module = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addLegalDialect<
@@ -66,14 +66,16 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
 
   target.addIllegalOp<PrintOp>();
 
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
+
   mlir::RewritePatternSet patterns(&getContext());
-  TypeConverter typeConverter;
   mlir::SymbolTableCollection symbolTableCollection;
 
   populateBaseModelicaToRuntimeCallConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 /// Get or declare a function inside the module.

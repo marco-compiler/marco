@@ -2081,7 +2081,7 @@ void BaseModelicaToArithConversionPass::runOnOperation() {
 }
 
 mlir::LogicalResult BaseModelicaToArithConversionPass::convertOperations() {
-  mlir::ModuleOp module = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addLegalDialect<BaseModelicaDialect, mlir::BuiltinDialect,
@@ -2117,13 +2117,15 @@ mlir::LogicalResult BaseModelicaToArithConversionPass::convertOperations() {
 
   target.addIllegalOp<ReductionOp, SelectOp>();
 
-  TypeConverter typeConverter;
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
+
   mlir::RewritePatternSet patterns(&getContext());
 
   populateBaseModelicaToArithConversionPatterns(patterns, &getContext(),
                                                 typeConverter);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir {

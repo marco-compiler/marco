@@ -4,10 +4,10 @@ using namespace ::mlir::bmodelica;
 
 namespace mlir::bmodelica {
 LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext *context,
-                                     const mlir::LowerToLLVMOptions &options,
-                                     int integerBitWidth, int realBitWidth)
+                                     const mlir::DataLayout &dataLayout,
+                                     const mlir::LowerToLLVMOptions &options)
     : mlir::LLVMTypeConverter(context, options),
-      baseTypeConverter(integerBitWidth, realBitWidth),
+      baseTypeConverter(context, dataLayout),
       llvmTypeConverter(context, options) {
   addConversion([&](BooleanType type) { return forwardConversion(type); });
 

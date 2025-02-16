@@ -4,8 +4,11 @@
 using namespace ::mlir::bmodelica;
 
 namespace mlir::bmodelica {
-TypeConverter::TypeConverter(int integerBitWidth, int realBitWidth)
-    : integerBitWidth(integerBitWidth), realBitWidth(realBitWidth) {
+TypeConverter::TypeConverter(mlir::MLIRContext *context,
+                             const mlir::DataLayout &dataLayout) {
+  integerBitWidth = dataLayout.getTypeSizeInBits(IntegerType::get(context));
+  realBitWidth = dataLayout.getTypeSizeInBits(RealType::get(context));
+
   addConversion([](mlir::Type type) { return type; });
 
   addConversion([&](BooleanType type) { return convertBooleanType(type); });

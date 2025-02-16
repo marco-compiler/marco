@@ -47,9 +47,11 @@ void BaseModelicaToMLIRCoreConversionPass::runOnOperation() {
 }
 
 mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
-  mlir::ModuleOp module = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
-  TypeConverter typeConverter;
+
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
 
   target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
                          mlir::bufferization::BufferizationDialect,
@@ -142,7 +144,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   populateBaseModelicaToMemRefConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir {

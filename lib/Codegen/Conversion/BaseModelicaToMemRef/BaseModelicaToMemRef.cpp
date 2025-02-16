@@ -684,7 +684,7 @@ void BaseModelicaToMemRefConversionPass::runOnOperation() {
 }
 
 mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
-  mlir::ModuleOp module = getOperation();
+  mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<ArrayCastOp>();
@@ -707,8 +707,8 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
 
-  TypeConverter typeConverter;
-
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
   typeConverter.addConversion([](mlir::IndexType type) { return type; });
 
   mlir::RewritePatternSet patterns(&getContext());
@@ -717,7 +717,7 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
   populateBaseModelicaToMemRefConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir {

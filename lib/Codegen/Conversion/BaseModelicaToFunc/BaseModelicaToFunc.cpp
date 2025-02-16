@@ -676,7 +676,9 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
 
-  mlir::bmodelica::TypeConverter typeConverter;
+  mlir::DataLayout dataLayout(moduleOp);
+  TypeConverter typeConverter(&getContext(), dataLayout);
+
   mlir::RewritePatternSet patterns(&getContext());
 
   populateBaseModelicaToFuncConversionPatterns(patterns, &getContext(),
