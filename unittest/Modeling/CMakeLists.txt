@@ -11,7 +11,9 @@ set(SOURCES
     PointTest.cpp
     RangeTest.cpp
     SolveLocalMatchingProblemTest.cpp
-    UndirectedGraphTest.cpp)
+    UndirectedGraphTest.cpp
+    GraphDumperTest.cpp
+)
 
 marco_add_unittest(ModelingTest ${SOURCES})
 
