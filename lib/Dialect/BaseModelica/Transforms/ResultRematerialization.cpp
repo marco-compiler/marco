@@ -4,6 +4,7 @@
 #include "marco/Dialect/BaseModelica/IR/Properties.h"
 #include "marco/Dialect/BaseModelica/Transforms/ResultRematerialization.h"
 #include "marco/Modeling/Graph.h"
+#include "marco/Modeling/GraphDumper.h"
 #include <deque>
 
 namespace mlir::bmodelica {
@@ -12,6 +13,8 @@ namespace mlir::bmodelica {
 } // namespace mlir::bmodelica
 
 using namespace ::mlir::bmodelica;
+
+using marco::modeling::internal::GraphDumper;
 
 namespace {
 struct EquationWrapper {
@@ -76,125 +79,6 @@ private:
                  const std::function<void(GraphType::VertexProperty &)> &);
 };
 
-template <class GraphType, class VPrinter, class EPrinter>
-struct GraphDumperImpl {
-  // using Traits = typename GraphType::Traits;
-  using VertexDescriptor = typename GraphType::VertexDescriptor;
-  using EdgeDescriptor = typename GraphType::EdgeDescriptor;
-
-  using VertexProperty = typename GraphType::VertexProperty;
-  using EdgeProperty = typename GraphType::EdgeProperty;
-
-  using VertexPrinter =
-      std::function<void(VertexProperty &, llvm::raw_ostream &)>;
-  using EdgePrinter = std::function<void(EdgeProperty &, llvm::raw_ostream &)>;
-
-private:
-  GraphDumperImpl(GraphType *graph) : graph{graph} {}
-
-  void dump(llvm::raw_ostream &os, VPrinter &&vp, EPrinter &&ep) {
-    GraphDumperImpl dumper(graph);
-    dumper.dumpImpl(os, std::forward<VPrinter>(vp), std::forward<EPrinter>(ep));
-  }
-
-  std::string indexToStringIdentifier(int idx) {
-    std::string result;
-    constexpr int base = 26;
-
-    while (idx >= 0) {
-      result = char('A' + (idx % base)) + result;
-      idx = (idx / base) - 1;
-    }
-
-    return result;
-  }
-
-  void dumpImpl(llvm::raw_ostream &os, VPrinter &&vp, EPrinter &&ep) {
-
-    auto mappings = computeMappings();
-
-    outputNodes(os, mappings, std::forward<VPrinter>(vp));
-
-    for (auto eIt = graph->edgesBegin(); eIt != graph->edgesEnd(); eIt++) {
-
-      auto fromVertex = (*eIt).from;
-      auto toVertex = (*eIt).to;
-
-      const std::string &identifier = mappings.at(fromVertex);
-      const std::string &toIdentifier = mappings.at(toVertex);
-
-      os << identifier << " --> " << toIdentifier << "\n";
-    }
-  }
-
-  template <class VPrinterT>
-  void callVertexPrinter(VPrinterT &&vp, VertexProperty &prop,
-                         llvm::raw_ostream &os) {
-
-    if constexpr (!std::is_same_v<VPrinterT, std::nullptr_t>) {
-      os << "(\"";
-      std::forward<VPrinter>(vp)(prop, os);
-      os << "\")";
-    }
-  }
-
-  void outputNodes(llvm::raw_ostream &os,
-                   llvm::DenseMap<VertexDescriptor, std::string> &mappings,
-                   VPrinter &&vp) {
-    for (auto vIt = graph->verticesBegin(); vIt != graph->verticesEnd();
-         vIt++) {
-      std::string identifier = mappings.at(*vIt);
-
-      VertexProperty &prop = (**(*vIt).value);
-
-      os << identifier;
-
-      callVertexPrinter<VPrinter>(std::forward<VPrinter>(vp), prop, os);
-
-      os << "\n";
-    }
-  }
-
-  llvm::DenseMap<VertexDescriptor, std::string> computeMappings() {
-    llvm::DenseMap<VertexDescriptor, std::string> result;
-
-    int idx = 0;
-    for (auto vIt = graph->verticesBegin(); vIt != graph->verticesEnd();
-         vIt++) {
-      std::string identifier = indexToStringIdentifier(idx++);
-      result[*vIt] = identifier;
-    }
-
-    return result;
-  }
-
-  friend struct GraphDumper;
-
-private:
-  GraphType *graph;
-};
-
-struct GraphDumper {
-  template <class GraphType>
-  static void dump(GraphType *graph, llvm::raw_ostream &os) {
-
-    dump(graph, os, nullptr, nullptr);
-  }
-
-  template <class GraphType, class VPrinter>
-  static void dump(GraphType *graph, llvm::raw_ostream &os,
-                   VPrinter &&vprinter) {
-    dump(graph, os, vprinter, nullptr);
-  }
-
-  template <class GraphType, class VPrinter, class EPrinter>
-  static void dump(GraphType *graph, llvm::raw_ostream &os, VPrinter &&vprinter,
-                   EPrinter &&eprinter) {
-    GraphDumperImpl<GraphType, VPrinter, EPrinter> instance{graph};
-    instance.dump(os, std::forward<VPrinter>(vprinter),
-                  std::forward<EPrinter>(eprinter));
-  }
-};
 
 } // namespace
 
@@ -265,7 +149,8 @@ mlir::LogicalResult ResultRematerializationPass::handleModel(
       }
     };
 
-    GraphDumper::dump(&graph, llvm::dbgs(), vertexPrinter, nullptr);
+    GraphDumper dumper{&graph, vertexPrinter, nullptr};
+    dumper.dump(llvm::outs());
   }
 
   return mlir::success();

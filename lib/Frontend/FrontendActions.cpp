@@ -948,12 +948,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Explicitate the equations.
   pm.addPass(mlir::bmodelica::createEquationExplicitationPass());
 
-  if ( ci.getCodeGenOptions().resultRematerialization ) {
-    // Perform experimental memory balancing optimization
-    //   recomputes results when operands are estimated likely to
-    //   reside in caches.
-    pm.addPass(mlir::bmodelica::createResultRematerializationPass());
-  }
+  // Perform experimental memory balancing optimization
+  //   recomputes results when operands are estimated likely to
+  //   reside in caches.
+  //   TODO: Add codegen option
+  pm.addPass(mlir::bmodelica::createResultRematerializationPass());
 
   // Lift loop-independent code from loops of equations.
   if (ci.getCodeGenOptions().loopHoisting) {
