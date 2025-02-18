@@ -113,12 +113,16 @@ public:
   }
 };
 
+// PrinterWrapper deduction guide
+template <class Functor>
+PrinterWrapper(Functor) -> PrinterWrapper<Functor>;
+
 //==----------------------------------------------------------------------===//
 // Mermaid Backend
 //==----------------------------------------------------------------------===//
 
 template <class GraphType, class VPrinter,
-          class EPrinter = std::function<void()>>
+          class EPrinter = PrinterWrapper<std::nullptr_t>>
 struct GraphDumperMermaidBackend {
   using VertexDescriptor = typename GraphType::VertexDescriptor;
   using EdgeDescriptor = typename GraphType::EdgeDescriptor;
@@ -135,7 +139,7 @@ struct GraphDumperMermaidBackend {
 
   void dump(llvm::raw_ostream &os, VPrinter &&vp) const {
     GraphDumperMermaidBackend dumper(graph);
-    dumper.dumpImpl(os, std::forward<VPrinter>(vp), nullptr);
+    dumper.dumpImpl(os, std::forward<VPrinter>(vp), PrinterWrapper{nullptr});
   }
 
   std::string indexToStringIdentifier(int idx) {
@@ -154,39 +158,42 @@ struct GraphDumperMermaidBackend {
     auto mappings = computeMappings();
     outputNodes(os, mappings, std::forward<VPrinter>(vp));
 
-    for (auto eIt = graph->edgesBegin(); eIt != graph->edgesEnd(); eIt++) {
+    for (auto edge : llvm::make_range(graph->edgesBegin(), graph->edgesEnd())) {
 
-      auto fromVertex = (*eIt).from;
-      auto toVertex = (*eIt).to;
+      auto fromVertex = edge.from;
+      auto toVertex = edge.to;
 
       const std::string &identifier = mappings.at(fromVertex);
       const std::string &toIdentifier = mappings.at(toVertex);
 
-      os << identifier << " --> " << toIdentifier << "\n";
-    }
-  }
+      os << identifier << " --";
 
-  template <class VPrinterT>
-  void callVertexPrinter(VPrinterT &&vp, VertexProperty &prop,
-                         llvm::raw_ostream &os) {
+      if (ep.isValid()) {
+        os << "\"";
+        ep(**(*(edge).value), os);
+        os << "\"--";
+      }
 
-    if constexpr (!std::is_same_v<VPrinterT, std::nullptr_t>) {
-      os << "(\"";
-      std::forward<VPrinter>(vp)(prop, os);
-      os << "\")";
-    }
+      os << "> " << toIdentifier << "\n";
+    };
   }
 
   void outputNodes(llvm::raw_ostream &os,
                    llvm::DenseMap<VertexDescriptor, std::string> &mappings,
                    VPrinter &&vp) {
-    for (auto vIt = graph->verticesBegin(); vIt != graph->verticesEnd();
-         vIt++) {
-      std::string identifier = mappings.at(*vIt);
+
+    for (auto vertex :
+         llvm::make_range(graph->verticesBegin(), graph->verticesEnd())) {
+      std::string identifier = mappings.at(vertex);
       os << identifier;
 
-      VertexProperty &prop = (**(*vIt).value);
-      callVertexPrinter<VPrinter>(std::forward<VPrinter>(vp), prop, os);
+      VertexProperty &prop = (**(vertex).value);
+
+      if (vp.isValid()) {
+        os << "(\"";
+        vp(prop, os);
+        os << "\")";
+      }
 
       os << "\n";
     }

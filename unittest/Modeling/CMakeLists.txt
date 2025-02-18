@@ -13,6 +13,7 @@ set(SOURCES
     SolveLocalMatchingProblemTest.cpp
     UndirectedGraphTest.cpp
     GraphDumperTest.cpp
+    GraphDumperMermaidBackendTest.cpp
 )
 
 marco_add_unittest(ModelingTest ${SOURCES})
