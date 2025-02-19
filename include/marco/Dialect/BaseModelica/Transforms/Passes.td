@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECT_SIMULATION_TRANSFORMS_PASSES_TD
-#define MARCO_DIALECT_SIMULATION_TRANSFORMS_PASSES_TD
+#ifndef MARCO_DIALECT_BASEMODELICA_TRANSFORMS_PASSES_TD
+#define MARCO_DIALECT_BASEMODELICA_TRANSFORMS_PASSES_TD
 
 include "mlir/Pass/PassBase.td"
 include "mlir/Rewrite/PassUtil.td"
@@ -853,4 +853,4 @@ def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createNegateOpDistributionPass()";
 }
 
-#endif // MARCO_DIALECT_SIMULATION_TRANSFORMS_PASSES_TD
+#endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_PASSES_TD
