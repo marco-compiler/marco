@@ -1,0 +1,7 @@
+#ifndef MARCO_DIALECT_MODELICA_TRANSFORMS_PASSES_TD
+#define MARCO_DIALECT_MODELICA_TRANSFORMS_PASSES_TD
+
+include "mlir/Pass/PassBase.td"
+include "mlir/Rewrite/PassUtil.td"
+
+#endif // MARCO_DIALECT_MODELICA_TRANSFORMS_PASSES_TD
