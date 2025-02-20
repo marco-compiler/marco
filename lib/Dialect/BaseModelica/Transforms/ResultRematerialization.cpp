@@ -121,8 +121,7 @@ mlir::LogicalResult ResultRematerializationPass::handleModel(
   auto variablePairs = getVariablePairs(modelOp, variableOps,
                                         symbolTableCollection, derivativesMap);
 
-  llvm::DenseMap<llvm::StringRef,
-                 marco::modeling::internal::UndirectedGraph<EquationWrapper>>
+  llvm::StringMap<marco::modeling::internal::UndirectedGraph<EquationWrapper>>
       scheduleGraphs;
 
   auto scheduleOps = getSchedules(modelOp);
@@ -132,8 +131,9 @@ mlir::LogicalResult ResultRematerializationPass::handleModel(
         buildScheduleGraph(scheduleOp, moduleOp, symbolTableCollection);
   }
 
-  for (auto &[name, graph] : scheduleGraphs) {
-    llvm::dbgs() << "--- Graph for " << name << " ---\n";
+  for (auto &entry : scheduleGraphs) {
+    auto &graph = entry.second;
+    llvm::dbgs() << "--- Graph for " << entry.first() << " ---\n";
 
     auto vertexPrinter = [](EquationWrapper &eq, llvm::raw_ostream &os) {
       bool first = true;
@@ -263,7 +263,6 @@ ResultRematerializationPass::buildScheduleGraph(
       llvm::dbgs() << "Callee: " << equationCallOp.getCallee().str() << "\n";
 
       // Try to get the equation
-
       mlir::Operation *calleeSym = symbolTableCollection.lookupSymbolIn(
           moduleOp,
           mlir::FlatSymbolRefAttr::get(equationCallOp.getCalleeAttr()));
