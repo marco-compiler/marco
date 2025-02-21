@@ -272,7 +272,8 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     }
 
     auto &bridge = equationBridges.emplace_back(EquationBridge::build(
-        equation, symbolTableCollection, *accessAnalysis, variablesMap));
+        static_cast<int64_t>(equationBridges.size()), equation,
+        symbolTableCollection, *accessAnalysis, variablesMap));
 
     matchingGraph.addEquation(bridge.get());
   }

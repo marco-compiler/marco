@@ -13,6 +13,7 @@ class raw_ostream;
 namespace mlir::bmodelica::bridge {
 class EquationBridge {
 public:
+  int64_t id;
   EquationInstanceOp op;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
@@ -25,7 +26,8 @@ public:
   }
 
   EquationBridge(
-      EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+      int64_t id, EquationInstanceOp op,
+      mlir::SymbolTableCollection &symbolTable,
       VariableAccessAnalysis &accessAnalysis,
       llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap);
 
@@ -41,7 +43,7 @@ namespace marco::modeling::matching {
 template <>
 struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
   using Equation = ::mlir::bmodelica::bridge::EquationBridge *;
-  using Id = mlir::Operation *;
+  using Id = int64_t;
 
   static Id getId(const Equation *equation);
 

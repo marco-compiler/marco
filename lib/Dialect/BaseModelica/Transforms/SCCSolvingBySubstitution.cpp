@@ -256,9 +256,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(
-        MatchedEquationBridge::build(equation, symbolTableCollection,
-                                     *variableAccessAnalysis, variablesMap));
+    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+        static_cast<int64_t>(equationBridges.size()), equation,
+        symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
     equationPtrs.push_back(bridge.get());
   }
@@ -687,9 +687,9 @@ void SCCSolvingBySubstitutionPass::createSCCs(
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(
-        MatchedEquationBridge::build(equation, symbolTableCollection,
-                                     *variableAccessAnalysis, variablesMap));
+    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+        static_cast<int64_t>(equationBridges.size()), equation,
+        symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
     equationPtrs.push_back(bridge.get());
   }

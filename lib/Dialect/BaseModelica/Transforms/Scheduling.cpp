@@ -331,9 +331,10 @@ mlir::LogicalResult SchedulingPass::schedule(
         return mlir::failure();
       }
 
-      auto &equationBridge = equationBridges.emplace_back(
-          MatchedEquationBridge::build(equation, symbolTableCollection,
-                                       *variableAccessAnalysis, variablesMap));
+      auto &equationBridge =
+          equationBridges.emplace_back(MatchedEquationBridge::build(
+              static_cast<int64_t>(equationBridges.size()), equation,
+              symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
       equationsMap[equation] = equationBridge.get();
     }

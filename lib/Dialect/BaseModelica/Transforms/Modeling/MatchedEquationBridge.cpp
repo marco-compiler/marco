@@ -5,17 +5,18 @@ using namespace ::mlir::bmodelica::bridge;
 
 namespace mlir::bmodelica::bridge {
 MatchedEquationBridge::MatchedEquationBridge(
-    MatchedEquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+    int64_t id, MatchedEquationInstanceOp op,
+    mlir::SymbolTableCollection &symbolTable,
     VariableAccessAnalysis &accessAnalysis,
     llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
-    : op(op), symbolTable(&symbolTable), accessAnalysis(&accessAnalysis),
-      variablesMap(&variablesMap) {}
+    : id(id), op(op), symbolTable(&symbolTable),
+      accessAnalysis(&accessAnalysis), variablesMap(&variablesMap) {}
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::dependency {
 EquationTraits<MatchedEquationBridge *>::Id
 EquationTraits<MatchedEquationBridge *>::getId(const Equation *equation) {
-  return (*equation)->op.getOperation();
+  return (*equation)->id;
 }
 
 size_t EquationTraits<MatchedEquationBridge *>::getNumOfIterationVars(
