@@ -8,6 +8,7 @@
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/Graph.h"
+#include "marco/Modeling/GraphDumper.h"
 #include "marco/Modeling/LocalMatchingSolutions.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/Range.h"
@@ -720,7 +721,7 @@ public:
   void dump(llvm::raw_ostream &os) const override {
     os << "--------------------------------------------------\n";
     os << "Matching graph\n";
-    os << "- Vertices:\n";
+    os << "- Nodes:\n";
 
     for (auto vertexDescriptor :
          llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
@@ -731,13 +732,21 @@ public:
       os << "\n";
     }
 
-    os << "- Equations:\n";
-
     for (auto equationDescriptor :
          llvm::make_range(graph.edgesBegin(), graph.edgesEnd())) {
       graph[equationDescriptor].dump(os);
       os << "\n";
     }
+
+    os << "- Visualization:\n";
+
+    auto vertexPrinter = [](const Vertex &vertex, llvm::raw_ostream &os) {
+      std::visit([&](const auto &wrapper) { os << wrapper.getId(); }, vertex);
+    };
+
+    internal::GraphDumper graphDumper(&graph, vertexPrinter);
+    graphDumper.dump(os);
+    os << "\n";
 
     os << "--------------------------------------------------\n";
   }
