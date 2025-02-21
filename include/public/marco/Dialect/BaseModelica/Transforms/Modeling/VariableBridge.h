@@ -44,6 +44,9 @@ public:
   VariableBridge &operator=(const VariableBridge &other) = delete;
   VariableBridge &operator==(const VariableBridge &other) = delete;
 };
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const VariableBridge::Id &obj);
 } // namespace mlir::bmodelica::bridge
 
 namespace llvm {

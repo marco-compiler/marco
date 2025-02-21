@@ -63,6 +63,11 @@ std::unique_ptr<VariableBridge> VariableBridge::build(VariableOp variable) {
 VariableBridge::VariableBridge(mlir::SymbolRefAttr name,
                                marco::modeling::IndexSet indices)
     : id(name), name(name), indices(std::move(indices)) {}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const VariableBridge::Id &obj) {
+  return os << obj.name;
+}
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::matching {
