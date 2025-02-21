@@ -13,6 +13,43 @@ static IndexSet getNonEmptyIndices(IndexSet indices) {
 }
 
 namespace mlir::bmodelica::bridge {
+VariableBridge::Id::Id(mlir::SymbolRefAttr name) : name(name) {}
+
+bool VariableBridge::Id::operator<(const VariableBridge::Id &other) const {
+  if (auto rootCmp =
+          name.getRootReference().compare(other.name.getRootReference());
+      rootCmp != 0) {
+    return rootCmp < 0;
+  }
+
+  size_t l1 = name.getNestedReferences().size();
+  size_t l2 = other.name.getNestedReferences().size();
+
+  for (size_t i = 0, e = std::min(l1, l2); i < e; ++i) {
+    auto firstNestedRef = name.getNestedReferences()[i].getAttr();
+    auto secondNestedRef = other.name.getNestedReferences()[i].getAttr();
+
+    if (auto nestedCmp = firstNestedRef.compare(secondNestedRef);
+        nestedCmp != 0) {
+      return nestedCmp < 0;
+    }
+  }
+
+  if (l1 < l2) {
+    return true;
+  }
+
+  return false;
+}
+
+bool VariableBridge::Id::operator==(const Id &other) const {
+  return name == other.name;
+}
+
+bool VariableBridge::Id::operator!=(const Id &other) const {
+  return !(*this == other);
+}
+
 std::unique_ptr<VariableBridge> VariableBridge::build(mlir::SymbolRefAttr name,
                                                       IndexSet indices) {
   return std::make_unique<VariableBridge>(name, std::move(indices));
@@ -25,13 +62,13 @@ std::unique_ptr<VariableBridge> VariableBridge::build(VariableOp variable) {
 
 VariableBridge::VariableBridge(mlir::SymbolRefAttr name,
                                marco::modeling::IndexSet indices)
-    : name(name), indices(std::move(indices)) {}
+    : id(name), name(name), indices(std::move(indices)) {}
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::matching {
 VariableTraits<VariableBridge *>::Id
 VariableTraits<VariableBridge *>::getId(const Variable *variable) {
-  return *variable;
+  return (*variable)->id;
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
@@ -65,7 +102,7 @@ VariableTraits<VariableBridge *>::dump(const Variable *variable,
 namespace marco::modeling::dependency {
 VariableTraits<VariableBridge *>::Id
 VariableTraits<VariableBridge *>::getId(const Variable *variable) {
-  return *variable;
+  return (*variable)->id;
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {

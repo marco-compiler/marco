@@ -14,6 +14,19 @@ class raw_ostream;
 namespace mlir::bmodelica::bridge {
 class VariableBridge {
 public:
+  struct Id {
+    mlir::SymbolRefAttr name;
+
+    Id(mlir::SymbolRefAttr name);
+
+    bool operator<(const Id &other) const;
+
+    bool operator==(const Id &other) const;
+
+    bool operator!=(const Id &other) const;
+  };
+
+  Id id;
   mlir::SymbolRefAttr name;
   marco::modeling::IndexSet indices;
 
@@ -33,11 +46,36 @@ public:
 };
 } // namespace mlir::bmodelica::bridge
 
+namespace llvm {
+template <>
+struct DenseMapInfo<::mlir::bmodelica::bridge::VariableBridge::Id> {
+  static inline ::mlir::bmodelica::bridge::VariableBridge::Id getEmptyKey() {
+    return {nullptr};
+  }
+
+  static inline ::mlir::bmodelica::bridge::VariableBridge::Id
+  getTombstoneKey() {
+    return {nullptr};
+  }
+
+  static unsigned
+  getHashValue(const ::mlir::bmodelica::bridge::VariableBridge::Id &val) {
+    return llvm::DenseMapInfo<mlir::SymbolRefAttr>::getHashValue(val.name);
+  }
+
+  static bool
+  isEqual(const ::mlir::bmodelica::bridge::VariableBridge::Id &lhs,
+          const ::mlir::bmodelica::bridge::VariableBridge::Id &rhs) {
+    return lhs == rhs;
+  }
+};
+} // namespace llvm
+
 namespace marco::modeling::matching {
 template <>
 struct VariableTraits<::mlir::bmodelica::bridge::VariableBridge *> {
   using Variable = ::mlir::bmodelica::bridge::VariableBridge *;
-  using Id = ::mlir::bmodelica::bridge::VariableBridge *;
+  using Id = ::mlir::bmodelica::bridge::VariableBridge::Id;
 
   static Id getId(const Variable *variable);
 
@@ -54,7 +92,7 @@ namespace marco::modeling::dependency {
 template <>
 struct VariableTraits<::mlir::bmodelica::bridge::VariableBridge *> {
   using Variable = ::mlir::bmodelica::bridge::VariableBridge *;
-  using Id = ::mlir::bmodelica::bridge::VariableBridge *;
+  using Id = ::mlir::bmodelica::bridge::VariableBridge::Id;
 
   static Id getId(const Variable *variable);
 

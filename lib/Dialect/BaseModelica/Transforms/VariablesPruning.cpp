@@ -298,17 +298,17 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     }
 
     // Add the implicit relations introduced by derivatives.
-    walkDerivedVariables(
-        modelOp, variable->name, [&](mlir::SymbolRefAttr derivedVarName) {
-          graph.addEdge(variable, variablesMap[derivedVarName]);
-          graph.addEdge(variablesMap[derivedVarName], variable);
-        });
+    walkDerivedVariables(modelOp, variable->name,
+                         [&](mlir::SymbolRefAttr derivedVarName) {
+                           graph.addEdge(variable->name, derivedVarName);
+                           graph.addEdge(derivedVarName, variable->name);
+                         });
 
-    walkDerivativeVariables(
-        modelOp, variable->name, [&](mlir::SymbolRefAttr derivativeVarName) {
-          graph.addEdge(variable, variablesMap[derivativeVarName]);
-          graph.addEdge(variablesMap[derivativeVarName], variable);
-        });
+    walkDerivativeVariables(modelOp, variable->name,
+                            [&](mlir::SymbolRefAttr derivativeVarName) {
+                              graph.addEdge(variable->name, derivativeVarName);
+                              graph.addEdge(derivativeVarName, variable->name);
+                            });
   }
 
   LLVM_DEBUG({
