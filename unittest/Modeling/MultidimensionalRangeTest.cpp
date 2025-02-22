@@ -16,6 +16,23 @@ TEST(MultidimensionalRange, flatSize) {
   EXPECT_EQ(range.flatSize(), 18);
 }
 
+TEST(MultidimensionalRange, compare) {
+  MultidimensionalRange r1({Range(0, 10), Range(2, 5)});
+  MultidimensionalRange r2({Range(0, 10), Range(3, 7)});
+  MultidimensionalRange r3({Range(5, 10), Range(2, 5)});
+  MultidimensionalRange r4({Range(0, 10), Range(2, 5), Range(3, 7)});
+
+  EXPECT_EQ(r1.compare(r1), 0);
+
+  EXPECT_LT(r1.compare(r2), 0);
+  EXPECT_LT(r1.compare(r3), 0);
+  EXPECT_LT(r1.compare(r4), 0);
+
+  EXPECT_GT(r2.compare(r1), 0);
+  EXPECT_GT(r3.compare(r1), 0);
+  EXPECT_GT(r4.compare(r1), 0);
+}
+
 TEST(MultidimensionalRange, iteration) {
   MultidimensionalRange range({Range(1, 3), Range(2, 5), Range(8, 10)});
 

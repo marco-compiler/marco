@@ -57,48 +57,12 @@ bool MultidimensionalRange::operator!=(
 
 bool MultidimensionalRange::operator<(
     const MultidimensionalRange &other) const {
-  if (rank() < other.rank()) {
-    return true;
-  }
-
-  if (rank() > other.rank()) {
-    return false;
-  }
-
-  for (size_t i = 0, e = rank(); i < e; ++i) {
-    if (ranges[i] < other.ranges[i]) {
-      return true;
-    }
-
-    if (ranges[i] > other.ranges[i]) {
-      return false;
-    }
-  }
-
-  return false;
+  return compare(other) < 0;
 }
 
 bool MultidimensionalRange::operator>(
     const MultidimensionalRange &other) const {
-  if (rank() > other.rank()) {
-    return true;
-  }
-
-  if (rank() < other.rank()) {
-    return false;
-  }
-
-  for (size_t i = 0, e = rank(); i < e; ++i) {
-    if (ranges[i] > other.ranges[i]) {
-      return true;
-    }
-
-    if (ranges[i] < other.ranges[i]) {
-      return false;
-    }
-  }
-
-  return false;
+  return compare(other) > 0;
 }
 
 Range &MultidimensionalRange::operator[](size_t index) {
@@ -128,6 +92,23 @@ unsigned int MultidimensionalRange::flatSize() const {
   }
 
   return result;
+}
+
+int MultidimensionalRange::compare(const MultidimensionalRange &other) const {
+  unsigned int rank1 = rank();
+  unsigned int rank2 = other.rank();
+
+  if (rank1 != rank2) {
+    return rank1 < rank2 ? -1 : 1;
+  }
+
+  for (unsigned int i = 0; i < rank1; ++i) {
+    if (auto rangeCmp = ranges[i].compare(other.ranges[i]); rangeCmp != 0) {
+      return rangeCmp;
+    }
+  }
+
+  return 0;
 }
 
 bool MultidimensionalRange::contains(const Point &other) const {

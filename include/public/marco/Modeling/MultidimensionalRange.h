@@ -76,6 +76,8 @@ public:
 
   unsigned int flatSize() const;
 
+  int compare(const MultidimensionalRange &other) const;
+
   bool contains(const Point &other) const;
 
   bool contains(const MultidimensionalRange &other) const;
