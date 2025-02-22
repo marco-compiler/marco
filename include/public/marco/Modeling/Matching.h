@@ -131,14 +131,7 @@ public:
   using Dumpable::dump;
 
   void dump(llvm::raw_ostream &os) const override {
-    os << "Variable\n";
-    os << "  - ID: " << getId() << "\n";
-    os << "  - Rank: " << getRank() << "\n";
-    os << "  - Indices: " << getIndices() << "\n";
-    os << "  - Matched: " << getMatched() << "\n";
-    os << "  - Details: ";
     Traits::dump(&property, os);
-    os << "\n";
   }
 
   VariableProperty &getProperty() { return property; }
@@ -267,13 +260,7 @@ public:
   using Dumpable::dump;
 
   void dump(llvm::raw_ostream &os) const override {
-    os << "Equation\n";
-    os << "  - ID: " << getId() << "\n";
-    os << "  - Iteration ranges: " << getIterationRanges() << "\n";
-    os << "  - Matched: " << getMatched() << "\n";
-    os << "  - Details: ";
     Traits::dump(&property, os);
-    os << "\n";
   }
 
   EquationProperty &getProperty() { return property; }
@@ -414,25 +401,21 @@ public:
   using Dumpable::dump;
 
   void dump(llvm::raw_ostream &os) const override {
-    os << "BFS step\n";
+    std::vector<const BFSStep *> path;
+    path.push_back(this);
 
-    os << "Node: ";
-    dumpId(os, getNode());
-    os << "\n";
+    while (path.back()->hasPrevious()) {
+      path.push_back(path.back()->getPrevious());
+    }
 
-    os << "Candidates:\n" << getCandidates();
+    for (size_t i = 0, e = path.size(); i < e; ++i) {
+      if (i != 0) {
+        os << " -> ";
+      }
 
-    if (hasPrevious()) {
-      os << "\n";
-      os << "Edge: ";
-      dumpId(os, getEdge().from);
-      os << " - ";
-      dumpId(os, getEdge().to);
-      os << "\n";
-
-      os << "Mapped flow:\n" << getMappedFlow() << "\n";
-      os << "Previous:\n";
-      getPrevious()->dump(os);
+      const BFSStep *step = path[e - i - 1];
+      dumpId(os, step->getNode());
+      os << " " << step->getCandidates();
     }
   }
 
@@ -726,27 +709,67 @@ public:
     for (auto vertexDescriptor :
          llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
 
-      std::visit([&](const auto &vertex) { vertex.dump(os); },
-                 graph[vertexDescriptor]);
+      if (isVariable(vertexDescriptor)) {
+        const Variable &variable = getVariableFromDescriptor(vertexDescriptor);
+
+        os << "Variable\n";
+        os << "  - ID: " << variable.getId() << "\n";
+        os << "  - Info: ";
+        variable.dump(os);
+        os << "\n";
+        os << "  - Rank: " << variable.getRank() << "\n";
+        os << "  - Indices: " << variable.getIndices() << "\n";
+        os << "  - Matched: " << variable.getMatched() << "\n";
+
+        for (auto edgeDescriptor : llvm::make_range(
+                 edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
+          const Equation &equation =
+              getEquationFromDescriptor(edgeDescriptor.to);
+          const Edge &edge = graph[edgeDescriptor];
+          IndexSet matchedVariables = edge.getMatched().flattenRows();
+
+          if (!matchedVariables.empty()) {
+            IndexSet matchedEquations = edge.getMatched().flattenColumns();
+            os << "  - Match: ";
+            os << matchedVariables << " -> " << equation.getId() << " "
+               << matchedEquations << "\n";
+          }
+        }
+      } else {
+        const Equation &equation = getEquationFromDescriptor(vertexDescriptor);
+
+        os << "Equation\n";
+        os << "  - ID: " << equation.getId() << "\n";
+        os << "  - Info: ";
+        equation.dump(os);
+        os << "\n";
+        os << "  - Iteration ranges: " << equation.getIterationRanges() << "\n";
+        os << "  - Matched: " << equation.getMatched() << "\n";
+
+        for (auto edgeDescriptor : llvm::make_range(
+                 edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
+          const Variable &variable =
+              getVariableFromDescriptor(edgeDescriptor.to);
+          const Edge &edge = graph[edgeDescriptor];
+          IndexSet matchedEquations = edge.getMatched().flattenColumns();
+
+          if (!matchedEquations.empty()) {
+            IndexSet matchedVariables = edge.getMatched().flattenRows();
+            os << "  - Match: ";
+            os << matchedEquations << " -> " << variable.getId() << " "
+               << matchedVariables << "\n";
+          }
+        }
+      }
 
       os << "\n";
     }
 
-    for (auto equationDescriptor :
+    for (auto edgeDescriptor :
          llvm::make_range(graph.edgesBegin(), graph.edgesEnd())) {
-      graph[equationDescriptor].dump(os);
+      graph[edgeDescriptor].dump(os);
       os << "\n";
     }
-
-    os << "- Visualization:\n";
-
-    auto vertexPrinter = [](const Vertex &vertex, llvm::raw_ostream &os) {
-      std::visit([&](const auto &wrapper) { os << wrapper.getId(); }, vertex);
-    };
-
-    internal::GraphDumper graphDumper(&graph, vertexPrinter);
-    graphDumper.dump(os);
-    os << "\n";
 
     os << "--------------------------------------------------\n";
   }
@@ -1382,7 +1405,14 @@ private:
 
   void getAugmentingPaths(std::vector<AugmentingPath> &augmentingPaths) const {
     // Get the possible augmenting paths.
+    LLVM_DEBUG({ llvm::dbgs() << "Searching augmenting paths\n"; });
+
     std::vector<std::shared_ptr<BFSStep>> paths = getCandidateAugmentingPaths();
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Number of candidate augmenting paths: " << paths.size()
+                   << "\n";
+    });
 
     // For each traversed node, keep track of the indices that have already
     // been traversed by some augmenting path. A new candidate path can be
@@ -1453,6 +1483,11 @@ private:
         }
       }
     }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "Number of accepted augmenting paths: "
+                   << augmentingPaths.size() << "\n";
+    });
   }
 
   int compareBFSPaths(const BFSStep &first, const BFSStep &second) const {
@@ -1547,6 +1582,7 @@ private:
 
     while (!frontier.empty() && paths.empty()) {
       llvm::sort(frontier, sortHeuristic);
+      LLVM_DEBUG(frontier.dump(llvm::dbgs()));
 
       auto stepFn = [&](const std::shared_ptr<BFSStep> &step) {
         std::vector<std::shared_ptr<BFSStep>> localFrontier;
@@ -1571,6 +1607,7 @@ private:
         }
       };
 
+      LLVM_DEBUG(llvm::dbgs() << "Expanding the frontier\n");
       mlir::parallelForEach(getContext(), frontier, stepFn);
 
       // Set the new frontier for the next iteration.
@@ -1584,6 +1621,12 @@ private:
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
                       std::vector<std::shared_ptr<BFSStep>> &newFrontier,
                       std::vector<std::shared_ptr<BFSStep>> &paths) const {
+    LLVM_DEBUG({
+      llvm::dbgs() << "Current traversal: ";
+      step->dump(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
+
     const VertexDescriptor &vertexDescriptor = step->getNode();
 
     auto containsFn = [&](VertexDescriptor node, const IndexSet &indices) {
@@ -1613,14 +1656,26 @@ private:
 
       if (isEquation(vertexDescriptor)) {
         assert(isVariable(nextNode));
+        Variable var = getVariableFromDescriptor(edgeDescriptor.to);
+
+        LLVM_DEBUG({
+          llvm::dbgs() << "Exploring edge from "
+                       << getEquationFromDescriptor(vertexDescriptor).getId()
+                       << " to " << var.getId() << "\n";
+        });
+
         auto unmatchedMatrix = edge.getUnmatched();
         auto filteredMatrix = unmatchedMatrix.filterRows(step->getCandidates());
 
         internal::LocalMatchingSolutions solutions =
             internal::solveLocalMatchingProblem(filteredMatrix);
 
+        LLVM_DEBUG({
+          llvm::dbgs() << "Number of local matching solutions: "
+                       << solutions.size() << "\n";
+        });
+
         for (auto solution : solutions) {
-          Variable var = getVariableFromDescriptor(edgeDescriptor.to);
           auto unmatchedScalarVariables = var.getUnmatched();
           auto matched = solution.filterColumns(unmatchedScalarVariables);
           IndexSet indices = solution.flattenRows();
@@ -1638,11 +1693,23 @@ private:
       } else {
         assert(isEquation(nextNode));
 
+        LLVM_DEBUG({
+          llvm::dbgs() << "Exploring edge from "
+                       << getVariableFromDescriptor(vertexDescriptor).getId()
+                       << " to " << getEquationFromDescriptor(nextNode).getId()
+                       << "\n";
+        });
+
         auto filteredMatrix =
             edge.getMatched().filterColumns(step->getCandidates());
 
         internal::LocalMatchingSolutions solutions =
             internal::solveLocalMatchingProblem(filteredMatrix);
+
+        LLVM_DEBUG({
+          llvm::dbgs() << "Number of local matching solutions: "
+                       << solutions.size() << "\n";
+        });
 
         for (auto solution : solutions) {
           IndexSet indices = solution.flattenColumns();
