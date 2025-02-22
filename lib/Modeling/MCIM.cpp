@@ -207,6 +207,24 @@ MCIM &MCIM::operator-=(const MCIM &rhs) {
 
   for (auto &group : oldGroups) {
     if (!group->empty()) {
+      // Remove the keys that overlap with the extra points.
+      for (const MultidimensionalRange &range :
+           llvm::make_range(rhs.points.rangesBegin(), rhs.points.rangesEnd())) {
+        MultidimensionalRange equations =
+            range.takeFirstDimensions(rhs.equationRanges.rank());
+
+        MultidimensionalRange variables =
+            range.takeLastDimensions(rhs.variableRanges.rank());
+
+        IndexSet inverseKeys = group->getAccessFunction().inverseMap(
+            IndexSet(variables), group->getKeys());
+
+        IndexSet keysIntersection = inverseKeys.intersect(equations);
+        group->removeKeys(keysIntersection);
+      }
+    }
+
+    if (!group->empty()) {
       addGroup(std::move(group));
     }
   }
