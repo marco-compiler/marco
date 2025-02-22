@@ -181,6 +181,16 @@ MCIM &MCIM::operator+=(const MCIM &rhs) {
     set(equation, variable);
   }
 
+  assert(std::all_of(rhs.indicesBegin(), rhs.indicesEnd(),
+                     [&](std::pair<Point, Point> coordinates) {
+                       if (rhs.get(coordinates.first, coordinates.second)) {
+                         return get(coordinates.first, coordinates.second);
+                       }
+
+                       return true;
+                     }) &&
+         "Not all points were correctly added");
+
   return *this;
 }
 
@@ -230,6 +240,17 @@ MCIM &MCIM::operator-=(const MCIM &rhs) {
   }
 
   points -= rhs.points;
+
+  assert(std::all_of(rhs.indicesBegin(), rhs.indicesEnd(),
+                     [&](std::pair<Point, Point> coordinates) {
+                       if (rhs.get(coordinates.first, coordinates.second)) {
+                         return !get(coordinates.first, coordinates.second);
+                       }
+
+                       return true;
+                     }) &&
+         "Not all points were correctly removed");
+
   return *this;
 }
 
