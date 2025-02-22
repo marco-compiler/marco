@@ -17,5 +17,26 @@ void MCIMSolutions::compute(const MCIM &obj) {
 
     solutions.push_back(std::move(solution));
   }
+
+  assert(allIndicesCovered(obj) &&
+         "The computed local matching solutions discard some indices");
+}
+
+bool MCIMSolutions::allIndicesCovered(const MCIM &obj) const {
+  for (auto coordinates :
+       llvm::make_range(obj.indicesBegin(), obj.indicesEnd())) {
+    Point equation = coordinates.first;
+    Point variable = coordinates.second;
+
+    if (obj.get(equation, variable)) {
+      if (!llvm::any_of(solutions, [&](const MCIM &solution) {
+            return solution.get(equation, variable);
+          })) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 } // namespace marco::modeling::internal

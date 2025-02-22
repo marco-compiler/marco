@@ -18,6 +18,15 @@ public:
 private:
   void compute(const MCIM &obj);
 
+  /// @name Debug methods.
+  /// {
+
+  /// Check if the computed solutions cover all the indices that are set inside
+  /// the original matrix.
+  [[maybe_unused]] bool allIndicesCovered(const MCIM &obj) const;
+
+  /// }
+
   llvm::SmallVector<MCIM, 3> solutions;
 };
 } // namespace marco::modeling::internal
