@@ -1455,13 +1455,72 @@ private:
     }
   }
 
+  int compareBFSPaths(const BFSStep &first, const BFSStep &second) const {
+    // Compare the flow size.
+    size_t s1 = first.getCandidates().flatSize();
+    size_t s2 = second.getCandidates().flatSize();
+
+    if (s1 != s2) {
+      return s1 > s2 ? -1 : 1;
+    }
+
+    const BFSStep *firstPtr = &first;
+    const BFSStep *secondPtr = &second;
+
+    do {
+      // Compare the identifiers.
+      if (isEquation(firstPtr->getNode())) {
+        assert(isEquation(secondPtr->getNode()));
+
+        auto id1 = getEquationFromDescriptor(firstPtr->getNode()).getId();
+        auto id2 = getEquationFromDescriptor(secondPtr->getNode()).getId();
+
+        if (id1 != id2) {
+          return id1 < id2 ? -1 : 1;
+        }
+      } else {
+        assert(isVariable(firstPtr->getNode()) &&
+               isVariable(secondPtr->getNode()));
+
+        auto id1 = getVariableFromDescriptor(firstPtr->getNode()).getId();
+        auto id2 = getVariableFromDescriptor(secondPtr->getNode()).getId();
+
+        if (id1 != id2) {
+          return id1 < id2 ? -1 : 1;
+        }
+      }
+
+      // Compare the indices.
+      if (auto indicesCmp =
+              firstPtr->getCandidates().compare(secondPtr->getCandidates());
+          indicesCmp != 0) {
+        return indicesCmp;
+      }
+
+      // Move one step back within the path.
+      firstPtr = firstPtr->hasPrevious() ? firstPtr->getPrevious() : nullptr;
+      secondPtr = secondPtr->hasPrevious() ? secondPtr->getPrevious() : nullptr;
+    } while (firstPtr && secondPtr);
+
+    if (firstPtr == nullptr) {
+      // First path is shorter.
+      return -1;
+    }
+
+    if (secondPtr == nullptr) {
+      // Second path is shorter.
+      return 1;
+    }
+
+    return 0;
+  }
+
   std::vector<std::shared_ptr<BFSStep>> getCandidateAugmentingPaths() const {
     std::vector<std::shared_ptr<BFSStep>> paths;
 
-    auto sortHeuristic = [](const std::shared_ptr<BFSStep> &first,
-                            const std::shared_ptr<BFSStep> &second) {
-      return first->getCandidates().flatSize() >
-             second->getCandidates().flatSize();
+    auto sortHeuristic = [&](const std::shared_ptr<BFSStep> &first,
+                             const std::shared_ptr<BFSStep> &second) {
+      return compareBFSPaths(*first, *second) < 0;
     };
 
     Frontier frontier;
