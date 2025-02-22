@@ -64,6 +64,8 @@ public:
 
   size_t size() const;
 
+  int compare(const Range &other) const;
+
   /// Check if the range contains a point.
   bool contains(data_type value) const;
 

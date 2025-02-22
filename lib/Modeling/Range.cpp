@@ -49,6 +49,26 @@ Range::data_type Range::getEnd() const { return end_; }
 
 size_t Range::size() const { return getEnd() - getBegin(); }
 
+int Range::compare(const Range &other) const {
+  if (getBegin() == other.getBegin()) {
+    if (getEnd() == other.getEnd()) {
+      return 0;
+    }
+
+    if (getEnd() < other.getEnd()) {
+      return -1;
+    }
+
+    return 1;
+  }
+
+  if (getBegin() < other.getBegin()) {
+    return -1;
+  }
+
+  return 1;
+}
+
 bool Range::contains(Range::data_type value) const {
   return value >= getBegin() && value < getEnd();
 }

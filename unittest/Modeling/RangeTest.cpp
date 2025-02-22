@@ -16,6 +16,23 @@ TEST(Range, size) {
   EXPECT_EQ(range.size(), 4);
 }
 
+TEST(Range, compare) {
+  Range r1(0, 10);
+  Range r2(0, 20);
+  Range r3(1, 10);
+  Range r4(1, 20);
+
+  EXPECT_EQ(r1.compare(r1), 0);
+
+  EXPECT_LT(r1.compare(r2), 0);
+  EXPECT_LT(r1.compare(r3), 0);
+  EXPECT_LT(r1.compare(r4), 0);
+
+  EXPECT_GT(r4.compare(r1), 0);
+  EXPECT_GT(r4.compare(r2), 0);
+  EXPECT_GT(r4.compare(r3), 0);
+}
+
 TEST(Range, iteration) {
   Range range(1, 5);
 
