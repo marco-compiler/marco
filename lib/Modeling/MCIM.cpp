@@ -441,6 +441,7 @@ std::vector<MCIM> MCIM::splitGroups() const {
     Point equation = point.takeFront(equationRanges.rank());
     Point variable = point.takeBack(variableRanges.rank());
     group.set(equation, variable);
+    result.push_back(std::move(group));
   }
 
   return result;
