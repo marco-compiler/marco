@@ -1586,6 +1586,25 @@ private:
                       std::vector<std::shared_ptr<BFSStep>> &paths) const {
     const VertexDescriptor &vertexDescriptor = step->getNode();
 
+    auto containsFn = [&](VertexDescriptor node, const IndexSet &indices) {
+      const BFSStep *currentStep = step.get();
+
+      while (currentStep) {
+        if (currentStep->getNode() == node &&
+            currentStep->getCandidates() == indices) {
+          return true;
+        }
+
+        if (currentStep->hasPrevious()) {
+          currentStep = currentStep->getPrevious();
+        } else {
+          currentStep = nullptr;
+        }
+      }
+
+      return false;
+    };
+
     for (EdgeDescriptor edgeDescriptor : llvm::make_range(
              edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
       assert(edgeDescriptor.from == vertexDescriptor);
@@ -1604,15 +1623,16 @@ private:
           Variable var = getVariableFromDescriptor(edgeDescriptor.to);
           auto unmatchedScalarVariables = var.getUnmatched();
           auto matched = solution.filterColumns(unmatchedScalarVariables);
+          IndexSet indices = solution.flattenRows();
 
-          if (!matched.empty()) {
-            paths.push_back(
-                std::make_shared<BFSStep>(graph, step, edgeDescriptor, nextNode,
-                                          matched.flattenRows(), matched));
-          } else {
-            newFrontier.push_back(
-                std::make_shared<BFSStep>(graph, step, edgeDescriptor, nextNode,
-                                          solution.flattenRows(), solution));
+          if (!containsFn(nextNode, indices)) {
+            if (!matched.empty()) {
+              paths.push_back(std::make_shared<BFSStep>(
+                  graph, step, edgeDescriptor, nextNode, indices, matched));
+            } else {
+              newFrontier.push_back(std::make_shared<BFSStep>(
+                  graph, step, edgeDescriptor, nextNode, indices, solution));
+            }
           }
         }
       } else {
@@ -1625,9 +1645,13 @@ private:
             internal::solveLocalMatchingProblem(filteredMatrix);
 
         for (auto solution : solutions) {
-          newFrontier.push_back(
-              std::make_shared<BFSStep>(graph, step, edgeDescriptor, nextNode,
-                                        solution.flattenColumns(), solution));
+          IndexSet indices = solution.flattenColumns();
+
+          if (!containsFn(nextNode, indices)) {
+            newFrontier.push_back(
+                std::make_shared<BFSStep>(graph, step, edgeDescriptor, nextNode,
+                                          solution.flattenColumns(), solution));
+          }
         }
       }
     }
