@@ -168,6 +168,8 @@ public:
 
   const_range_iterator rangesEnd() const;
 
+  int compare(const IndexSet &other) const;
+
   bool contains(const Point &other) const;
 
   bool contains(const MultidimensionalRange &other) const;

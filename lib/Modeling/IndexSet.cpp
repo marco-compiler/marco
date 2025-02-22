@@ -29,6 +29,39 @@ IndexSet::Impl &IndexSet::Impl::operator=(IndexSet::Impl &&other) {
   return *this;
 }
 
+int IndexSet::Impl::compareGenericIndexSet(const IndexSet::Impl &other) const {
+  auto firstCanonical = getCanonicalRepresentation();
+  auto secondCanonical = other.getCanonicalRepresentation();
+
+  auto firstIt = firstCanonical->rangesBegin();
+  auto firstEndIt = firstCanonical->rangesEnd();
+
+  auto secondIt = secondCanonical->rangesBegin();
+  auto secondEndIt = secondCanonical->rangesEnd();
+
+  while (firstIt != firstEndIt && secondIt != secondEndIt) {
+    if (auto rangeCmp = (*firstIt).compare(*secondIt); rangeCmp != 0) {
+      return rangeCmp;
+    }
+
+    ++firstIt;
+    ++secondIt;
+  }
+
+  if (firstIt == firstEndIt && secondIt != secondEndIt) {
+    // First set has fewer ranges.
+    return -1;
+  }
+
+  if (firstIt != firstEndIt && secondIt == secondEndIt) {
+    // Second set has fewer ranges.
+    return 1;
+  }
+
+  assert(firstIt == firstEndIt && secondIt == secondEndIt);
+  return 0;
+}
+
 std::ostream &operator<<(std::ostream &os, const IndexSet::Impl &obj) {
   if (auto *objCasted = obj.dyn_cast<impl::ListIndexSet>()) {
     return os << *objCasted;
@@ -250,6 +283,11 @@ IndexSet::const_range_iterator IndexSet::rangesBegin() const {
 IndexSet::const_range_iterator IndexSet::rangesEnd() const {
   assert(impl != nullptr);
   return impl->rangesEnd();
+}
+
+int IndexSet::compare(const IndexSet &other) const {
+  assert(impl != nullptr);
+  return impl->compare(*other.impl);
 }
 
 bool IndexSet::contains(const Point &other) const {

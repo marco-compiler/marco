@@ -609,6 +609,21 @@ ListIndexSet::const_range_iterator ListIndexSet::rangesEnd() const {
   return ListIndexSet::RangeIterator::end(*this);
 }
 
+int ListIndexSet::compare(const IndexSet::Impl &other) const {
+  if (auto *otherCasted = other.dyn_cast<ListIndexSet>()) {
+    int optimizedResult = compare(*otherCasted);
+    assert(optimizedResult == compareGenericIndexSet(other));
+    return optimizedResult;
+  }
+
+  return compareGenericIndexSet(other);
+}
+
+int ListIndexSet::compare(const ListIndexSet &other) const {
+  // TODO Implement optimized comparison
+  return compareGenericIndexSet(other);
+}
+
 bool ListIndexSet::contains(const Point &other) const {
   return llvm::any_of(ranges, [&](const MultidimensionalRange &range) {
     return range.contains(other);
