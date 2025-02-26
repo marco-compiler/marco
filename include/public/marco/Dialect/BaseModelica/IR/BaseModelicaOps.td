@@ -581,7 +581,8 @@ def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
 
 def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor_insert_slice",
     [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">]>
+                    "destination", "result", "$_self">,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Insert a tensor into another one.";
 

@@ -2,6 +2,8 @@
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/Types.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -921,6 +923,63 @@ void TensorInsertOp::generateRuntimeVerification(
 
   verifyTensorIndexedAccess(builder, loc, operand, indices, rank,
       "Model error: TensorInsertOp out of bounds access");
+}
+} // namespace mlir::bmodelica
+
+
+//===---------------------------------------------------------------------===//
+// TensorInsertSliceOp
+
+namespace mlir::bmodelica
+{
+void TensorInsertSliceOp::generateRuntimeVerification(
+    mlir::OpBuilder &builder, mlir::Location loc) {
+  
+  mlir::Value destination = getDestination();
+  mlir::Value source = getValue();
+  auto subscriptions = getSubscriptions().size();
+  
+  //verify if the source is a tensor
+  if(auto tensorType = getValue().getType().dyn_cast<TensorType>()) {
+    int64_t firstOperand = 0;
+    for(mlir::Value operand: getSubscriptions()){
+      if(operand.getType().isa<RangeType>()){
+        break;
+      }
+      firstOperand++;
+    }
+
+    int64_t sourceRank = tensorType.getRank();
+    int64_t destinationRank = getDestination().getType().getRank();
+
+    //for each dimension of the destination, verify dimension of the source
+    for(int64_t i = firstOperand; i<sourceRank+firstOperand; i++){
+      mlir::Value dim = builder.create<ConstantOp>(
+        loc, builder.getIndexAttr(i));
+      
+      mlir::Value dimS = builder.create<ConstantOp>(
+        loc, builder.getIndexAttr(i-firstOperand));
+
+      mlir::Value sourceDim = builder.create<SizeOp>(
+        loc, IntegerType::get(builder.getContext()), source, dimS);
+
+      mlir::Value destDim = builder.create<SizeOp>(
+        loc, IntegerType::get(builder.getContext()), destination, dim);
+      
+      auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr("Model error: source array dimension greater than destination array dimension"),
+        builder.getI64IntegerAttr(2));
+
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.createBlock(&assertOp.getConditionRegion());
+      
+      mlir::Value cond = builder.create<LteOp>(
+            loc, sourceDim, destDim);
+
+      builder.create<YieldOp>(assertOp.getLoc(), cond);
+    }
+  }
 }
 } // namespace mlir::bmodelica
 
