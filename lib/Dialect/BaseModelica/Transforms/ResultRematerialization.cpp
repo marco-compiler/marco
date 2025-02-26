@@ -1,8 +1,8 @@
+#include "marco/Dialect/BaseModelica/Transforms/ResultRematerialization.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/BaseModelica/IR/Properties.h"
-#include "marco/Dialect/BaseModelica/Transforms/ResultRematerialization.h"
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/GraphDumper.h"
 #include <deque>
@@ -25,6 +25,16 @@ struct EquationWrapper {
   llvm::SmallVector<Variable> reads;
   llvm::SmallVector<Variable> writes;
 };
+
+
+struct VariableWriters {
+  VariableOp variable;
+  ScheduleOp parentScheduleOp;
+
+  llvm::SmallVector<ScheduleBlockOp> writingScheduleBlocks;
+};
+
+
 } // namespace
 
 namespace {
@@ -64,12 +74,17 @@ private:
   // Utility functions
   //===---------------------------------------------------------===//
   llvm::SmallVector<ScheduleOp> getSchedules(ModelOp modelOp);
-  llvm::SmallVector<ScheduleBlockOp> getScheduleBlocks(ScheduleOp scheduleOp);
+  llvm::SmallVector<ScheduleBlockOp>
+  getScheduleBlocks(ScheduleOp scheduleOp) const;
 
   llvm::SmallVector<std::pair<VariableOp, VariableOp>>
   getVariablePairs(ModelOp modelOp, llvm::SmallVector<VariableOp> &variableOps,
                    mlir::SymbolTableCollection &symbolTableCollection,
                    const DerivativesMap &derivativesMap);
+
+  GraphType
+  collectScheduleGraphVertices(ScheduleOp scheduleOp, mlir::ModuleOp moduleOp,
+                     mlir::SymbolTableCollection &symbolTableCollection);
 
   GraphType
   buildScheduleGraph(ScheduleOp scheduleOp, mlir::ModuleOp moduleOp,
@@ -78,7 +93,6 @@ private:
   void walkGraph(GraphType &graph,
                  const std::function<void(GraphType::VertexProperty &)> &);
 };
-
 
 } // namespace
 
@@ -127,8 +141,8 @@ mlir::LogicalResult ResultRematerializationPass::handleModel(
   auto scheduleOps = getSchedules(modelOp);
 
   for (ScheduleOp scheduleOp : scheduleOps) {
-    scheduleGraphs[scheduleOp.getName()] =
-        buildScheduleGraph(scheduleOp, moduleOp, symbolTableCollection);
+    scheduleGraphs[scheduleOp.getName()] = buildScheduleGraph(
+        scheduleOp, moduleOp, symbolTableCollection);
   }
 
   for (auto &entry : scheduleGraphs) {
@@ -196,7 +210,7 @@ ResultRematerializationPass::getSchedules(ModelOp modelOp) {
 }
 
 llvm::SmallVector<ScheduleBlockOp>
-ResultRematerializationPass::getScheduleBlocks(ScheduleOp scheduleOp) {
+ResultRematerializationPass::getScheduleBlocks(ScheduleOp scheduleOp) const {
   // Get the schedules
   llvm::SmallVector<ScheduleBlockOp> result{};
 
@@ -210,10 +224,9 @@ ResultRematerializationPass::getScheduleBlocks(ScheduleOp scheduleOp) {
 }
 
 ResultRematerializationPass::GraphType
-ResultRematerializationPass::buildScheduleGraph(
-    ScheduleOp scheduleOp, mlir::ModuleOp moduleOp,
-    mlir::SymbolTableCollection &symbolTableCollection) {
-
+ResultRematerializationPass::collectScheduleGraphVertices(ScheduleOp scheduleOp, mlir::ModuleOp moduleOp,
+                   mlir::SymbolTableCollection &symbolTableCollection)
+{
   using namespace marco::modeling::internal;
 
   scheduleOp.dump();
@@ -260,8 +273,6 @@ ResultRematerializationPass::buildScheduleGraph(
     });
 
     for (EquationCallOp equationCallOp : equationCallOps) {
-      llvm::dbgs() << "Callee: " << equationCallOp.getCallee().str() << "\n";
-
       // Try to get the equation
       mlir::Operation *calleeSym = symbolTableCollection.lookupSymbolIn(
           moduleOp,
@@ -270,19 +281,48 @@ ResultRematerializationPass::buildScheduleGraph(
       if (EquationFunctionOp equationFunctionOp =
               mlir::dyn_cast<EquationFunctionOp>(calleeSym)) {
 
+        equationFunctionOp.dump();
         node.equationFunctionOp = equationFunctionOp;
 
         VertexDescriptor newVertex = graph.addVertex(std::move(node));
         nextScheduleBlockEquations.insert(newVertex);
-
-        for (VertexDescriptor prevBlockVertex : currentScheduleBlockEquations) {
-          graph.addEdge(prevBlockVertex, newVertex);
-        }
       }
     }
 
     currentScheduleBlockEquations = std::move(nextScheduleBlockEquations);
     nextScheduleBlockEquations.clear();
+  }
+
+  return graph;
+
+
+}
+
+ResultRematerializationPass::GraphType
+ResultRematerializationPass::buildScheduleGraph(
+    ScheduleOp scheduleOp, mlir::ModuleOp moduleOp,
+    mlir::SymbolTableCollection &symbolTableCollection) {
+
+  auto graph = collectScheduleGraphVertices(scheduleOp, moduleOp, symbolTableCollection);
+
+  // No iterator invalidation should happen, no mutation on vertices, only edges
+
+  // TODO: Add zip interface for this
+  for ( auto vd1 = graph.verticesBegin(); vd1 != graph.verticesEnd(); vd1++ ) {
+    for ( auto vd2 = graph.verticesBegin(); vd2 != graph.verticesEnd(); vd2++ ) {
+      if ( vd2 == vd1 ) continue;
+
+      auto writes = (*(*(*vd2).value)).writes;
+      auto reads = (*(*(*vd1).value)).reads;
+
+      for ( auto &read : reads ) {
+        for ( auto &write : writes ) {
+          if ( read.name == write.name && read.indices.overlaps(write.indices) ) {
+            graph.addEdge(*vd1, *vd2);
+          }
+        }
+      }
+    }
   }
 
   return graph;
@@ -326,7 +366,6 @@ void ResultRematerializationPass::walkGraph(
 namespace mlir::bmodelica {
 std::unique_ptr<mlir::Pass> createResultRematerializationPass() {
   return std::make_unique<ResultRematerializationPass>();
-  {
-  }
+  {}
 }
 } // namespace mlir::bmodelica
