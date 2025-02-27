@@ -1562,7 +1562,7 @@ void SubscriptionOp::generateRuntimeVerification(
       operandTensorType, getSource());
 
   mlir::ValueRange indices = getIndices();
-  uint64_t rank = getSourceArrayType().getRank();
+  int64_t rank = getSourceArrayType().getRank();
 
   verifyTensorIndexedAccess(builder, loc, tensorOperand, indices, rank,
       "Model error: SubscriptionOp out of bounds access");
@@ -5261,9 +5261,9 @@ void DivEWOp::generateRuntimeVerification(
     mlir::Value oneIdx = builder.create<ConstantOp>(
         loc, builder.getIndexAttr(1));
 
-    size_t rank = rhsShapedType.getRank();
+    int64_t rank = rhsShapedType.getRank();
     llvm::SmallVector<mlir::Value, 10> dimSizes;
-    for(size_t i = 0; i < rank; i++) {
+    for(int64_t i = 0; i < rank; i++) {
       mlir::Value dimIndex = builder.create<ConstantOp>(
           loc, builder.getIndexAttr(i));
       mlir::Value dim = builder.create<SizeOp>(
@@ -5272,7 +5272,7 @@ void DivEWOp::generateRuntimeVerification(
       dimSizes.emplace_back(dim);
     }
 
-    for(size_t i = 0; i < rank; i++) {
+    for(int64_t i = 0; i < rank; i++) {
       auto forOp = builder.create<mlir::scf::ForOp>(
           loc,
           zeroIdx,
