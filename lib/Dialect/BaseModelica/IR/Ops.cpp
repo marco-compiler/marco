@@ -144,7 +144,7 @@ static void printScheduleBlockReadVars(mlir::OpAsmPrinter &printer,
 // Runtime verification utilities
 //===---------------------------------------------------------------------===//
 
-static void verifyRealArgumentIsPositive(
+static void verifyArgumentIsPositive(
     mlir::OpBuilder &builder, mlir::Location loc,
     mlir::Value arg, bool strictComparison, const std::string &msg) {
   auto assertOp = builder.create<AssertOp>(
@@ -6845,7 +6845,7 @@ void LogOp::generateRuntimeVerification(
     mlir::OpBuilder &builder, mlir::Location loc) {
   mlir::Value operand = getOperand();
 
-  verifyRealArgumentIsPositive(builder, loc, operand, true,
+  verifyArgumentIsPositive(builder, loc, operand, true,
       "Model error: Argument of log outside the domain. It should be > 0");
 }
 } // namespace mlir::bmodelica
@@ -6884,7 +6884,7 @@ void Log10Op::generateRuntimeVerification(
     mlir::OpBuilder &builder, mlir::Location loc) {
   mlir::Value operand = getOperand();
 
-  verifyRealArgumentIsPositive(builder, loc, operand, true,
+  verifyArgumentIsPositive(builder, loc, operand, true,
       "Model error: Argument of log10 outside the domain. It should be > 0");
 }
 } // namespace mlir::bmodelica
@@ -7580,7 +7580,7 @@ mlir::OpFoldResult SqrtOp::fold(FoldAdaptor adaptor) {
 void SqrtOp::generateRuntimeVerification(
     mlir::OpBuilder &builder, mlir::Location loc) {
   mlir::Value operand = getOperand(); 
-  verifyRealArgumentIsPositive(builder, loc, operand, false,
+  verifyArgumentIsPositive(builder, loc, operand, false,
       "Model error: Argument of sqrt outside the domain. It should be >= 0");
 }
 } // namespace mlir::bmodelica
