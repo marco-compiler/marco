@@ -34,7 +34,6 @@ private:
 } // namespace
 
 void RuntimeToLLVMConversionPass::runOnOperation() {
-  getOperation().dump();
   if (mlir::failed(convertOps())) {
     return signalPassFailure();
   }
