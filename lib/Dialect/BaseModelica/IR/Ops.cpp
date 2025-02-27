@@ -194,9 +194,6 @@ static void verifyArgumentIsNotZero(
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
-  } else {
-    zero = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), 0.0f));
   }
 
   mlir::Value condition; 
