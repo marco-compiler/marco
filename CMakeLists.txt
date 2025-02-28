@@ -54,6 +54,7 @@ if (DEFINED LLVM_PATH)
 	set(Clang_DIR "${LLVM_ABS_PATH}/lib/cmake/clang")
 endif()
 
+find_package(Python3 REQUIRED)
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
