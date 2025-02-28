@@ -1,11 +1,12 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// COM: Integer operand
+// Integer operand
 
+// CHECK-LABEL: @Test
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
-    // CHECK:       %[[arg:.*]] = bmodelica.variable_get @x : !bmodelica.int
+    // CHECK:       %[[arg:.*]] = bmodelica.variable_get @x
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"} {
     // CHECK-NEXT:    %[[lower_bound:.*]] = bmodelica.constant #bmodelica<int -1> : !bmodelica.int
     // CHECK-NEXT:    %[[upper_bound:.*]] = bmodelica.constant #bmodelica<int 1> : !bmodelica.int
@@ -21,12 +22,13 @@ bmodelica.model @Test {
 
 // -----
 
-// COM: Real operand
+// Real operand
 
+// CHECK-LABEL: @Test
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
 
-    // CHECK:       %[[arg:.*]] = bmodelica.variable_get @x : !bmodelica.real
+    // CHECK:       %[[arg:.*]] = bmodelica.variable_get @x
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"} {
     // CHECK-NEXT:      %[[lower_bound:.*]] = bmodelica.constant #bmodelica<real -1.000000e+00> : !bmodelica.real
     // CHECK-NEXT:      %[[upper_bound:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00> : !bmodelica.real
