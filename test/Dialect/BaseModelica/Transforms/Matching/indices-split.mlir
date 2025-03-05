@@ -51,9 +51,9 @@ bmodelica.model @Test {
     // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t2"}
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>}
-        bmodelica.equation_instance %t1
-        bmodelica.equation_instance %t2
+        bmodelica.equation_instance %t0, indices = {[1,2]}
+        bmodelica.equation_instance %t1, indices = {}
+        bmodelica.equation_instance %t2, indices = {}
 
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,0]}> {indices = #modeling<multidim_range [1,1]>}
         // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@y, {[1,1]}> {indices = #modeling<multidim_range [2,2]>}

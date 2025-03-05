@@ -101,17 +101,8 @@ struct BindingEquationOpToEquationOpPattern : public BindingEquationOpPattern {
     rewriter.createBlock(&dynamicOp.getBodyRegion());
     rewriter.setInsertionPointToStart(dynamicOp.getBody());
 
-    if (auto indices = variableOp.getIndices(); !indices.empty()) {
-      for (const MultidimensionalRange &range :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-
-        instanceOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(rewriter.getContext(), range));
-      }
-    } else {
-      rewriter.create<EquationInstanceOp>(loc, templateOp);
-    }
+    auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
+    instanceOp.getProperties().setIndices(variableOp.getIndices());
   }
 };
 

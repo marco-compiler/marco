@@ -23,10 +23,10 @@ bmodelica.model @arrayVariable {
     // CHECK:           bmodelica.equation_sides %[[lhs]], %{{.*}}
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
+        bmodelica.equation_instance %t0, indices = {[3,5][12,14]}
     }
 
-    // CHECK: bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][12,14]>}
+    // CHECK: bmodelica.equation_instance %[[t0]], indices = {[3,5][12,14]}
 }
 
 // -----
@@ -58,12 +58,9 @@ bmodelica.model @partialArrayVariable {
     // CHECK-NEXT:  }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
+        bmodelica.equation_instance %t0, indices = {[3,5][12,14]}
     }
 
     // CHECK: bmodelica.dynamic
-    // CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2][0,19]>}
-    // CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][0,11]>}
-    // CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [3,5][15,19]>}
-    // CHECK-DAG:  bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [6,9][0,19]>}
+    // CHECK-DAG:  bmodelica.equation_instance %[[t0]], indices = {[0,2][0,19],[3,5][0,11],[3,5][15,19],[6,9][0,19]}
 }

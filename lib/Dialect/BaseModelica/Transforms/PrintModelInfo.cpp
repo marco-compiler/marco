@@ -65,11 +65,11 @@ int64_t PrintModelInfoPass::getScalarEquationsCount(
   int64_t result = 0;
 
   for (EquationInstanceOp equationOp : equations) {
-    auto indices = equationOp.getIndices();
+    const IndexSet &indices = equationOp.getProperties().indices;
 
-    if (indices) {
+    if (!indices.empty()) {
       // Array equation.
-      result += indices->getValue().flatSize();
+      result += indices.flatSize();
     } else {
       // Scalar equation.
       ++result;

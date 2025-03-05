@@ -87,9 +87,9 @@ module @Test {
         }
 
         bmodelica.dynamic {
-            bmodelica.equation_instance %t0
-            bmodelica.equation_instance %t1
-            bmodelica.equation_instance %t2
+            bmodelica.equation_instance %t0, indices = {}
+            bmodelica.equation_instance %t1, indices = {}
+            bmodelica.equation_instance %t2, indices = {}
         }
 
         // CHECK:      %[[T0:.*]] = bmodelica.equation_template inductions = []

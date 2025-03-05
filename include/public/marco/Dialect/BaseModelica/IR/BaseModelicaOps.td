@@ -4,6 +4,7 @@
 include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.td"
+include "marco/Dialect/Modeling/IR/ModelingProperties.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -4162,19 +4163,15 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices);
+        IndexSetProperty:$indices);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $base attr-dict
+        $base `,` `indices` `=` custom<IndexSet>($indices) attr-dict
     }];
 
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>,
-    ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.

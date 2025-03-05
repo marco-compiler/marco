@@ -78,8 +78,8 @@ module @SubsetRepresentative {
         }
 
         bmodelica.dynamic {
-            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,4][1,5]>}
-            bmodelica.equation_instance %1 {indices = #modeling<multidim_range [1,4][1,5]>}
+            bmodelica.equation_instance %0, indices = {[1,4][1,5]}
+            bmodelica.equation_instance %1, indices = {[1,4][1,5]}
         }
 
         // CHECK:      %[[T_CSE:.*]] = bmodelica.equation_template inductions = [%[[IDX0:.*]]]
@@ -95,7 +95,7 @@ module @SubsetRepresentative {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
 
         // CHECK:      bmodelica.dynamic
-        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]] {indices = #modeling<multidim_range [1,5]>}
+        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]], indices = {[1,5]}
     }
 }
 
@@ -181,8 +181,8 @@ module @InvertedEqualInductionRanges {
         }
 
         bmodelica.dynamic {
-            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [1,5][1,5]>}
-            bmodelica.equation_instance %1 {indices = #modeling<multidim_range [1,5][1,5]>}
+            bmodelica.equation_instance %0, indices = {[1,5][1,5]}
+            bmodelica.equation_instance %1, indices = {[1,5][1,5]}
         }
 
         // CHECK:      %[[T_CSE:.*]] = bmodelica.equation_template inductions = [%[[IDX0:.*]], %[[IDX1:.*]]]
@@ -200,7 +200,7 @@ module @InvertedEqualInductionRanges {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
 
         // CHECK:      bmodelica.dynamic
-        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]] {indices = #modeling<multidim_range [1,5][1,5]>}
+        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]], indices = {[1,5][1,5]}
     }
 }
 
@@ -289,8 +289,8 @@ module @InductionRangeOffset {
         }
 
         bmodelica.dynamic {
-            bmodelica.equation_instance %0 {indices = #modeling<multidim_range [-2,2][3,8]>}
-            bmodelica.equation_instance %1 {indices = #modeling<multidim_range [3,8][-2,2]>}
+            bmodelica.equation_instance %0, indices = {[-2,2][3,8]}
+            bmodelica.equation_instance %1, indices = {[3,8][-2,2]}
         }
 
         // CHECK:      %[[T_CSE:.*]] = bmodelica.equation_template inductions = [%[[IDX0:.*]], %[[IDX1:.*]]]
@@ -308,6 +308,6 @@ module @InductionRangeOffset {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
 
         // CHECK:      bmodelica.dynamic
-        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]] {indices = #modeling<multidim_range [-2,2][3,8]>}
+        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]], indices = {[-2,2][3,8]}
     }
 }

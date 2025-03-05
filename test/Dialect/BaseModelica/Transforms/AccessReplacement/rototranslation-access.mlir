@@ -58,9 +58,9 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        // CHECK: bmodelica.equation_instance %[[t0]] {id = "eq0", indices = #modeling<multidim_range [10,20][10,20][10,20]>}
-        bmodelica.equation_instance %t0 {id = "eq0", indices = #modeling<multidim_range [10,20][10,20][10,20]>, replace_indices = #modeling<multidim_range [10,20][10,20][10,20]>, replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>}
+        // CHECK: bmodelica.equation_instance %[[t0]], indices = {[10,20][10,20][10,20]} {id = "eq0"}
+        bmodelica.equation_instance %t0, indices = {[10,20][10,20][10,20]} {id = "eq0", replace_indices = #modeling<multidim_range [10,20][10,20][10,20]>, replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>}
 
-        bmodelica.equation_instance %t1 {id = "eq1", indices = #modeling<multidim_range [10,20][10,20][10,20]>}
+        bmodelica.equation_instance %t1, indices = {[10,20][10,20][10,20]} {id = "eq1"}
     }
 }

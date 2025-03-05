@@ -183,20 +183,11 @@ public:
 
     for (size_t i = 0, e = outputVariables.size(); i < e; ++i) {
       EquationTemplateOp templateOp = templateOps[i];
-      IndexSet variableIndices = outputVariables[i].getIndices();
 
-      if (variableIndices.empty()) {
-        rewriter.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
-      } else {
-        for (const MultidimensionalRange &range : llvm::make_range(
-                 variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
-          auto instanceOp = rewriter.create<EquationInstanceOp>(
-              templateOp.getLoc(), templateOp);
+      auto instanceOp =
+          rewriter.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
 
-          instanceOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(rewriter.getContext(), range));
-        }
-      }
+      instanceOp.getProperties().setIndices(outputVariables[i].getIndices());
     }
 
     // Erase the algorithm.

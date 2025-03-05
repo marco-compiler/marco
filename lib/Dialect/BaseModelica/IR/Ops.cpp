@@ -30,6 +30,15 @@ void BaseModelicaDialect::registerOperations() {
 // BaseModelica Operations
 //===---------------------------------------------------------------------===//
 
+static bool parseIndexSet(mlir::OpAsmParser &parser, IndexSet &prop) {
+  return ::mlir::modeling::parseIndexSet(parser, prop);
+}
+
+static void printIndexSet(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                          const IndexSet &prop) {
+  ::mlir::modeling::printIndexSet(printer, op, prop);
+}
+
 static bool parseWrittenVars(mlir::OpAsmParser &parser, VariablesList &prop) {
   if (parser.parseKeyword("writtenVariables") || parser.parseEqual()) {
     return true;
@@ -9634,26 +9643,11 @@ std::optional<VariableAccess> StartEquationInstanceOp::getAccessAtPath(
 // EquationInstanceOp
 
 namespace mlir::bmodelica {
-void EquationInstanceOp::build(mlir::OpBuilder &builder,
-                               mlir::OperationState &state,
-                               EquationTemplateOp equationTemplate) {
-  build(builder, state, equationTemplate.getResult(), nullptr);
-}
-
 mlir::LogicalResult EquationInstanceOp::verify() {
-  auto indicesRank =
-      [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
-    if (!ranges) {
-      return 0;
-    }
-
-    return ranges->getValue().rank();
-  };
-
   // Check the indices for the explicit inductions.
   size_t numOfExplicitInductions = getInductionVariables().size();
 
-  if (size_t explicitIndicesRank = indicesRank(getIndices());
+  if (size_t explicitIndicesRank = getProperties().indices.rank();
       numOfExplicitInductions != explicitIndicesRank) {
     return emitOpError() << "Unexpected rank of iteration indices (expected "
                          << numOfExplicitInductions << ", got "
@@ -9678,11 +9672,7 @@ mlir::ValueRange EquationInstanceOp::getInductionVariables() {
 }
 
 IndexSet EquationInstanceOp::getIterationSpace() {
-  if (auto indices = getIndices()) {
-    return IndexSet(indices->getValue());
-  }
-
-  return {};
+  return getProperties().getIndices();
 }
 
 mlir::LogicalResult
@@ -9729,33 +9719,14 @@ mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
       mlir::cast<EquationInstanceOp>(rewriter.clone(*getOperation()));
 
   for (auto &[assignedIndices, equationTemplateOp] : templateResults) {
-    if (assignedIndices.empty()) {
-      auto clonedOp = mlir::cast<EquationInstanceOp>(
-          rewriter.clone(*temporaryClonedOp.getOperation()));
+    auto clonedOp = mlir::cast<EquationInstanceOp>(
+        rewriter.clone(*temporaryClonedOp.getOperation()));
 
-      clonedOp.setOperand(equationTemplateOp.getResult());
-      clonedOp.removeIndicesAttr();
-      results.push_back(clonedOp);
-    } else {
-      for (const MultidimensionalRange &assignedIndicesRange : llvm::make_range(
-               assignedIndices.rangesBegin(), assignedIndices.rangesEnd())) {
-        auto clonedOp = mlir::cast<EquationInstanceOp>(
-            rewriter.clone(*temporaryClonedOp.getOperation()));
+    clonedOp.setOperand(equationTemplateOp.getResult());
+    results.push_back(clonedOp);
 
-        clonedOp.setOperand(equationTemplateOp.getResult());
-
-        if (auto explicitIndices = getIndices()) {
-          MultidimensionalRange explicitRange =
-              assignedIndicesRange.takeFirstDimensions(
-                  explicitIndices->getValue().rank());
-
-          clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-              rewriter.getContext(), std::move(explicitRange)));
-        }
-
-        results.push_back(clonedOp);
-      }
-    }
+    clonedOp.getProperties().setIndices(
+        assignedIndices.takeFirstDimensions(getProperties().indices.rank()));
   }
 
   rewriter.eraseOp(temporaryClonedOp);

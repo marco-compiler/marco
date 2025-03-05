@@ -56,11 +56,16 @@ getTemplates(llvm::SmallVectorImpl<EquationInstanceOp> &instanceOps) {
       filteredTemplates;
   for (auto [templateOp, instanceOps] : instancesByTemplate) {
     if (haveSameInductionRanges(instanceOps)) {
-      std::optional<MultidimensionalRange> indices;
-      if (auto indicesAttr = instanceOps.front().getIndices()) {
-        indices = indicesAttr.value().getValue();
+      auto iterationSpace = instanceOps.front().getIterationSpace();
+
+      if (iterationSpace.empty()) {
+        filteredTemplates.push_back({templateOp, std::nullopt});
+      } else {
+        for (const MultidimensionalRange &range : llvm::make_range(
+                 iterationSpace.rangesBegin(), iterationSpace.rangesEnd())) {
+          filteredTemplates.push_back({templateOp, range});
+        }
       }
-      filteredTemplates.push_back({templateOp, indices});
     }
   }
   // Order templates by their order in the model, to keep result deterministic.
@@ -437,9 +442,10 @@ llvm::SmallVector<VariableOp> emitCseVariables(
     if (!cseTemplateInductionRanges) {
       rewriter.create<EquationInstanceOp>(loc, driverTemplate);
     } else {
-      auto indices = MultidimensionalRangeAttr::get(
-          rewriter.getContext(), cseTemplateInductionRanges.value());
-      rewriter.create<EquationInstanceOp>(loc, driverTemplate, indices);
+      auto instanceOp =
+          rewriter.create<EquationInstanceOp>(loc, driverTemplate);
+      instanceOp.getProperties().setIndices(
+          IndexSet(cseTemplateInductionRanges.value()));
     }
   }
 

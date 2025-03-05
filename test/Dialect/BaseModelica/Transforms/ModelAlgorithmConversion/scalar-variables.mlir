@@ -32,7 +32,7 @@ bmodelica.model @scalarVariables {
     // CHECK-NEXT:  }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
+    // CHECK-NEXT:      bmodelica.equation_instance %[[t0]], indices = {}
     // CHECK-NEXT:  }
 }
 

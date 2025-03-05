@@ -14,7 +14,7 @@ bmodelica.model @scalarVariable {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t0, indices = {}
     }
 
     // CHECK: %[[t0:.*]] = bmodelica.equation_template
