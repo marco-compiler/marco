@@ -40,7 +40,7 @@ bmodelica.model @Test {
         bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,1]>}
         bmodelica.equation_instance %t1
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,1]>, path = #bmodelica<equation_path [L, 0, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,1]}> {indices = #modeling<multidim_range [0,1]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = <@x, {[2,2]}>
     }
 }

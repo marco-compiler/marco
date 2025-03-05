@@ -31,20 +31,22 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.matched_equation_instance %t0, match = @x
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.matched_equation_instance %t1, match = @y
             }
 
             // CHECK:       bmodelica.scc {
             // CHECK-NEXT:      bmodelica.scheduled_equation_instance %[[t1]]
+            // CHECK-SAME:      match = @y
             // CHECK-SAME:      {
             // CHECK-SAME:          iteration_directions = []
             // CHECK-SAME:      }
             // CHECK-NEXT:  }
             // CHECK:       bmodelica.scc {
             // CHECK-NEXT:      bmodelica.scheduled_equation_instance %[[t0]]
+            // CHECK-SAME:      match = @x
             // CHECK-SAME:      {
             // CHECK-SAME:          iteration_directions = []
             // CHECK-SAME:      }

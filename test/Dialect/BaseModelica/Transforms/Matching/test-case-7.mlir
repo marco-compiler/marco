@@ -57,9 +57,9 @@ bmodelica.model @Test {
         bmodelica.equation_instance %t2
         bmodelica.equation_instance %t2
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0, 1]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,0]}>
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = <@x, {[1,1]}>
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]], match = @y
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]], match = @z
     }
 }

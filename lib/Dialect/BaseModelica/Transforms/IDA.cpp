@@ -512,10 +512,18 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       return mlir::failure();
     }
 
+    // Get the read accesses.
+    llvm::SmallVector<VariableAccess> readAccesses;
+
+    if (mlir::failed(equationOp.getReadAccesses(
+            readAccesses, *symbolTableCollection, accesses))) {
+      return mlir::failure();
+    }
+
     // Replace the non-IDA variables.
     bool atLeastOneAccessReplaced = false;
 
-    for (const VariableAccess &access : accesses) {
+    for (const VariableAccess &access : readAccesses) {
       if (atLeastOneAccessReplaced) {
         // Avoid the duplicates.
         // For example, if we have the following equation
@@ -611,8 +619,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
 
         llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
 
-        auto writeAccess =
-            explicitWritingEquationOp.getMatchedAccess(*symbolTableCollection);
+        auto writeAccess = explicitWritingEquationOp.getAccessAtPath(
+            *symbolTableCollection, EquationPath(EquationPath::LEFT, 0));
 
         if (!writeAccess) {
           return mlir::failure();
@@ -635,8 +643,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         }
 
         if (mlir::failed(equationOp.cloneWithReplacedAccess(
-                rewriter, optionalNewEquationIndices, access,
-                explicitWritingEquationOp.getTemplate(), *writeAccess,
+                rewriter, *symbolTableCollection, optionalNewEquationIndices,
+                access, explicitWritingEquationOp.getTemplate(), *writeAccess,
                 newEquations))) {
           return mlir::failure();
         }
@@ -683,16 +691,23 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   // Check that all the non-IDA variables have been replaced.
   assert(([&]() -> bool {
            llvm::SmallVector<VariableAccess> accesses;
+           llvm::SmallVector<VariableAccess> readAccesses;
 
            for (auto equationOp : independentEquations) {
              accesses.clear();
+             readAccesses.clear();
 
              if (mlir::failed(equationOp.getAccesses(accesses,
                                                      *symbolTableCollection))) {
                return false;
              }
 
-             for (const VariableAccess &access : accesses) {
+             if (mlir::failed(equationOp.getReadAccesses(
+                     readAccesses, *symbolTableCollection, accesses))) {
+               return false;
+             }
+
+             for (const VariableAccess &access : readAccesses) {
                auto variable = access.getVariable();
                assert(variable.getNestedReferences().empty());
 
@@ -764,11 +779,27 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     }
 
     // Get the write access.
-    auto writeAccess = equationOp.getMatchedAccess(*symbolTableCollection);
+    llvm::SmallVector<VariableAccess> writeAccesses;
 
-    if (!writeAccess) {
+    if (mlir::failed(equationOp.getWriteAccesses(
+            writeAccesses, *symbolTableCollection, accesses))) {
       return mlir::failure();
     }
+
+    llvm::sort(writeAccesses,
+               [](const VariableAccess &first, const VariableAccess &second) {
+                 if (first.getAccessFunction().isInvertible() &&
+                     !second.getAccessFunction().isInvertible()) {
+                   return true;
+                 }
+
+                 if (!first.getAccessFunction().isInvertible() &&
+                     second.getAccessFunction().isInvertible()) {
+                   return false;
+                 }
+
+                 return first < second;
+               });
 
     // Collect the independent variables for automatic differentiation.
     llvm::DenseSet<VariableOp> independentVariables;
@@ -796,7 +827,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       // Add the equation to the IDA instance.
       auto accessFunctionOp = getOrCreateAccessFunction(
           rewriter, equationOp.getLoc(), moduleOp,
-          writeAccess->getAccessFunction().getAffineMap(),
+          writeAccesses[0].getAccessFunction().getAffineMap(),
           getIDAFunctionName("access"), accessFunctionsMap,
           accessFunctionsCounter);
 
@@ -1949,24 +1980,9 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
     for (SCCOp scc : SCCs) {
       for (MatchedEquationInstanceOp equationOp :
            scc.getOps<MatchedEquationInstanceOp>()) {
-        std::optional<VariableAccess> writeAccess =
-            equationOp.getMatchedAccess(symbolTableCollection);
-
-        if (!writeAccess) {
-          LLVM_DEBUG({
-            llvm::dbgs() << "Can't get write access for equation\n";
-            equationOp.printInline(llvm::dbgs());
-            llvm::dbgs() << "\n";
-          });
-
-          return mlir::failure();
-        }
-
-        auto writtenVariable = writeAccess->getVariable();
-
         auto writtenVariableOp =
-            symbolTableCollection.lookupSymbolIn<VariableOp>(modelOp,
-                                                             writtenVariable);
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, equationOp.getProperties().match.name);
 
         if (idaInstance->hasVariable(writtenVariableOp)) {
           LLVM_DEBUG({
@@ -2173,15 +2189,7 @@ mlir::LogicalResult IDAPass::addMainModelEquation(
   });
 
   idaInstance.addEquation(equationOp);
-
-  std::optional<VariableAccess> writeAccess =
-      equationOp.getMatchedAccess(symbolTableCollection);
-
-  if (!writeAccess) {
-    return mlir::failure();
-  }
-
-  auto writtenVariable = writeAccess->getVariable();
+  auto writtenVariable = equationOp.getProperties().match.name;
 
   auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
       modelOp, writtenVariable);
@@ -2234,18 +2242,9 @@ mlir::LogicalResult IDAPass::addEquationsWritingToIDAVariables(
 
       for (MatchedEquationInstanceOp equationOp :
            scc.getOps<MatchedEquationInstanceOp>()) {
-        std::optional<VariableAccess> writeAccess =
-            equationOp.getMatchedAccess(symbolTableCollection);
-
-        if (!writeAccess) {
-          return mlir::failure();
-        }
-
-        auto writtenVariable = writeAccess->getVariable();
-
         auto writtenVariableOp =
-            symbolTableCollection.lookupSymbolIn<VariableOp>(modelOp,
-                                                             writtenVariable);
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, equationOp.getProperties().match.name);
 
         if (idaInstance.hasVariable(writtenVariableOp)) {
           shouldAddSCC = true;

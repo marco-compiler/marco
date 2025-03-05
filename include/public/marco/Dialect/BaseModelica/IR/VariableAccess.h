@@ -26,6 +26,8 @@ public:
 
   VariableAccess &operator=(VariableAccess &&other);
 
+  bool operator<(const VariableAccess &other) const;
+
   friend void swap(VariableAccess &first, VariableAccess &second);
 
   const EquationPath &getPath() const;

@@ -56,23 +56,23 @@ bmodelica.model @InitialWithDependency {
     // CHECK-DAG: %[[t3:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t3"}
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @x
+        bmodelica.matched_equation_instance %t1, match = @y
+        bmodelica.matched_equation_instance %t2, match = @z
     }
 
     // CHECK:       bmodelica.initial {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t0]] {{.*$}}
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {{.*$}}
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t2]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t0]], match = @x
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]], match = @y
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t2]], match = @z
     // CHECK-NEXT:  }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t3, match = @z
     }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t3]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t3]], match = @z
     // CHECK-NEXT:  }
 }
 
@@ -134,22 +134,22 @@ bmodelica.model @DynamicWithDependency {
     // CHECK-DAG: %[[t3:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t3"}
 
     bmodelica.initial {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @x
+        bmodelica.matched_equation_instance %t1, match = @y
+        bmodelica.matched_equation_instance %t2, match = @z
     }
 
     // CHECK:       bmodelica.initial {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t0]] {{.*$}}
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {{.*$}}
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t2]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t0]], match = @x
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]], match = @y
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t2]], match = @z
     // CHECK-NEXT:  }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t3, match = @z
     }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t3]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t3]], match = @z
     // CHECK-NEXT:  }
 }

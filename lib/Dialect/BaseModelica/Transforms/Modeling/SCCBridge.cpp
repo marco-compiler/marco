@@ -69,13 +69,6 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
     return {};
   }
 
-  auto matchedAccess = equation->op.getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    llvm_unreachable("Can't obtain matched access");
-    return {};
-  }
-
   llvm::SmallVector<mlir::bmodelica::VariableAccess> readAccesses;
 
   if (mlir::failed(equation->op.getReadAccesses(

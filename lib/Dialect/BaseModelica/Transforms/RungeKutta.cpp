@@ -475,19 +475,17 @@ private:
                           mlir::SymbolTableCollection &symbolTableCollection,
                           mlir::ModuleOp moduleOp, ModelOp modelOp,
                           const llvm::DenseSet<SCCOp> &derMatchedSCCs,
-                          GlobalVariableOp timeStepVariableOp,
                           const FutureVariablesMap &futureVars,
                           EquationFunctionsMap &equationFunctions);
 
   /// Create the function for computing the right-hand side of the equation.
-  FunctionOp
+  std::pair<FunctionOp, std::unique_ptr<AccessFunction>>
   createEquationFunction(mlir::IRRewriter &rewriter,
                          mlir::SymbolTableCollection &symbolTableCollection,
                          mlir::ModuleOp moduleOp, ModelOp modelOp,
                          const FutureVariablesMap &futureVariables,
                          VariableOp stateVariableOp,
-                         MatchedEquationInstanceOp equationOp,
-                         GlobalVariableOp timeStepVariableOp);
+                         MatchedEquationInstanceOp equationOp);
 
   mlir::LogicalResult createTryStepFunction(
       mlir::IRRewriter &rewriter,
@@ -499,7 +497,9 @@ private:
       const EquationFunctionsMap &eqRhsFuncs, const ButcherTableau &tableau);
 
   mlir::LogicalResult createEstimateErrorFunction(
-      mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
+      mlir::IRRewriter &rewriter,
+      mlir::SymbolTableCollection &symbolTableCollection,
+      mlir::ModuleOp moduleOp, ModelOp modelOp,
       llvm::ArrayRef<VariableOp> stateVariableOps,
       GlobalVariableOp timeStepVariableOp,
       const EquationFunctionsMap &eqRhsFuncs,
@@ -507,8 +507,9 @@ private:
       const ButcherTableau &tableau);
 
   mlir::LogicalResult
-  createAcceptStepFunction(mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp,
-                           ModelOp modelOp,
+  createAcceptStepFunction(mlir::IRRewriter &rewriter,
+                           mlir::SymbolTableCollection &symbolTableCollection,
+                           mlir::ModuleOp moduleOp, ModelOp modelOp,
                            const FutureVariablesMap &futureVars);
 
   mlir::LogicalResult createUpdateNonStateVariablesFunction(
@@ -696,15 +697,9 @@ mlir::LogicalResult RungeKuttaPass::solveMainModel(
     llvm::SmallVector<VariableOp> matchedVariables;
 
     for (MatchedEquationInstanceOp equationOp : equationOps) {
-      auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
-
-      if (!matchedAccess) {
-        return mlir::failure();
-      }
-
       matchedVariables.push_back(
           symbolTableCollection.lookupSymbolIn<VariableOp>(
-              modelOp, matchedAccess->getVariable()));
+              modelOp, equationOp.getProperties().match.name));
     }
 
     // Check if the SCC involves a modification of any state variable.
@@ -738,9 +733,9 @@ mlir::LogicalResult RungeKuttaPass::solveMainModel(
   }
 
   // Create the functions for the right-hand side of the equations.
-  if (mlir::failed(createEquationFunctions(
-          rewriter, symbolTableCollection, moduleOp, modelOp, derMatchedSCCsSet,
-          timeStepVariableOp, futureVars, equationFunctions))) {
+  if (mlir::failed(createEquationFunctions(rewriter, symbolTableCollection,
+                                           moduleOp, modelOp, derMatchedSCCsSet,
+                                           futureVars, equationFunctions))) {
     return mlir::failure();
   }
 
@@ -752,13 +747,14 @@ mlir::LogicalResult RungeKuttaPass::solveMainModel(
   }
 
   if (mlir::failed(createEstimateErrorFunction(
-          rewriter, moduleOp, modelOp, stateVariableOps, timeStepVariableOp,
-          equationFunctions, slopeVars, errorVars, *tableau))) {
+          rewriter, symbolTableCollection, moduleOp, modelOp, stateVariableOps,
+          timeStepVariableOp, equationFunctions, slopeVars, errorVars,
+          *tableau))) {
     return mlir::failure();
   }
 
-  if (mlir::failed(
-          createAcceptStepFunction(rewriter, moduleOp, modelOp, futureVars))) {
+  if (mlir::failed(createAcceptStepFunction(rewriter, symbolTableCollection,
+                                            moduleOp, modelOp, futureVars))) {
     return mlir::failure();
   }
 
@@ -864,26 +860,18 @@ mlir::LogicalResult RungeKuttaPass::createEquationFunctions(
     mlir::IRRewriter &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp, const llvm::DenseSet<SCCOp> &derMatchedSCCs,
-    GlobalVariableOp timeStepVariableOp,
     const FutureVariablesMap &futureVariables,
     EquationFunctionsMap &eqRhsFuncs) {
   const DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
-  llvm::SmallVector<MatchedEquationInstanceOp> equationOps;
 
   for (SCCOp scc : derMatchedSCCs) {
-    equationOps.clear();
+    llvm::SmallVector<MatchedEquationInstanceOp> equationOps;
     scc.collectEquations(equationOps);
     assert(equationOps.size() == 1);
 
     for (MatchedEquationInstanceOp equationOp : equationOps) {
-      auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
-
-      if (!matchedAccess) {
-        return mlir::failure();
-      }
-
-      auto stateVariable =
-          derivativesMap.getDerivedVariable(matchedAccess->getVariable());
+      auto stateVariable = derivativesMap.getDerivedVariable(
+          equationOp.getProperties().match.name);
 
       if (!stateVariable) {
         return mlir::failure();
@@ -893,36 +881,36 @@ mlir::LogicalResult RungeKuttaPass::createEquationFunctions(
           symbolTableCollection.lookupSymbolIn<VariableOp>(modelOp,
                                                            *stateVariable);
 
-      FunctionOp functionOp = createEquationFunction(
+      auto equationFunction = createEquationFunction(
           rewriter, symbolTableCollection, moduleOp, modelOp, futureVariables,
-          stateVariableOp, equationOp, timeStepVariableOp);
+          stateVariableOp, equationOp);
 
-      if (!functionOp) {
+      if (!equationFunction.first || !equationFunction.second) {
         return mlir::failure();
       }
 
-      eqRhsFuncs[stateVariableOp].push_back(
-          {equationOp.getIterationSpace(),
-           matchedAccess->getAccessFunction().clone(), functionOp});
+      eqRhsFuncs[stateVariableOp].push_back({equationOp.getIterationSpace(),
+                                             std::move(equationFunction.second),
+                                             equationFunction.first});
     }
   }
 
   return mlir::success();
 }
 
-FunctionOp RungeKuttaPass::createEquationFunction(
+std::pair<FunctionOp, std::unique_ptr<AccessFunction>>
+RungeKuttaPass::createEquationFunction(
     mlir::IRRewriter &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp, const FutureVariablesMap &futureVariables,
-    VariableOp stateVariableOp, MatchedEquationInstanceOp equationOp,
-    GlobalVariableOp timeStepVariableOp) {
+    VariableOp stateVariableOp, MatchedEquationInstanceOp equationOp) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   MatchedEquationInstanceOp explicitEquationOp =
       equationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
 
   if (!explicitEquationOp) {
-    return nullptr;
+    return {nullptr, nullptr};
   }
 
   auto eraseExplicitEquation = llvm::make_scope_exit([&]() {
@@ -1083,13 +1071,17 @@ FunctionOp RungeKuttaPass::createEquationFunction(
     }
   }
 
-  return functionOp;
+  auto lhsAccess = explicitEquationOp.getAccessAtPath(
+      symbolTableCollection, EquationPath(EquationPath::LEFT, 0));
+
+  return {functionOp, lhsAccess->getAccessFunction().clone()};
 }
 
 namespace {
 mlir::LogicalResult createEquationInstances(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, DynamicOp dynamicOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, DynamicOp dynamicOp,
     EquationTemplateOp templateOp, const IndexSet &indices,
     bool wrapWithSCC = false) {
   if (wrapWithSCC) {
@@ -1100,13 +1092,20 @@ mlir::LogicalResult createEquationInstances(
       rewriter.setInsertionPointToStart(
           rewriter.createBlock(&sccOp.getBodyRegion()));
 
-      auto instanceOp = rewriter.create<MatchedEquationInstanceOp>(
-          loc, templateOp,
-          EquationPathAttr::get(
-              rewriter.getContext(),
-              EquationPath(EquationPath::EquationSide::LEFT, 0)));
+      auto instanceOp =
+          rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
+
+      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+          symbolTableCollection,
+          EquationPath(EquationPath::EquationSide::LEFT, 0));
 
       newEquations.push_back(instanceOp);
+
+      if (!access) {
+        return mlir::failure();
+      }
+
+      instanceOp.getProperties().match = Variable(indices, *access);
     } else {
       IndexSet canonicalIndices = indices.getCanonicalRepresentation();
 
@@ -1118,13 +1117,20 @@ mlir::LogicalResult createEquationInstances(
         rewriter.setInsertionPointToStart(
             rewriter.createBlock(&sccOp.getBodyRegion()));
 
-        auto instanceOp = rewriter.create<MatchedEquationInstanceOp>(
-            loc, templateOp,
-            EquationPathAttr::get(
-                rewriter.getContext(),
-                EquationPath(EquationPath::EquationSide::LEFT, 0)));
+        auto instanceOp =
+            rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
+
+        std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+            symbolTableCollection,
+            EquationPath(EquationPath::EquationSide::LEFT, 0));
 
         newEquations.push_back(instanceOp);
+
+        if (!access) {
+          return mlir::failure();
+        }
+
+        instanceOp.getProperties().match = Variable(indices, *access);
 
         instanceOp.setIndicesAttr(
             MultidimensionalRangeAttr::get(rewriter.getContext(), range));
@@ -1134,13 +1140,20 @@ mlir::LogicalResult createEquationInstances(
     if (indices.empty()) {
       rewriter.setInsertionPointToEnd(dynamicOp.getBody());
 
-      auto instanceOp = rewriter.create<MatchedEquationInstanceOp>(
-          loc, templateOp,
-          EquationPathAttr::get(
-              rewriter.getContext(),
-              EquationPath(EquationPath::EquationSide::LEFT, 0)));
+      auto instanceOp =
+          rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
+
+      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+          symbolTableCollection,
+          EquationPath(EquationPath::EquationSide::LEFT, 0));
 
       newEquations.push_back(instanceOp);
+
+      if (!access) {
+        return mlir::failure();
+      }
+
+      instanceOp.getProperties().match = Variable(indices, *access);
     } else {
       IndexSet canonicalIndices = indices.getCanonicalRepresentation();
 
@@ -1148,13 +1161,20 @@ mlir::LogicalResult createEquationInstances(
                canonicalIndices.rangesBegin(), canonicalIndices.rangesEnd())) {
         rewriter.setInsertionPointToEnd(dynamicOp.getBody());
 
-        auto instanceOp = rewriter.create<MatchedEquationInstanceOp>(
-            loc, templateOp,
-            EquationPathAttr::get(
-                rewriter.getContext(),
-                EquationPath(EquationPath::EquationSide::LEFT, 0)));
+        auto instanceOp =
+            rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
 
         newEquations.push_back(instanceOp);
+
+        std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+            symbolTableCollection,
+            EquationPath(EquationPath::EquationSide::LEFT, 0));
+
+        if (!access) {
+          return mlir::failure();
+        }
+
+        instanceOp.getProperties().match = Variable(indices, *access);
 
         instanceOp.setIndicesAttr(
             MultidimensionalRangeAttr::get(rewriter.getContext(), range));
@@ -1204,7 +1224,8 @@ mlir::Value createSlopeSum(mlir::OpBuilder &builder, mlir::Location loc,
 
 mlir::LogicalResult createSlopeEquation(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariable,
     VariableOp stateVariable, const EquationRhsFunction &eqRhsFunc,
     llvm::ArrayRef<VariableOp> slopeVars, const ButcherTableau &tableau,
@@ -1306,9 +1327,9 @@ mlir::LogicalResult createSlopeEquation(
   rewriter.create<EquationSidesOp>(loc, lhs, rhs);
 
   // Create the equation instances.
-  if (mlir::failed(createEquationInstances(newEquations, rewriter, loc,
-                                           dynamicOp, templateOp,
-                                           eqRhsFunc.equationIndices))) {
+  if (mlir::failed(createEquationInstances(
+          newEquations, rewriter, loc, symbolTableCollection, dynamicOp,
+          templateOp, eqRhsFunc.equationIndices))) {
     return mlir::failure();
   }
 
@@ -1317,15 +1338,17 @@ mlir::LogicalResult createSlopeEquation(
 
 mlir::LogicalResult createSlopeEquations(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariable,
     VariableOp stateVariableOp, llvm::ArrayRef<EquationRhsFunction> eqRhsFuncs,
     llvm::ArrayRef<VariableOp> slopeVars, const ButcherTableau &tableau) {
   for (int i = 1, rows = tableau.getRows(); i <= rows; ++i) {
     for (const auto &eqRhsFunc : eqRhsFuncs) {
       if (mlir::failed(createSlopeEquation(
-              newEquations, rewriter, loc, modelOp, dynamicOp, timeStepVariable,
-              stateVariableOp, eqRhsFunc, slopeVars, tableau, i))) {
+              newEquations, rewriter, loc, symbolTableCollection, modelOp,
+              dynamicOp, timeStepVariable, stateVariableOp, eqRhsFunc,
+              slopeVars, tableau, i))) {
         return mlir::failure();
       }
     }
@@ -1370,7 +1393,8 @@ mlir::Value createFutureValueSum(mlir::OpBuilder &builder, mlir::Location loc,
 
 mlir::LogicalResult createFutureStateValueEquation(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariable,
     VariableOp currentStateVariableOp, VariableOp futureStateVariableOp,
     const EquationRhsFunction &eqRhsFunc, llvm::ArrayRef<VariableOp> slopeVars,
@@ -1433,9 +1457,9 @@ mlir::LogicalResult createFutureStateValueEquation(
   rewriter.create<EquationSidesOp>(loc, lhs, rhs);
 
   // Create the equation instances.
-  if (mlir::failed(createEquationInstances(newEquations, rewriter, loc,
-                                           dynamicOp, templateOp,
-                                           eqRhsFunc.equationIndices))) {
+  if (mlir::failed(createEquationInstances(
+          newEquations, rewriter, loc, symbolTableCollection, dynamicOp,
+          templateOp, eqRhsFunc.equationIndices))) {
     return mlir::failure();
   }
 
@@ -1444,16 +1468,17 @@ mlir::LogicalResult createFutureStateValueEquation(
 
 mlir::LogicalResult createFutureStateValueEquations(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariable,
     VariableOp currentStateVariableOp, VariableOp futureStateVariableOp,
     llvm::ArrayRef<EquationRhsFunction> eqRhsFuncs,
     llvm::ArrayRef<VariableOp> slopeVars, const ButcherTableau &tableau) {
   for (const auto &eqRhsFunc : eqRhsFuncs) {
     if (mlir::failed(createFutureStateValueEquation(
-            newEquations, rewriter, loc, modelOp, dynamicOp, timeStepVariable,
-            currentStateVariableOp, futureStateVariableOp, eqRhsFunc, slopeVars,
-            tableau))) {
+            newEquations, rewriter, loc, symbolTableCollection, modelOp,
+            dynamicOp, timeStepVariable, currentStateVariableOp,
+            futureStateVariableOp, eqRhsFunc, slopeVars, tableau))) {
       return mlir::failure();
     }
   }
@@ -1500,7 +1525,8 @@ mlir::Value createErrorSum(mlir::OpBuilder &builder, mlir::Location loc,
 
 mlir::LogicalResult createErrorEquation(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariableOp,
     VariableOp errorVariableOp, const EquationRhsFunction &eqRhsFunc,
     llvm::ArrayRef<VariableOp> slopeVars, const ButcherTableau &tableau) {
@@ -1551,9 +1577,9 @@ mlir::LogicalResult createErrorEquation(
   rewriter.create<EquationSidesOp>(loc, lhs, rhs);
 
   // Create the equation instances.
-  if (mlir::failed(createEquationInstances(newEquations, rewriter, loc,
-                                           dynamicOp, templateOp,
-                                           eqRhsFunc.equationIndices, true))) {
+  if (mlir::failed(createEquationInstances(
+          newEquations, rewriter, loc, symbolTableCollection, dynamicOp,
+          templateOp, eqRhsFunc.equationIndices, true))) {
     return mlir::failure();
   }
 
@@ -1562,14 +1588,16 @@ mlir::LogicalResult createErrorEquation(
 
 mlir::LogicalResult createErrorEquations(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, GlobalVariableOp timeStepVariable,
     VariableOp errorVariableOp, llvm::ArrayRef<EquationRhsFunction> eqRhsFuncs,
     llvm::ArrayRef<VariableOp> slopeVars, const ButcherTableau &tableau) {
   for (const auto &eqRhsFunc : eqRhsFuncs) {
     if (mlir::failed(createErrorEquation(
-            newEquations, rewriter, loc, modelOp, dynamicOp, timeStepVariable,
-            errorVariableOp, eqRhsFunc, slopeVars, tableau))) {
+            newEquations, rewriter, loc, symbolTableCollection, modelOp,
+            dynamicOp, timeStepVariable, errorVariableOp, eqRhsFunc, slopeVars,
+            tableau))) {
       return mlir::failure();
     }
   }
@@ -1579,7 +1607,8 @@ mlir::LogicalResult createErrorEquations(
 
 mlir::LogicalResult createAcceptEquation(
     llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    mlir::RewriterBase &rewriter, mlir::Location loc, ModelOp modelOp,
+    mlir::RewriterBase &rewriter, mlir::Location loc,
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     DynamicOp dynamicOp, VariableOp currentVariableOp,
     VariableOp futureVariableOp) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -1615,9 +1644,9 @@ mlir::LogicalResult createAcceptEquation(
   // Create the equation instances.
   IndexSet variableIndices = currentVariableOp.getIndices();
 
-  if (mlir::failed(createEquationInstances(newEquations, rewriter, loc,
-                                           dynamicOp, templateOp,
-                                           variableIndices, true))) {
+  if (mlir::failed(createEquationInstances(
+          newEquations, rewriter, loc, symbolTableCollection, dynamicOp,
+          templateOp, variableIndices, true))) {
     return mlir::failure();
   }
 
@@ -1693,16 +1722,17 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
     }
 
     if (mlir::failed(createSlopeEquations(
-            newEquations, rewriter, functionOp.getLoc(), modelOp, dynamicOp,
-            timeStepVariableOp, variableOp, eqRhsFuncsIt->getSecond(),
-            slopeVarsIt->getSecond(), tableau))) {
+            newEquations, rewriter, functionOp.getLoc(), symbolTableCollection,
+            modelOp, dynamicOp, timeStepVariableOp, variableOp,
+            eqRhsFuncsIt->getSecond(), slopeVarsIt->getSecond(), tableau))) {
       return mlir::failure();
     }
 
     if (mlir::failed(createFutureStateValueEquations(
-            newEquations, rewriter, functionOp.getLoc(), modelOp, dynamicOp,
-            timeStepVariableOp, variableOp, futureVarsIt->getSecond(),
-            eqRhsFuncsIt->getSecond(), slopeVarsIt->getSecond(), tableau))) {
+            newEquations, rewriter, functionOp.getLoc(), symbolTableCollection,
+            modelOp, dynamicOp, timeStepVariableOp, variableOp,
+            futureVarsIt->getSecond(), eqRhsFuncsIt->getSecond(),
+            slopeVarsIt->getSecond(), tableau))) {
       return mlir::failure();
     }
 
@@ -1788,6 +1818,17 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
                 variableGetOp, futureVariableIt->getSecond());
           }
         }
+
+        VariableOp matchedVariableOp =
+            symbolTableCollection.lookupSymbolIn<VariableOp>(
+                modelOp, clonedEquationOp.getProperties().match.name);
+
+        if (auto futureVarIt = futureVars.find(matchedVariableOp);
+            futureVarIt != futureVars.end()) {
+          VariableOp futureVarOp = futureVarIt->getSecond();
+          clonedEquationOp.getProperties().match.name =
+              mlir::SymbolRefAttr::get(futureVarOp.getSymNameAttr());
+        }
       }
     }
   }
@@ -1807,8 +1848,9 @@ mlir::LogicalResult RungeKuttaPass::createTryStepFunction(
 }
 
 mlir::LogicalResult RungeKuttaPass::createEstimateErrorFunction(
-    mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> stateVariableOps,
+    mlir::IRRewriter &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, llvm::ArrayRef<VariableOp> stateVariableOps,
     GlobalVariableOp timeStepVariableOp, const EquationFunctionsMap &eqRhsFuncs,
     const SlopeVariablesMap &slopeVars, const ErrorVariablesMap &errorVars,
     const ButcherTableau &tableau) {
@@ -1871,9 +1913,10 @@ mlir::LogicalResult RungeKuttaPass::createEstimateErrorFunction(
         }
 
         if (mlir::failed(createErrorEquations(
-                newEquations, rewriter, functionOp.getLoc(), modelOp, dynamicOp,
-                timeStepVariableOp, errorVarsIt->getSecond(),
-                eqRhsFuncIt->getSecond(), slopeVarsIt->getSecond(), tableau))) {
+                newEquations, rewriter, functionOp.getLoc(),
+                symbolTableCollection, modelOp, dynamicOp, timeStepVariableOp,
+                errorVarsIt->getSecond(), eqRhsFuncIt->getSecond(),
+                slopeVarsIt->getSecond(), tableau))) {
           return mlir::failure();
         }
       }
@@ -1917,8 +1960,9 @@ mlir::LogicalResult RungeKuttaPass::createEstimateErrorFunction(
 }
 
 mlir::LogicalResult RungeKuttaPass::createAcceptStepFunction(
-    mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    const FutureVariablesMap &futureVars) {
+    mlir::IRRewriter &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, const FutureVariablesMap &futureVars) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   // Create the function running the schedule.
@@ -1969,8 +2013,8 @@ mlir::LogicalResult RungeKuttaPass::createAcceptStepFunction(
     }
 
     if (mlir::failed(createAcceptEquation(
-            newEquations, rewriter, functionOp.getLoc(), modelOp, dynamicOp,
-            variableOp, futureVarsIt->getSecond()))) {
+            newEquations, rewriter, functionOp.getLoc(), symbolTableCollection,
+            modelOp, dynamicOp, variableOp, futureVarsIt->getSecond()))) {
       return mlir::failure();
     }
   }
@@ -2092,14 +2136,48 @@ mlir::LogicalResult RungeKuttaPass::computeSCCs(
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
+      llvm::SmallVector<VariableAccess> accesses;
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(
+              equation->op.getAccesses(accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      if (mlir::failed(equation->op.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      llvm::sort(writeAccesses,
+                 [](const VariableAccess &first, const VariableAccess &second) {
+                   if (first.getAccessFunction().isAffine() &&
+                       !second.getAccessFunction().isAffine()) {
+                     return true;
+                   }
+
+                   if (!first.getAccessFunction().isAffine() &&
+                       second.getAccessFunction().isAffine()) {
+                     return false;
+                   }
+
+                   return first < second;
+                 });
+
       for (const MultidimensionalRange &matchedEquationRange :
            llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
         auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
             rewriter.clone(*equation->op.getOperation()));
 
-        if (!isScalarEquation) {
+        if (isScalarEquation) {
+          clonedOp.getProperties().match.indices =
+              writeAccesses[0].getAccessFunction().map(IndexSet());
+        } else {
           MultidimensionalRange explicitRange =
               matchedEquationRange.takeFirstDimensions(numOfInductions);
+
+          clonedOp.getProperties().match.indices =
+              writeAccesses[0].getAccessFunction().map(IndexSet(explicitRange));
 
           clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
               rewriter.getContext(), explicitRange));

@@ -73,17 +73,22 @@ EquationTraits<MatchedEquationBridge *>::getAccesses(const Equation *equation) {
 Access<EquationTraits<MatchedEquationBridge *>::VariableType,
        EquationTraits<MatchedEquationBridge *>::AccessProperty>
 EquationTraits<MatchedEquationBridge *>::getWrite(const Equation *equation) {
-  auto matchPath = (*equation)->op.getPath();
+  MatchedEquationInstanceOp equationOp = (*equation)->op;
+  auto &symbolTableCollection = *(*equation)->symbolTable;
 
-  auto write = (*equation)->op.getAccessAtPath(*(*equation)->symbolTable,
-                                               matchPath.getValue());
+  llvm::SmallVector<VariableAccess> accesses;
+  equationOp.getAccesses(accesses, symbolTableCollection);
 
-  assert(write.has_value() && "Can't get the write access");
+  llvm::SmallVector<VariableAccess> writeAccesses;
+  equationOp.getWriteAccesses(writeAccesses, symbolTableCollection, accesses);
 
-  auto accessFunction = getAccessFunction((*equation)->op.getContext(), *write);
+  assert(!writeAccesses.empty());
 
-  return {(*(*equation)->variablesMap)[write->getVariable()],
-          std::move(accessFunction), *write};
+  auto accessFunction =
+      getAccessFunction((*equation)->op.getContext(), writeAccesses[0]);
+
+  return {(*(*equation)->variablesMap)[writeAccesses[0].getVariable()],
+          std::move(accessFunction), writeAccesses[0]};
 }
 
 std::vector<Access<EquationTraits<MatchedEquationBridge *>::VariableType,

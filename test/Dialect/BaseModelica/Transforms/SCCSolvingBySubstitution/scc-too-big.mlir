@@ -7,10 +7,10 @@
 
 // CHECK:       bmodelica.dynamic {
 // CHECK-NEXT:      bmodelica.scc {
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0]>}
-// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t3]] {path = #bmodelica<equation_path [L, 0]>}
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t0]], match = @x1
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t1]], match = @x2
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t2]], match = @x3
+// CHECK-NEXT:          bmodelica.matched_equation_instance %[[t3]], match = @x4
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
@@ -60,10 +60,10 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         bmodelica.scc {
-            bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
-            bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
-            bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
-            bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
+            bmodelica.matched_equation_instance %t0, match = @x1
+            bmodelica.matched_equation_instance %t1, match = @x2
+            bmodelica.matched_equation_instance %t2, match = @x3
+            bmodelica.matched_equation_instance %t3, match = @x4
         }
     }
 }

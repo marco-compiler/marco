@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_BASEMODELICA_IR_PROPERTIES_H
 
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
+#include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
 #include "marco/Dialect/Modeling/IR/Properties.h"
 #include "mlir/IR/BuiltinAttributes.h"
 
@@ -22,6 +23,8 @@ struct Variable {
   Variable();
 
   Variable(mlir::SymbolRefAttr name, IndexSet indices);
+
+  Variable(const IndexSet &equationIndices, const VariableAccess &access);
 
   bool operator==(const Variable &other) const;
 

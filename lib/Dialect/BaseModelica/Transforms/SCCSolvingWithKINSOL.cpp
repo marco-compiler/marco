@@ -585,11 +585,27 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
     }
 
     // Get the write access.
-    auto writeAccess = equationOp.getMatchedAccess(*symbolTableCollection);
+    llvm::SmallVector<VariableAccess> writeAccesses;
 
-    if (!writeAccess) {
+    if (mlir::failed(equationOp.getWriteAccesses(
+            writeAccesses, *symbolTableCollection, accesses))) {
       return mlir::failure();
     }
+
+    llvm::sort(writeAccesses,
+               [](const VariableAccess &first, const VariableAccess &second) {
+                 if (first.getAccessFunction().isInvertible() &&
+                     !second.getAccessFunction().isInvertible()) {
+                   return true;
+                 }
+
+                 if (!first.getAccessFunction().isInvertible() &&
+                     second.getAccessFunction().isInvertible()) {
+                   return false;
+                 }
+
+                 return first < second;
+               });
 
     // Collect the independent variables for automatic differentiation.
     llvm::DenseSet<VariableOp> independentVariables;
@@ -616,7 +632,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
       // Add the equation to the KINSOL instance.
       auto accessFunctionOp = getOrCreateAccessFunction(
           rewriter, equationOp.getLoc(), moduleOp,
-          writeAccess->getAccessFunction().getAffineMap(),
+          writeAccesses[0].getAccessFunction().getAffineMap(),
           getKINSOLFunctionName("access"), accessFunctionsMap,
           accessFunctionsCounter);
 
@@ -1773,17 +1789,9 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
   for (ScheduledEquationInstanceOp equationOp :
        scc.getOps<ScheduledEquationInstanceOp>()) {
     IndexSet equationIndices = equationOp.getIterationSpace();
-    auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
 
-    if (!matchedAccess) {
-      return mlir::failure();
-    }
-
-    IndexSet matchedVariableIndices =
-        matchedAccess->getAccessFunction().map(equationIndices);
-
-    writtenVariablesIndices[matchedAccess->getVariable()] +=
-        matchedVariableIndices;
+    writtenVariablesIndices[equationOp.getProperties().match.name] +=
+        equationOp.getProperties().match.indices;
 
     llvm::SmallVector<VariableAccess> accesses;
     llvm::SmallVector<VariableAccess> readAccesses;

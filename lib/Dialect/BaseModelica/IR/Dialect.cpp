@@ -690,15 +690,8 @@ getWritesMap(WritesMap<VariableOp, Equation> &writesMap, ModelOp modelOp,
 
     assert(!writeAccesses.empty());
 
-    std::optional<VariableAccess> matchedAccess =
-        equationOp.getMatchedAccess(symbolTableCollection);
-
-    if (!matchedAccess) {
-      return mlir::failure();
-    }
-
     auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        modelOp, matchedAccess->getVariable());
+        modelOp, writeAccesses[0].getVariable());
 
     assert(writtenVariableOp != nullptr);
 

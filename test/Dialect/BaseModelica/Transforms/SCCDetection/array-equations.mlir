@@ -50,15 +50,15 @@ bmodelica.model @CycleAmongDifferentEquations {
     // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t2"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t2 {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = <@x, {[0,4]}> {indices = #modeling<multidim_range [0,4]>}
+        bmodelica.matched_equation_instance %t1, match = <@y, {[0,2]}> {indices = #modeling<multidim_range [0,2]>}
+        bmodelica.matched_equation_instance %t2, match = <@y, {[3,4]}> {indices = #modeling<multidim_range [3,4]>}
     }
 
     // CHECK:     bmodelica.scc
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {indices = #modeling<multidim_range [0,2]>, path = #bmodelica<equation_path [L, 0]>}
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {indices = #modeling<multidim_range [3,4]>, path = #bmodelica<equation_path [L, 0]>}
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,4]}> {indices = #modeling<multidim_range [0,4]>}
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = <@y, {[0,2]}> {indices = #modeling<multidim_range [0,2]>}
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]], match = <@y, {[3,4]}> {indices = #modeling<multidim_range [3,4]>}
 
     // CHECK-NOT: bmodelica.matched_equation_instance
 }
@@ -85,12 +85,13 @@ bmodelica.model @ArrayBackwardSelfDependency {
     // CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = <@x, {[1,9]}> {indices = #modeling<multidim_range [1,9]>}
     }
 
     // CHECK:       bmodelica.dynamic
     // CHECK:       bmodelica.scc
     // CHECK-NEXT:  bmodelica.matched_equation_instance %[[t0]]
+    // CHECK-SAME:  match = <@x, {[1,9]}>
     // CHECK-SAME:  {
     // CHECK-SAME:      indices = #modeling<multidim_range [1,9]>
     // CHECK-SAME:  }
@@ -120,12 +121,13 @@ bmodelica.model @ArrayForwardSelfDependency {
     // CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,8]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = <@x, {[0,8]}> {indices = #modeling<multidim_range [0,8]>}
     }
 
     // CHECK:       bmodelica.dynamic
     // CHECK:       bmodelica.scc
     // CHECK-NEXT:  bmodelica.matched_equation_instance %[[t0]]
+    // CHECK-SAME:  match = <@x, {[0,8]}>
     // CHECK-SAME:  {
     // CHECK-SAME:      indices = #modeling<multidim_range [0,8]>
     // CHECK-SAME:  }

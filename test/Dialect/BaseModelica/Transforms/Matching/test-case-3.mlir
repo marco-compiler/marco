@@ -123,12 +123,12 @@ bmodelica.model @Test {
         bmodelica.equation_instance %t5 {indices = #modeling<multidim_range [0,4]>}
         bmodelica.equation_instance %t6 {indices = #modeling<multidim_range [0,4]>}
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]] {path = #bmodelica<equation_path [L, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0, 1]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0, 1]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t6]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = @l
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = @fl
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]], match = @h
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]], match = @fh
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]], match = <@x, {[0,4]}>
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]], match = <@y, {[0,4]}>
+        // CHECK-DAG: bmodelica.matched_equation_instance %[[t6]], match = <@f, {[0,4]}>
     }
 }

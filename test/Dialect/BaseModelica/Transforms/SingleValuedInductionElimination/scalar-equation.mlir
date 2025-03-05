@@ -21,12 +21,12 @@ bmodelica.model @Test {
     // CHECK:       bmodelica.tensor_extract %{{.*}}[%[[i0]]]
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,0]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = <@x, {[0,0]}> {indices = #modeling<multidim_range [0,0]>}
+        bmodelica.matched_equation_instance %t0, match = <@x, {[1,1]}> {indices = #modeling<multidim_range [1,1]>}
     }
 
     // CHECK:     bmodelica.dynamic
     // CHECK-NOT: indices
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,0]}>
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = <@x, {[1,1]}>
 }

@@ -31,6 +31,8 @@ public:
   bool operator==(const ExpressionPath &other) const;
   bool operator!=(const ExpressionPath &other) const;
 
+  bool operator<(const ExpressionPath &other) const;
+
   uint64_t operator[](size_t index) const;
   size_t size() const;
 

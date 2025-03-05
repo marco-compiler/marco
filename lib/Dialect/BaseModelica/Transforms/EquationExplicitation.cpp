@@ -742,17 +742,9 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   }
 
   IndexSet equationIndices = equationOp.getIterationSpace();
-  auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
 
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
-  IndexSet matchedVariableIndices =
-      matchedAccess->getAccessFunction().map(equationIndices);
-
-  writtenVariables.emplace_back(matchedAccess->getVariable(),
-                                std::move(matchedVariableIndices));
+  writtenVariables.emplace_back(equationOp.getProperties().match.name,
+                                equationOp.getProperties().match.indices);
 
   llvm::SmallVector<VariableAccess> readAccesses;
 

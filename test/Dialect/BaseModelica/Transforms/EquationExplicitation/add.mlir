@@ -11,7 +11,7 @@
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[sub]]
 // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
+// CHECK:       bmodelica.matched_equation_instance %[[t0]], match = @x
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
@@ -28,7 +28,7 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @x
     }
 }
 
@@ -45,7 +45,7 @@ bmodelica.model @Test {
 // CHECK-DAG:       %[[rhs:.*]] = bmodelica.equation_side %[[sub]]
 // CHECK-NEXT:      bmodelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
-// CHECK:       bmodelica.matched_equation_instance %[[t0]] {path = #bmodelica<equation_path [L, 0]>}
+// CHECK:       bmodelica.matched_equation_instance %[[t0]], match = @x
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
@@ -62,6 +62,6 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0, 1]>}
+        bmodelica.matched_equation_instance %t0, match = @x
     }
 }

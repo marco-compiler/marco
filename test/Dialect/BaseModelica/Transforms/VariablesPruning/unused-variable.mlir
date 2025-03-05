@@ -29,11 +29,11 @@ bmodelica.model @Test {
     // CHECK: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @x
+        bmodelica.matched_equation_instance %t1, match = @y
     }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]], match = @y
     // CHECK-NEXT:  }
 }

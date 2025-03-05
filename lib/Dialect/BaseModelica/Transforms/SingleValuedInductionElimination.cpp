@@ -102,7 +102,9 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
       rewriter.setInsertionPoint(equation);
 
       auto newInstance = rewriter.create<MatchedEquationInstanceOp>(
-          equation.getLoc(), reducedTemplate, equation.getPath());
+          equation.getLoc(), reducedTemplate);
+
+      newInstance.getProperties() = equation.getProperties();
 
       // Preserve the attributes.
       newInstance->setAttrs(equation->getAttrs());

@@ -29,6 +29,18 @@ bool EquationPath::operator!=(const EquationPath &other) const {
          expressionPath != other.expressionPath;
 }
 
+bool EquationPath::operator<(const EquationPath &other) const {
+  if (equationSide == LEFT && other.equationSide == RIGHT) {
+    return true;
+  }
+
+  if (equationSide == RIGHT && other.equationSide == LEFT) {
+    return false;
+  }
+
+  return expressionPath < other.expressionPath;
+}
+
 EquationPath::EquationSide EquationPath::getEquationSide() const {
   return equationSide;
 }

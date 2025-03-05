@@ -365,14 +365,8 @@ mlir::LogicalResult VariablesPruningPass::removeIfUnused(
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     MatchedEquationInstanceOp equationOp,
     const llvm::DenseSet<VariableOp> &usedVariables) {
-  auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
   auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-      modelOp, matchedAccess->getVariable());
+      modelOp, equationOp.getProperties().match.name);
 
   if (!usedVariables.contains(variableOp)) {
     rewriter.eraseOp(equationOp);

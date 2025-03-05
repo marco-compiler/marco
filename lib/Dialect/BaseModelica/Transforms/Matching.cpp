@@ -338,6 +338,13 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     const EquationPath &matchedPath = solution.getAccess();
     EquationBridge *equation = solution.getEquation();
 
+    std::optional<VariableAccess> matchedAccess =
+        equation->op.getAccessAtPath(symbolTableCollection, matchedPath);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
     size_t numOfInductions = equation->op.getInductionVariables().size();
     bool isScalarEquation = numOfInductions == 0;
 
@@ -348,8 +355,14 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
          llvm::make_range(matchedEquationIndices.rangesBegin(),
                           matchedEquationIndices.rangesEnd())) {
       auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
-          equation->op.getLoc(), equation->op.getTemplate(),
-          EquationPathAttr::get(&getContext(), matchedPath));
+          equation->op.getLoc(), equation->op.getTemplate());
+
+      matchedEquationOp.getProperties().match.name =
+          matchedAccess->getVariable();
+
+      matchedEquationOp.getProperties().match.indices =
+          matchedAccess->getAccessFunction().map(
+              IndexSet(matchedEquationRange));
 
       if (!isScalarEquation) {
         MultidimensionalRange explicitRange =

@@ -28,6 +28,22 @@ bool ExpressionPath::operator!=(const ExpressionPath &other) const {
   return path != other.path;
 }
 
+bool ExpressionPath::operator<(const ExpressionPath &other) const {
+  for (auto [lhs, rhs] : llvm::zip(path, other.path)) {
+    if (lhs < rhs) {
+      return true;
+    } else if (lhs > rhs) {
+      return false;
+    }
+  }
+
+  if (path.size() < other.path.size()) {
+    return true;
+  }
+
+  return false;
+}
+
 uint64_t ExpressionPath::operator[](size_t index) const {
   assert(index < path.size());
   return path[index];

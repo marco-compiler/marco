@@ -224,16 +224,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     llvm::dbgs() << "Searching cycles among the following equations:\n";
 
     for (MatchedEquationInstanceOp equationOp : equations) {
-      auto matchedAccess = equationOp.getMatchedAccess(symbolTableCollection);
-      llvm::dbgs() << "[writing ";
+      llvm::dbgs() << "[writing " << equationOp.getProperties().match.name
+                   << "] ";
 
-      if (!matchedAccess) {
-        llvm::dbgs() << "<unknown>";
-      } else {
-        llvm::dbgs() << matchedAccess->getVariable();
-      }
-
-      llvm::dbgs() << "] ";
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     }
@@ -366,8 +359,8 @@ static mlir::LogicalResult solveCycle(
     auto removeExplicitEquation = llvm::make_scope_exit(
         [&]() { rewriter.eraseOp(explicitWritingEquationOp); });
 
-    auto explicitWriteAccess =
-        explicitWritingEquationOp.getMatchedAccess(symbolTableCollection);
+    auto explicitWriteAccess = explicitWritingEquationOp.getAccessAtPath(
+        symbolTableCollection, EquationPath(EquationPath::LEFT, 0));
 
     if (!explicitWriteAccess) {
       return mlir::failure();
@@ -403,7 +396,7 @@ static mlir::LogicalResult solveCycle(
     }
 
     if (mlir::failed(readingEquationOp.cloneWithReplacedAccess(
-            rewriter, optionalReadingEquationIndices,
+            rewriter, symbolTableCollection, optionalReadingEquationIndices,
             readingEquation.readAccess, explicitWritingEquationOp.getTemplate(),
             *explicitWriteAccess, newEquations))) {
       return mlir::failure();
@@ -602,6 +595,35 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
           rewriter.setInsertionPoint(firstEquation);
 
+          llvm::SmallVector<VariableAccess> accesses;
+          llvm::SmallVector<VariableAccess> writeAccesses;
+
+          if (mlir::failed(
+                  firstEquation.getAccesses(accesses, symbolTableCollection))) {
+            return mlir::failure();
+          }
+
+          if (mlir::failed(firstEquation.getWriteAccesses(
+                  writeAccesses, symbolTableCollection, accesses))) {
+            return mlir::failure();
+          }
+
+          assert(!writeAccesses.empty());
+          llvm::sort(writeAccesses, [](const VariableAccess &first,
+                                       const VariableAccess &second) {
+            if (first.getAccessFunction().isAffine() &&
+                !second.getAccessFunction().isAffine()) {
+              return true;
+            }
+
+            if (!first.getAccessFunction().isAffine() &&
+                second.getAccessFunction().isAffine()) {
+              return false;
+            }
+
+            return first < second;
+          });
+
           for (const MultidimensionalRange &range :
                llvm::make_range(remainingIndices.rangesBegin(),
                                 remainingIndices.rangesEnd())) {
@@ -615,6 +637,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
               clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
                   rewriter.getContext(), std::move(explicitRange)));
             }
+
+            clonedOp.getProperties().match.indices =
+                writeAccesses[0].getAccessFunction().map(IndexSet(range));
 
             currentEquations.push_back(clonedOp);
           }

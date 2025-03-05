@@ -399,9 +399,11 @@ mlir::LogicalResult SchedulingPass::schedule(
         // Create the operation for the scheduled equation.
         auto scheduledEquationOp = builder.create<ScheduledEquationInstanceOp>(
             matchedEquation.getLoc(), matchedEquation.getTemplate(),
-            matchedEquation.getPath(),
             builder.getArrayAttr(llvm::ArrayRef(iterationDirections)
                                      .take_front(numOfInductions)));
+
+        scheduledEquationOp.getProperties().match =
+            matchedEquation.getProperties().match;
 
         if (!isScalarEquation) {
           MultidimensionalRange explicitRange =

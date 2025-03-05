@@ -90,6 +90,28 @@ static void printModelDerivativesMap(mlir::OpAsmPrinter &printer,
   }
 }
 
+static bool parseMatchProperty(mlir::OpAsmParser &parser, Variable &prop) {
+  if (mlir::succeeded(parser.parseOptionalKeyword("match"))) {
+    if (parser.parseEqual()) {
+      return true;
+    }
+
+    if (mlir::failed(parse(parser, prop))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void printMatchProperty(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                               const Variable &prop) {
+  if (prop) {
+    printer << "match = ";
+    print(printer, prop);
+  }
+}
+
 static bool parseAbstractEquationWrittenVars(mlir::OpAsmParser &parser,
                                              VariablesList &prop) {
   return parseWrittenVars(parser, prop);
@@ -7391,24 +7413,6 @@ struct MainModelMergePattern : public mlir::OpRewritePattern<ModelOp> {
 } // namespace
 
 namespace mlir::bmodelica {
-mlir::LogicalResult ModelOp::verify() {
-  mlir::SymbolTableCollection symbolTableCollection;
-
-  llvm::SmallVector<MatchedEquationInstanceOp> matchedEquationOps;
-
-  walk([&matchedEquationOps](MatchedEquationInstanceOp equationOp) {
-    matchedEquationOps.push_back(equationOp);
-  });
-
-  for (MatchedEquationInstanceOp equationOp : matchedEquationOps) {
-    if (mlir::failed(equationOp.verifyPath(symbolTableCollection))) {
-      return mlir::failure();
-    }
-  }
-
-  return mlir::success();
-}
-
 void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                           mlir::MLIRContext *context) {
   patterns.add<InitialModelMergePattern, MainModelMergePattern>(context);
@@ -7888,14 +7892,9 @@ EquationTemplateOp::getAccesses(llvm::SmallVectorImpl<VariableAccess> &result,
 mlir::LogicalResult EquationTemplateOp::getWriteAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses,
-    const VariableAccess &matchedAccess) {
-  const AccessFunction &matchedAccessFunction =
-      matchedAccess.getAccessFunction();
-
-  IndexSet matchedVariableIndices = matchedAccessFunction.map(equationIndices);
-
+    const Variable &matchedVariable) {
   for (const VariableAccess &access : accesses) {
-    if (access.getVariable() != matchedAccess.getVariable()) {
+    if (access.getVariable() != matchedVariable.name) {
       continue;
     }
 
@@ -7903,9 +7902,9 @@ mlir::LogicalResult EquationTemplateOp::getWriteAccesses(
 
     IndexSet accessedVariableIndices = accessFunction.map(equationIndices);
 
-    if (matchedVariableIndices.empty() && accessedVariableIndices.empty()) {
+    if (matchedVariable.indices.empty() && accessedVariableIndices.empty()) {
       result.push_back(access);
-    } else if (matchedVariableIndices.overlaps(accessedVariableIndices)) {
+    } else if (matchedVariable.indices.overlaps(accessedVariableIndices)) {
       result.push_back(access);
     }
   }
@@ -7916,22 +7915,17 @@ mlir::LogicalResult EquationTemplateOp::getWriteAccesses(
 mlir::LogicalResult EquationTemplateOp::getReadAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses,
-    const VariableAccess &matchedAccess) {
-  const AccessFunction &matchedAccessFunction =
-      matchedAccess.getAccessFunction();
-
-  IndexSet matchedVariableIndices = matchedAccessFunction.map(equationIndices);
-
+    const Variable &matchedVariable) {
   for (const VariableAccess &access : accesses) {
-    if (access.getVariable() != matchedAccess.getVariable()) {
+    if (access.getVariable() != matchedVariable.name) {
       result.push_back(access);
     } else {
       const AccessFunction &accessFunction = access.getAccessFunction();
-
       IndexSet accessedVariableIndices = accessFunction.map(equationIndices);
 
-      if (!matchedVariableIndices.empty() && !accessedVariableIndices.empty()) {
-        if (!matchedVariableIndices.contains(accessedVariableIndices)) {
+      if (!matchedVariable.indices.empty() &&
+          !accessedVariableIndices.empty()) {
+        if (!matchedVariable.indices.contains(accessedVariableIndices)) {
           result.push_back(access);
         }
       }
@@ -8382,6 +8376,8 @@ IndexSet EquationTemplateOp::applyAccessFunction(
 
   if (equationIndices) {
     result = accessFunction.map(IndexSet(*equationIndices));
+  } else {
+    result = accessFunction.map(IndexSet());
   }
 
   return result;
@@ -8391,23 +8387,11 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
     std::optional<MultidimensionalRange> equationIndices,
-    const EquationPath &path) {
+    const Variable &matchedVariable) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   // Get all the paths that lead to accesses with the same accessed variable
   // and function.
-  auto requestedAccess = getAccessAtPath(symbolTableCollection, path);
-
-  if (!requestedAccess) {
-    return mlir::failure();
-  }
-
-  const AccessFunction &requestedAccessFunction =
-      requestedAccess->getAccessFunction();
-
-  IndexSet requestedIndices =
-      applyAccessFunction(requestedAccessFunction, equationIndices, path);
-
   llvm::SmallVector<VariableAccess, 10> accesses;
 
   if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
@@ -8417,7 +8401,7 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
   llvm::SmallVector<VariableAccess, 5> filteredAccesses;
 
   for (const VariableAccess &access : accesses) {
-    if (requestedAccess->getVariable() != access.getVariable()) {
+    if (access.getVariable() != matchedVariable.name) {
       continue;
     }
 
@@ -8426,7 +8410,7 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
     IndexSet currentIndices = applyAccessFunction(
         currentAccessFunction, equationIndices, access.getPath());
 
-    if (requestedIndices == currentIndices) {
+    if (currentIndices == matchedVariable.indices) {
       filteredAccesses.push_back(access);
     }
   }
@@ -8448,6 +8432,8 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
   }
 
   if (filteredAccesses.size() == 1) {
+    const EquationPath &path = filteredAccesses[0].getPath();
+
     for (size_t i = 1, e = path.size(); i < e; ++i) {
       if (mlir::failed(
               explicitateLeaf(rewriter, path[i], path.getEquationSide()))) {
@@ -8471,7 +8457,8 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
     // extract the common multiplying factor.
 
     if (mlir::failed(groupLeftHandSide(rewriter, symbolTableCollection,
-                                       equationIndices, *requestedAccess))) {
+                                       equationIndices, matchedVariable,
+                                       filteredAccesses))) {
       return mlir::failure();
     }
   }
@@ -8483,7 +8470,7 @@ EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
     std::optional<MultidimensionalRange> equationIndices,
-    const EquationPath &path) {
+    const Variable &matchedVariable) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointAfter(getOperation());
 
@@ -8494,7 +8481,7 @@ EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
       llvm::make_scope_exit([&]() { rewriter.eraseOp(clonedOp); });
 
   if (mlir::failed(clonedOp.explicitate(rewriter, symbolTableCollection,
-                                        equationIndices, path))) {
+                                        equationIndices, matchedVariable))) {
     return nullptr;
   }
 
@@ -8962,11 +8949,15 @@ mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
     std::optional<MultidimensionalRange> equationRanges,
-    const VariableAccess &requestedAccess) {
+    const Variable &matchedVariable, llvm::ArrayRef<VariableAccess> accesses) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   auto inductionsPositionMap = getInductionsPositionMap();
-  uint64_t viewElementIndex = requestedAccess.getPath()[0];
 
+  // Temporary workaround to avoid revisiting the whole function after switching
+  // to name + indices for matching attribute.
+  const VariableAccess &requestedAccess = accesses[0];
+
+  uint64_t viewElementIndex = requestedAccess.getPath()[0];
   IndexSet equationIndices;
 
   if (equationRanges) {
@@ -8982,28 +8973,18 @@ mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
   bool lhsHasAccess = false;
   bool rhsHasAccess = false;
 
-  llvm::SmallVector<VariableAccess> accesses;
-
-  if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
-    return mlir::failure();
-  }
-
   const AccessFunction &requestedAccessFunction =
       requestedAccess.getAccessFunction();
 
   auto requestedIndices = requestedAccessFunction.map(equationIndices);
 
   for (const VariableAccess &access : accesses) {
-    if (access.getVariable() != requestedAccess.getVariable()) {
-      continue;
-    }
-
     const AccessFunction &currentAccessFunction = access.getAccessFunction();
     auto currentAccessIndices = currentAccessFunction.map(equationIndices);
 
-    if ((requestedIndices.empty() && currentAccessIndices.empty()) ||
-        requestedIndices.overlaps(currentAccessIndices)) {
-      if (!checkAccessEquivalence(equationIndices, requestedAccess, access)) {
+    if ((matchedVariable.indices.empty() && currentAccessIndices.empty()) ||
+        matchedVariable.indices.overlaps(currentAccessIndices)) {
+      if (!checkAccessEquivalence(equationIndices, access, accesses[0])) {
         return mlir::failure();
       }
 
@@ -9629,8 +9610,18 @@ mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
     return mlir::failure();
   }
 
+  IndexSet writtenIndices;
+
+  if (auto equationIndices = getIndices()) {
+    const auto &accessFunction = writeAccess->getAccessFunction();
+    writtenIndices = accessFunction.map(IndexSet(equationIndices->getValue()));
+  }
+
+  Variable writtenVariable(writeAccess->getVariable(),
+                           std::move(writtenIndices));
+
   return getTemplate().getReadAccesses(result, equationIndices, accesses,
-                                       *writeAccess);
+                                       writtenVariable);
 }
 
 std::optional<VariableAccess> StartEquationInstanceOp::getAccessAtPath(
@@ -9778,9 +9769,8 @@ mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
 namespace mlir::bmodelica {
 void MatchedEquationInstanceOp::build(mlir::OpBuilder &builder,
                                       mlir::OperationState &state,
-                                      EquationTemplateOp equationTemplate,
-                                      EquationPathAttr path) {
-  build(builder, state, equationTemplate.getResult(), nullptr, path);
+                                      EquationTemplateOp equationTemplate) {
+  build(builder, state, equationTemplate.getResult(), nullptr);
 }
 
 mlir::LogicalResult MatchedEquationInstanceOp::verify() {
@@ -9828,17 +9818,6 @@ IndexSet MatchedEquationInstanceOp::getIterationSpace() {
   return {};
 }
 
-mlir::LogicalResult MatchedEquationInstanceOp::verifyPath(
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  return getTemplate().verifyAccessAtPath(symbolTableCollection,
-                                          getPath().getValue());
-}
-
-std::optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  return getAccessAtPath(symbolTableCollection, getPath().getValue());
-}
-
 mlir::LogicalResult MatchedEquationInstanceOp::getAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTable) {
@@ -9857,15 +9836,8 @@ mlir::LogicalResult MatchedEquationInstanceOp::getWriteAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTableCollection,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses) {
-  std::optional<VariableAccess> matchedAccess =
-      getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
   return getTemplate().getWriteAccesses(result, equationIndices, accesses,
-                                        *matchedAccess);
+                                        getProperties().match);
 }
 
 mlir::LogicalResult MatchedEquationInstanceOp::getReadAccesses(
@@ -9880,15 +9852,8 @@ mlir::LogicalResult MatchedEquationInstanceOp::getReadAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTableCollection,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses) {
-  std::optional<VariableAccess> matchedAccess =
-      getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
   return getTemplate().getReadAccesses(result, equationIndices, accesses,
-                                       *matchedAccess);
+                                       getProperties().match);
 }
 
 std::optional<VariableAccess> MatchedEquationInstanceOp::getAccessAtPath(
@@ -9906,12 +9871,9 @@ mlir::LogicalResult MatchedEquationInstanceOp::explicitate(
   }
 
   if (mlir::failed(getTemplate().explicitate(rewriter, symbolTableCollection,
-                                             indices, getPath().getValue()))) {
+                                             indices, getProperties().match))) {
     return mlir::failure();
   }
-
-  setPathAttr(
-      EquationPathAttr::get(getContext(), EquationPath(EquationPath::LEFT, 0)));
 
   return mlir::success();
 }
@@ -9926,7 +9888,7 @@ MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
   }
 
   EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-      rewriter, symbolTableCollection, indices, getPath().getValue());
+      rewriter, symbolTableCollection, indices, getProperties().match);
 
   if (!clonedTemplate) {
     return nullptr;
@@ -9935,9 +9897,10 @@ MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointAfter(getOperation());
 
-  auto result = rewriter.create<MatchedEquationInstanceOp>(
-      getLoc(), clonedTemplate,
-      EquationPathAttr::get(getContext(), EquationPath(EquationPath::LEFT, 0)));
+  auto result =
+      rewriter.create<MatchedEquationInstanceOp>(getLoc(), clonedTemplate);
+
+  result.getProperties() = getProperties();
 
   if (indices) {
     result.setIndicesAttr(
@@ -9949,6 +9912,7 @@ MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
 
 mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
     mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection,
     std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
     const VariableAccess &access, EquationTemplateOp replacementEquation,
     const VariableAccess &replacementAccess,
@@ -9978,12 +9942,41 @@ mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
   auto temporaryClonedOp =
       mlir::cast<MatchedEquationInstanceOp>(rewriter.clone(*getOperation()));
 
+  llvm::SmallVector<VariableAccess> accesses;
+  llvm::SmallVector<VariableAccess> writeAccesses;
+
+  if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(
+          getWriteAccesses(writeAccesses, symbolTableCollection, accesses))) {
+    return mlir::failure();
+  }
+
+  llvm::sort(writeAccesses,
+             [](const VariableAccess &first, const VariableAccess &second) {
+               if (first.getAccessFunction().isAffine() &&
+                   !second.getAccessFunction().isAffine()) {
+                 return true;
+               }
+
+               if (!first.getAccessFunction().isAffine() &&
+                   second.getAccessFunction().isAffine()) {
+                 return false;
+               }
+
+               return first < second;
+             });
+
   for (auto &[assignedIndices, equationTemplateOp] : templateResults) {
     if (assignedIndices.empty()) {
       auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
           rewriter.clone(*temporaryClonedOp.getOperation()));
 
       clonedOp.setOperand(equationTemplateOp.getResult());
+      clonedOp.getProperties().match.indices =
+          writeAccesses[0].getAccessFunction().map(assignedIndices);
       clonedOp.removeIndicesAttr();
       results.push_back(clonedOp);
     } else {
@@ -9993,6 +9986,10 @@ mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
             rewriter.clone(*temporaryClonedOp.getOperation()));
 
         clonedOp.setOperand(equationTemplateOp.getResult());
+
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(
+                IndexSet(assignedIndicesRange));
 
         if (auto explicitIndices = getIndices()) {
           MultidimensionalRange explicitRange =
@@ -10065,9 +10062,8 @@ namespace mlir::bmodelica {
 void ScheduledEquationInstanceOp::build(mlir::OpBuilder &builder,
                                         mlir::OperationState &state,
                                         EquationTemplateOp equationTemplate,
-                                        EquationPathAttr path,
                                         mlir::ArrayAttr iterationDirections) {
-  build(builder, state, equationTemplate.getResult(), nullptr, path,
+  build(builder, state, equationTemplate.getResult(), nullptr,
         iterationDirections);
 }
 
@@ -10134,11 +10130,6 @@ IndexSet ScheduledEquationInstanceOp::getIterationSpace() {
   return {};
 }
 
-std::optional<VariableAccess> ScheduledEquationInstanceOp::getMatchedAccess(
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  return getAccessAtPath(symbolTableCollection, getPath().getValue());
-}
-
 mlir::LogicalResult ScheduledEquationInstanceOp::getWriteAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTableCollection,
@@ -10151,15 +10142,8 @@ mlir::LogicalResult ScheduledEquationInstanceOp::getWriteAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTableCollection,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses) {
-  std::optional<VariableAccess> matchedAccess =
-      getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
   return getTemplate().getWriteAccesses(result, equationIndices, accesses,
-                                        *matchedAccess);
+                                        getProperties().match);
 }
 
 mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
@@ -10174,15 +10158,8 @@ mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
     llvm::SmallVectorImpl<VariableAccess> &result,
     mlir::SymbolTableCollection &symbolTableCollection,
     const IndexSet &equationIndices, llvm::ArrayRef<VariableAccess> accesses) {
-  std::optional<VariableAccess> matchedAccess =
-      getMatchedAccess(symbolTableCollection);
-
-  if (!matchedAccess) {
-    return mlir::failure();
-  }
-
   return getTemplate().getReadAccesses(result, equationIndices, accesses,
-                                       *matchedAccess);
+                                       getProperties().match);
 }
 
 mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
@@ -10195,12 +10172,9 @@ mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
   }
 
   if (mlir::failed(getTemplate().explicitate(rewriter, symbolTableCollection,
-                                             indices, getPath().getValue()))) {
+                                             indices, getProperties().match))) {
     return mlir::failure();
   }
-
-  setPathAttr(
-      EquationPathAttr::get(getContext(), EquationPath(EquationPath::LEFT, 0)));
 
   return mlir::success();
 }
@@ -10215,7 +10189,7 @@ ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
   }
 
   EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-      rewriter, symbolTableCollection, indices, getPath().getValue());
+      rewriter, symbolTableCollection, indices, getProperties().match);
 
   if (!clonedTemplate) {
     return nullptr;
@@ -10225,9 +10199,9 @@ ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
   rewriter.setInsertionPointAfter(getOperation());
 
   auto result = rewriter.create<ScheduledEquationInstanceOp>(
-      getLoc(), clonedTemplate,
-      EquationPathAttr::get(getContext(), EquationPath(EquationPath::LEFT, 0)),
-      getIterationDirections());
+      getLoc(), clonedTemplate, getIterationDirections());
+
+  result.getProperties() = getProperties();
 
   if (indices) {
     result.setIndicesAttr(
@@ -10239,6 +10213,7 @@ ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
 
 mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
     mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection,
     std::optional<std::reference_wrapper<const IndexSet>> equationIndices,
     const VariableAccess &access, EquationTemplateOp replacementEquation,
     const VariableAccess &replacementAccess,
@@ -10268,12 +10243,41 @@ mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
   auto temporaryClonedOp =
       mlir::cast<ScheduledEquationInstanceOp>(rewriter.clone(*getOperation()));
 
+  llvm::SmallVector<VariableAccess> accesses;
+  llvm::SmallVector<VariableAccess> writeAccesses;
+
+  if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(
+          getWriteAccesses(writeAccesses, symbolTableCollection, accesses))) {
+    return mlir::failure();
+  }
+
+  llvm::sort(writeAccesses,
+             [](const VariableAccess &first, const VariableAccess &second) {
+               if (first.getAccessFunction().isAffine() &&
+                   !second.getAccessFunction().isAffine()) {
+                 return true;
+               }
+
+               if (!first.getAccessFunction().isAffine() &&
+                   second.getAccessFunction().isAffine()) {
+                 return false;
+               }
+
+               return first < second;
+             });
+
   for (auto &[assignedIndices, equationTemplateOp] : templateResults) {
     if (assignedIndices.empty()) {
       auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
           rewriter.clone(*temporaryClonedOp.getOperation()));
 
       clonedOp.setOperand(equationTemplateOp.getResult());
+      clonedOp.getProperties().match.indices =
+          writeAccesses[0].getAccessFunction().map(assignedIndices);
       clonedOp.removeIndicesAttr();
       results.push_back(clonedOp);
     } else {
@@ -10283,6 +10287,10 @@ mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
             rewriter.clone(*temporaryClonedOp.getOperation()));
 
         clonedOp.setOperand(equationTemplateOp.getResult());
+
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(
+                IndexSet(assignedIndicesRange));
 
         if (auto explicitIndices = getIndices()) {
           MultidimensionalRange explicitRange =

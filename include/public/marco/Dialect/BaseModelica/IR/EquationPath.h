@@ -29,6 +29,8 @@ public:
   bool operator==(const EquationPath &other) const;
   bool operator!=(const EquationPath &other) const;
 
+  bool operator<(const EquationPath &other) const;
+
   EquationSide getEquationSide() const;
 
   uint64_t operator[](size_t index) const;

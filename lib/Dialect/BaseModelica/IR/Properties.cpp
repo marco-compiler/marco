@@ -14,6 +14,11 @@ Variable::Variable() = default;
 Variable::Variable(mlir::SymbolRefAttr name, IndexSet indices)
     : name(name), indices(std::move(indices)) {}
 
+Variable::Variable(const IndexSet &equationIndices,
+                   const VariableAccess &access)
+    : name(access.getVariable()),
+      indices(access.getAccessFunction().map(equationIndices)) {}
+
 bool Variable::operator==(const Variable &other) const {
   return name == other.name && indices == other.indices;
 }

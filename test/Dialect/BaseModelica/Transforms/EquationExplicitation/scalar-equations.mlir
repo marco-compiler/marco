@@ -48,10 +48,10 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.scheduled_equation_instance %t0 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.scheduled_equation_instance %t0, match = @y {iteration_directions = []}
             }
             bmodelica.scc {
-                bmodelica.scheduled_equation_instance %t1 {iteration_directions = [], path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.scheduled_equation_instance %t1, match = @x {iteration_directions = []}
             }
         }
     }

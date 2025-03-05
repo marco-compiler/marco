@@ -21,11 +21,11 @@ bmodelica.model @outputDerivedVar der = [<@x, @der_x>] {
     // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @der_x
     }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]], match = @der_x
     // CHECK-NEXT:  }
 }
 
@@ -52,10 +52,10 @@ bmodelica.model @outputDerivativeVar der = [<@x, @der_x>] {
     // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.matched_equation_instance %t0, match = @der_x
     }
 
     // CHECK:       bmodelica.dynamic {
-    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]] {{.*$}}
+    // CHECK-DAG:       bmodelica.matched_equation_instance %[[t1]], match = @der_x
     // CHECK-NEXT:  }
 }
