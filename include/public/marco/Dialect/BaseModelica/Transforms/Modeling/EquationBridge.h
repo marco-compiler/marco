@@ -13,17 +13,25 @@ class raw_ostream;
 namespace mlir::bmodelica::bridge {
 class EquationBridge {
 public:
+  using VariablesMap = llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *>;
+
+private:
   int64_t id;
   EquationInstanceOp op;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> *variablesMap;
+  VariablesMap *variablesMap;
 
 public:
   template <typename... Args>
   static std::unique_ptr<EquationBridge> build(Args &&...args) {
     return std::make_unique<EquationBridge>(std::forward<Args>(args)...);
   }
+
+  EquationBridge(
+      int64_t id, EquationInstanceOp op,
+      mlir::SymbolTableCollection &symbolTable,
+      llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap);
 
   EquationBridge(
       int64_t id, EquationInstanceOp op,
@@ -36,6 +44,29 @@ public:
   EquationBridge(EquationBridge &&other) = delete;
   EquationBridge &operator=(const EquationBridge &other) = delete;
   EquationBridge &operator==(const EquationBridge &other) = delete;
+
+  /// @Getters
+  /// {
+
+  int64_t getId() const;
+
+  EquationInstanceOp getOp() const;
+
+  mlir::SymbolTableCollection &getSymbolTableCollection();
+
+  const mlir::SymbolTableCollection &getSymbolTableCollection() const;
+
+  bool hasAccessAnalysis() const;
+
+  VariableAccessAnalysis &getAccessAnalysis();
+
+  const VariableAccessAnalysis &getAccessAnalysis() const;
+
+  VariablesMap &getVariablesMap();
+
+  const VariablesMap &getVariablesMap() const;
+
+  /// }
 };
 } // namespace mlir::bmodelica::bridge
 
@@ -59,6 +90,11 @@ struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
 
   static llvm::raw_ostream &dump(const Equation *equation,
                                  llvm::raw_ostream &os);
+
+private:
+  static std::vector<Access<VariableType, AccessProperty>>
+  convertAccesses(const Equation *equation,
+                  llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses);
 };
 } // namespace marco::modeling::matching
 
@@ -89,6 +125,11 @@ struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
 
   static llvm::raw_ostream &dump(const Equation *equation,
                                  llvm::raw_ostream &os);
+
+private:
+  static std::vector<Access<VariableType, AccessProperty>>
+  convertAccesses(const Equation *equation,
+                  llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses);
 };
 } // namespace marco::modeling::dependency
 

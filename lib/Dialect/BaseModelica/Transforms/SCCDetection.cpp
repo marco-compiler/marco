@@ -199,11 +199,11 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
       const auto &equation = dependencyGraph[*sccElement];
       const IndexSet &indices = sccElement.getIndices();
 
-      size_t numOfInductions = equation->op.getInductionVariables().size();
+      size_t numOfInductions = equation->getOp().getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
       auto clonedOp = mlir::cast<EquationInstanceOp>(
-          rewriter.clone(*equation->op.getOperation()));
+          rewriter.clone(*equation->getOp().getOperation()));
 
       if (!isScalarEquation) {
         IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);

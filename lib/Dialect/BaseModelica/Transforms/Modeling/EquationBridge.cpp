@@ -5,8 +5,8 @@ using namespace ::mlir::bmodelica::bridge;
 
 namespace {
 std::unique_ptr<AccessFunction>
-getAccessFunction(mlir::MLIRContext *context,
-                  const mlir::bmodelica::VariableAccess &access) {
+convertAccessFunction(mlir::MLIRContext *context,
+                      const mlir::bmodelica::VariableAccess &access) {
   const AccessFunction &accessFunction = access.getAccessFunction();
 
   if (accessFunction.getNumOfResults() == 0) {
@@ -23,22 +23,67 @@ getAccessFunction(mlir::MLIRContext *context,
 namespace mlir::bmodelica::bridge {
 EquationBridge::EquationBridge(
     int64_t id, EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
+    : id(id), op(op), symbolTable(&symbolTable), accessAnalysis(nullptr),
+      variablesMap(&variablesMap) {}
+
+EquationBridge::EquationBridge(
+    int64_t id, EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
     VariableAccessAnalysis &accessAnalysis,
     llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
     : id(id), op(op), symbolTable(&symbolTable),
       accessAnalysis(&accessAnalysis), variablesMap(&variablesMap) {}
+
+int64_t EquationBridge::getId() const { return id; }
+
+EquationInstanceOp EquationBridge::getOp() const { return op; }
+
+mlir::SymbolTableCollection &EquationBridge::getSymbolTableCollection() {
+  assert(symbolTable);
+  return *symbolTable;
+}
+
+const mlir::SymbolTableCollection &
+EquationBridge::getSymbolTableCollection() const {
+  assert(symbolTable);
+  return *symbolTable;
+}
+
+bool EquationBridge::hasAccessAnalysis() const {
+  return accessAnalysis != nullptr;
+}
+
+VariableAccessAnalysis &EquationBridge::getAccessAnalysis() {
+  assert(hasAccessAnalysis());
+  return *accessAnalysis;
+}
+
+const VariableAccessAnalysis &EquationBridge::getAccessAnalysis() const {
+  assert(hasAccessAnalysis());
+  return *accessAnalysis;
+}
+
+EquationBridge::VariablesMap &EquationBridge::getVariablesMap() {
+  assert(variablesMap);
+  return *variablesMap;
+}
+
+const EquationBridge::VariablesMap &EquationBridge::getVariablesMap() const {
+  assert(variablesMap);
+  return *variablesMap;
+}
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::matching {
 EquationTraits<EquationBridge *>::Id
 EquationTraits<EquationBridge *>::getId(const Equation *equation) {
-  return (*equation)->id;
+  return (*equation)->getId();
 }
 
 size_t EquationTraits<EquationBridge *>::getNumOfIterationVars(
     const Equation *equation) {
-  auto numOfInductions =
-      static_cast<uint64_t>((*equation)->op.getInductionVariables().size());
+  auto numOfInductions = static_cast<uint64_t>(
+      (*equation)->getOp().getInductionVariables().size());
 
   if (numOfInductions == 0) {
     // Scalar equation.
@@ -50,7 +95,7 @@ size_t EquationTraits<EquationBridge *>::getNumOfIterationVars(
 
 IndexSet
 EquationTraits<EquationBridge *>::getIterationRanges(const Equation *equation) {
-  IndexSet iterationSpace = (*equation)->op.getProperties().indices;
+  IndexSet iterationSpace = (*equation)->getOp().getProperties().indices;
 
   if (iterationSpace.empty()) {
     // Scalar equation.
@@ -63,46 +108,64 @@ EquationTraits<EquationBridge *>::getIterationRanges(const Equation *equation) {
 std::vector<Access<EquationTraits<EquationBridge *>::VariableType,
                    EquationTraits<EquationBridge *>::AccessProperty>>
 EquationTraits<EquationBridge *>::getAccesses(const Equation *equation) {
-  std::vector<Access<VariableType, AccessProperty>> accesses;
-
-  auto cachedAccesses =
-      (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
-
-  if (cachedAccesses) {
-    for (auto &access : *cachedAccesses) {
-      auto accessFunction =
-          getAccessFunction((*equation)->op.getContext(), access);
-
-      auto variableIt = (*(*equation)->variablesMap).find(access.getVariable());
-
-      if (variableIt != (*(*equation)->variablesMap).end()) {
-        accesses.emplace_back(variableIt->getSecond(),
-                              std::move(accessFunction), access.getPath());
-      }
+  if ((*equation)->hasAccessAnalysis()) {
+    if (auto cachedAccesses = (*equation)->getAccessAnalysis().getAccesses(
+            (*equation)->getSymbolTableCollection())) {
+      return convertAccesses(equation, *cachedAccesses);
     }
   }
 
-  return accesses;
+  llvm::SmallVector<VariableAccess> accesses;
+
+  if (mlir::succeeded((*equation)->getOp().getAccesses(
+          accesses, (*equation)->getSymbolTableCollection()))) {
+    return convertAccesses(equation, accesses);
+  }
+
+  llvm_unreachable("Can't compute the accesses");
+  return {};
 }
 
 llvm::raw_ostream &
 EquationTraits<EquationBridge *>::dump(const Equation *equation,
                                        llvm::raw_ostream &os) {
-  (*equation)->op.printInline(os);
+  (*equation)->getOp().printInline(os);
   return os;
+}
+
+std::vector<Access<EquationTraits<EquationBridge *>::VariableType,
+                   EquationTraits<EquationBridge *>::AccessProperty>>
+EquationTraits<EquationBridge *>::convertAccesses(
+    const Equation *equation,
+    llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses) {
+  std::vector<Access<VariableType, AccessProperty>> result;
+
+  for (const auto &access : accesses) {
+    auto accessFunction =
+        convertAccessFunction((*equation)->getOp().getContext(), access);
+
+    auto variableIt = (*equation)->getVariablesMap().find(access.getVariable());
+
+    if (variableIt != (*equation)->getVariablesMap().end()) {
+      result.emplace_back(variableIt->getSecond(), std::move(accessFunction),
+                          access.getPath());
+    }
+  }
+
+  return result;
 }
 } // namespace marco::modeling::matching
 
 namespace marco::modeling::dependency {
 EquationTraits<EquationBridge *>::Id
 EquationTraits<EquationBridge *>::getId(const Equation *equation) {
-  return (*equation)->id;
+  return (*equation)->getId();
 }
 
 size_t EquationTraits<EquationBridge *>::getNumOfIterationVars(
     const Equation *equation) {
-  uint64_t numOfInductions =
-      static_cast<uint64_t>((*equation)->op.getInductionVariables().size());
+  uint64_t numOfInductions = static_cast<uint64_t>(
+      (*equation)->getOp().getInductionVariables().size());
 
   if (numOfInductions == 0) {
     // Scalar equation.
@@ -114,7 +177,7 @@ size_t EquationTraits<EquationBridge *>::getNumOfIterationVars(
 
 IndexSet
 EquationTraits<EquationBridge *>::getIterationRanges(const Equation *equation) {
-  IndexSet iterationSpace = (*equation)->op.getIterationSpace();
+  IndexSet iterationSpace = (*equation)->getOp().getIterationSpace();
 
   if (iterationSpace.empty()) {
     // Scalar equation.
@@ -130,18 +193,18 @@ EquationTraits<EquationBridge *>::getAccesses(const Equation *equation) {
   std::vector<Access<VariableType, AccessProperty>> result;
   llvm::SmallVector<VariableAccess> accesses;
 
-  if (mlir::failed(
-          (*equation)->op.getAccesses(accesses, *(*equation)->symbolTable))) {
+  if (mlir::failed((*equation)->getOp().getAccesses(
+          accesses, (*equation)->getSymbolTableCollection()))) {
     return result;
   }
 
   for (VariableAccess &access : accesses) {
     auto accessFunction =
-        getAccessFunction((*equation)->op.getContext(), access);
+        convertAccessFunction((*equation)->getOp().getContext(), access);
 
-    auto variableIt = (*(*equation)->variablesMap).find(access.getVariable());
+    auto variableIt = (*equation)->getVariablesMap().find(access.getVariable());
 
-    if (variableIt != (*(*equation)->variablesMap).end()) {
+    if (variableIt != (*equation)->getVariablesMap().end()) {
       result.emplace_back(variableIt->getSecond(), std::move(accessFunction),
                           access);
     }
@@ -155,17 +218,17 @@ std::vector<Access<EquationTraits<EquationBridge *>::VariableType,
 EquationTraits<EquationBridge *>::getWrites(const Equation *equation) {
   llvm::SmallVector<VariableAccess> accesses;
 
-  if (mlir::failed(
-          (*equation)->op.getAccesses(accesses, *(*equation)->symbolTable))) {
+  if (mlir::failed((*equation)->getOp().getAccesses(
+          accesses, (*equation)->getSymbolTableCollection()))) {
     llvm_unreachable("Can't compute the accesses");
     return {};
   }
 
   llvm::SmallVector<VariableAccess> writeAccesses;
 
-  if (mlir::failed((*equation)->op.getWriteAccesses(
-          writeAccesses, *(*equation)->symbolTable,
-          (*equation)->op.getProperties().indices, accesses))) {
+  if (mlir::failed((*equation)->getOp().getWriteAccesses(
+          writeAccesses, (*equation)->getSymbolTableCollection(),
+          (*equation)->getOp().getProperties().indices, accesses))) {
     llvm_unreachable("Can't compute write accesses");
     return {};
   }
@@ -173,11 +236,12 @@ EquationTraits<EquationBridge *>::getWrites(const Equation *equation) {
   std::vector<Access<VariableType, AccessProperty>> writes;
 
   for (const VariableAccess &access : writeAccesses) {
-    auto variableIt = (*(*equation)->variablesMap).find(access.getVariable());
+    auto variableIt = (*equation)->getVariablesMap().find(access.getVariable());
 
-    writes.emplace_back(variableIt->getSecond(),
-                        getAccessFunction((*equation)->op.getContext(), access),
-                        access);
+    writes.emplace_back(
+        variableIt->getSecond(),
+        convertAccessFunction((*equation)->getOp().getContext(), access),
+        access);
   }
 
   return writes;
@@ -188,17 +252,17 @@ std::vector<Access<EquationTraits<EquationBridge *>::VariableType,
 EquationTraits<EquationBridge *>::getReads(const Equation *equation) {
   llvm::SmallVector<VariableAccess> accesses;
 
-  if (mlir::failed(
-          (*equation)->op.getAccesses(accesses, *(*equation)->symbolTable))) {
+  if (mlir::failed((*equation)->getOp().getAccesses(
+          accesses, (*equation)->getSymbolTableCollection()))) {
     llvm_unreachable("Can't compute the accesses");
     return {};
   }
 
   llvm::SmallVector<VariableAccess> readAccesses;
 
-  if (mlir::failed((*equation)->op.getReadAccesses(
-          readAccesses, *(*equation)->symbolTable,
-          (*equation)->op.getProperties().indices, accesses))) {
+  if (mlir::failed((*equation)->getOp().getReadAccesses(
+          readAccesses, (*equation)->getSymbolTableCollection(),
+          (*equation)->getOp().getProperties().indices, accesses))) {
     llvm_unreachable("Can't compute read accesses");
     return {};
   }
@@ -206,11 +270,12 @@ EquationTraits<EquationBridge *>::getReads(const Equation *equation) {
   std::vector<Access<VariableType, AccessProperty>> reads;
 
   for (const VariableAccess &access : readAccesses) {
-    auto variableIt = (*(*equation)->variablesMap).find(access.getVariable());
+    auto variableIt = (*equation)->getVariablesMap().find(access.getVariable());
 
-    reads.emplace_back(variableIt->getSecond(),
-                       getAccessFunction((*equation)->op.getContext(), access),
-                       access);
+    reads.emplace_back(
+        variableIt->getSecond(),
+        convertAccessFunction((*equation)->getOp().getContext(), access),
+        access);
   }
 
   return reads;
@@ -219,7 +284,7 @@ EquationTraits<EquationBridge *>::getReads(const Equation *equation) {
 llvm::raw_ostream &
 EquationTraits<EquationBridge *>::dump(const Equation *equation,
                                        llvm::raw_ostream &os) {
-  (*equation)->op.printInline(os);
+  (*equation)->getOp().printInline(os);
   return os;
 }
 } // namespace marco::modeling::dependency

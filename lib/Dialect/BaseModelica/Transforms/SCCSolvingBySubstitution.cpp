@@ -272,7 +272,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
 
     for (auto &cyclicEquation : cycle) {
       resultCycle.emplace_back(
-          CyclicEquation{dependencyGraph[cyclicEquation.equation]->op,
+          CyclicEquation{dependencyGraph[cyclicEquation.equation]->getOp(),
                          std::move(cyclicEquation.equationIndices),
                          std::move(cyclicEquation.writeAccess).getProperty(),
                          std::move(cyclicEquation.writtenVariableIndices),
@@ -745,21 +745,21 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
       const auto &equation = dependencyGraph[*sccElement];
       const IndexSet &indices = sccElement.getIndices();
 
-      size_t numOfInductions = equation->op.getInductionVariables().size();
+      size_t numOfInductions = equation->getOp().getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
       auto clonedOp = mlir::cast<EquationInstanceOp>(
-          rewriter.clone(*equation->op.getOperation()));
+          rewriter.clone(*equation->getOp().getOperation()));
 
       llvm::SmallVector<VariableAccess> accesses;
       llvm::SmallVector<VariableAccess> writeAccesses;
 
       if (mlir::failed(
-              equation->op.getAccesses(accesses, symbolTableCollection))) {
+              equation->getOp().getAccesses(accesses, symbolTableCollection))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(equation->op.getWriteAccesses(
+      if (mlir::failed(equation->getOp().getWriteAccesses(
               writeAccesses, symbolTableCollection, accesses))) {
         return mlir::failure();
       }

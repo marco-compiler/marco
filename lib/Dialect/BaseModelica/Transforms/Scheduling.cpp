@@ -363,7 +363,8 @@ mlir::LogicalResult SchedulingPass::schedule(
     }
 
     for (const auto &scheduledEquation : scc) {
-      EquationInstanceOp matchedEquation = scheduledEquation.getEquation()->op;
+      EquationInstanceOp matchedEquation =
+          scheduledEquation.getEquation()->getOp();
 
       size_t numOfInductions = matchedEquation.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;

@@ -2118,18 +2118,18 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
       const auto &equation = dependencyGraph[*sccElement];
       const IndexSet &indices = sccElement.getIndices();
 
-      size_t numOfInductions = equation->op.getInductionVariables().size();
+      size_t numOfInductions = equation->getOp().getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
       llvm::SmallVector<VariableAccess> accesses;
       llvm::SmallVector<VariableAccess> writeAccesses;
 
       if (mlir::failed(
-              equation->op.getAccesses(accesses, symbolTableCollection))) {
+              equation->getOp().getAccesses(accesses, symbolTableCollection))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(equation->op.getWriteAccesses(
+      if (mlir::failed(equation->getOp().getWriteAccesses(
               writeAccesses, symbolTableCollection, accesses))) {
         return mlir::failure();
       }
@@ -2150,7 +2150,7 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
                  });
 
       auto clonedOp = mlir::cast<EquationInstanceOp>(
-          rewriter.clone(*equation->op.getOperation()));
+          rewriter.clone(*equation->getOp().getOperation()));
 
       if (isScalarEquation) {
         clonedOp.getProperties().match.indices =

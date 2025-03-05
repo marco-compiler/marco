@@ -58,10 +58,11 @@ SCCTraits<SCCBridge *>::getElements(const SCC *scc) {
 
 std::vector<SCCTraits<SCCBridge *>::ElementRef>
 SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
-  mlir::SymbolTableCollection &symbolTableCollection = *equation->symbolTable;
+  mlir::SymbolTableCollection &symbolTableCollection =
+      equation->getSymbolTableCollection();
 
   const auto &accesses =
-      equation->accessAnalysis->getAccesses(symbolTableCollection);
+      equation->getAccessAnalysis().getAccesses(symbolTableCollection);
 
   if (!accesses) {
     llvm_unreachable("Can't obtain accesses");
@@ -70,13 +71,13 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
 
   llvm::SmallVector<mlir::bmodelica::VariableAccess> readAccesses;
 
-  if (mlir::failed(equation->op.getReadAccesses(
+  if (mlir::failed(equation->getOp().getReadAccesses(
           readAccesses, symbolTableCollection, *accesses))) {
     llvm_unreachable("Can't obtain read accesses");
     return {};
   }
 
-  IndexSet equationIndices = equation->op.getIterationSpace();
+  IndexSet equationIndices = equation->getOp().getIterationSpace();
   auto modelOp = (*scc)->op->getParentOfType<mlir::bmodelica::ModelOp>();
   const auto &matchedEqsWritesMap = *(*scc)->matchedEqsWritesMap;
   const auto &startEqsWritesMap = *(*scc)->startEqsWritesMap;
@@ -111,7 +112,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
 
   llvm::SmallVector<VariableAccess> writeAccesses;
 
-  if (mlir::failed(equation->op.getWriteAccesses(
+  if (mlir::failed(equation->getOp().getWriteAccesses(
           writeAccesses, symbolTableCollection, *accesses))) {
     llvm_unreachable("Can't determine the write accesses");
     return {};

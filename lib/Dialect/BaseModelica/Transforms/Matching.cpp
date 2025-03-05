@@ -225,7 +225,7 @@ void printMatchingGraph(const MatchingGraph &graph) {
        llvm::make_range(graph.equationsBegin(), graph.equationsEnd())) {
     const auto &equation = graph.getEquation(vertexDescriptor);
     llvm::errs() << "Equation ";
-    equation.getProperty()->op.printInline(llvm::errs());
+    equation.getProperty()->getOp().printInline(llvm::errs());
     llvm::errs() << "\n";
     llvm::errs() << "  - Indices: " << equation.getIterationRanges() << "\n";
     llvm::errs() << "  - Matched indices: " << equation.getMatched() << "\n";
@@ -339,22 +339,22 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     EquationBridge *equation = solution.getEquation();
 
     std::optional<VariableAccess> matchedAccess =
-        equation->op.getAccessAtPath(symbolTableCollection, matchedPath);
+        equation->getOp().getAccessAtPath(symbolTableCollection, matchedPath);
 
     if (!matchedAccess) {
       return mlir::failure();
     }
 
-    size_t numOfInductions = equation->op.getInductionVariables().size();
+    size_t numOfInductions = equation->getOp().getInductionVariables().size();
     bool isScalarEquation = numOfInductions == 0;
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointAfter(equation->op);
+    rewriter.setInsertionPointAfter(equation->getOp());
 
     auto matchedEquationOp = rewriter.create<EquationInstanceOp>(
-        equation->op.getLoc(), equation->op.getTemplate());
+        equation->getOp().getLoc(), equation->getOp().getTemplate());
 
-    matchedEquationOp.getProperties() = equation->op.getProperties();
+    matchedEquationOp.getProperties() = equation->getOp().getProperties();
 
     // Compute the matched variable indices.
     IndexSet matchedIndices;
@@ -374,7 +374,7 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
                  matchedAccess->getAccessFunction().map(matchedIndices));
 
     // Mark the old instance as obsolete.
-    toBeErased.insert(equation->op);
+    toBeErased.insert(equation->getOp());
   }
 
   // Erase the old equation instances.
