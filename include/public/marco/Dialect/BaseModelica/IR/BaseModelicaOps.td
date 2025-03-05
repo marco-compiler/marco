@@ -202,6 +202,26 @@ def DerivativesMapProperty : Property<"DerivativesMap">
     let hashProperty = "$_storage.hash();";
 }
 
+def VariableProperty : Property<"Variable">
+{
+    let convertToAttribute = "$_storage.asAttribute($_ctxt)";
+
+    let convertFromAttribute =
+        "return Variable::setFromAttr($_storage, $_attr, $_diag);";
+
+    let hashProperty = "$_storage.hash();";
+
+    let writeToMlirBytecode = [{
+        $_storage.writeToMlirBytecode($_writer)
+    }];
+
+    let readFromMlirBytecode = [{
+        if (::mlir::failed(Variable::readFromMlirBytecode($_reader, $_storage))) {
+            return ::mlir::failure();
+        }
+    }];
+}
+
 def VariablesListProperty : Property<"VariablesList">
 {
     let convertToAttribute = [{
