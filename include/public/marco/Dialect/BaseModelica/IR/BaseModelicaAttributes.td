@@ -236,21 +236,6 @@ def BaseModelica_EquationPathAttr : BaseModelica_Attr<"EquationPath">
     let assemblyFormat = "$value";
 }
 
-def BaseModelica_EquationScheduleDirectionAttr
-    : BaseModelica_Attr<"EquationScheduleDirection">
-{
-    let summary = "Equation's schedule iteration direction.";
-
-    let description = [{
-        Attribute representing the runtime iteration direction for the indices
-        of a scheduled equation.
-    }];
-
-    let mnemonic = "equation_schedule_direction";
-    let parameters = (ins "EquationScheduleDirection":$value);
-    let assemblyFormat = "$value";
-}
-
 def BaseModelica_IntegerRangeAttr : BaseModelica_Attr<"IntegerRange",
     [TypedAttrInterface,
     DeclareAttrInterfaceMethods<RangeAttrInterface>]>

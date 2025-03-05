@@ -115,7 +115,7 @@ struct VariableBridge {
 
 struct EquationBridge {
   EquationBridge(
-      MatchedEquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+      EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
       VariableAccessAnalysis &accessAnalysis,
       llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
       : op(op), symbolTable(&symbolTable), accessAnalysis(&accessAnalysis),
@@ -127,7 +127,7 @@ struct EquationBridge {
   EquationBridge &operator=(const EquationBridge &other) = delete;
   EquationBridge &operator==(const EquationBridge &other) = delete;
 
-  MatchedEquationInstanceOp op;
+  EquationInstanceOp op;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> *variablesMap;
@@ -202,8 +202,8 @@ struct EquationTraits<::EquationBridge *> {
   getAccesses(const Equation *equation) {
     std::vector<Access<VariableType, AccessProperty>> accesses;
 
-    auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-        (*equation)->op, *(*equation)->symbolTable);
+    auto cachedAccesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
     if (cachedAccesses) {
       for (auto &access : *cachedAccesses) {
@@ -223,28 +223,48 @@ struct EquationTraits<::EquationBridge *> {
     return accesses;
   }
 
-  static Access<VariableType, AccessProperty>
-  getWrite(const Equation *equation) {
-    auto matchPath = (*equation)->op.getPath();
+  static std::vector<Access<VariableType, AccessProperty>>
+  getWrites(const Equation *equation) {
+    IndexSet equationIndices = getIterationRanges(equation);
 
-    auto write = (*equation)->op.getAccessAtPath(*(*equation)->symbolTable,
-                                                 matchPath.getValue());
+    auto accesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
-    assert(write.has_value() && "Can't get the write access");
+    llvm::SmallVector<VariableAccess> writeAccesses;
 
-    auto accessFunction =
-        getAccessFunction((*equation)->op.getContext(), *write);
+    if (!accesses) {
+      llvm_unreachable("Can't compute read accesses");
+      return {};
+    }
 
-    return Access((*(*equation)->variablesMap)[write->getVariable()],
-                  std::move(accessFunction), write->getPath());
+    if (mlir::failed((*equation)->op.getWriteAccesses(
+            writeAccesses, *(*equation)->symbolTable, equationIndices,
+            *accesses))) {
+      llvm_unreachable("Can't compute read accesses");
+      return {};
+    }
+
+    std::vector<Access<VariableType, AccessProperty>> writes;
+
+    for (const VariableAccess &readAccess : writeAccesses) {
+      auto variableIt =
+          (*(*equation)->variablesMap).find(readAccess.getVariable());
+
+      writes.emplace_back(
+          variableIt->getSecond(),
+          getAccessFunction((*equation)->op.getContext(), readAccess),
+          readAccess.getPath());
+    }
+
+    return writes;
   }
 
   static std::vector<Access<VariableType, AccessProperty>>
   getReads(const Equation *equation) {
     IndexSet equationIndices = getIterationRanges(equation);
 
-    auto accesses = (*equation)->accessAnalysis->getAccesses(
-        (*equation)->op, *(*equation)->symbolTable);
+    auto accesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
     llvm::SmallVector<VariableAccess> readAccesses;
 
@@ -304,15 +324,15 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   modelOp.collectVariables(variables);
 
   // Collect the equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
+  llvm::SmallVector<EquationInstanceOp> initialEquations;
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
   // scalar variables.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> initialConditionsWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> initialConditionsWritesMap;
 
   if (mlir::failed(getWritesMap(initialConditionsWritesMap, modelOp,
                                 initialEquations, symbolTableCollection))) {
@@ -320,7 +340,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   }
 
   // Get the writes map of the 'main' model.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> mainWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> mainWritesMap;
 
   if (mlir::failed(getWritesMap(mainWritesMap, modelOp, mainEquations,
                                 symbolTableCollection))) {
@@ -371,7 +391,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equationOp : mainEquations) {
+  for (EquationInstanceOp equationOp : mainEquations) {
     auto accessAnalysis = getVariableAccessAnalysis(equationOp.getTemplate(),
                                                     symbolTableCollection);
 
@@ -393,13 +413,13 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 
   auto scheduledSCCs = sccDependencyGraph.postOrder();
 
-  llvm::DenseSet<MatchedEquationInstanceOp> promotableEquations;
+  llvm::DenseSet<EquationInstanceOp> promotableEquations;
 
   for (const auto &sccDescriptor : scheduledSCCs) {
     const SCC &scc = sccDependencyGraph[sccDescriptor];
 
     // Collect the equations of the SCC for a faster lookup.
-    llvm::DenseSet<MatchedEquationInstanceOp> sccEquations;
+    llvm::DenseSet<EquationInstanceOp> sccEquations;
 
     for (const auto &equationDescriptor : scc) {
       EquationBridge *equation =
@@ -417,8 +437,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
       EquationBridge *equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
-      auto accesses = equation->accessAnalysis->getAccesses(
-          equation->op, *equation->symbolTable);
+      auto accesses =
+          equation->accessAnalysis->getAccesses(*equation->symbolTable);
 
       if (!accesses) {
         llvm_unreachable("Can't compute read accesses");
@@ -437,13 +457,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
       }
 
       // Do not promote the equation if it writes to a derivative variable.
-      auto writeAccess = equation->op.getMatchedAccess(symbolTableCollection);
-
-      if (!writeAccess) {
-        return mlir::failure();
-      }
-
-      if (derivativesMap.getDerivedVariable(writeAccess->getVariable())) {
+      if (derivativesMap.getDerivedVariable(
+              equation->op.getProperties().match.name)) {
         promotable = false;
         break;
       }
@@ -473,7 +488,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         }
 
         return llvm::all_of(writingEquations, [&](const auto &entry) {
-          MatchedEquationInstanceOp writingEquation = entry.second.second;
+          EquationInstanceOp writingEquation = entry.second.second;
           const IndexSet &writtenIndices = entry.second.first;
 
           if (promotableEquations.contains(writingEquation)) {
@@ -507,28 +522,18 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
             scc.getGraph()[equationDescriptor].getProperty();
 
         promotableEquations.insert(equation->op);
-        auto writeAccess = equation->op.getMatchedAccess(symbolTableCollection);
-
-        if (!writeAccess) {
-          return mlir::failure();
-        }
 
         auto writtenVariableOp =
             symbolTableCollection.lookupSymbolIn<VariableOp>(
-                modelOp, writeAccess->getVariable());
-
-        const AccessFunction &writeAccessFunction =
-            writeAccess->getAccessFunction();
+                modelOp, equation->op.getProperties().match.name);
 
         std::optional<IndexSet> equationIndices =
             equation->op.getIterationSpace();
 
-        IndexSet writtenIndices = writeAccessFunction.map(
-            equationIndices ? *equationIndices : IndexSet());
-
         candidateVariables.insert(writtenVariableOp);
 
-        promotableVariablesIndices[writtenVariableOp] += writtenIndices;
+        promotableVariablesIndices[writtenVariableOp] +=
+            equation->op.getProperties().match.indices;
       }
     }
   }
@@ -575,23 +580,41 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         llvm::make_range(mainWritesMap.equal_range(variableOp));
 
     for (const auto &entry : writingEquations) {
-      MatchedEquationInstanceOp equationOp = entry.second.second;
+      EquationInstanceOp equationOp = entry.second.second;
       IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
-      auto writeAccess = equationOp.getMatchedAccess(symbolTableCollection);
+      llvm::SmallVector<VariableAccess> accesses;
+      llvm::SmallVector<VariableAccess> writeAccesses;
 
-      if (!writeAccess) {
+      if (mlir::failed(
+              equationOp.getAccesses(accesses, symbolTableCollection))) {
         return mlir::failure();
       }
 
-      const AccessFunction &writeAccessFunction =
-          writeAccess->getAccessFunction();
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
 
-      IndexSet writtenIndices = writeAccessFunction.map(writingEquationIndices);
+      llvm::sort(writeAccesses,
+                 [](const VariableAccess &first, const VariableAccess &second) {
+                   if (first.getAccessFunction().isInvertible() &&
+                       !second.getAccessFunction().isInvertible()) {
+                     return true;
+                   }
+
+                   if (!first.getAccessFunction().isInvertible() &&
+                       second.getAccessFunction().isInvertible()) {
+                     return false;
+                   }
+
+                   return first < second;
+                 });
 
       // Restrict the indices to the ones not handled by the initial
       // equations.
-      writtenIndices = writtenIndices.intersect(variableIndices);
+      IndexSet writtenIndices =
+          equationOp.getProperties().match.indices.intersect(variableIndices);
 
       // Determine if new initial equations should be created.
       bool shouldCreateInitialEquations;
@@ -617,25 +640,29 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         if (!writingEquationIndices.empty()) {
           // Get the indices of the equation that actually writes the scalar
           // variables of interest.
-          writingEquationIndices = writeAccessFunction.inverseMap(
-              writtenIndices, writingEquationIndices);
+          writingEquationIndices =
+              writeAccesses[0].getAccessFunction().inverseMap(
+                  writtenIndices, writingEquationIndices);
 
           writingEquationIndices =
               writingEquationIndices.getCanonicalRepresentation();
 
-          for (const MultidimensionalRange &range :
-               llvm::make_range(writingEquationIndices.rangesBegin(),
-                                writingEquationIndices.rangesEnd())) {
-            auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
-                rewriter.clone(*equationOp.getOperation()));
+          auto clonedEquationOp = mlir::cast<EquationInstanceOp>(
+              rewriter.clone(*equationOp.getOperation()));
 
-            clonedEquationOp.setIndicesAttr(
-                MultidimensionalRangeAttr::get(rewriter.getContext(), range));
-          }
+          clonedEquationOp.getProperties().setIndices(writingEquationIndices);
+
+          clonedEquationOp.getProperties().match.indices =
+              writeAccesses[0].getAccessFunction().map(writingEquationIndices);
 
           rewriter.eraseOp(equationOp);
         } else {
-          rewriter.clone(*equationOp.getOperation());
+          auto clonedOp = mlir::cast<EquationInstanceOp>(
+              rewriter.clone(*equationOp.getOperation()));
+
+          clonedOp.getProperties().match.indices =
+              writeAccesses[0].getAccessFunction().map(writingEquationIndices);
+
           rewriter.eraseOp(equationOp);
         }
       } else {

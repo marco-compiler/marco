@@ -50,6 +50,8 @@ bool VariableBridge::Id::operator!=(const Id &other) const {
   return !(*this == other);
 }
 
+VariableBridge::Id::operator mlir::SymbolRefAttr() const { return name; }
+
 std::unique_ptr<VariableBridge> VariableBridge::build(mlir::SymbolRefAttr name,
                                                       IndexSet indices) {
   return std::make_unique<VariableBridge>(name, std::move(indices));

@@ -13,7 +13,7 @@ template <typename VariableProperty, typename EquationProperty>
 class EquationView {
 public:
   using EquationTraits =
-      typename ::marco::modeling::dependency ::EquationTraits<EquationProperty>;
+      typename ::marco::modeling::dependency::EquationTraits<EquationProperty>;
 
   using Id = typename EquationTraits::Id;
   using VariableType = typename EquationTraits::VariableType;
@@ -41,9 +41,9 @@ public:
 
   const IndexSet &getIterationRanges() const { return indices; }
 
-  Access getWrite() const {
+  std::vector<Access> getWrites() const {
     // Forward the request to the traits class of the property.
-    return EquationTraits::getWrite(&property);
+    return EquationTraits::getWrites(&property);
   }
 
   std::vector<Access> getReads() const {
@@ -78,9 +78,9 @@ struct EquationTraits<internal::scheduling::EquationView<VP, EP>> {
   using VariableType = typename EquationTraits<EP>::VariableType;
   using AccessProperty = typename EquationTraits<EP>::AccessProperty;
 
-  static Access<VariableType, AccessProperty>
-  getWrite(const EquationType *equation) {
-    return (*equation).getWrite();
+  static std::vector<Access<VariableType, AccessProperty>>
+  getWrites(const EquationType *equation) {
+    return (*equation).getWrites();
   }
 
   static std::vector<Access<VariableType, AccessProperty>>
@@ -159,8 +159,12 @@ private:
   using SCCTraits = typename SCCsGraph::SCCTraits;
   using EquationDescriptor = typename SCCTraits::ElementRef;
   using EquationTraits = dependency::EquationTraits<EquationDescriptor>;
+  using AccessProperty = typename EquationTraits::AccessProperty;
+
+  using Access =
+      ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
+
   using SCCDescriptor = typename SCCsGraph::SCCDescriptor;
-  using IndependentSCCs = std::vector<SCCDescriptor>;
 
   using EquationView =
       internal::scheduling::EquationView<VariableProperty, EquationDescriptor>;
@@ -292,16 +296,30 @@ private:
       llvm::SmallVectorImpl<DirectionPossibility> &directions) const {
     auto sccElements = SCCTraits::getElements(&scc);
     assert(sccElements.size() == 1);
+
     const auto &equation = sccElements[0];
-    auto writeAccess = EquationTraits::getWrite(&equation);
+    size_t rank = EquationTraits::getNumOfIterationVars(&equation);
+
+    auto writeAccesses = EquationTraits::getWrites(&equation);
+
+    if (writeAccesses.empty()) {
+      directions.append(rank, DirectionPossibility::Any);
+      return;
+    }
+
+    // Prefer invertible write accesses.
+    const auto &writeAccess =
+        getAccessWithProperty(writeAccesses, [](const Access &access) {
+          return access.getAccessFunction().isInvertible();
+        });
+
     auto writtenVariable = writeAccess.getVariable();
+
     auto readAccesses = EquationTraits::getReads(&equation);
 
     bool hasSelfLoop = llvm::any_of(readAccesses, [&](const auto &readAccess) {
       return writtenVariable == readAccess.getVariable();
     });
-
-    size_t rank = EquationTraits::getNumOfIterationVars(&equation);
 
     if (!hasSelfLoop) {
       // If there is no cycle, then the iteration direction of the equation
@@ -365,6 +383,19 @@ private:
     for (size_t i = directions.size(); i < rank; ++i) {
       directions.push_back(DirectionPossibility::Any);
     }
+  }
+
+  const Access &getAccessWithProperty(
+      llvm::ArrayRef<Access> accesses,
+      std::function<bool(const Access &)> preferenceFn) const {
+    assert(!accesses.empty());
+    auto it = llvm::find_if(accesses, preferenceFn);
+
+    if (it == accesses.end()) {
+      it = accesses.begin();
+    }
+
+    return *it;
   }
 
   /// Get the access direction of an access function.

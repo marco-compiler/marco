@@ -127,6 +127,5 @@ bmodelica.model @partialArrayVariable {
     }
     
     // CHECK:       bmodelica.dynamic
-    // CHECK-DAG:   bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [0,2]>}
-    // CHECK-DAG:   bmodelica.equation_instance %[[t0]] {indices = #modeling<multidim_range [5,9]>}
+    // CHECK-DAG:   bmodelica.equation_instance %[[t0]], indices = {[0,2],[5,9]}
 }

@@ -22,8 +22,8 @@ bmodelica.model @Test {
     // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [0,4]>}
+        bmodelica.equation_instance %t0, indices = {[0,4]}
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [0,4]>, path = #bmodelica<equation_path [L, 0]>}
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[0,4]}, match = <@x, {[0,4]}>
     }
 }

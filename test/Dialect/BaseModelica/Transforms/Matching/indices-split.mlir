@@ -51,13 +51,13 @@ bmodelica.model @Test {
     // CHECK-DAG: %[[t2:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t2"}
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [1,2]>}
+        bmodelica.equation_instance %t0, indices = {[1,2]}
         bmodelica.equation_instance %t1
         bmodelica.equation_instance %t2
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [1,1]>, path = #bmodelica<equation_path [L, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]] {indices = #modeling<multidim_range [2,2]>, path = #bmodelica<equation_path [R, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]] {path = #bmodelica<equation_path [L, 0]>}
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]] {path = #bmodelica<equation_path [L, 0]>}
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[1,1]}, match = <@x, {[0,0]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[2,2]}, match = <@y, {[1,1]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t1]], match = <@x, {[1,1]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t2]], match = <@y, {[0,0]}>
     }
 }

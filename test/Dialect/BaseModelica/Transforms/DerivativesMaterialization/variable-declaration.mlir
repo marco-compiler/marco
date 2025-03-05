@@ -83,7 +83,7 @@ bmodelica.model @arrayVariable2d {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [3,5][12,14]>}
+        bmodelica.equation_instance %t0, indices = {[3,5][12,14]}
     }
 }
 

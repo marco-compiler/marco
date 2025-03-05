@@ -355,14 +355,27 @@ private:
                           const WritesMap &writesMap,
                           EquationDescriptor equation,
                           const IndexSet &equationIndices, Path path) const {
-    const Access &currentEquationWriteAccess =
-        arrayDependencyGraph.getEquation(equation).getWrite();
+    std::vector<Access> currentEquationWriteAccesses =
+        arrayDependencyGraph.getEquation(equation).getWrites();
+
+    if (currentEquationWriteAccesses.empty()) {
+      // Safety check. Normally not happening.
+      return;
+    }
+
+    std::vector<Access> currentEquationReadAccesses =
+        arrayDependencyGraph.getEquation(equation).getReads();
+
+    // Prefer affine access functions.
+    const Access &currentEquationWriteAccess = getAccessWithProperty(
+        currentEquationWriteAccesses, [](const Access &access) {
+          return access.getAccessFunction().isAffine();
+        });
 
     IndexSet currentEquationWrittenIndices =
         currentEquationWriteAccess.getAccessFunction().map(equationIndices);
 
-    for (const Access &readAccess :
-         arrayDependencyGraph.getEquation(equation).getReads()) {
+    for (const Access &readAccess : currentEquationReadAccesses) {
       const auto &accessFunction = readAccess.getAccessFunction();
       auto readVariableIndices = accessFunction.map(equationIndices);
 
@@ -390,8 +403,19 @@ private:
             arrayDependencyGraph.getEquation(writingEquation)
                 .getIterationRanges());
 
-        Access writingEquationWriteAccess =
-            arrayDependencyGraph.getEquation(writingEquation).getWrite();
+        std::vector<Access> writingEquationWriteAccesses =
+            arrayDependencyGraph.getEquation(writingEquation).getWrites();
+
+        if (writingEquationWriteAccesses.empty()) {
+          // Safety check. Normally not happening.
+          continue;
+        }
+
+        // Prefer invertible access functions.
+        const Access &writingEquationWriteAccess = getAccessWithProperty(
+            writingEquationWriteAccesses, [](const Access &access) {
+              return access.getAccessFunction().isInvertible();
+            });
 
         const AccessFunction &writingEquationAccessFunction =
             writingEquationWriteAccess.getAccessFunction();
@@ -450,6 +474,19 @@ private:
                            usedWritingEquationIndices, extendedPath);
       }
     }
+  }
+
+  const Access &getAccessWithProperty(
+      llvm::ArrayRef<Access> accesses,
+      std::function<bool(const Access &)> preferenceFn) const {
+    assert(!accesses.empty());
+    auto it = llvm::find_if(accesses, preferenceFn);
+
+    if (it == accesses.end()) {
+      it = accesses.begin();
+    }
+
+    return *it;
   }
 
   void restrictPathIndices(Path &path) const {

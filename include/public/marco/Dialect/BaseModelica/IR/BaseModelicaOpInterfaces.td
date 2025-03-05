@@ -66,9 +66,6 @@ def EquationInstanceInterface
 {
     let methods = [
         InterfaceMethod<
-            "Get the iteration indices, if any",
-            "std::optional<MultidimensionalRangeAttr>", "getIndices">,
-        InterfaceMethod<
             [{"Get the indices visited by the induction variables.
               An empty iteration space is returned if there is no iteration
               variable."}],

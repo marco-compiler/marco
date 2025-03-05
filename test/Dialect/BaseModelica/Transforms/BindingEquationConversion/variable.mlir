@@ -50,5 +50,5 @@ bmodelica.model @arrayVariable {
 
     // CHECK:       bmodelica.dynamic
     // CHECK:       bmodelica.equation_instance %[[t0]]
-    // CHECK-SAME:  indices = #modeling<multidim_range [0,2]>
+    // CHECK-SAME:  indices = {[0,2]}
 }

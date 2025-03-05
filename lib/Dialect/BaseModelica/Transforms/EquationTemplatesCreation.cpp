@@ -232,9 +232,7 @@ private:
     auto instanceOp =
         builder.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
 
-    instanceOp.setIndicesAttr(
-        MultidimensionalRangeAttr::get(builder.getContext(), explicitIndices));
-
+    instanceOp.getProperties().setIndices(IndexSet(explicitIndices));
     return mlir::success();
   }
 };

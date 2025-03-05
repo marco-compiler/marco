@@ -3,7 +3,6 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     AutomaticDifferentiation/ForwardAD.cpp
     Modeling/Bridge.cpp
     Modeling/EquationBridge.cpp
-    Modeling/MatchedEquationBridge.cpp
     Modeling/SCCBridge.cpp
     Modeling/VariableBridge.cpp
     Solvers/SUNDIALS.cpp

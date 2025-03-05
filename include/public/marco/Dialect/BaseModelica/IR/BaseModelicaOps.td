@@ -4,6 +4,7 @@
 include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.td"
+include "marco/Dialect/Modeling/IR/ModelingProperties.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
@@ -158,16 +159,6 @@ def EquationPathAttr
     let convertFromStorage = "$_self";
 }
 
-// Equation scheduling direction attribute.
-def EquationScheduleDirectionAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::EquationScheduleDirectionAttr>()">,
-           "Equation scheduling direction attribute">
-{
-    let storageType = [{ ::mlir::bmodelica::EquationScheduleDirectionAttr }];
-    let returnType = [{ ::mlir::bmodelica::EquationScheduleDirectionAttr }];
-    let convertFromStorage = "$_self";
-}
-
 // Equation view attribute.
 def EquationViewAttr
     : Attr<CPred<"$_self.isa<::mlir::bmodelica::EquationViewAttr>()">,
@@ -202,7 +193,42 @@ def DerivativesMapProperty : Property<"DerivativesMap">
     let hashProperty = "$_storage.hash();";
 }
 
+def VariableProperty : Property<"Variable">
+{
+    let convertToAttribute = "$_storage.asAttribute($_ctxt)";
+
+    let convertFromAttribute =
+        "return Variable::setFromAttr($_storage, $_attr, $_diag);";
+
+    let hashProperty = "$_storage.hash();";
+
+    let writeToMlirBytecode = [{
+        $_storage.writeToMlirBytecode($_writer)
+    }];
+
+    let readFromMlirBytecode = [{
+        if (::mlir::failed(Variable::readFromMlirBytecode($_reader, $_storage))) {
+            return ::mlir::failure();
+        }
+    }];
+}
+
 def VariablesListProperty : Property<"VariablesList">
+{
+    let convertToAttribute = [{
+        getPropertiesAsAttribute($_ctxt, $_storage)
+    }];
+
+    let convertFromAttribute = [{
+        return setPropertiesFromAttribute($_storage, $_attr, $_diag);
+    }];
+
+    let hashProperty = [{
+        computeHash($_storage);
+    }];
+}
+
+def ScheduleListProperty : Property<"ScheduleList">
 {
     let convertToAttribute = [{
         getPropertiesAsAttribute($_ctxt, $_storage)
@@ -3740,6 +3766,10 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
 
             void printInline(llvm::raw_ostream& os);
 
+            mlir::LogicalResult verifyAccessAtPath(
+                mlir::SymbolTableCollection& symbolTableCollection,
+                const EquationPath& path);
+
             /// Get the induction variables.
             mlir::ValueRange getInductionVariables();
 
@@ -3760,14 +3790,14 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
                 llvm::SmallVectorImpl<VariableAccess>& result,
                 const IndexSet& equationIndices,
                 llvm::ArrayRef<VariableAccess> accesses,
-                const VariableAccess& matchedAccess);
+                const Variable& matchedVariable);
 
             /// Get the read accesses.
             mlir::LogicalResult getReadAccesses(
                 llvm::SmallVectorImpl<VariableAccess>& result,
                 const IndexSet& equationIndices,
                 llvm::ArrayRef<VariableAccess> accesses,
-                const VariableAccess& matchedAccess);
+                const Variable& matchedVariable);
 
             /// Get the IR value at a given path.
             mlir::Value getValueAtPath(const EquationPath& path);
@@ -3775,11 +3805,6 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             /// Get the access at a given path.
             std::optional<VariableAccess> getAccessAtPath(
                 mlir::SymbolTableCollection& symbolTable,
-                const EquationPath& path);
-
-            IndexSet applyAccessFunction(
-                const AccessFunction& accessFunction,
-                std::optional<MultidimensionalRange> equationIndices,
                 const EquationPath& path);
 
             mlir::LogicalResult cloneWithReplacedAccess(
@@ -3799,14 +3824,14 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             mlir::LogicalResult explicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationIndices,
-                const EquationPath& path);
+                const IndexSet& equationIndices,
+                const Variable& matchedVariable);
 
             EquationTemplateOp cloneAndExplicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationIndices,
-                const EquationPath& path);
+                const IndexSet& equationIndices,
+                const Variable& matchedVariable);
 
         private:
             llvm::DenseMap<mlir::Value, unsigned int> getInductionsPositionMap();
@@ -3873,8 +3898,9 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             mlir::LogicalResult groupLeftHandSide(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationRanges,
-                const VariableAccess& requestedAccess);
+                const IndexSet& equationIndices,
+                const Variable& matchedVariable,
+                llvm::ArrayRef<VariableAccess> accesses);
 
             bool checkAccessEquivalence(
                 const IndexSet& equationIndices,
@@ -4080,19 +4106,12 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices);
+        IndexSetProperty:$indices);
 
     let results = (outs);
 
-    let assemblyFormat = [{
-        $base attr-dict
-    }];
-
+    let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>
-    ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.
@@ -4132,83 +4151,34 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
 }
 
 def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
-    [ParentOneOf<["InitialOp", "DynamicOp"]>,
-    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
-{
-    let arguments = (ins
-        EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices);
-
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $base attr-dict
-    }];
-
-    let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>,
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the equation template.
-        EquationTemplateOp getTemplate();
-
-        /// @name Forwarded methods.
-        /// {
-
-        void printInline(llvm::raw_ostream& os);
-
-        mlir::ValueRange getInductionVariables();
-
-        mlir::LogicalResult getAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTable);
-
-        std::optional<VariableAccess> getAccessAtPath(
-            mlir::SymbolTableCollection& symbolTable,
-            const EquationPath& path);
-
-        /// }
-
-        mlir::LogicalResult cloneWithReplacedAccess(
-            mlir::RewriterBase& rewriter,
-            std::optional<
-                std::reference_wrapper<const IndexSet>> equationIndices,
-            const VariableAccess& access,
-            EquationTemplateOp replacementEquation,
-            const VariableAccess& replacementAccess,
-            llvm::SmallVectorImpl<EquationInstanceOp>& results);
-    }];
-}
-
-def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_instance",
     [ParentOneOf<["InitialOp", "DynamicOp", "SCCOp"]>,
     DeclareOpInterfaceMethods<EquationInstanceInterface>]>
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        EquationPathAttr:$path);
+        IndexSetProperty:$indices,
+        VariableProperty:$match,
+        ScheduleListProperty:$schedule);
 
     let results = (outs);
 
-    let assemblyFormat = [{
-        $base attr-dict
-    }];
-
+    let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
 
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate,
-                       "EquationPathAttr":$path)>
-    ];
-
     let extraClassDeclaration = [{
+        /// @name Utilities.
+        /// {
+
         /// Get the equation template.
         EquationTemplateOp getTemplate();
 
+        /// Set the indices of the equation.
+        /// Automatically adjust dependant properties.
+        mlir::LogicalResult setIndices(
+            IndexSet indices,
+            mlir::SymbolTableCollection& symbolTableCollection);
+
+        /// }
         /// @name Forwarded methods.
         /// {
 
@@ -4224,12 +4194,7 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
             mlir::SymbolTableCollection& symbolTable,
             const EquationPath& path);
 
-        /// }
-
-        std::optional<VariableAccess> getMatchedAccess(
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-       mlir::LogicalResult getWriteAccesses(
+        mlir::LogicalResult getWriteAccesses(
             llvm::SmallVectorImpl<VariableAccess>& result,
             mlir::SymbolTableCollection& symbolTableCollection,
             llvm::ArrayRef<VariableAccess> accesses);
@@ -4251,22 +4216,29 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
             const IndexSet& equationIndices,
             llvm::ArrayRef<VariableAccess> accesses);
 
+        /// }
+        /// @name Symbolic manipulation.
+        /// {
+
         mlir::LogicalResult explicitate(
             mlir::RewriterBase& rewriter,
             mlir::SymbolTableCollection& symbolTableCollection);
 
-        MatchedEquationInstanceOp cloneAndExplicitate(
+        EquationInstanceOp cloneAndExplicitate(
             mlir::RewriterBase& rewriter,
             mlir::SymbolTableCollection& symbolTableCollection);
 
         mlir::LogicalResult cloneWithReplacedAccess(
             mlir::RewriterBase& rewriter,
+            mlir::SymbolTableCollection& symbolTableCollection,
             std::optional<
                 std::reference_wrapper<const IndexSet>> equationIndices,
             const VariableAccess& access,
             EquationTemplateOp replacementEquation,
             const VariableAccess& replacementAccess,
-            llvm::SmallVectorImpl<MatchedEquationInstanceOp>& results);
+            llvm::SmallVectorImpl<EquationInstanceOp>& results);
+
+        /// }
     }];
 }
 
@@ -4319,97 +4291,6 @@ def BaseModelica_SCCOp : BaseModelica_Op<"scc",
                 equations.push_back(equation);
             });
         }
-    }];
-}
-
-def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equation_instance",
-    [ParentOneOf<["SCCOp"]>,
-    DeclareOpInterfaceMethods<EquationInstanceInterface>]>
-{
-    let arguments = (ins
-        EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
-        EquationPathAttr:$path,
-        TypedArrayAttrBase<
-            EquationScheduleDirectionAttr,
-            "Schedule iteration directions">:$iteration_directions);
-
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $base attr-dict
-    }];
-
-    let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate,
-                       "EquationPathAttr":$path,
-                       "mlir::ArrayAttr":$iterationDirections)>
-    ];
-
-    let extraClassDeclaration = [{
-        /// Get the equation template.
-        EquationTemplateOp getTemplate();
-
-        /// @name Forwarded methods.
-        /// {
-
-        void printInline(llvm::raw_ostream& os);
-
-        mlir::ValueRange getInductionVariables();
-
-        mlir::LogicalResult getAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTable);
-
-        std::optional<VariableAccess> getAccessAtPath(
-            mlir::SymbolTableCollection& symbolTable,
-            const EquationPath& path);
-
-        /// }
-
-        std::optional<VariableAccess> getMatchedAccess(
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-       mlir::LogicalResult getWriteAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTableCollection,
-            llvm::ArrayRef<VariableAccess> accesses);
-
-        mlir::LogicalResult getWriteAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTableCollection,
-            const IndexSet& equationIndices,
-            llvm::ArrayRef<VariableAccess> accesses);
-
-        mlir::LogicalResult getReadAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTableCollection,
-            llvm::ArrayRef<VariableAccess> accesses);
-
-        mlir::LogicalResult getReadAccesses(
-            llvm::SmallVectorImpl<VariableAccess>& result,
-            mlir::SymbolTableCollection& symbolTableCollection,
-            const IndexSet& equationIndices,
-            llvm::ArrayRef<VariableAccess> accesses);
-
-        mlir::LogicalResult explicitate(
-            mlir::RewriterBase& rewriter,
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-        ScheduledEquationInstanceOp cloneAndExplicitate(
-            mlir::RewriterBase& rewriter,
-            mlir::SymbolTableCollection& symbolTableCollection);
-
-        mlir::LogicalResult cloneWithReplacedAccess(
-            mlir::RewriterBase& rewriter,
-            std::optional<
-                std::reference_wrapper<const IndexSet>> equationIndices,
-            const VariableAccess& access,
-            EquationTemplateOp replacementEquation,
-            const VariableAccess& replacementAccess,
-            llvm::SmallVectorImpl<ScheduledEquationInstanceOp>& results);
     }];
 }
 

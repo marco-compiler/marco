@@ -79,9 +79,9 @@ public:
     llvm::SmallVector<EquationInstanceOp> clones;
 
     if (mlir::failed(op.cloneWithReplacedAccess(
-            rewriter, std::reference_wrapper<const IndexSet>(indices),
-            *destinationAccess, replacementEquation.getTemplate(),
-            *sourceAccess, clones))) {
+            rewriter, *symbolTableCollection,
+            std::reference_wrapper<const IndexSet>(indices), *destinationAccess,
+            replacementEquation.getTemplate(), *sourceAccess, clones))) {
       return mlir::failure();
     }
 

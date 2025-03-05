@@ -158,19 +158,8 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     builder.createBlock(&initialOp.getBodyRegion());
     builder.setInsertionPointToStart(initialOp.getBody());
 
-    if (variableType.isScalar()) {
-      builder.create<EquationInstanceOp>(loc, templateOp);
-    } else {
-      IndexSet indices = variable.getIndices();
-
-      for (const MultidimensionalRange &range :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto instanceOp = builder.create<EquationInstanceOp>(loc, templateOp);
-
-        instanceOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(builder.getContext(), range));
-      }
-    }
+    auto instanceOp = builder.create<EquationInstanceOp>(loc, templateOp);
+    instanceOp.getProperties().setIndices(variable.getIndices());
   }
 }
 

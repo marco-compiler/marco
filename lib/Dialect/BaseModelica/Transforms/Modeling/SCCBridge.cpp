@@ -6,10 +6,9 @@ using namespace ::mlir::bmodelica::bridge;
 namespace mlir::bmodelica::bridge {
 SCCBridge::SCCBridge(
     SCCOp op, mlir::SymbolTableCollection &symbolTable,
-    WritesMap<VariableOp, MatchedEquationInstanceOp> &matchedEqsWritesMap,
+    WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
     WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
-    llvm::DenseMap<MatchedEquationInstanceOp, MatchedEquationBridge *>
-        &equationsMap)
+    llvm::DenseMap<EquationInstanceOp, EquationBridge *> &equationsMap)
     : op(op), symbolTable(&symbolTable),
       matchedEqsWritesMap(&matchedEqsWritesMap),
       startEqsWritesMap(&startEqsWritesMap), equationsMap(&equationsMap) {}
@@ -47,8 +46,8 @@ SCCTraits<SCCBridge *>::getElements(const SCC *scc) {
   const auto &equationsMap = (*scc)->equationsMap;
   std::vector<ElementRef> result;
 
-  for (mlir::bmodelica::MatchedEquationInstanceOp equation :
-       sccOp.getOps<mlir::bmodelica::MatchedEquationInstanceOp>()) {
+  for (mlir::bmodelica::EquationInstanceOp equation :
+       sccOp.getOps<mlir::bmodelica::EquationInstanceOp>()) {
     ElementRef equationPtr = equationsMap->lookup(equation);
     assert(equationPtr && "Equation bridge not found");
     result.push_back(equationPtr);
@@ -59,32 +58,41 @@ SCCTraits<SCCBridge *>::getElements(const SCC *scc) {
 
 std::vector<SCCTraits<SCCBridge *>::ElementRef>
 SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
-  mlir::SymbolTableCollection &symbolTableCollection = *equation->symbolTable;
+  mlir::SymbolTableCollection &symbolTableCollection =
+      equation->getSymbolTableCollection();
 
-  const auto &accesses = equation->accessAnalysis->getAccesses(
-      equation->op, symbolTableCollection);
+  llvm::ArrayRef<VariableAccess> accessesRef;
+  bool cached = false;
 
-  if (!accesses) {
-    llvm_unreachable("Can't obtain accesses");
-    return {};
+  if (equation->hasAccessAnalysis()) {
+    if (auto cachedAccesses =
+            equation->getAccessAnalysis().getAccesses(symbolTableCollection)) {
+      accessesRef = *cachedAccesses;
+      cached = true;
+    }
   }
 
-  auto matchedAccess = equation->op.getMatchedAccess(symbolTableCollection);
+  llvm::SmallVector<VariableAccess> accesses;
 
-  if (!matchedAccess) {
-    llvm_unreachable("Can't obtain matched access");
-    return {};
+  if (!cached) {
+    if (mlir::failed(
+            equation->getOp().getAccesses(accesses, symbolTableCollection))) {
+      llvm_unreachable("Can't compute the accesses");
+      return {};
+    }
+
+    accessesRef = accesses;
   }
 
   llvm::SmallVector<mlir::bmodelica::VariableAccess> readAccesses;
 
-  if (mlir::failed(equation->op.getReadAccesses(
-          readAccesses, symbolTableCollection, *accesses))) {
+  if (mlir::failed(equation->getOp().getReadAccesses(
+          readAccesses, symbolTableCollection, accessesRef))) {
     llvm_unreachable("Can't obtain read accesses");
     return {};
   }
 
-  IndexSet equationIndices = equation->op.getIterationSpace();
+  IndexSet equationIndices = equation->getOp().getIterationSpace();
   auto modelOp = (*scc)->op->getParentOfType<mlir::bmodelica::ModelOp>();
   const auto &matchedEqsWritesMap = *(*scc)->matchedEqsWritesMap;
   const auto &startEqsWritesMap = *(*scc)->startEqsWritesMap;
@@ -102,7 +110,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
     IndexSet readVariableIndices =
         readAccess.getAccessFunction().map(equationIndices);
 
-    llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+    llvm::SmallVector<EquationInstanceOp> writingEquations;
 
     if (mlir::failed(getWritingEquations(writingEquations, matchedEqsWritesMap,
                                          variableOp, readVariableIndices))) {
@@ -119,8 +127,8 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
 
   llvm::SmallVector<VariableAccess> writeAccesses;
 
-  if (mlir::failed(equation->op.getWriteAccesses(
-          writeAccesses, symbolTableCollection, *accesses))) {
+  if (mlir::failed(equation->getOp().getWriteAccesses(
+          writeAccesses, symbolTableCollection, accessesRef))) {
     llvm_unreachable("Can't determine the write accesses");
     return {};
   }
@@ -173,7 +181,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
       IndexSet readVariableIndices =
           startEqRead.getAccessFunction().map(startEquationIndices);
 
-      llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+      llvm::SmallVector<EquationInstanceOp> writingEquations;
 
       if (mlir::failed(getWritingEquations(writingEquations,
                                            matchedEqsWritesMap, readVariableOp,

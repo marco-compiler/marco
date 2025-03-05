@@ -10,19 +10,17 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 
 namespace {
-class ExplicitatePattern
-    : public mlir::OpRewritePattern<MatchedEquationInstanceOp> {
+class ExplicitatePattern : public mlir::OpRewritePattern<EquationInstanceOp> {
 public:
-  ExplicitatePattern(
-      mlir::MLIRContext *context,
-      mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::DenseSet<MatchedEquationInstanceOp> &processedEquations)
-      : mlir::OpRewritePattern<MatchedEquationInstanceOp>(context),
+  ExplicitatePattern(mlir::MLIRContext *context,
+                     mlir::SymbolTableCollection &symbolTableCollection,
+                     llvm::DenseSet<EquationInstanceOp> &processedEquations)
+      : mlir::OpRewritePattern<EquationInstanceOp>(context),
         symbolTableCollection(&symbolTableCollection),
         processedEquations(&processedEquations) {}
 
   mlir::LogicalResult
-  matchAndRewrite(MatchedEquationInstanceOp op,
+  matchAndRewrite(EquationInstanceOp op,
                   mlir::PatternRewriter &rewriter) const override {
     if (processedEquations->contains(op)) {
       return mlir::failure();
@@ -34,7 +32,7 @@ public:
 
 private:
   mlir::SymbolTableCollection *symbolTableCollection;
-  llvm::DenseSet<MatchedEquationInstanceOp> *processedEquations;
+  llvm::DenseSet<EquationInstanceOp> *processedEquations;
 };
 } // namespace
 
@@ -52,7 +50,7 @@ public:
 void EquationExplicitationTestPass::runOnOperation() {
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
-  llvm::DenseSet<MatchedEquationInstanceOp> processedEquations;
+  llvm::DenseSet<EquationInstanceOp> processedEquations;
 
   patterns.add<ExplicitatePattern>(&getContext(), symbolTableCollection,
                                    processedEquations);

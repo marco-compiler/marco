@@ -33,15 +33,13 @@ bmodelica.model @Backward {
     // CHECK: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [1,9]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.equation_instance %t0, indices = {[1,9]}, match = <@x, {[1,9]}>
+        bmodelica.equation_instance %t1, match = <@x, {[0,0]}>
     }
 
     // CHECK:       bmodelica.dynamic
-    // CHECK:       bmodelica.matched_equation_instance %[[t0]]
-    // CHECK-SAME:  {
-    // CHECK-SAME:      indices = #modeling<multidim_range [1,9]>
-    // CHECK-SAME:  }
+    // CHECK-DAG:   bmodelica.equation_instance %[[t0]], indices = {[1,9]}, match = <@x, {[1,9]}>
+    // CHECK-DAG:   bmodelica.equation_instance %[[t1]], match = <@x, {[0,0]}>
 }
 
 // -----
@@ -79,13 +77,11 @@ bmodelica.model @Forward {
     // CHECK: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0 {indices = #modeling<multidim_range [0,8]>, path = #bmodelica<equation_path [L, 0]>}
-        bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.equation_instance %t0, indices = {[0,8]}, match = <@x, {[0,8]}>
+        bmodelica.equation_instance %t1, match = <@x, {[9,9]}>
     }
 
     // CHECK:       bmodelica.dynamic
-    // CHECK:       bmodelica.matched_equation_instance %[[t0]]
-    // CHECK-SAME:  {
-    // CHECK-SAME:      indices = #modeling<multidim_range [0,8]>
-    // CHECK-SAME:  }
+    // CHECK-DAG:   bmodelica.equation_instance %[[t0]], indices = {[0,8]}, match = <@x, {[0,8]}>
+    // CHECK-DAG:   bmodelica.equation_instance %[[t1]], match = <@x, {[9,9]}>
 }

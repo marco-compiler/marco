@@ -35,7 +35,7 @@ private:
   computeSCCs(mlir::IRRewriter &rewriter,
               mlir::SymbolTableCollection &symbolTableCollection,
               ModelOp modelOp, bool initial,
-              llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+              llvm::ArrayRef<EquationInstanceOp> equations);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -111,8 +111,8 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
 
   // Collect the equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
+  llvm::SmallVector<EquationInstanceOp> initialEquations;
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
 
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(mainEquations);
@@ -142,11 +142,11 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
 mlir::LogicalResult SCCDetectionPass::computeSCCs(
     mlir::IRRewriter &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    bool initial, llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+    bool initial, llvm::ArrayRef<EquationInstanceOp> equations) {
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
-  llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
     auto &bridge =
@@ -156,11 +156,11 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
         static_cast<int64_t>(equationBridges.size()), equation,
         symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
@@ -168,8 +168,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
   }
 
   using DependencyGraph =
-      marco::modeling::DependencyGraph<VariableBridge *,
-                                       MatchedEquationBridge *>;
+      marco::modeling::DependencyGraph<VariableBridge *, EquationBridge *>;
 
   DependencyGraph dependencyGraph(&getContext());
   dependencyGraph.addEquations(equationPtrs);
@@ -200,26 +199,20 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
       const auto &equation = dependencyGraph[*sccElement];
       const IndexSet &indices = sccElement.getIndices();
 
-      size_t numOfInductions = equation->op.getInductionVariables().size();
+      size_t numOfInductions = equation->getOp().getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      for (const MultidimensionalRange &matchedEquationRange :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*equation->op.getOperation()));
+      auto clonedOp = mlir::cast<EquationInstanceOp>(
+          rewriter.clone(*equation->getOp().getOperation()));
 
-        if (!isScalarEquation) {
-          MultidimensionalRange explicitRange =
-              matchedEquationRange.takeFirstDimensions(numOfInductions);
-
-          clonedOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-        }
+      if (!isScalarEquation) {
+        IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
+        clonedOp.getProperties().setIndices(slicedIndices);
       }
     }
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     rewriter.eraseOp(equation);
   }
 

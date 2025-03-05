@@ -55,40 +55,34 @@ bmodelica.model @Test {
         bmodelica.initial {
             bmodelica.start_equation_instance %t0
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1 {path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.equation_instance %t1, match = @x
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t2 {path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.equation_instance %t2, match = @y
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t3 {path = #bmodelica<equation_path [L, 0]>}
+                bmodelica.equation_instance %t3, match = @p
             }
 
             // CHECK:       bmodelica.scc {
-            // CHECK-NEXT:      bmodelica.scheduled_equation_instance %[[t2]]
-            // CHECK-SAME:      {
-            // CHECK-SAME:          iteration_directions = []
-            // CHECK-SAME:      }
+            // CHECK-NEXT:      bmodelica.equation_instance %[[t2]]
+            // CHECK-SAME:      match = @y
             // CHECK-NEXT:  }
 
             // CHECK:       bmodelica.scc {
-            // CHECK-NEXT:      bmodelica.scheduled_equation_instance %[[t3]]
-            // CHECK-SAME:      {
-            // CHECK-SAME:          iteration_directions = []
-            // CHECK-SAME:      }
+            // CHECK-NEXT:      bmodelica.equation_instance %[[t3]]
+            // CHECK-SAME:      match = @p
             // CHECK-NEXT:  }
 
             // CHECK:       bmodelica.start_equation_instance %[[t0]]
 
             // CHECK-NEXT:  bmodelica.scc {
-            // CHECK-NEXT:      bmodelica.scheduled_equation_instance %[[t1]]
-            // CHECK-SAME:      {
-            // CHECK-SAME:          iteration_directions = []
-            // CHECK-SAME:      }
+            // CHECK-NEXT:      bmodelica.equation_instance %[[t1]]
+            // CHECK-SAME:      match = @x
             // CHECK-NEXT:  }
         }
     }
 
     // CHECK-NOT: bmodelica.start_equation_instance
-    // CHECK-NOT: bmodelica.scheduled_equation_instance
+    // CHECK-NOT: bmodelica.equation_instance
 }

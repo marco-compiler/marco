@@ -24,8 +24,6 @@ bmodelica.model @Test {
         }
 
         // CHECK:       bmodelica.equation_instance %[[t0]]
-        // CHECK-SAME:  {
-        // CHECK-SAME:      indices = #modeling<multidim_range [0,2]>
-        // CHECK-SAME:  }
+        // CHECK-SAME:  indices = {[0,2]}
     }
 }

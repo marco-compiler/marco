@@ -76,8 +76,8 @@ module @Test {
 
 
         bmodelica.dynamic {
-            bmodelica.equation_instance %t0 {indices = #modeling<multidim_range [1,4]>}
-            bmodelica.equation_instance %t1 {indices = #modeling<multidim_range [1,4]>}
+            bmodelica.equation_instance %t0, indices = {[1,4]}
+            bmodelica.equation_instance %t1, indices = {[1,4]}
         }
 
         // CHECK:      %[[T_CSE:.*]] = bmodelica.equation_template inductions = [%[[IDX0:.*]]]
@@ -93,6 +93,6 @@ module @Test {
         // CHECK-NEXT:     bmodelica.equation_sides %[[LHS]], %[[RHS]]
 
         // CHECK:      bmodelica.dynamic
-        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]] {indices = #modeling<multidim_range [1,4]>}
+        // CHECK-NEXT:     bmodelica.equation_instance %[[T_CSE]], indices = {[1,4]}
     }
 }

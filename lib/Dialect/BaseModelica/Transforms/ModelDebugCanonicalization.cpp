@@ -24,7 +24,7 @@ private:
 
   void sortSCCs(llvm::ArrayRef<SCCOp> SCCs);
 
-  void sortEquations(llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+  void sortEquations(llvm::ArrayRef<EquationInstanceOp> equations);
 };
 } // namespace
 
@@ -60,13 +60,13 @@ ModelDebugCanonicalizationPass::cleanModel(ModelOp modelOp) {
   return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
 }
 
-static MatchedEquationInstanceOp getFirstEquation(SCCOp scc) {
+static EquationInstanceOp getFirstEquation(SCCOp scc) {
   if (scc.getBodyRegion().empty()) {
     return nullptr;
   }
 
   for (auto &op : scc.getBodyRegion().getOps()) {
-    if (auto equation = mlir::dyn_cast<MatchedEquationInstanceOp>(op)) {
+    if (auto equation = mlir::dyn_cast<EquationInstanceOp>(op)) {
       return equation;
     }
   }
@@ -76,7 +76,7 @@ static MatchedEquationInstanceOp getFirstEquation(SCCOp scc) {
 
 void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs) {
   for (SCCOp scc : SCCs) {
-    llvm::SmallVector<MatchedEquationInstanceOp> equations;
+    llvm::SmallVector<EquationInstanceOp> equations;
     scc.collectEquations(equations);
     sortEquations(equations);
   }
@@ -105,15 +105,14 @@ void ModelDebugCanonicalizationPass::sortSCCs(llvm::ArrayRef<SCCOp> SCCs) {
 }
 
 void ModelDebugCanonicalizationPass::sortEquations(
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
-  llvm::SmallVector<MatchedEquationInstanceOp> sorted(equations.begin(),
-                                                      equations.end());
+    llvm::ArrayRef<EquationInstanceOp> equations) {
+  llvm::SmallVector<EquationInstanceOp> sorted(equations.begin(),
+                                               equations.end());
 
-  std::sort(
-      sorted.begin(), sorted.end(),
-      [](MatchedEquationInstanceOp first, MatchedEquationInstanceOp second) {
-        return first.getTemplate()->isBeforeInBlock(second.getTemplate());
-      });
+  std::sort(sorted.begin(), sorted.end(),
+            [](EquationInstanceOp first, EquationInstanceOp second) {
+              return first.getTemplate()->isBeforeInBlock(second.getTemplate());
+            });
 
   for (size_t i = 1, e = sorted.size(); i < e; ++i) {
     sorted[i]->moveAfter(sorted[i - 1]);

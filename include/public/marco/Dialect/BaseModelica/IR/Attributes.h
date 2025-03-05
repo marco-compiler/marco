@@ -19,8 +19,6 @@ namespace mlir::bmodelica {
 using RangeAttr = ::mlir::modeling::RangeAttr;
 using MultidimensionalRangeAttr = ::mlir::modeling::MultidimensionalRangeAttr;
 
-using EquationScheduleDirection = ::marco::modeling::scheduling::Direction;
-
 mlir::Attribute getAttr(mlir::Type type, int64_t value);
 mlir::Attribute getAttr(mlir::Type type, double value);
 

@@ -23,6 +23,10 @@ VariableAccess &VariableAccess::operator=(const VariableAccess &other) {
 
 VariableAccess &VariableAccess::operator=(VariableAccess &&other) = default;
 
+bool VariableAccess::operator<(const VariableAccess &other) const {
+  return path < other.path;
+}
+
 void swap(VariableAccess &first, VariableAccess &second) {
   using std::swap;
   swap(first.path, second.path);

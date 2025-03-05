@@ -320,12 +320,6 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
       accesses.push_back(std::move(*access));
     }
 
-    IndexSet equationIndices;
-
-    if (auto equationRanges = equationInstanceOp.getIndices()) {
-      equationIndices += equationRanges->getValue();
-    }
-
     for (const VariableAccess &access : accesses) {
       llvm::SmallVector<int64_t, 3> variableShape;
 
@@ -340,7 +334,8 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
       IndexSet derivedIndices;
 
       if (accessFunction.getNumOfResults() != 0) {
-        derivedIndices = accessFunction.map(equationIndices);
+        derivedIndices =
+            accessFunction.map(equationInstanceOp.getProperties().indices);
       }
 
       size_t derivedIndicesRank = derivedIndices.rank();
@@ -635,17 +630,10 @@ createMainEquations(mlir::OpBuilder &builder,
 
   auto dynamicOp = builder.create<DynamicOp>(modelOp.getLoc());
   builder.createBlock(&dynamicOp.getBodyRegion());
-  builder.setInsertionPointToStart(dynamicOp.getBody());
 
-  for (const MultidimensionalRange &range :
-       llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-    auto instanceOp =
-        builder.create<EquationInstanceOp>(loc, equationTemplateOp);
+  auto instanceOp = builder.create<EquationInstanceOp>(loc, equationTemplateOp);
 
-    instanceOp.setIndicesAttr(
-        MultidimensionalRangeAttr::get(builder.getContext(), range));
-  }
-
+  instanceOp.getProperties().setIndices(indices);
   return mlir::success();
 }
 

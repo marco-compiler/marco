@@ -225,7 +225,7 @@ void printMatchingGraph(const MatchingGraph &graph) {
        llvm::make_range(graph.equationsBegin(), graph.equationsEnd())) {
     const auto &equation = graph.getEquation(vertexDescriptor);
     llvm::errs() << "Equation ";
-    equation.getProperty()->op.printInline(llvm::errs());
+    equation.getProperty()->getOp().printInline(llvm::errs());
     llvm::errs() << "\n";
     llvm::errs() << "  - Indices: " << equation.getIterationRanges() << "\n";
     llvm::errs() << "  - Matched indices: " << equation.getMatched() << "\n";
@@ -338,30 +338,43 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     const EquationPath &matchedPath = solution.getAccess();
     EquationBridge *equation = solution.getEquation();
 
-    size_t numOfInductions = equation->op.getInductionVariables().size();
+    std::optional<VariableAccess> matchedAccess =
+        equation->getOp().getAccessAtPath(symbolTableCollection, matchedPath);
+
+    if (!matchedAccess) {
+      return mlir::failure();
+    }
+
+    size_t numOfInductions = equation->getOp().getInductionVariables().size();
     bool isScalarEquation = numOfInductions == 0;
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointAfter(equation->op);
+    rewriter.setInsertionPointAfter(equation->getOp());
 
-    for (const MultidimensionalRange &matchedEquationRange :
-         llvm::make_range(matchedEquationIndices.rangesBegin(),
-                          matchedEquationIndices.rangesEnd())) {
-      auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
-          equation->op.getLoc(), equation->op.getTemplate(),
-          EquationPathAttr::get(&getContext(), matchedPath));
+    auto matchedEquationOp = rewriter.create<EquationInstanceOp>(
+        equation->getOp().getLoc(), equation->getOp().getTemplate());
 
-      if (!isScalarEquation) {
-        MultidimensionalRange explicitRange =
-            matchedEquationRange.takeFirstDimensions(numOfInductions);
+    matchedEquationOp.getProperties() = equation->getOp().getProperties();
 
-        matchedEquationOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-      }
+    // Compute the matched variable indices.
+    IndexSet matchedIndices;
+
+    if (!isScalarEquation) {
+      matchedIndices =
+          matchedEquationIndices.takeFirstDimensions(numOfInductions);
     }
 
+    if (mlir::failed(matchedEquationOp.setIndices(matchedIndices,
+                                                  symbolTableCollection))) {
+      return mlir::failure();
+    }
+
+    matchedEquationOp.getProperties().match =
+        Variable(matchedAccess->getVariable(),
+                 matchedAccess->getAccessFunction().map(matchedIndices));
+
     // Mark the old instance as obsolete.
-    toBeErased.insert(equation->op);
+    toBeErased.insert(equation->getOp());
   }
 
   // Erase the old equation instances.

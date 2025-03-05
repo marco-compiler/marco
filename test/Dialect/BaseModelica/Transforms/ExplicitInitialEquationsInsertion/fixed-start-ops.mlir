@@ -47,7 +47,7 @@ bmodelica.model @arrayFixedScalarStart {
 
     // CHECK:       bmodelica.initial
     // CHECK:       bmodelica.equation_instance %[[t0]]
-    // CHECK-SAME:  indices = #modeling<multidim_range [0,2]>
+    // CHECK-SAME:  indices = {[0,2]}
 }
 
 // -----
@@ -81,5 +81,5 @@ bmodelica.model @arrayFixedArrayStart {
 
     // CHECK:       bmodelica.initial
     // CHECK:       bmodelica.equation_instance %[[t0]]
-    // CHECK-SAME:  indices = #modeling<multidim_range [0,2]>
+    // CHECK-SAME:  indices = {[0,2]}
 }

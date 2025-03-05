@@ -44,12 +44,13 @@ struct EquationTraits {
   // typedef AccessProperty : the access property (this is optional, and if not
   // specified an empty one is used)
   //
-  // static Access<VariableType, AccessProperty> getWrite(const EquationType*)
-  //    return the write access done by the equation.
+  // static std::vector<Access<VariableType, AccessProperty>>
+  // getWrites(const EquationType*)
+  //    return the writes accesses done by the equation.
   //
-  // static std::vector<Access<VariableType, AccessProperty>> getReads(const
-  // EquationType*)
-  //    return the read access done by the equation.
+  // static std::vector<Access<VariableType, AccessProperty>>
+  // getReads(const EquationType*)
+  //    return the read accesses done by the equation.
 
   using Id = typename EquationType::UnknownEquationTypeError;
 };
@@ -82,6 +83,7 @@ template <typename VariableProperty,
 class Access {
 public:
   using Property = AccessProperty;
+  using VariableId = typename VariableTraits<VariableProperty>::Id;
 
   Access(const VariableProperty &variable,
          std::unique_ptr<AccessFunction> accessFunction,
@@ -108,9 +110,7 @@ public:
   }
 
   /// Get the ID of the accesses variable.
-  const typename VariableTraits<VariableProperty>::Id &getVariable() const {
-    return variable;
-  }
+  VariableId getVariable() const { return variable; }
 
   /// Get the access function.
   const AccessFunction &getAccessFunction() const { return *accessFunction; }
@@ -183,8 +183,8 @@ public:
   using Access =
       ::marco::modeling::dependency::Access<VariableType, AccessProperty>;
 
-  static Access getWrite(const EquationProperty *equation) {
-    return Traits::getWrite(equation);
+  static std::vector<Access> getWrites(const EquationProperty *equation) {
+    return Traits::getWrites(equation);
   }
 
   static std::vector<Access> getReads(const EquationProperty *equation) {
@@ -230,7 +230,7 @@ public:
     return Traits::getIterationRanges(&property);
   }
 
-  Access getWrite() const { return Traits::getWrite(&property); }
+  std::vector<Access> getWrites() const { return Traits::getWrites(&property); }
 
   std::vector<Access> getReads() const { return Traits::getReads(&property); }
 
