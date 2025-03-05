@@ -25,7 +25,7 @@ private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
   mlir::LogicalResult processEquation(mlir::RewriterBase &rewriter,
-                                      MatchedEquationInstanceOp equation);
+                                      EquationInstanceOp equation);
 
   EquationTemplateOp
   createReducedTemplate(mlir::RewriterBase &rewriter,
@@ -57,13 +57,12 @@ void SingleValuedInductionEliminationPass::runOnOperation() {
 mlir::LogicalResult
 SingleValuedInductionEliminationPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
-  llvm::SmallVector<MatchedEquationInstanceOp> equations;
+  llvm::SmallVector<EquationInstanceOp> equations;
 
-  modelOp.walk([&](MatchedEquationInstanceOp equation) {
-    equations.push_back(equation);
-  });
+  modelOp.walk(
+      [&](EquationInstanceOp equation) { equations.push_back(equation); });
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     if (mlir::failed(processEquation(rewriter, equation))) {
       return mlir::failure();
     }
@@ -77,23 +76,30 @@ SingleValuedInductionEliminationPass::processModelOp(ModelOp modelOp) {
 }
 
 mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
-    mlir::RewriterBase &rewriter, MatchedEquationInstanceOp equation) {
+    mlir::RewriterBase &rewriter, EquationInstanceOp equation) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
+  const IndexSet &equationIndices = equation.getProperties().indices;
 
-  if (auto indices = equation.getIndices()) {
-    size_t rank = indices->getValue().rank();
+  if (equationIndices.empty()) {
+    return mlir::success();
+  }
+
+  IndexSet remainingIndices = equationIndices;
+
+  for (const MultidimensionalRange &range : llvm::make_range(
+           equationIndices.rangesBegin(), equationIndices.rangesEnd())) {
+    size_t rank = range.rank();
     llvm::SmallBitVector singleValuedInductions(rank, false);
 
     for (size_t i = 0; i < rank; ++i) {
-      if (indices->getValue()[i].size() == 1) {
+      if (range[i].size() == 1) {
         singleValuedInductions[i] = true;
       }
     }
 
     if (singleValuedInductions.any()) {
-      EquationTemplateOp reducedTemplate =
-          createReducedTemplate(rewriter, equation.getTemplate(),
-                                indices->getValue(), singleValuedInductions);
+      EquationTemplateOp reducedTemplate = createReducedTemplate(
+          rewriter, equation.getTemplate(), range, singleValuedInductions);
 
       if (!reducedTemplate) {
         return mlir::failure();
@@ -101,8 +107,8 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
 
       rewriter.setInsertionPoint(equation);
 
-      auto newInstance = rewriter.create<MatchedEquationInstanceOp>(
-          equation.getLoc(), reducedTemplate);
+      auto newInstance = rewriter.create<EquationInstanceOp>(equation.getLoc(),
+                                                             reducedTemplate);
 
       newInstance.getProperties() = equation.getProperties();
 
@@ -111,23 +117,34 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
 
       // But remove the single-valued dimensions from the indices.
       llvm::SmallVector<Range> newRanges;
+      llvm::SmallVector<Range> removedRanges;
 
       for (size_t i = 0; i < rank; ++i) {
-        if (!singleValuedInductions[i]) {
-          newRanges.push_back(indices->getValue()[i]);
+        if (singleValuedInductions[i]) {
+          removedRanges.push_back(
+              Range(range[i].getBegin(), range[i].getBegin() + 1));
+        } else {
+          newRanges.push_back(range[i]);
+          removedRanges.push_back(range[i]);
         }
       }
 
-      if (newRanges.empty()) {
-        newInstance.removeIndicesAttr();
-      } else {
-        newInstance.setIndicesAttr(MultidimensionalRangeAttr::get(
-            rewriter.getContext(), MultidimensionalRange(newRanges)));
-      }
+      remainingIndices -= MultidimensionalRange(removedRanges);
 
-      // Erase the original instance.
-      rewriter.eraseOp(equation);
+      if (newRanges.empty()) {
+        newInstance.getProperties().setIndices({});
+      } else {
+        newInstance.getProperties().setIndices(
+            IndexSet(MultidimensionalRange(newRanges)));
+      }
     }
+  }
+
+  if (remainingIndices.empty()) {
+    // Erase the original instance.
+    rewriter.eraseOp(equation);
+  } else {
+    equation.getProperties().setIndices(remainingIndices);
   }
 
   return mlir::success();

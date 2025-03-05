@@ -351,27 +351,23 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(equation->op);
 
-    for (const MultidimensionalRange &matchedEquationRange :
-         llvm::make_range(matchedEquationIndices.rangesBegin(),
-                          matchedEquationIndices.rangesEnd())) {
-      auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
-          equation->op.getLoc(), equation->op.getTemplate());
+    auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
+        equation->op.getLoc(), equation->op.getTemplate());
 
-      matchedEquationOp.getProperties().match.name =
-          matchedAccess->getVariable();
+    if (isScalarEquation) {
+      matchedEquationOp.getProperties().match.indices =
+          matchedAccess->getAccessFunction().map(IndexSet());
+    } else {
+      IndexSet slicedMatchedIndices =
+          matchedEquationIndices.takeFirstDimensions(numOfInductions);
+
+      matchedEquationOp.getProperties().setIndices(slicedMatchedIndices);
 
       matchedEquationOp.getProperties().match.indices =
-          matchedAccess->getAccessFunction().map(
-              IndexSet(matchedEquationRange));
-
-      if (!isScalarEquation) {
-        MultidimensionalRange explicitRange =
-            matchedEquationRange.takeFirstDimensions(numOfInductions);
-
-        matchedEquationOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-      }
+          matchedAccess->getAccessFunction().map(slicedMatchedIndices);
     }
+
+    matchedEquationOp.getProperties().match.name = matchedAccess->getVariable();
 
     // Mark the old instance as obsolete.
     toBeErased.insert(equation->op);

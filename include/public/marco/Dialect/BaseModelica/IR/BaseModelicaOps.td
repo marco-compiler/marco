@@ -3802,11 +3802,6 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
                 mlir::SymbolTableCollection& symbolTable,
                 const EquationPath& path);
 
-            IndexSet applyAccessFunction(
-                const AccessFunction& accessFunction,
-                std::optional<MultidimensionalRange> equationIndices,
-                const EquationPath& path);
-
             mlir::LogicalResult cloneWithReplacedAccess(
                 mlir::RewriterBase& rewriter,
                 std::optional<
@@ -3824,13 +3819,13 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             mlir::LogicalResult explicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationIndices,
+                const IndexSet& equationIndices,
                 const Variable& matchedVariable);
 
             EquationTemplateOp cloneAndExplicitate(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationIndices,
+                const IndexSet& equationIndices,
                 const Variable& matchedVariable);
 
         private:
@@ -3898,7 +3893,7 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             mlir::LogicalResult groupLeftHandSide(
                 mlir::RewriterBase& rewriter,
                 mlir::SymbolTableCollection& symbolTableCollection,
-                std::optional<MultidimensionalRange> equationRanges,
+                const IndexSet& equationIndices,
                 const Variable& matchedVariable,
                 llvm::ArrayRef<VariableAccess> accesses);
 
@@ -4211,20 +4206,16 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
+        IndexSetProperty:$indices,
         VariableProperty:$match);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $base `,` custom<MatchProperty>($match) attr-dict
+        $base `,` `indices` `=` custom<IndexSet>($indices) `,` custom<MatchProperty>($match) attr-dict
     }];
 
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>
-    ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.

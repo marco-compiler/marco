@@ -44,10 +44,10 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0, match = <@x, {[1,9]}> {indices = #modeling<multidim_range [1,9]>}
+                bmodelica.matched_equation_instance %t0, indices = {[1,9]}, match = <@x, {[1,9]}>
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1, match = <@x, {[0,0]}>
+                bmodelica.matched_equation_instance %t1, indices = {}, match = <@x, {[0,0]}>
             }
         }
     }

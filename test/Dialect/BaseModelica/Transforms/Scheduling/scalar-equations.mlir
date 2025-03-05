@@ -31,10 +31,10 @@ bmodelica.model @Test {
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0, match = @x
+                bmodelica.matched_equation_instance %t0, indices = {}, match = @x
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1, match = @y
+                bmodelica.matched_equation_instance %t1, indices = {}, match = @y
             }
 
             // CHECK:       bmodelica.scc {

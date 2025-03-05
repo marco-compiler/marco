@@ -31,13 +31,13 @@ bmodelica.model @Test {
     // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0, match = @x
-        bmodelica.matched_equation_instance %t1, match = @y
+        bmodelica.matched_equation_instance %t0, indices = {}, match = @x
+        bmodelica.matched_equation_instance %t1, indices = {}, match = @y
     }
 
     // CHECK:     bmodelica.scc
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], match = @x
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], match = @y
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], indices = {}, match = @x
+    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], indices = {}, match = @y
 
     // CHECK-NOT: bmodelica.matched_equation_instance
 }

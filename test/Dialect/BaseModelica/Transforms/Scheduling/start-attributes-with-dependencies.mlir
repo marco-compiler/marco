@@ -55,13 +55,13 @@ bmodelica.model @Test {
         bmodelica.initial {
             bmodelica.start_equation_instance %t0
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1, match = @x
+                bmodelica.matched_equation_instance %t1, indices = {}, match = @x
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t2, match = @y
+                bmodelica.matched_equation_instance %t2, indices = {}, match = @y
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t3, match = @p
+                bmodelica.matched_equation_instance %t3, indices = {}, match = @p
             }
 
             // CHECK:       bmodelica.scc {

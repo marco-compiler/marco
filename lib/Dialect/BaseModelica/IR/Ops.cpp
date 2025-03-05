@@ -8377,26 +8377,10 @@ mlir::LogicalResult EquationTemplateOp::mapInductionVariables(
   return mlir::success();
 }
 
-IndexSet EquationTemplateOp::applyAccessFunction(
-    const AccessFunction &accessFunction,
-    std::optional<MultidimensionalRange> equationIndices,
-    const EquationPath &path) {
-  IndexSet result;
-
-  if (equationIndices) {
-    result = accessFunction.map(IndexSet(*equationIndices));
-  } else {
-    result = accessFunction.map(IndexSet());
-  }
-
-  return result;
-}
-
 mlir::LogicalResult EquationTemplateOp::explicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
-    std::optional<MultidimensionalRange> equationIndices,
-    const Variable &matchedVariable) {
+    const IndexSet &equationIndices, const Variable &matchedVariable) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   // Get all the paths that lead to accesses with the same accessed variable
@@ -8416,8 +8400,7 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
 
     const AccessFunction &currentAccessFunction = access.getAccessFunction();
 
-    IndexSet currentIndices = applyAccessFunction(
-        currentAccessFunction, equationIndices, access.getPath());
+    IndexSet currentIndices = currentAccessFunction.map(equationIndices);
 
     if (currentIndices == matchedVariable.indices) {
       filteredAccesses.push_back(access);
@@ -8478,8 +8461,7 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
 EquationTemplateOp EquationTemplateOp::cloneAndExplicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
-    std::optional<MultidimensionalRange> equationIndices,
-    const Variable &matchedVariable) {
+    const IndexSet &equationIndices, const Variable &matchedVariable) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointAfter(getOperation());
 
@@ -8957,8 +8939,8 @@ bool EquationTemplateOp::checkAccessEquivalence(
 mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection,
-    std::optional<MultidimensionalRange> equationRanges,
-    const Variable &matchedVariable, llvm::ArrayRef<VariableAccess> accesses) {
+    const IndexSet &equationIndices, const Variable &matchedVariable,
+    llvm::ArrayRef<VariableAccess> accesses) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   auto inductionsPositionMap = getInductionsPositionMap();
 
@@ -8967,12 +8949,6 @@ mlir::LogicalResult EquationTemplateOp::groupLeftHandSide(
   const VariableAccess &requestedAccess = accesses[0];
 
   uint64_t viewElementIndex = requestedAccess.getPath()[0];
-  IndexSet equationIndices;
-
-  if (equationRanges) {
-    equationIndices += *equationRanges;
-  }
-
   auto requestedValue = getValueAtPath(requestedAccess.getPath());
 
   // Determine whether the access to be grouped is inside both the equation's
@@ -9738,26 +9714,11 @@ mlir::LogicalResult EquationInstanceOp::cloneWithReplacedAccess(
 // MatchedEquationInstanceOp
 
 namespace mlir::bmodelica {
-void MatchedEquationInstanceOp::build(mlir::OpBuilder &builder,
-                                      mlir::OperationState &state,
-                                      EquationTemplateOp equationTemplate) {
-  build(builder, state, equationTemplate.getResult(), nullptr);
-}
-
 mlir::LogicalResult MatchedEquationInstanceOp::verify() {
-  auto indicesRank =
-      [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
-    if (!ranges) {
-      return 0;
-    }
-
-    return ranges->getValue().rank();
-  };
-
   // Check the indices for the explicit inductions.
   size_t numOfExplicitInductions = getInductionVariables().size();
 
-  if (size_t explicitIndicesRank = indicesRank(getIndices());
+  if (size_t explicitIndicesRank = getProperties().indices.rank();
       numOfExplicitInductions != explicitIndicesRank) {
     return emitOpError() << "Unexpected rank of iteration indices (expected "
                          << numOfExplicitInductions << ", got "
@@ -9782,11 +9743,7 @@ mlir::ValueRange MatchedEquationInstanceOp::getInductionVariables() {
 }
 
 IndexSet MatchedEquationInstanceOp::getIterationSpace() {
-  if (auto indices = getIndices()) {
-    return IndexSet(indices->getValue());
-  }
-
-  return {};
+  return getProperties().indices;
 }
 
 mlir::LogicalResult MatchedEquationInstanceOp::getAccesses(
@@ -9835,14 +9792,9 @@ std::optional<VariableAccess> MatchedEquationInstanceOp::getAccessAtPath(
 mlir::LogicalResult MatchedEquationInstanceOp::explicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  std::optional<MultidimensionalRange> indices = std::nullopt;
-
-  if (auto indicesAttr = getIndices()) {
-    indices = indicesAttr->getValue();
-  }
-
   if (mlir::failed(getTemplate().explicitate(rewriter, symbolTableCollection,
-                                             indices, getProperties().match))) {
+                                             getProperties().indices,
+                                             getProperties().match))) {
     return mlir::failure();
   }
 
@@ -9852,14 +9804,9 @@ mlir::LogicalResult MatchedEquationInstanceOp::explicitate(
 MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  std::optional<MultidimensionalRange> indices = std::nullopt;
-
-  if (auto indicesAttr = getIndices()) {
-    indices = indicesAttr->getValue();
-  }
-
   EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-      rewriter, symbolTableCollection, indices, getProperties().match);
+      rewriter, symbolTableCollection, getProperties().indices,
+      getProperties().match);
 
   if (!clonedTemplate) {
     return nullptr;
@@ -9872,12 +9819,6 @@ MatchedEquationInstanceOp MatchedEquationInstanceOp::cloneAndExplicitate(
       rewriter.create<MatchedEquationInstanceOp>(getLoc(), clonedTemplate);
 
   result.getProperties() = getProperties();
-
-  if (indices) {
-    result.setIndicesAttr(
-        MultidimensionalRangeAttr::get(getContext(), *indices));
-  }
-
   return result;
 }
 
@@ -9941,39 +9882,27 @@ mlir::LogicalResult MatchedEquationInstanceOp::cloneWithReplacedAccess(
              });
 
   for (auto &[assignedIndices, equationTemplateOp] : templateResults) {
-    if (assignedIndices.empty()) {
-      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-          rewriter.clone(*temporaryClonedOp.getOperation()));
+    auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+        rewriter.clone(*temporaryClonedOp.getOperation()));
 
-      clonedOp.setOperand(equationTemplateOp.getResult());
-      clonedOp.getProperties().match.indices =
-          writeAccesses[0].getAccessFunction().map(assignedIndices);
-      clonedOp.removeIndicesAttr();
-      results.push_back(clonedOp);
+    clonedOp.setOperand(equationTemplateOp.getResult());
+    IndexSet slicedAssignedIndices = assignedIndices;
+    IndexSet indices = getIterationSpace();
+
+    if (indices.empty()) {
+      slicedAssignedIndices = {};
     } else {
-      for (const MultidimensionalRange &assignedIndicesRange : llvm::make_range(
-               assignedIndices.rangesBegin(), assignedIndices.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*temporaryClonedOp.getOperation()));
-
-        clonedOp.setOperand(equationTemplateOp.getResult());
-
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(
-                IndexSet(assignedIndicesRange));
-
-        if (auto explicitIndices = getIndices()) {
-          MultidimensionalRange explicitRange =
-              assignedIndicesRange.takeFirstDimensions(
-                  explicitIndices->getValue().rank());
-
-          clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-              rewriter.getContext(), std::move(explicitRange)));
-        }
-
-        results.push_back(clonedOp);
-      }
+      slicedAssignedIndices =
+          slicedAssignedIndices.takeFirstDimensions(indices.rank());
     }
+
+    clonedOp.getProperties().setIndices(slicedAssignedIndices);
+
+    clonedOp.getProperties().match.indices =
+        writeAccesses[0].getAccessFunction().map(
+            clonedOp.getProperties().indices);
+
+    results.push_back(clonedOp);
   }
 
   rewriter.eraseOp(temporaryClonedOp);
@@ -10136,10 +10065,10 @@ mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
 mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  std::optional<MultidimensionalRange> indices = std::nullopt;
+  IndexSet indices;
 
   if (auto indicesAttr = getIndices()) {
-    indices = indicesAttr->getValue();
+    indices += indicesAttr->getValue();
   }
 
   if (mlir::failed(getTemplate().explicitate(rewriter, symbolTableCollection,
@@ -10153,10 +10082,10 @@ mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
 ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  std::optional<MultidimensionalRange> indices = std::nullopt;
+  IndexSet indices;
 
   if (auto indicesAttr = getIndices()) {
-    indices = indicesAttr->getValue();
+    indices += indicesAttr->getValue();
   }
 
   EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
@@ -10173,12 +10102,6 @@ ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
       getLoc(), clonedTemplate, getIterationDirections());
 
   result.getProperties() = getProperties();
-
-  if (indices) {
-    result.setIndicesAttr(
-        MultidimensionalRangeAttr::get(getContext(), *indices));
-  }
-
   return result;
 }
 

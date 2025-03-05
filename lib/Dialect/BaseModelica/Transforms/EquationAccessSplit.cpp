@@ -62,14 +62,11 @@ public:
   mlir::LogicalResult
   matchAndRewrite(MatchedEquationInstanceOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    IndexSet equationIndices = op.getIterationSpace();
+    const IndexSet &equationIndices = op.getProperties().indices;
 
     if (equationIndices.empty()) {
       return mlir::failure();
     }
-
-    auto numOfInductions =
-        static_cast<uint64_t>(op.getInductionVariables().size());
 
     const Variable &matchedVariable = op.getProperties().match;
     llvm::SmallVector<VariableAccess> accesses;
@@ -159,19 +156,13 @@ public:
     }
 
     for (const IndexSet &partition : partitions) {
-      for (const MultidimensionalRange &range :
-           llvm::make_range(partition.rangesBegin(), partition.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*op.getOperation()));
+      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+          rewriter.clone(*op.getOperation()));
 
-        clonedOp.getProperties().match.indices =
-            matchedAccessFunction.map(IndexSet(range));
+      clonedOp.getProperties().setIndices(partition);
 
-        if (numOfInductions > 0) {
-          clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-              getContext(), range.takeFirstDimensions(numOfInductions)));
-        }
-      }
+      clonedOp.getProperties().match.indices =
+          matchedAccessFunction.map(partition);
     }
 
     rewriter.eraseOp(op);

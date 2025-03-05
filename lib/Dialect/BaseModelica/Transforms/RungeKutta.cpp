@@ -1108,33 +1108,27 @@ mlir::LogicalResult createEquationInstances(
       instanceOp.getProperties().match = Variable(indices, *access);
     } else {
       IndexSet canonicalIndices = indices.getCanonicalRepresentation();
+      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
+      auto sccOp = rewriter.create<SCCOp>(loc);
 
-      for (const MultidimensionalRange &range : llvm::make_range(
-               canonicalIndices.rangesBegin(), canonicalIndices.rangesEnd())) {
-        rewriter.setInsertionPointToEnd(dynamicOp.getBody());
-        auto sccOp = rewriter.create<SCCOp>(loc);
+      rewriter.setInsertionPointToStart(
+          rewriter.createBlock(&sccOp.getBodyRegion()));
 
-        rewriter.setInsertionPointToStart(
-            rewriter.createBlock(&sccOp.getBodyRegion()));
+      auto instanceOp =
+          rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
 
-        auto instanceOp =
-            rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
+      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+          symbolTableCollection,
+          EquationPath(EquationPath::EquationSide::LEFT, 0));
 
-        std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-            symbolTableCollection,
-            EquationPath(EquationPath::EquationSide::LEFT, 0));
+      newEquations.push_back(instanceOp);
 
-        newEquations.push_back(instanceOp);
-
-        if (!access) {
-          return mlir::failure();
-        }
-
-        instanceOp.getProperties().match = Variable(indices, *access);
-
-        instanceOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(rewriter.getContext(), range));
+      if (!access) {
+        return mlir::failure();
       }
+
+      instanceOp.getProperties().match = Variable(indices, *access);
+      instanceOp.getProperties().setIndices(canonicalIndices);
     }
   } else {
     if (indices.empty()) {
@@ -1156,29 +1150,23 @@ mlir::LogicalResult createEquationInstances(
       instanceOp.getProperties().match = Variable(indices, *access);
     } else {
       IndexSet canonicalIndices = indices.getCanonicalRepresentation();
+      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
 
-      for (const MultidimensionalRange &range : llvm::make_range(
-               canonicalIndices.rangesBegin(), canonicalIndices.rangesEnd())) {
-        rewriter.setInsertionPointToEnd(dynamicOp.getBody());
+      auto instanceOp =
+          rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
 
-        auto instanceOp =
-            rewriter.create<MatchedEquationInstanceOp>(loc, templateOp);
+      newEquations.push_back(instanceOp);
 
-        newEquations.push_back(instanceOp);
+      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+          symbolTableCollection,
+          EquationPath(EquationPath::EquationSide::LEFT, 0));
 
-        std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-            symbolTableCollection,
-            EquationPath(EquationPath::EquationSide::LEFT, 0));
-
-        if (!access) {
-          return mlir::failure();
-        }
-
-        instanceOp.getProperties().match = Variable(indices, *access);
-
-        instanceOp.setIndicesAttr(
-            MultidimensionalRangeAttr::get(rewriter.getContext(), range));
+      if (!access) {
+        return mlir::failure();
       }
+
+      instanceOp.getProperties().match = Variable(indices, *access);
+      instanceOp.getProperties().setIndices(canonicalIndices);
     }
   }
 
@@ -2164,24 +2152,19 @@ mlir::LogicalResult RungeKuttaPass::computeSCCs(
                    return first < second;
                  });
 
-      for (const MultidimensionalRange &matchedEquationRange :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*equation->op.getOperation()));
+      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+          rewriter.clone(*equation->op.getOperation()));
 
-        if (isScalarEquation) {
-          clonedOp.getProperties().match.indices =
-              writeAccesses[0].getAccessFunction().map(IndexSet());
-        } else {
-          MultidimensionalRange explicitRange =
-              matchedEquationRange.takeFirstDimensions(numOfInductions);
+      if (isScalarEquation) {
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(IndexSet());
+      } else {
+        IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
 
-          clonedOp.getProperties().match.indices =
-              writeAccesses[0].getAccessFunction().map(IndexSet(explicitRange));
+        clonedOp.getProperties().setIndices(slicedIndices);
 
-          clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-              rewriter.getContext(), explicitRange));
-        }
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(slicedIndices);
       }
     }
   }

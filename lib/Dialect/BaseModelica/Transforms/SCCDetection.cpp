@@ -203,18 +203,12 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      for (const MultidimensionalRange &matchedEquationRange :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*equation->op.getOperation()));
+      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+          rewriter.clone(*equation->op.getOperation()));
 
-        if (!isScalarEquation) {
-          MultidimensionalRange explicitRange =
-              matchedEquationRange.takeFirstDimensions(numOfInductions);
-
-          clonedOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-        }
+      if (!isScalarEquation) {
+        IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
+        clonedOp.getProperties().setIndices(slicedIndices);
       }
     }
   }

@@ -40,7 +40,9 @@ using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 
   for (const CyclicEquation &cyclicEquation : cycle) {
     MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
-    os << "[writing " << cyclicEquation.writeAccess.getVariable() << "] ";
+    os << "[writing " << cyclicEquation.writeAccess.getVariable() << " "
+       << cyclicEquation.writtenVariableIndices << "] ";
+
     equationOp.printInline(llvm::dbgs());
     os << "\n";
   }
@@ -84,10 +86,11 @@ private:
 
   /// Detect the SCCs among a set of equations and create the SCC
   /// operations containing them.
-  void createSCCs(mlir::RewriterBase &rewriter,
-                  mlir::SymbolTableCollection &symbolTableCollection,
-                  ModelOp modelOp, SCCOp originalSCC,
-                  llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+  mlir::LogicalResult
+  createSCCs(mlir::RewriterBase &rewriter,
+             mlir::SymbolTableCollection &symbolTableCollection,
+             ModelOp modelOp, SCCOp originalSCC,
+             llvm::ArrayRef<MatchedEquationInstanceOp> equations);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -225,7 +228,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
 
     for (MatchedEquationInstanceOp equationOp : equations) {
       llvm::dbgs() << "[writing " << equationOp.getProperties().match.name
-                   << "] ";
+                   << " " << equationOp.getProperties().match.indices << "] ";
 
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
@@ -323,11 +326,11 @@ static mlir::LogicalResult solveCycle(
 
   LLVM_DEBUG({
     llvm::dbgs() << "Reading equation:\n";
-    readingEquationOp.printInline(llvm::dbgs());
+    llvm::dbgs() << "[reading " << readingEquation.readAccess.getVariable()
+                 << " " << readingEquation.readVariableIndices << "] ";
 
-    llvm::dbgs() << "\n"
-                 << "Read variable: "
-                 << readingEquation.readAccess.getVariable() << "\n";
+    readingEquationOp.printInline(llvm::dbgs());
+    llvm::dbgs() << "\n";
   });
 
   const AccessFunction &readAccessFunction =
@@ -336,6 +339,11 @@ static mlir::LogicalResult solveCycle(
   for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
     LLVM_DEBUG({
       llvm::dbgs() << "Writing equation:\n";
+
+      llvm::dbgs() << "[writing "
+                   << writingEquationOp.getProperties().match.name << " "
+                   << writingEquationOp.getProperties().match.indices << "] ";
+
       writingEquationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     });
@@ -407,6 +415,9 @@ static mlir::LogicalResult solveCycle(
     llvm::dbgs() << "New equations:\n";
 
     for (MatchedEquationInstanceOp equationOp : newEquations) {
+      llvm::dbgs() << "[writing " << equationOp.getProperties().match.name
+                   << " " << equationOp.getProperties().match.indices << "] ";
+
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     }
@@ -432,7 +443,7 @@ static mlir::LogicalResult solveCycle(
     for (const CyclicEquation &cyclicEquation : cycle) {
       MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
       llvm::dbgs() << "[writing " << cyclicEquation.writeAccess.getVariable()
-                   << "] ";
+                   << " " << cyclicEquation.writtenVariableIndices << "] ";
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
     }
@@ -521,25 +532,6 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   // The set of equations that have deemed to be non-explicitable.
   llvm::DenseSet<MatchedEquationInstanceOp> nonExplicitableEquations;
 
-  auto createSCCsOnSuccessFn = llvm::make_scope_exit([&]() {
-    // Erase the equations that have been discarded.
-    for (MatchedEquationInstanceOp equation : toBeErased) {
-      rewriter.eraseOp(equation);
-    }
-
-    // Collect the remaining equations.
-    llvm::SmallVector<MatchedEquationInstanceOp> resultEquations;
-
-    for (MatchedEquationInstanceOp equation :
-         scc.getOps<MatchedEquationInstanceOp>()) {
-      resultEquations.push_back(equation);
-    }
-
-    // Compute the new SCCs and erase the original one.
-    createSCCs(rewriter, symbolTableCollection, modelOp, scc, resultEquations);
-    rewriter.eraseOp(scc);
-  });
-
   // Compute the cyclic dependencies within the SCC.
   llvm::SmallVector<Cycle, 3> cycles;
 
@@ -624,22 +616,15 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
             return first < second;
           });
 
-          for (const MultidimensionalRange &range :
-               llvm::make_range(remainingIndices.rangesBegin(),
-                                remainingIndices.rangesEnd())) {
+          if (!remainingIndices.empty()) {
             auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
                 rewriter.clone(*firstEquation.getOperation()));
 
-            if (auto indices = firstEquation.getIndices()) {
-              MultidimensionalRange explicitRange =
-                  range.takeFirstDimensions(indices->getValue().rank());
-
-              clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-                  rewriter.getContext(), std::move(explicitRange)));
-            }
+            clonedOp.getProperties().setIndices(remainingIndices);
 
             clonedOp.getProperties().match.indices =
-                writeAccesses[0].getAccessFunction().map(IndexSet(range));
+                writeAccesses[0].getAccessFunction().map(
+                    clonedOp.getProperties().indices);
 
             currentEquations.push_back(clonedOp);
           }
@@ -676,11 +661,32 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     }
   }
 
-  if (!cycles.empty()) {
+  if (cycles.empty()) {
+    // Collect the remaining equations.
+    llvm::SmallVector<MatchedEquationInstanceOp> resultEquations;
+
+    for (MatchedEquationInstanceOp equation :
+         scc.getOps<MatchedEquationInstanceOp>()) {
+      if (!toBeErased.contains(equation)) {
+        resultEquations.push_back(equation);
+      }
+    }
+
+    // Compute the new SCCs and erase the original one.
+    if (mlir::failed(createSCCs(rewriter, symbolTableCollection, modelOp, scc,
+                                resultEquations))) {
+      return mlir::failure();
+    }
+
+    // Erase the equations that have been discarded.
+    for (MatchedEquationInstanceOp equation : toBeErased) {
+      rewriter.eraseOp(equation);
+    }
+
+    rewriter.eraseOp(scc);
+  } else {
     // Could not solve the cycle.
     // Cancel the modifications and keep the original SCC.
-    createSCCsOnSuccessFn.release();
-
     for (MatchedEquationInstanceOp equationOp : allNewEquations) {
       equationOp.erase();
     }
@@ -689,7 +695,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   return mlir::success();
 }
 
-void SCCSolvingBySubstitutionPass::createSCCs(
+mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     SCCOp originalSCC, llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
@@ -745,21 +751,52 @@ void SCCSolvingBySubstitutionPass::createSCCs(
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      for (const MultidimensionalRange &matchedEquationRange :
-           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-            rewriter.clone(*equation->op.getOperation()));
+      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+          rewriter.clone(*equation->op.getOperation()));
 
-        if (!isScalarEquation) {
-          MultidimensionalRange explicitRange =
-              matchedEquationRange.takeFirstDimensions(numOfInductions);
+      llvm::SmallVector<VariableAccess> accesses;
+      llvm::SmallVector<VariableAccess> writeAccesses;
 
-          clonedOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-        }
+      if (mlir::failed(
+              equation->op.getAccesses(accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      if (mlir::failed(equation->op.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      llvm::sort(writeAccesses,
+                 [](const VariableAccess &first, const VariableAccess &second) {
+                   if (first.getAccessFunction().isAffine() &&
+                       !second.getAccessFunction().isAffine()) {
+                     return true;
+                   }
+
+                   if (!first.getAccessFunction().isAffine() &&
+                       second.getAccessFunction().isAffine()) {
+                     return false;
+                   }
+
+                   return first < second;
+                 });
+
+      if (isScalarEquation) {
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(IndexSet());
+
+      } else {
+        IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
+        clonedOp.getProperties().setIndices(slicedIndices);
+
+        clonedOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(slicedIndices);
       }
     }
   }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult

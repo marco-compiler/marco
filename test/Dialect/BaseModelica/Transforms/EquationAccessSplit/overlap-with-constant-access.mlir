@@ -23,13 +23,10 @@ bmodelica.model @Test {
     // CHECK: %[[t0:.*]] = bmodelica.equation_template inductions = [%{{.*}}, %{{.*}}] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0, match = <@x, {[0,6][0,7]}> {indices = #modeling<multidim_range [0,6][0,7]>}
+        bmodelica.matched_equation_instance %t0, indices = {[0,6][0,7]}, match = <@x, {[0,6][0,7]}>
     }
 
     // CHECK:       bmodelica.dynamic
-    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], match = <@x, {[0,1][0,7]}> {indices = #modeling<multidim_range [0,1][0,7]>}
-    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], match = <@x, {[2,2][0,1]}> {indices = #modeling<multidim_range [2,2][0,1]>}
-    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], match = <@x, {[2,2][2,2]}> {indices = #modeling<multidim_range [2,2][2,2]>}
-    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], match = <@x, {[2,2][3,7]}> {indices = #modeling<multidim_range [2,2][3,7]>}
-    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], match = <@x, {[3,6][0,7]}> {indices = #modeling<multidim_range [3,6][0,7]>}
+    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], indices = {[0,1][0,7],[2,2][0,1],[2,2][3,7],[3,6][0,7]}, match = <@x, {[0,1][0,7],[2,2][0,1],[2,2][3,7],[3,6][0,7]}>
+    // CHECK-DAG:   bmodelica.matched_equation_instance %[[t0]], indices = {[2,2][2,2]}, match = <@x, {[2,2][2,2]}>
 }

@@ -635,18 +635,13 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
           writingEquationIndices =
               writingEquationIndices.getCanonicalRepresentation();
 
-          for (const MultidimensionalRange &range :
-               llvm::make_range(writingEquationIndices.rangesBegin(),
-                                writingEquationIndices.rangesEnd())) {
-            auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
-                rewriter.clone(*equationOp.getOperation()));
+          auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
+              rewriter.clone(*equationOp.getOperation()));
 
-            clonedEquationOp.getProperties().match.indices =
-                writeAccesses[0].getAccessFunction().map(IndexSet(range));
+          clonedEquationOp.getProperties().setIndices(writingEquationIndices);
 
-            clonedEquationOp.setIndicesAttr(
-                MultidimensionalRangeAttr::get(rewriter.getContext(), range));
-          }
+          clonedEquationOp.getProperties().match.indices =
+              writeAccesses[0].getAccessFunction().map(writingEquationIndices);
 
           rewriter.eraseOp(equationOp);
         } else {
