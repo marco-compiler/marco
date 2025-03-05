@@ -185,7 +185,8 @@ SCCSolvingBySubstitutionPass::getVariableAccessAnalysis(
 
 mlir::LogicalResult
 SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
-  mlir::IRRewriter rewriter(&getContext());
+  VariableAccessAnalysis::IRListener variableAccessListener(*this);
+  mlir::IRRewriter rewriter(&getContext(), &variableAccessListener);
 
   // Collect the equations.
   llvm::SmallVector<SCCOp> initialSCCs;

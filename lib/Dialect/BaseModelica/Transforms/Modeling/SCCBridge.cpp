@@ -61,18 +61,33 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
   mlir::SymbolTableCollection &symbolTableCollection =
       equation->getSymbolTableCollection();
 
-  const auto &accesses =
-      equation->getAccessAnalysis().getAccesses(symbolTableCollection);
+  llvm::ArrayRef<VariableAccess> accessesRef;
+  bool cached = false;
 
-  if (!accesses) {
-    llvm_unreachable("Can't obtain accesses");
-    return {};
+  if (equation->hasAccessAnalysis()) {
+    if (auto cachedAccesses =
+            equation->getAccessAnalysis().getAccesses(symbolTableCollection)) {
+      accessesRef = *cachedAccesses;
+      cached = true;
+    }
+  }
+
+  llvm::SmallVector<VariableAccess> accesses;
+
+  if (!cached) {
+    if (mlir::failed(
+            equation->getOp().getAccesses(accesses, symbolTableCollection))) {
+      llvm_unreachable("Can't compute the accesses");
+      return {};
+    }
+
+    accessesRef = accesses;
   }
 
   llvm::SmallVector<mlir::bmodelica::VariableAccess> readAccesses;
 
   if (mlir::failed(equation->getOp().getReadAccesses(
-          readAccesses, symbolTableCollection, *accesses))) {
+          readAccesses, symbolTableCollection, accessesRef))) {
     llvm_unreachable("Can't obtain read accesses");
     return {};
   }
@@ -113,7 +128,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
   llvm::SmallVector<VariableAccess> writeAccesses;
 
   if (mlir::failed(equation->getOp().getWriteAccesses(
-          writeAccesses, symbolTableCollection, *accesses))) {
+          writeAccesses, symbolTableCollection, accessesRef))) {
     llvm_unreachable("Can't determine the write accesses");
     return {};
   }
