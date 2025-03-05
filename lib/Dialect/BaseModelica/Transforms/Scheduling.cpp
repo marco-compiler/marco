@@ -369,7 +369,6 @@ mlir::LogicalResult SchedulingPass::schedule(
           scheduledEquation.getEquation()->op;
 
       size_t numOfInductions = matchedEquation.getInductionVariables().size();
-
       bool isScalarEquation = numOfInductions == 0;
 
       // Determine the iteration directions.
@@ -381,70 +380,62 @@ mlir::LogicalResult SchedulingPass::schedule(
             EquationScheduleDirectionAttr::get(&getContext(), direction));
       }
 
-      // Create an equation for each range of scheduled indices.
-      IndexSet scheduledIndices =
-          scheduledEquation.getIndexes().getCanonicalRepresentation();
-
-      for (const MultidimensionalRange &scheduledRange : llvm::make_range(
-               scheduledIndices.rangesBegin(), scheduledIndices.rangesEnd())) {
-        if (!hasCycle) {
-          // If the SCC doesn't have a cycle, then each equation has to be
-          // declared in a dedicated SCC operation.
-          builder.setInsertionPointToEnd(containerBody);
-          auto sccOp = builder.create<SCCOp>(scheduleOp.getLoc());
-          mlir::Block *sccBody = builder.createBlock(&sccOp.getBodyRegion());
-          builder.setInsertionPointToStart(sccBody);
-        }
-
-        // Create the operation for the scheduled equation.
-        auto scheduledEquationOp = builder.create<ScheduledEquationInstanceOp>(
-            matchedEquation.getLoc(), matchedEquation.getTemplate(),
-            builder.getArrayAttr(llvm::ArrayRef(iterationDirections)
-                                     .take_front(numOfInductions)));
-
-        llvm::SmallVector<VariableAccess> accesses;
-        llvm::SmallVector<VariableAccess> writeAccesses;
-
-        if (mlir::failed(
-                matchedEquation.getAccesses(accesses, symbolTableCollection))) {
-          return mlir::failure();
-        }
-
-        if (mlir::failed(matchedEquation.getWriteAccesses(
-                writeAccesses, symbolTableCollection, accesses))) {
-          return mlir::failure();
-        }
-
-        llvm::sort(writeAccesses, [](const VariableAccess &first,
-                                     const VariableAccess &second) {
-          if (first.getAccessFunction().isAffine() &&
-              !second.getAccessFunction().isAffine()) {
-            return true;
-          }
-
-          if (!first.getAccessFunction().isAffine() &&
-              second.getAccessFunction().isAffine()) {
-            return false;
-          }
-
-          return first < second;
-        });
-
-        if (!isScalarEquation) {
-          MultidimensionalRange explicitRange =
-              scheduledRange.takeFirstDimensions(numOfInductions);
-
-          scheduledEquationOp.setIndicesAttr(
-              MultidimensionalRangeAttr::get(&getContext(), explicitRange));
-        }
-
-        scheduledEquationOp.getProperties().match.name =
-            matchedEquation.getProperties().match.name;
-
-        scheduledEquationOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(
-                scheduledEquationOp.getIterationSpace());
+      if (!hasCycle) {
+        // If the SCC doesn't have a cycle, then each equation has to be
+        // declared in a dedicated SCC operation.
+        builder.setInsertionPointToEnd(containerBody);
+        auto sccOp = builder.create<SCCOp>(scheduleOp.getLoc());
+        mlir::Block *sccBody = builder.createBlock(&sccOp.getBodyRegion());
+        builder.setInsertionPointToStart(sccBody);
       }
+
+      // Create the operation for the scheduled equation.
+      auto scheduledEquationOp = builder.create<ScheduledEquationInstanceOp>(
+          matchedEquation.getLoc(), matchedEquation.getTemplate(),
+          builder.getArrayAttr(
+              llvm::ArrayRef(iterationDirections).take_front(numOfInductions)));
+
+      llvm::SmallVector<VariableAccess> accesses;
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(
+              matchedEquation.getAccesses(accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      if (mlir::failed(matchedEquation.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      llvm::sort(writeAccesses,
+                 [](const VariableAccess &first, const VariableAccess &second) {
+                   if (first.getAccessFunction().isAffine() &&
+                       !second.getAccessFunction().isAffine()) {
+                     return true;
+                   }
+
+                   if (!first.getAccessFunction().isAffine() &&
+                       second.getAccessFunction().isAffine()) {
+                     return false;
+                   }
+
+                   return first < second;
+                 });
+
+      if (!isScalarEquation) {
+        IndexSet slicedScheduledIndices =
+            scheduledEquation.getIndexes().takeFirstDimensions(numOfInductions);
+
+        scheduledEquationOp.getProperties().setIndices(slicedScheduledIndices);
+      }
+
+      scheduledEquationOp.getProperties().match.name =
+          matchedEquation.getProperties().match.name;
+
+      scheduledEquationOp.getProperties().match.indices =
+          writeAccesses[0].getAccessFunction().map(
+              scheduledEquationOp.getProperties().indices);
     }
   }
 

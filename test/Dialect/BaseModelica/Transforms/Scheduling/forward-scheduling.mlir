@@ -6,10 +6,10 @@
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t1]], match = <@x, {[0,0]}> {iteration_directions = []}
+// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t1]], indices = {}, match = <@x, {[0,0]}> {iteration_directions = []}
 // CHECK-NEXT:          }
 // CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t0]], match = <@x, {[1,9]}> {indices = #modeling<multidim_range [1,9]>, iteration_directions = [#bmodelica<equation_schedule_direction forward>]}
+// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t0]], indices = {[1,9]}, match = <@x, {[1,9]}> {iteration_directions = [#bmodelica<equation_schedule_direction forward>]}
 // CHECK-NEXT:          }
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }

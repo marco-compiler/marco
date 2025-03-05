@@ -63,6 +63,13 @@ private:
              mlir::SymbolTableCollection &symbolTableCollection,
              mlir::ModuleOp moduleOp, ModelOp modelOp, SCCOp scc);
 
+  mlir::LogicalResult
+  createEquationBlocks(mlir::RewriterBase &rewriter,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       mlir::ModuleOp moduleOp, ModelOp modelOp, SCCOp sccOp,
+                       ScheduledEquationInstanceOp equation,
+                       std::optional<MultidimensionalRange> indices);
+
   EquationFunctionOp
   createEquationFunction(mlir::RewriterBase &rewriter,
                          mlir::SymbolTableCollection &symbolTableCollection,
@@ -77,6 +84,7 @@ private:
                          mlir::SymbolTableCollection &symbolTableCollection,
                          mlir::ModuleOp moduleOp, ModelOp modelOp,
                          ScheduledEquationInstanceOp equation,
+                         std::optional<MultidimensionalRange> indices,
                          llvm::SmallVectorImpl<uint64_t> &lowerBounds,
                          llvm::SmallVectorImpl<uint64_t> &upperBounds,
                          llvm::SmallVectorImpl<uint64_t> &steps);
@@ -318,60 +326,23 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
         equation.cloneAndExplicitate(rewriter, symbolTableCollection);
 
     if (explicitEquation) {
-      llvm::SmallVector<uint64_t, 10> lowerBounds;
-      llvm::SmallVector<uint64_t, 10> upperBounds;
-      llvm::SmallVector<uint64_t, 10> steps;
+      const IndexSet &indices = explicitEquation.getProperties().indices;
 
-      EquationFunctionOp eqFunc = createEquationFunction(
-          rewriter, symbolTableCollection, moduleOp, modelOp, explicitEquation,
-          lowerBounds, upperBounds, steps);
-
-      if (!eqFunc) {
-        return mlir::failure();
-      }
-
-      rewriter.setInsertionPoint(scc);
-
-      auto scheduleBlockOp =
-          rewriter.create<ScheduleBlockOp>(modelOp.getLoc(), true);
-
-      if (mlir::failed(
-              getAccessAttrs(scheduleBlockOp.getProperties().writtenVariables,
-                             scheduleBlockOp.getProperties().readVariables,
-                             symbolTableCollection, equation))) {
-        return mlir::failure();
-      }
-
-      rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
-      rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
-
-      llvm::SmallVector<Range> ranges;
-
-      for (size_t i = 0, e = equation.getInductionVariables().size(); i < e;
-           ++i) {
-        ranges.push_back(Range(static_cast<Point::data_type>(lowerBounds[i]),
-                               static_cast<Point::data_type>(upperBounds[i])));
-
-        assert(steps[i] == 1);
-      }
-
-      auto iterationDirections = equation.getIterationDirections();
-      bool independentIndices = !iterationDirections.empty();
-
-      if (independentIndices) {
-        independentIndices &= llvm::all_of(
-            equation.getIterationDirections(), [](mlir::Attribute attr) {
-              return attr.cast<EquationScheduleDirectionAttr>().getValue() ==
-                     EquationScheduleDirection::Any;
-            });
-      }
-
-      auto callOp = rewriter.create<EquationCallOp>(
-          eqFunc.getLoc(), eqFunc.getSymName(), nullptr, independentIndices);
-
-      if (!ranges.empty()) {
-        callOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-            rewriter.getContext(), MultidimensionalRange(ranges)));
+      if (indices.empty()) {
+        if (mlir::failed(createEquationBlocks(
+                rewriter, symbolTableCollection, moduleOp, modelOp, scc,
+                explicitEquation, std::nullopt))) {
+          return mlir::failure();
+        }
+      } else {
+        for (const MultidimensionalRange &range :
+             llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+          if (mlir::failed(createEquationBlocks(rewriter, symbolTableCollection,
+                                                moduleOp, modelOp, scc,
+                                                explicitEquation, range))) {
+            return mlir::failure();
+          }
+        }
       }
 
       rewriter.eraseOp(explicitEquation);
@@ -382,6 +353,70 @@ mlir::LogicalResult EquationExplicitationPass::processSCC(
 
   if (isSCCErasable) {
     rewriter.eraseOp(scc);
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult EquationExplicitationPass::createEquationBlocks(
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, SCCOp sccOp, ScheduledEquationInstanceOp equationOp,
+    std::optional<MultidimensionalRange> indices) {
+  llvm::SmallVector<uint64_t, 10> lowerBounds;
+  llvm::SmallVector<uint64_t, 10> upperBounds;
+  llvm::SmallVector<uint64_t, 10> steps;
+
+  EquationFunctionOp eqFunc = createEquationFunction(
+      rewriter, symbolTableCollection, moduleOp, modelOp, equationOp, indices,
+      lowerBounds, upperBounds, steps);
+
+  if (!eqFunc) {
+    return mlir::failure();
+  }
+
+  rewriter.setInsertionPoint(sccOp);
+
+  auto scheduleBlockOp =
+      rewriter.create<ScheduleBlockOp>(modelOp.getLoc(), true);
+
+  if (mlir::failed(
+          getAccessAttrs(scheduleBlockOp.getProperties().writtenVariables,
+                         scheduleBlockOp.getProperties().readVariables,
+                         symbolTableCollection, equationOp))) {
+    return mlir::failure();
+  }
+
+  rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
+  rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
+
+  llvm::SmallVector<Range> ranges;
+
+  for (size_t i = 0, e = equationOp.getInductionVariables().size(); i < e;
+       ++i) {
+    ranges.push_back(Range(static_cast<Point::data_type>(lowerBounds[i]),
+                           static_cast<Point::data_type>(upperBounds[i])));
+
+    assert(steps[i] == 1);
+  }
+
+  auto iterationDirections = equationOp.getIterationDirections();
+  bool independentIndices = !iterationDirections.empty();
+
+  if (independentIndices) {
+    independentIndices &= llvm::all_of(
+        equationOp.getIterationDirections(), [](mlir::Attribute attr) {
+          return attr.cast<EquationScheduleDirectionAttr>().getValue() ==
+                 EquationScheduleDirection::Any;
+        });
+  }
+
+  auto callOp = rewriter.create<EquationCallOp>(
+      eqFunc.getLoc(), eqFunc.getSymName(), nullptr, independentIndices);
+
+  if (!ranges.empty()) {
+    callOp.setIndicesAttr(MultidimensionalRangeAttr::get(
+        rewriter.getContext(), MultidimensionalRange(ranges)));
   }
 
   return mlir::success();
@@ -467,6 +502,7 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp, ScheduledEquationInstanceOp equation,
+    std::optional<MultidimensionalRange> indices,
     llvm::SmallVectorImpl<uint64_t> &lowerBounds,
     llvm::SmallVectorImpl<uint64_t> &upperBounds,
     llvm::SmallVectorImpl<uint64_t> &steps) {
@@ -483,8 +519,8 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
 
   llvm::SmallVector<mlir::Value> shiftedInductions;
 
-  if (auto indicesAttr = equation.getIndices()) {
-    size_t rank = indicesAttr->getValue().rank();
+  if (indices) {
+    size_t rank = indices->rank();
     auto iterationDirections = equation.getIterationDirections();
 
     for (size_t i = 0; i < rank; ++i) {
@@ -498,15 +534,13 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
 
       if (iterationDirection == EquationScheduleDirection::Any ||
           iterationDirection == EquationScheduleDirection::Forward) {
-        auto upperBound = indicesAttr->getValue()[i].getEnd() -
-                          indicesAttr->getValue()[i].getBegin();
+        auto upperBound = (*indices)[i].getEnd() - (*indices)[i].getBegin();
 
         upperBounds.push_back(upperBound);
       } else {
         assert(iterationDirection == EquationScheduleDirection::Backward);
 
-        auto upperBound = indicesAttr->getValue()[i].getBegin() -
-                          indicesAttr->getValue()[i].getEnd();
+        auto upperBound = (*indices)[i].getBegin() - (*indices)[i].getEnd();
 
         upperBounds.push_back(upperBound);
       }
@@ -526,8 +560,8 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
       rewriter.setInsertionPointToStart(forOp.getBody());
     }
 
-    shiftInductions(shiftedInductions, rewriter, iterationDirections,
-                    indicesAttr->getValue(), inductions);
+    shiftInductions(shiftedInductions, rewriter, iterationDirections, *indices,
+                    inductions);
   }
 
   if (mlir::failed(cloneEquationTemplateIntoFunction(

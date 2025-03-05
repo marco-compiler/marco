@@ -9959,14 +9959,6 @@ mlir::RegionKind SCCOp::getRegionKind(unsigned index) {
 // ScheduledEquationInstanceOp
 
 namespace mlir::bmodelica {
-void ScheduledEquationInstanceOp::build(mlir::OpBuilder &builder,
-                                        mlir::OperationState &state,
-                                        EquationTemplateOp equationTemplate,
-                                        mlir::ArrayAttr iterationDirections) {
-  build(builder, state, equationTemplate.getResult(), nullptr,
-        iterationDirections);
-}
-
 mlir::LogicalResult ScheduledEquationInstanceOp::verify() {
   auto indicesRankFn =
       [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
@@ -9980,7 +9972,7 @@ mlir::LogicalResult ScheduledEquationInstanceOp::verify() {
   // Check the indices for the explicit inductions.
   size_t numOfInductions = getInductionVariables().size();
 
-  if (size_t indicesRank = indicesRankFn(getIndices());
+  if (size_t indicesRank = getProperties().indices.rank();
       numOfInductions != indicesRank) {
     return emitOpError() << "Unexpected rank of iteration indices (expected "
                          << numOfInductions << ", got " << indicesRank << ")";
@@ -10023,11 +10015,7 @@ std::optional<VariableAccess> ScheduledEquationInstanceOp::getAccessAtPath(
 }
 
 IndexSet ScheduledEquationInstanceOp::getIterationSpace() {
-  if (auto indices = getIndices()) {
-    return IndexSet(indices->getValue());
-  }
-
-  return {};
+  return getProperties().indices;
 }
 
 mlir::LogicalResult ScheduledEquationInstanceOp::getWriteAccesses(
@@ -10065,14 +10053,9 @@ mlir::LogicalResult ScheduledEquationInstanceOp::getReadAccesses(
 mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  IndexSet indices;
-
-  if (auto indicesAttr = getIndices()) {
-    indices += indicesAttr->getValue();
-  }
-
   if (mlir::failed(getTemplate().explicitate(rewriter, symbolTableCollection,
-                                             indices, getProperties().match))) {
+                                             getProperties().indices,
+                                             getProperties().match))) {
     return mlir::failure();
   }
 
@@ -10082,14 +10065,9 @@ mlir::LogicalResult ScheduledEquationInstanceOp::explicitate(
 ScheduledEquationInstanceOp ScheduledEquationInstanceOp::cloneAndExplicitate(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  IndexSet indices;
-
-  if (auto indicesAttr = getIndices()) {
-    indices += indicesAttr->getValue();
-  }
-
   EquationTemplateOp clonedTemplate = getTemplate().cloneAndExplicitate(
-      rewriter, symbolTableCollection, indices, getProperties().match);
+      rewriter, symbolTableCollection, getProperties().indices,
+      getProperties().match);
 
   if (!clonedTemplate) {
     return nullptr;
@@ -10165,39 +10143,27 @@ mlir::LogicalResult ScheduledEquationInstanceOp::cloneWithReplacedAccess(
              });
 
   for (auto &[assignedIndices, equationTemplateOp] : templateResults) {
-    if (assignedIndices.empty()) {
-      auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
-          rewriter.clone(*temporaryClonedOp.getOperation()));
+    auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
+        rewriter.clone(*temporaryClonedOp.getOperation()));
 
-      clonedOp.setOperand(equationTemplateOp.getResult());
-      clonedOp.getProperties().match.indices =
-          writeAccesses[0].getAccessFunction().map(assignedIndices);
-      clonedOp.removeIndicesAttr();
-      results.push_back(clonedOp);
+    clonedOp.setOperand(equationTemplateOp.getResult());
+    IndexSet slicedAssignedIndices = assignedIndices;
+    IndexSet indices = getIterationSpace();
+
+    if (indices.empty()) {
+      slicedAssignedIndices = {};
     } else {
-      for (const MultidimensionalRange &assignedIndicesRange : llvm::make_range(
-               assignedIndices.rangesBegin(), assignedIndices.rangesEnd())) {
-        auto clonedOp = mlir::cast<ScheduledEquationInstanceOp>(
-            rewriter.clone(*temporaryClonedOp.getOperation()));
-
-        clonedOp.setOperand(equationTemplateOp.getResult());
-
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(
-                IndexSet(assignedIndicesRange));
-
-        if (auto explicitIndices = getIndices()) {
-          MultidimensionalRange explicitRange =
-              assignedIndicesRange.takeFirstDimensions(
-                  explicitIndices->getValue().rank());
-
-          clonedOp.setIndicesAttr(MultidimensionalRangeAttr::get(
-              rewriter.getContext(), std::move(explicitRange)));
-        }
-
-        results.push_back(clonedOp);
-      }
+      slicedAssignedIndices =
+          slicedAssignedIndices.takeFirstDimensions(indices.rank());
     }
+
+    clonedOp.getProperties().setIndices(slicedAssignedIndices);
+
+    clonedOp.getProperties().match.indices =
+        writeAccesses[0].getAccessFunction().map(
+            clonedOp.getProperties().indices);
+
+    results.push_back(clonedOp);
   }
 
   rewriter.eraseOp(temporaryClonedOp);

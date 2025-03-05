@@ -4338,7 +4338,7 @@ def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equati
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
+        IndexSetProperty:$indices,
         VariableProperty:$match,
         TypedArrayAttrBase<
             EquationScheduleDirectionAttr,
@@ -4347,15 +4347,10 @@ def BaseModelica_ScheduledEquationInstanceOp : BaseModelica_Op<"scheduled_equati
     let results = (outs);
 
     let assemblyFormat = [{
-        $base `,` custom<MatchProperty>($match) attr-dict
+        $base `,` `indices` `=` custom<IndexSet>($indices) `,` custom<MatchProperty>($match) attr-dict
     }];
 
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate,
-                       "mlir::ArrayAttr":$iterationDirections)>
-    ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.
