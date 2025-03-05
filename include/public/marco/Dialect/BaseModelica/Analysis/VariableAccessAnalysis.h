@@ -33,17 +33,9 @@ public:
   /// Invalidate the analysis.
   void invalidate();
 
-  /// Get the accesses of an equation.
-  /// Returns std::nullopt if the accesses can't be computed.
+  /// Get the accesses.
   std::optional<llvm::ArrayRef<VariableAccess>>
-  getAccesses(EquationInstanceOp instanceOp,
-              mlir::SymbolTableCollection &symbolTable);
-
-  /// Get the accesses of a 'start' assignment.
-  /// Returns std::nullopt if the accesses can't be computed.
-  std::optional<llvm::ArrayRef<VariableAccess>>
-  getAccesses(StartEquationInstanceOp instanceOp,
-              mlir::SymbolTableCollection &symbolTable);
+  getAccesses(mlir::SymbolTableCollection &symbolTable);
 
 private:
   mlir::LogicalResult

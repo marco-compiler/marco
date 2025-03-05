@@ -202,8 +202,8 @@ struct EquationTraits<::EquationBridge *> {
   getAccesses(const Equation *equation) {
     std::vector<Access<VariableType, AccessProperty>> accesses;
 
-    auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-        (*equation)->op, *(*equation)->symbolTable);
+    auto cachedAccesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
     if (cachedAccesses) {
       for (auto &access : *cachedAccesses) {
@@ -227,8 +227,8 @@ struct EquationTraits<::EquationBridge *> {
   getWrite(const Equation *equation) {
     IndexSet equationIndices = getIterationRanges(equation);
 
-    auto accesses = (*equation)->accessAnalysis->getAccesses(
-        (*equation)->op, *(*equation)->symbolTable);
+    auto accesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
     llvm::SmallVector<VariableAccess> writeAccesses;
 
@@ -251,8 +251,8 @@ struct EquationTraits<::EquationBridge *> {
   getReads(const Equation *equation) {
     IndexSet equationIndices = getIterationRanges(equation);
 
-    auto accesses = (*equation)->accessAnalysis->getAccesses(
-        (*equation)->op, *(*equation)->symbolTable);
+    auto accesses =
+        (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
     llvm::SmallVector<VariableAccess> readAccesses;
 
@@ -425,8 +425,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
       EquationBridge *equation =
           scc.getGraph()[equationDescriptor].getProperty();
 
-      auto accesses = equation->accessAnalysis->getAccesses(
-          equation->op, *equation->symbolTable);
+      auto accesses =
+          equation->accessAnalysis->getAccesses(*equation->symbolTable);
 
       if (!accesses) {
         llvm_unreachable("Can't compute read accesses");

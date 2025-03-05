@@ -603,8 +603,7 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
 
   llvm::SmallVector<VariableAccess> readAccesses;
 
-  auto accesses =
-      accessAnalysis->get().getAccesses(equationOp, symbolTableCollection);
+  auto accesses = accessAnalysis->get().getAccesses(symbolTableCollection);
 
   if (!accesses) {
     return mlir::failure();

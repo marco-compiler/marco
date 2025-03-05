@@ -48,8 +48,8 @@ std::vector<Access<EquationTraits<EquationBridge *>::VariableType,
 EquationTraits<EquationBridge *>::getAccesses(const Equation *equation) {
   std::vector<Access<VariableType, AccessProperty>> accesses;
 
-  auto cachedAccesses = (*equation)->accessAnalysis->getAccesses(
-      (*equation)->op, *(*equation)->symbolTable);
+  auto cachedAccesses =
+      (*equation)->accessAnalysis->getAccesses(*(*equation)->symbolTable);
 
   if (cachedAccesses) {
     for (auto &access : *cachedAccesses) {

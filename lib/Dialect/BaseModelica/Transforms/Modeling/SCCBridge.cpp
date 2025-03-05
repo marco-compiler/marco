@@ -60,8 +60,8 @@ std::vector<SCCTraits<SCCBridge *>::ElementRef>
 SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
   mlir::SymbolTableCollection &symbolTableCollection = *equation->symbolTable;
 
-  const auto &accesses = equation->accessAnalysis->getAccesses(
-      equation->op, symbolTableCollection);
+  const auto &accesses =
+      equation->accessAnalysis->getAccesses(symbolTableCollection);
 
   if (!accesses) {
     llvm_unreachable("Can't obtain accesses");

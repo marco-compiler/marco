@@ -470,8 +470,7 @@ mlir::LogicalResult SchedulingPass::addStartEquations(
       return mlir::failure();
     }
 
-    auto accesses =
-        accessAnalysis->get().getAccesses(equation, symbolTableCollection);
+    auto accesses = accessAnalysis->get().getAccesses(symbolTableCollection);
 
     if (!accesses) {
       return mlir::failure();

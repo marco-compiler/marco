@@ -23,26 +23,13 @@ mlir::LogicalResult VariableAccessAnalysis::initialize(
   return mlir::success();
 }
 
-void VariableAccessAnalysis::invalidate() { valid = false; }
-
-std::optional<llvm::ArrayRef<VariableAccess>>
-VariableAccessAnalysis::getAccesses(
-    EquationInstanceOp instanceOp,
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  assert(initialized && "Variable access analysis not initialized");
-
-  if (!valid) {
-    if (mlir::failed(loadAccesses(symbolTableCollection))) {
-      return std::nullopt;
-    }
-  }
-
-  return accesses;
+void VariableAccessAnalysis::invalidate() {
+  valid = false;
+  accesses.clear();
 }
 
 std::optional<llvm::ArrayRef<VariableAccess>>
 VariableAccessAnalysis::getAccesses(
-    StartEquationInstanceOp instanceOp,
     mlir::SymbolTableCollection &symbolTableCollection) {
   assert(initialized && "Variable access analysis not initialized");
 
@@ -65,15 +52,9 @@ mlir::LogicalResult VariableAccessAnalysis::loadAccesses(
   assert(equationSidesOp.getLhsValues().size() ==
          equationSidesOp.getRhsValues().size());
 
-  size_t numOfSideElements = equationSidesOp.getLhsValues().size();
-
-  for (size_t i = 0; i < numOfSideElements; ++i) {
-    accesses.clear();
-
-    if (mlir::failed(
-            equationTemplate.getAccesses(accesses, symbolTableCollection))) {
-      return mlir::failure();
-    }
+  if (mlir::failed(
+          equationTemplate.getAccesses(accesses, symbolTableCollection))) {
+    return mlir::failure();
   }
 
   valid = true;
