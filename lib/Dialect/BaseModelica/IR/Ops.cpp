@@ -9482,10 +9482,41 @@ void DynamicOp::collectAlgorithms(
 // StartEquationInstanceOp
 
 namespace mlir::bmodelica {
-void StartEquationInstanceOp::build(mlir::OpBuilder &builder,
-                                    mlir::OperationState &state,
-                                    EquationTemplateOp equationTemplate) {
-  build(builder, state, equationTemplate.getResult(), nullptr);
+mlir::ParseResult StartEquationInstanceOp::parse(mlir::OpAsmParser &parser,
+                                                 mlir::OperationState &result) {
+  mlir::OpAsmParser::UnresolvedOperand templateOperand;
+
+  if (parser.parseOperand(templateOperand) ||
+      parser.resolveOperand(templateOperand,
+                            EquationType::get(parser.getContext()),
+                            result.operands)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    if (parser.parseOptionalKeyword("indices") || parser.parseEqual() ||
+        ::mlir::modeling::parseIndexSet(
+            parser, result.getOrAddProperties<Properties>().indices)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+void StartEquationInstanceOp::print(mlir::OpAsmPrinter &printer) {
+  printer << " " << getTemplate().getResult();
+
+  if (const IndexSet &indices = getProperties().indices; !indices.empty()) {
+    printer << ", indices = ";
+    ::mlir::modeling::print(printer, indices);
+  }
+
+  printer.printOptionalAttrDict(getOperation()->getAttrs());
 }
 
 mlir::LogicalResult StartEquationInstanceOp::verify() {
@@ -9501,7 +9532,7 @@ mlir::LogicalResult StartEquationInstanceOp::verify() {
   // Check the indices for the explicit inductions.
   size_t numOfExplicitInductions = getInductionVariables().size();
 
-  if (size_t explicitIndicesRank = indicesRank(getIndices());
+  if (size_t explicitIndicesRank = getProperties().indices.rank();
       numOfExplicitInductions != explicitIndicesRank) {
     return emitOpError() << "Unexpected rank of iteration indices (expected "
                          << numOfExplicitInductions << ", got "
@@ -9526,11 +9557,7 @@ mlir::ValueRange StartEquationInstanceOp::getInductionVariables() {
 }
 
 IndexSet StartEquationInstanceOp::getIterationSpace() {
-  if (auto indices = getIndices()) {
-    return {indices->getValue()};
-  }
-
-  return {};
+  return getProperties().indices;
 }
 
 std::optional<VariableAccess> StartEquationInstanceOp::getWriteAccess(
@@ -9564,12 +9591,8 @@ mlir::LogicalResult StartEquationInstanceOp::getReadAccesses(
     return mlir::failure();
   }
 
-  IndexSet writtenIndices;
-
-  if (auto equationIndices = getIndices()) {
-    const auto &accessFunction = writeAccess->getAccessFunction();
-    writtenIndices = accessFunction.map(IndexSet(equationIndices->getValue()));
-  }
+  const auto &accessFunction = writeAccess->getAccessFunction();
+  IndexSet writtenIndices = accessFunction.map(getProperties().indices);
 
   Variable writtenVariable(writeAccess->getVariable(),
                            std::move(writtenIndices));

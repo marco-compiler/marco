@@ -124,16 +124,10 @@ addStartEquationsToSchedule(mlir::RewriterBase &rewriter,
 
     rewriter.setInsertionPointToStart(initialOp.getBody());
 
-    if (variableIndices.empty()) {
-      rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
-    } else {
-      for (const MultidimensionalRange &range : llvm::make_range(
-               variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
-        rewriter.create<StartEquationInstanceOp>(
-            startOp.getLoc(), templateOp,
-            MultidimensionalRangeAttr::get(rewriter.getContext(), range));
-      }
-    }
+    auto instanceOp =
+        rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
+
+    instanceOp.getProperties().setIndices(variableIndices);
   }
 
   return mlir::success();

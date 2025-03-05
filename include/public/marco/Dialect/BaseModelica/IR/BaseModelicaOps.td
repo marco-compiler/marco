@@ -4106,19 +4106,12 @@ def BaseModelica_StartEquationInstanceOp : BaseModelica_Op<"start_equation_insta
 {
     let arguments = (ins
         EquationType:$base,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices);
+        IndexSetProperty:$indices);
 
     let results = (outs);
 
-    let assemblyFormat = [{
-        $base attr-dict
-    }];
-
+    let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "EquationTemplateOp":$equationTemplate)>
-    ];
 
     let extraClassDeclaration = [{
         /// Get the equation template.

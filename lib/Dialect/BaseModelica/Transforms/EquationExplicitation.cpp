@@ -210,7 +210,7 @@ public:
     auto instanceOp =
         rewriter.create<EquationInstanceOp>(op.getLoc(), op.getTemplate());
 
-    instanceOp.getProperties().indices = op.getIterationSpace();
+    instanceOp.getProperties().indices = op.getProperties().indices;
 
     std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
         *symbolTableCollection, EquationPath(EquationPath::LEFT, 0));
