@@ -6,10 +6,9 @@ using namespace ::mlir::bmodelica::bridge;
 namespace mlir::bmodelica::bridge {
 SCCBridge::SCCBridge(
     SCCOp op, mlir::SymbolTableCollection &symbolTable,
-    WritesMap<VariableOp, MatchedEquationInstanceOp> &matchedEqsWritesMap,
+    WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
     WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
-    llvm::DenseMap<MatchedEquationInstanceOp, MatchedEquationBridge *>
-        &equationsMap)
+    llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> &equationsMap)
     : op(op), symbolTable(&symbolTable),
       matchedEqsWritesMap(&matchedEqsWritesMap),
       startEqsWritesMap(&startEqsWritesMap), equationsMap(&equationsMap) {}
@@ -47,8 +46,8 @@ SCCTraits<SCCBridge *>::getElements(const SCC *scc) {
   const auto &equationsMap = (*scc)->equationsMap;
   std::vector<ElementRef> result;
 
-  for (mlir::bmodelica::MatchedEquationInstanceOp equation :
-       sccOp.getOps<mlir::bmodelica::MatchedEquationInstanceOp>()) {
+  for (mlir::bmodelica::EquationInstanceOp equation :
+       sccOp.getOps<mlir::bmodelica::EquationInstanceOp>()) {
     ElementRef equationPtr = equationsMap->lookup(equation);
     assert(equationPtr && "Equation bridge not found");
     result.push_back(equationPtr);
@@ -95,7 +94,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
     IndexSet readVariableIndices =
         readAccess.getAccessFunction().map(equationIndices);
 
-    llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+    llvm::SmallVector<EquationInstanceOp> writingEquations;
 
     if (mlir::failed(getWritingEquations(writingEquations, matchedEqsWritesMap,
                                          variableOp, readVariableIndices))) {
@@ -166,7 +165,7 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
       IndexSet readVariableIndices =
           startEqRead.getAccessFunction().map(startEquationIndices);
 
-      llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+      llvm::SmallVector<EquationInstanceOp> writingEquations;
 
       if (mlir::failed(getWritingEquations(writingEquations,
                                            matchedEqsWritesMap, readVariableOp,

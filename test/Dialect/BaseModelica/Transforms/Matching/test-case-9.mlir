@@ -154,17 +154,17 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         bmodelica.equation_instance %t0, indices = {[0,4]}
-        bmodelica.equation_instance %t1, indices = {}
-        bmodelica.equation_instance %t2, indices = {}
-        bmodelica.equation_instance %t3, indices = {}
-        bmodelica.equation_instance %t4, indices = {}
-        bmodelica.equation_instance %t5, indices = {}
+        bmodelica.equation_instance %t1
+        bmodelica.equation_instance %t2
+        bmodelica.equation_instance %t3
+        bmodelica.equation_instance %t4
+        bmodelica.equation_instance %t5
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t1]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t2]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t3]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t4]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t5]]
     }
 }

@@ -28,8 +28,8 @@ bmodelica.model @UniqueInstance {
 
     // CHECK:     bmodelica.dynamic
     // CHECK-NOT: indices
-    // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {}
-    // CHECK-DAG: bmodelica.equation_instance %[[t1]], indices = {}
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]]
+    // CHECK-DAG: bmodelica.equation_instance %[[t1]]
 }
 
 // -----
@@ -63,6 +63,6 @@ bmodelica.model @SeparateInstances {
 
     // CHECK:     bmodelica.dynamic
     // CHECK-NOT: indices
-    // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {}
-    // CHECK-DAG: bmodelica.equation_instance %[[t1]], indices = {}
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]]
+    // CHECK-DAG: bmodelica.equation_instance %[[t1]]
 }

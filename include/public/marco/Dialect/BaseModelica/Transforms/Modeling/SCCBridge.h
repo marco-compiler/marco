@@ -16,11 +16,10 @@ class SCCBridge {
 public:
   SCCOp op;
   mlir::SymbolTableCollection *symbolTable;
-  WritesMap<VariableOp, MatchedEquationInstanceOp> *matchedEqsWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> *matchedEqsWritesMap;
   WritesMap<VariableOp, StartEquationInstanceOp> *startEqsWritesMap;
 
-  llvm::DenseMap<MatchedEquationInstanceOp, MatchedEquationBridge *>
-      *equationsMap;
+  llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> *equationsMap;
 
 public:
   template <typename... Args>
@@ -28,12 +27,11 @@ public:
     return std::make_unique<SCCBridge>(std::forward<Args>(args)...);
   }
 
-  SCCBridge(
-      SCCOp op, mlir::SymbolTableCollection &symbolTable,
-      WritesMap<VariableOp, MatchedEquationInstanceOp> &matchedEqsWritesMap,
-      WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
-      llvm::DenseMap<MatchedEquationInstanceOp, MatchedEquationBridge *>
-          &equationsMap);
+  SCCBridge(SCCOp op, mlir::SymbolTableCollection &symbolTable,
+            WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
+            WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
+            llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *>
+                &equationsMap);
 
   // Forbid copies to avoid dangling pointers by design.
   SCCBridge(const SCCBridge &other) = delete;

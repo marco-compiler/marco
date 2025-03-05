@@ -656,13 +656,7 @@ operator<<(llvm::raw_ostream &os,
 
 llvm::raw_ostream &
 operator<<(llvm::raw_ostream &os,
-           const WritesMap<VariableOp, MatchedEquationInstanceOp> &obj) {
-  return ::printWritesMap(os, obj);
-}
-
-llvm::raw_ostream &
-operator<<(llvm::raw_ostream &os,
-           const WritesMap<VariableOp, ScheduledEquationInstanceOp> &obj) {
+           const WritesMap<VariableOp, EquationInstanceOp> &obj) {
   return ::printWritesMap(os, obj);
 }
 } // namespace mlir::bmodelica
@@ -743,28 +737,18 @@ getWritesMap(WritesMap<VariableOp, StartEquationInstanceOp> &writesMap,
 }
 
 mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, MatchedEquationInstanceOp> &writesMap,
-             ModelOp modelOp,
-             llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+getWritesMap(WritesMap<VariableOp, EquationInstanceOp> &writesMap,
+             ModelOp modelOp, llvm::ArrayRef<EquationInstanceOp> equations,
              mlir::SymbolTableCollection &symbolTableCollection) {
-  return ::getWritesMap<MatchedEquationInstanceOp>(
-      writesMap, modelOp, equations, symbolTableCollection);
+  return ::getWritesMap<EquationInstanceOp>(writesMap, modelOp, equations,
+                                            symbolTableCollection);
 }
 
 mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, ScheduledEquationInstanceOp> &writesMap,
-             ModelOp modelOp,
-             llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
-             mlir::SymbolTableCollection &symbolTableCollection) {
-  return ::getWritesMap<ScheduledEquationInstanceOp>(
-      writesMap, modelOp, equations, symbolTableCollection);
-}
-
-mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, MatchedEquationInstanceOp> &writesMap,
+getWritesMap(WritesMap<VariableOp, EquationInstanceOp> &writesMap,
              ModelOp modelOp, llvm::ArrayRef<SCCOp> SCCs,
              mlir::SymbolTableCollection &symbolTableCollection) {
-  llvm::SmallVector<MatchedEquationInstanceOp> equations;
+  llvm::SmallVector<EquationInstanceOp> equations;
 
   for (SCCOp scc : SCCs) {
     scc.collectEquations(equations);
@@ -774,52 +758,19 @@ getWritesMap(WritesMap<VariableOp, MatchedEquationInstanceOp> &writesMap,
 }
 
 template <>
-mlir::LogicalResult getWritesMap<MatchedEquationInstanceOp>(
+mlir::LogicalResult getWritesMap<EquationInstanceOp>(
     WritesMap<VariableOp, SCCOp> &writesMap, ModelOp modelOp,
     llvm::ArrayRef<SCCOp> SCCs,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  llvm::SmallVector<MatchedEquationInstanceOp> equations;
+  llvm::SmallVector<EquationInstanceOp> equations;
 
   for (SCCOp scc : SCCs) {
-    for (MatchedEquationInstanceOp equation :
-         scc.getOps<MatchedEquationInstanceOp>()) {
+    for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
       equations.push_back(equation);
     }
   }
 
-  WritesMap<VariableOp, MatchedEquationInstanceOp> equationsWritesMap;
-
-  if (mlir::failed(getWritesMap(equationsWritesMap, modelOp, equations,
-                                symbolTableCollection))) {
-    return mlir::failure();
-  }
-
-  for (const auto &entry : equationsWritesMap) {
-    auto parentSCC = entry.second.second->getParentOfType<SCCOp>();
-    assert(parentSCC != nullptr);
-
-    writesMap.emplace(entry.first,
-                      std::make_pair(entry.second.first, parentSCC));
-  }
-
-  return mlir::success();
-}
-
-template <>
-mlir::LogicalResult getWritesMap<ScheduledEquationInstanceOp>(
-    WritesMap<VariableOp, SCCOp> &writesMap, ModelOp modelOp,
-    llvm::ArrayRef<SCCOp> SCCs,
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  llvm::SmallVector<ScheduledEquationInstanceOp> equations;
-
-  for (SCCOp scc : SCCs) {
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
-      equations.push_back(equation);
-    }
-  }
-
-  WritesMap<VariableOp, ScheduledEquationInstanceOp> equationsWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> equationsWritesMap;
 
   if (mlir::failed(getWritesMap(equationsWritesMap, modelOp, equations,
                                 symbolTableCollection))) {

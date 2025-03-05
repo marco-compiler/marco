@@ -38,9 +38,9 @@ bmodelica.model @Test {
 
     bmodelica.dynamic {
         bmodelica.equation_instance %t0, indices = {[0,1]}
-        bmodelica.equation_instance %t1, indices = {}
+        bmodelica.equation_instance %t1
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], indices = {[0,1]}, match = <@x, {[0,1]}>
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], indices = {}, match = <@x, {[2,2]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[0,1]}, match = <@x, {[0,1]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t1]], match = <@x, {[2,2]}>
     }
 }

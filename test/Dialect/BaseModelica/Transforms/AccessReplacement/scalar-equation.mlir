@@ -31,9 +31,9 @@ bmodelica.model @Test {
     }
 
     bmodelica.dynamic {
-        // CHECK: bmodelica.equation_instance %[[t0]], indices = {} {id = "eq0"}
-        bmodelica.equation_instance %t0, indices = {} {id = "eq0", replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>}
+        // CHECK: bmodelica.equation_instance %[[t0]] {id = "eq0"}
+        bmodelica.equation_instance %t0 {id = "eq0", replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>}
 
-        bmodelica.equation_instance %t1, indices = {} {id = "eq1"}
+        bmodelica.equation_instance %t1 {id = "eq1"}
     }
 }

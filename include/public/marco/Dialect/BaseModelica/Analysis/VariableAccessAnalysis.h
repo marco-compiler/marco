@@ -39,18 +39,6 @@ public:
   getAccesses(EquationInstanceOp instanceOp,
               mlir::SymbolTableCollection &symbolTable);
 
-  /// Get the accesses of a matched equation.
-  /// Returns std::nullopt if the accesses can't be computed.
-  std::optional<llvm::ArrayRef<VariableAccess>>
-  getAccesses(MatchedEquationInstanceOp instanceOp,
-              mlir::SymbolTableCollection &symbolTable);
-
-  /// Get the accesses of a scheduled equation.
-  /// Returns std::nullopt if the accesses can't be computed.
-  std::optional<llvm::ArrayRef<VariableAccess>>
-  getAccesses(ScheduledEquationInstanceOp instanceOp,
-              mlir::SymbolTableCollection &symbolTable);
-
   /// Get the accesses of a 'start' assignment.
   /// Returns std::nullopt if the accesses can't be computed.
   std::optional<llvm::ArrayRef<VariableAccess>>

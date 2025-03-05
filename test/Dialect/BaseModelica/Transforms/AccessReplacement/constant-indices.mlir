@@ -40,7 +40,7 @@ bmodelica.model @Test {
         // CHECK: bmodelica.equation_instance %[[t0]], indices = {[2,2][3,3]} {id = "eq0"}
         bmodelica.equation_instance %t0, indices = {[2,2][3,3]} {id = "eq0", replace_indices = #modeling<multidim_range [2,2][3,3]>, replace_destination_path = #bmodelica<equation_path [R, 0]>, replace_eq = "eq1", replace_source_path = #bmodelica<equation_path [L, 0]>}
 
-        bmodelica.equation_instance %t1, indices = {} {id = "eq1"}
+        bmodelica.equation_instance %t1 {id = "eq1"}
     }
 }
 

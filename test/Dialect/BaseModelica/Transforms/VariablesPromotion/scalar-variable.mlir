@@ -30,17 +30,17 @@ bmodelica.model @promotableSCC {
     // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0, indices = {}, match = @x
-        bmodelica.matched_equation_instance %t1, indices = {}, match = @y
+        bmodelica.equation_instance %t0, match = @x
+        bmodelica.equation_instance %t1, match = @y
     }
 
     // CHECK-NOT: bmodelica.dynamic
 
     // CHECK:     bmodelica.initial
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]]
+    // CHECK-DAG: bmodelica.equation_instance %[[t1]]
 
-    // CHECK-NOT: bmodelica.matched_equation_instance
+    // CHECK-NOT: bmodelica.equation_instance
 }
 
 // -----
@@ -64,13 +64,13 @@ bmodelica.model @timeDependency {
     // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t0"}
 
     bmodelica.dynamic {
-        bmodelica.matched_equation_instance %t0, indices = {}, match = @x {path = #bmodelica<equation_path [L, 0]>}
+        bmodelica.equation_instance %t0, match = @x {path = #bmodelica<equation_path [L, 0]>}
     }
 
     // CHECK-NOT: bmodelica.initial
 
     // CHECK: bmodelica.dynamic
-    // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]]
 
-    // CHECK-NOT: bmodelica.matched_equation_instance
+    // CHECK-NOT: bmodelica.equation_instance
 }

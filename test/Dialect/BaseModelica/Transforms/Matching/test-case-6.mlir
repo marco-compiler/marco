@@ -44,7 +44,7 @@ bmodelica.model @Test {
         bmodelica.equation_instance %t0, indices = {[0,2]}
         bmodelica.equation_instance %t1, indices = {[0,5]}
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]]
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]]
+        // CHECK-DAG: bmodelica.equation_instance %[[t1]]
     }
 }

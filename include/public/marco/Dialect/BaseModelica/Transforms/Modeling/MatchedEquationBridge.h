@@ -14,7 +14,7 @@ namespace mlir::bmodelica::bridge {
 class MatchedEquationBridge {
 public:
   int64_t id;
-  MatchedEquationInstanceOp op;
+  EquationInstanceOp op;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> *variablesMap;
@@ -26,7 +26,7 @@ public:
   }
 
   MatchedEquationBridge(
-      int64_t id, MatchedEquationInstanceOp op,
+      int64_t id, EquationInstanceOp op,
       mlir::SymbolTableCollection &symbolTable,
       VariableAccessAnalysis &accessAnalysis,
       llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap);

@@ -51,16 +51,15 @@ getMatchedAccessIndex(llvm::ArrayRef<VariableAccess> accesses,
 } // namespace
 
 namespace {
-class EquationOpPattern
-    : public mlir::OpRewritePattern<MatchedEquationInstanceOp> {
+class EquationOpPattern : public mlir::OpRewritePattern<EquationInstanceOp> {
 public:
   EquationOpPattern(mlir::MLIRContext *context,
                     mlir::SymbolTableCollection &symbolTableCollection)
-      : mlir::OpRewritePattern<MatchedEquationInstanceOp>(context),
+      : mlir::OpRewritePattern<EquationInstanceOp>(context),
         symbolTableCollection(&symbolTableCollection) {}
 
   mlir::LogicalResult
-  matchAndRewrite(MatchedEquationInstanceOp op,
+  matchAndRewrite(EquationInstanceOp op,
                   mlir::PatternRewriter &rewriter) const override {
     const IndexSet &equationIndices = op.getProperties().indices;
 
@@ -156,8 +155,8 @@ public:
     }
 
     for (const IndexSet &partition : partitions) {
-      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
-          rewriter.clone(*op.getOperation()));
+      auto clonedOp =
+          mlir::cast<EquationInstanceOp>(rewriter.clone(*op.getOperation()));
 
       clonedOp.getProperties().setIndices(partition);
 

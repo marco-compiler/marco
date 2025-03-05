@@ -5,8 +5,7 @@ using namespace ::mlir::bmodelica::bridge;
 
 namespace mlir::bmodelica::bridge {
 MatchedEquationBridge::MatchedEquationBridge(
-    int64_t id, MatchedEquationInstanceOp op,
-    mlir::SymbolTableCollection &symbolTable,
+    int64_t id, EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
     VariableAccessAnalysis &accessAnalysis,
     llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
     : id(id), op(op), symbolTable(&symbolTable),
@@ -73,7 +72,7 @@ EquationTraits<MatchedEquationBridge *>::getAccesses(const Equation *equation) {
 Access<EquationTraits<MatchedEquationBridge *>::VariableType,
        EquationTraits<MatchedEquationBridge *>::AccessProperty>
 EquationTraits<MatchedEquationBridge *>::getWrite(const Equation *equation) {
-  MatchedEquationInstanceOp equationOp = (*equation)->op;
+  EquationInstanceOp equationOp = (*equation)->op;
   auto &symbolTableCollection = *(*equation)->symbolTable;
 
   llvm::SmallVector<VariableAccess> accesses;

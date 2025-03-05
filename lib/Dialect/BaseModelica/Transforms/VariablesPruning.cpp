@@ -40,12 +40,12 @@ private:
                        mlir::SymbolTableCollection &symbolTableCollection,
                        ModelOp modelOp,
                        const llvm::DenseSet<VariableOp> &outputVariables,
-                       llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+                       llvm::ArrayRef<EquationInstanceOp> equations);
 
   mlir::LogicalResult
   removeIfUnused(mlir::RewriterBase &rewriter,
                  mlir::SymbolTableCollection &symbolTableCollection,
-                 ModelOp modelOp, MatchedEquationInstanceOp equationOp,
+                 ModelOp modelOp, EquationInstanceOp equationOp,
                  const llvm::DenseSet<VariableOp> &usedVariables);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
@@ -141,9 +141,9 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   }
 
   // Collect the equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> dynamicEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> allEquations;
+  llvm::SmallVector<EquationInstanceOp> initialEquations;
+  llvm::SmallVector<EquationInstanceOp> dynamicEquations;
+  llvm::SmallVector<EquationInstanceOp> allEquations;
 
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(dynamicEquations);
@@ -161,14 +161,14 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
   }
 
   // Remove the unneeded equations.
-  for (MatchedEquationInstanceOp equationOp : initialEquations) {
+  for (EquationInstanceOp equationOp : initialEquations) {
     if (mlir::failed(removeIfUnused(rewriter, symbolTableCollection, modelOp,
                                     equationOp, usedVariables))) {
       return mlir::failure();
     }
   }
 
-  for (MatchedEquationInstanceOp equationOp : dynamicEquations) {
+  for (EquationInstanceOp equationOp : dynamicEquations) {
     if (mlir::failed(removeIfUnused(rewriter, symbolTableCollection, modelOp,
                                     equationOp, usedVariables))) {
       return mlir::failure();
@@ -245,7 +245,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     llvm::DenseSet<VariableOp> &usedVariables,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     const llvm::DenseSet<VariableOp> &outputVariables,
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+    llvm::ArrayRef<EquationInstanceOp> equations) {
   // Create the dependency graph.
   auto baseGraph = std::make_shared<DependencyGraphBase>();
   DependencyGraph graph(&getContext(), baseGraph);
@@ -267,7 +267,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
@@ -363,7 +363,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
 mlir::LogicalResult VariablesPruningPass::removeIfUnused(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    MatchedEquationInstanceOp equationOp,
+    EquationInstanceOp equationOp,
     const llvm::DenseSet<VariableOp> &usedVariables) {
   auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
       modelOp, equationOp.getProperties().match.name);

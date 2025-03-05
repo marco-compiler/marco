@@ -23,7 +23,7 @@ bmodelica.model @scalarVariable {
     // CHECK-NOT: bmodelica.equation_template
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
+        bmodelica.equation_instance %t0
     }
 
     // CHECK:       bmodelica.dynamic
@@ -80,8 +80,8 @@ bmodelica.model @arrayVariable {
     // CHECK-NOT: bmodelica.equation_template
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
-        bmodelica.equation_instance %t1, indices = {}
+        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t1
     }
 
     // CHECK:       bmodelica.dynamic
@@ -123,7 +123,7 @@ bmodelica.model @partialArrayVariable {
     // CHECK-NEXT:  }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
+        bmodelica.equation_instance %t0
     }
     
     // CHECK:       bmodelica.dynamic

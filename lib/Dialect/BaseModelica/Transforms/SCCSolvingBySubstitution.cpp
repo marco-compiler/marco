@@ -19,7 +19,7 @@ using namespace ::mlir::bmodelica::bridge;
 
 namespace {
 struct CyclicEquation {
-  MatchedEquationInstanceOp equation;
+  EquationInstanceOp equation;
   IndexSet equationIndices;
   VariableAccess writeAccess;
   IndexSet writtenVariableIndices;
@@ -39,7 +39,7 @@ using Cycle = llvm::SmallVector<CyclicEquation, 3>;
   os << cycle.back().readAccess.getVariable() << "\n";
 
   for (const CyclicEquation &cyclicEquation : cycle) {
-    MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+    EquationInstanceOp equationOp = cyclicEquation.equation;
     os << "[writing " << cyclicEquation.writeAccess.getVariable() << " "
        << cyclicEquation.writtenVariableIndices << "] ";
 
@@ -72,7 +72,7 @@ private:
   mlir::LogicalResult
   getCycles(llvm::SmallVectorImpl<Cycle> &result,
             mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-            llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+            llvm::ArrayRef<EquationInstanceOp> equations);
 
   mlir::LogicalResult
   solveCycles(mlir::RewriterBase &rewriter,
@@ -90,7 +90,7 @@ private:
   createSCCs(mlir::RewriterBase &rewriter,
              mlir::SymbolTableCollection &symbolTableCollection,
              ModelOp modelOp, SCCOp originalSCC,
-             llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+             llvm::ArrayRef<EquationInstanceOp> equations);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -222,11 +222,11 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
 mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     llvm::SmallVectorImpl<Cycle> &result,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+    llvm::ArrayRef<EquationInstanceOp> equations) {
   LLVM_DEBUG({
     llvm::dbgs() << "Searching cycles among the following equations:\n";
 
-    for (MatchedEquationInstanceOp equationOp : equations) {
+    for (EquationInstanceOp equationOp : equations) {
       llvm::dbgs() << "[writing " << equationOp.getProperties().match.name
                    << " " << equationOp.getProperties().match.indices << "] ";
 
@@ -248,7 +248,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
@@ -290,26 +290,26 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
   return mlir::success();
 }
 
-static mlir::LogicalResult solveCycle(
-    mlir::RewriterBase &rewriter,
-    mlir::SymbolTableCollection &symbolTableCollection, const Cycle &cycle,
-    size_t index,
-    llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    llvm::DenseSet<MatchedEquationInstanceOp> &nonExplicitableEquations) {
+static mlir::LogicalResult
+solveCycle(mlir::RewriterBase &rewriter,
+           mlir::SymbolTableCollection &symbolTableCollection,
+           const Cycle &cycle, size_t index,
+           llvm::SmallVectorImpl<EquationInstanceOp> &newEquations,
+           llvm::DenseSet<EquationInstanceOp> &nonExplicitableEquations) {
   if (index + 1 == cycle.size()) {
-    MatchedEquationInstanceOp equationOp = cycle[index].equation;
+    EquationInstanceOp equationOp = cycle[index].equation;
     rewriter.setInsertionPoint(equationOp);
 
-    newEquations.push_back(mlir::cast<MatchedEquationInstanceOp>(
+    newEquations.push_back(mlir::cast<EquationInstanceOp>(
         rewriter.clone(*equationOp.getOperation())));
 
     return mlir::success();
   }
 
-  llvm::SmallVector<MatchedEquationInstanceOp> writingEquations;
+  llvm::SmallVector<EquationInstanceOp> writingEquations;
 
   auto removeWritingEquations = llvm::make_scope_exit([&]() {
-    for (MatchedEquationInstanceOp writingEquation : writingEquations) {
+    for (EquationInstanceOp writingEquation : writingEquations) {
       rewriter.eraseOp(writingEquation);
     }
   });
@@ -320,7 +320,7 @@ static mlir::LogicalResult solveCycle(
   }
 
   const CyclicEquation &readingEquation = cycle[index];
-  MatchedEquationInstanceOp readingEquationOp = readingEquation.equation;
+  EquationInstanceOp readingEquationOp = readingEquation.equation;
 
   LLVM_DEBUG(llvm::dbgs() << "Cycle index: " << index << "\n");
 
@@ -336,7 +336,7 @@ static mlir::LogicalResult solveCycle(
   const AccessFunction &readAccessFunction =
       readingEquation.readAccess.getAccessFunction();
 
-  for (MatchedEquationInstanceOp writingEquationOp : writingEquations) {
+  for (EquationInstanceOp writingEquationOp : writingEquations) {
     LLVM_DEBUG({
       llvm::dbgs() << "Writing equation:\n";
 
@@ -348,7 +348,7 @@ static mlir::LogicalResult solveCycle(
       llvm::dbgs() << "\n";
     });
 
-    MatchedEquationInstanceOp explicitWritingEquationOp =
+    EquationInstanceOp explicitWritingEquationOp =
         writingEquationOp.cloneAndExplicitate(rewriter, symbolTableCollection);
 
     if (!explicitWritingEquationOp) {
@@ -414,7 +414,7 @@ static mlir::LogicalResult solveCycle(
   LLVM_DEBUG({
     llvm::dbgs() << "New equations:\n";
 
-    for (MatchedEquationInstanceOp equationOp : newEquations) {
+    for (EquationInstanceOp equationOp : newEquations) {
       llvm::dbgs() << "[writing " << equationOp.getProperties().match.name
                    << " " << equationOp.getProperties().match.indices << "] ";
 
@@ -426,11 +426,12 @@ static mlir::LogicalResult solveCycle(
   return mlir::success();
 }
 
-static mlir::LogicalResult solveCycle(
-    mlir::RewriterBase &rewriter,
-    mlir::SymbolTableCollection &symbolTableCollection, const Cycle &cycle,
-    llvm::SmallVectorImpl<MatchedEquationInstanceOp> &newEquations,
-    llvm::DenseSet<MatchedEquationInstanceOp> &nonExplicitableEquations) {
+static mlir::LogicalResult
+solveCycle(mlir::RewriterBase &rewriter,
+           mlir::SymbolTableCollection &symbolTableCollection,
+           const Cycle &cycle,
+           llvm::SmallVectorImpl<EquationInstanceOp> &newEquations,
+           llvm::DenseSet<EquationInstanceOp> &nonExplicitableEquations) {
   LLVM_DEBUG({
     llvm::dbgs() << "Solving cycle composed by the following equations:\n";
 
@@ -441,7 +442,7 @@ static mlir::LogicalResult solveCycle(
     llvm::dbgs() << cycle.back().readAccess.getVariable() << "\n";
 
     for (const CyclicEquation &cyclicEquation : cycle) {
-      MatchedEquationInstanceOp equationOp = cyclicEquation.equation;
+      EquationInstanceOp equationOp = cyclicEquation.equation;
       llvm::dbgs() << "[writing " << cyclicEquation.writeAccess.getVariable()
                    << " " << cyclicEquation.writtenVariableIndices << "] ";
       equationOp.printInline(llvm::dbgs());
@@ -456,7 +457,7 @@ static mlir::LogicalResult solveCycle(
 static bool isContainedInBiggerCycle(llvm::ArrayRef<Cycle> cycles,
                                      size_t cycleIndex) {
   const Cycle &cycle = cycles[cycleIndex];
-  llvm::DenseSet<MatchedEquationInstanceOp> involvedEquations;
+  llvm::DenseSet<EquationInstanceOp> involvedEquations;
 
   for (size_t i = 1, e = cycle.size(); i < e; ++i) {
     involvedEquations.insert(cycle[i].equation);
@@ -472,16 +473,15 @@ static bool isContainedInBiggerCycle(llvm::ArrayRef<Cycle> cycles,
       break;
     }
 
-    llvm::DenseSet<MatchedEquationInstanceOp> otherInvolvedEquations;
+    llvm::DenseSet<EquationInstanceOp> otherInvolvedEquations;
 
     for (size_t i = 1, e = otherCycle.size(); i < e; ++i) {
       otherInvolvedEquations.insert(otherCycle[i].equation);
     }
 
-    if (llvm::all_of(involvedEquations,
-                     [&](MatchedEquationInstanceOp equation) {
-                       return otherInvolvedEquations.contains(equation);
-                     })) {
+    if (llvm::all_of(involvedEquations, [&](EquationInstanceOp equation) {
+          return otherInvolvedEquations.contains(equation);
+        })) {
       if (involvedEquations != otherInvolvedEquations) {
         return true;
       }
@@ -510,7 +510,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     SCCOp scc) {
   // The equations that initially compose the SCC.
-  llvm::SmallVector<MatchedEquationInstanceOp> originalEquations;
+  llvm::SmallVector<EquationInstanceOp> originalEquations;
   scc.collectEquations(originalEquations);
 
   if (static_cast<int64_t>(originalEquations.size()) > maxEquationsInSCC) {
@@ -520,17 +520,17 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
   // The equations to be considered during an iteration.
   // Initially, they are the equations within the SCC.
-  llvm::SmallVector<MatchedEquationInstanceOp> currentEquations(
+  llvm::SmallVector<EquationInstanceOp> currentEquations(
       originalEquations.begin(), originalEquations.end());
 
   // The equations to be erased after having solved the SCC.
-  llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
+  llvm::DenseSet<EquationInstanceOp> toBeErased;
 
   // The newly inserted equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> allNewEquations;
+  llvm::SmallVector<EquationInstanceOp> allNewEquations;
 
   // The set of equations that have deemed to be non-explicitable.
-  llvm::DenseSet<MatchedEquationInstanceOp> nonExplicitableEquations;
+  llvm::DenseSet<EquationInstanceOp> nonExplicitableEquations;
 
   // Compute the cyclic dependencies within the SCC.
   llvm::SmallVector<Cycle, 3> cycles;
@@ -570,18 +570,18 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
         }
       }
 
-      llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
+      llvm::SmallVector<EquationInstanceOp> newEquations;
 
       if (mlir::succeeded(::solveCycle(rewriter, symbolTableCollection,
                                        cycle.value(), newEquations,
                                        nonExplicitableEquations))) {
-        MatchedEquationInstanceOp firstEquation = cycle.value()[0].equation;
+        EquationInstanceOp firstEquation = cycle.value()[0].equation;
         IndexSet originalIterationSpace = firstEquation.getIterationSpace();
 
         if (!originalIterationSpace.empty()) {
           IndexSet remainingIndices = originalIterationSpace;
 
-          for (MatchedEquationInstanceOp newEquation : newEquations) {
+          for (EquationInstanceOp newEquation : newEquations) {
             remainingIndices -= newEquation.getIterationSpace();
           }
 
@@ -617,7 +617,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
           });
 
           if (!remainingIndices.empty()) {
-            auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+            auto clonedOp = mlir::cast<EquationInstanceOp>(
                 rewriter.clone(*firstEquation.getOperation()));
 
             clonedOp.getProperties().setIndices(remainingIndices);
@@ -632,7 +632,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
         toBeErased.insert(firstEquation);
 
-        for (MatchedEquationInstanceOp newEquation : newEquations) {
+        for (EquationInstanceOp newEquation : newEquations) {
           allNewEquations.push_back(newEquation);
         }
 
@@ -643,13 +643,13 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     // Search for the remaining cycles.
     cycles.clear();
 
-    for (MatchedEquationInstanceOp equationOp : originalEquations) {
+    for (EquationInstanceOp equationOp : originalEquations) {
       if (!toBeErased.contains(equationOp)) {
         currentEquations.push_back(equationOp);
       }
     }
 
-    for (MatchedEquationInstanceOp equationOp : allNewEquations) {
+    for (EquationInstanceOp equationOp : allNewEquations) {
       if (!toBeErased.contains(equationOp)) {
         currentEquations.push_back(equationOp);
       }
@@ -663,10 +663,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
   if (cycles.empty()) {
     // Collect the remaining equations.
-    llvm::SmallVector<MatchedEquationInstanceOp> resultEquations;
+    llvm::SmallVector<EquationInstanceOp> resultEquations;
 
-    for (MatchedEquationInstanceOp equation :
-         scc.getOps<MatchedEquationInstanceOp>()) {
+    for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
       if (!toBeErased.contains(equation)) {
         resultEquations.push_back(equation);
       }
@@ -679,7 +678,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     }
 
     // Erase the equations that have been discarded.
-    for (MatchedEquationInstanceOp equation : toBeErased) {
+    for (EquationInstanceOp equation : toBeErased) {
       rewriter.eraseOp(equation);
     }
 
@@ -687,7 +686,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   } else {
     // Could not solve the cycle.
     // Cancel the modifications and keep the original SCC.
-    for (MatchedEquationInstanceOp equationOp : allNewEquations) {
+    for (EquationInstanceOp equationOp : allNewEquations) {
       equationOp.erase();
     }
   }
@@ -698,7 +697,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    SCCOp originalSCC, llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+    SCCOp originalSCC, llvm::ArrayRef<EquationInstanceOp> equations) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
@@ -714,7 +713,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
@@ -751,7 +750,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+      auto clonedOp = mlir::cast<EquationInstanceOp>(
           rewriter.clone(*equation->op.getOperation()));
 
       llvm::SmallVector<VariableAccess> accesses;

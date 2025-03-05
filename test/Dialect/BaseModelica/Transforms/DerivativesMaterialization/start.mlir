@@ -18,7 +18,7 @@ bmodelica.model @scalarVariable {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
+        bmodelica.equation_instance %t0
     }
 }
 
@@ -57,8 +57,8 @@ bmodelica.model @arrayVariable1d {
     }
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
-        bmodelica.equation_instance %t1, indices = {}
+        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t1
     }
 }
 

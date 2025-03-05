@@ -93,11 +93,7 @@ operator<<(llvm::raw_ostream &os,
 
 llvm::raw_ostream &
 operator<<(llvm::raw_ostream &os,
-           const WritesMap<VariableOp, MatchedEquationInstanceOp> &obj);
-
-llvm::raw_ostream &
-operator<<(llvm::raw_ostream &os,
-           const WritesMap<VariableOp, ScheduledEquationInstanceOp> &obj);
+           const WritesMap<VariableOp, EquationInstanceOp> &obj);
 
 mlir::LogicalResult
 getWritesMap(WritesMap<VariableOp, StartEquationInstanceOp> &writesMap,
@@ -105,19 +101,12 @@ getWritesMap(WritesMap<VariableOp, StartEquationInstanceOp> &writesMap,
              mlir::SymbolTableCollection &symbolTableCollection);
 
 mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, MatchedEquationInstanceOp> &writesMap,
-             ModelOp modelOp,
-             llvm::ArrayRef<MatchedEquationInstanceOp> equations,
+getWritesMap(WritesMap<VariableOp, EquationInstanceOp> &writesMap,
+             ModelOp modelOp, llvm::ArrayRef<EquationInstanceOp> equations,
              mlir::SymbolTableCollection &symbolTableCollection);
 
 mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, ScheduledEquationInstanceOp> &writesMap,
-             ModelOp modelOp,
-             llvm::ArrayRef<ScheduledEquationInstanceOp> equations,
-             mlir::SymbolTableCollection &symbolTableCollection);
-
-mlir::LogicalResult
-getWritesMap(WritesMap<VariableOp, MatchedEquationInstanceOp> &writesMap,
+getWritesMap(WritesMap<VariableOp, EquationInstanceOp> &writesMap,
              ModelOp modelOp, llvm::ArrayRef<SCCOp> SCCs,
              mlir::SymbolTableCollection &symbolTableCollection);
 
@@ -128,13 +117,7 @@ getWritesMap(WritesMap<VariableOp, SCCOp> &writesMap, ModelOp modelOp,
              mlir::SymbolTableCollection &symbolTableCollection);
 
 template <>
-mlir::LogicalResult getWritesMap<MatchedEquationInstanceOp>(
-    WritesMap<VariableOp, SCCOp> &writesMap, ModelOp modelOp,
-    llvm::ArrayRef<SCCOp> SCCs,
-    mlir::SymbolTableCollection &symbolTableCollection);
-
-template <>
-mlir::LogicalResult getWritesMap<ScheduledEquationInstanceOp>(
+mlir::LogicalResult getWritesMap<EquationInstanceOp>(
     WritesMap<VariableOp, SCCOp> &writesMap, ModelOp modelOp,
     llvm::ArrayRef<SCCOp> SCCs,
     mlir::SymbolTableCollection &symbolTableCollection);

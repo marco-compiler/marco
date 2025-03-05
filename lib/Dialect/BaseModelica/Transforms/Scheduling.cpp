@@ -33,7 +33,7 @@ private:
                             mlir::SymbolTableCollection &symbolTableCollection);
 
   std::optional<std::reference_wrapper<VariableAccessAnalysis>>
-  getVariableAccessAnalysis(MatchedEquationInstanceOp equation,
+  getVariableAccessAnalysis(EquationInstanceOp equation,
                             mlir::SymbolTableCollection &symbolTableCollection);
 
   mlir::LogicalResult processModelOp(ModelOp modelOp);
@@ -129,7 +129,7 @@ SchedulingPass::getVariableAccessAnalysis(
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>
 SchedulingPass::getVariableAccessAnalysis(
-    MatchedEquationInstanceOp equation,
+    EquationInstanceOp equation,
     mlir::SymbolTableCollection &symbolTableCollection) {
   return getVariableAccessAnalysis(equation.getTemplate(),
                                    symbolTableCollection);
@@ -265,7 +265,7 @@ mlir::LogicalResult SchedulingPass::schedule(
                           << scheduleOp.getSymName() << "\"\n");
 
   // Compute the writes maps.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> matchedEquationsWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> matchedEquationsWritesMap;
   WritesMap<VariableOp, StartEquationInstanceOp> startEquationsWritesMap;
 
   if (mlir::failed(getWritesMap(matchedEquationsWritesMap, modelOp, SCCs,
@@ -296,8 +296,7 @@ mlir::LogicalResult SchedulingPass::schedule(
   llvm::SmallVector<std::unique_ptr<SCCBridge>> sccBridges;
   llvm::SmallVector<SCCBridge *> sccBridgePtrs;
 
-  llvm::DenseMap<MatchedEquationInstanceOp, MatchedEquationBridge *>
-      equationsMap;
+  llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> equationsMap;
 
   // Collect the variables.
   for (VariableOp variable : modelOp.getOps<VariableOp>()) {
@@ -310,7 +309,7 @@ mlir::LogicalResult SchedulingPass::schedule(
 
   // Collect the SCCs and the equations.
   for (SCCOp scc : SCCs) {
-    llvm::SmallVector<MatchedEquationInstanceOp> equations;
+    llvm::SmallVector<EquationInstanceOp> equations;
     scc.collectEquations(equations);
 
     if (equations.empty()) {
@@ -323,7 +322,7 @@ mlir::LogicalResult SchedulingPass::schedule(
 
     sccBridgePtrs.push_back(sccBridge.get());
 
-    for (MatchedEquationInstanceOp equation : equations) {
+    for (EquationInstanceOp equation : equations) {
       auto variableAccessAnalysis =
           getVariableAccessAnalysis(equation, symbolTableCollection);
 
@@ -365,20 +364,10 @@ mlir::LogicalResult SchedulingPass::schedule(
     }
 
     for (const auto &scheduledEquation : scc) {
-      MatchedEquationInstanceOp matchedEquation =
-          scheduledEquation.getEquation()->op;
+      EquationInstanceOp matchedEquation = scheduledEquation.getEquation()->op;
 
       size_t numOfInductions = matchedEquation.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
-
-      // Determine the iteration directions.
-      llvm::SmallVector<mlir::Attribute, 3> iterationDirections;
-
-      for (marco::modeling::scheduling::Direction direction :
-           scheduledEquation.getIterationDirections()) {
-        iterationDirections.push_back(
-            EquationScheduleDirectionAttr::get(&getContext(), direction));
-      }
 
       if (!hasCycle) {
         // If the SCC doesn't have a cycle, then each equation has to be
@@ -390,52 +379,33 @@ mlir::LogicalResult SchedulingPass::schedule(
       }
 
       // Create the operation for the scheduled equation.
-      auto scheduledEquationOp = builder.create<ScheduledEquationInstanceOp>(
-          matchedEquation.getLoc(), matchedEquation.getTemplate(),
-          builder.getArrayAttr(
-              llvm::ArrayRef(iterationDirections).take_front(numOfInductions)));
+      auto scheduledEquationOp = builder.create<EquationInstanceOp>(
+          matchedEquation.getLoc(), matchedEquation.getTemplate());
 
-      llvm::SmallVector<VariableAccess> accesses;
-      llvm::SmallVector<VariableAccess> writeAccesses;
+      scheduledEquationOp.getProperties().setIndices(
+          matchedEquation.getProperties().indices);
 
-      if (mlir::failed(
-              matchedEquation.getAccesses(accesses, symbolTableCollection))) {
-        return mlir::failure();
-      }
-
-      if (mlir::failed(matchedEquation.getWriteAccesses(
-              writeAccesses, symbolTableCollection, accesses))) {
-        return mlir::failure();
-      }
-
-      llvm::sort(writeAccesses,
-                 [](const VariableAccess &first, const VariableAccess &second) {
-                   if (first.getAccessFunction().isAffine() &&
-                       !second.getAccessFunction().isAffine()) {
-                     return true;
-                   }
-
-                   if (!first.getAccessFunction().isAffine() &&
-                       second.getAccessFunction().isAffine()) {
-                     return false;
-                   }
-
-                   return first < second;
-                 });
+      scheduledEquationOp.getProperties().setMatch(
+          matchedEquation.getProperties().match);
 
       if (!isScalarEquation) {
         IndexSet slicedScheduledIndices =
             scheduledEquation.getIndexes().takeFirstDimensions(numOfInductions);
 
-        scheduledEquationOp.getProperties().setIndices(slicedScheduledIndices);
+        if (mlir::failed(scheduledEquationOp.setIndices(
+                slicedScheduledIndices, symbolTableCollection))) {
+          return mlir::failure();
+        }
       }
 
-      scheduledEquationOp.getProperties().match.name =
-          matchedEquation.getProperties().match.name;
+      if (!isScalarEquation) {
+        auto scheduleList =
+            scheduledEquation.getIterationDirections().take_front(
+                numOfInductions);
 
-      scheduledEquationOp.getProperties().match.indices =
-          writeAccesses[0].getAccessFunction().map(
-              scheduledEquationOp.getProperties().indices);
+        scheduledEquationOp.getProperties().schedule.assign(
+            scheduleList.begin(), scheduleList.end());
+      }
     }
   }
 
@@ -467,8 +437,8 @@ mlir::LogicalResult SchedulingPass::addStartEquations(
 
   WritesMap<VariableOp, SCCOp> writesMap;
 
-  if (mlir::failed(getWritesMap<ScheduledEquationInstanceOp>(
-          writesMap, modelOp, SCCs, symbolTableCollection))) {
+  if (mlir::failed(getWritesMap<EquationInstanceOp>(writesMap, modelOp, SCCs,
+                                                    symbolTableCollection))) {
     return mlir::failure();
   }
 

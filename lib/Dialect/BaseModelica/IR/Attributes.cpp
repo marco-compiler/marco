@@ -44,50 +44,6 @@ mlir::AsmPrinter &operator<<(mlir::AsmPrinter &printer,
   printer.getStream() << path;
   return printer;
 }
-
-template <>
-struct FieldParser<mlir::bmodelica::EquationScheduleDirection> {
-  static FailureOr<mlir::bmodelica::EquationScheduleDirection>
-  parse(mlir::AsmParser &parser) {
-    EquationScheduleDirection direction = EquationScheduleDirection::Unknown;
-
-    if (mlir::succeeded(parser.parseOptionalKeyword("any"))) {
-      direction = EquationScheduleDirection::Any;
-    } else if (mlir::succeeded(parser.parseOptionalKeyword("forward"))) {
-      direction = EquationScheduleDirection::Forward;
-    } else if (mlir::succeeded(parser.parseOptionalKeyword("backward"))) {
-      direction = EquationScheduleDirection::Backward;
-    } else if (parser.parseKeyword("unknown")) {
-      return mlir::failure();
-    }
-
-    return direction;
-  }
-};
-
-mlir::AsmPrinter &
-operator<<(mlir::AsmPrinter &printer,
-           const mlir::bmodelica::EquationScheduleDirection &direction) {
-  switch (direction) {
-  case EquationScheduleDirection::Any:
-    printer << "any";
-    break;
-
-  case EquationScheduleDirection::Forward:
-    printer << "forward";
-    break;
-
-  case EquationScheduleDirection::Backward:
-    printer << "backward";
-    break;
-
-  case EquationScheduleDirection::Unknown:
-    printer << "unknown";
-    break;
-  }
-
-  return printer;
-}
 } // namespace mlir
 
 //===----------------------------------------------------------------------===//

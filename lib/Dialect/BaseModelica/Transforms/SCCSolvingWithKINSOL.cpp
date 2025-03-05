@@ -53,7 +53,7 @@ public:
 
   void addVariable(VariableOp variable, const IndexSet &writtenIndices);
 
-  void addEquation(ScheduledEquationInstanceOp equation);
+  void addEquation(EquationInstanceOp equation);
 
   mlir::LogicalResult initialize(mlir::OpBuilder &builder, mlir::Location loc);
 
@@ -110,7 +110,7 @@ private:
 
   mlir::LogicalResult addVariableAccessesInfoToKINSOL(
       mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp, mlir::Value kinsolEquation,
+      EquationInstanceOp equationOp, mlir::Value kinsolEquation,
       llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
           &accessFunctionsMap,
       size_t &accessFunctionsCounter);
@@ -127,10 +127,11 @@ private:
                        mlir::ModuleOp moduleOp, mlir::AffineMap access,
                        llvm::StringRef functionName);
 
-  mlir::LogicalResult createResidualFunction(
-      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
-      llvm::StringRef residualFunctionName, const ProxyMap &proxyMap);
+  mlir::LogicalResult
+  createResidualFunction(mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp,
+                         ModelOp modelOp, EquationInstanceOp equationOp,
+                         llvm::StringRef residualFunctionName,
+                         const ProxyMap &proxyMap);
 
   mlir::LogicalResult createProxyResidualFunction(
       mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
@@ -138,25 +139,23 @@ private:
 
   mlir::LogicalResult
   getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
-                               ModelOp modelOp,
-                               ScheduledEquationInstanceOp equationOp);
+                               ModelOp modelOp, EquationInstanceOp equationOp);
 
   mlir::LogicalResult createPartialDerTemplateFunction(
       mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
+      EquationInstanceOp equationOp,
       llvm::DenseMap<VariableOp, size_t> &variablesPos,
       llvm::StringRef templateName, const ProxyMap &proxyMap);
 
   mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
       mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
+      EquationInstanceOp equationOp,
       llvm::DenseMap<VariableOp, size_t> &variablesPos,
       llvm::StringRef templateName, const ProxyMap &proxyMap);
 
   mlir::LogicalResult createJacobianFunction(
       mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      ScheduledEquationInstanceOp equationOp,
-      llvm::StringRef jacobianFunctionName,
+      EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
       const llvm::DenseMap<VariableOp, size_t> &variablesPos,
       VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
       llvm::SmallVectorImpl<int64_t> &seedSizes);
@@ -200,7 +199,7 @@ private:
   llvm::DenseMap<VariableOp, size_t> variablesLookup;
 
   /// The equations managed by KINSOL.
-  llvm::DenseSet<ScheduledEquationInstanceOp> equations;
+  llvm::DenseSet<EquationInstanceOp> equations;
 };
 } // namespace
 
@@ -242,7 +241,7 @@ void KINSOLInstance::addVariable(VariableOp variable,
   writtenVariableIndices[variable] += writtenIndices;
 }
 
-void KINSOLInstance::addEquation(ScheduledEquationInstanceOp equation) {
+void KINSOLInstance::addEquation(EquationInstanceOp equation) {
   assert(equation != nullptr);
   equations.insert(equation);
 }
@@ -559,7 +558,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
     variablesMapping[variable] = kinsolVariable;
   }
 
-  for (ScheduledEquationInstanceOp equationOp : equations) {
+  for (EquationInstanceOp equationOp : equations) {
     // Keep track of the accessed variables in order to reduce the amount of
     // generated partial derivatives.
     llvm::SmallVector<VariableAccess> accesses;
@@ -803,7 +802,7 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
 
 mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
     mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp, mlir::Value kinsolEquation,
+    EquationInstanceOp equationOp, mlir::Value kinsolEquation,
     llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
         &accessFunctionsMap,
     size_t &accessFunctionsCounter) {
@@ -927,8 +926,8 @@ mlir::sundials::AccessFunctionOp KINSOLInstance::createAccessFunction(
 
 mlir::LogicalResult KINSOLInstance::createResidualFunction(
     mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp,
-    llvm::StringRef residualFunctionName, const ProxyMap &proxyMap) {
+    EquationInstanceOp equationOp, llvm::StringRef residualFunctionName,
+    const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
@@ -1014,9 +1013,10 @@ mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult KINSOLInstance::getIndependentVariablesForAD(
-    llvm::DenseSet<VariableOp> &result, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp) {
+mlir::LogicalResult
+KINSOLInstance::getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
+                                             ModelOp modelOp,
+                                             EquationInstanceOp equationOp) {
   llvm::SmallVector<VariableAccess> accesses;
 
   if (mlir::failed(equationOp.getAccesses(accesses, *symbolTableCollection))) {
@@ -1035,7 +1035,7 @@ mlir::LogicalResult KINSOLInstance::getIndependentVariablesForAD(
 
 mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
     mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp,
+    EquationInstanceOp equationOp,
     llvm::DenseMap<VariableOp, size_t> &variablesPos,
     llvm::StringRef templateName, const ProxyMap &proxyMap) {
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
@@ -1052,7 +1052,7 @@ mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
 mlir::bmodelica::FunctionOp
 KINSOLInstance::createPartialDerTemplateFromEquation(
     mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp,
+    EquationInstanceOp equationOp,
     llvm::DenseMap<VariableOp, size_t> &variablesPos,
     llvm::StringRef templateName, const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -1260,8 +1260,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 
 mlir::LogicalResult KINSOLInstance::createJacobianFunction(
     mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    ScheduledEquationInstanceOp equationOp,
-    llvm::StringRef jacobianFunctionName,
+    EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
     const llvm::DenseMap<VariableOp, size_t> &variablesPos,
     VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
     llvm::SmallVectorImpl<int64_t> &seedSizes) {
@@ -1679,8 +1678,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
   LLVM_DEBUG({
     llvm::dbgs() << "Processing SCC composed by:\n";
 
-    for (ScheduledEquationInstanceOp equation :
-         scc.getOps<ScheduledEquationInstanceOp>()) {
+    for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
       llvm::dbgs() << "  ";
       equation.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
@@ -1730,8 +1728,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
     kinsolInstance->addVariable(variable, writtenVariableIndices[variable]);
   }
 
-  for (ScheduledEquationInstanceOp equation :
-       scc.getOps<ScheduledEquationInstanceOp>()) {
+  for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
     LLVM_DEBUG({
       llvm::dbgs() << "Add equation\n";
       equation.printInline(llvm::dbgs());
@@ -1786,8 +1783,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::getAccessAttrs(
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> writtenVariablesIndices;
   llvm::DenseMap<mlir::SymbolRefAttr, IndexSet> readVariablesIndices;
 
-  for (ScheduledEquationInstanceOp equationOp :
-       scc.getOps<ScheduledEquationInstanceOp>()) {
+  for (EquationInstanceOp equationOp : scc.getOps<EquationInstanceOp>()) {
     IndexSet equationIndices = equationOp.getIterationSpace();
 
     writtenVariablesIndices[equationOp.getProperties().match.name] +=

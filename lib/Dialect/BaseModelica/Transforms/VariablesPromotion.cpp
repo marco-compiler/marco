@@ -115,7 +115,7 @@ struct VariableBridge {
 
 struct EquationBridge {
   EquationBridge(
-      MatchedEquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
+      EquationInstanceOp op, mlir::SymbolTableCollection &symbolTable,
       VariableAccessAnalysis &accessAnalysis,
       llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap)
       : op(op), symbolTable(&symbolTable), accessAnalysis(&accessAnalysis),
@@ -127,7 +127,7 @@ struct EquationBridge {
   EquationBridge &operator=(const EquationBridge &other) = delete;
   EquationBridge &operator==(const EquationBridge &other) = delete;
 
-  MatchedEquationInstanceOp op;
+  EquationInstanceOp op;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> *variablesMap;
@@ -312,15 +312,15 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   modelOp.collectVariables(variables);
 
   // Collect the equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
+  llvm::SmallVector<EquationInstanceOp> initialEquations;
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(mainEquations);
 
   // Determine the writes map of the 'initial conditions' model. This must be
   // used to avoid having different initial equations writing into the same
   // scalar variables.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> initialConditionsWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> initialConditionsWritesMap;
 
   if (mlir::failed(getWritesMap(initialConditionsWritesMap, modelOp,
                                 initialEquations, symbolTableCollection))) {
@@ -328,7 +328,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   }
 
   // Get the writes map of the 'main' model.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> mainWritesMap;
+  WritesMap<VariableOp, EquationInstanceOp> mainWritesMap;
 
   if (mlir::failed(getWritesMap(mainWritesMap, modelOp, mainEquations,
                                 symbolTableCollection))) {
@@ -379,7 +379,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equationOp : mainEquations) {
+  for (EquationInstanceOp equationOp : mainEquations) {
     auto accessAnalysis = getVariableAccessAnalysis(equationOp.getTemplate(),
                                                     symbolTableCollection);
 
@@ -401,13 +401,13 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 
   auto scheduledSCCs = sccDependencyGraph.postOrder();
 
-  llvm::DenseSet<MatchedEquationInstanceOp> promotableEquations;
+  llvm::DenseSet<EquationInstanceOp> promotableEquations;
 
   for (const auto &sccDescriptor : scheduledSCCs) {
     const SCC &scc = sccDependencyGraph[sccDescriptor];
 
     // Collect the equations of the SCC for a faster lookup.
-    llvm::DenseSet<MatchedEquationInstanceOp> sccEquations;
+    llvm::DenseSet<EquationInstanceOp> sccEquations;
 
     for (const auto &equationDescriptor : scc) {
       EquationBridge *equation =
@@ -476,7 +476,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         }
 
         return llvm::all_of(writingEquations, [&](const auto &entry) {
-          MatchedEquationInstanceOp writingEquation = entry.second.second;
+          EquationInstanceOp writingEquation = entry.second.second;
           const IndexSet &writtenIndices = entry.second.first;
 
           if (promotableEquations.contains(writingEquation)) {
@@ -568,7 +568,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         llvm::make_range(mainWritesMap.equal_range(variableOp));
 
     for (const auto &entry : writingEquations) {
-      MatchedEquationInstanceOp equationOp = entry.second.second;
+      EquationInstanceOp equationOp = entry.second.second;
       IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
       llvm::SmallVector<VariableAccess> accesses;
@@ -635,7 +635,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
           writingEquationIndices =
               writingEquationIndices.getCanonicalRepresentation();
 
-          auto clonedEquationOp = mlir::cast<MatchedEquationInstanceOp>(
+          auto clonedEquationOp = mlir::cast<EquationInstanceOp>(
               rewriter.clone(*equationOp.getOperation()));
 
           clonedEquationOp.getProperties().setIndices(writingEquationIndices);
@@ -645,7 +645,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 
           rewriter.eraseOp(equationOp);
         } else {
-          auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+          auto clonedOp = mlir::cast<EquationInstanceOp>(
               rewriter.clone(*equationOp.getOperation()));
 
           clonedOp.getProperties().match.indices =

@@ -29,7 +29,7 @@ module @SingleCall {
         // CHECK: bmodelica.dynamic
         bmodelica.dynamic {
             // CHECK-DAG: bmodelica.equation_instance %[[T]]
-            bmodelica.equation_instance %t0, indices = {}
+            bmodelica.equation_instance %t0
         }
     }
 }
@@ -83,8 +83,8 @@ module @ArrayResult {
         bmodelica.dynamic {
             // CHECK-DAG: bmodelica.equation_instance %[[T0]]
             // CHECK-DAG: bmodelica.equation_instance %[[T1]]
-            bmodelica.equation_instance %t0, indices = {}
-            bmodelica.equation_instance %t1, indices = {}
+            bmodelica.equation_instance %t0
+            bmodelica.equation_instance %t1
         }
     }
 }

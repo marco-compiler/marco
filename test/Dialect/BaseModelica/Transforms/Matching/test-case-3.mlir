@@ -115,20 +115,20 @@ bmodelica.model @Test {
     // CHECK-DAG: %[[t6:.*]] = bmodelica.equation_template inductions = [%{{.*}}] attributes {id = "t6"}
 
     bmodelica.dynamic {
-        bmodelica.equation_instance %t0, indices = {}
-        bmodelica.equation_instance %t1, indices = {}
-        bmodelica.equation_instance %t2, indices = {}
-        bmodelica.equation_instance %t3, indices = {}
+        bmodelica.equation_instance %t0
+        bmodelica.equation_instance %t1
+        bmodelica.equation_instance %t2
+        bmodelica.equation_instance %t3
         bmodelica.equation_instance %t4, indices = {[0,4]}
         bmodelica.equation_instance %t5, indices = {[0,4]}
         bmodelica.equation_instance %t6, indices = {[0,4]}
 
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t0]], indices = {}, match = @l
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t1]], indices = {}, match = @fl
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t2]], indices = {}, match = @h
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t3]], indices = {}, match = @fh
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t4]], indices = {[0,4]}, match = <@x, {[0,4]}>
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t5]], indices = {[0,4]}, match = <@y, {[0,4]}>
-        // CHECK-DAG: bmodelica.matched_equation_instance %[[t6]], indices = {[0,4]}, match = <@f, {[0,4]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t0]], match = @l
+        // CHECK-DAG: bmodelica.equation_instance %[[t1]], match = @fl
+        // CHECK-DAG: bmodelica.equation_instance %[[t2]], match = @h
+        // CHECK-DAG: bmodelica.equation_instance %[[t3]], match = @fh
+        // CHECK-DAG: bmodelica.equation_instance %[[t4]], indices = {[0,4]}, match = <@x, {[0,4]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t5]], indices = {[0,4]}, match = <@y, {[0,4]}>
+        // CHECK-DAG: bmodelica.equation_instance %[[t6]], indices = {[0,4]}, match = <@f, {[0,4]}>
     }
 }

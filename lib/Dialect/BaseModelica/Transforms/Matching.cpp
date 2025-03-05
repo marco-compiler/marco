@@ -351,23 +351,27 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(equation->op);
 
-    auto matchedEquationOp = rewriter.create<MatchedEquationInstanceOp>(
+    auto matchedEquationOp = rewriter.create<EquationInstanceOp>(
         equation->op.getLoc(), equation->op.getTemplate());
 
-    if (isScalarEquation) {
-      matchedEquationOp.getProperties().match.indices =
-          matchedAccess->getAccessFunction().map(IndexSet());
-    } else {
-      IndexSet slicedMatchedIndices =
+    matchedEquationOp.getProperties() = equation->op.getProperties();
+
+    // Compute the matched variable indices.
+    IndexSet matchedIndices;
+
+    if (!isScalarEquation) {
+      matchedIndices =
           matchedEquationIndices.takeFirstDimensions(numOfInductions);
-
-      matchedEquationOp.getProperties().setIndices(slicedMatchedIndices);
-
-      matchedEquationOp.getProperties().match.indices =
-          matchedAccess->getAccessFunction().map(slicedMatchedIndices);
     }
 
-    matchedEquationOp.getProperties().match.name = matchedAccess->getVariable();
+    if (mlir::failed(matchedEquationOp.setIndices(matchedIndices,
+                                                  symbolTableCollection))) {
+      return mlir::failure();
+    }
+
+    matchedEquationOp.getProperties().match =
+        Variable(matchedAccess->getVariable(),
+                 matchedAccess->getAccessFunction().map(matchedIndices));
 
     // Mark the old instance as obsolete.
     toBeErased.insert(equation->op);

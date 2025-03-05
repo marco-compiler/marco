@@ -35,7 +35,7 @@ private:
   computeSCCs(mlir::IRRewriter &rewriter,
               mlir::SymbolTableCollection &symbolTableCollection,
               ModelOp modelOp, bool initial,
-              llvm::ArrayRef<MatchedEquationInstanceOp> equations);
+              llvm::ArrayRef<EquationInstanceOp> equations);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -111,8 +111,8 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
 
   // Collect the equations.
-  llvm::SmallVector<MatchedEquationInstanceOp> initialEquations;
-  llvm::SmallVector<MatchedEquationInstanceOp> mainEquations;
+  llvm::SmallVector<EquationInstanceOp> initialEquations;
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
 
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(mainEquations);
@@ -142,7 +142,7 @@ mlir::LogicalResult SCCDetectionPass::processModelOp(ModelOp modelOp) {
 mlir::LogicalResult SCCDetectionPass::computeSCCs(
     mlir::IRRewriter &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    bool initial, llvm::ArrayRef<MatchedEquationInstanceOp> equations) {
+    bool initial, llvm::ArrayRef<EquationInstanceOp> equations) {
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
@@ -156,7 +156,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     variablesMap[symbolRefAttr] = bridge.get();
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
@@ -203,7 +203,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
       size_t numOfInductions = equation->op.getInductionVariables().size();
       bool isScalarEquation = numOfInductions == 0;
 
-      auto clonedOp = mlir::cast<MatchedEquationInstanceOp>(
+      auto clonedOp = mlir::cast<EquationInstanceOp>(
           rewriter.clone(*equation->op.getOperation()));
 
       if (!isScalarEquation) {
@@ -213,7 +213,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     }
   }
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     rewriter.eraseOp(equation);
   }
 

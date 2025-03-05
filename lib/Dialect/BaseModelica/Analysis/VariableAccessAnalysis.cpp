@@ -42,36 +42,6 @@ VariableAccessAnalysis::getAccesses(
 
 std::optional<llvm::ArrayRef<VariableAccess>>
 VariableAccessAnalysis::getAccesses(
-    MatchedEquationInstanceOp instanceOp,
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  assert(initialized && "Variable access analysis not initialized");
-
-  if (!valid) {
-    if (mlir::failed(loadAccesses(symbolTableCollection))) {
-      return std::nullopt;
-    }
-  }
-
-  return accesses;
-}
-
-std::optional<llvm::ArrayRef<VariableAccess>>
-VariableAccessAnalysis::getAccesses(
-    ScheduledEquationInstanceOp instanceOp,
-    mlir::SymbolTableCollection &symbolTableCollection) {
-  assert(initialized && "Variable access analysis not initialized");
-
-  if (!valid) {
-    if (mlir::failed(loadAccesses(symbolTableCollection))) {
-      return std::nullopt;
-    }
-  }
-
-  return accesses;
-}
-
-std::optional<llvm::ArrayRef<VariableAccess>>
-VariableAccessAnalysis::getAccesses(
     StartEquationInstanceOp instanceOp,
     mlir::SymbolTableCollection &symbolTableCollection) {
   assert(initialized && "Variable access analysis not initialized");
@@ -117,24 +87,6 @@ void VariableAccessAnalysis::IRListener::notifyOperationErased(Operation *op) {
   Listener::notifyOperationErased(op);
 
   if (auto equationOp = mlir::dyn_cast<EquationInstanceOp>(op)) {
-    auto analysis =
-        provider->getCachedVariableAccessAnalysis(equationOp.getTemplate());
-
-    if (analysis) {
-      analysis->get().invalidate();
-    }
-  }
-
-  if (auto equationOp = mlir::dyn_cast<MatchedEquationInstanceOp>(op)) {
-    auto analysis =
-        provider->getCachedVariableAccessAnalysis(equationOp.getTemplate());
-
-    if (analysis) {
-      analysis->get().invalidate();
-    }
-  }
-
-  if (auto equationOp = mlir::dyn_cast<ScheduledEquationInstanceOp>(op)) {
     auto analysis =
         provider->getCachedVariableAccessAnalysis(equationOp.getTemplate());
 

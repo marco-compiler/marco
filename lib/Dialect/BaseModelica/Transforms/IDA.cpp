@@ -35,9 +35,9 @@ public:
 
   void addAlgebraicVariable(VariableOp variable);
 
-  bool hasEquation(MatchedEquationInstanceOp equation) const;
+  bool hasEquation(EquationInstanceOp equation) const;
 
-  void addEquation(MatchedEquationInstanceOp equation);
+  void addEquation(EquationInstanceOp equation);
 
   mlir::LogicalResult declareInstance(mlir::OpBuilder &builder,
                                       mlir::Location loc,
@@ -92,7 +92,7 @@ private:
 
   mlir::LogicalResult addVariableAccessesInfoToIDA(
       mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
-      MatchedEquationInstanceOp equationOp, mlir::Value idaEquation,
+      EquationInstanceOp equationOp, mlir::Value idaEquation,
       llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
           &accessFunctionsMap,
       size_t &accessFunctionsCounter);
@@ -111,35 +111,31 @@ private:
 
   mlir::LogicalResult
   createResidualFunction(mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp,
-                         ModelOp modelOp, MatchedEquationInstanceOp equationOp,
+                         ModelOp modelOp, EquationInstanceOp equationOp,
                          mlir::Value idaEquation,
                          llvm::StringRef residualFunctionName);
 
   mlir::LogicalResult
   getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
-                               ModelOp modelOp,
-                               MatchedEquationInstanceOp equationOp);
+                               ModelOp modelOp, EquationInstanceOp equationOp);
 
   mlir::LogicalResult createPartialDerTemplateFunction(
       mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      llvm::ArrayRef<VariableOp> variableOps,
-      MatchedEquationInstanceOp equationOp,
+      llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
       const llvm::DenseSet<VariableOp> &independentVariables,
       llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
       llvm::StringRef templateName);
 
   mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
       mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      llvm::ArrayRef<VariableOp> variableOps,
-      MatchedEquationInstanceOp equationOp,
+      llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
       const llvm::DenseSet<VariableOp> &independentVariables,
       llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
       llvm::StringRef templateName);
 
   mlir::LogicalResult createJacobianFunction(
       mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      MatchedEquationInstanceOp equationOp,
-      llvm::StringRef jacobianFunctionName,
+      EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
       const llvm::DenseSet<VariableOp> &independentVariables,
       const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
       VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
@@ -205,7 +201,7 @@ private:
   llvm::DenseMap<VariableOp, size_t> derivativeVariablesLookup;
 
   /// The equations managed by IDA.
-  llvm::DenseSet<MatchedEquationInstanceOp> equations;
+  llvm::DenseSet<EquationInstanceOp> equations;
 };
 } // namespace
 
@@ -270,12 +266,12 @@ bool IDAInstance::hasDerivativeVariable(VariableOp variable) const {
   return derivativeVariablesLookup.contains(variable);
 }
 
-bool IDAInstance::hasEquation(MatchedEquationInstanceOp equation) const {
+bool IDAInstance::hasEquation(EquationInstanceOp equation) const {
   assert(equation != nullptr);
   return llvm::find(equations, equation) != equations.end();
 }
 
-void IDAInstance::addEquation(MatchedEquationInstanceOp equation) {
+void IDAInstance::addEquation(EquationInstanceOp equation) {
   assert(equation != nullptr);
   equations.insert(equation);
 }
@@ -469,11 +465,11 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         &accessFunctionsMap) {
   // Substitute the accesses to non-IDA variables with the equations writing
   // in such variables.
-  llvm::SmallVector<MatchedEquationInstanceOp> independentEquations;
+  llvm::SmallVector<EquationInstanceOp> independentEquations;
 
   // First create the writes map, that is the knowledge of which equation
   // writes into a variable and in which indices.
-  WritesMap<VariableOp, MatchedEquationInstanceOp> writesMap;
+  WritesMap<VariableOp, EquationInstanceOp> writesMap;
 
   if (mlir::failed(
           getWritesMap(writesMap, modelOp, allSCCs, *symbolTableCollection))) {
@@ -481,17 +477,17 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   }
 
   // The equations we are operating on.
-  std::queue<MatchedEquationInstanceOp> processedEquations;
+  std::queue<EquationInstanceOp> processedEquations;
 
-  for (MatchedEquationInstanceOp equation : equations) {
+  for (EquationInstanceOp equation : equations) {
     processedEquations.push(equation);
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Replacing the non-IDA variables\n");
-  llvm::DenseSet<MatchedEquationInstanceOp> toBeErased;
+  llvm::DenseSet<EquationInstanceOp> toBeErased;
 
   while (!processedEquations.empty()) {
-    MatchedEquationInstanceOp equationOp = processedEquations.front();
+    EquationInstanceOp equationOp = processedEquations.front();
 
     LLVM_DEBUG({
       llvm::dbgs() << "Current equation\n";
@@ -566,7 +562,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           llvm::make_range(writesMap.equal_range(accessedVariableOp));
 
       for (const auto &entry : writingEquations) {
-        MatchedEquationInstanceOp writingEquationOp = entry.second.second;
+        EquationInstanceOp writingEquationOp = entry.second.second;
 
         LLVM_DEBUG({
           llvm::dbgs() << "Found the following writing equation:\n";
@@ -617,7 +613,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         IndexSet replacedAccessedVariableIndices =
             accessedVariableIndices.intersect(writtenVariableIndices);
 
-        llvm::SmallVector<MatchedEquationInstanceOp> newEquations;
+        llvm::SmallVector<EquationInstanceOp> newEquations;
 
         auto writeAccess = explicitWritingEquationOp.getAccessAtPath(
             *symbolTableCollection, EquationPath(EquationPath::LEFT, 0));
@@ -652,14 +648,14 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         LLVM_DEBUG({
           llvm::dbgs() << "Equations obtained with access replacement:\n";
 
-          for (MatchedEquationInstanceOp newEquationOp : newEquations) {
+          for (EquationInstanceOp newEquationOp : newEquations) {
             llvm::dbgs() << "  ";
             newEquationOp.printInline(llvm::dbgs());
             llvm::dbgs() << "\n";
           }
         });
 
-        for (MatchedEquationInstanceOp newEquation : newEquations) {
+        for (EquationInstanceOp newEquation : newEquations) {
           processedEquations.push(newEquation);
         }
       }
@@ -674,14 +670,14 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     processedEquations.pop();
   }
 
-  for (MatchedEquationInstanceOp equationOp : toBeErased) {
+  for (EquationInstanceOp equationOp : toBeErased) {
     rewriter.eraseOp(equationOp);
   }
 
   LLVM_DEBUG({
     llvm::dbgs() << "Independent equations:\n";
 
-    for (MatchedEquationInstanceOp equationOp : independentEquations) {
+    for (EquationInstanceOp equationOp : independentEquations) {
       llvm::dbgs() << "  ";
       equationOp.printInline(llvm::dbgs());
       llvm::dbgs() << "\n";
@@ -753,7 +749,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     variablesMapping[variable] = idaVariable;
   }
 
-  for (MatchedEquationInstanceOp equationOp : independentEquations) {
+  for (EquationInstanceOp equationOp : independentEquations) {
     // Keep track of the accessed variables in order to reduce the amount of
     // generated partial derivatives.
     llvm::SmallVector<VariableAccess> accesses;
@@ -949,7 +945,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
 
 mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
     mlir::OpBuilder &builder, mlir::Location loc, ModelOp modelOp,
-    MatchedEquationInstanceOp equationOp, mlir::Value idaEquation,
+    EquationInstanceOp equationOp, mlir::Value idaEquation,
     llvm::DenseMap<mlir::AffineMap, mlir::sundials::AccessFunctionOp>
         &accessFunctionsMap,
     size_t &accessFunctionsCounter) {
@@ -1133,7 +1129,7 @@ mlir::sundials::AccessFunctionOp IDAInstance::createAccessFunction(
 
 mlir::LogicalResult IDAInstance::createResidualFunction(
     mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    MatchedEquationInstanceOp equationOp, mlir::Value idaEquation,
+    EquationInstanceOp equationOp, mlir::Value idaEquation,
     llvm::StringRef residualFunctionName) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
@@ -1201,9 +1197,10 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
   return mlir::success();
 }
 
-mlir::LogicalResult IDAInstance::getIndependentVariablesForAD(
-    llvm::DenseSet<VariableOp> &result, ModelOp modelOp,
-    MatchedEquationInstanceOp equationOp) {
+mlir::LogicalResult
+IDAInstance::getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
+                                          ModelOp modelOp,
+                                          EquationInstanceOp equationOp) {
   llvm::SmallVector<VariableAccess> accesses;
 
   if (mlir::failed(equationOp.getAccesses(accesses, *symbolTableCollection))) {
@@ -1242,8 +1239,7 @@ mlir::LogicalResult IDAInstance::getIndependentVariablesForAD(
 
 mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
     mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    MatchedEquationInstanceOp equationOp,
+    llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
     const llvm::DenseSet<VariableOp> &independentVariables,
     llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
     llvm::StringRef templateName) {
@@ -1295,8 +1291,7 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
 
 FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    MatchedEquationInstanceOp equationOp,
+    llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
     const llvm::DenseSet<VariableOp> &independentVariables,
     llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
     llvm::StringRef templateName) {
@@ -1534,7 +1529,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
 mlir::LogicalResult IDAInstance::createJacobianFunction(
     mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    MatchedEquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
+    EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
     const llvm::DenseSet<VariableOp> &independentVariables,
     const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
     VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
@@ -1829,8 +1824,7 @@ private:
   mlir::LogicalResult
   addMainModelEquation(mlir::SymbolTableCollection &symbolTableCollection,
                        ModelOp modelOp, const DerivativesMap &derivativesMap,
-                       IDAInstance &idaInstance,
-                       MatchedEquationInstanceOp equationOp);
+                       IDAInstance &idaInstance, EquationInstanceOp equationOp);
 
   mlir::LogicalResult addEquationsWritingToIDAVariables(
       mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
@@ -1978,8 +1972,7 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
 
     // Add the equations writing to variables handled by IDA.
     for (SCCOp scc : SCCs) {
-      for (MatchedEquationInstanceOp equationOp :
-           scc.getOps<MatchedEquationInstanceOp>()) {
+      for (EquationInstanceOp equationOp : scc.getOps<EquationInstanceOp>()) {
         auto writtenVariableOp =
             symbolTableCollection.lookupSymbolIn<VariableOp>(
                 modelOp, equationOp.getProperties().match.name);
@@ -2010,7 +2003,7 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
     for (SCCOp scc : SCCs) {
       // The content of an SCC may be modified, so we need to freeze the
       // initial list of equations.
-      llvm::SmallVector<MatchedEquationInstanceOp> sccEquations;
+      llvm::SmallVector<EquationInstanceOp> sccEquations;
       scc.collectEquations(sccEquations);
 
       if (sccEquations.empty()) {
@@ -2021,7 +2014,7 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
         LLVM_DEBUG({
           llvm::dbgs() << "Cyclic equations\n";
 
-          for (MatchedEquationInstanceOp equation : sccEquations) {
+          for (EquationInstanceOp equation : sccEquations) {
             equation.printInline(llvm::dbgs());
             llvm::dbgs() << "\n";
           }
@@ -2031,7 +2024,7 @@ IDAPass::solveMainModel(mlir::IRRewriter &rewriter,
         continue;
       }
 
-      MatchedEquationInstanceOp equation = sccEquations[0];
+      EquationInstanceOp equation = sccEquations[0];
 
       LLVM_DEBUG({
         llvm::dbgs() << "Explicitating equation\n";
@@ -2166,8 +2159,7 @@ mlir::LogicalResult
 IDAPass::addMainModelSCC(mlir::SymbolTableCollection &symbolTableCollection,
                          ModelOp modelOp, const DerivativesMap &derivativesMap,
                          IDAInstance &idaInstance, SCCOp scc) {
-  for (MatchedEquationInstanceOp equation :
-       scc.getOps<MatchedEquationInstanceOp>()) {
+  for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
     if (mlir::failed(addMainModelEquation(symbolTableCollection, modelOp,
                                           derivativesMap, idaInstance,
                                           equation))) {
@@ -2181,7 +2173,7 @@ IDAPass::addMainModelSCC(mlir::SymbolTableCollection &symbolTableCollection,
 mlir::LogicalResult IDAPass::addMainModelEquation(
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
     const DerivativesMap &derivativesMap, IDAInstance &idaInstance,
-    MatchedEquationInstanceOp equationOp) {
+    EquationInstanceOp equationOp) {
   LLVM_DEBUG({
     llvm::dbgs() << "Add equation\n";
     equationOp.printInline(llvm::dbgs());
@@ -2240,8 +2232,7 @@ mlir::LogicalResult IDAPass::addEquationsWritingToIDAVariables(
 
       bool shouldAddSCC = false;
 
-      for (MatchedEquationInstanceOp equationOp :
-           scc.getOps<MatchedEquationInstanceOp>()) {
+      for (EquationInstanceOp equationOp : scc.getOps<EquationInstanceOp>()) {
         auto writtenVariableOp =
             symbolTableCollection.lookupSymbolIn<VariableOp>(
                 modelOp, equationOp.getProperties().match.name);

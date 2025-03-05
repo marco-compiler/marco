@@ -1,18 +1,11 @@
 // RUN: modelica-opt %s --split-input-file --schedule | FileCheck %s
 
-// CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [{{.*}}] attributes {id = "t0"}
-// CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+// COM: for i in 1:9 loop
+// COM:   x[i] = x[i - 1]
+// COM:
+// COM: x[0] = 0
 
-// CHECK:       bmodelica.schedule @schedule {
-// CHECK-NEXT:      bmodelica.dynamic {
-// CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t1]], indices = {}, match = <@x, {[0,0]}> {iteration_directions = []}
-// CHECK-NEXT:          }
-// CHECK-NEXT:          bmodelica.scc {
-// CHECK-NEXT:              bmodelica.scheduled_equation_instance %[[t0]], indices = {[1,9]}, match = <@x, {[1,9]}> {iteration_directions = [#bmodelica<equation_schedule_direction forward>]}
-// CHECK-NEXT:          }
-// CHECK-NEXT:      }
-// CHECK-NEXT:  }
+// CHECK-LABEL: @Test
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<10x!bmodelica.int>
@@ -30,6 +23,8 @@ bmodelica.model @Test {
         bmodelica.equation_sides %6, %7 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
+    // CHECK-DAG: %[[t0:.*]] = bmodelica.equation_template inductions = [{{.*}}] attributes {id = "t0"}
+
     // x[0] = 0
     %t1 = bmodelica.equation_template inductions = [] attributes {id = "t1"} {
         %0 = bmodelica.constant 0 : index
@@ -41,14 +36,27 @@ bmodelica.model @Test {
         bmodelica.equation_sides %4, %5 : tuple<!bmodelica.int>, tuple<!bmodelica.int>
     }
 
+    // CHECK-DAG: %[[t1:.*]] = bmodelica.equation_template inductions = [] attributes {id = "t1"}
+
     bmodelica.schedule @schedule {
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0, indices = {[1,9]}, match = <@x, {[1,9]}>
+                bmodelica.equation_instance %t0, indices = {[1,9]}, match = <@x, {[1,9]}>
             }
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t1, indices = {}, match = <@x, {[0,0]}>
+                bmodelica.equation_instance %t1, match = <@x, {[0,0]}>
             }
+
+            // CHECK:       bmodelica.scc {
+            // CHECK-NEXT:      bmodelica.equation_instance %[[t1]]
+            // CHECK-SAME:      match = <@x, {[0,0]}>
+            // CHECK-NEXT:  }
+            // CHECK-NEXT:  bmodelica.scc {
+            // CHECK-NEXT:      bmodelica.equation_instance %[[t0]]
+            // CHECK-SAME:      indices = {[1,9]}
+            // CHECK-SAME:      match = <@x, {[1,9]}>
+            // CHECK-SAME:      schedule = [forward]
+            // CHECK-NEXT:  }
         }
     }
 }

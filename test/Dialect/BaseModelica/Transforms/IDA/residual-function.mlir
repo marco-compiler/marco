@@ -23,7 +23,7 @@ module {
 
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0, indices = {}, match = @der_x
+                bmodelica.equation_instance %t0, match = @der_x
             }
         }
     }
@@ -58,7 +58,7 @@ module {
 
         bmodelica.dynamic {
             bmodelica.scc {
-                bmodelica.matched_equation_instance %t0, indices = {[0,1]}, match = <@der_x, {[0,1]}>
+                bmodelica.equation_instance %t0, indices = {[0,1]}, match = <@der_x, {[0,1]}>
             }
         }
     }
