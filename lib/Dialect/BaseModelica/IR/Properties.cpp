@@ -18,6 +18,8 @@ bool Variable::operator==(const Variable &other) const {
   return name == other.name && indices == other.indices;
 }
 
+Variable::operator bool() const { return name != nullptr; }
+
 mlir::Attribute Variable::asAttribute(mlir::MLIRContext *context) const {
   llvm::SmallVector<mlir::NamedAttribute> attrs;
   mlir::Builder builder(context);

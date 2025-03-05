@@ -25,6 +25,8 @@ struct Variable {
 
   bool operator==(const Variable &other) const;
 
+  operator bool() const;
+
   mlir::Attribute asAttribute(mlir::MLIRContext *context) const;
 
   static mlir::LogicalResult
