@@ -4,6 +4,10 @@
 #include "marco/Dialect/BaseModelica/IR/ExpressionPath.h"
 #include "llvm/ADT/ArrayRef.h"
 
+namespace llvm {
+class raw_ostream;
+} // namespace llvm
+
 namespace mlir::bmodelica {
 class EquationPath {
 public:
@@ -42,6 +46,8 @@ private:
   EquationSide equationSide;
   ExpressionPath expressionPath;
 };
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const EquationPath &obj);
 } // namespace mlir::bmodelica
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_EQUATIONPATH_H

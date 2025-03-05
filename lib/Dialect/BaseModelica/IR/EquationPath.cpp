@@ -1,4 +1,5 @@
 #include "marco/Dialect/BaseModelica/IR/EquationPath.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace ::mlir::bmodelica;
 
@@ -54,4 +55,21 @@ EquationPath &EquationPath::operator+=(uint64_t index) {
 }
 
 size_t EquationPath::size() const { return expressionPath.size(); }
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const EquationPath &obj) {
+  os << "[";
+
+  if (obj.getEquationSide() == EquationPath::LEFT) {
+    os << "L";
+  } else {
+    os << "R";
+  }
+
+  for (uint64_t index : obj) {
+    os << ", " << index;
+  }
+
+  os << "]";
+  return os;
+}
 } // namespace mlir::bmodelica

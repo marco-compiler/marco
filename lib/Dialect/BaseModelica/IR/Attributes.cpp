@@ -41,19 +41,7 @@ struct FieldParser<mlir::bmodelica::EquationPath> {
 
 mlir::AsmPrinter &operator<<(mlir::AsmPrinter &printer,
                              const mlir::bmodelica::EquationPath &path) {
-  printer << "[";
-
-  if (path.getEquationSide() == EquationPath::LEFT) {
-    printer << "L";
-  } else {
-    printer << "R";
-  }
-
-  for (uint64_t index : path) {
-    printer << ", " << index;
-  }
-
-  printer << "]";
+  printer.getStream() << path;
   return printer;
 }
 
