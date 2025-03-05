@@ -3,7 +3,7 @@
 
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Transforms/Modeling/MatchedEquationBridge.h"
+#include "marco/Dialect/BaseModelica/Transforms/Modeling/EquationBridge.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
 #include "llvm/ADT/DenseMap.h"
 
@@ -19,7 +19,7 @@ public:
   WritesMap<VariableOp, EquationInstanceOp> *matchedEqsWritesMap;
   WritesMap<VariableOp, StartEquationInstanceOp> *startEqsWritesMap;
 
-  llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> *equationsMap;
+  llvm::DenseMap<EquationInstanceOp, EquationBridge *> *equationsMap;
 
 public:
   template <typename... Args>
@@ -30,8 +30,7 @@ public:
   SCCBridge(SCCOp op, mlir::SymbolTableCollection &symbolTable,
             WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
             WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
-            llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *>
-                &equationsMap);
+            llvm::DenseMap<EquationInstanceOp, EquationBridge *> &equationsMap);
 
   // Forbid copies to avoid dangling pointers by design.
   SCCBridge(const SCCBridge &other) = delete;
@@ -45,7 +44,7 @@ namespace marco::modeling::dependency {
 template <>
 struct SCCTraits<::mlir::bmodelica::bridge::SCCBridge *> {
   using SCC = ::mlir::bmodelica::bridge::SCCBridge *;
-  using ElementRef = ::mlir::bmodelica::bridge::MatchedEquationBridge *;
+  using ElementRef = ::mlir::bmodelica::bridge::EquationBridge *;
 
   static std::vector<ElementRef> getElements(const SCC *scc);
 

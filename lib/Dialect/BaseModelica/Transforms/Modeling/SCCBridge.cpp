@@ -8,7 +8,7 @@ SCCBridge::SCCBridge(
     SCCOp op, mlir::SymbolTableCollection &symbolTable,
     WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
     WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
-    llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> &equationsMap)
+    llvm::DenseMap<EquationInstanceOp, EquationBridge *> &equationsMap)
     : op(op), symbolTable(&symbolTable),
       matchedEqsWritesMap(&matchedEqsWritesMap),
       startEqsWritesMap(&startEqsWritesMap), equationsMap(&equationsMap) {}

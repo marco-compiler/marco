@@ -223,8 +223,8 @@ struct EquationTraits<::EquationBridge *> {
     return accesses;
   }
 
-  static Access<VariableType, AccessProperty>
-  getWrite(const Equation *equation) {
+  static std::vector<Access<VariableType, AccessProperty>>
+  getWrites(const Equation *equation) {
     IndexSet equationIndices = getIterationRanges(equation);
 
     auto accesses =
@@ -232,19 +232,31 @@ struct EquationTraits<::EquationBridge *> {
 
     llvm::SmallVector<VariableAccess> writeAccesses;
 
+    if (!accesses) {
+      llvm_unreachable("Can't compute read accesses");
+      return {};
+    }
+
     if (mlir::failed((*equation)->op.getWriteAccesses(
             writeAccesses, *(*equation)->symbolTable, equationIndices,
             *accesses))) {
-      llvm_unreachable("Can't compute write accesses");
+      llvm_unreachable("Can't compute read accesses");
+      return {};
     }
 
-    assert(!writeAccesses.empty());
+    std::vector<Access<VariableType, AccessProperty>> writes;
 
-    auto accessFunction =
-        getAccessFunction((*equation)->op.getContext(), writeAccesses[0]);
+    for (const VariableAccess &readAccess : writeAccesses) {
+      auto variableIt =
+          (*(*equation)->variablesMap).find(readAccess.getVariable());
 
-    return Access((*(*equation)->variablesMap)[writeAccesses[0].getVariable()],
-                  std::move(accessFunction), writeAccesses[0].getPath());
+      writes.emplace_back(
+          variableIt->getSecond(),
+          getAccessFunction((*equation)->op.getContext(), readAccess),
+          readAccess.getPath());
+    }
+
+    return writes;
   }
 
   static std::vector<Access<VariableType, AccessProperty>>

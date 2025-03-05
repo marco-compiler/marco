@@ -24,6 +24,8 @@ public:
     bool operator==(const Id &other) const;
 
     bool operator!=(const Id &other) const;
+
+    operator mlir::SymbolRefAttr() const;
   };
 
   Id id;

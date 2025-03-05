@@ -59,9 +59,10 @@ struct EquationTraits<Equation *> {
   using VariableType = Variable *;
   using AccessProperty = Equation::AccessProperty;
 
-  static Access<VariableType, AccessProperty>
+  static std::vector<Access<VariableType, AccessProperty>>
   getWrite(Equation *const *equation) {
-    return (*equation)->write();
+    std::vector<Access<VariableType, AccessProperty>> result;
+    result.push_back((*equation)->write());
   }
 
   static std::vector<Access<VariableType, AccessProperty>>

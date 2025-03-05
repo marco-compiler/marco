@@ -139,16 +139,19 @@ public:
 
     for (It it = equationsBegin; it != equationsEnd; ++it) {
       const auto &equation = (*graph)[*it];
-      const auto &write = equation.getWrite();
-      const auto &accessFunction = write.getAccessFunction();
+      std::vector<Access> writeAccesses = equation.getWrites();
+      IndexSet writtenIndices;
 
-      // Determine the indices of the variable that are written by the equation
-      IndexSet writtenIndices(
-          accessFunction.map(equation.getIterationRanges()));
+      if (!writeAccesses.empty()) {
+        for (const auto &writeAccess : writeAccesses) {
+          const auto &accessFunction = writeAccess.getAccessFunction();
+          writtenIndices += accessFunction.map(equation.getIterationRanges());
+        }
 
-      result.emplace(write.getVariable(),
-                     WriteInfo(*graph, write.getVariable(), *it,
-                               std::move(writtenIndices)));
+        result.emplace(writeAccesses[0].getVariable(),
+                       WriteInfo(*graph, writeAccesses[0].getVariable(), *it,
+                                 std::move(writtenIndices)));
+      }
     }
 
     return result;
@@ -199,18 +202,22 @@ private:
 
   void mapWrite(std::mutex &writesMapMutex, const Equation &equation,
                 EquationDescriptor equationDescriptor) {
-    const auto &write = equation.getWrite();
-    const auto &accessFunction = write.getAccessFunction();
+    std::vector<Access> writeAccesses = equation.getWrites();
+    IndexSet writtenIndices;
 
-    // Determine the indices of the variable that are written by the
-    // equation.
-    IndexSet writtenIndices(accessFunction.map(equation.getIterationRanges()));
+    if (!writeAccesses.empty()) {
+      for (const Access &writeAccess : writeAccesses) {
+        const auto &accessFunction = writeAccess.getAccessFunction();
+        writtenIndices += accessFunction.map(equation.getIterationRanges());
+      }
 
-    std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
+      std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
 
-    writesMap.emplace(write.getVariable(),
-                      WriteInfo(*graph, write.getVariable(), equationDescriptor,
-                                std::move(writtenIndices)));
+      writesMap.emplace(writeAccesses[0].getVariable(),
+                        WriteInfo(*graph, writeAccesses[0].getVariable(),
+                                  equationDescriptor,
+                                  std::move(writtenIndices)));
+    }
   }
 
   /// Explore the read accesses in order to determine the dependencies among the

@@ -209,7 +209,7 @@ mlir::LogicalResult VariablesPruningPass::processModelOp(ModelOp modelOp) {
 }
 
 using DependencyGraph = marco::modeling::ArrayVariablesDependencyGraph<
-    VariableBridge *, MatchedEquationBridge *,
+    VariableBridge *, EquationBridge *,
     marco::modeling::dependency::SingleEntryDigraph<
         marco::modeling::internal::dependency::ArrayVariable<
             VariableBridge *>>>;
@@ -255,8 +255,8 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::DenseMap<mlir::SymbolRefAttr, DependencyGraph::VariableDescriptor>
       variableDescriptors;
-  llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
-  llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
     auto &bridge =
@@ -271,7 +271,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
         static_cast<int64_t>(equationBridges.size()), equation,
         symbolTableCollection, *variableAccessAnalysis, variablesMap));
 

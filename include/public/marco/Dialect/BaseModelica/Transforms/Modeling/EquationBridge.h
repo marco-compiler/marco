@@ -57,13 +57,39 @@ struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
   static std::vector<Access<VariableType, AccessProperty>>
   getAccesses(const Equation *equation);
 
-  static std::unique_ptr<AccessFunction>
-  getAccessFunction(mlir::MLIRContext *context,
-                    const mlir::bmodelica::VariableAccess &access);
-
   static llvm::raw_ostream &dump(const Equation *equation,
                                  llvm::raw_ostream &os);
 };
 } // namespace marco::modeling::matching
+
+namespace marco::modeling::dependency {
+template <>
+struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
+  using Equation = ::mlir::bmodelica::bridge::EquationBridge *;
+  using Id = int64_t;
+
+  static Id getId(const Equation *equation);
+
+  static size_t getNumOfIterationVars(const Equation *equation);
+
+  static IndexSet getIterationRanges(const Equation *equation);
+
+  using VariableType = ::mlir::bmodelica::bridge::VariableBridge *;
+  using VariableAccess = mlir::bmodelica::VariableAccess;
+  using AccessProperty = VariableAccess;
+
+  static std::vector<Access<VariableType, AccessProperty>>
+  getAccesses(const Equation *equation);
+
+  static std::vector<Access<VariableType, AccessProperty>>
+  getWrites(const Equation *equation);
+
+  static std::vector<Access<VariableType, AccessProperty>>
+  getReads(const Equation *equation);
+
+  static llvm::raw_ostream &dump(const Equation *equation,
+                                 llvm::raw_ostream &os);
+};
+} // namespace marco::modeling::dependency
 
 #endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_MODELING_EQUATIONBRIDGE_H

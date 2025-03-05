@@ -145,8 +145,8 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     bool initial, llvm::ArrayRef<EquationInstanceOp> equations) {
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
-  llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
     auto &bridge =
@@ -160,7 +160,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
     auto variableAccessAnalysis = getVariableAccessAnalysis(
         equation.getTemplate(), symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
         static_cast<int64_t>(equationBridges.size()), equation,
         symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
@@ -168,8 +168,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
   }
 
   using DependencyGraph =
-      marco::modeling::DependencyGraph<VariableBridge *,
-                                       MatchedEquationBridge *>;
+      marco::modeling::DependencyGraph<VariableBridge *, EquationBridge *>;
 
   DependencyGraph dependencyGraph(&getContext());
   dependencyGraph.addEquations(equationPtrs);

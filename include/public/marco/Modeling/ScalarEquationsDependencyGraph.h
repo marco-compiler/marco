@@ -160,8 +160,19 @@ private:
     std::mutex writesMapMutex;
 
     auto mapFn = [&](const EquationProperty &equationProperty) {
-      const auto &write = ArrayEquationTraits::getWrite(&equationProperty);
-      const auto &accessFunction = write.getAccessFunction();
+      std::vector<Access> writeAccesses =
+          ArrayEquationTraits::getWrites(&equationProperty);
+
+      if (writeAccesses.empty()) {
+        return;
+      }
+
+      const Access &writeAccess =
+          getAccessWithProperty(writeAccesses, [](const Access &access) {
+            return access.getAccessFunction().isAffine();
+          });
+
+      const AccessFunction &accessFunction = writeAccess.getAccessFunction();
 
       for (Point equationIndices :
            ArrayEquationTraits::getIterationRanges(&equationProperty)) {
@@ -176,8 +187,8 @@ private:
         IndexSet writtenIndices(accessFunction.map(equationIndices));
         std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
 
-        writesMap.emplace(write.getVariable(),
-                          WriteInfo(*graph, write.getVariable(),
+        writesMap.emplace(writeAccess.getVariable(),
+                          WriteInfo(*graph, writeAccess.getVariable(),
                                     scalarEquationDescriptor,
                                     std::move(writtenIndices)));
       }
@@ -199,18 +210,25 @@ private:
 
       const auto &vectorEquationProperty = scalarEquation.getProperty();
 
-      const auto &write =
-          ArrayEquationTraits::getWrite(&vectorEquationProperty);
+      std::vector<Access> writeAccesses =
+          ArrayEquationTraits::getWrites(&vectorEquationProperty);
 
-      const auto &accessFunction = write.getAccessFunction();
+      if (!writeAccesses.empty()) {
+        const Access &writeAccess =
+            getAccessWithProperty(writeAccesses, [](const Access &access) {
+              return access.getAccessFunction().isAffine();
+            });
 
-      IndexSet writtenIndices(accessFunction.map(scalarEquation.getIndex()));
-      std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
+        const auto &accessFunction = writeAccess.getAccessFunction();
 
-      writesMap.emplace(write.getVariable(),
-                        WriteInfo(*graph, write.getVariable(),
-                                  equationDescriptor,
-                                  std::move(writtenIndices)));
+        IndexSet writtenIndices(accessFunction.map(scalarEquation.getIndex()));
+        std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
+
+        writesMap.emplace(writeAccess.getVariable(),
+                          WriteInfo(*graph, writeAccess.getVariable(),
+                                    equationDescriptor,
+                                    std::move(writtenIndices)));
+      }
     };
 
     mlir::parallelForEach(getContext(), graph->verticesBegin(),
@@ -249,6 +267,19 @@ private:
 
     mlir::parallelForEach(getContext(), equationsBeginIt, equationsEndIt,
                           mapFn);
+  }
+
+  const Access &
+  getAccessWithProperty(llvm::ArrayRef<Access> accesses,
+                        std::function<bool(const Access &)> preferenceFn) {
+    assert(!accesses.empty());
+    auto it = llvm::find_if(accesses, preferenceFn);
+
+    if (it == accesses.end()) {
+      it = accesses.begin();
+    }
+
+    return *it;
   }
 };
 } // namespace marco::modeling

@@ -292,11 +292,11 @@ mlir::LogicalResult SchedulingPass::schedule(
 
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
   llvm::SmallVector<std::unique_ptr<SCCBridge>> sccBridges;
   llvm::SmallVector<SCCBridge *> sccBridgePtrs;
 
-  llvm::DenseMap<EquationInstanceOp, MatchedEquationBridge *> equationsMap;
+  llvm::DenseMap<EquationInstanceOp, EquationBridge *> equationsMap;
 
   // Collect the variables.
   for (VariableOp variable : modelOp.getOps<VariableOp>()) {
@@ -330,10 +330,9 @@ mlir::LogicalResult SchedulingPass::schedule(
         return mlir::failure();
       }
 
-      auto &equationBridge =
-          equationBridges.emplace_back(MatchedEquationBridge::build(
-              static_cast<int64_t>(equationBridges.size()), equation,
-              symbolTableCollection, *variableAccessAnalysis, variablesMap));
+      auto &equationBridge = equationBridges.emplace_back(EquationBridge::build(
+          static_cast<int64_t>(equationBridges.size()), equation,
+          symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
       equationsMap[equation] = equationBridge.get();
     }

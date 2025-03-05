@@ -101,16 +101,20 @@ public:
 
   void addEquations(llvm::ArrayRef<EquationProperty> equations) {
     for (const EquationProperty &equationProperty : equations) {
-      auto writeAccess = EquationTraits::getWrite(&equationProperty);
-      auto writtenVariableId = writeAccess.getVariable();
-      auto writtenVariableDescriptor = variableDescriptors[writtenVariableId];
+      std::vector<Access> writeAccesses =
+          EquationTraits ::getWrites(&equationProperty);
 
-      auto readAccesses = EquationTraits::getReads(&equationProperty);
+      if (!writeAccesses.empty()) {
+        auto writtenVariableId = writeAccesses[0].getVariable();
+        auto writtenVariableDescriptor = variableDescriptors[writtenVariableId];
 
-      for (const Access &readAccess : readAccesses) {
-        auto readVariableId = readAccess.getVariable();
-        auto readVariableDescriptor = variableDescriptors[readVariableId];
-        graph->addEdge(writtenVariableDescriptor, readVariableDescriptor);
+        auto readAccesses = EquationTraits::getReads(&equationProperty);
+
+        for (const Access &readAccess : readAccesses) {
+          auto readVariableId = readAccess.getVariable();
+          auto readVariableDescriptor = variableDescriptors[readVariableId];
+          graph->addEdge(writtenVariableDescriptor, readVariableDescriptor);
+        }
       }
     }
   }

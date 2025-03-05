@@ -2070,8 +2070,8 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
                             llvm::ArrayRef<EquationInstanceOp> equationOps) {
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<MatchedEquationBridge>> equationBridges;
-  llvm::SmallVector<MatchedEquationBridge *> equationPtrs;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
     auto &bridge =
@@ -2089,7 +2089,7 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
       return mlir::failure();
     }
 
-    auto &bridge = equationBridges.emplace_back(MatchedEquationBridge::build(
+    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
         static_cast<int64_t>(equationBridges.size()), equation,
         symbolTableCollection, *variableAccessAnalysis, variablesMap));
 
@@ -2097,8 +2097,7 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
   }
 
   using DependencyGraph =
-      marco::modeling::DependencyGraph<VariableBridge *,
-                                       MatchedEquationBridge *>;
+      marco::modeling::DependencyGraph<VariableBridge *, EquationBridge *>;
 
   DependencyGraph dependencyGraph(rewriter.getContext());
   dependencyGraph.addEquations(equationPtrs);
