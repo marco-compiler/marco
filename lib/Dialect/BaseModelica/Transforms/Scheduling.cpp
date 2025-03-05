@@ -402,8 +402,33 @@ mlir::LogicalResult SchedulingPass::schedule(
             builder.getArrayAttr(llvm::ArrayRef(iterationDirections)
                                      .take_front(numOfInductions)));
 
-        scheduledEquationOp.getProperties().match =
-            matchedEquation.getProperties().match;
+        llvm::SmallVector<VariableAccess> accesses;
+        llvm::SmallVector<VariableAccess> writeAccesses;
+
+        if (mlir::failed(
+                matchedEquation.getAccesses(accesses, symbolTableCollection))) {
+          return mlir::failure();
+        }
+
+        if (mlir::failed(matchedEquation.getWriteAccesses(
+                writeAccesses, symbolTableCollection, accesses))) {
+          return mlir::failure();
+        }
+
+        llvm::sort(writeAccesses, [](const VariableAccess &first,
+                                     const VariableAccess &second) {
+          if (first.getAccessFunction().isAffine() &&
+              !second.getAccessFunction().isAffine()) {
+            return true;
+          }
+
+          if (!first.getAccessFunction().isAffine() &&
+              second.getAccessFunction().isAffine()) {
+            return false;
+          }
+
+          return first < second;
+        });
 
         if (!isScalarEquation) {
           MultidimensionalRange explicitRange =
@@ -412,6 +437,13 @@ mlir::LogicalResult SchedulingPass::schedule(
           scheduledEquationOp.setIndicesAttr(
               MultidimensionalRangeAttr::get(&getContext(), explicitRange));
         }
+
+        scheduledEquationOp.getProperties().match.name =
+            matchedEquation.getProperties().match.name;
+
+        scheduledEquationOp.getProperties().match.indices =
+            writeAccesses[0].getAccessFunction().map(
+                scheduledEquationOp.getIterationSpace());
       }
     }
   }
