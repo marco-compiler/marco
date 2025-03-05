@@ -28,10 +28,13 @@ Variable::operator bool() const { return name != nullptr; }
 mlir::Attribute Variable::asAttribute(mlir::MLIRContext *context) const {
   llvm::SmallVector<mlir::NamedAttribute> attrs;
   mlir::Builder builder(context);
-  attrs.push_back(builder.getNamedAttr("name", name));
 
-  attrs.push_back(builder.getNamedAttr(
-      "indices", mlir::modeling::getPropertiesAsAttribute(context, indices)));
+  if (name) {
+    attrs.push_back(builder.getNamedAttr("name", name));
+
+    attrs.push_back(builder.getNamedAttr(
+        "indices", mlir::modeling::getPropertiesAsAttribute(context, indices)));
+  }
 
   return builder.getDictionaryAttr(attrs);
 }
