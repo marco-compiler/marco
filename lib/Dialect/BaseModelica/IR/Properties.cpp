@@ -55,6 +55,8 @@ mlir::LogicalResult Variable::setFromAttr(
 
   auto indicesAttr = dictAttr.get("indices");
 
+  prop.name = nameAttr;
+
   if (mlir::failed(::mlir::modeling::setPropertiesFromAttribute(
           prop.indices, indicesAttr, emitError))) {
     return mlir::failure();
