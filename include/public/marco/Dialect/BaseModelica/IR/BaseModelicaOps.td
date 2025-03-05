@@ -3380,6 +3380,7 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
         attr-dict-with-keyword $bodyRegion
     }];
 
+    let hasVerifier = 1;
     let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
@@ -3739,6 +3740,10 @@ def BaseModelica_EquationTemplateOp : BaseModelica_Op<"equation_template",
             mlir::Block* createBody(unsigned int numOfInductions);
 
             void printInline(llvm::raw_ostream& os);
+
+            mlir::LogicalResult verifyAccessAtPath(
+                mlir::SymbolTableCollection& symbolTableCollection,
+                const EquationPath& path);
 
             /// Get the induction variables.
             mlir::ValueRange getInductionVariables();
@@ -4223,6 +4228,13 @@ def BaseModelica_MatchedEquationInstanceOp : BaseModelica_Op<"matched_equation_i
         std::optional<VariableAccess> getAccessAtPath(
             mlir::SymbolTableCollection& symbolTable,
             const EquationPath& path);
+
+        /// }
+        /// @name Verification.
+        /// {
+
+        mlir::LogicalResult verifyPath(
+            mlir::SymbolTableCollection& symbolTableCollection);
 
         /// }
 

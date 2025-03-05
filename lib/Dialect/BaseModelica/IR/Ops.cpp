@@ -7391,6 +7391,24 @@ struct MainModelMergePattern : public mlir::OpRewritePattern<ModelOp> {
 } // namespace
 
 namespace mlir::bmodelica {
+mlir::LogicalResult ModelOp::verify() {
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  llvm::SmallVector<MatchedEquationInstanceOp> matchedEquationOps;
+
+  walk([&matchedEquationOps](MatchedEquationInstanceOp equationOp) {
+    matchedEquationOps.push_back(equationOp);
+  });
+
+  for (MatchedEquationInstanceOp equationOp : matchedEquationOps) {
+    if (mlir::failed(equationOp.verifyPath(symbolTableCollection))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
 void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                           mlir::MLIRContext *context) {
   patterns.add<InitialModelMergePattern, MainModelMergePattern>(context);
@@ -7783,6 +7801,19 @@ void EquationTemplateOp::printInline(llvm::raw_ostream &os) {
   }
 }
 
+mlir::LogicalResult EquationTemplateOp::verifyAccessAtPath(
+    mlir::SymbolTableCollection &symbolTableCollection,
+    const EquationPath &path) {
+  std::optional<VariableAccess> access =
+      getAccessAtPath(symbolTableCollection, path);
+
+  if (!access) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
 mlir::ValueRange EquationTemplateOp::getInductionVariables() {
   return getBodyRegion().getArguments();
 }
@@ -7949,10 +7980,18 @@ EquationTemplateOp::getAccessAtPath(mlir::SymbolTableCollection &symbolTable,
 
   if (mlir::failed(searchAccesses(accesses, symbolTable, inductionsPositionMap,
                                   access, path))) {
+    emitOpError() << "Failed to search for accesses at path " << path;
+
     return std::nullopt;
   }
 
-  assert(accesses.size() == 1);
+  if (accesses.size() != 1) {
+    emitOpError() << "One access expected, found " << accesses.size()
+                  << " at path " << EquationPathAttr::get(getContext(), path);
+
+    return std::nullopt;
+  }
+
   return accesses[0];
 }
 
@@ -9787,6 +9826,12 @@ IndexSet MatchedEquationInstanceOp::getIterationSpace() {
   }
 
   return {};
+}
+
+mlir::LogicalResult MatchedEquationInstanceOp::verifyPath(
+    mlir::SymbolTableCollection &symbolTableCollection) {
+  return getTemplate().verifyAccessAtPath(symbolTableCollection,
+                                          getPath().getValue());
 }
 
 std::optional<VariableAccess> MatchedEquationInstanceOp::getMatchedAccess(
