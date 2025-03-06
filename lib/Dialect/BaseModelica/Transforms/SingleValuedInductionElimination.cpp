@@ -24,8 +24,10 @@ public:
 private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-  mlir::LogicalResult processEquation(mlir::RewriterBase &rewriter,
-                                      EquationInstanceOp equation);
+  mlir::LogicalResult
+  processEquation(mlir::RewriterBase &rewriter,
+                  mlir::SymbolTableCollection &symbolTableCollection,
+                  EquationInstanceOp equation);
 
   EquationTemplateOp
   createReducedTemplate(mlir::RewriterBase &rewriter,
@@ -57,13 +59,15 @@ void SingleValuedInductionEliminationPass::runOnOperation() {
 mlir::LogicalResult
 SingleValuedInductionEliminationPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<EquationInstanceOp> equations;
 
   modelOp.walk(
       [&](EquationInstanceOp equation) { equations.push_back(equation); });
 
   for (EquationInstanceOp equation : equations) {
-    if (mlir::failed(processEquation(rewriter, equation))) {
+    if (mlir::failed(
+            processEquation(rewriter, symbolTableCollection, equation))) {
       return mlir::failure();
     }
   }
@@ -76,7 +80,9 @@ SingleValuedInductionEliminationPass::processModelOp(ModelOp modelOp) {
 }
 
 mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
-    mlir::RewriterBase &rewriter, EquationInstanceOp equation) {
+    mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTableCollection,
+    EquationInstanceOp equation) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   const IndexSet &equationIndices = equation.getProperties().indices;
 
@@ -132,10 +138,15 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
       remainingIndices -= MultidimensionalRange(removedRanges);
 
       if (newRanges.empty()) {
-        newInstance.getProperties().setIndices({});
+        if (mlir::failed(newInstance.setIndices({}, symbolTableCollection))) {
+          return mlir::failure();
+        }
       } else {
-        newInstance.getProperties().setIndices(
-            IndexSet(MultidimensionalRange(newRanges)));
+        if (mlir::failed(newInstance.setIndices(
+                IndexSet(MultidimensionalRange(newRanges)),
+                symbolTableCollection))) {
+          return mlir::failure();
+        }
       }
     }
   }
@@ -144,7 +155,10 @@ mlir::LogicalResult SingleValuedInductionEliminationPass::processEquation(
     // Erase the original instance.
     rewriter.eraseOp(equation);
   } else {
-    equation.getProperties().setIndices(remainingIndices);
+    if (mlir::failed(
+            equation.setIndices(remainingIndices, symbolTableCollection))) {
+      return mlir::failure();
+    }
   }
 
   return mlir::success();

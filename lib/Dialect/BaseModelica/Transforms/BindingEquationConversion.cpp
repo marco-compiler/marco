@@ -29,34 +29,36 @@ class BindingEquationOpPattern
     : public mlir::OpRewritePattern<BindingEquationOp> {
 public:
   BindingEquationOpPattern(mlir::MLIRContext *context,
-                           mlir::SymbolTable &symbolTable)
+                           mlir::SymbolTableCollection &symbolTableCollection)
       : mlir::OpRewritePattern<BindingEquationOp>(context),
-        symbolTable(&symbolTable) {}
+        symbolTableCollection(&symbolTableCollection) {}
 
 protected:
-  [[nodiscard]] mlir::SymbolTable &getSymbolTable() const {
-    assert(symbolTable != nullptr);
-    return *symbolTable;
+  [[nodiscard]] mlir::SymbolTableCollection &getSymbolTableCollection() const {
+    assert(symbolTableCollection != nullptr);
+    return *symbolTableCollection;
   }
 
 private:
-  mlir::SymbolTable *symbolTable;
+  mlir::SymbolTableCollection *symbolTableCollection;
 };
 
 struct BindingEquationOpToEquationOpPattern : public BindingEquationOpPattern {
   using BindingEquationOpPattern::BindingEquationOpPattern;
 
-  mlir::LogicalResult match(BindingEquationOp op) const override {
-    auto variable = getSymbolTable().lookup<VariableOp>(op.getVariable());
-    return mlir::LogicalResult::success(!variable.isReadOnly());
-  }
-
-  void rewrite(BindingEquationOp op,
-               mlir::PatternRewriter &rewriter) const override {
+  mlir::LogicalResult
+  matchAndRewrite(BindingEquationOp op,
+                  mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
     auto modelOp = op->getParentOfType<ModelOp>();
 
-    auto variableOp = getSymbolTable().lookup<VariableOp>(op.getVariable());
+    auto variableOp = getSymbolTableCollection().lookupSymbolIn<VariableOp>(
+        modelOp, op.getVariableAttr());
+
+    if (variableOp.isReadOnly()) {
+      return rewriter.notifyMatchFailure(op, "Read-only variable");
+    }
+
     int64_t variableRank = variableOp.getVariableType().getRank();
 
     // Create the equation template.
@@ -102,7 +104,13 @@ struct BindingEquationOpToEquationOpPattern : public BindingEquationOpPattern {
     rewriter.setInsertionPointToStart(dynamicOp.getBody());
 
     auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-    instanceOp.getProperties().setIndices(variableOp.getIndices());
+
+    if (mlir::failed(instanceOp.setIndices(variableOp.getIndices(),
+                                           getSymbolTableCollection()))) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
   }
 };
 
@@ -110,8 +118,10 @@ struct BindingEquationOpToStartOpPattern : public BindingEquationOpPattern {
   using BindingEquationOpPattern::BindingEquationOpPattern;
 
   mlir::LogicalResult match(BindingEquationOp op) const override {
-    auto variable = getSymbolTable().lookup<VariableOp>(op.getVariable());
-    return mlir::LogicalResult::success(variable.isReadOnly());
+    auto modelOp = op->getParentOfType<ModelOp>();
+    auto variableOp = getSymbolTableCollection().lookupSymbolIn<VariableOp>(
+        modelOp, op.getVariableAttr());
+    return mlir::LogicalResult::success(variableOp.isReadOnly());
   }
 
   void rewrite(BindingEquationOp op,
@@ -146,8 +156,6 @@ void BindingEquationConversionPass::runOnOperation() {
 
 mlir::LogicalResult
 BindingEquationConversionPass::processModelOp(ModelOp modelOp) {
-  mlir::SymbolTable symbolTable(modelOp);
-
   mlir::ConversionTarget target(getContext());
   target.addIllegalOp<BindingEquationOp>();
 
@@ -155,10 +163,11 @@ BindingEquationConversionPass::processModelOp(ModelOp modelOp) {
       [](mlir::Operation *op) { return true; });
 
   mlir::RewritePatternSet patterns(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
 
   patterns.insert<BindingEquationOpToEquationOpPattern,
                   BindingEquationOpToStartOpPattern>(&getContext(),
-                                                     symbolTable);
+                                                     symbolTableCollection);
 
   return applyPartialConversion(modelOp, target, std::move(patterns));
 }

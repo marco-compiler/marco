@@ -1084,87 +1084,29 @@ createEquationInstances(llvm::SmallVectorImpl<EquationInstanceOp> &newEquations,
                         mlir::SymbolTableCollection &symbolTableCollection,
                         DynamicOp dynamicOp, EquationTemplateOp templateOp,
                         const IndexSet &indices, bool wrapWithSCC = false) {
+  rewriter.setInsertionPointToEnd(dynamicOp.getBody());
+
   if (wrapWithSCC) {
-    if (indices.empty()) {
-      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
-      auto sccOp = rewriter.create<SCCOp>(loc);
+    rewriter.setInsertionPointToEnd(dynamicOp.getBody());
+    auto sccOp = rewriter.create<SCCOp>(loc);
 
-      rewriter.setInsertionPointToStart(
-          rewriter.createBlock(&sccOp.getBodyRegion()));
-
-      auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-
-      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-          symbolTableCollection,
-          EquationPath(EquationPath::EquationSide::LEFT, 0));
-
-      newEquations.push_back(instanceOp);
-
-      if (!access) {
-        return mlir::failure();
-      }
-
-      instanceOp.getProperties().match = Variable(indices, *access);
-    } else {
-      IndexSet canonicalIndices = indices.getCanonicalRepresentation();
-      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
-      auto sccOp = rewriter.create<SCCOp>(loc);
-
-      rewriter.setInsertionPointToStart(
-          rewriter.createBlock(&sccOp.getBodyRegion()));
-
-      auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-
-      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-          symbolTableCollection,
-          EquationPath(EquationPath::EquationSide::LEFT, 0));
-
-      newEquations.push_back(instanceOp);
-
-      if (!access) {
-        return mlir::failure();
-      }
-
-      instanceOp.getProperties().match = Variable(indices, *access);
-      instanceOp.getProperties().setIndices(canonicalIndices);
-    }
-  } else {
-    if (indices.empty()) {
-      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
-
-      auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-
-      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-          symbolTableCollection,
-          EquationPath(EquationPath::EquationSide::LEFT, 0));
-
-      newEquations.push_back(instanceOp);
-
-      if (!access) {
-        return mlir::failure();
-      }
-
-      instanceOp.getProperties().match = Variable(indices, *access);
-    } else {
-      IndexSet canonicalIndices = indices.getCanonicalRepresentation();
-      rewriter.setInsertionPointToEnd(dynamicOp.getBody());
-
-      auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
-
-      newEquations.push_back(instanceOp);
-
-      std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
-          symbolTableCollection,
-          EquationPath(EquationPath::EquationSide::LEFT, 0));
-
-      if (!access) {
-        return mlir::failure();
-      }
-
-      instanceOp.getProperties().match = Variable(indices, *access);
-      instanceOp.getProperties().setIndices(canonicalIndices);
-    }
+    rewriter.setInsertionPointToStart(
+        rewriter.createBlock(&sccOp.getBodyRegion()));
   }
+
+  auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
+
+  std::optional<VariableAccess> access = instanceOp.getAccessAtPath(
+      symbolTableCollection, EquationPath(EquationPath::EquationSide::LEFT, 0));
+
+  newEquations.push_back(instanceOp);
+
+  if (!access) {
+    return mlir::failure();
+  }
+
+  instanceOp.getProperties().match = Variable(indices, *access);
+  instanceOp.getProperties().setIndices(indices);
 
   return mlir::success();
 }
@@ -2152,16 +2094,15 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
       auto clonedOp = mlir::cast<EquationInstanceOp>(
           rewriter.clone(*equation->getOp().getOperation()));
 
-      if (isScalarEquation) {
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(IndexSet());
-      } else {
-        IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
+      IndexSet slicedIndices;
 
-        clonedOp.getProperties().setIndices(slicedIndices);
+      if (!isScalarEquation) {
+        slicedIndices = indices.takeFirstDimensions(numOfInductions);
+      }
 
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(slicedIndices);
+      if (mlir::failed(
+              clonedOp.setIndices(slicedIndices, symbolTableCollection))) {
+        return mlir::failure();
       }
     }
   }

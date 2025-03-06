@@ -158,10 +158,10 @@ public:
       auto clonedOp =
           mlir::cast<EquationInstanceOp>(rewriter.clone(*op.getOperation()));
 
-      clonedOp.getProperties().setIndices(partition);
-
-      clonedOp.getProperties().match.indices =
-          matchedAccessFunction.map(partition);
+      if (mlir::failed(
+              clonedOp.setIndices(partition, *symbolTableCollection))) {
+        return mlir::failure();
+      }
     }
 
     rewriter.eraseOp(op);

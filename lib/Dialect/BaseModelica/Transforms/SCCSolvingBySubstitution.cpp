@@ -587,44 +587,14 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 
           rewriter.setInsertionPoint(firstEquation);
 
-          llvm::SmallVector<VariableAccess> accesses;
-          llvm::SmallVector<VariableAccess> writeAccesses;
-
-          if (mlir::failed(
-                  firstEquation.getAccesses(accesses, symbolTableCollection))) {
-            return mlir::failure();
-          }
-
-          if (mlir::failed(firstEquation.getWriteAccesses(
-                  writeAccesses, symbolTableCollection, accesses))) {
-            return mlir::failure();
-          }
-
-          assert(!writeAccesses.empty());
-          llvm::sort(writeAccesses, [](const VariableAccess &first,
-                                       const VariableAccess &second) {
-            if (first.getAccessFunction().isAffine() &&
-                !second.getAccessFunction().isAffine()) {
-              return true;
-            }
-
-            if (!first.getAccessFunction().isAffine() &&
-                second.getAccessFunction().isAffine()) {
-              return false;
-            }
-
-            return first < second;
-          });
-
           if (!remainingIndices.empty()) {
             auto clonedOp = mlir::cast<EquationInstanceOp>(
                 rewriter.clone(*firstEquation.getOperation()));
 
-            clonedOp.getProperties().setIndices(remainingIndices);
-
-            clonedOp.getProperties().match.indices =
-                writeAccesses[0].getAccessFunction().map(
-                    clonedOp.getProperties().indices);
+            if (mlir::failed(clonedOp.setIndices(remainingIndices,
+                                                 symbolTableCollection))) {
+              return mlir::failure();
+            }
 
             currentEquations.push_back(clonedOp);
           }
@@ -780,16 +750,13 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
                    return first < second;
                  });
 
-      if (isScalarEquation) {
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(IndexSet());
-
-      } else {
+      if (!isScalarEquation) {
         IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
-        clonedOp.getProperties().setIndices(slicedIndices);
 
-        clonedOp.getProperties().match.indices =
-            writeAccesses[0].getAccessFunction().map(slicedIndices);
+        if (mlir::failed(
+                clonedOp.setIndices(slicedIndices, symbolTableCollection))) {
+          return mlir::failure();
+        }
       }
     }
   }

@@ -633,7 +633,10 @@ createMainEquations(mlir::OpBuilder &builder,
 
   auto instanceOp = builder.create<EquationInstanceOp>(loc, equationTemplateOp);
 
-  instanceOp.getProperties().setIndices(indices);
+  if (mlir::failed(instanceOp.setIndices(indices, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
   return mlir::success();
 }
 

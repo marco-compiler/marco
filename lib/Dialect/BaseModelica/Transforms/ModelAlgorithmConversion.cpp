@@ -187,7 +187,10 @@ public:
       auto instanceOp =
           rewriter.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
 
-      instanceOp.getProperties().setIndices(outputVariables[i].getIndices());
+      if (mlir::failed(instanceOp.setIndices(outputVariables[i].getIndices(),
+                                             *symbolTable))) {
+        return mlir::failure();
+      }
     }
 
     // Erase the algorithm.

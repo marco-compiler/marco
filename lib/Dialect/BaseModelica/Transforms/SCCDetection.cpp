@@ -207,7 +207,11 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
 
       if (!isScalarEquation) {
         IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);
-        clonedOp.getProperties().setIndices(slicedIndices);
+
+        if (mlir::failed(
+                clonedOp.setIndices(slicedIndices, symbolTableCollection))) {
+          return mlir::failure();
+        }
       }
     }
   }
