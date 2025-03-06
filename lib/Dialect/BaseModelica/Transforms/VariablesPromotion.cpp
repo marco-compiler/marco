@@ -553,6 +553,20 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
   }
 
   // Promote the variables (and the equations writing to them).
+  InitialOp initialOp = nullptr;
+
+  auto getOrCreateInitialOp = [&]() {
+    if (!initialOp) {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToEnd(modelOp.getBody());
+
+      initialOp = rewriter.create<InitialOp>(modelOp.getLoc());
+      rewriter.createBlock(&initialOp.getBodyRegion());
+    }
+
+    return initialOp;
+  };
+
   for (VariableOp variableOp : promotableVariables) {
     // Change the variable type.
     auto newVariableType = variableOp.getVariableType().asParameter();
@@ -631,18 +645,13 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
       }
 
       if (shouldCreateInitialEquations) {
-        rewriter.setInsertionPoint(equationOp->getParentOfType<DynamicOp>());
-
-        auto initialOp = rewriter.create<InitialOp>(modelOp.getLoc());
-
-        rewriter.createBlock(&initialOp.getBodyRegion());
-        rewriter.setInsertionPointToStart(initialOp.getBody());
-
         // Get the indices of the equation that actually writes the scalar
         // variables of interest.
         writingEquationIndices =
             writeAccesses[0].getAccessFunction().inverseMap(
                 writtenIndices, writingEquationIndices);
+
+        rewriter.setInsertionPointToEnd(getOrCreateInitialOp().getBody());
 
         auto clonedEquationOp = mlir::cast<EquationInstanceOp>(
             rewriter.clone(*equationOp.getOperation()));
