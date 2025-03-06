@@ -626,7 +626,8 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
             initialConditionsWritesMap.find(variableOp) ==
             initialConditionsWritesMap.end();
       } else {
-        shouldCreateInitialEquations = !writingEquationIndices.empty();
+        shouldCreateInitialEquations =
+            !writtenIndices.empty() && !writingEquationIndices.empty();
       }
 
       if (shouldCreateInitialEquations) {
@@ -637,37 +638,22 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         rewriter.createBlock(&initialOp.getBodyRegion());
         rewriter.setInsertionPointToStart(initialOp.getBody());
 
-        if (!writingEquationIndices.empty()) {
-          // Get the indices of the equation that actually writes the scalar
-          // variables of interest.
-          writingEquationIndices =
-              writeAccesses[0].getAccessFunction().inverseMap(
-                  writtenIndices, writingEquationIndices);
+        // Get the indices of the equation that actually writes the scalar
+        // variables of interest.
+        writingEquationIndices =
+            writeAccesses[0].getAccessFunction().inverseMap(
+                writtenIndices, writingEquationIndices);
 
-          writingEquationIndices =
-              writingEquationIndices.getCanonicalRepresentation();
+        auto clonedEquationOp = mlir::cast<EquationInstanceOp>(
+            rewriter.clone(*equationOp.getOperation()));
 
-          auto clonedEquationOp = mlir::cast<EquationInstanceOp>(
-              rewriter.clone(*equationOp.getOperation()));
-
-          clonedEquationOp.getProperties().setIndices(writingEquationIndices);
-
-          clonedEquationOp.getProperties().match.indices =
-              writeAccesses[0].getAccessFunction().map(writingEquationIndices);
-
-          rewriter.eraseOp(equationOp);
-        } else {
-          auto clonedOp = mlir::cast<EquationInstanceOp>(
-              rewriter.clone(*equationOp.getOperation()));
-
-          clonedOp.getProperties().match.indices =
-              writeAccesses[0].getAccessFunction().map(writingEquationIndices);
-
-          rewriter.eraseOp(equationOp);
+        if (mlir::failed(clonedEquationOp.setIndices(writingEquationIndices,
+                                                     symbolTableCollection))) {
+          return mlir::failure();
         }
-      } else {
-        rewriter.eraseOp(equationOp);
       }
+
+      rewriter.eraseOp(equationOp);
     }
   }
 
