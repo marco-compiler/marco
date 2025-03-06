@@ -9520,15 +9520,6 @@ void StartEquationInstanceOp::print(mlir::OpAsmPrinter &printer) {
 }
 
 mlir::LogicalResult StartEquationInstanceOp::verify() {
-  auto indicesRank =
-      [&](std::optional<MultidimensionalRangeAttr> ranges) -> size_t {
-    if (!ranges) {
-      return 0;
-    }
-
-    return ranges->getValue().rank();
-  };
-
   // Check the indices for the explicit inductions.
   size_t numOfExplicitInductions = getInductionVariables().size();
 

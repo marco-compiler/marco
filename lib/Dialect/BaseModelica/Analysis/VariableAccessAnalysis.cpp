@@ -44,14 +44,6 @@ VariableAccessAnalysis::getAccesses(
 
 mlir::LogicalResult VariableAccessAnalysis::loadAccesses(
     mlir::SymbolTableCollection &symbolTableCollection) {
-  mlir::Block *bodyBlock = equationTemplate.getBody();
-
-  auto equationSidesOp =
-      mlir::cast<EquationSidesOp>(bodyBlock->getTerminator());
-
-  assert(equationSidesOp.getLhsValues().size() ==
-         equationSidesOp.getRhsValues().size());
-
   if (mlir::failed(
           equationTemplate.getAccesses(accesses, symbolTableCollection))) {
     return mlir::failure();
