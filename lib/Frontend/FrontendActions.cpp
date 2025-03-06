@@ -888,6 +888,9 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Solve the model.
   pm.addPass(mlir::createCanonicalizerPass());
+
+  pm.addPass(mlir::bmodelica::createIndexReductionPass());
+
   pm.addPass(mlir::bmodelica::createMatchingPass());
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
 
