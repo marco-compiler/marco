@@ -25,6 +25,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/FunctionUnwrap.h"
 #include "marco/Dialect/BaseModelica/Transforms/IDA.h"
 #include "marco/Dialect/BaseModelica/Transforms/InitialConditionsSolving.h"
+#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/Transforms/Matching.h"
 #include "marco/Dialect/BaseModelica/Transforms/ModelAlgorithmConversion.h"
 #include "marco/Dialect/BaseModelica/Transforms/ModelDebugCanonicalization.h"

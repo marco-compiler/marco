@@ -20,6 +20,7 @@ set(SOURCES
     DimensionAccessSub.cpp
     Dumpable.cpp
     Graph.cpp
+    IndexReduction.cpp
     IndexSet.cpp
     LocalMatchingSolutions.cpp
     LocalMatchingSolutionsMCIM.cpp

@@ -498,6 +498,21 @@ def MatchingPass : Pass<"match", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createMatchingPass()";
 }
 
+def IndexReductionPass : Pass<"index-reduction", "mlir::ModuleOp">
+{
+    let summary = "Perform index reduction";
+
+    let description = [{
+        Reduce the model to index-1 if initial index > 1.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createIndexReductionPass()";
+}
+
 def SCCAbsenceVerificationPass : Pass<"scc-absence-verification", "mlir::ModuleOp">
 {
     let dependentDialects = [
