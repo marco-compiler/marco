@@ -7391,6 +7391,42 @@ struct MainModelMergePattern : public mlir::OpRewritePattern<ModelOp> {
 } // namespace
 
 namespace mlir::bmodelica {
+mlir::LogicalResult ModelOp::verify() {
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  // Verify the equations.
+  llvm::SmallVector<EquationInstanceOp> equationOps;
+
+  walk([&](EquationInstanceOp equationOp) {
+    equationOps.push_back(equationOp);
+  });
+
+  for (EquationInstanceOp equationOp : equationOps) {
+    // Check the computed match, if any.
+    if (equationOp.getProperties().match) {
+      llvm::SmallVector<VariableAccess> accesses;
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(
+              equationOp.getAccesses(accesses, symbolTableCollection))) {
+        return equationOp.emitOpError() << "Can't compute variable accesses";
+      }
+
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return equationOp.emitOpError() << "Can't compute write accesses";
+      }
+
+      if (writeAccesses.empty()) {
+        return equationOp.emitOpError()
+               << "No write access found for the matched variable";
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
 void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                           mlir::MLIRContext *context) {
   patterns.add<InitialModelMergePattern, MainModelMergePattern>(context);

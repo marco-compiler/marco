@@ -3406,6 +3406,7 @@ def BaseModelica_ModelOp : BaseModelica_Op<"model",
         attr-dict-with-keyword $bodyRegion
     }];
 
+    let hasVerifier = 1;
     let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
