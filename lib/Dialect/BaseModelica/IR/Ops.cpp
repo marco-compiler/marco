@@ -934,8 +934,7 @@ void TensorInsertSliceOp::generateRuntimeVerification(
   
   mlir::Value destination = getDestination();
   mlir::Value source = getValue();
-  auto subscriptions = getSubscriptions().size();
-  
+
   //verify if the source is a tensor
   if(auto tensorType = getValue().getType().dyn_cast<TensorType>()) {
     int64_t firstOperand = 0;
@@ -947,10 +946,17 @@ void TensorInsertSliceOp::generateRuntimeVerification(
     }
 
     int64_t sourceRank = tensorType.getRank();
-    int64_t destinationRank = getDestination().getType().getRank();
 
     //for each dimension of the destination, verify dimension of the source
     for(int64_t i = firstOperand; i<sourceRank+firstOperand; i++){
+      auto assertOp = builder.create<AssertOp>(
+        loc,
+        builder.getStringAttr("Model error: source array dimension greater than destination array dimension"),
+        builder.getI64IntegerAttr(2));
+
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.createBlock(&assertOp.getConditionRegion());
+
       mlir::Value dim = builder.create<ConstantOp>(
         loc, builder.getIndexAttr(i));
       
@@ -962,14 +968,6 @@ void TensorInsertSliceOp::generateRuntimeVerification(
 
       mlir::Value destDim = builder.create<SizeOp>(
         loc, IntegerType::get(builder.getContext()), destination, dim);
-      
-      auto assertOp = builder.create<AssertOp>(
-        loc,
-        builder.getStringAttr("Model error: source array dimension greater than destination array dimension"),
-        builder.getI64IntegerAttr(2));
-
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.createBlock(&assertOp.getConditionRegion());
       
       mlir::Value cond = builder.create<LteOp>(
             loc, sourceDim, destDim);
