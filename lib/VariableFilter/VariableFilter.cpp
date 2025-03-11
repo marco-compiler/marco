@@ -72,23 +72,23 @@ VariableFilter::getVariableInfo(llvm::StringRef name,
   bool visibility = !isEnabled();
 
   if (matchesRegex(name)) {
-    std::vector<Range> ranges;
     visibility = true;
   }
 
   if (auto trackersIt = variables.find(name); trackersIt != variables.end()) {
-    for (const auto &tracker : trackersIt->second) {
+    for (const Tracker &tracker : trackersIt->second) {
       visibility = true;
-
       std::vector<Range> ranges;
 
       // If the requested rank is lower than the one known by the variable
       // filter, then only keep an amount of ranges equal to the rank.
 
       auto trackerRanges = tracker.getRanges();
+
       unsigned int amount = expectedRank < trackerRanges.size()
                                 ? expectedRank
                                 : trackerRanges.size();
+
       auto it = trackerRanges.begin();
       ranges.insert(ranges.begin(), it, it + amount);
 
@@ -122,6 +122,12 @@ VariableFilter::getVariableDerInfo(llvm::StringRef name,
   std::vector<Filter> result;
 
   bool visibility = false;
+
+  if (matchesRegex("der(" + name.str() + ")")) {
+    std::vector<Range> ranges;
+    visibility = true;
+  }
+
   llvm::SmallVector<Range, 3> ranges;
 
   if (derivatives.count(name) != 0) {
