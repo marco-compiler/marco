@@ -697,6 +697,21 @@ static bool fixupInvocation(marco::frontend::CompilerInvocation &invocation,
   CodeGenOpts.CodeModel = TargetOpts.CodeModel;
   CodeGenOpts.LargeDataThreshold = TargetOpts.LargeDataThreshold;
 
+  if (!invocation.getFrontendOptions().verificationModelPath.empty()) {
+    if (!invocation.getFrontendOptions().variableFilter.empty()) {
+      auto diagID =
+          diags.getCustomDiagID(clang::DiagnosticsEngine::Warning,
+                                "Verification model requested, the specified "
+                                "variable filter is ignored and "
+                                "set to print all the variables.");
+
+      diags.Report(diagID);
+    }
+
+    // Print all the variables, including derivatives.
+    invocation.getFrontendOptions().variableFilter = "/.*/";
+  }
+
   return diags.getNumErrors() == numErrorsBefore;
 }
 
