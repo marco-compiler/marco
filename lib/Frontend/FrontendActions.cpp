@@ -34,6 +34,7 @@
 #include "mlir/Transforms/Passes.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "clang/Lex/HeaderSearchOptions.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -711,16 +712,25 @@ bool CodeGenAction::generateMLIRLLVM() {
                         false, false, llvm::errs());
   }
 
-  buildMLIRLoweringPipeline(pm);
-
-  if (mlir::failed(pm.run(*mlirModule))) {
+  auto onFailureFn = llvm::make_scope_exit([&] {
     if (ci.getFrontendOptions().printIROnFailure) {
       llvm::errs() << *mlirModule << "\n";
     }
+  });
 
+  if (!canonicalizeMLIRModule(pm)) {
     return false;
   }
 
+  if (!solveModel(pm)) {
+    return false;
+  }
+
+  if (!lowerMLIRDialects(pm)) {
+    return false;
+  }
+
+  onFailureFn.release();
   return true;
 }
 
@@ -819,7 +829,25 @@ mlir::DataLayoutSpecInterface CodeGenAction::buildBaseModelicaDataLayoutSpec() {
   return mlir::DataLayoutSpecAttr::get(&getMLIRContext(), entries);
 }
 
-void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
+bool CodeGenAction::canonicalizeMLIRModule(mlir::PassManager &pm) {
+  pm.clear();
+  buildMLIRCanonicalizationPipeline(pm);
+  return mlir::succeeded(pm.run(*mlirModule));
+}
+
+bool CodeGenAction::solveModel(mlir::PassManager &pm) {
+  pm.clear();
+  buildMLIRModelSolvingPipeline(pm);
+  return mlir::succeeded(pm.run(*mlirModule));
+}
+
+bool CodeGenAction::lowerMLIRDialects(mlir::PassManager &pm) {
+  pm.clear();
+  buildMLIRLoweringPipeline(pm);
+  return mlir::succeeded(pm.run(*mlirModule));
+}
+
+void CodeGenAction::buildMLIRCanonicalizationPipeline(mlir::PassManager &pm) {
   CompilerInstance &ci = getInstance();
 
   if (!ci.getCodeGenOptions().debug) {
@@ -881,6 +909,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::bmodelica::createExplicitStartValueInsertionPass());
   pm.addPass(mlir::bmodelica::createModelAlgorithmConversionPass());
   pm.addPass(mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
+}
+
+void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
+  CompilerInstance &ci = getInstance();
 
   if (ci.getFrontendOptions().printModelInfo) {
     pm.addPass(mlir::bmodelica::createPrintModelInfoPass());
@@ -964,6 +996,10 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Check that no SCC is left unsolved.
   pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
+}
+
+void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
+  CompilerInstance &ci = getInstance();
 
   pm.addPass(createMLIRBaseModelicaToRuntimeConversionPass());
 
