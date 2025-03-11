@@ -455,6 +455,12 @@ static void parseFrontendArgs(marco::frontend::FrontendOptions &options,
 
   options.printIROnFailure = args.hasArg(options::OPT_print_ir_on_failure);
 
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_emit_verification_model)) {
+    llvm::StringRef value = arg->getValue();
+    options.verificationModelPath = value.str();
+  }
+
   // Collect the input files and save them in our instance of FrontendOptions
   std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);
   options.inputs.clear();

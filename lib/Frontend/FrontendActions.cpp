@@ -722,6 +722,19 @@ bool CodeGenAction::generateMLIRLLVM() {
     return false;
   }
 
+  if (!ci.getFrontendOptions().verificationModelPath.empty()) {
+    auto fileOrBufferNames = getCurrentFilesOrBufferNames();
+
+    std::unique_ptr<llvm::raw_pwrite_stream> os = ci.createOutputFile(
+        ci.getFrontendOptions().verificationModelPath, false);
+
+    if (os) {
+      mlirModule->print(*os);
+    } else {
+      llvm::errs() << "Can't emit MLIR model for verification\n";
+    }
+  }
+
   if (!solveModel(pm)) {
     return false;
   }

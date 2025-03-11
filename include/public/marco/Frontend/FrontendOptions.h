@@ -71,6 +71,9 @@ struct FrontendOptions {
   std::string printIRAfterPass = "";
   bool printIROnFailure = false;
 
+  // Emit the IR needed for the verification of the simulation data.
+  std::string verificationModelPath = "";
+
   bool shouldPrintIR() const;
 };
 } // namespace marco::frontend
