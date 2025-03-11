@@ -132,8 +132,8 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   populateBaseModelicaToArithConversionPatterns(patterns, &getContext(),
                                                 typeConverter);
 
-  populateBaseModelicaToFuncConversionPatterns(patterns, &getContext(),
-                                               typeConverter);
+  populateBaseModelicaToFuncConversionPatterns(
+      patterns, &getContext(), typeConverter, symbolTableCollection);
 
   populateBaseModelicaRawVariablesTypeLegalizationPatterns(
       patterns, &getContext(), typeConverter);

@@ -68,10 +68,26 @@ public:
 //===---------------------------------------------------------------------===//
 
 namespace {
+template <typename Op>
+class FunctionLoweringPattern : public ModelicaOpConversionPattern<Op> {
+  mlir::SymbolTableCollection *symbolTableCollection;
+
+public:
+  FunctionLoweringPattern(const mlir::TypeConverter &typeConverter,
+                          mlir::MLIRContext *context,
+                          mlir::SymbolTableCollection &symbolTableCollection)
+      : ModelicaOpConversionPattern<Op>(typeConverter, context),
+        symbolTableCollection(&symbolTableCollection) {}
+
+  mlir::SymbolTableCollection &getSymbolTableCollection() const {
+    assert(symbolTableCollection);
+    return *symbolTableCollection;
+  }
+};
+
 struct EquationFunctionOpLowering
-    : public ModelicaOpConversionPattern<EquationFunctionOp> {
-  using ModelicaOpConversionPattern<
-      EquationFunctionOp>::ModelicaOpConversionPattern;
+    : public FunctionLoweringPattern<EquationFunctionOp> {
+  using FunctionLoweringPattern<EquationFunctionOp>::FunctionLoweringPattern;
 
   mlir::LogicalResult
   matchAndRewrite(EquationFunctionOp op, OpAdaptor adaptor,
@@ -89,8 +105,14 @@ struct EquationFunctionOpLowering
 
     auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
 
+    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);
+
+    symbolTable.remove(op);
+    symbolTable.insert(funcOp);
 
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());
@@ -148,9 +170,8 @@ struct EquationCallOpLowering
   }
 };
 
-struct RawFunctionOpLowering
-    : public ModelicaOpConversionPattern<RawFunctionOp> {
-  using ModelicaOpConversionPattern<RawFunctionOp>::ModelicaOpConversionPattern;
+struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
+  using FunctionLoweringPattern<RawFunctionOp>::FunctionLoweringPattern;
 
   mlir::LogicalResult
   matchAndRewrite(RawFunctionOp op, OpAdaptor adaptor,
@@ -168,8 +189,14 @@ struct RawFunctionOpLowering
 
     auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
 
+    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);
+
+    symbolTable.remove(op);
+    symbolTable.insert(funcOp);
 
     rewriter.inlineRegionBefore(op.getBody(), funcOp.getFunctionBody(),
                                 funcOp.end());
@@ -680,9 +707,10 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   TypeConverter typeConverter(&getContext(), dataLayout);
 
   mlir::RewritePatternSet patterns(&getContext());
+  mlir::SymbolTableCollection symbolTableCollection;
 
-  populateBaseModelicaToFuncConversionPatterns(patterns, &getContext(),
-                                               typeConverter);
+  populateBaseModelicaToFuncConversionPatterns(
+      patterns, &getContext(), typeConverter, symbolTableCollection);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
@@ -690,9 +718,12 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
 namespace mlir {
 void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
-    mlir::TypeConverter &typeConverter) {
-  patterns.insert<EquationFunctionOpLowering, EquationCallOpLowering,
-                  RawFunctionOpLowering, RawReturnOpLowering, CallOpLowering>(
+    mlir::TypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTableCollection) {
+  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
+      typeConverter, context, symbolTableCollection);
+
+  patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
       typeConverter, context);
 }
 

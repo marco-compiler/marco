@@ -10,7 +10,8 @@ namespace mlir {
 
 void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
-    mlir::TypeConverter &typeConverter);
+    mlir::TypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTableCollection);
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass();
 
