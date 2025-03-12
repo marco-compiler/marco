@@ -152,28 +152,16 @@ protected:
   mlir::DataLayoutSpecInterface buildBaseModelicaDataLayoutSpec();
 
   /// }
-  /// @name Code transformation.
-  /// {
-
-  bool canonicalizeMLIRModule(mlir::PassManager &pm);
-
-  bool solveModel(mlir::PassManager &pm);
-
-  bool lowerMLIRDialects(mlir::PassManager &pm);
-
-  /// }
   /// @name Pipelines.
   /// {
 
-  /// Given a pass manager, append the passes to bring the model into a
-  /// canonical form.
-  void buildMLIRCanonicalizationPipeline(mlir::PassManager &pm);
+  /// Build the pipeline used to bring the model into a canonical form.
+  void buildMLIRModelCanonicalizationPipeline(mlir::PassManager &pm);
 
-  /// Given a pass manager, append the passes to solve the model.
+  /// Build the pipeline used to solve the model.
   void buildMLIRModelSolvingPipeline(mlir::PassManager &pm);
 
-  /// Given a pass manager, append the passes to lower the MLIR module to
-  /// the LLVM dialect.
+  /// Build the pipeline used to lower the various dialects to LLVM dialect.
   void buildMLIRLoweringPipeline(mlir::PassManager &pm);
 
   /// }

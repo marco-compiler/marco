@@ -1,4 +1,5 @@
 set(SOURCES
+        Instrumentation/VerificationModelEmitter.cpp
     CompilerInstance.cpp
     CompilerInvocation.cpp
     DiagnosticHandler.cpp

@@ -12,6 +12,7 @@
 #include "marco/Dialect/Runtime/Transforms/AllInterfaces.h"
 #include "marco/Dialect/Runtime/Transforms/Passes.h"
 #include "marco/Frontend/CompilerInstance.h"
+#include "marco/Frontend/Instrumentation/VerificationModelEmitter.h"
 #include "marco/IO/Command.h"
 #include "marco/Parser/Parser.h"
 #include "mlir/Conversion/Passes.h"
@@ -26,6 +27,7 @@
 #include "mlir/InitAllExtensions.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Pass/PassRegistry.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
@@ -718,28 +720,13 @@ bool CodeGenAction::generateMLIRLLVM() {
     }
   });
 
-  if (!canonicalizeMLIRModule(pm)) {
-    return false;
-  }
+  // Build the pipeline.
+  buildMLIRModelCanonicalizationPipeline(pm);
+  buildMLIRModelSolvingPipeline(pm);
+  buildMLIRLoweringPipeline(pm);
 
-  if (!ci.getFrontendOptions().verificationModelPath.empty()) {
-    auto fileOrBufferNames = getCurrentFilesOrBufferNames();
-
-    std::unique_ptr<llvm::raw_pwrite_stream> os = ci.createOutputFile(
-        ci.getFrontendOptions().verificationModelPath, false);
-
-    if (os) {
-      mlirModule->print(*os);
-    } else {
-      llvm::errs() << "Can't emit MLIR model for verification\n";
-    }
-  }
-
-  if (!solveModel(pm)) {
-    return false;
-  }
-
-  if (!lowerMLIRDialects(pm)) {
+  // Run the passes.
+  if (mlir::failed(pm.run(*mlirModule))) {
     return false;
   }
 
@@ -842,25 +829,8 @@ mlir::DataLayoutSpecInterface CodeGenAction::buildBaseModelicaDataLayoutSpec() {
   return mlir::DataLayoutSpecAttr::get(&getMLIRContext(), entries);
 }
 
-bool CodeGenAction::canonicalizeMLIRModule(mlir::PassManager &pm) {
-  pm.clear();
-  buildMLIRCanonicalizationPipeline(pm);
-  return mlir::succeeded(pm.run(*mlirModule));
-}
-
-bool CodeGenAction::solveModel(mlir::PassManager &pm) {
-  pm.clear();
-  buildMLIRModelSolvingPipeline(pm);
-  return mlir::succeeded(pm.run(*mlirModule));
-}
-
-bool CodeGenAction::lowerMLIRDialects(mlir::PassManager &pm) {
-  pm.clear();
-  buildMLIRLoweringPipeline(pm);
-  return mlir::succeeded(pm.run(*mlirModule));
-}
-
-void CodeGenAction::buildMLIRCanonicalizationPipeline(mlir::PassManager &pm) {
+void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
+    mlir::PassManager &pm) {
   CompilerInstance &ci = getInstance();
 
   if (!ci.getCodeGenOptions().debug) {
@@ -921,7 +891,18 @@ void CodeGenAction::buildMLIRCanonicalizationPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::bmodelica::createBindingEquationConversionPass());
   pm.addPass(mlir::bmodelica::createExplicitStartValueInsertionPass());
   pm.addPass(mlir::bmodelica::createModelAlgorithmConversionPass());
-  pm.addPass(mlir::bmodelica::createExplicitInitialEquationsInsertionPass());
+
+  auto lastPass =
+      mlir::bmodelica::createExplicitInitialEquationsInsertionPass();
+
+  if (!ci.getFrontendOptions().verificationModelPath.empty()) {
+    pm.addInstrumentation(std::make_unique<VerificationModelEmitter>(
+        lastPass.get(),
+        ci.createOutputFile(ci.getFrontendOptions().verificationModelPath,
+                            false)));
+  }
+
+  pm.addPass(std::move(lastPass));
 }
 
 void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
