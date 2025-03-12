@@ -5245,6 +5245,15 @@ void DivEWOp::generateRuntimeVerification(
     isIntegerArg = rhsShapedType.getElementType().isa<IntegerType>();
   }
 
+  auto assertOp = builder.create<AssertOp>(
+  loc, 
+  builder.getStringAttr(
+    "Model error: element-wise division by zero"),
+  builder.getI64IntegerAttr(2));
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(&assertOp.getConditionRegion());
+
   mlir::Value zero;
   if(isIntegerArg)
     zero = builder.create<ConstantOp>(
@@ -5281,15 +5290,6 @@ void DivEWOp::generateRuntimeVerification(
       builder.setInsertionPointToStart(forOp.getBody());
     }
   }
-
-  auto assertOp = builder.create<AssertOp>(
-    loc, 
-    builder.getStringAttr(
-      "Model error: element-wise division by zero"),
-    builder.getI64IntegerAttr(2));
-
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.createBlock(&assertOp.getConditionRegion());
   
   mlir::Value elemToCheck;
   if(isRhsScalar) {
