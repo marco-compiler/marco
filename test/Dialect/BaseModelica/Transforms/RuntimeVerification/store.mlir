@@ -5,7 +5,7 @@
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
 // CHECK-SAME: %[[arg1:.*]]: index
-func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index) -> index {
+func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
     %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x!bmodelica.int> -> tensor<2x!bmodelica.int>
@@ -21,8 +21,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index) -> inde
     
     bmodelica.store %arg0[%arg1], %0 : !bmodelica.array<2x!bmodelica.int>
 
-    return %arg1 : index
-
+    return
 }
 
 // -----
@@ -31,8 +30,8 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index) -> inde
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x2x!bmodelica.int>
-// CHECK-SAME: %[[arg1:.*]]: index
-func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index) -> index {
+// CHECK-SAME: %[[arg:.*]]: index
+func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index){
     %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x2x!bmodelica.int> -> tensor<2x2x!bmodelica.int>
@@ -57,6 +56,6 @@ func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2
     
     bmodelica.store %arg0[%arg1, %arg2], %0 : !bmodelica.array<2x2x!bmodelica.int>
 
-    return %arg1 : index
+    return 
 
 }
