@@ -471,7 +471,7 @@ private:
         }
 
         getEquationsCycles(cycles, writesMap, writingEquation,
-                           usedWritingEquationIndices, extendedPath);
+                           usedWritingEquationIndices, std::move(extendedPath));
       }
     }
   }
