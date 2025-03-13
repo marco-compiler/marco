@@ -222,9 +222,12 @@ public:
       auto writesMap =
           arrayDependencyGraph.getWritesMap(scc.begin(), scc.end());
 
+      llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
+
       for (const EquationDescriptor &equationDescriptor : scc) {
         llvm::SmallVector<Path> paths;
-        getEquationsCycles(paths, writesMap, equationDescriptor);
+        getEquationsCycles(paths, writesMap, visitedEquationIndices,
+                           equationDescriptor);
 
         std::lock_guard<std::mutex> lockGuard(resultMutex);
 
@@ -340,21 +343,27 @@ public:
   }
 
 private:
-  void getEquationsCycles(llvm::SmallVectorImpl<Path> &cycles,
-                          const WritesMap &writesMap,
-                          EquationDescriptor equation) const {
+  void getEquationsCycles(
+      llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
+      llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
+      EquationDescriptor equation) const {
     // The first equation starts with the full range, as it has no
     // predecessors.
     IndexSet equationIndices(
         arrayDependencyGraph.getEquation(equation).getIterationRanges());
 
-    getEquationsCycles(cycles, writesMap, equation, equationIndices, {});
+    getEquationsCycles(cycles, writesMap, visitedEquationIndices, equation,
+                       equationIndices - visitedEquationIndices[equation], {});
+
+    visitedEquationIndices[equation] += equationIndices;
   }
 
-  void getEquationsCycles(llvm::SmallVectorImpl<Path> &cycles,
-                          const WritesMap &writesMap,
-                          EquationDescriptor equation,
-                          const IndexSet &equationIndices, Path path) const {
+  void getEquationsCycles(
+      llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
+      llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
+      EquationDescriptor equation, const IndexSet &equationIndices,
+      Path path) const {
+    // Explore the current equation accesses.
     std::vector<Access> currentEquationWriteAccesses =
         arrayDependencyGraph.getEquation(equation).getWrites();
 
@@ -424,6 +433,13 @@ private:
             writingEquationAccessFunction.inverseMap(
                 variableIndicesIntersection, allWritingEquationIndices);
 
+        // Avoid visiting the same indices multiple times.
+        usedWritingEquationIndices -= visitedEquationIndices[writingEquation];
+
+        if (usedWritingEquationIndices.empty()) {
+          continue;
+        }
+
         Path extendedPath =
             path + PathDependency(equation, equationIndices,
                                   currentEquationWriteAccess,
@@ -470,8 +486,9 @@ private:
           }
         }
 
-        getEquationsCycles(cycles, writesMap, writingEquation,
-                           usedWritingEquationIndices, std::move(extendedPath));
+        getEquationsCycles(cycles, writesMap, visitedEquationIndices,
+                           writingEquation, usedWritingEquationIndices,
+                           std::move(extendedPath));
       }
     }
   }
