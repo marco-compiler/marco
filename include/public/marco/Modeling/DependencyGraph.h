@@ -354,8 +354,6 @@ private:
 
     getEquationsCycles(cycles, writesMap, visitedEquationIndices, equation,
                        equationIndices - visitedEquationIndices[equation], {});
-
-    visitedEquationIndices[equation] += equationIndices;
   }
 
   void getEquationsCycles(
@@ -363,6 +361,8 @@ private:
       llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
       EquationDescriptor equation, const IndexSet &equationIndices,
       Path path) const {
+    llvm::SmallVector<Path> newCycles;
+
     // Explore the current equation accesses.
     std::vector<Access> currentEquationWriteAccesses =
         arrayDependencyGraph.getEquation(equation).getWrites();
@@ -461,35 +461,41 @@ private:
                     usedWritingEquationIndices);
               });
 
-          // Check if the path involves more than one array equation.
-          auto isSelfLoop = [&]() {
-            for (const PathDependency &dependency : extendedPath) {
-              if (dependency.equation != extendedPath.begin()->equation) {
-                return false;
-              }
-            }
-
-            return true;
-          };
-
-          if (dependencyIt == extendedPath.begin()) {
-            if (!isSelfLoop()) {
-              cycles.push_back(extendedPath);
-            }
-
-            continue;
-          }
-
           if (dependencyIt != extendedPath.end()) {
-            // Sub-cycle detected.
+            // Check if the path involves more than one array equation.
+            bool isSelfLoop = std::all_of(
+                dependencyIt, extendedPath.end(),
+                [&](const PathDependency &dependency) {
+                  return dependency.equation == extendedPath.begin()->equation;
+                });
+
+            if (!isSelfLoop) {
+              Path cycle;
+
+              for (auto it = dependencyIt; it != extendedPath.end(); ++it) {
+                cycle = cycle + std::move(*it);
+              }
+
+              cycles.push_back(cycle);
+            }
+
             continue;
           }
         }
 
-        getEquationsCycles(cycles, writesMap, visitedEquationIndices,
+        getEquationsCycles(newCycles, writesMap, visitedEquationIndices,
                            writingEquation, usedWritingEquationIndices,
                            std::move(extendedPath));
       }
+    }
+
+    for (Path &cycle : newCycles) {
+      for (const PathDependency &pathDependency : cycle) {
+        visitedEquationIndices[pathDependency.equation] +=
+            pathDependency.equationIndices;
+      }
+
+      cycles.push_back(std::move(cycle));
     }
   }
 
