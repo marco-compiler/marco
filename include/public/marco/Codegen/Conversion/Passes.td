@@ -185,7 +185,7 @@ def BaseModelicaToFuncConversionPass
 //===---------------------------------------------------------------------===//
 
 def BaseModelicaRawVariablesConversionPass
-    : Pass<"convert-bmodelica-raw-variables", "mlir::ModuleOp">
+    : Pass<"convert-bmodelica-raw-variables">
 {
     let summary = "Base Modelica: conversion to Func dialect";
 

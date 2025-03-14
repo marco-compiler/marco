@@ -756,7 +756,6 @@ void BaseModelicaRawVariablesConversionPass::runOnOperation() {
 
 mlir::LogicalResult
 BaseModelicaRawVariablesConversionPass::convertRawVariables() {
-  mlir::ModuleOp module = getOperation();
   mlir::ConversionTarget target(getContext());
 
   target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
@@ -779,7 +778,7 @@ BaseModelicaRawVariablesConversionPass::convertRawVariables() {
   mlir::RewritePatternSet patterns(&getContext());
   populateBaseModelicaRawVariablesConversionPatterns(patterns, &getContext());
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(getOperation(), target, std::move(patterns));
 }
 
 namespace mlir {
