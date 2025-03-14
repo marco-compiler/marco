@@ -1021,13 +1021,14 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createIDAToFuncConversionPass());
   pm.addPass(mlir::createKINSOLToFuncConversionPass());
   pm.addPass(mlir::createRuntimeToFuncConversionPass());
-  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
 
   // Recreate structured control flow whenever possible.
-  pm.addPass(mlir::createLiftControlFlowToSCFPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createLiftControlFlowToSCFPass());
 
   // Generalize linalg operations.
-  pm.addPass(mlir::createLinalgGeneralizeNamedOpsPass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createLinalgGeneralizeNamedOpsPass());
 
   // Perform bufferization.
   pm.addPass(createMLIROneShotBufferizePass());
@@ -1037,7 +1038,8 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   // Lower the linalg dialect.
-  pm.addPass(mlir::createConvertLinalgToAffineLoopsPass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createConvertLinalgToAffineLoopsPass());
 
   // Optimize loops.
   if (ci.getCodeGenOptions().loopFusion) {
@@ -1050,7 +1052,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   }
 
   if (ci.getCodeGenOptions().loopTiling) {
-    addMLIRLoopTilingPass(pm);
+    addMLIRLoopTilingPass(pm.nest<mlir::func::FuncOp>());
   }
 
   if (ci.getCodeGenOptions().heapToStackPromotion) {
@@ -1059,20 +1061,23 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Buffer deallocations placements must be performed after loop
   // optimizations because they may introduce additional heap allocations.
-  buildMLIRBufferDeallocationPipeline(pm);
-  pm.addPass(mlir::createBufferizationToMemRefPass());
+  buildMLIRBufferDeallocationPipeline(pm.nest<mlir::func::FuncOp>());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createBufferizationToMemRefPass());
 
   // Convert the raw variables.
   // This must be performed only after the insertion of buffer deallocations,
   // so that the indirection level introduced by dynamically-sized
   // variables does not interfere.
-  pm.addPass(mlir::createBaseModelicaRawVariablesConversionPass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createBaseModelicaRawVariablesConversionPass());
 
   // Lower to LLVM dialect.
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::memref::createExpandStridedMetadataPass());
+
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToCFPass());
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
-  pm.addPass(mlir::memref::createExpandStridedMetadataPass());
-  pm.addPass(mlir::createLowerAffinePass());
-  pm.addPass(mlir::createConvertSCFToCFPass());
 
   // Perform again the conversion of bmodelica to core dialects,
   // as additional operations may have been introduced by the canonicalization
@@ -1094,13 +1099,15 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createRuntimeToLLVMConversionPass());
 
   // Finalization passes.
+  pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
+
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::createReconcileUnrealizedCastsPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::createCanonicalizerPass());
 
-  pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
-  pm.addPass(mlir::LLVM::createLegalizeForExportPass());
+  pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+      mlir::LLVM::createLegalizeForExportPass());
 }
 
 std::unique_ptr<mlir::Pass>
