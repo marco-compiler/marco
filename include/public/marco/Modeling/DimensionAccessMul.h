@@ -12,13 +12,9 @@ public:
 
   DimensionAccessMul(const DimensionAccessMul &other);
 
-  DimensionAccessMul(DimensionAccessMul &&other) noexcept;
-
   ~DimensionAccessMul() override;
 
   DimensionAccessMul &operator=(const DimensionAccessMul &other);
-
-  DimensionAccessMul &operator=(DimensionAccessMul &&other) noexcept;
 
   friend void swap(DimensionAccessMul &first, DimensionAccessMul &second);
 

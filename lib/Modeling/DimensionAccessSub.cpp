@@ -14,9 +14,6 @@ DimensionAccessSub::DimensionAccessSub(const DimensionAccessSub &other)
     : DimensionAccess(other), first(other.getFirst().clone()),
       second(other.getSecond().clone()) {}
 
-DimensionAccessSub::DimensionAccessSub(DimensionAccessSub &&other) noexcept =
-    default;
-
 DimensionAccessSub::~DimensionAccessSub() = default;
 
 DimensionAccessSub &
@@ -25,9 +22,6 @@ DimensionAccessSub::operator=(const DimensionAccessSub &other) {
   swap(*this, result);
   return *this;
 }
-
-DimensionAccessSub &
-DimensionAccessSub::operator=(DimensionAccessSub &&other) noexcept = default;
 
 void swap(DimensionAccessSub &first, DimensionAccessSub &second) {
   using std::swap;
