@@ -253,6 +253,10 @@ RTreeIndexSet::PointIterator::clone() const {
 
 IndexSet::PointIterator
 RTreeIndexSet::PointIterator::begin(const RTreeIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   auto currentRangeIt = indexSet.rangesBegin();
   auto endRangeIt = indexSet.rangesEnd();
 
@@ -277,6 +281,10 @@ RTreeIndexSet::PointIterator::begin(const RTreeIndexSet &indexSet) {
 
 IndexSet::PointIterator
 RTreeIndexSet::PointIterator::end(const RTreeIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   RTreeIndexSet::PointIterator it(indexSet.rangesEnd(), indexSet.rangesEnd(),
                                   std::nullopt, std::nullopt);
 

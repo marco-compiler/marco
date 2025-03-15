@@ -254,6 +254,10 @@ ListIndexSet::RangeIterator::clone() const {
 
 IndexSet::RangeIterator
 ListIndexSet::RangeIterator::begin(const ListIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   ListIndexSet::RangeIterator it(indexSet.ranges.begin());
 
   return {std::make_unique<ListIndexSet::RangeIterator>(std::move(it))};
@@ -261,6 +265,10 @@ ListIndexSet::RangeIterator::begin(const ListIndexSet &indexSet) {
 
 IndexSet::RangeIterator
 ListIndexSet::RangeIterator::end(const ListIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   ListIndexSet::RangeIterator it(indexSet.ranges.end());
 
   return {std::make_unique<ListIndexSet::RangeIterator>(std::move(it))};

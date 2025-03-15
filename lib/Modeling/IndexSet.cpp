@@ -426,11 +426,19 @@ void swap(IndexSet::PointIterator &first, IndexSet::PointIterator &second) {
 
 bool IndexSet::PointIterator::operator==(
     const IndexSet::PointIterator &it) const {
+  if (impl == it.impl) {
+    return true;
+  }
+
   return *impl == *it.impl;
 }
 
 bool IndexSet::PointIterator::operator!=(
     const IndexSet::PointIterator &it) const {
+  if (impl == it.impl) {
+    return false;
+  }
+
   return *impl != *it.impl;
 }
 
