@@ -98,7 +98,7 @@ public:
 
   const IndexSet &getMatched() const;
 
-  IndexSet getUnmatched() const;
+  const IndexSet &getUnmatched() const;
 
   /// Check whether all the scalar elements of this array have been matched.
   bool allComponentsMatched() const;
@@ -108,8 +108,9 @@ public:
   void removeMatch(const IndexSet &removedMatch);
 
 private:
-  IndexSet matchableIndices;
-  IndexSet match;
+  const IndexSet matchableIndices;
+  IndexSet matched;
+  IndexSet unmatched;
 };
 
 /// Graph node representing a variable.
@@ -1567,7 +1568,7 @@ private:
     for (VertexDescriptor equationDescriptor : equations) {
       const Equation &equation = getEquationFromDescriptor(equationDescriptor);
 
-      if (IndexSet unmatchedEquations = equation.getUnmatched();
+      if (const IndexSet &unmatchedEquations = equation.getUnmatched();
           !unmatchedEquations.empty()) {
         frontier.emplace_back(graph, equationDescriptor,
                               std::move(unmatchedEquations));
@@ -1676,7 +1677,7 @@ private:
         });
 
         for (auto solution : solutions) {
-          auto unmatchedScalarVariables = var.getUnmatched();
+          const IndexSet &unmatchedScalarVariables = var.getUnmatched();
           auto matched = solution.filterColumns(unmatchedScalarVariables);
           IndexSet indices = solution.flattenRows();
 
