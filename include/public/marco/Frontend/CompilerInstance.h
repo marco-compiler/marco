@@ -135,7 +135,8 @@ public:
   ///
   /// @param shouldOwnClient If client is non-NULL, specifies whether the
   /// diagnostic object should take ownership of the client.
-  void createDiagnostics(clang::DiagnosticConsumer *client = nullptr,
+  void createDiagnostics(llvm::vfs::FileSystem &VFS,
+                         clang::DiagnosticConsumer *client = nullptr,
                          bool shouldOwnClient = true);
 
   /// Create a DiagnosticsEngine object with a the TextDiagnosticPrinter.
@@ -156,11 +157,9 @@ public:
   /// diagnostic object should take ownership of the client.
   ///
   /// @return The new object on success, or null on failure.
-  static llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
-  createDiagnostics(LanguageOptions *languageOptions,
-                    clang::DiagnosticOptions *diagnosticOptions,
-                    clang::DiagnosticConsumer *client = nullptr,
-                    bool shouldOwnClient = true);
+  static llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> createDiagnostics(
+      llvm::vfs::FileSystem &VFS, clang::DiagnosticOptions *diagnosticOptions,
+      clang::DiagnosticConsumer *client = nullptr, bool shouldOwnClient = true);
 
   /// Create the file manager and replace any existing one with it.
   ///

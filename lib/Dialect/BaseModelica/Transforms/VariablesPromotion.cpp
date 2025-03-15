@@ -672,7 +672,9 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
 mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

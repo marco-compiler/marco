@@ -56,7 +56,7 @@ struct RawVariableOpInterface
     auto rawVariableOp = mlir::cast<RawVariableOp>(op);
 
     auto tensorType =
-        rawVariableOp.getVariable().getType().cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(rawVariableOp.getVariable().getType());
 
     auto memRefType = mlir::MemRefType::get(tensorType.getShape(),
                                             tensorType.getElementType());

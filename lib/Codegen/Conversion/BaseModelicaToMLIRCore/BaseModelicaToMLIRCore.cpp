@@ -66,8 +66,9 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   target.addIllegalOp<TensorFromElementsOp, TensorBroadcastOp, TensorViewOp,
                       TensorExtractOp, TensorInsertOp, TensorInsertSliceOp>();
 
-  target.addDynamicallyLegalOp<ConstantOp>(
-      [](ConstantOp op) { return op.getResult().getType().isa<RangeType>(); });
+  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+    return mlir::isa<RangeType>(op.getResult().getType());
+  });
 
   target.addIllegalOp<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
   target.addIllegalOp<NotOp, AndOp, OrOp>();
@@ -86,7 +87,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
   target.addIllegalOp<GlobalVariableOp, GlobalVariableGetOp>();
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>(
-      [](PoolVariableGetOp op) { return !op.getType().isa<ArrayType>(); });
+      [](PoolVariableGetOp op) { return !mlir::isa<ArrayType>(op.getType()); });
 
   target.addIllegalOp<AllocaOp, AllocOp, ArrayFromElementsOp, ArrayBroadcastOp,
                       FreeOp, DimOp, SubscriptionOp, LoadOp, StoreOp,

@@ -235,7 +235,7 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
 
   assert(functionType.getNumInputs() == argAttrs.size());
 
-  mlir::function_interface_impl::addArgAndResultAttrs(
+  mlir::call_interface_impl::addArgAndResultAttrs(
       builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
       getResAttrsAttrName(state.name));
 }
@@ -283,7 +283,8 @@ void FunctionOp::print(mlir::OpAsmPrinter &printer) {
 namespace mlir::runtime {
 void CallOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                    FunctionOp callee, mlir::ValueRange args) {
-  build(builder, state, callee.getResultTypes(), callee.getSymName(), args);
+  build(builder, state, callee.getResultTypes(), callee.getSymName(), args,
+        nullptr, nullptr);
 }
 
 mlir::LogicalResult CallOp::verify() {

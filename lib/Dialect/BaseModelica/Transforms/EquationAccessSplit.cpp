@@ -220,7 +220,7 @@ mlir::LogicalResult EquationAccessSplitPass::processModelOp(ModelOp modelOp) {
   mlir::GreedyRewriteConfig config;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
-  return applyPatternsAndFoldGreedily(modelOp, std::move(patterns), config);
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

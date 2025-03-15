@@ -4,12 +4,12 @@
 using namespace ::mlir::bmodelica;
 
 static mlir::Value unwrap(mlir::OpBuilder &builder, mlir::Value operand) {
-  if (auto arrayType = operand.getType().dyn_cast<ArrayType>();
+  if (auto arrayType = mlir::dyn_cast<ArrayType>(operand.getType());
       arrayType && arrayType.getRank() == 0) {
     return builder.create<LoadOp>(operand.getLoc(), operand);
   }
 
-  if (auto tensorType = operand.getType().dyn_cast<mlir::TensorType>();
+  if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(operand.getType());
       tensorType && tensorType.getRank() == 0) {
     return builder.create<TensorExtractOp>(operand.getLoc(), operand);
   }

@@ -807,7 +807,7 @@ mlir::LogicalResult KINSOLInstance::addVariableAccessesInfoToKINSOL(
         &accessFunctionsMap,
     size_t &accessFunctionsCounter) {
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-  assert(kinsolEquation.getType().isa<mlir::kinsol::EquationType>());
+  assert(mlir::isa<mlir::kinsol::EquationType>(kinsolEquation.getType()));
 
   // Keep track of the discovered accesses in order to avoid adding the same
   // access map multiple times for the same variable.
@@ -962,8 +962,8 @@ mlir::LogicalResult KINSOLInstance::createResidualFunction(
       // side of the equation.
       mlir::Value lhs = mapping.lookup(equationSidesOp.getLhsValues()[0]);
       mlir::Value rhs = mapping.lookup(equationSidesOp.getRhsValues()[0]);
-      assert(!lhs.getType().isa<mlir::ShapedType>());
-      assert(!rhs.getType().isa<mlir::ShapedType>());
+      assert(!mlir::isa<mlir::ShapedType>(lhs.getType()));
+      assert(!mlir::isa<mlir::ShapedType>(rhs.getType()));
 
       mlir::Value difference =
           rewriter.create<SubOp>(loc, rewriter.getF64Type(), rhs, lhs);
@@ -996,7 +996,7 @@ mlir::LogicalResult KINSOLInstance::createProxyResidualFunction(
   mlir::Location loc = proxy.getProxyVariable().getLoc();
 
   int64_t numOfInductionVariables =
-      proxy.getProxyVariable().getType().cast<ArrayType>().getRank();
+      mlir::cast<ArrayType>(proxy.getProxyVariable().getType()).getRank();
 
   auto residualFunction = rewriter.create<mlir::kinsol::ResidualFunctionOp>(
       loc, residualFunctionName, numOfInductionVariables);
@@ -1297,7 +1297,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   }
 
   for (mlir::Value seed : varSeeds) {
-    auto arrayType = seed.getType().cast<ArrayType>();
+    auto arrayType = mlir::cast<ArrayType>(seed.getType());
     seedSizes.push_back(arrayType.getNumElements());
   }
 
@@ -1319,7 +1319,7 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
 
     // Seeds of the variables.
     for (mlir::Value seed : varSeeds) {
-      auto seedArrayType = seed.getType().cast<ArrayType>();
+      auto seedArrayType = mlir::cast<ArrayType>(seed.getType());
 
       if (seedArrayType.isScalar()) {
         seed = builder.create<LoadOp>(loc, seed, std::nullopt);
@@ -1382,7 +1382,7 @@ mlir::LogicalResult KINSOLInstance::createProxyJacobianFunction(
   mlir::Location loc = proxy.getProxyVariable().getLoc();
 
   int64_t proxyRank =
-      proxy.getProxyVariable().getType().cast<ArrayType>().getRank();
+      mlir::cast<ArrayType>(proxy.getProxyVariable().getType()).getRank();
 
   int64_t independentVariableRank =
       independentVariable.getVariableType().getRank();
@@ -1465,7 +1465,7 @@ mlir::LogicalResult KINSOLInstance::replaceVariableGetOps(
 
       mlir::Value replacement = globalGetOp.getResult();
 
-      if (variableGetOp.getType().isa<mlir::TensorType>()) {
+      if (mlir::isa<mlir::TensorType>(variableGetOp.getType())) {
         replacement = rewriter.create<ArrayToTensorOp>(
             replacement.getLoc(), variableGetOp.getType(), replacement);
       } else {
@@ -1687,14 +1687,16 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
 
   rewriter.setInsertionPoint(scc);
 
-  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(scc.getLoc(), false);
+  VariablesList writtenVariables;
+  VariablesList readVariables;
 
-  if (mlir::failed(
-          getAccessAttrs(scheduleBlockOp.getProperties().writtenVariables,
-                         scheduleBlockOp.getProperties().readVariables,
-                         symbolTableCollection, scc))) {
+  if (mlir::failed(getAccessAttrs(writtenVariables, readVariables,
+                                  symbolTableCollection, scc))) {
     return mlir::failure();
   }
+
+  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
+      scc.getLoc(), false, writtenVariables, readVariables);
 
   llvm::SmallVector<VariableOp> variables;
 
@@ -1860,7 +1862,9 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::createEndFunction(
 mlir::LogicalResult SCCSolvingWithKINSOLPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

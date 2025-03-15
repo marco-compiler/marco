@@ -13,7 +13,7 @@ struct BaseModelicaOpAsmDialectInterface : public mlir::OpAsmDialectInterface {
 
   AliasResult getAlias(mlir::Attribute attr,
                        llvm::raw_ostream &os) const override {
-    if (attr.isa<EquationPathAttr>()) {
+    if (mlir::isa<EquationPathAttr>(attr)) {
       os << "equation_path";
       return AliasResult::OverridableAlias;
     }
@@ -105,7 +105,8 @@ Operation *BaseModelicaDialect::materializeConstant(mlir::OpBuilder &builder,
                                                     mlir::Attribute value,
                                                     mlir::Type type,
                                                     mlir::Location loc) {
-  return builder.create<ConstantOp>(loc, type, value.cast<mlir::TypedAttr>());
+  return builder.create<ConstantOp>(loc, type,
+                                    mlir::cast<mlir::TypedAttr>(value));
 }
 } // namespace mlir::bmodelica
 
@@ -196,39 +197,39 @@ mlir::Type getMostGenericScalarType(mlir::Value x, mlir::Value y) {
 mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second) {
   assert(isScalar(first) && isScalar(second));
 
-  if (first.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(first)) {
     return second;
   }
 
-  if (first.isa<IntegerType>()) {
-    if (second.isa<BooleanType>()) {
+  if (mlir::isa<IntegerType>(first)) {
+    if (mlir::isa<BooleanType>(second)) {
       return first;
     }
 
     return second;
   }
 
-  if (first.isa<RealType>()) {
+  if (mlir::isa<RealType>(first)) {
     return first;
   }
 
-  if (first.isa<mlir::IndexType>()) {
-    if (second.isa<BooleanType, mlir::IndexType>()) {
+  if (mlir::isa<mlir::IndexType>(first)) {
+    if (mlir::isa<BooleanType, mlir::IndexType>(second)) {
       return first;
     }
 
-    if (second
-            .isa<IntegerType, RealType, mlir::IntegerType, mlir::FloatType>()) {
+    if (mlir::isa<IntegerType, RealType, mlir::IntegerType, mlir::FloatType>(
+            second)) {
       return second;
     }
   }
 
-  if (first.isa<mlir::IntegerType>()) {
-    if (second.isa<BooleanType, mlir::IndexType>()) {
+  if (mlir::isa<mlir::IntegerType>(first)) {
+    if (mlir::isa<BooleanType, mlir::IndexType>(second)) {
       return first;
     }
 
-    if (second.isa<mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IntegerType>(second)) {
       if (first.getIntOrFloatBitWidth() >= second.getIntOrFloatBitWidth()) {
         return first;
       }
@@ -236,18 +237,18 @@ mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second) {
       return second;
     }
 
-    if (second.isa<IntegerType, RealType, mlir::FloatType>()) {
+    if (mlir::isa<IntegerType, RealType, mlir::FloatType>(second)) {
       return second;
     }
   }
 
-  if (first.isa<mlir::FloatType>()) {
-    if (second.isa<BooleanType, IntegerType, mlir::IndexType,
-                   mlir::IntegerType>()) {
+  if (mlir::isa<mlir::FloatType>(first)) {
+    if (mlir::isa<BooleanType, IntegerType, mlir::IndexType, mlir::IntegerType>(
+            second)) {
       return first;
     }
 
-    if (second.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(second)) {
       if (first.getIntOrFloatBitWidth() >= second.getIntOrFloatBitWidth()) {
         return first;
       }
@@ -255,7 +256,7 @@ mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second) {
       return second;
     }
 
-    if (second.isa<RealType>()) {
+    if (mlir::isa<RealType>(second)) {
       return second;
     }
   }
@@ -273,8 +274,8 @@ bool areTypesCompatible(mlir::Type first, mlir::Type second) {
     return areScalarTypesCompatible(first, second);
   }
 
-  auto firstShapedType = first.dyn_cast<mlir::ShapedType>();
-  auto secondShapedType = second.dyn_cast<mlir::ShapedType>();
+  auto firstShapedType = mlir::dyn_cast<mlir::ShapedType>(first);
+  auto secondShapedType = mlir::dyn_cast<mlir::ShapedType>(second);
 
   if (firstShapedType && secondShapedType) {
     if (mlir::failed(verifyCompatibleShape(firstShapedType.getShape(),
@@ -286,8 +287,8 @@ bool areTypesCompatible(mlir::Type first, mlir::Type second) {
                               secondShapedType.getElementType());
   }
 
-  auto firstRangeType = first.dyn_cast<RangeType>();
-  auto secondRangeType = second.dyn_cast<RangeType>();
+  auto firstRangeType = mlir::dyn_cast<RangeType>(first);
+  auto secondRangeType = mlir::dyn_cast<RangeType>(second);
 
   if (firstRangeType && secondRangeType) {
     return areTypesCompatible(firstRangeType.getInductionType(),
@@ -302,8 +303,8 @@ bool isScalar(mlir::Type type) {
     return false;
   }
 
-  return type.isa<BooleanType, IntegerType, RealType, mlir::IndexType,
-                  mlir::IntegerType, mlir::FloatType>();
+  return mlir::isa<BooleanType, IntegerType, RealType, mlir::IndexType,
+                   mlir::IntegerType, mlir::FloatType>(type);
 }
 
 bool isScalar(mlir::Attribute attribute) {
@@ -311,7 +312,7 @@ bool isScalar(mlir::Attribute attribute) {
     return false;
   }
 
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+  if (auto typedAttr = mlir::dyn_cast<mlir::TypedAttr>(attribute)) {
     return isScalar(typedAttr.getType());
   }
 
@@ -323,8 +324,8 @@ bool isScalarIntegerLike(mlir::Type type) {
     return false;
   }
 
-  return type
-      .isa<BooleanType, IntegerType, mlir::IndexType, mlir::IntegerType>();
+  return mlir::isa<BooleanType, IntegerType, mlir::IndexType,
+                   mlir::IntegerType>(type);
 }
 
 bool isScalarIntegerLike(mlir::Attribute attribute) {
@@ -332,7 +333,7 @@ bool isScalarIntegerLike(mlir::Attribute attribute) {
     return false;
   }
 
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+  if (auto typedAttr = mlir::dyn_cast<mlir::TypedAttr>(attribute)) {
     return isScalarIntegerLike(typedAttr.getType());
   }
 
@@ -344,7 +345,7 @@ bool isScalarFloatLike(mlir::Type type) {
     return false;
   }
 
-  return type.isa<RealType, mlir::FloatType>();
+  return mlir::isa<RealType, mlir::FloatType>(type);
 }
 
 bool isScalarFloatLike(mlir::Attribute attribute) {
@@ -352,7 +353,7 @@ bool isScalarFloatLike(mlir::Attribute attribute) {
     return false;
   }
 
-  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+  if (auto typedAttr = mlir::dyn_cast<mlir::TypedAttr>(attribute)) {
     return isScalarFloatLike(typedAttr.getType());
   }
 
@@ -362,25 +363,25 @@ bool isScalarFloatLike(mlir::Attribute attribute) {
 int64_t getScalarIntegerLikeValue(mlir::Attribute attribute) {
   assert(isScalarIntegerLike(attribute));
 
-  if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+  if (auto booleanAttr = mlir::dyn_cast<BooleanAttr>(attribute)) {
     return booleanAttr.getValue();
   }
 
-  if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+  if (auto integerAttr = mlir::dyn_cast<IntegerAttr>(attribute)) {
     return integerAttr.getValue().getSExtValue();
   }
 
-  return attribute.dyn_cast<mlir::IntegerAttr>().getValue().getSExtValue();
+  return mlir::dyn_cast<mlir::IntegerAttr>(attribute).getValue().getSExtValue();
 }
 
 double getScalarFloatLikeValue(mlir::Attribute attribute) {
   assert(isScalarFloatLike(attribute));
 
-  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+  if (auto realAttr = mlir::dyn_cast<RealAttr>(attribute)) {
     return realAttr.getValue().convertToDouble();
   }
 
-  return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
+  return mlir::dyn_cast<mlir::FloatAttr>(attribute).getValueAsDouble();
 }
 
 int64_t getIntegerFromAttribute(mlir::Attribute attribute) {
@@ -405,7 +406,7 @@ getDimensionAccess(const llvm::DenseMap<mlir::Value, unsigned int>
     if (auto op = mlir::dyn_cast<ConstantOp>(definingOp)) {
       auto attr = mlir::cast<mlir::Attribute>(op.getValue());
 
-      if (auto rangeAttr = attr.dyn_cast<IntegerRangeAttr>()) {
+      if (auto rangeAttr = mlir::dyn_cast<IntegerRangeAttr>(attr)) {
         assert(rangeAttr.getStep() == 1);
 
         auto lowerBound =
@@ -418,7 +419,7 @@ getDimensionAccess(const llvm::DenseMap<mlir::Value, unsigned int>
             value.getContext(), Range(lowerBound, upperBound));
       }
 
-      if (auto rangeAttr = attr.dyn_cast<RealRangeAttr>()) {
+      if (auto rangeAttr = mlir::dyn_cast<RealRangeAttr>(attr)) {
         assert(rangeAttr.getStep().convertToDouble() == 1);
 
         auto lowerBound = static_cast<Range::data_type>(

@@ -60,11 +60,11 @@ bool AssignmentStatementLowerer::lower(
 
     if (path.size() == 1) {
       std::optional<Reference> variableRef = lookupVariable(
-          path.front().cast<mlir::FlatSymbolRefAttr>().getValue());
+          mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue());
       if (!variableRef) {
         emitIdentifierError(
             IdentifierError::IdentifierType::VARIABLE,
-            path.front().cast<mlir::FlatSymbolRefAttr>().getValue(),
+            mlir::cast<mlir::FlatSymbolRefAttr>(path.front()).getValue(),
             getVariablesSymbolTable().getVariables(true),
             statement.getExpression()->getLocation());
         return false;

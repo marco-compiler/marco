@@ -13,15 +13,15 @@ include "mlir/IR/SymbolInterfaces.td"
 //===---------------------------------------------------------------------===//
 
 // KINSOL instance type.
-def KINSOLInstance : Type<CPred<"$_self.isa<::mlir::kinsol::InstanceType>()">,
+def KINSOLInstance : Type<CPred<"mlir::isa<::mlir::kinsol::InstanceType>($_self)">,
                                 "instance", "::mlir::kinsol::InstanceType">;
 
 // KINSOL equation type.
-def KINSOLEquation : Type<CPred<"$_self.isa<::mlir::kinsol::EquationType>()">,
+def KINSOLEquation : Type<CPred<"mlir::isa<::mlir::kinsol::EquationType>($_self)">,
                                 "equation", "::mlir::kinsol::EquationType">;
 
 // KINSOL variable type.
-def KINSOLVariable : Type<CPred<"$_self.isa<::mlir::kinsol::VariableType>()">,
+def KINSOLVariable : Type<CPred<"mlir::isa<::mlir::kinsol::VariableType>($_self)">,
                                 "variable", "::mlir::kinsol::VariableType">;
 
 //===---------------------------------------------------------------------===//
@@ -30,7 +30,7 @@ def KINSOLVariable : Type<CPred<"$_self.isa<::mlir::kinsol::VariableType>()">,
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
-    : Attr<CPred<"$_self.isa<::mlir::kinsol::MultidimensionalRangeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::kinsol::MultidimensionalRangeAttr>($_self)">,
                  "Multidimensional range attribute">
 {
   let storageType = [{ ::mlir::kinsol::MultidimensionalRangeAttr }];

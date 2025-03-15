@@ -42,7 +42,7 @@ func.func @twoElements(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodeli
 // CHECK-DAG: %[[v2_casted:.*]] = builtin.unrealized_conversion_cast %[[v2]] : !bmodelica.int to i64
 // CHECK-DAG: %[[v3_casted:.*]] = builtin.unrealized_conversion_cast %[[v3]] : !bmodelica.int to i64
 // CHECK-DAG: %[[v4_casted:.*]] = builtin.unrealized_conversion_cast %[[v4]] : !bmodelica.int to i64
-// CHECK: %[[v5_casted:.*]] = builtin.unrealized_conversion_cast %[[v5]] : !bmodelica.int to i64
+// CHECK-DAG: %[[v5_casted:.*]] = builtin.unrealized_conversion_cast %[[v5]] : !bmodelica.int to i64
 // CHECK: %[[memref:.*]] = memref.alloc() : memref<2x3xi64>
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[memref]] : memref<2x3xi64> to !bmodelica.array<2x3x!bmodelica.int>
 // CHECK: %[[i0:.*]] = arith.constant 0 : index

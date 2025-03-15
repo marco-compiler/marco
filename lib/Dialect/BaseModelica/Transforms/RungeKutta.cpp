@@ -1868,7 +1868,7 @@ mlir::LogicalResult RungeKuttaPass::createEstimateErrorFunction(
       mlir::Value variableError = rewriter.create<QualifiedVariableGetOp>(
           functionOp.getLoc(), errorVarsIt->getSecond());
 
-      if (variableError.getType().isa<mlir::TensorType>()) {
+      if (mlir::isa<mlir::TensorType>(variableError.getType())) {
         variableError =
             rewriter.create<MaxOp>(functionOp.getLoc(), variableError);
       }
@@ -2117,7 +2117,9 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
 mlir::LogicalResult RungeKuttaPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

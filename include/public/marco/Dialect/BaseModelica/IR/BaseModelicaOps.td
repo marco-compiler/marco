@@ -22,12 +22,12 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 
 // BaseModelica Boolean type.
 def BaseModelicaBoolean :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::BooleanType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::BooleanType>($_self)">,
          "boolean", "::mlir::bmodelica::BooleanType">;
 
 // BaseModelica Boolean attribute.
 def BaseModelicaBooleanAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::BoolAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::BoolAttr>($_self)">,
            "boolean attribute">
 {
     let storageType = [{ ::mlir::bmodelica::BoolAttr }];
@@ -40,12 +40,12 @@ def BaseModelicaBooleanAttr
 
 // BaseModelica Integer type.
 def BaseModelicaInteger :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::IntegerType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::IntegerType>($_self)">,
          "integer", "::mlir::bmodelica::IntegerType">;
 
 // BaseModelica Integer attribute.
 def BaseModelicaIntegerAttr :
-    Attr<CPred<"$_self.isa<::mlir::bmodelica::IntegerAttr>()">,
+    Attr<CPred<"mlir::isa<::mlir::bmodelica::IntegerAttr>($_self)">,
          "integer attribute">
 {
     let storageType = [{ ::mlir::bmodelica::IntegerAttr }];
@@ -58,12 +58,12 @@ def BaseModelicaIntegerAttr :
 
 // BaseModelica Real type.
 def BaseModelicaReal :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::RealType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::RealType>($_self)">,
          "real", "::mlir::bmodelica::RealType">;
 
 // BaseModelica Real attribute.
 def BaseModelicaRealAttr :
-    Attr<CPred<"$_self.isa<::mlir::bmodelica::RealAttr>()">,
+    Attr<CPred<"mlir::isa<::mlir::bmodelica::RealAttr>($_self)">,
          "real attribute">
 {
     let storageType = [{ ::mlir::bmodelica::RealAttr }];
@@ -76,12 +76,12 @@ def BaseModelicaRealAttr :
 
 // BaseModelica Array type.
 def BaseModelicaArray :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::ArrayType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::ArrayType>($_self)">,
          "array", "::mlir::bmodelica::ArrayType">;
 
 // BaseModelica Record type.
 def BaseModelicaRecord :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::RecordType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::RecordType>($_self)">,
          "record", "::mlir::bmodelica::RecordType">;
 
 // BaseModelica scalar type.
@@ -94,7 +94,7 @@ def AnyBaseModelicaCompatibleScalar :
 
 // Whether a type is an ArrayType.
 def IsBaseModelicaArrayTypePred :
-    CPred<"$_self.isa<::mlir::bmodelica::ArrayType>()">;
+    CPred<"mlir::isa<::mlir::bmodelica::ArrayType>($_self)">;
 
 // Array with given allowed element types.
 class BaseModelicaArrayOf<list<Type> allowedTypes> :
@@ -105,29 +105,29 @@ class BaseModelicaArrayOf<list<Type> allowedTypes> :
 def AnyBaseModelicaArray : BaseModelicaArrayOf<[AnyType]>;
 
 // Whether a type is a VariableType.
-def IsVariableTypePred : CPred<"$_self.isa<::mlir::bmodelica::VariableType>()">;
+def IsVariableTypePred : CPred<"mlir::isa<::mlir::bmodelica::VariableType>($_self)">;
 
 class VariableOf<list<Type> allowedTypes> :
     ContainerType<AnyTypeOf<allowedTypes>,
                   IsVariableTypePred,
-                  "$_self.cast<::mlir::bmodelica::VariableType>().getElementType()",
+                  "mlir::cast<mlir::bmodelica::VariableType>($_self).getElementType()",
                   "variable", "::mlir::bmodelica::VariableType">;
 
 def AnyVariable : VariableOf<[AnyType]>;
 
 // Equation type.
 def BaseModelicaEquation :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::EquationType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::EquationType>($_self)">,
          "equation", "::mlir::bmodelica::EquationType">;
 
 // Range type.
 def BaseModelicaRange :
-    Type<CPred<"$_self.isa<::mlir::bmodelica::RangeType>()">,
+    Type<CPred<"mlir::isa<::mlir::bmodelica::RangeType>($_self)">,
          "range", "::mlir::bmodelica::RangeType">;
 
 // MultidimensionalRange attribute.
 def MultidimensionalRangeAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::MultidimensionalRangeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::MultidimensionalRangeAttr>($_self)">,
                  "Multidimensional range attribute">
 {
     let storageType = [{ ::mlir::bmodelica::MultidimensionalRangeAttr }];
@@ -137,7 +137,7 @@ def MultidimensionalRangeAttr
 
 // Function derivative attribute.
 def FunctionDerivativeAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::FunctionDerivativeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::FunctionDerivativeAttr>($_self)">,
            "Function derivative attribute">
 {
     let storageType = [{ ::mlir::bmodelica::FunctionDerivativeAttr }];
@@ -146,12 +146,12 @@ def FunctionDerivativeAttr
 }
 
 def VarDerivativeAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::VarDerivativeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::VarDerivativeAttr>($_self)">,
            "Variable derivative attribute">;
 
 // Equation path attribute.
 def EquationPathAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::EquationPathAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationPathAttr>($_self)">,
            "Equation path attribute">
 {
     let storageType = [{ ::mlir::bmodelica::EquationPathAttr }];
@@ -161,7 +161,7 @@ def EquationPathAttr
 
 // Equation view attribute.
 def EquationViewAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::EquationViewAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationViewAttr>($_self)">,
                  "Equation view attribute">
 {
     let storageType = [{ ::mlir::bmodelica::EquationViewAttr }];
@@ -171,7 +171,7 @@ def EquationViewAttr
 
 // Equation match attribute.
 def EquationMatchAttr
-    : Attr<CPred<"$_self.isa<::mlir::bmodelica::EquationMatchAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::bmodelica::EquationMatchAttr>($_self)">,
                  "Equation view attribute">
 {
     let storageType = [{ ::mlir::bmodelica::EquationMatchAttr }];
@@ -185,17 +185,23 @@ def EquationMatchAttr
 
 def DerivativesMapProperty : Property<"DerivativesMap">
 {
-    let convertToAttribute = "$_storage.asAttribute($_ctxt)";
+    let convertToAttribute = [{
+        return $_storage.asAttribute($_ctxt);
+    }];
 
     let convertFromAttribute =
         "return DerivativesMap::setFromAttr($_storage, $_attr, $_diag);";
 
     let hashProperty = "$_storage.hash();";
+
+    let defaultValue = "{}";
 }
 
 def VariableProperty : Property<"Variable">
 {
-    let convertToAttribute = "$_storage.asAttribute($_ctxt)";
+    let convertToAttribute = [{
+        return $_storage.asAttribute($_ctxt);
+    }];
 
     let convertFromAttribute =
         "return Variable::setFromAttr($_storage, $_attr, $_diag);";
@@ -211,12 +217,14 @@ def VariableProperty : Property<"Variable">
             return ::mlir::failure();
         }
     }];
+
+    let defaultValue = "{}";
 }
 
 def VariablesListProperty : Property<"VariablesList">
 {
     let convertToAttribute = [{
-        getPropertiesAsAttribute($_ctxt, $_storage)
+        return getPropertiesAsAttribute($_ctxt, $_storage);
     }];
 
     let convertFromAttribute = [{
@@ -226,12 +234,14 @@ def VariablesListProperty : Property<"VariablesList">
     let hashProperty = [{
         computeHash($_storage);
     }];
+
+    let defaultValue = "{}";
 }
 
 def ScheduleListProperty : Property<"ScheduleList">
 {
     let convertToAttribute = [{
-        getPropertiesAsAttribute($_ctxt, $_storage)
+        return getPropertiesAsAttribute($_ctxt, $_storage);
     }];
 
     let convertFromAttribute = [{
@@ -241,6 +251,8 @@ def ScheduleListProperty : Property<"ScheduleList">
     let hashProperty = [{
         computeHash($_storage);
     }];
+
+    let defaultValue = "{}";
 }
 
 //===---------------------------------------------------------------------===//
@@ -348,7 +360,7 @@ def RangeBeginOp : BaseModelica_Op<"range_begin", []>
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                range.getType().cast<RangeType>().getInductionType();
+                mlir::cast<RangeType>(range.getType()).getInductionType();
 
             build($_builder, $_state, inductionType, range);
         }]>
@@ -380,7 +392,7 @@ def RangeEndOp : BaseModelica_Op<"range_end", []>
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                range.getType().cast<RangeType>().getInductionType();
+                mlir::cast<RangeType>(range.getType()).getInductionType();
 
             build($_builder, $_state, inductionType, range);
         }]>
@@ -412,7 +424,7 @@ def RangeStepOp : BaseModelica_Op<"range_step", []>
     let builders = [
         OpBuilder<(ins "mlir::Value":$range), [{
             auto inductionType =
-                range.getType().cast<RangeType>().getInductionType();
+                mlir::cast<RangeType>(range.getType()).getInductionType();
 
             build($_builder, $_state, inductionType, range);
         }]>
@@ -512,7 +524,7 @@ def Modelica_TensorViewOp : BaseModelica_Op<"tensor_view",
 def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
     [TypesMatchWith<"result type matches element type of 'tensor'",
                      "tensor", "result",
-                     "$_self.cast<mlir::TensorType>().getElementType()">,
+                     "mlir::cast<mlir::TensorType>($_self).getElementType()">,
     NoMemoryEffect]>
 {
     let arguments = (ins
@@ -619,7 +631,7 @@ def Modelica_AllocaOp : BaseModelica_Op<"alloca",
     let extraClassDeclaration = [{
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -662,7 +674,7 @@ def Modelica_AllocOp : BaseModelica_Op<"alloc",
         /// Get the result array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -711,7 +723,7 @@ def Modelica_ArrayFromElementsOp : BaseModelica_Op<"array_from_elements",
         /// Get the result array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -757,7 +769,7 @@ def Modelica_ArrayBroadcastOp : BaseModelica_Op<"array_broadcast",
         /// Get the result array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -861,7 +873,7 @@ def Modelica_DimOp : BaseModelica_Op<"dim", [NoMemoryEffect]>
 def BaseModelica_LoadOp : BaseModelica_Op<"load",
     [TypesMatchWith<"result type matches element type of 'array'",
                      "array", "result",
-                     "$_self.cast<ArrayType>().getElementType()">,
+                     "mlir::cast<ArrayType>($_self).getElementType()">,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Load a value from an array.";
@@ -902,7 +914,7 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
         /// Get the array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -910,7 +922,7 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
 def BaseModelica_StoreOp : BaseModelica_Op<"store",
     [TypesMatchWith<"type of 'value' matches element type of 'array'",
                     "array", "value",
-                    "$_self.cast<ArrayType>().getElementType()">,
+                    "mlir::cast<ArrayType>($_self).getElementType()">,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Store a value into an array.";
@@ -952,7 +964,7 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
         /// Get the array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -1002,12 +1014,12 @@ def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
 
         ArrayType getSourceArrayType()
         {
-            return getSource().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getSource().getType());
         }
 
         ArrayType getResultArrayType()
         {
-            return getResult().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getResult().getType());
         }
 
         /// @name ViewLikeOpInterface methods
@@ -1050,7 +1062,7 @@ def BaseModelica_ArrayFillOp : BaseModelica_Op<"array_fill",
         /// Get the array type.
         ArrayType getArrayType()
         {
-            return getArray().getType().cast<ArrayType>();
+            return mlir::cast<ArrayType>(getArray().getType());
         }
     }];
 }
@@ -1506,7 +1518,7 @@ def BaseModelica_ConstantOp : BaseModelica_Op<"constant",
 
     let builders = [
         OpBuilder<(ins "mlir::Attribute":$value), [{
-            auto typedAttr = value.cast<mlir::TypedAttr>();
+            auto typedAttr = mlir::cast<mlir::TypedAttr>(value);
             build($_builder, $_state, typedAttr.getType(), typedAttr);
         }]>
     ];
@@ -4768,7 +4780,9 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     let arguments = (ins
         SymbolRefAttr:$callee,
         Variadic<AnyType>:$args,
-        OptionalAttr<FlatSymbolRefArrayAttr>:$argNames);
+        OptionalAttr<FlatSymbolRefArrayAttr>:$argNames,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs Variadic<AnyType>);
 
@@ -4832,7 +4846,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
         /// Set the callee for this operation.
         void setCalleeFromCallable(CallInterfaceCallable callee)
         {
-            (*this)->setAttr("callee", callee.get<SymbolRefAttr>());
+            (*this)->setAttr("callee", mlir::cast<mlir::SymbolRefAttr>(callee));
         }
 
         /// }

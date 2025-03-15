@@ -24,33 +24,16 @@ TypeConverter::TypeConverter(mlir::MLIRContext *context,
 
   addConversion([&](mlir::TensorType type) { return convertTensorType(type); });
 
-  addTargetMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::Type resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        if (inputs.size() != 1) {
-          return std::nullopt;
-        }
+  auto addUnrealizedCast = [](mlir::OpBuilder &builder, mlir::Type type,
+                              mlir::ValueRange inputs,
+                              mlir::Location loc) -> mlir::Value {
+    auto castOp =
+        builder.create<mlir::UnrealizedConversionCastOp>(loc, type, inputs);
+    return castOp.getResult(0);
+  };
 
-        auto castOp = builder.create<mlir::UnrealizedConversionCastOp>(
-            loc, resultType, inputs);
-
-        return castOp.getResult(0);
-      });
-
-  addSourceMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::Type resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        if (inputs.size() != 1) {
-          return std::nullopt;
-        }
-
-        auto castOp = builder.create<mlir::UnrealizedConversionCastOp>(
-            loc, resultType, inputs);
-
-        return castOp.getResult(0);
-      });
+  addSourceMaterialization(addUnrealizedCast);
+  addTargetMaterialization(addUnrealizedCast);
 }
 
 mlir::Type TypeConverter::convertBooleanType(BooleanType type) {
@@ -63,23 +46,22 @@ mlir::Type TypeConverter::convertIntegerType(IntegerType type) {
 
 mlir::Type TypeConverter::convertRealType(RealType type) {
   if (realBitWidth <= 16) {
-    return mlir::FloatType::getF16(type.getContext());
+    return mlir::Float16Type::get(type.getContext());
   }
 
   if (realBitWidth <= 32) {
-    return mlir::FloatType::getF32(type.getContext());
+    return mlir::Float32Type::get(type.getContext());
   }
 
   if (realBitWidth <= 64) {
-    return mlir::FloatType::getF64(type.getContext());
+    return mlir::Float64Type::get(type.getContext());
   }
 
   if (realBitWidth <= 80) {
-    return mlir::FloatType::getF80(type.getContext());
+    return mlir::Float80Type::get(type.getContext());
   }
 
-  return mlir::FloatType::getF128(type.getContext());
-  ;
+  return mlir::Float128Type::get(type.getContext());
 }
 
 mlir::Type TypeConverter::convertArrayType(ArrayType type) {

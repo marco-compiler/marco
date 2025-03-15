@@ -22,7 +22,7 @@ EngineBuilder::EngineBuilder(mlir::ModuleOp moduleOp,
 
 namespace {
 std::unique_ptr<mlir::Pass> createMLIROneShotBufferizePass() {
-  mlir::bufferization::OneShotBufferizationOptions options;
+  mlir::bufferization::OneShotBufferizePassOptions options;
   options.bufferizeFunctionBoundaries = true;
 
   return mlir::bufferization::createOneShotBufferizePass(options);
@@ -48,11 +48,11 @@ mlir::ModuleOp EngineBuilder::lowerToLLVM() const {
   pm.addPass(createMLIROneShotBufferizePass());
   pm.addPass(mlir::createConvertLinalgToAffineLoopsPass());
   buildMLIRBufferDeallocationPipeline(pm);
-  pm.addPass(mlir::createBufferizationToMemRefPass());
+  pm.addPass(mlir::createConvertBufferizationToMemRefPass());
   pm.addPass(mlir::createBaseModelicaRawVariablesConversionPass());
   pm.addPass(mlir::memref::createExpandStridedMetadataPass());
   pm.addPass(mlir::createLowerAffinePass());
-  pm.addPass(mlir::createConvertSCFToCFPass());
+  pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::LLVM::createRequestCWrappersPass());

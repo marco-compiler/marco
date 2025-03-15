@@ -211,15 +211,17 @@ protected:
   void setLLVMModuleDataLayout();
 
   /// Run the optimization (aka middle-end) pipeline on the LLVM module
-  /// associated with this action.
-  void runOptimizationPipeline();
+  /// associated with this action. If an LLVM-IR output is requested, then the
+  /// module is also written to the given stream.
+  void runLLVMIRPipeline(clang::BackendAction backendAction,
+                         std::unique_ptr<llvm::raw_pwrite_stream> &os);
 
   /// }
   /// @name Backend
   /// {
 
   void emitBackendOutput(clang::BackendAction backendAction,
-                         std::unique_ptr<llvm::raw_pwrite_stream> os);
+                         llvm::raw_pwrite_stream &os);
 
   /// }
 

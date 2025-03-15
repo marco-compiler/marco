@@ -34,8 +34,8 @@ concatSubscripts(llvm::SmallVectorImpl<mlir::Value> &result,
                  mlir::OpBuilder &builder, mlir::ValueRange firstSubscripts,
                  mlir::ValueRange secondSubscripts) {
   for (mlir::Value subscript : firstSubscripts) {
-    if (subscript.getType().isa<IterableTypeInterface>()) {
-      if (!subscript.getType().isa<RangeType>()) {
+    if (mlir::isa<IterableTypeInterface>(subscript.getType())) {
+      if (!mlir::isa<RangeType>(subscript.getType())) {
         return mlir::failure();
       }
     }
@@ -44,7 +44,7 @@ concatSubscripts(llvm::SmallVectorImpl<mlir::Value> &result,
   size_t pos = 0;
 
   for (mlir::Value subscript : firstSubscripts) {
-    if (subscript.getType().isa<RangeType>()) {
+    if (mlir::isa<RangeType>(subscript.getType())) {
       auto beginOp =
           builder.create<RangeBeginOp>(subscript.getLoc(), subscript);
 
@@ -154,9 +154,10 @@ void ViewAccessFoldingPass::runOnOperation() {
 
   mlir::GreedyRewriteConfig config;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+  config.fold = true;
 
-  if (mlir::failed(mlir::applyPatternsAndFoldGreedily(
-          getOperation(), std::move(patterns), config))) {
+  if (mlir::failed(mlir::applyPatternsGreedily(getOperation(),
+                                               std::move(patterns), config))) {
     return signalPassFailure();
   }
 }

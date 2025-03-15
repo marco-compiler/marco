@@ -27,7 +27,6 @@
 #include "mlir/InitAllExtensions.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Pass/PassRegistry.h"
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
@@ -35,7 +34,6 @@
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 #include "mlir/Transforms/Passes.h"
 #include "clang/Basic/DiagnosticFrontend.h"
-#include "clang/Lex/HeaderSearchOptions.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -43,12 +41,15 @@
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IRPrinter/IRPrintingPasses.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/TargetParser/Host.h"
 
 using namespace ::marco;
@@ -481,9 +482,9 @@ bool CodeGenAction::setUpTargetMachine() {
 
   auto relocationModel = std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
 
-  targetMachine.reset(
-      target->createTargetMachine(triple, cpu, features, llvm::TargetOptions(),
-                                  relocationModel, std::nullopt, optLevel));
+  targetMachine.reset(target->createTargetMachine(
+      ci.getTarget().getTriple(), cpu, features, llvm::TargetOptions(),
+      relocationModel, std::nullopt, optLevel));
 
   if (!targetMachine) {
     auto &diag = ci.getDiagnostics();
@@ -1062,7 +1063,9 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Buffer deallocations placements must be performed after loop
   // optimizations because they may introduce additional heap allocations.
   buildMLIRBufferDeallocationPipeline(pm.nest<mlir::func::FuncOp>());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::createBufferizationToMemRefPass());
+
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createConvertBufferizationToMemRefPass());
 
   // Convert the raw variables.
   // This must be performed only after the insertion of buffer deallocations,
@@ -1076,7 +1079,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
       mlir::memref::createExpandStridedMetadataPass());
 
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createLowerAffinePass());
-  pm.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToCFPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createRuntimeModelMetadataConversionPass());
 
   // Perform again the conversion of bmodelica to core dialects,
@@ -1208,7 +1211,7 @@ CodeGenAction::createMLIRBaseModelicaToRuntimeConversionPass() {
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIROneShotBufferizePass() {
-  mlir::bufferization::OneShotBufferizationOptions options;
+  mlir::bufferization::OneShotBufferizePassOptions options;
   options.bufferizeFunctionBoundaries = true;
 
   return mlir::bufferization::createOneShotBufferizePass(options);
@@ -1320,15 +1323,12 @@ bool CodeGenAction::generateLLVMIR() {
   setLLVMModuleTargetTriple();
   setLLVMModuleDataLayout();
 
-  // Apply the optimizations to the LLVM module.
-  runOptimizationPipeline();
-
   return true;
 }
 
 void CodeGenAction::setLLVMModuleTargetTriple() {
   assert(llvmModule && "LLVM module has not been created yet");
-  const std::string &triple = getTargetMachine().getTargetTriple().str();
+  auto triple = getTargetMachine().getTargetTriple();
 
   if (llvmModule->getTargetTriple() != triple) {
     // The LLVM module already has a target triple which is different from
@@ -1358,9 +1358,12 @@ void CodeGenAction::setLLVMModuleDataLayout() {
   llvmModule->setDataLayout(dataLayout);
 }
 
-void CodeGenAction::runOptimizationPipeline() {
+void CodeGenAction::runLLVMIRPipeline(
+    clang::BackendAction backendAction,
+    std::unique_ptr<llvm::raw_pwrite_stream> &os) {
   CompilerInstance &ci = getInstance();
-  const CodegenOptions &codegenOptions = ci.getCodeGenOptions();
+  const auto &codeGenOptions = ci.getCodeGenOptions();
+  auto &diags = ci.getDiagnostics();
 
   // Create the analysis managers.
   llvm::LoopAnalysisManager lam;
@@ -1373,10 +1376,48 @@ void CodeGenAction::runOptimizationPipeline() {
   llvm::PipelineTuningOptions pto;
   std::optional<llvm::PGOOptions> pgoOpt;
 
-  llvm::StandardInstrumentations si(getLLVMContext(), false);
+  pto.LoopUnrolling = codeGenOptions.UnrollLoops;
+  pto.LoopInterchange = codeGenOptions.InterchangeLoops;
+  pto.LoopInterleaving = codeGenOptions.UnrollLoops;
+  pto.LoopVectorization = codeGenOptions.VectorizeLoop;
+  pto.SLPVectorization = codeGenOptions.VectorizeSLP;
+  pto.MergeFunctions = codeGenOptions.MergeFunctions;
+  pto.CallGraphProfile = !codeGenOptions.DisableIntegratedAS;
+  pto.UnifiedLTO = codeGenOptions.UnifiedLTO;
+
+  llvm::StandardInstrumentations si(llvmModule->getContext(),
+                                    codeGenOptions.DebugPassManager);
+
   si.registerCallbacks(pic, &mam);
 
   llvm::PassBuilder pb(&getTargetMachine(), pto, pgoOpt, &pic);
+
+  // Attempt to load pass plugins and register their callbacks with PB.
+  for (auto &PluginFN : codeGenOptions.PassPlugins) {
+    auto PassPlugin = llvm::PassPlugin::Load(PluginFN);
+
+    if (PassPlugin) {
+      PassPlugin->registerPassBuilderCallbacks(pb);
+    } else {
+      diags.Report(clang::diag::err_fe_unable_to_load_plugin)
+          << PluginFN << toString(PassPlugin.takeError());
+    }
+  }
+
+  for (const auto &PassCallback : codeGenOptions.PassBuilderCallbacks) {
+    PassCallback(pb);
+  }
+
+#define HANDLE_EXTENSION(Ext)                                                  \
+  get##Ext##PluginInfo().RegisterPassBuilderCallbacks(PB);
+#include "llvm/Support/Extension.def"
+
+  // Register the target library analysis directly and give it a customized
+  // preset TLI.
+  std::unique_ptr<llvm::TargetLibraryInfoImpl> tlii(llvm::driver::createTLII(
+      llvmModule->getTargetTriple(), codeGenOptions.getVecLib()));
+
+  fam.registerPass([&] { return llvm::TargetLibraryAnalysis(*tlii); });
 
   // Register all the basic analyses with the managers.
   pb.registerModuleAnalyses(mam);
@@ -1388,27 +1429,72 @@ void CodeGenAction::runOptimizationPipeline() {
   // Create the pass manager.
   llvm::ModulePassManager mpm;
 
-  if (codegenOptions.optLevel == llvm::OptimizationLevel::O0) {
-    mpm = pb.buildO0DefaultPipeline(codegenOptions.optLevel, false);
-  } else {
-    mpm = pb.buildPerModuleDefaultPipeline(codegenOptions.optLevel);
+  // Add a verifier pass, before any other passes, to catch CodeGen issues.
+  if (codeGenOptions.VerifyModule) {
+    mpm.addPass(llvm::VerifierPass());
+  }
+
+  if (codeGenOptions.PrepareForLTO) {
+    mpm = pb.buildLTOPreLinkDefaultPipeline(codeGenOptions.optLevel);
+  } else if (codeGenOptions.PrepareForThinLTO)
+    mpm = pb.buildThinLTOPreLinkDefaultPipeline(codeGenOptions.optLevel);
+  else {
+    mpm = pb.buildPerModuleDefaultPipeline(codeGenOptions.optLevel);
+  }
+
+  if (backendAction == clang::BackendAction::Backend_EmitBC) {
+    mpm.addPass(llvm::BitcodeWriterPass(*os));
+  } else if (backendAction == clang::BackendAction::Backend_EmitLL) {
+    mpm.addPass(llvm::PrintModulePass(*os));
   }
 
   // Run the passes.
   mpm.run(*llvmModule, mam);
 }
 
-void CodeGenAction::emitBackendOutput(
-    clang::BackendAction backendAction,
-    std::unique_ptr<llvm::raw_pwrite_stream> os) {
-  auto &ci = getInstance();
-  clang::HeaderSearchOptions headerSearchOptions;
+void CodeGenAction::emitBackendOutput(clang::BackendAction backendAction,
+                                      llvm::raw_pwrite_stream &os) {
+  CompilerInstance &ci = getInstance();
+  auto &diags = ci.getDiagnostics();
 
-  EmitBackendOutput(
-      ci.getDiagnostics(), headerSearchOptions, ci.getCodeGenOptions(),
-      ci.getTarget().getTargetOpts(), ci.getLanguageOptions(),
-      ci.getTarget().getDataLayoutString(), llvmModule.get(), backendAction,
-      ci.getFileManager().getVirtualFileSystemPtr(), std::move(os));
+  assert(((backendAction == clang::BackendAction::Backend_EmitObj) ||
+          (backendAction == clang::BackendAction::Backend_EmitAssembly)) &&
+         "Unsupported action");
+
+  // Setup the pass manager, i.e create an LLVM code-gen pass pipeline.
+  // Currently only the legacy pass manager is supported.
+  llvm::legacy::PassManager codeGenPasses;
+  codeGenPasses.add(createTargetTransformInfoWrapperPass(
+      getTargetMachine().getTargetIRAnalysis()));
+
+  llvm::Triple triple(llvmModule->getTargetTriple());
+
+  llvm::TargetLibraryInfoImpl *tlii =
+      llvm::driver::createTLII(triple, ci.getCodeGenOptions().getVecLib());
+
+  codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
+
+  llvm::CodeGenFileType fileType =
+      (backendAction == clang::BackendAction::Backend_EmitAssembly)
+          ? llvm::CodeGenFileType::AssemblyFile
+          : llvm::CodeGenFileType::ObjectFile;
+
+  if (getTargetMachine().addPassesToEmitFile(codeGenPasses, os, nullptr,
+                                             fileType)) {
+    unsigned diagID =
+        diags.getCustomDiagID(clang::DiagnosticsEngine::Error,
+                              "emission of this file type is not supported");
+
+    diags.Report(diagID);
+    delete tlii;
+    return;
+  }
+
+  // Run the passes.
+  codeGenPasses.run(*llvmModule);
+
+  // Cleanup.
+  delete tlii;
 }
 
 EmitMLIRAction::EmitMLIRAction()
@@ -1493,7 +1579,7 @@ void EmitLLVMIRAction::executeAction() {
   }
 
   // Emit LLVM-IR.
-  emitBackendOutput(clang::BackendAction::Backend_EmitLL, std::move(os));
+  runLLVMIRPipeline(clang::BackendAction::Backend_EmitLL, os);
 }
 
 EmitBitcodeAction::EmitBitcodeAction()
@@ -1515,7 +1601,7 @@ void EmitBitcodeAction::executeAction() {
   }
 
   // Emit the bitcode.
-  emitBackendOutput(clang::BackendAction::Backend_EmitBC, std::move(os));
+  runLLVMIRPipeline(clang::BackendAction::Backend_EmitBC, os);
 }
 
 EmitAssemblyAction::EmitAssemblyAction()
@@ -1537,7 +1623,8 @@ void EmitAssemblyAction::executeAction() {
   }
 
   // Emit the assembly code.
-  emitBackendOutput(clang::BackendAction::Backend_EmitAssembly, std::move(os));
+  runLLVMIRPipeline(clang::BackendAction::Backend_EmitAssembly, os);
+  emitBackendOutput(clang::BackendAction::Backend_EmitAssembly, *os);
 }
 
 EmitObjAction::EmitObjAction()
@@ -1559,6 +1646,7 @@ void EmitObjAction::executeAction() {
   }
 
   // Emit the object file.
-  emitBackendOutput(clang::BackendAction::Backend_EmitObj, std::move(os));
+  runLLVMIRPipeline(clang::BackendAction::Backend_EmitObj, os);
+  emitBackendOutput(clang::BackendAction::Backend_EmitObj, *os);
 }
 } // namespace marco::frontend

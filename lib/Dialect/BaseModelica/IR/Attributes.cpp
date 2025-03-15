@@ -68,27 +68,27 @@ void BaseModelicaDialect::registerAttributes() {
 
 namespace mlir::bmodelica {
 mlir::Attribute getAttr(mlir::Type type, int64_t value) {
-  if (type.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(type)) {
     return BooleanAttr::get(type.getContext(), value != 0);
   }
 
-  if (type.isa<IntegerType>()) {
+  if (mlir::isa<IntegerType>(type)) {
     return IntegerAttr::get(type.getContext(), value);
   }
 
-  if (type.isa<RealType>()) {
+  if (mlir::isa<RealType>(type)) {
     return RealAttr::get(type.getContext(), static_cast<double>(value));
   }
 
-  if (type.isa<mlir::IndexType>()) {
+  if (mlir::isa<mlir::IndexType>(type)) {
     return mlir::IntegerAttr::get(type, value);
   }
 
-  if (type.isa<mlir::IntegerType>()) {
+  if (mlir::isa<mlir::IntegerType>(type)) {
     return mlir::IntegerAttr::get(type, value);
   }
 
-  if (type.isa<mlir::FloatType>()) {
+  if (mlir::isa<mlir::FloatType>(type)) {
     return mlir::FloatAttr::get(type, static_cast<double>(value));
   }
 
@@ -97,27 +97,27 @@ mlir::Attribute getAttr(mlir::Type type, int64_t value) {
 }
 
 mlir::Attribute getAttr(mlir::Type type, double value) {
-  if (type.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(type)) {
     return BooleanAttr::get(type.getContext(), value != 0);
   }
 
-  if (type.isa<IntegerType>()) {
+  if (mlir::isa<IntegerType>(type)) {
     return IntegerAttr::get(type.getContext(), static_cast<int64_t>(value));
   }
 
-  if (type.isa<RealType>()) {
+  if (mlir::isa<RealType>(type)) {
     return RealAttr::get(type.getContext(), value);
   }
 
-  if (type.isa<mlir::IndexType>()) {
+  if (mlir::isa<mlir::IndexType>(type)) {
     return mlir::IntegerAttr::get(type, static_cast<int64_t>(value));
   }
 
-  if (type.isa<mlir::IntegerType>()) {
+  if (mlir::isa<mlir::IntegerType>(type)) {
     return mlir::IntegerAttr::get(type, static_cast<int64_t>(value));
   }
 
-  if (type.isa<mlir::FloatType>()) {
+  if (mlir::isa<mlir::FloatType>(type)) {
     return mlir::FloatAttr::get(type, value);
   }
 
@@ -128,7 +128,7 @@ mlir::Attribute getAttr(mlir::Type type, double value) {
 mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values) {
   mlir::Type elementType = arrayType.getElementType();
 
-  if (elementType.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(elementType)) {
     llvm::SmallVector<bool> casted;
 
     for (int64_t value : values) {
@@ -138,11 +138,11 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values) {
     return DenseBooleanElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<IntegerType>()) {
+  if (mlir::isa<IntegerType>(elementType)) {
     return DenseIntegerElementsAttr::get(arrayType, values);
   }
 
-  if (elementType.isa<RealType>()) {
+  if (mlir::isa<RealType>(elementType)) {
     llvm::SmallVector<double> casted;
 
     for (int64_t value : values) {
@@ -152,15 +152,15 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values) {
     return DenseRealElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<mlir::IndexType>()) {
+  if (mlir::isa<mlir::IndexType>(elementType)) {
     return DenseIntegerElementsAttr::get(arrayType, values);
   }
 
-  if (elementType.isa<mlir::IntegerType>()) {
+  if (mlir::isa<mlir::IntegerType>(elementType)) {
     return DenseIntegerElementsAttr::get(arrayType, values);
   }
 
-  if (elementType.isa<mlir::FloatType>()) {
+  if (mlir::isa<mlir::FloatType>(elementType)) {
     llvm::SmallVector<double> casted;
 
     for (int64_t value : values) {
@@ -177,7 +177,7 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<int64_t> values) {
 mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values) {
   mlir::Type elementType = arrayType.getElementType();
 
-  if (elementType.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(elementType)) {
     llvm::SmallVector<bool> casted;
 
     for (double value : values) {
@@ -187,7 +187,7 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values) {
     return DenseBooleanElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<IntegerType>()) {
+  if (mlir::isa<IntegerType>(elementType)) {
     llvm::SmallVector<int64_t> casted;
 
     for (double value : values) {
@@ -197,11 +197,11 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values) {
     return DenseIntegerElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<RealType>()) {
+  if (mlir::isa<RealType>(elementType)) {
     return DenseRealElementsAttr::get(arrayType, values);
   }
 
-  if (elementType.isa<mlir::IndexType>()) {
+  if (mlir::isa<mlir::IndexType>(elementType)) {
     llvm::SmallVector<int64_t> casted;
 
     for (double value : values) {
@@ -211,7 +211,7 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values) {
     return DenseIntegerElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<mlir::IntegerType>()) {
+  if (mlir::isa<mlir::IntegerType>(elementType)) {
     llvm::SmallVector<int64_t> casted;
 
     for (double value : values) {
@@ -221,7 +221,7 @@ mlir::Attribute getAttr(ArrayType arrayType, llvm::ArrayRef<double> values) {
     return DenseIntegerElementsAttr::get(arrayType, casted);
   }
 
-  if (elementType.isa<mlir::FloatType>()) {
+  if (mlir::isa<mlir::FloatType>(elementType)) {
     return DenseRealElementsAttr::get(arrayType, values);
   }
 

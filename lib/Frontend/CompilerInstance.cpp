@@ -170,14 +170,15 @@ bool CompilerInstance::executeAction(FrontendAction &act) {
   return getDiagnostics().getNumErrors() == 0;
 }
 
-void CompilerInstance::createDiagnostics(clang::DiagnosticConsumer *client,
+void CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
+                                         clang::DiagnosticConsumer *client,
                                          bool shouldOwnClient) {
-  diagnostics = createDiagnostics(
-      &getLanguageOptions(), &getDiagnosticOptions(), client, shouldOwnClient);
+  diagnostics =
+      createDiagnostics(VFS, &getDiagnosticOptions(), client, shouldOwnClient);
 }
 
 llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
-CompilerInstance::createDiagnostics(LanguageOptions *languageOptions,
+CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
                                     clang::DiagnosticOptions *diagnosticOptions,
                                     clang::DiagnosticConsumer *client,
                                     bool shouldOwnClient) {
@@ -206,7 +207,7 @@ CompilerInstance::createDiagnostics(LanguageOptions *languageOptions,
   }
 
   // Configure our handling of diagnostics.
-  ProcessWarningOptions(*diags, *diagnosticOptions);
+  ProcessWarningOptions(*diags, *diagnosticOptions, VFS);
 
   return diags;
 }

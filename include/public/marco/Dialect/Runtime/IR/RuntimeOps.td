@@ -16,7 +16,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 def PrintableIndicesListProperty : Property<"PrintableIndicesList">
 {
     let convertToAttribute = [{
-        getPropertiesAsAttribute($_ctxt, $_storage)
+        return getPropertiesAsAttribute($_ctxt, $_storage);
     }];
 
     let convertFromAttribute = [{
@@ -34,7 +34,7 @@ def PrintableIndicesListProperty : Property<"PrintableIndicesList">
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
-    : Attr<CPred<"$_self.isa<::mlir::runtime::MultidimensionalRangeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::runtime::MultidimensionalRangeAttr>($_self)">,
                  "Multidimensional range attribute">
 {
   let storageType = [{ ::mlir::runtime::MultidimensionalRangeAttr }];
@@ -762,8 +762,8 @@ def Runtime_ReturnOp : Runtime_Op<"return",
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
-def Runtime_CallOp : Runtime_Op<"call", [
-    CallOpInterface,
+def Runtime_CallOp : Runtime_Op<"call",
+    [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
 {
     let summary = "Call operation.";
@@ -775,7 +775,9 @@ def Runtime_CallOp : Runtime_Op<"call", [
 
     let arguments = (ins
         FlatSymbolRefAttr:$callee,
-        Variadic<AnyType>:$args);
+        Variadic<AnyType>:$args,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs);
 
     let results = (outs Variadic<AnyType>);
 
@@ -786,9 +788,7 @@ def Runtime_CallOp : Runtime_Op<"call", [
     let hasVerifier = 1;
 
     let builders = [
-        OpBuilder<(ins
-            "FunctionOp":$callee,
-            CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
     ];
 
     let extraClassDeclaration = [{
@@ -827,7 +827,7 @@ def Runtime_CallOp : Runtime_Op<"call", [
         /// Set the callee for this operation.
         void setCalleeFromCallable(CallInterfaceCallable callee)
         {
-            (*this)->setAttr("callee", callee.get<SymbolRefAttr>());
+            (*this)->setAttr("callee", mlir::cast<mlir::SymbolRefAttr>(callee));
         }
 
         /// }

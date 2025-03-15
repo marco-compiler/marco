@@ -44,11 +44,11 @@ protected:
   }
 
   bool isRecordBased(mlir::Type type) const {
-    if (auto tensorType = type.dyn_cast<mlir::TensorType>()) {
-      return tensorType.getElementType().isa<RecordType>();
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(type)) {
+      return mlir::isa<RecordType>(tensorType.getElementType());
     }
 
-    return type.isa<RecordType>();
+    return mlir::isa<RecordType>(type);
   }
 
   void mergeShapes(llvm::SmallVectorImpl<int64_t> &result,
@@ -101,7 +101,8 @@ protected:
 
       replacement = applySubscriptions(rewriter, replacement, subscriptions);
 
-      if (auto tensorType = replacement.getType().dyn_cast<mlir::TensorType>();
+      if (auto tensorType =
+              mlir::dyn_cast<mlir::TensorType>(replacement.getType());
           tensorType && !tensorType.hasRank()) {
         replacement = rewriter.create<TensorExtractOp>(
             componentGetOp.getLoc(), replacement, std::nullopt);
@@ -144,7 +145,7 @@ protected:
               applySubscriptions(builder, componentValue, subscriptions);
 
           if (auto tensorType =
-                  componentValue.getType().dyn_cast<mlir::TensorType>();
+                  mlir::dyn_cast<mlir::TensorType>(componentValue.getType());
               tensorType && !tensorType.hasRank()) {
             componentValue = builder.create<TensorExtractOp>(
                 callOp.getLoc(), componentValue, std::nullopt);
@@ -153,8 +154,8 @@ protected:
           newArgs.push_back(componentValue);
 
           if (auto argNames = callOp.getArgNames()) {
-            auto argName = (*argNames)[currentArg.index()]
-                               .cast<mlir::FlatSymbolRefAttr>()
+            auto argName = mlir::cast<mlir::FlatSymbolRefAttr>(
+                               (*argNames)[currentArg.index()])
                                .getValue();
 
             auto composedName = mlir::FlatSymbolRefAttr::get(
@@ -191,7 +192,7 @@ protected:
 
     for (mlir::Operation *op : subscriptions) {
       if (auto extractOp = mlir::dyn_cast<TensorExtractOp>(op)) {
-        int64_t rank = result.getType().cast<mlir::TensorType>().getRank();
+        int64_t rank = mlir::cast<mlir::TensorType>(result.getType()).getRank();
 
         auto numOfSubscripts =
             static_cast<int64_t>(extractOp.getIndices().size());
@@ -229,11 +230,11 @@ public:
     mlir::Type valueType = op.getValue().getType();
     mlir::Type valueBaseType = valueType;
 
-    if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
       valueBaseType = tensorType.getElementType();
     }
 
-    auto recordType = valueBaseType.dyn_cast<RecordType>();
+    auto recordType = mlir::dyn_cast<RecordType>(valueBaseType);
 
     if (!recordType) {
       return mlir::failure();
@@ -256,7 +257,7 @@ public:
       llvm::SmallVector<mlir::Value> subscripts;
       llvm::SmallVector<int64_t> subscriptsAmounts;
 
-      if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
         mlir::Value unboundedRange =
             rewriter.create<UnboundedRangeOp>(op.getLoc());
 
@@ -291,11 +292,11 @@ public:
     mlir::Type valueType = op.getValue().getType();
     mlir::Type valueBaseType = valueType;
 
-    if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
       valueBaseType = tensorType.getElementType();
     }
 
-    auto recordType = valueBaseType.dyn_cast<RecordType>();
+    auto recordType = mlir::dyn_cast<RecordType>(valueBaseType);
 
     if (!recordType) {
       return mlir::failure();
@@ -330,7 +331,7 @@ public:
         subscriptsAmounts.push_back(subscriptsAmount.getInt());
       }
 
-      if (auto tensorType = valueType.dyn_cast<mlir::TensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(valueType)) {
         mlir::Value unboundedRange =
             rewriter.create<UnboundedRangeOp>(op.getLoc());
 
@@ -362,7 +363,7 @@ public:
     bool recordFound = false;
 
     for (mlir::Value value : op.getValues()) {
-      if (auto recordType = value.getType().dyn_cast<RecordType>()) {
+      if (auto recordType = mlir::dyn_cast<RecordType>(value.getType())) {
         auto recordOp = getRecordOp(recordType);
 
         for (VariableOp component : recordOp.getVariables()) {
@@ -399,13 +400,13 @@ public:
     VariableType variableType = op.getVariableType();
     mlir::Type elementType = variableType.getElementType();
 
-    if (!elementType.isa<RecordType>()) {
+    if (!mlir::isa<RecordType>(elementType)) {
       // Not a record or an array of records.
       return mlir::failure();
     }
 
     // Create a variable for each component and map it for faster lookups.
-    auto recordType = elementType.cast<RecordType>();
+    auto recordType = mlir::cast<RecordType>(elementType);
     auto recordOp = getRecordOp(recordType);
 
     llvm::StringMap<VariableOp> componentsMap;
@@ -462,7 +463,7 @@ public:
         mlir::Type startVariableElementType =
             startVariableOp.getVariableType().getElementType();
 
-        if (!startVariableElementType.isa<RecordType>()) {
+        if (!mlir::isa<RecordType>(startVariableElementType)) {
           continue;
         }
 
@@ -471,20 +472,20 @@ public:
 
       if (auto defaultOp = mlir::dyn_cast<DefaultOp>(bodyOp)) {
         if (defaultOp.getVariable() == op.getSymName() &&
-            defaultOp.getVariableOp(getSymbolTableCollection())
-                .getVariableType()
-                .getElementType()
-                .isa<RecordType>()) {
+            mlir::isa<RecordType>(
+                defaultOp.getVariableOp(getSymbolTableCollection())
+                    .getVariableType()
+                    .getElementType())) {
           defaultOps.push_back(defaultOp);
         }
       }
 
       if (auto bindingEquationOp = mlir::dyn_cast<BindingEquationOp>(bodyOp)) {
         if (bindingEquationOp.getVariable() == op.getSymName() &&
-            bindingEquationOp.getVariableOp(getSymbolTableCollection())
-                .getVariableType()
-                .getElementType()
-                .isa<RecordType>()) {
+            mlir::isa<RecordType>(
+                bindingEquationOp.getVariableOp(getSymbolTableCollection())
+                    .getVariableType()
+                    .getElementType())) {
           bindingEquationOps.push_back(bindingEquationOp);
         }
       }
@@ -512,7 +513,8 @@ public:
         }
       } else if (auto setOp =
                      mlir::dyn_cast<VariableComponentSetOp>(nestedOp)) {
-        auto rootNameAttr = setOp.getPath()[0].cast<mlir::FlatSymbolRefAttr>();
+        auto rootNameAttr =
+            mlir::cast<mlir::FlatSymbolRefAttr>(setOp.getPath()[0]);
 
         if (rootNameAttr.getValue() == op.getSymName()) {
           setOps.push_back(setOp);
@@ -561,7 +563,7 @@ private:
         modelOp, startOp.getVariable().getRootReference());
 
     auto recordType =
-        variableOp.getVariableType().getElementType().cast<RecordType>();
+        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -600,7 +602,7 @@ private:
     VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
     auto recordType =
-        variableOp.getVariableType().getElementType().cast<RecordType>();
+        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -638,7 +640,7 @@ private:
     VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
 
     auto recordType =
-        variableOp.getVariableType().getElementType().cast<RecordType>();
+        mlir::cast<RecordType>(variableOp.getVariableType().getElementType());
 
     auto recordOp = getRecordOp(recordType);
 
@@ -711,8 +713,8 @@ private:
 
     if (pathLength > 2) {
       std::string composedName = getComposedComponentName(
-          setOp.getPath()[0].cast<mlir::FlatSymbolRefAttr>().getValue(),
-          setOp.getPath()[1].cast<mlir::FlatSymbolRefAttr>().getValue());
+          mlir::cast<mlir::FlatSymbolRefAttr>(setOp.getPath()[0]).getValue(),
+          mlir::cast<mlir::FlatSymbolRefAttr>(setOp.getPath()[1]).getValue());
 
       llvm::SmallVector<mlir::Attribute> destination;
 
@@ -747,7 +749,8 @@ private:
           setOp.getLoc(), rewriter.getArrayAttr(destination), subscripts,
           rewriter.getI64ArrayAttr(subscriptsAmounts), setOp.getValue());
     } else {
-      auto componentName = setOp.getPath()[1].cast<mlir::FlatSymbolRefAttr>();
+      auto componentName =
+          mlir::cast<mlir::FlatSymbolRefAttr>(setOp.getPath()[1]);
 
       if (!componentsMap.contains(componentName.getValue())) {
         return mlir::failure();
@@ -758,7 +761,7 @@ private:
 
       auto subscriptions = setOp.getSubscriptions();
 
-      if (setOp.getValue().getType().isa<mlir::TensorType>()) {
+      if (mlir::isa<mlir::TensorType>(setOp.getValue().getType())) {
         if (subscriptions.empty()) {
           rewriter.create<VariableSetOp>(setOp.getLoc(), componentVariableOp,
                                          setOp.getValue());
@@ -894,11 +897,11 @@ private:
     size_t result = 0;
     mlir::Type baseType = resultType;
 
-    if (auto tensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       baseType = tensorType.getElementType();
     }
 
-    auto recordType = baseType.dyn_cast<RecordType>();
+    auto recordType = mlir::dyn_cast<RecordType>(baseType);
 
     if (!recordType) {
       return result;
@@ -906,7 +909,7 @@ private:
 
     llvm::SmallVector<int64_t, 3> baseDimensions;
 
-    if (auto tensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       auto shape = tensorType.getShape();
       baseDimensions.append(shape.begin(), shape.end());
     }
@@ -946,7 +949,7 @@ public:
   mlir::LogicalResult
   matchAndRewrite(RecordCreateOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    auto recordType = op.getResult().getType().cast<RecordType>();
+    auto recordType = mlir::cast<RecordType>(op.getResult().getType());
     auto recordOp = getRecordOp(recordType);
 
     llvm::SmallVector<ComponentGetOp> componentGetOps;
@@ -987,11 +990,11 @@ public:
     mlir::Type resultType = op.getResult().getType();
     mlir::Type resultBaseType = resultType;
 
-    if (auto tensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       resultBaseType = tensorType.getElementType();
     }
 
-    auto recordType = resultBaseType.dyn_cast<RecordType>();
+    auto recordType = mlir::dyn_cast<RecordType>(resultBaseType);
 
     if (!recordType) {
       return mlir::failure();
@@ -1021,7 +1024,7 @@ public:
         llvm::ArrayRef<int64_t> elementShape = std::nullopt;
 
         if (auto elementTensorType =
-                element.getType().dyn_cast<mlir::TensorType>()) {
+                mlir::dyn_cast<mlir::TensorType>(element.getType())) {
           elementShape = elementTensorType.getShape();
         }
 
@@ -1080,11 +1083,11 @@ public:
     mlir::Type resultType = op.getResult().getType();
     mlir::Type resultBaseType = resultType;
 
-    if (auto tensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       resultBaseType = tensorType.getElementType();
     }
 
-    auto recordType = resultBaseType.dyn_cast<RecordType>();
+    auto recordType = mlir::dyn_cast<RecordType>(resultBaseType);
 
     if (!recordType) {
       return mlir::failure();
@@ -1113,7 +1116,7 @@ public:
       llvm::ArrayRef<int64_t> elementShape = std::nullopt;
 
       if (auto elementTensorType =
-              element.getType().dyn_cast<mlir::TensorType>()) {
+              mlir::dyn_cast<mlir::TensorType>(element.getType())) {
         elementShape = elementTensorType.getShape();
       }
 
@@ -1223,7 +1226,7 @@ mlir::LogicalResult RecordInliningPass::explicitateAccesses() {
   config.useTopDownTraversal = true;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
-  return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
 
 mlir::LogicalResult RecordInliningPass::unpackRecordVariables() {
@@ -1239,7 +1242,7 @@ mlir::LogicalResult RecordInliningPass::unpackRecordVariables() {
   config.useTopDownTraversal = true;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
-  return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
 
 mlir::LogicalResult RecordInliningPass::foldRecordCreateOps() {
@@ -1257,7 +1260,7 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps() {
   mlir::GreedyRewriteConfig config;
   config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
 
-  return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

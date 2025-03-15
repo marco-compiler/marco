@@ -92,18 +92,6 @@ BooleanType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
   return llvm::bit_ceil(size);
 }
 
-uint64_t BooleanType::getPreferredAlignment(
-    const ::mlir::DataLayout &dataLayout,
-    ::mlir::DataLayoutEntryListRef params) const {
-  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
-
-  if (size >= 8) {
-    return 4;
-  }
-
-  return llvm::bit_ceil(size);
-}
-
 //===---------------------------------------------------------------------===//
 // IntegerType
 //===---------------------------------------------------------------------===//
@@ -120,18 +108,6 @@ IntegerType::getTypeSizeInBits(const mlir::DataLayout &dataLayout,
 uint64_t
 IntegerType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
                              ::mlir::DataLayoutEntryListRef params) const {
-  uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
-
-  if (size >= 8) {
-    return 4;
-  }
-
-  return llvm::bit_ceil(size);
-}
-
-uint64_t IntegerType::getPreferredAlignment(
-    const ::mlir::DataLayout &dataLayout,
-    ::mlir::DataLayoutEntryListRef params) const {
   uint64_t size = getTypeSize(dataLayout, params).getKnownMinValue();
 
   if (size >= 8) {
@@ -160,27 +136,21 @@ RealType::getABIAlignment(const ::mlir::DataLayout &dataLayout,
   return 64;
 }
 
-uint64_t
-RealType::getPreferredAlignment(const ::mlir::DataLayout &dataLayout,
-                                ::mlir::DataLayoutEntryListRef params) const {
-  return 64;
-}
-
 //===-------------------------------------------------------------------===//
 // BaseArrayType
 //===-------------------------------------------------------------------===//
 
 bool BaseArrayType::classof(mlir::Type type) {
-  return type.isa<ArrayType, UnrankedArrayType>();
+  return mlir::isa<ArrayType, UnrankedArrayType>(type);
 }
 
 BaseArrayType::operator mlir::ShapedType() const {
-  return cast<mlir::ShapedType>();
+  return mlir::cast<mlir::ShapedType>(*this);
 }
 
 bool BaseArrayType::isValidElementType(mlir::Type type) {
   return type.isIndex() || type.isIntOrFloat() ||
-         type.isa<BooleanType, IntegerType, RealType, RecordType>();
+         mlir::isa<BooleanType, IntegerType, RealType, RecordType>(type);
 }
 
 mlir::Type BaseArrayType::getElementType() const {
@@ -189,24 +159,26 @@ mlir::Type BaseArrayType::getElementType() const {
           [](auto type) { return type.getElementType(); });
 }
 
-bool BaseArrayType::hasRank() const { return !isa<UnrankedArrayType>(); }
+bool BaseArrayType::hasRank() const {
+  return !mlir::isa<UnrankedArrayType>(*this);
+}
 
 llvm::ArrayRef<int64_t> BaseArrayType::getShape() const {
-  return cast<ArrayType>().getShape();
+  return mlir::cast<ArrayType>(*this).getShape();
 }
 
 mlir::Attribute BaseArrayType::getMemorySpace() const {
-  if (auto rankedArrayTy = dyn_cast<ArrayType>()) {
+  if (auto rankedArrayTy = mlir::dyn_cast<ArrayType>(*this)) {
     return rankedArrayTy.getMemorySpace();
   }
 
-  return cast<UnrankedArrayType>().getMemorySpace();
+  return mlir::cast<UnrankedArrayType>(*this).getMemorySpace();
 }
 
 BaseArrayType
 BaseArrayType::cloneWith(std::optional<llvm::ArrayRef<int64_t>> shape,
                          mlir::Type elementType) const {
-  if (isa<UnrankedArrayType>()) {
+  if (mlir::isa<UnrankedArrayType>(*this)) {
     if (!shape) {
       return UnrankedArrayType::get(elementType, getMemorySpace());
     }
@@ -216,7 +188,7 @@ BaseArrayType::cloneWith(std::optional<llvm::ArrayRef<int64_t>> shape,
     return builder;
   }
 
-  ArrayType::Builder builder(cast<ArrayType>());
+  ArrayType::Builder builder(mlir::cast<ArrayType>(*this));
 
   if (shape) {
     builder.setShape(*shape);
@@ -534,7 +506,7 @@ VariableType::cloneWith(std::optional<llvm::ArrayRef<int64_t>> shape,
 
 bool VariableType::isValidElementType(mlir::Type type) {
   return type.isIntOrIndexOrFloat() ||
-         type.isa<BooleanType, IntegerType, RealType, RecordType>();
+         mlir::isa<BooleanType, IntegerType, RealType, RecordType>(type);
 }
 
 bool VariableType::isScalar() const { return getRank() == 0; }
@@ -564,7 +536,7 @@ bool VariableType::isOutput() const {
 VariableType VariableType::wrap(mlir::Type type,
                                 VariabilityProperty variabilityProperty,
                                 IOProperty ioProperty) {
-  if (auto arrayType = type.dyn_cast<ArrayType>()) {
+  if (auto arrayType = mlir::dyn_cast<ArrayType>(type)) {
     return VariableType::get(arrayType.getShape(), arrayType.getElementType(),
                              variabilityProperty, ioProperty,
                              arrayType.getMemorySpace());
@@ -647,8 +619,8 @@ bool isSupportedMemorySpace(mlir::Attribute memorySpace) {
   }
 
   // Supported built-in attributes.
-  if (memorySpace
-          .isa<mlir::IntegerAttr, mlir::StringAttr, mlir::DictionaryAttr>()) {
+  if (mlir::isa<mlir::IntegerAttr, mlir::StringAttr, mlir::DictionaryAttr>(
+          memorySpace)) {
     return true;
   }
 
@@ -662,7 +634,7 @@ bool isSupportedMemorySpace(mlir::Attribute memorySpace) {
 
 mlir::Attribute skipDefaultMemorySpace(mlir::Attribute memorySpace) {
   mlir::IntegerAttr intMemorySpace =
-      memorySpace.dyn_cast_or_null<mlir::IntegerAttr>();
+      mlir::dyn_cast_or_null<mlir::IntegerAttr>(memorySpace);
 
   if (intMemorySpace && intMemorySpace.getValue() == 0) {
     return nullptr;

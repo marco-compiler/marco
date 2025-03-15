@@ -14,7 +14,7 @@ struct CallOpInterface
     auto fallBackRankFn = [&]() -> unsigned int {
       mlir::Type argType = callOp.getArgs()[argIndex].getType();
 
-      if (auto shapedType = argType.dyn_cast<mlir::ShapedType>()) {
+      if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(argType)) {
         return shapedType.getRank();
       }
 
@@ -40,7 +40,7 @@ struct CallOpInterface
 
     mlir::Type argType = functionOp.getArgumentTypes()[argIndex];
 
-    if (auto shapedType = argType.dyn_cast<mlir::ShapedType>()) {
+    if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(argType)) {
       return shapedType.getRank();
     }
 

@@ -6,7 +6,7 @@ include "mlir/IR/OpBase.td"
 def IndexSetProperty : Property<"::mlir::modeling::IndexSet">
 {
     let convertToAttribute = [{
-        ::mlir::modeling::getPropertiesAsAttribute($_ctxt, $_storage)
+        return ::mlir::modeling::getPropertiesAsAttribute($_ctxt, $_storage);
     }];
 
     let convertFromAttribute = [{
@@ -26,12 +26,14 @@ def IndexSetProperty : Property<"::mlir::modeling::IndexSet">
         if (::mlir::failed(::mlir::modeling::readFromMlirBytecode($_reader, $_storage)))
             return ::mlir::failure();
     }];
+
+    let defaultValue = "{}";
 }
 
 def IndexSetsListProperty : Property<"::mlir::modeling::IndexSetsList">
 {
     let convertToAttribute = [{
-        ::mlir::modeling::getPropertiesAsAttribute($_ctxt, $_storage)
+        return ::mlir::modeling::getPropertiesAsAttribute($_ctxt, $_storage);
     }];
 
     let convertFromAttribute = [{

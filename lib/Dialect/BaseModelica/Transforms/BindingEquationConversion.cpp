@@ -117,15 +117,18 @@ struct BindingEquationOpToEquationOpPattern : public BindingEquationOpPattern {
 struct BindingEquationOpToStartOpPattern : public BindingEquationOpPattern {
   using BindingEquationOpPattern::BindingEquationOpPattern;
 
-  mlir::LogicalResult match(BindingEquationOp op) const override {
+  mlir::LogicalResult
+  matchAndRewrite(BindingEquationOp op,
+                  mlir::PatternRewriter &rewriter) const override {
     auto modelOp = op->getParentOfType<ModelOp>();
+
     auto variableOp = getSymbolTableCollection().lookupSymbolIn<VariableOp>(
         modelOp, op.getVariableAttr());
-    return mlir::LogicalResult::success(variableOp.isReadOnly());
-  }
 
-  void rewrite(BindingEquationOp op,
-               mlir::PatternRewriter &rewriter) const override {
+    if (!variableOp.isReadOnly()) {
+      return rewriter.notifyMatchFailure(op, "Non read-only variable");
+    }
+
     auto startOp = rewriter.replaceOpWithNewOp<StartOp>(
         op, mlir::SymbolRefAttr::get(op.getVariableAttr()), true, false);
 
@@ -133,6 +136,8 @@ struct BindingEquationOpToStartOpPattern : public BindingEquationOpPattern {
 
     rewriter.inlineRegionBefore(op.getBodyRegion(), startOp.getBodyRegion(),
                                 startOp.getBodyRegion().end());
+
+    return mlir::success();
   }
 };
 } // namespace

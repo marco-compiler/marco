@@ -213,7 +213,7 @@ void Lowerer::insertVariable(llvm::StringRef name, Reference reference) {
 }
 
 bool Lowerer::isScalarType(mlir::Type type) {
-  return type.isa<BooleanType, IntegerType, RealType, mlir::IndexType>();
+  return mlir::isa<BooleanType, IntegerType, RealType, mlir::IndexType>(type);
 }
 
 LoweringContext &Lowerer::getContext() { return bridge->getContext(); }

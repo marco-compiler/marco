@@ -42,7 +42,7 @@ getVectorizationRank(VectorizableOpInterface op,
 
     unsigned int argRank = 0;
 
-    if (auto argShapedType = argType.dyn_cast<mlir::ShapedType>()) {
+    if (auto argShapedType = mlir::dyn_cast<mlir::ShapedType>(argType)) {
       argRank = argShapedType.getRank();
     }
 
@@ -60,7 +60,7 @@ getVectorizationRank(VectorizableOpInterface op,
       // if initially unknown.
 
       for (unsigned int i = 0; i < argRank - argExpectedRank; ++i) {
-        auto argShapedType = argType.cast<mlir::ShapedType>();
+        auto argShapedType = mlir::cast<mlir::ShapedType>(argType);
         auto dimension = argShapedType.getDimSize(arg.index());
         dimensions.push_back(dimension);
       }
@@ -73,7 +73,7 @@ getVectorizationRank(VectorizableOpInterface op,
       }
 
       for (size_t i = 0; i < argRank - argExpectedRank; ++i) {
-        auto argShapedType = argType.cast<mlir::ShapedType>();
+        auto argShapedType = mlir::cast<mlir::ShapedType>(argType);
         auto dimensionSize = argShapedType.getDimSize(i);
 
         if (dimensionSize == mlir::ShapedType::kDynamic) {
@@ -265,8 +265,8 @@ public:
     llvm::SmallVector<mlir::Value, 1> results;
 
     for (const auto &resultType : op->getResultTypes()) {
-      assert(resultType.isa<mlir::TensorType>());
-      auto resultTensorType = resultType.cast<mlir::TensorType>();
+      assert(mlir::isa<mlir::TensorType>(resultType));
+      auto resultTensorType = mlir::cast<mlir::TensorType>(resultType);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       for (int64_t dim = 0, rank = resultTensorType.getRank(); dim < rank;
@@ -326,7 +326,7 @@ public:
     llvm::SmallVector<mlir::Type, 3> scalarResultTypes;
 
     for (mlir::Type type : op->getResultTypes()) {
-      auto currentResultShapedType = type.cast<mlir::ShapedType>();
+      auto currentResultShapedType = mlir::cast<mlir::ShapedType>(type);
 
       auto slicedShapedType = currentResultShapedType.clone(
           currentResultShapedType.getShape().slice(indices.size()));
@@ -343,7 +343,7 @@ public:
     llvm::SmallVector<mlir::Value> scalarArgs;
 
     for (mlir::Value arg : args) {
-      auto argTensorType = arg.getType().cast<mlir::TensorType>();
+      auto argTensorType = mlir::cast<mlir::TensorType>(arg.getType());
 
       if (argTensorType.getRank() == static_cast<int64_t>(indices.size())) {
         scalarArgs.push_back(
@@ -367,7 +367,7 @@ public:
       mlir::Value destination = results[i];
 
       if (auto scalarResultTensorType =
-              scalarResult.getType().dyn_cast<mlir::TensorType>()) {
+              mlir::dyn_cast<mlir::TensorType>(scalarResult.getType())) {
         destination =
             rewriter.create<SubscriptionOp>(op.getLoc(), destination, indices);
 
@@ -380,7 +380,8 @@ public:
 
         rewriter.create<ArrayCopyOp>(op.getLoc(), source, destination);
       } else {
-        auto destinationArrayType = destination.getType().cast<ArrayType>();
+        auto destinationArrayType =
+            mlir::cast<ArrayType>(destination.getType());
 
         mlir::Value source = scalarResult;
 
@@ -401,7 +402,7 @@ public:
     llvm::SmallVector<mlir::Value> tensorResults;
 
     for (mlir::Value result : results) {
-      auto arrayType = result.getType().cast<ArrayType>();
+      auto arrayType = mlir::cast<ArrayType>(result.getType());
 
       auto tensorType = mlir::RankedTensorType::get(arrayType.getShape(),
                                                     arrayType.getElementType());

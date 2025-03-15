@@ -123,8 +123,11 @@ public:
     patterns.add<AccessReplacePattern>(&getContext(), symbolTableCollection,
                                        equationsMap);
 
-    if (mlir::failed(
-            applyPatternsAndFoldGreedily(modelOp, std::move(patterns)))) {
+    mlir::GreedyRewriteConfig config;
+    config.fold = true;
+
+    if (mlir::failed(mlir::applyPatternsGreedily(modelOp, std::move(patterns),
+                                                 config))) {
       return signalPassFailure();
     }
   }

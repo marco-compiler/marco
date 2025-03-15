@@ -51,9 +51,10 @@ protected:
       return {};
     }
 
-    if (auto booleanArrayAttr = values.dyn_cast<DenseBooleanElementsAttr>()) {
+    if (auto booleanArrayAttr =
+            mlir::dyn_cast<DenseBooleanElementsAttr>(values)) {
       auto elementType = this->getTypeConverter()->convertType(
-          booleanArrayAttr.getType().cast<ArrayType>().getElementType());
+          mlir::cast<ArrayType>(booleanArrayAttr.getType()).getElementType());
 
       auto tensorType = mlir::RankedTensorType::get(shape, elementType);
 
@@ -61,7 +62,8 @@ protected:
                                              booleanArrayAttr.getValues());
     }
 
-    if (auto integerArrayAttr = values.dyn_cast<DenseIntegerElementsAttr>()) {
+    if (auto integerArrayAttr =
+            mlir::dyn_cast<DenseIntegerElementsAttr>(values)) {
       llvm::SmallVector<int64_t> casted;
 
       for (const auto &value : integerArrayAttr.getValues()) {
@@ -69,13 +71,13 @@ protected:
       }
 
       auto elementType = this->getTypeConverter()->convertType(
-          integerArrayAttr.getType().cast<ArrayType>().getElementType());
+          mlir::cast<ArrayType>(integerArrayAttr.getType()).getElementType());
 
       auto tensorType = mlir::RankedTensorType::get(shape, elementType);
       return mlir::DenseIntElementsAttr::get(tensorType, casted);
     }
 
-    if (auto realArrayAttr = values.dyn_cast<DenseRealElementsAttr>()) {
+    if (auto realArrayAttr = mlir::dyn_cast<DenseRealElementsAttr>(values)) {
       llvm::SmallVector<double> casted;
 
       for (const auto &value : realArrayAttr.getValues()) {
@@ -83,7 +85,7 @@ protected:
       }
 
       auto elementType = this->getTypeConverter()->convertType(
-          realArrayAttr.getType().cast<ArrayType>().getElementType());
+          mlir::cast<ArrayType>(realArrayAttr.getType()).getElementType());
 
       auto tensorType = mlir::RankedTensorType::get(shape, elementType);
       return mlir::DenseFPElementsAttr::get(tensorType, casted);
@@ -123,16 +125,15 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
-    auto memRefType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .dyn_cast<mlir::MemRefType>();
+    auto memRefType = mlir::dyn_cast<mlir::MemRefType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (!memRefType) {
       return rewriter.notifyMatchFailure(op, "Incompatible result");
     }
 
     mlir::Attribute denseAttr = getDenseAttr(
-        memRefType.getShape(), op.getValue().cast<mlir::Attribute>());
+        memRefType.getShape(), mlir::cast<mlir::Attribute>(op.getValue()));
 
     if (!denseAttr) {
       return rewriter.notifyMatchFailure(op, "Unknown attribute data type");
@@ -239,8 +240,8 @@ public:
     mlir::SymbolTable &symbolTable =
         symbolTableCollection->getSymbolTable(moduleOp);
 
-    auto memRefType =
-        getTypeConverter()->convertType(op.getType()).cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(
+        getTypeConverter()->convertType(op.getType()));
 
     mlir::Attribute denseAttr = rewriter.getUnitAttr();
 
@@ -289,7 +290,7 @@ class PoolVariableGetOpLowering
   mlir::LogicalResult
   matchAndRewrite(PoolVariableGetOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!op.getType().isa<ArrayType>()) {
+    if (!mlir::isa<ArrayType>(op.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible type");
     }
 
@@ -308,9 +309,8 @@ class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp> {
   mlir::LogicalResult
   matchAndRewrite(AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto memRefType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(
         op, memRefType, adaptor.getDynamicSizes());
@@ -325,9 +325,8 @@ class AllocOpLowering : public ModelicaOpConversionPattern<AllocOp> {
   mlir::LogicalResult
   matchAndRewrite(AllocOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto memRefType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     rewriter.replaceOpWithNewOp<mlir::memref::AllocOp>(
         op, memRefType, adaptor.getDynamicSizes());
@@ -449,7 +448,7 @@ class SubscriptionOpLowering
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
-    auto sourceArrayType = op.getSource().getType().cast<ArrayType>();
+    auto sourceArrayType = mlir::cast<ArrayType>(op.getSource().getType());
     int64_t sourceRank = sourceArrayType.getRank();
 
     llvm::SmallVector<mlir::OpFoldResult, 3> offsets;
@@ -462,7 +461,7 @@ class SubscriptionOpLowering
       if (i < numOfSubscriptions) {
         mlir::Value subscription = op.getIndices()[i];
 
-        if (subscription.getType().isa<RangeType>()) {
+        if (mlir::isa<RangeType>(subscription.getType())) {
           mlir::Value lowerBound =
               rewriter.create<RangeBeginOp>(loc, subscription);
 
@@ -471,12 +470,12 @@ class SubscriptionOpLowering
           mlir::Value numOfElements =
               rewriter.create<RangeSizeOp>(loc, subscription);
 
-          if (!lowerBound.getType().isa<mlir::IndexType>()) {
+          if (!mlir::isa<mlir::IndexType>(lowerBound.getType())) {
             lowerBound = rewriter.create<CastOp>(
                 lowerBound.getLoc(), rewriter.getIndexType(), lowerBound);
           }
 
-          if (!step.getType().isa<mlir::IndexType>()) {
+          if (!mlir::isa<mlir::IndexType>(step.getType())) {
             step = rewriter.create<CastOp>(step.getLoc(),
                                            rewriter.getIndexType(), step);
           }
@@ -507,13 +506,13 @@ class SubscriptionOpLowering
     }
 
     auto resultType = mlir::memref::SubViewOp::inferRankReducedResultType(
-        op.getResult().getType().cast<ArrayType>().getShape(),
-        adaptor.getSource().getType().cast<mlir::MemRefType>(), offsets, sizes,
-        strides);
+        mlir::cast<ArrayType>(op.getResult().getType()).getShape(),
+        mlir::cast<mlir::MemRefType>(adaptor.getSource().getType()), offsets,
+        sizes, strides);
 
     mlir::Value result = rewriter.create<mlir::memref::SubViewOp>(
-        loc, resultType.cast<mlir::MemRefType>(), adaptor.getSource(), offsets,
-        sizes, strides);
+        loc, mlir::cast<mlir::MemRefType>(resultType), adaptor.getSource(),
+        offsets, sizes, strides);
 
     rewriter.replaceOpWithNewOp<mlir::memref::CastOp>(
         op, getTypeConverter()->convertType(op.getResult().getType()), result);
@@ -598,14 +597,15 @@ struct ArrayCopyOpDifferentTypeLowering
     : public ModelicaOpRewritePattern<ArrayCopyOp> {
   using ModelicaOpRewritePattern<ArrayCopyOp>::ModelicaOpRewritePattern;
 
-  mlir::LogicalResult match(ArrayCopyOp op) const override {
-    return mlir::LogicalResult::success(
-        op.getSource().getType().getElementType() !=
-        op.getDestination().getType().getElementType());
-  }
-
-  void rewrite(ArrayCopyOp op, mlir::PatternRewriter &rewriter) const override {
+  mlir::LogicalResult
+  matchAndRewrite(ArrayCopyOp op,
+                  mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
+
+    if (!(op.getSource().getType().getElementType() !=
+          op.getDestination().getType().getElementType())) {
+      return rewriter.notifyMatchFailure(op, "Expected different types");
+    }
 
     mlir::Value zero =
         rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
@@ -656,6 +656,7 @@ struct ArrayCopyOpDifferentTypeLowering
         });
 
     rewriter.eraseOp(op);
+    return mlir::success();
   }
 };
 
@@ -663,16 +664,18 @@ struct ArrayCopyOpSameTypeLowering
     : public ModelicaOpConversionPattern<ArrayCopyOp> {
   using ModelicaOpConversionPattern<ArrayCopyOp>::ModelicaOpConversionPattern;
 
-  mlir::LogicalResult match(ArrayCopyOp op) const override {
-    return mlir::LogicalResult::success(
-        op.getSource().getType().getElementType() ==
-        op.getDestination().getType().getElementType());
-  }
+  mlir::LogicalResult
+  matchAndRewrite(ArrayCopyOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    if (!(op.getSource().getType().getElementType() ==
+          op.getDestination().getType().getElementType())) {
+      return rewriter.notifyMatchFailure(op, "Expected equal types");
+    }
 
-  void rewrite(ArrayCopyOp op, OpAdaptor adaptor,
-               mlir::ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<mlir::memref::CopyOp>(op, adaptor.getSource(),
                                                       adaptor.getDestination());
+
+    return mlir::success();
   }
 };
 } // namespace
@@ -689,8 +692,9 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
 
   target.addIllegalOp<ArrayCastOp>();
 
-  target.addDynamicallyLegalOp<ConstantOp>(
-      [](ConstantOp op) { return !op.getResult().getType().isa<ArrayType>(); });
+  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+    return !mlir::isa<ArrayType>(op.getResult().getType());
+  });
 
   target.addIllegalOp<ArrayToTensorOp, TensorToArrayOp>();
 
@@ -700,7 +704,7 @@ mlir::LogicalResult BaseModelicaToMemRefConversionPass::convertOperations() {
                       ArrayCopyOp>();
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>(
-      [](PoolVariableGetOp op) { return !op.getType().isa<ArrayType>(); });
+      [](PoolVariableGetOp op) { return !mlir::isa<ArrayType>(op.getType()); });
 
   target.addIllegalOp<FillOp, NDimsOp, SizeOp>();
 

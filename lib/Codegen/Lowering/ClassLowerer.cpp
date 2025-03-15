@@ -69,7 +69,8 @@ bool ClassLowerer::declare(const ast::Member &variable) {
 
   llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
 
-  if (auto shapedType = variableType->unwrap().dyn_cast<mlir::ShapedType>()) {
+  if (auto shapedType =
+          mlir::dyn_cast<mlir::ShapedType>(variableType->unwrap())) {
     for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
          ++dim) {
       const ast::ArrayDimension *dimension = (*variable.getType())[dim];
@@ -294,7 +295,7 @@ bool ClassLowerer::lowerVariableDimensionConstraints(
         }
         mlir::Value size = (*loweredExpression)[0].get(sizeLoc);
 
-        if (!size.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(size.getType())) {
           size = builder().create<CastOp>(location, builder().getIndexType(),
                                           size);
         }

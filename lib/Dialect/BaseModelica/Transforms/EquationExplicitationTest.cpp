@@ -55,8 +55,11 @@ void EquationExplicitationTestPass::runOnOperation() {
   patterns.add<ExplicitatePattern>(&getContext(), symbolTableCollection,
                                    processedEquations);
 
-  if (mlir::failed(
-          applyPatternsAndFoldGreedily(getOperation(), std::move(patterns)))) {
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+
+  if (mlir::failed(mlir::applyPatternsGreedily(getOperation(),
+                                               std::move(patterns), config))) {
     return signalPassFailure();
   }
 }

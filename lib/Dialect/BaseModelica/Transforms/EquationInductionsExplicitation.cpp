@@ -57,8 +57,8 @@ public:
     mlir::Value lhsValue = equationSidesOp.getLhsValues()[0];
     mlir::Value rhsValue = equationSidesOp.getRhsValues()[0];
 
-    auto lhsTensorType = lhsValue.getType().cast<mlir::TensorType>();
-    auto rhsTensorType = rhsValue.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhsValue.getType());
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhsValue.getType());
 
     llvm::SmallVector<mlir::Value> inductions;
 
@@ -138,8 +138,10 @@ EquationInductionsExplicitationPass::processModelOp(ModelOp modelOp) {
       return true;
     }
 
-    auto lhsTensorType = lhsValues[0].getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhsValues[0].getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(lhsValues[0].getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(rhsValues[0].getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return true;

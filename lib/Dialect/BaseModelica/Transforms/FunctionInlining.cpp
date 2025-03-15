@@ -736,9 +736,10 @@ void FunctionInliningPass::runOnOperation() {
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
+  config.fold = true;
 
-  if (mlir::failed(applyPatternsAndFoldGreedily(moduleOp, std::move(patterns),
-                                                config))) {
+  if (mlir::failed(
+          mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config))) {
     return signalPassFailure();
   }
 }

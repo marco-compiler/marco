@@ -86,8 +86,11 @@ public:
 
     patterns.insert<TensorViewOpPattern>(&getContext());
 
-    if (mlir::failed(
-            applyPatternsAndFoldGreedily(moduleOp, std::move(patterns)))) {
+    mlir::GreedyRewriteConfig config;
+    config.fold = true;
+
+    if (mlir::failed(mlir::applyPatternsGreedily(moduleOp, std::move(patterns),
+                                                 config))) {
       moduleOp.emitOpError() << "Can't infer range boundaries";
       return signalPassFailure();
     }

@@ -31,7 +31,7 @@ SubscriptLowerer::lower(const ast::Subscript &subscript) {
 
   mlir::Type resultType = builder().getIndexType();
 
-  if (mlir::Type indexType = index.getType(); indexType.isa<RangeType>()) {
+  if (mlir::Type indexType = index.getType(); mlir::isa<RangeType>(indexType)) {
     resultType = indexType;
   }
 

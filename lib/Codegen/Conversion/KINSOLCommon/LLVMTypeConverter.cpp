@@ -10,45 +10,16 @@ LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext *context,
 
   addConversion([&](EquationType type) { return convertEquationType(type); });
 
-  addTargetMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::LLVM::LLVMPointerType resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        return opaquePointerTypeTargetMaterialization(builder, resultType,
-                                                      inputs, loc);
-      });
+  auto addUnrealizedCast = [](mlir::OpBuilder &builder, mlir::Type type,
+                              mlir::ValueRange inputs,
+                              mlir::Location loc) -> mlir::Value {
+    auto castOp =
+        builder.create<mlir::UnrealizedConversionCastOp>(loc, type, inputs);
+    return castOp.getResult(0);
+  };
 
-  addTargetMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::IntegerType resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        return integerTypeTargetMaterialization(builder, resultType, inputs,
-                                                loc);
-      });
-
-  addSourceMaterialization(
-      [&](mlir::OpBuilder &builder, InstanceType resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        return instanceTypeSourceMaterialization(builder, resultType, inputs,
-                                                 loc);
-      });
-
-  addSourceMaterialization(
-      [&](mlir::OpBuilder &builder, VariableType resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        return variableTypeSourceMaterialization(builder, resultType, inputs,
-                                                 loc);
-      });
-
-  addSourceMaterialization(
-      [&](mlir::OpBuilder &builder, EquationType resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        return equationTypeSourceMaterialization(builder, resultType, inputs,
-                                                 loc);
-      });
+  addSourceMaterialization(addUnrealizedCast);
+  addTargetMaterialization(addUnrealizedCast);
 }
 
 mlir::Type LLVMTypeConverter::convertInstanceType(InstanceType type) {
@@ -61,89 +32,5 @@ mlir::Type LLVMTypeConverter::convertVariableType(VariableType type) {
 
 mlir::Type LLVMTypeConverter::convertEquationType(EquationType type) {
   return mlir::IntegerType::get(type.getContext(), 64);
-}
-
-std::optional<mlir::Value>
-LLVMTypeConverter::opaquePointerTypeTargetMaterialization(
-    mlir::OpBuilder &builder, mlir::LLVM::LLVMPointerType resultType,
-    mlir::ValueRange inputs, mlir::Location loc) const {
-  if (inputs.size() != 1) {
-    return std::nullopt;
-  }
-
-  if (!inputs[0].getType().isa<InstanceType>()) {
-    return std::nullopt;
-  }
-
-  return builder
-      .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-      .getResult(0);
-}
-
-std::optional<mlir::Value> LLVMTypeConverter::integerTypeTargetMaterialization(
-    mlir::OpBuilder &builder, mlir::IntegerType resultType,
-    mlir::ValueRange inputs, mlir::Location loc) const {
-  if (inputs.size() != 1) {
-    return std::nullopt;
-  }
-
-  if (!inputs[0].getType().isa<VariableType, EquationType>()) {
-    return std::nullopt;
-  }
-
-  return builder
-      .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-      .getResult(0);
-}
-
-std::optional<mlir::Value> LLVMTypeConverter::instanceTypeSourceMaterialization(
-    mlir::OpBuilder &builder, InstanceType resultType, mlir::ValueRange inputs,
-    mlir::Location loc) const {
-  if (inputs.size() != 1) {
-    return std::nullopt;
-  }
-
-  auto pointerType =
-      inputs[0].getType().dyn_cast<mlir::LLVM::LLVMPointerType>();
-
-  if (!pointerType) {
-    return std::nullopt;
-  }
-
-  return builder
-      .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-      .getResult(0);
-}
-
-std::optional<mlir::Value> LLVMTypeConverter::variableTypeSourceMaterialization(
-    mlir::OpBuilder &builder, VariableType resultType, mlir::ValueRange inputs,
-    mlir::Location loc) const {
-  if (inputs.size() != 1) {
-    return std::nullopt;
-  }
-
-  if (!inputs[0].getType().isa<mlir::IntegerType>()) {
-    return std::nullopt;
-  }
-
-  return builder
-      .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-      .getResult(0);
-}
-
-std::optional<mlir::Value> LLVMTypeConverter::equationTypeSourceMaterialization(
-    mlir::OpBuilder &builder, EquationType resultType, mlir::ValueRange inputs,
-    mlir::Location loc) const {
-  if (inputs.size() != 1) {
-    return std::nullopt;
-  }
-
-  if (!inputs[0].getType().isa<mlir::IntegerType>()) {
-    return std::nullopt;
-  }
-
-  return builder
-      .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-      .getResult(0);
 }
 } // namespace mlir::kinsol

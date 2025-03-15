@@ -956,7 +956,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
   });
 
   auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-  assert(idaEquation.getType().isa<mlir::ida::EquationType>());
+  assert(mlir::isa<mlir::ida::EquationType>(idaEquation.getType()));
 
   auto getIDAVariable = [&](VariableOp variableOp) -> mlir::Value {
     if (auto stateVariable = getDerivedVariable(
@@ -1173,8 +1173,8 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
       // side of the equation.
       mlir::Value lhs = mapping.lookup(equationSidesOp.getLhsValues()[0]);
       mlir::Value rhs = mapping.lookup(equationSidesOp.getRhsValues()[0]);
-      assert(!lhs.getType().isa<mlir::ShapedType>());
-      assert(!rhs.getType().isa<mlir::ShapedType>());
+      assert(!mlir::isa<mlir::ShapedType>(lhs.getType()));
+      assert(!mlir::isa<mlir::ShapedType>(rhs.getType()));
 
       mlir::Value difference =
           rewriter.create<SubOp>(loc, rewriter.getF64Type(), rhs, lhs);
@@ -1566,7 +1566,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   }
 
   for (mlir::Value seed : varSeeds) {
-    auto arrayType = seed.getType().cast<ArrayType>();
+    auto arrayType = mlir::cast<ArrayType>(seed.getType());
     seedSizes.push_back(arrayType.getNumElements());
   }
 
@@ -1591,7 +1591,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
     // Seeds of the variables.
     for (mlir::Value seed : varSeeds) {
-      auto arrayType = seed.getType().cast<ArrayType>();
+      auto arrayType = mlir::cast<ArrayType>(seed.getType());
 
       auto tensorType = mlir::RankedTensorType::get(arrayType.getShape(),
                                                     arrayType.getElementType());
@@ -1803,8 +1803,6 @@ public:
   void runOnOperation() override;
 
 private:
-  DerivativesMap &getDerivativesMap(ModelOp modelOp);
-
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
   mlir::LogicalResult
@@ -2404,7 +2402,9 @@ IDAPass::createGetIDATimeFunction(mlir::OpBuilder &builder,
 mlir::LogicalResult IDAPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

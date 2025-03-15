@@ -399,7 +399,7 @@ public:
     }
 
     for (mlir::Type argType : op.getArgumentTypes()) {
-      if (argType.isa<mlir::MemRefType, mlir::UnrankedMemRefType>()) {
+      if (mlir::isa<mlir::MemRefType, mlir::UnrankedMemRefType>(argType)) {
         argTypes.push_back(
             mlir::LLVM::LLVMPointerType::get(rewriter.getContext()));
       } else {
@@ -445,7 +445,8 @@ public:
          llvm::zip(op.getArgs(), adaptor.getArgs())) {
       mlir::Type originalArgType = originalArg.getType();
 
-      if (!originalArgType.isa<mlir::MemRefType, mlir::UnrankedMemRefType>()) {
+      if (!mlir::isa<mlir::MemRefType, mlir::UnrankedMemRefType>(
+              originalArgType)) {
         promotedArgs.push_back(adaptorArg);
         continue;
       }
@@ -454,7 +455,7 @@ public:
       mlir::Value memRef = adaptorArg;
 
       if (auto memRefType =
-              originalArg.getType().dyn_cast<mlir::MemRefType>()) {
+              mlir::dyn_cast<mlir::MemRefType>(originalArg.getType())) {
         // Promote the ranked memrefs to unranked ones.
         memRef = makeUnranked(rewriter, loc, memRef, memRefType);
       }

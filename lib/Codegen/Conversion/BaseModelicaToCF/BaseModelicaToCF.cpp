@@ -237,7 +237,7 @@ private:
             rewriter.create<RawVariableGetOp>(op.getLoc(), rawVariableOp);
 
         mlir::Type tensorElementType =
-            tensor.getType().cast<mlir::TensorType>().getElementType();
+            mlir::cast<mlir::TensorType>(tensor.getType()).getElementType();
 
         if (value.getType() != tensorElementType) {
           value =
@@ -251,7 +251,7 @@ private:
                                                       tensor);
       } else {
         auto rawVariableTensorType =
-            rawVariableOp.getVariable().getType().cast<mlir::TensorType>();
+            mlir::cast<mlir::TensorType>(rawVariableOp.getVariable().getType());
 
         if (rawVariableTensorType.getShape().empty()) {
           mlir::Type elementType = rawVariableTensorType.getElementType();
@@ -611,8 +611,9 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::convertBaseModelicaToCFG(
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
+  config.fold = true;
 
-  return applyPatternsAndFoldGreedily(moduleOp, std::move(patterns), config);
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
 
 namespace mlir {

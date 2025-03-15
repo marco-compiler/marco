@@ -388,7 +388,9 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
 mlir::LogicalResult MatchingPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

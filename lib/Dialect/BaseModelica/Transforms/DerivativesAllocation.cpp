@@ -185,11 +185,11 @@ getShape(llvm::SmallVectorImpl<int64_t> &shape, ModelOp modelOp,
   shape.append(variableShape.begin(), variableShape.end());
 
   for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
-    assert(variableOp.getVariableType().unwrap().isa<RecordType>());
+    assert(mlir::isa<RecordType>(variableOp.getVariableType().unwrap()));
 
     auto recordOp = mlir::cast<RecordOp>(
-        variableOp.getVariableType().unwrap().cast<RecordType>().getRecordOp(
-            symbolTableCollection, moduleOp));
+        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
+            .getRecordOp(symbolTableCollection, moduleOp));
 
     variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
         recordOp, component.getAttr());
@@ -466,8 +466,8 @@ resolveVariable(ModelOp modelOp,
 
   for (mlir::FlatSymbolRefAttr component : variable.getNestedReferences()) {
     auto recordOp = mlir::cast<RecordOp>(
-        variableOp.getVariableType().unwrap().cast<RecordType>().getRecordOp(
-            symbolTableCollection, moduleOp));
+        mlir::cast<RecordType>(variableOp.getVariableType().unwrap())
+            .getRecordOp(symbolTableCollection, moduleOp));
 
     variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
         recordOp, component.getAttr());
@@ -514,7 +514,8 @@ public:
       replacement = rewriter.create<TensorViewOp>(loc, replacement, indices);
     }
 
-    if (auto tensorType = replacement.getType().dyn_cast<mlir::TensorType>();
+    if (auto tensorType =
+            mlir::dyn_cast<mlir::TensorType>(replacement.getType());
         tensorType && tensorType.hasRank()) {
       replacement =
           rewriter.create<TensorExtractOp>(loc, replacement, std::nullopt);
@@ -548,8 +549,8 @@ mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
                                    mutexCollection.symbolTableCollectionMutex,
                                    derivativesMap);
 
-  return applyPatternsAndFoldGreedily(equationInstanceOp.getTemplate(),
-                                      std::move(patterns));
+  return mlir::applyPatternsGreedily(equationInstanceOp.getTemplate(),
+                                     std::move(patterns));
 }
 
 mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
@@ -562,7 +563,7 @@ mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
                                    mutexCollection.symbolTableCollectionMutex,
                                    derivativesMap);
 
-  return applyPatternsAndFoldGreedily(algorithmOp, std::move(patterns));
+  return mlir::applyPatternsGreedily(algorithmOp, std::move(patterns));
 }
 
 static mlir::LogicalResult

@@ -22,31 +22,16 @@ LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext *context,
 
   addConversion([&](RangeType type) { return convertRangeType(type); });
 
-  addTargetMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::Type resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        if (inputs.size() != 1) {
-          return std::nullopt;
-        }
+  auto addUnrealizedCast = [](mlir::OpBuilder &builder, mlir::Type type,
+                              mlir::ValueRange inputs,
+                              mlir::Location loc) -> mlir::Value {
+    auto castOp =
+        builder.create<mlir::UnrealizedConversionCastOp>(loc, type, inputs);
+    return castOp.getResult(0);
+  };
 
-        return builder
-            .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs)
-            .getResult(0);
-      });
-
-  addSourceMaterialization(
-      [&](mlir::OpBuilder &builder, mlir::Type resultType,
-          mlir::ValueRange inputs,
-          mlir::Location loc) -> std::optional<mlir::Value> {
-        if (inputs.size() != 1) {
-          return std::nullopt;
-        }
-
-        return builder
-            .create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs)
-            .getResult(0);
-      });
+  addSourceMaterialization(addUnrealizedCast);
+  addTargetMaterialization(addUnrealizedCast);
 }
 
 mlir::Type LLVMTypeConverter::forwardConversion(mlir::Type type) {

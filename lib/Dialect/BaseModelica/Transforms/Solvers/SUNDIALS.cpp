@@ -47,7 +47,7 @@ createGetterFunction(mlir::OpBuilder &builder,
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto arrayType = variable.getType().cast<ArrayType>();
+  auto arrayType = mlir::cast<ArrayType>(variable.getType());
 
   auto getterOp = builder.create<mlir::sundials::VariableGetterOp>(
       loc, functionName, arrayType.getRank());
@@ -118,7 +118,7 @@ createSetterFunction(mlir::OpBuilder &builder,
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  auto arrayType = variable.getType().cast<ArrayType>();
+  auto arrayType = mlir::cast<ArrayType>(variable.getType());
 
   auto setterOp = builder.create<mlir::sundials::VariableSetterOp>(
       loc, functionName, arrayType.getRank());
@@ -153,16 +153,16 @@ GlobalVariableOp createGlobalADSeed(mlir::OpBuilder &builder,
   builder.setInsertionPointToStart(moduleOp.getBody());
 
   mlir::Attribute initialValue = nullptr;
-  auto arrayType = type.cast<ArrayType>();
+  auto arrayType = mlir::cast<ArrayType>(type);
   mlir::Type elementType = arrayType.getElementType();
 
-  if (elementType.isa<BooleanType>()) {
+  if (mlir::isa<BooleanType>(elementType)) {
     llvm::SmallVector<bool> values(arrayType.getNumElements(), false);
     initialValue = DenseBooleanElementsAttr::get(arrayType, values);
-  } else if (elementType.isa<IntegerType>()) {
+  } else if (mlir::isa<IntegerType>(elementType)) {
     llvm::SmallVector<int64_t> values(arrayType.getNumElements(), 0);
     initialValue = DenseIntegerElementsAttr::get(arrayType, values);
-  } else if (elementType.isa<RealType>()) {
+  } else if (mlir::isa<RealType>(elementType)) {
     llvm::SmallVector<double> values(arrayType.getNumElements(), 0);
     initialValue = DenseRealElementsAttr::get(arrayType, values);
   }

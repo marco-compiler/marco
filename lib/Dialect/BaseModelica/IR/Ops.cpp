@@ -176,6 +176,7 @@ cleanEquationTemplates(mlir::RewriterBase &rewriter,
 
   mlir::FrozenRewritePatternSet frozenPatterns(std::move(patterns));
   mlir::GreedyRewriteConfig config;
+  config.fold = true;
 
   mlir::OpBuilder::Listener *listener = rewriter.getListener();
   mlir::RewriterBase::ForwardingListener forwardingListener(listener);
@@ -185,8 +186,8 @@ cleanEquationTemplates(mlir::RewriterBase &rewriter,
   }
 
   for (EquationTemplateOp templateOp : templateOps) {
-    if (mlir::failed(mlir::applyPatternsAndFoldGreedily(
-            templateOp, frozenPatterns, config))) {
+    if (mlir::failed(
+            mlir::applyPatternsGreedily(templateOp, frozenPatterns, config))) {
       return mlir::failure();
     }
   }
@@ -306,11 +307,11 @@ mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
     return {};
   }
 
-  if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+  if (auto intRange = mlir::dyn_cast<IntegerRangeAttr>(range)) {
     mlir::Type inductionType =
-        intRange.getType().cast<RangeType>().getInductionType();
+        mlir::cast<RangeType>(intRange.getType()).getInductionType();
 
-    if (inductionType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(inductionType)) {
       return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()),
                                     intRange.getLowerBound());
     } else {
@@ -318,7 +319,7 @@ mlir::OpFoldResult RangeBeginOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+  if (auto realRange = mlir::dyn_cast<RealRangeAttr>(range)) {
     return RealAttr::get(getContext(),
                          realRange.getLowerBound().convertToDouble());
   }
@@ -338,11 +339,11 @@ mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
     return {};
   }
 
-  if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+  if (auto intRange = mlir::dyn_cast<IntegerRangeAttr>(range)) {
     mlir::Type inductionType =
-        intRange.getType().cast<RangeType>().getInductionType();
+        mlir::cast<RangeType>(intRange.getType()).getInductionType();
 
-    if (inductionType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(inductionType)) {
       return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()),
                                     intRange.getUpperBound());
     } else {
@@ -350,7 +351,7 @@ mlir::OpFoldResult RangeEndOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+  if (auto realRange = mlir::dyn_cast<RealRangeAttr>(range)) {
     return RealAttr::get(getContext(),
                          realRange.getUpperBound().convertToDouble());
   }
@@ -370,11 +371,11 @@ mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor) {
     return {};
   }
 
-  if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+  if (auto intRange = mlir::dyn_cast<IntegerRangeAttr>(range)) {
     mlir::Type inductionType =
-        intRange.getType().cast<RangeType>().getInductionType();
+        mlir::cast<RangeType>(intRange.getType()).getInductionType();
 
-    if (inductionType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(inductionType)) {
       return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()),
                                     intRange.getStep());
     } else {
@@ -382,7 +383,7 @@ mlir::OpFoldResult RangeStepOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+  if (auto realRange = mlir::dyn_cast<RealRangeAttr>(range)) {
     return RealAttr::get(getContext(), realRange.getStep().convertToDouble());
   }
 
@@ -401,7 +402,7 @@ mlir::OpFoldResult RangeSizeOp::fold(FoldAdaptor adaptor) {
     return {};
   }
 
-  if (auto intRange = range.dyn_cast<IntegerRangeAttr>()) {
+  if (auto intRange = mlir::dyn_cast<IntegerRangeAttr>(range)) {
     int64_t beginValue = intRange.getLowerBound();
     int64_t endValue = intRange.getUpperBound();
     int64_t step = intRange.getStep();
@@ -410,7 +411,7 @@ mlir::OpFoldResult RangeSizeOp::fold(FoldAdaptor adaptor) {
     return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), result);
   }
 
-  if (auto realRange = range.dyn_cast<RealRangeAttr>()) {
+  if (auto realRange = mlir::dyn_cast<RealRangeAttr>(range)) {
     double beginValue = realRange.getLowerBound().convertToDouble();
     double endValue = realRange.getUpperBound().convertToDouble();
     double step = realRange.getStep().convertToDouble();
@@ -460,7 +461,7 @@ mlir::OpFoldResult TensorFromElementsOp::fold(FoldAdaptor adaptor) {
 
     mlir::Type elementType = tensorType.getElementType();
 
-    if (elementType.isa<BooleanType>()) {
+    if (mlir::isa<BooleanType>(elementType)) {
       llvm::SmallVector<bool> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -470,7 +471,7 @@ mlir::OpFoldResult TensorFromElementsOp::fold(FoldAdaptor adaptor) {
       return DenseBooleanElementsAttr::get(tensorType, casted);
     }
 
-    if (elementType.isa<IntegerType>()) {
+    if (mlir::isa<IntegerType>(elementType)) {
       llvm::SmallVector<int64_t> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -480,7 +481,7 @@ mlir::OpFoldResult TensorFromElementsOp::fold(FoldAdaptor adaptor) {
       return DenseIntegerElementsAttr::get(tensorType, casted);
     }
 
-    if (elementType.isa<RealType>()) {
+    if (mlir::isa<RealType>(elementType)) {
       llvm::SmallVector<double> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -564,8 +565,8 @@ struct MergeTensorViewsPattern : public mlir::OpRewritePattern<TensorViewOp> {
 namespace mlir::bmodelica {
 void TensorViewOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                          mlir::Value source, mlir::ValueRange subscriptions) {
-  mlir::TensorType resultType =
-      inferResultType(source.getType().cast<mlir::TensorType>(), subscriptions);
+  mlir::TensorType resultType = inferResultType(
+      mlir::cast<mlir::TensorType>(source.getType()), subscriptions);
 
   build(builder, state, resultType, source, subscriptions);
 }
@@ -610,7 +611,7 @@ mlir::TensorType TensorViewOp::inferResultType(mlir::TensorType source,
   for (size_t i = 0; i < numOfSubscriptions; ++i) {
     mlir::Value index = indices[i];
 
-    if (index.getType().isa<RangeType>()) {
+    if (mlir::isa<RangeType>(index.getType())) {
       int64_t dimension = mlir::ShapedType::kDynamic;
 
       if (auto constantOp = index.getDefiningOp<ConstantOp>()) {
@@ -681,7 +682,7 @@ void TensorExtractOp::build(mlir::OpBuilder &builder,
   llvm::SmallVector<mlir::Value> castedIndices;
 
   for (mlir::Value index : indices) {
-    if (index.getType().isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(index.getType())) {
       castedIndices.push_back(index);
     } else {
       castedIndices.push_back(builder.create<CastOp>(
@@ -692,7 +693,7 @@ void TensorExtractOp::build(mlir::OpBuilder &builder,
   state.operands.push_back(tensor);
   state.operands.append(castedIndices);
 
-  auto tensorType = tensor.getType().cast<mlir::TensorType>();
+  auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
   state.types.push_back(tensorType.getElementType());
 }
 
@@ -757,9 +758,9 @@ void AllocaOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  if (auto arrayType = getResult().getType().dyn_cast<ArrayType>()) {
+  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
     effects.emplace_back(
-        mlir::MemoryEffects::Allocate::get(), getResult(),
+        mlir::MemoryEffects::Allocate::get(), getOperation()->getResult(0),
         mlir::SideEffects::AutomaticAllocationScopeResource::get());
   }
 }
@@ -787,8 +788,9 @@ void AllocOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  if (auto arrayType = getResult().getType().dyn_cast<ArrayType>()) {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(),
+  if (auto arrayType = mlir::dyn_cast<ArrayType>(getResult().getType())) {
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
+                         getOperation()->getResult(0),
                          mlir::SideEffects::DefaultResource::get());
   }
 }
@@ -826,7 +828,7 @@ mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor) {
 
     mlir::Type elementType = arrayType.getElementType();
 
-    if (elementType.isa<BooleanType>()) {
+    if (mlir::isa<BooleanType>(elementType)) {
       llvm::SmallVector<bool> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -836,7 +838,7 @@ mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor) {
       return DenseBooleanElementsAttr::get(arrayType, casted);
     }
 
-    if (elementType.isa<IntegerType>()) {
+    if (mlir::isa<IntegerType>(elementType)) {
       llvm::SmallVector<int64_t> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -846,7 +848,7 @@ mlir::OpFoldResult ArrayFromElementsOp::fold(FoldAdaptor adaptor) {
       return DenseIntegerElementsAttr::get(arrayType, casted);
     }
 
-    if (elementType.isa<RealType>()) {
+    if (mlir::isa<RealType>(elementType)) {
       llvm::SmallVector<double> casted;
 
       if (!getScalarAttributesValues(adaptor.getOperands(), casted)) {
@@ -864,10 +866,12 @@ void ArrayFromElementsOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(),
+  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
+                       getOperation()->getResult(0),
                        mlir::SideEffects::DefaultResource::get());
 
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       getOperation()->getResult(0),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -880,10 +884,12 @@ void ArrayBroadcastOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(),
+  effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
+                       getOperation()->getResult(0),
                        mlir::SideEffects::DefaultResource::get());
 
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       getOperation()->getResult(0),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -894,7 +900,7 @@ void ArrayBroadcastOp::getEffects(
 namespace mlir::bmodelica {
 void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
                             mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Free::get(), getArray(),
+  effects.emplace_back(mlir::MemoryEffects::Free::get(), &getArrayMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -917,7 +923,7 @@ struct DimOpStaticDimensionPattern : public mlir::OpRewritePattern<DimOp> {
     ArrayType arrayType = op.getArray().getType();
 
     int64_t dimSize = arrayType.getDimSize(
-        constantOp.getValue().cast<mlir::IntegerAttr>().getInt());
+        mlir::cast<mlir::IntegerAttr>(constantOp.getValue()).getInt());
 
     if (dimSize == ArrayType::kDynamic) {
       return mlir::failure();
@@ -984,7 +990,7 @@ void LoadOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   llvm::SmallVector<mlir::Value> castedIndices;
 
   for (mlir::Value index : indices) {
-    if (index.getType().isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(index.getType())) {
       castedIndices.push_back(index);
     } else {
       castedIndices.push_back(builder.create<CastOp>(
@@ -995,7 +1001,7 @@ void LoadOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   state.operands.push_back(array);
   state.operands.append(castedIndices);
 
-  auto arrayType = array.getType().cast<ArrayType>();
+  auto arrayType = mlir::cast<ArrayType>(array.getType());
   state.types.push_back(arrayType.getElementType());
 }
 
@@ -1034,7 +1040,7 @@ void LoadOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
 
 void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
                             mlir::MemoryEffects::Effect>> &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), getArray(),
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getArrayMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -1049,7 +1055,7 @@ void StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   llvm::SmallVector<mlir::Value> castedIndices;
 
   for (mlir::Value index : indices) {
-    if (index.getType().isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(index.getType())) {
       castedIndices.push_back(index);
     } else {
       castedIndices.push_back(builder.create<CastOp>(
@@ -1094,7 +1100,7 @@ void StoreOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getArray(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -1169,8 +1175,8 @@ void SubscriptionOp::build(mlir::OpBuilder &builder,
                            mlir::OperationState &state, mlir::Value source,
                            mlir::ValueRange indices) {
   build(builder, state,
-        inferResultType(source.getType().cast<ArrayType>(), indices), source,
-        indices);
+        inferResultType(mlir::cast<ArrayType>(source.getType()), indices),
+        source, indices);
 }
 
 mlir::LogicalResult SubscriptionOp::verify() {
@@ -1211,7 +1217,7 @@ ArrayType SubscriptionOp::inferResultType(ArrayType source,
   for (size_t i = 0; i < numOfSubscriptions; ++i) {
     mlir::Value index = indices[i];
 
-    if (index.getType().isa<RangeType>()) {
+    if (mlir::isa<RangeType>(index.getType())) {
       int64_t dimension = ArrayType::kDynamic;
 
       if (auto constantOp = index.getDefiningOp<ConstantOp>()) {
@@ -1242,7 +1248,7 @@ void ArrayFillOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getArray(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getArrayMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -1255,10 +1261,11 @@ void ArrayCopyOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), getSource(),
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getSourceMutable(),
                        mlir::SideEffects::DefaultResource::get());
 
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getDestination(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       &getDestinationMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 } // namespace mlir::bmodelica
@@ -1415,7 +1422,7 @@ mlir::LogicalResult VariableOp::verify() {
 
     // Check that all the dimensions have 'index' type.
     if (llvm::any_of(yieldOp.getValues(), [](mlir::Value value) {
-          return !value.getType().isa<mlir::IndexType>();
+          return !mlir::isa<mlir::IndexType>(value.getType());
         })) {
       return emitOpError(
           "constraints for dynamic dimensions must have 'index' type");
@@ -1426,7 +1433,7 @@ mlir::LogicalResult VariableOp::verify() {
 }
 
 VariableType VariableOp::getVariableType() {
-  return getType().cast<VariableType>();
+  return mlir::cast<VariableType>(getType());
 }
 
 bool VariableOp::isInput() { return getVariableType().isInput(); }
@@ -1741,9 +1748,9 @@ VariableComponentSetOp::getComponentSubscripts(size_t componentIndex) {
     return std::nullopt;
   }
 
-  auto numOfSubscripts = getSubscriptionsAmounts()[componentIndex]
-                             .cast<mlir::IntegerAttr>()
-                             .getInt();
+  auto numOfSubscripts =
+      mlir::cast<mlir::IntegerAttr>(getSubscriptionsAmounts()[componentIndex])
+          .getInt();
 
   if (numOfSubscripts == 0) {
     return std::nullopt;
@@ -1752,7 +1759,8 @@ VariableComponentSetOp::getComponentSubscripts(size_t componentIndex) {
   size_t beginPos = 0;
 
   for (size_t i = 0; i < componentIndex; ++i) {
-    beginPos += getSubscriptionsAmounts()[i].cast<mlir::IntegerAttr>().getInt();
+    beginPos +=
+        mlir::cast<mlir::IntegerAttr>(getSubscriptionsAmounts()[i]).getInt();
   }
 
   return subscripts.slice(beginPos, numOfSubscripts);
@@ -1768,15 +1776,15 @@ mlir::LogicalResult ComponentGetOp::verifySymbolUses(
   mlir::Type variableType = getVariable().getType();
   mlir::Type recordType = variableType;
 
-  if (auto tensorType = recordType.dyn_cast<mlir::TensorType>()) {
+  if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(recordType)) {
     recordType = tensorType.getElementType();
   }
 
   auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
 
-  auto recordOp =
-      mlir::dyn_cast<RecordOp>(recordType.cast<RecordType>().getRecordOp(
-          symbolTableCollection, moduleOp));
+  auto recordOp = mlir::dyn_cast<RecordOp>(
+      mlir::cast<RecordType>(recordType)
+          .getRecordOp(symbolTableCollection, moduleOp));
 
   if (!recordOp) {
     return emitOpError() << "Can't resolve record type";
@@ -1797,13 +1805,14 @@ mlir::LogicalResult ComponentGetOp::verifySymbolUses(
 
   llvm::SmallVector<int64_t> expectedResultShape;
 
-  if (auto variableShapedType = variableType.dyn_cast<mlir::ShapedType>()) {
+  if (auto variableShapedType =
+          mlir::dyn_cast<mlir::ShapedType>(variableType)) {
     auto variableShape = variableShapedType.getShape();
     expectedResultShape.append(variableShape.begin(), variableShape.end());
   }
 
   if (auto componentShapedType =
-          componentVariable.getType().dyn_cast<mlir::ShapedType>()) {
+          mlir::dyn_cast<mlir::ShapedType>(componentVariable.getType())) {
     auto componentShape = componentShapedType.getShape();
     expectedResultShape.append(componentShape.begin(), componentShape.end());
   }
@@ -2042,7 +2051,7 @@ VariableOp QualifiedVariableSetOp::getVariableOp(
 
 namespace mlir::bmodelica {
 mlir::OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
-  return getValue().cast<mlir::Attribute>();
+  return mlir::cast<mlir::Attribute>(getValue());
 }
 } // namespace mlir::bmodelica
 
@@ -2063,7 +2072,7 @@ mlir::LogicalResult NegateOp::inferReturnTypes(
     return mlir::success();
   }
 
-  if (auto shapedType = operandType.dyn_cast<mlir::ShapedType>()) {
+  if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(operandType)) {
     returnTypes.push_back(shapedType);
     return mlir::success();
   }
@@ -2234,18 +2243,22 @@ namespace {
 struct AddOpRangeOrderingPattern : public mlir::OpRewritePattern<AddOp> {
   using mlir::OpRewritePattern<AddOp>::OpRewritePattern;
 
-  mlir::LogicalResult match(AddOp op) const override {
+  mlir::LogicalResult
+  matchAndRewrite(AddOp op, mlir::PatternRewriter &rewriter) const override {
     mlir::Value lhs = op.getLhs();
     mlir::Value rhs = op.getRhs();
 
-    return mlir::LogicalResult::success(!lhs.getType().isa<RangeType>() &&
-                                        rhs.getType().isa<RangeType>());
-  }
+    if (mlir::isa<RangeType>(lhs.getType()) ||
+        !mlir::isa<RangeType>(rhs.getType())) {
+      return rewriter.notifyMatchFailure(op,
+                                         "Expected non-range and range types");
+    }
 
-  void rewrite(AddOp op, mlir::PatternRewriter &rewriter) const override {
     // Swap the operands.
     rewriter.replaceOpWithNewOp<AddOp>(op, op.getResult().getType(),
                                        op.getRhs(), op.getLhs());
+
+    return mlir::success();
   }
 };
 } // namespace
@@ -2260,8 +2273,8 @@ mlir::LogicalResult AddOp::inferReturnTypes(
   mlir::Type lhsType = adaptor.getLhs().getType();
   mlir::Type rhsType = adaptor.getRhs().getType();
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (lhsShapedType && rhsShapedType) {
     if (lhsShapedType.getRank() != rhsShapedType.getRank()) {
@@ -2302,8 +2315,8 @@ mlir::LogicalResult AddOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsRangeType = lhsType.dyn_cast<RangeType>();
-  auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+  auto lhsRangeType = mlir::dyn_cast<RangeType>(lhsType);
+  auto rhsRangeType = mlir::dyn_cast<RangeType>(rhsType);
 
   if (isScalar(lhsType) && rhsRangeType) {
     mlir::Type inductionType =
@@ -2374,7 +2387,7 @@ mlir::OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto lhsRange = lhs.dyn_cast<IntegerRangeAttr>();
+  if (auto lhsRange = mlir::dyn_cast<IntegerRangeAttr>(lhs);
       lhsRange && isScalar(rhs)) {
     if (isScalarIntegerLike(rhs)) {
       int64_t rhsValue = getScalarIntegerLikeValue(rhs);
@@ -2401,7 +2414,7 @@ mlir::OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto lhsRange = lhs.dyn_cast<RealRangeAttr>();
+  if (auto lhsRange = mlir::dyn_cast<RealRangeAttr>(lhs);
       lhsRange && isScalar(rhs)) {
     if (isScalarIntegerLike(rhs)) {
       auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
@@ -2624,8 +2637,8 @@ mlir::LogicalResult AddEWOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (isScalar(lhsType) && rhsShapedType) {
     mlir::Type resultElementType =
@@ -2920,8 +2933,8 @@ mlir::LogicalResult SubOp::inferReturnTypes(
   mlir::Type lhsType = adaptor.getLhs().getType();
   mlir::Type rhsType = adaptor.getRhs().getType();
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (lhsShapedType && rhsShapedType) {
     if (lhsShapedType.getRank() != rhsShapedType.getRank()) {
@@ -2962,8 +2975,8 @@ mlir::LogicalResult SubOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsRangeType = lhsType.dyn_cast<RangeType>();
-  auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+  auto lhsRangeType = mlir::dyn_cast<RangeType>(lhsType);
+  auto rhsRangeType = mlir::dyn_cast<RangeType>(rhsType);
 
   if (isScalar(lhsType) && rhsRangeType) {
     mlir::Type inductionType =
@@ -3034,7 +3047,7 @@ mlir::OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto lhsRange = lhs.dyn_cast<IntegerRangeAttr>();
+  if (auto lhsRange = mlir::dyn_cast<IntegerRangeAttr>(lhs);
       lhsRange && isScalar(rhs)) {
     if (isScalarIntegerLike(rhs)) {
       int64_t rhsValue = getScalarIntegerLikeValue(rhs);
@@ -3061,7 +3074,7 @@ mlir::OpFoldResult SubOp::fold(FoldAdaptor adaptor) {
     }
   }
 
-  if (auto lhsRange = lhs.dyn_cast<RealRangeAttr>();
+  if (auto lhsRange = mlir::dyn_cast<RealRangeAttr>(lhs);
       lhsRange && isScalar(rhs)) {
     if (isScalarIntegerLike(rhs)) {
       auto rhsValue = static_cast<double>(getScalarIntegerLikeValue(rhs));
@@ -3279,8 +3292,8 @@ mlir::LogicalResult SubEWOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (isScalar(lhsType) && rhsShapedType) {
     mlir::Type resultElementType =
@@ -3580,8 +3593,8 @@ mlir::LogicalResult MulOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (isScalar(lhsType) && rhsShapedType) {
     mlir::Type resultElementType =
@@ -3628,8 +3641,8 @@ mlir::LogicalResult MulOp::inferReturnTypes(
     }
   }
 
-  auto lhsRangeType = lhsType.dyn_cast<RangeType>();
-  auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+  auto lhsRangeType = mlir::dyn_cast<RangeType>(lhsType);
+  auto rhsRangeType = mlir::dyn_cast<RangeType>(rhsType);
 
   if (isScalar(lhsType) && rhsRangeType) {
     mlir::Type inductionType =
@@ -3671,13 +3684,13 @@ mlir::OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
   auto resultType = getResult().getType();
 
   if (lhs && isScalar(lhs) && getScalarAttributeValue<double>(lhs) == 0) {
-    if (!resultType.isa<mlir::ShapedType>()) {
+    if (!mlir::isa<mlir::ShapedType>(resultType)) {
       return getAttr(resultType, static_cast<int64_t>(0));
     }
   }
 
   if (rhs && isScalar(rhs) && getScalarAttributeValue<double>(rhs) == 0) {
-    if (!resultType.isa<mlir::ShapedType>()) {
+    if (!mlir::isa<mlir::ShapedType>(resultType)) {
       return getAttr(resultType, static_cast<int64_t>(0));
     }
   }
@@ -3909,21 +3922,21 @@ MulOp::distributeDivOp(llvm::SmallVectorImpl<mlir::Value> &results,
 }
 
 bool MulOp::isScalarProduct() {
-  return !getLhs().getType().isa<mlir::TensorType>() &&
-         getRhs().getType().isa<mlir::TensorType>();
+  return !mlir::isa<mlir::TensorType>(getLhs().getType()) &&
+         mlir::isa<mlir::TensorType>(getRhs().getType());
 }
 
 bool MulOp::isCrossProduct() {
-  auto lhsTensorType = getLhs().getType().dyn_cast<mlir::TensorType>();
-  auto rhsTensorType = getRhs().getType().dyn_cast<mlir::TensorType>();
+  auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(getLhs().getType());
+  auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(getRhs().getType());
 
   return lhsTensorType && rhsTensorType && lhsTensorType.getRank() == 1 &&
          rhsTensorType.getRank() == 1;
 }
 
 bool MulOp::isVectorMatrixProduct() {
-  auto lhsTensorType = getLhs().getType().dyn_cast<mlir::TensorType>();
-  auto rhsTensorType = getRhs().getType().dyn_cast<mlir::TensorType>();
+  auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(getLhs().getType());
+  auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(getRhs().getType());
 
   if (!lhsTensorType || !rhsTensorType) {
     return false;
@@ -3933,8 +3946,8 @@ bool MulOp::isVectorMatrixProduct() {
 }
 
 bool MulOp::isMatrixVectorProduct() {
-  auto lhsTensorType = getLhs().getType().dyn_cast<mlir::TensorType>();
-  auto rhsTensorType = getRhs().getType().dyn_cast<mlir::TensorType>();
+  auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(getLhs().getType());
+  auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(getRhs().getType());
 
   if (!lhsTensorType || !rhsTensorType) {
     return false;
@@ -3944,8 +3957,8 @@ bool MulOp::isMatrixVectorProduct() {
 }
 
 bool MulOp::isMatrixProduct() {
-  auto lhsTensorType = getLhs().getType().dyn_cast<mlir::TensorType>();
-  auto rhsTensorType = getRhs().getType().dyn_cast<mlir::TensorType>();
+  auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(getLhs().getType());
+  auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(getRhs().getType());
 
   if (!lhsTensorType || !rhsTensorType) {
     return false;
@@ -3973,8 +3986,8 @@ mlir::LogicalResult MulEWOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (isScalar(lhsType) && rhsShapedType) {
     mlir::Type resultElementType =
@@ -4303,7 +4316,7 @@ mlir::LogicalResult DivOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
 
   if (lhsShapedType && isScalar(rhsType)) {
     mlir::Type resultElementType =
@@ -4315,8 +4328,8 @@ mlir::LogicalResult DivOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsRangeType = lhsType.dyn_cast<RangeType>();
-  auto rhsRangeType = rhsType.dyn_cast<RangeType>();
+  auto lhsRangeType = mlir::dyn_cast<RangeType>(lhsType);
+  auto rhsRangeType = mlir::dyn_cast<RangeType>(rhsType);
 
   if (isScalar(lhsType) && rhsRangeType) {
     mlir::Type inductionType =
@@ -4589,8 +4602,8 @@ mlir::LogicalResult DivEWOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (isScalar(lhsType) && rhsShapedType) {
     mlir::Type resultElementType =
@@ -4898,7 +4911,7 @@ mlir::LogicalResult PowOp::inferReturnTypes(
   mlir::Type exponentType = adaptor.getExponent().getType();
 
   if (isScalar(baseType)) {
-    if (exponentType.isa<RealType, mlir::FloatType>()) {
+    if (mlir::isa<RealType, mlir::FloatType>(exponentType)) {
       returnTypes.push_back(exponentType);
       return mlir::success();
     }
@@ -4907,7 +4920,7 @@ mlir::LogicalResult PowOp::inferReturnTypes(
     return mlir::success();
   }
 
-  if (auto baseShapedType = baseType.dyn_cast<mlir::ShapedType>()) {
+  if (auto baseShapedType = mlir::dyn_cast<mlir::ShapedType>(baseType)) {
     if (!isScalar(exponentType)) {
       return mlir::failure();
     }
@@ -4994,7 +5007,7 @@ mlir::LogicalResult PowEWOp::inferReturnTypes(
 
   auto inferResultType = [](mlir::Type baseType,
                             mlir::Type exponentType) -> mlir::Type {
-    if (exponentType.isa<RealType, mlir::FloatType>()) {
+    if (mlir::isa<RealType, mlir::FloatType>(exponentType)) {
       return exponentType;
     }
 
@@ -5006,8 +5019,8 @@ mlir::LogicalResult PowEWOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto baseShapedType = baseType.dyn_cast<mlir::ShapedType>();
-  auto exponentShapedType = exponentType.dyn_cast<mlir::ShapedType>();
+  auto baseShapedType = mlir::dyn_cast<mlir::ShapedType>(baseType);
+  auto exponentShapedType = mlir::dyn_cast<mlir::ShapedType>(exponentType);
 
   if (isScalar(baseType) && exponentShapedType) {
     returnTypes.push_back(mlir::RankedTensorType::get(
@@ -5551,7 +5564,7 @@ mlir::LogicalResult NotOp::inferReturnTypes(
     return mlir::success();
   }
 
-  if (auto shapedType = operandType.dyn_cast<mlir::ShapedType>()) {
+  if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(operandType)) {
     returnTypes.push_back(mlir::RankedTensorType::get(
         shapedType.getShape(), BooleanType::get(context)));
 
@@ -5618,8 +5631,8 @@ mlir::LogicalResult AndOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (lhsShapedType && rhsShapedType) {
     if (lhsShapedType.getRank() != rhsShapedType.getRank()) {
@@ -5735,8 +5748,8 @@ mlir::LogicalResult OrOp::inferReturnTypes(
     return mlir::success();
   }
 
-  auto lhsShapedType = lhsType.dyn_cast<mlir::ShapedType>();
-  auto rhsShapedType = rhsType.dyn_cast<mlir::ShapedType>();
+  auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
+  auto rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhsType);
 
   if (lhsShapedType && rhsShapedType) {
     if (lhsShapedType.getRank() != rhsShapedType.getRank()) {
@@ -5860,9 +5873,11 @@ mlir::LogicalResult SelectOp::inferReturnTypes(
       returnTypes.push_back(
           getMostGenericScalarType(trueValueType, falseValueType));
     } else {
-      auto trueValueShapedType = trueValueType.dyn_cast<mlir::ShapedType>();
+      auto trueValueShapedType =
+          mlir::dyn_cast<mlir::ShapedType>(trueValueType);
 
-      auto falseValueShapedType = falseValueType.dyn_cast<mlir::ShapedType>();
+      auto falseValueShapedType =
+          mlir::dyn_cast<mlir::ShapedType>(falseValueType);
 
       if (trueValueShapedType && falseValueShapedType) {
         if (trueValueShapedType.getRank() != falseValueShapedType.getRank()) {
@@ -6434,7 +6449,7 @@ mlir::LogicalResult MaxOp::inferReturnTypes(
     return mlir::failure();
   }
 
-  if (auto firstShapedType = firstType.dyn_cast<mlir::ShapedType>()) {
+  if (auto firstShapedType = mlir::dyn_cast<mlir::ShapedType>(firstType)) {
     returnTypes.push_back(firstShapedType.getElementType());
     return mlir::success();
   }
@@ -6610,7 +6625,7 @@ mlir::LogicalResult MinOp::inferReturnTypes(
     return mlir::failure();
   }
 
-  if (auto firstShapedType = firstType.dyn_cast<mlir::ShapedType>()) {
+  if (auto firstShapedType = mlir::dyn_cast<mlir::ShapedType>(firstType)) {
     returnTypes.push_back(firstShapedType.getElementType());
     return mlir::success();
   }
@@ -7146,7 +7161,7 @@ mlir::LogicalResult TransposeOp::inferReturnTypes(
   Adaptor adaptor(operands, attributes, properties, regions);
 
   auto matrixShapedType =
-      adaptor.getMatrix().getType().dyn_cast<mlir::ShapedType>();
+      mlir::dyn_cast<mlir::ShapedType>(adaptor.getMatrix().getType());
 
   if (!matrixShapedType || matrixShapedType.getRank() != 2) {
     return mlir::failure();
@@ -7267,7 +7282,7 @@ mlir::Block *ReductionOp::createExpressionBlock(mlir::OpBuilder &builder) {
   llvm::SmallVector<mlir::Location> argLocs;
 
   for (mlir::Value iterable : getIterables()) {
-    auto iterableType = iterable.getType().cast<IterableTypeInterface>();
+    auto iterableType = mlir::cast<IterableTypeInterface>(iterable.getType());
     argTypes.push_back(iterableType.getInductionType());
     argLocs.push_back(builder.getUnknownLoc());
   }
@@ -7621,13 +7636,15 @@ struct EmptyForEquationOpErasePattern
     : public mlir::OpRewritePattern<ForEquationOp> {
   using mlir::OpRewritePattern<ForEquationOp>::OpRewritePattern;
 
-  mlir::LogicalResult match(ForEquationOp op) const override {
-    return mlir::LogicalResult::success(op.getOps().empty());
-  }
+  mlir::LogicalResult
+  matchAndRewrite(ForEquationOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    if (!op.getOps().empty()) {
+      return rewriter.notifyMatchFailure(op, "Body not empty");
+    }
 
-  void rewrite(ForEquationOp op,
-               mlir::PatternRewriter &rewriter) const override {
     rewriter.eraseOp(op);
+    return mlir::success();
   }
 };
 } // namespace
@@ -8054,7 +8071,7 @@ mlir::LogicalResult EquationTemplateOp::cloneWithReplacedAccess(
   int64_t destinationRank = 0;
 
   if (auto destinationShapedType =
-          destinationValue.getType().dyn_cast<mlir::ShapedType>()) {
+          mlir::dyn_cast<mlir::ShapedType>(destinationValue.getType())) {
     destinationRank = destinationShapedType.getRank();
   }
 
@@ -8064,7 +8081,7 @@ mlir::LogicalResult EquationTemplateOp::cloneWithReplacedAccess(
   int64_t sourceRank = 0;
 
   if (auto sourceShapedType =
-          sourceValue.getType().dyn_cast<mlir::ShapedType>()) {
+          mlir::dyn_cast<mlir::ShapedType>(sourceValue.getType())) {
     sourceRank = sourceShapedType.getRank();
   }
 
@@ -8709,23 +8726,23 @@ static void foldValue(mlir::RewriterBase &rewriter, mlir::Value value,
 }
 
 static std::optional<bool> isZeroAttr(mlir::Attribute attribute) {
-  if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+  if (auto booleanAttr = mlir::dyn_cast<BooleanAttr>(attribute)) {
     return !booleanAttr.getValue();
   }
 
-  if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+  if (auto integerAttr = mlir::dyn_cast<IntegerAttr>(attribute)) {
     return integerAttr.getValue() == 0;
   }
 
-  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+  if (auto realAttr = mlir::dyn_cast<RealAttr>(attribute)) {
     return realAttr.getValue().isZero();
   }
 
-  if (auto integerAttr = attribute.cast<mlir::IntegerAttr>()) {
+  if (auto integerAttr = mlir::cast<mlir::IntegerAttr>(attribute)) {
     return integerAttr.getValue() == 0;
   }
 
-  if (auto floatAttr = attribute.cast<mlir::FloatAttr>()) {
+  if (auto floatAttr = mlir::cast<mlir::FloatAttr>(attribute)) {
     return floatAttr.getValueAsDouble() == 0;
   }
 
@@ -8785,8 +8802,8 @@ EquationTemplateOp::getMultiplyingFactor(
 
       if (variableIndices == accessedIndices) {
         if (auto constantMaterializableType =
-                value.getType()
-                    .dyn_cast<ConstantMaterializableTypeInterface>()) {
+                mlir::dyn_cast<ConstantMaterializableTypeInterface>(
+                    value.getType())) {
 
           mlir::Value one = constantMaterializableType.materializeIntConstant(
               builder, value.getLoc(), 1);
@@ -9420,7 +9437,7 @@ void EquationFunctionOp::build(mlir::OpBuilder &builder,
 
   assert(functionType.getNumInputs() == argAttrs.size());
 
-  function_interface_impl::addArgAndResultAttrs(
+  call_interface_impl::addArgAndResultAttrs(
       builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
       getResAttrsAttrName(state.name));
 }
@@ -10018,8 +10035,8 @@ mlir::ParseResult EquationSideOp::parse(mlir::OpAsmParser &parser,
     return mlir::failure();
   }
 
-  assert(resultType.isa<mlir::TupleType>());
-  auto tupleType = resultType.cast<mlir::TupleType>();
+  assert(mlir::isa<mlir::TupleType>(resultType));
+  auto tupleType = mlir::cast<mlir::TupleType>(resultType);
 
   llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
   assert(types.size() == values.size());
@@ -10230,7 +10247,7 @@ void RawFunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
 
   assert(type.getNumInputs() == argAttrs.size());
 
-  function_interface_impl::addArgAndResultAttrs(
+  call_interface_impl::addArgAndResultAttrs(
       builder, state, argAttrs, std::nullopt, getArgAttrsAttrName(state.name),
       getResAttrsAttrName(state.name));
 }
@@ -10479,15 +10496,16 @@ void RawVariableOp::getEffects(
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
   auto variableMemRefType =
-      getVariable().getType().dyn_cast<mlir::MemRefType>();
+      mlir::dyn_cast<mlir::MemRefType>(getVariable().getType());
 
   if (variableMemRefType) {
     if (!getHeap() || isDynamicArrayVariable()) {
       effects.emplace_back(
-          mlir::MemoryEffects::Allocate::get(), getResult(),
+          mlir::MemoryEffects::Allocate::get(), getOperation()->getResult(0),
           mlir::SideEffects::AutomaticAllocationScopeResource::get());
     } else {
-      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(),
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(),
+                           getOperation()->getResult(0),
                            mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -10505,7 +10523,7 @@ VariableType RawVariableOp::getVariableType()
     ioProperty = IOProperty::output;
   }
 
-  if (auto shapedType = variableType.dyn_cast<mlir::ShapedType>()) {
+  if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(variableType)) {
     return VariableType::get(
         shapedType.getShape(), shapedType.getElementType(),
         variabilityProperty, ioProperty);
@@ -10517,19 +10535,19 @@ VariableType RawVariableOp::getVariableType()
  */
 
 bool RawVariableOp::isScalarVariable(mlir::Type variableType) {
-  auto variableShapedType = variableType.cast<mlir::ShapedType>();
+  auto variableShapedType = mlir::cast<mlir::ShapedType>(variableType);
   return variableShapedType.getShape().empty();
 }
 
 bool RawVariableOp::isStaticArrayVariable(mlir::Type variableType) {
-  auto variableShapedType = variableType.cast<mlir::ShapedType>();
+  auto variableShapedType = mlir::cast<mlir::ShapedType>(variableType);
 
   return !variableShapedType.getShape().empty() &&
          variableShapedType.hasStaticShape();
 }
 
 bool RawVariableOp::isDynamicArrayVariable(mlir::Type variableType) {
-  auto variableShapedType = variableType.cast<mlir::ShapedType>();
+  auto variableShapedType = mlir::cast<mlir::ShapedType>(variableType);
 
   return !variableShapedType.getShape().empty() &&
          !variableShapedType.hasStaticShape();
@@ -10558,10 +10576,11 @@ void RawVariableDeallocOp::getEffects(
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
   auto variableMemRefType =
-      getVariable().getType().dyn_cast<mlir::MemRefType>();
+      mlir::dyn_cast<mlir::MemRefType>(getVariable().getType());
 
   if (variableMemRefType) {
-    effects.emplace_back(mlir::MemoryEffects::Free::get(), getVariable(),
+    effects.emplace_back(mlir::MemoryEffects::Free::get(),
+                         &getVariableMutable(),
                          mlir::SideEffects::DefaultResource::get());
   }
 }
@@ -10587,7 +10606,7 @@ void RawVariableGetOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Read::get(), getVariable(),
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), &getVariableMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 
@@ -10596,7 +10615,7 @@ mlir::Type RawVariableGetOp::computeResultType(mlir::Type rawVariableType) {
   bool isScalar = RawVariableOp::isScalarVariable(rawVariableType);
 
   if (isScalar) {
-    auto shapedType = rawVariableType.cast<mlir::ShapedType>();
+    auto shapedType = mlir::cast<mlir::ShapedType>(rawVariableType);
     resultType = shapedType.getElementType();
   }
 
@@ -10624,7 +10643,7 @@ void RawVariableSetOp::getEffects(
     mlir::SmallVectorImpl<
         mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
         &effects) {
-  effects.emplace_back(mlir::MemoryEffects::Write::get(), getVariable(),
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), &getVariableMutable(),
                        mlir::SideEffects::DefaultResource::get());
 }
 
@@ -10844,8 +10863,8 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
   effects.emplace_back(mlir::MemoryEffects::Write::get(),
                        mlir::SideEffects::DefaultResource::get());
 
-  for (mlir::Value result : getResults()) {
-    if (auto arrayType = result.getType().dyn_cast<ArrayType>()) {
+  for (mlir::OpResult result : getResults()) {
+    if (auto arrayType = mlir::dyn_cast<ArrayType>(result.getType())) {
       effects.emplace_back(mlir::MemoryEffects::Allocate::get(), result,
                            mlir::SideEffects::DefaultResource::get());
 

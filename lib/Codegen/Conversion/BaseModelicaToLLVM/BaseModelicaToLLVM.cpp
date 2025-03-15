@@ -108,17 +108,16 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
-    if (!op.getResult().getType().isa<RangeType>()) {
+    if (!mlir::isa<RangeType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible attribute");
     }
 
-    auto structType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .cast<mlir::LLVM::LLVMStructType>();
+    auto structType = mlir::cast<mlir::LLVM::LLVMStructType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, structType);
 
-    if (auto rangeAttr = op.getValue().dyn_cast<IntegerRangeAttr>()) {
+    if (auto rangeAttr = mlir::dyn_cast<IntegerRangeAttr>(op.getValue())) {
       auto lowerBoundAttr = rewriter.getIntegerAttr(structType.getBody()[0],
                                                     rangeAttr.getLowerBound());
 
@@ -149,7 +148,7 @@ public:
       return mlir::success();
     }
 
-    if (auto rangeAttr = op.getValue().dyn_cast<RealRangeAttr>()) {
+    if (auto rangeAttr = mlir::dyn_cast<RealRangeAttr>(op.getValue())) {
       auto lowerBoundAttr = rewriter.getFloatAttr(
           structType.getBody()[0], rangeAttr.getLowerBound().convertToDouble());
 
@@ -193,9 +192,8 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
-    auto structType = getTypeConverter()
-                          ->convertType(op.getResult().getType())
-                          .cast<mlir::LLVM::LLVMStructType>();
+    auto structType = mlir::cast<mlir::LLVM::LLVMStructType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     mlir::Value lowerBound = adaptor.getLowerBound();
 
@@ -280,7 +278,7 @@ struct PoolVariableGetOpLowering
   mlir::LogicalResult
   matchAndRewrite(PoolVariableGetOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!op.getType().isa<mlir::MemRefType>()) {
+    if (!mlir::isa<mlir::MemRefType>(op.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible type");
     }
 
@@ -313,7 +311,7 @@ struct PoolVariableGetOpLowering
     auto callOp = rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
 
     mlir::Value ptr = callOp.getResult();
-    auto memRefType = op.getType().cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(op.getType());
 
     ptr = rewriter.create<mlir::LLVM::GEPOp>(
         loc, ptr.getType(), memRefType.getElementType(), ptr,
@@ -354,8 +352,9 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
   mlir::ConversionTarget target(getContext());
   target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
-  target.addDynamicallyLegalOp<ConstantOp>(
-      [](ConstantOp op) { return !op.getResult().getType().isa<RangeType>(); });
+  target.addDynamicallyLegalOp<ConstantOp>([](ConstantOp op) {
+    return !mlir::isa<RangeType>(op.getResult().getType());
+  });
 
   target.addIllegalOp<PackageOp, RecordOp>();
 
@@ -364,7 +363,7 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
   target.addIllegalOp<PoolVariableGetOp>();
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
-    return !op.getType().isa<mlir::MemRefType>();
+    return !mlir::isa<mlir::MemRefType>(op.getType());
   });
 
   target.markUnknownOpDynamicallyLegal(

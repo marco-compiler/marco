@@ -56,7 +56,7 @@ class TensorReference : public Reference::Impl {
 public:
   TensorReference(mlir::OpBuilder &builder, mlir::Value value)
       : Reference::Impl(builder, value.getLoc()), reference(value) {
-    assert(reference.getType().isa<mlir::TensorType>());
+    assert(mlir::isa<mlir::TensorType>(reference.getType()));
   }
 
   std::unique_ptr<Reference::Impl> clone() override {
@@ -64,7 +64,7 @@ public:
   }
 
   mlir::Value get(mlir::Location loc) const override {
-    auto tensorType = reference.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(reference.getType());
 
     if (tensorType.getShape().empty()) {
       return builder->create<TensorExtractOp>(loc, reference, std::nullopt);

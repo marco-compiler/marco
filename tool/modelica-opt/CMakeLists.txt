@@ -12,6 +12,7 @@ target_link_libraries(modelica-opt
     PRIVATE ${extension_libs}
     PRIVATE ${conversion_libs}
     PRIVATE MLIROptLib
-    PRIVATE marco::codegen)
+        PRIVATE marco::codegen
+        PRIVATE MLIRToLLVMIRTranslationRegistration)
 
 mlir_check_all_link_libraries(modelica-opt)

@@ -65,19 +65,19 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getValue();
 
-    auto operandTensorType = operand.getType().dyn_cast<mlir::TensorType>();
+    auto operandTensorType =
+        mlir::dyn_cast<mlir::TensorType>(operand.getType());
 
     if (!operandTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (requestedResultTensorType.getRank() != operandTensorType.getRank()) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
@@ -128,19 +128,19 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    auto operandTensorType = operand.getType().dyn_cast<mlir::TensorType>();
+    auto operandTensorType =
+        mlir::dyn_cast<mlir::TensorType>(operand.getType());
 
     if (!operandTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (requestedResultTensorType.getRank() != operandTensorType.getRank()) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
@@ -193,8 +193,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -204,13 +204,12 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
@@ -265,8 +264,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -276,13 +275,12 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
@@ -335,19 +333,19 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    auto operandTensorType = operand.getType().dyn_cast<mlir::TensorType>();
+    auto operandTensorType =
+        mlir::dyn_cast<mlir::TensorType>(operand.getType());
 
     if (!operandTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (requestedResultTensorType.getRank() != operandTensorType.getRank()) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
@@ -400,8 +398,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -411,9 +409,8 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (!requestedResultTensorType ||
         requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
@@ -469,8 +466,8 @@ public:
     mlir::Value lhs = op.getLhs();
     mlir::Value rhs = op.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -490,7 +487,7 @@ public:
                             mlir::ConversionPatternRewriter &rewriter,
                             mlir::Value scalar, mlir::Value tensor) const {
     mlir::Location loc = op.getLoc();
-    auto tensorType = tensor.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(tensorType.getElementType(), scalar.getType());
@@ -503,7 +500,7 @@ public:
     llvm::SmallVector<mlir::Value, 10> dynamicSizes;
 
     collectDynamicDimensionSizes(rewriter, tensor,
-                                 tensor.getType().cast<mlir::TensorType>(),
+                                 mlir::cast<mlir::TensorType>(tensor.getType()),
                                  dynamicSizes);
 
     auto splatOp = rewriter.create<mlir::tensor::SplatOp>(
@@ -521,9 +518,8 @@ public:
 
     mlir::Value result = addOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -545,8 +541,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(!lhs.getType().isa<mlir::TensorType>() &&
-          rhs.getType().isa<mlir::TensorType>())) {
+    if (!(!mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -564,8 +560,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(lhs.getType().isa<mlir::TensorType>() &&
-          !rhs.getType().isa<mlir::TensorType>())) {
+    if (!(mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          !mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -585,8 +581,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -596,9 +592,8 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (!requestedResultTensorType ||
         requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
@@ -654,8 +649,8 @@ public:
     mlir::Value lhs = op.getLhs();
     mlir::Value rhs = op.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -679,12 +674,12 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(!lhs.getType().isa<mlir::TensorType>() &&
-          rhs.getType().isa<mlir::TensorType>())) {
+    if (!(!mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    auto rhsTensorType = rhs.getType().cast<mlir::TensorType>();
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhs.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(lhs.getType(), rhsTensorType.getElementType());
@@ -717,9 +712,8 @@ public:
 
     mlir::Value result = subOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -743,12 +737,12 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(lhs.getType().isa<mlir::TensorType>() &&
-          !rhs.getType().isa<mlir::TensorType>())) {
+    if (!(mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          !mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    auto lhsTensorType = lhs.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhs.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(lhsTensorType.getElementType(), rhs.getType());
@@ -781,9 +775,8 @@ public:
 
     mlir::Value result = subOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -811,7 +804,7 @@ public:
     mlir::Value scalar = adaptor.getLhs();
     mlir::Value tensor = adaptor.getRhs();
 
-    auto tensorType = tensor.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(tensorType.getElementType(), scalar.getType());
@@ -824,7 +817,7 @@ public:
     llvm::SmallVector<mlir::Value, 10> dynamicSizes;
 
     collectDynamicDimensionSizes(rewriter, tensor,
-                                 tensor.getType().cast<mlir::TensorType>(),
+                                 mlir::cast<mlir::TensorType>(tensor.getType()),
                                  dynamicSizes);
 
     auto splatOp = rewriter.create<mlir::tensor::SplatOp>(
@@ -842,9 +835,8 @@ public:
 
     mlir::Value result = mulOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -876,8 +868,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhs.getType());
 
     auto requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
@@ -946,12 +938,11 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhs.getType());
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     mlir::Type genericElementType = getMostGenericScalarType(
         lhsTensorType.getElementType(), rhsTensorType.getElementType());
@@ -1045,8 +1036,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhs.getType());
 
     auto requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
@@ -1064,10 +1055,10 @@ public:
           rhs.getLoc(), rhsTensorType.clone(genericElementType), rhs);
     }
 
-    auto resultTensorType = getTypeConverter()
-                                ->convertType(op.getResult().getType())
-                                .cast<mlir::TensorType>()
-                                .clone(genericElementType);
+    auto resultTensorType =
+        mlir::cast<mlir::TensorType>(
+            getTypeConverter()->convertType(op.getResult().getType()))
+            .clone(genericElementType);
 
     llvm::SmallVector<mlir::Value, 2> inputs;
     inputs.push_back(lhs);
@@ -1121,8 +1112,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -1132,9 +1123,8 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (!requestedResultTensorType ||
         requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
@@ -1189,7 +1179,7 @@ public:
                             mlir::ConversionPatternRewriter &rewriter,
                             mlir::Value scalar, mlir::Value tensor) const {
     mlir::Location loc = op.getLoc();
-    auto tensorType = tensor.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(tensorType.getElementType(), scalar.getType());
@@ -1202,7 +1192,7 @@ public:
     llvm::SmallVector<mlir::Value, 10> dynamicSizes;
 
     collectDynamicDimensionSizes(rewriter, tensor,
-                                 tensor.getType().cast<mlir::TensorType>(),
+                                 mlir::cast<mlir::TensorType>(tensor.getType()),
                                  dynamicSizes);
 
     auto splatOp = rewriter.create<mlir::tensor::SplatOp>(
@@ -1220,9 +1210,8 @@ public:
 
     mlir::Value result = mulOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1244,8 +1233,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(!lhs.getType().isa<mlir::TensorType>() &&
-          rhs.getType().isa<mlir::TensorType>())) {
+    if (!(!mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1263,8 +1252,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(lhs.getType().isa<mlir::TensorType>() &&
-          !rhs.getType().isa<mlir::TensorType>())) {
+    if (!(mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          !mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1284,15 +1273,15 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(lhs.getType().isa<mlir::TensorType>() &&
-          !rhs.getType().isa<mlir::TensorType>())) {
+    if (!(mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          !mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
     mlir::Value tensor = lhs;
     mlir::Value scalar = rhs;
 
-    auto tensorType = tensor.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(tensorType.getElementType(), scalar.getType());
@@ -1305,7 +1294,7 @@ public:
     llvm::SmallVector<mlir::Value, 10> dynamicSizes;
 
     collectDynamicDimensionSizes(rewriter, tensor,
-                                 tensor.getType().cast<mlir::TensorType>(),
+                                 mlir::cast<mlir::TensorType>(tensor.getType()),
                                  dynamicSizes);
 
     auto splatOp = rewriter.create<mlir::tensor::SplatOp>(
@@ -1323,9 +1312,8 @@ public:
 
     mlir::Value result = subOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1349,8 +1337,8 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    auto lhsTensorType = lhs.getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::dyn_cast<mlir::TensorType>(lhs.getType());
+    auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType());
 
     if (!lhsTensorType || !rhsTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -1360,9 +1348,8 @@ public:
       return rewriter.notifyMatchFailure(op, "Incompatible ranks");
     }
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (!requestedResultTensorType ||
         requestedResultTensorType.getRank() != lhsTensorType.getRank()) {
@@ -1421,12 +1408,12 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(!lhs.getType().isa<mlir::TensorType>() &&
-          rhs.getType().isa<mlir::TensorType>())) {
+    if (!(!mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    auto rhsTensorType = rhs.getType().cast<mlir::TensorType>();
+    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhs.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(lhs.getType(), rhsTensorType.getElementType());
@@ -1459,9 +1446,8 @@ public:
 
     mlir::Value result = divOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1485,12 +1471,12 @@ public:
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!(lhs.getType().isa<mlir::TensorType>() &&
-          !rhs.getType().isa<mlir::TensorType>())) {
+    if (!(mlir::isa<mlir::TensorType>(lhs.getType()) &&
+          !mlir::isa<mlir::TensorType>(rhs.getType()))) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    auto lhsTensorType = lhs.getType().cast<mlir::TensorType>();
+    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhs.getType());
 
     mlir::Type genericElementType =
         getMostGenericScalarType(lhsTensorType.getElementType(), rhs.getType());
@@ -1523,9 +1509,8 @@ public:
 
     mlir::Value result = divOp.getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1548,7 +1533,7 @@ public:
     mlir::Value base = adaptor.getBase();
     mlir::Value exponent = adaptor.getExponent();
 
-    auto baseTensorType = base.getType().dyn_cast<mlir::TensorType>();
+    auto baseTensorType = mlir::dyn_cast<mlir::TensorType>(base.getType());
 
     if (!baseTensorType) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
@@ -1574,7 +1559,7 @@ public:
     mlir::Value onesMatrix = rewriter.create<mlir::tensor::SplatOp>(
         loc, one, baseTensorType, dynamicDimensions);
 
-    if (!exponent.getType().isa<mlir::IndexType>()) {
+    if (!mlir::isa<mlir::IndexType>(exponent.getType())) {
       exponent =
           rewriter.create<CastOp>(loc, rewriter.getIndexType(), exponent);
     }
@@ -1612,9 +1597,8 @@ public:
 
     rewriter.setInsertionPointAfter(forOp);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1636,7 +1620,8 @@ public:
     mlir::Location loc = op.getLoc();
     mlir::Value matrix = adaptor.getMatrix();
 
-    auto resultTensorType = op.getResult().getType().cast<mlir::TensorType>();
+    auto resultTensorType =
+        mlir::cast<mlir::TensorType>(op.getResult().getType());
 
     int64_t rank = resultTensorType.getRank();
     llvm::SmallVector<mlir::Value, 10> dynamicSizes;
@@ -1663,9 +1648,8 @@ public:
 
     mlir::Value result = transposeOp->getResult(0);
 
-    auto requestedResultTensorType = getTypeConverter()
-                                         ->convertType(op.getResult().getType())
-                                         .cast<mlir::TensorType>();
+    auto requestedResultTensorType = mlir::cast<mlir::TensorType>(
+        getTypeConverter()->convertType(op.getResult().getType()));
 
     if (result.getType() != requestedResultTensorType) {
       result = rewriter.create<CastOp>(result.getLoc(),
@@ -1687,7 +1671,7 @@ void addDynamicallyLegalVectorizedOneOperandAndResultOp(
       return true;
     }
 
-    return !op->getResult(0).getType().template isa<mlir::TensorType>();
+    return !mlir::isa<mlir::TensorType>(op->getResult(0).getType());
   });
 }
 
@@ -1709,10 +1693,10 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
 
   target.addDynamicallyLegalOp<CastOp>([](CastOp op) {
     auto operandTensorType =
-        op.getValue().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getValue().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !operandTensorType || !resultTensorType ||
            resultTensorType.getRank() != operandTensorType.getRank();
@@ -1720,21 +1704,23 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
 
   target.addDynamicallyLegalOp<NotOp>([](NotOp op) {
     auto operandTensorType =
-        op.getOperand().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getOperand().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !operandTensorType || !resultTensorType ||
            resultTensorType.getRank() != operandTensorType.getRank();
   });
 
   target.addDynamicallyLegalOp<AndOp>([](AndOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !lhsTensorType || !rhsTensorType ||
            lhsTensorType.getRank() != rhsTensorType.getRank() ||
@@ -1743,11 +1729,13 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<OrOp>([](OrOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !lhsTensorType || !rhsTensorType ||
            lhsTensorType.getRank() != rhsTensorType.getRank() ||
@@ -1757,21 +1745,23 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
 
   target.addDynamicallyLegalOp<NegateOp>([](NegateOp op) {
     auto operandTensorType =
-        op.getOperand().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getOperand().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !operandTensorType || !resultTensorType ||
            resultTensorType.getRank() != operandTensorType.getRank();
   });
 
   target.addDynamicallyLegalOp<AddOp>([](AddOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !lhsTensorType || !rhsTensorType || !resultTensorType ||
            lhsTensorType.getRank() != rhsTensorType.getRank() ||
@@ -1779,11 +1769,13 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<AddEWOp>([](AddEWOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     if (lhsTensorType && rhsTensorType && resultTensorType &&
         lhsTensorType.getRank() == rhsTensorType.getRank() &&
@@ -1805,11 +1797,13 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<SubOp>([](SubOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     return !lhsTensorType || !rhsTensorType || !resultTensorType ||
            lhsTensorType.getRank() != rhsTensorType.getRank() ||
@@ -1817,11 +1811,13 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<SubEWOp>([](SubEWOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     auto resultTensorType =
-        op.getResult().getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(op.getResult().getType());
 
     if (lhsTensorType && rhsTensorType && resultTensorType &&
         lhsTensorType.getRank() == rhsTensorType.getRank() &&
@@ -1853,8 +1849,10 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<MulEWOp>([](MulEWOp op) {
-    auto lhsTensorType = op.getLhs().getType().dyn_cast<mlir::TensorType>();
-    auto rhsTensorType = op.getRhs().getType().dyn_cast<mlir::TensorType>();
+    auto lhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getLhs().getType());
+    auto rhsTensorType =
+        mlir::dyn_cast<mlir::TensorType>(op.getRhs().getType());
 
     if (lhsTensorType || rhsTensorType) {
       return false;
@@ -1864,7 +1862,7 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<DivOp>([](DivOp op) {
-    if (op.getLhs().getType().isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(op.getLhs().getType())) {
       return false;
     }
 
@@ -1872,8 +1870,8 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<DivEWOp>([](DivEWOp op) {
-    if (op.getLhs().getType().isa<mlir::TensorType>() ||
-        op.getRhs().getType().isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(op.getLhs().getType()) ||
+        mlir::isa<mlir::TensorType>(op.getRhs().getType())) {
       return false;
     }
 
@@ -1881,7 +1879,7 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
   });
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
-    if (op.getBase().getType().isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(op.getBase().getType())) {
       return false;
     }
 
@@ -1896,7 +1894,7 @@ mlir::LogicalResult BaseModelicaToLinalgConversionPass::convertOperations() {
       target);
 
   target.addDynamicallyLegalOp<Atan2Op>([](Atan2Op op) {
-    return !op.getResult().getType().isa<mlir::TensorType>();
+    return !mlir::isa<mlir::TensorType>(op.getResult().getType());
   });
 
   target.markUnknownOpDynamicallyLegal(
@@ -1929,7 +1927,7 @@ struct VectorizedSingleOperandAndResultOpLowering
       return rewriter.notifyMatchFailure(op, "Multiple results found");
     }
 
-    if (!op->getResult(0).getType().template isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op->getResult(0).getType())) {
       return rewriter.notifyMatchFailure(op, "Not a vectorized op");
     }
 
@@ -1939,7 +1937,7 @@ struct VectorizedSingleOperandAndResultOpLowering
         this->getTypeConverter()->convertType(op->getResult(0).getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     llvm::SmallVector<mlir::Value> dynamicDimensions;
 
@@ -1986,7 +1984,7 @@ struct VectorizedAtan2OpLowering : public mlir::OpConversionPattern<Atan2Op> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
 
-    if (!op.getResult().getType().isa<mlir::TensorType>()) {
+    if (!mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       return rewriter.notifyMatchFailure(op, "Not a vectorized op");
     }
 
@@ -1994,7 +1992,7 @@ struct VectorizedAtan2OpLowering : public mlir::OpConversionPattern<Atan2Op> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     llvm::SmallVector<mlir::Value> dynamicDimensions;
 

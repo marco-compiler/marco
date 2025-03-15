@@ -100,12 +100,12 @@ int main(int argc, const char **argv) {
                                [](const char *a) { return a != nullptr; });
   if (firstArg != args.end()) {
     // Call mc1 frontend.
-    if (llvm::StringRef(args[1]).equals("-mc1")) {
+    if (llvm::StringRef(args[1]) == "-mc1") {
       return executeMC1Tool(args);
     }
 
     // Call cc1 frontend.
-    if (llvm::StringRef(args[1]).equals("-cc1")) {
+    if (llvm::StringRef(args[1]) == "-cc1") {
       return executeCC1Tool(args, (void *)(intptr_t)(driverPath.data()));
     }
   }
@@ -131,15 +131,16 @@ int main(int argc, const char **argv) {
       driverPath, llvm::sys::getDefaultTargetTriple(), diags, "marco compiler");
 
   theDriver.setTargetAndMode(targetAndMode);
+
   std::unique_ptr<clang::driver::Compilation> c(
       theDriver.BuildCompilation(args));
+
   llvm::SmallVector<std::pair<int, const clang::driver::Command *>, 4>
       failingCommands;
 
   // Run the driver
-  int res = 1;
   bool isCrash = false;
-  res = theDriver.ExecuteCompilation(*c, failingCommands);
+  int res = theDriver.ExecuteCompilation(*c, failingCommands);
 
   for (const auto &p : failingCommands) {
     int commandRes = p.first;

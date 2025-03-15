@@ -449,15 +449,15 @@ OperationLowerer::logicalOr(const ast::Operation &operation) {
 std::optional<Results>
 OperationLowerer::subscription(const ast::Operation &operation) {
   mlir::Location location = loc(operation.getLocation());
-
   llvm::SmallVector<mlir::Value, 4> args;
+
   if (!lowerArgs(operation, args)) {
     return std::nullopt;
   }
-  assert(!args.empty());
 
+  assert(!args.empty());
   mlir::Value array = args[0];
-  assert(array.getType().isa<mlir::ShapedType>());
+  assert(mlir::isa<mlir::ShapedType>(array.getType()));
 
   llvm::SmallVector<mlir::Value> indices;
 
@@ -466,7 +466,6 @@ OperationLowerer::subscription(const ast::Operation &operation) {
   }
 
   mlir::Value result = builder().create<TensorViewOp>(location, array, indices);
-
   return Reference::tensor(builder(), result);
 }
 

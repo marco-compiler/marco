@@ -104,8 +104,11 @@ mlir::LogicalResult DerivativeChainRulePass::applyChainRule() {
   mlir::RewritePatternSet patterns(&getContext());
   patterns.insert<FoldDerPattern>(&getContext(), states);
 
-  return mlir::applyPatternsAndFoldGreedily(getOperation(),
-                                            std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+
+  return mlir::applyPatternsGreedily(getOperation(), std::move(patterns),
+                                     config);
 }
 
 namespace mlir::bmodelica {

@@ -105,11 +105,11 @@ func.func @staticArrayVariableSet(%arg0: tensor<3x4xf64>) {
 
 // CHECK-LABEL: @staticArrayVariableSetAndGet
 // CHECK-SAME:  (%[[arg0:.*]]: tensor<3x4xf64>) -> tensor<3x4xf64>
-// CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : memref<3x4xf64, strided<[?, ?], offset: ?>>
+// CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : tensor<3x4xf64> to memref<3x4xf64, strided<[?, ?], offset: ?>>
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x4xf64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0_to_memref]] : memref<3x4xf64>, memref<3x4xf64, strided<[?, ?], offset: ?>>
 // CHECK-NEXT:      %[[result:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<3x4xf64> -> memref<3x4xf64>
-// CHECK-NEXT:      %[[result_to_tensor:.*]] = bufferization.to_tensor %[[result]] : memref<3x4xf64>
+// CHECK-NEXT:      %[[result_to_tensor:.*]] = bufferization.to_tensor %[[result]] : memref<3x4xf64> to tensor<3x4xf64>
 // CHECK-NEXT:      return %[[result_to_tensor]] : tensor<3x4xf64>
 // CHECK-NEXT:  }
 
@@ -168,11 +168,11 @@ func.func @dynamicArrayVariableSet(%arg0: tensor<3x?xf64>) {
 
 // CHECK-LABEL: @dynamicArrayVariableSetAndGet
 // CHECK-SAME:  (%[[arg0:.*]]: tensor<3x?xf64>) -> tensor<3x?xf64>
-// CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : memref<3x?xf64, strided<[?, ?], offset: ?>>
+// CHECK-DAG:       %[[arg0_to_memref:.*]] = bufferization.to_memref %[[arg0]] : tensor<3x?xf64> to memref<3x?xf64, strided<[?, ?], offset: ?>>
 // CHECK-DAG:       %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : memref<3x?xf64>
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[arg0_to_memref]] : memref<3x?xf64>, memref<3x?xf64, strided<[?, ?], offset: ?>>
 // CHECK-NEXT:      %[[result:.*]] = bmodelica.raw_variable_get %[[variable]] : memref<3x?xf64> -> memref<3x?xf64>
-// CHECK-NEXT:      %[[result_to_tensor:.*]] = bufferization.to_tensor %[[result]] : memref<3x?xf64>
+// CHECK-NEXT:      %[[result_to_tensor:.*]] = bufferization.to_tensor %[[result]] : memref<3x?xf64> to tensor<3x?xf64>
 // CHECK-NEXT:      return %[[result_to_tensor]] : tensor<3x?xf64>
 // CHECK-NEXT:  }
 

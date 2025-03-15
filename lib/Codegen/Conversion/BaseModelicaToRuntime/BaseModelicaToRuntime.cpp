@@ -628,10 +628,7 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
 
   const DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
 
-  auto printableIndicesOp =
-      builder.create<mlir::runtime::PrintableIndicesOp>(modelOp.getLoc());
-
-  auto &printableIndicesList = printableIndicesOp.getProperties().value;
+  mlir::runtime::PrintableIndicesList printableIndicesList;
 
   for (VariableOp variableOp : variables) {
     if (isReservedVariable(variableOp.getSymName())) {
@@ -667,6 +664,9 @@ BaseModelicaToRuntimeConversionPass::createPrintableIndicesOp(
       printableIndicesList.emplace_back(printableIndices);
     }
   }
+
+  builder.create<mlir::runtime::PrintableIndicesOp>(modelOp.getLoc(),
+                                                    printableIndicesList);
 
   return mlir::success();
 }
@@ -749,7 +749,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createVariableGetters(
 
     mlir::Value result = getOp;
 
-    if (result.getType().isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(result.getType())) {
       result = builder.create<TensorExtractOp>(result.getLoc(), result,
                                                getterOp.getIndices());
     }
@@ -789,8 +789,8 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createInitFunction(
     VariableType variableType = variable.getVariableType();
 
     auto constantMaterializableElementType =
-        variableType.getElementType()
-            .dyn_cast<ConstantMaterializableTypeInterface>();
+        mlir::dyn_cast<ConstantMaterializableTypeInterface>(
+            variableType.getElementType());
 
     if (!constantMaterializableElementType) {
       return mlir::failure();
@@ -911,12 +911,12 @@ public:
     mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
         op.getLoc(), getGlobalVariable(variableOp));
 
-    auto arrayType = replacement.getType().cast<ArrayType>();
+    auto arrayType = mlir::cast<ArrayType>(replacement.getType());
 
     if (arrayType.isScalar()) {
       replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement,
                                             std::nullopt);
-    } else if (op.getResult().getType().isa<mlir::TensorType>()) {
+    } else if (mlir::isa<mlir::TensorType>(op.getResult().getType())) {
       replacement = rewriter.create<ArrayToTensorOp>(
           replacement.getLoc(), variableOp.getVariableType().toTensorType(),
           replacement);
@@ -942,7 +942,7 @@ public:
         op.getLoc(), getGlobalVariable(variableOp));
 
     mlir::Value writtenValue = op.getValue();
-    auto variableArrayType = globalVariable.getType().cast<ArrayType>();
+    auto variableArrayType = mlir::cast<ArrayType>(globalVariable.getType());
 
     if (variableArrayType.isScalar()) {
       if (mlir::Type expectedType = variableArrayType.getElementType();
@@ -954,7 +954,7 @@ public:
       rewriter.create<StoreOp>(op.getLoc(), writtenValue, globalVariable,
                                std::nullopt);
     } else {
-      if (writtenValue.getType().isa<mlir::TensorType>()) {
+      if (mlir::isa<mlir::TensorType>(writtenValue.getType())) {
         writtenValue = rewriter.create<TensorToArrayOp>(
             writtenValue.getLoc(), globalVariable.getType(), writtenValue);
       }
@@ -968,7 +968,7 @@ public:
       }
 
       auto destinationShapedType =
-          destination.getType().cast<mlir::ShapedType>();
+          mlir::cast<mlir::ShapedType>(destination.getType());
 
       if (destinationShapedType.getShape().empty()) {
         rewriter.create<StoreOp>(op.getLoc(), writtenValue, destination,
@@ -1119,7 +1119,7 @@ mlir::LogicalResult
 BaseModelicaToRuntimeConversionPass::convertTimeOp(mlir::ModuleOp moduleOp) {
   mlir::RewritePatternSet patterns(moduleOp.getContext());
   patterns.add<TimeOpLowering>(moduleOp.getContext());
-  return mlir::applyPatternsAndFoldGreedily(moduleOp, std::move(patterns));
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns));
 }
 
 namespace mlir {

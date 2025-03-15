@@ -32,7 +32,7 @@ struct ArrayTypeInterface
     : public DerivableTypeInterface::ExternalModel<ArrayTypeInterface,
                                                    ArrayType> {
   mlir::FailureOr<mlir::Type> derive(mlir::Type type) const {
-    auto arrayType = type.cast<ArrayType>();
+    auto arrayType = mlir::cast<ArrayType>(type);
     mlir::Type elementType = arrayType.getElementType();
 
     auto derivableElementType =
@@ -57,7 +57,7 @@ struct DerivableTypeIndexModel
                                                    mlir::IndexType> {
   mlir::FailureOr<mlir::Type> derive(mlir::Type type) const {
     // TODO there should be a way to query the index bit-width.
-    return mlir::FloatType::getF64(type.getContext());
+    return mlir::Float64Type::get(type.getContext());
   }
 };
 
@@ -67,22 +67,22 @@ struct DerivableTypeIntegerModel
   mlir::FailureOr<mlir::Type> derive(mlir::Type type) const {
     switch (type.getIntOrFloatBitWidth()) {
     case 16:
-      return mlir::FloatType::getF16(type.getContext());
+      return mlir::Float16Type::get(type.getContext());
 
     case 32:
-      return mlir::FloatType::getF32(type.getContext());
+      return mlir::Float32Type::get(type.getContext());
 
     case 64:
-      return mlir::FloatType::getF64(type.getContext());
+      return mlir::Float64Type::get(type.getContext());
 
     case 80:
-      return mlir::FloatType::getF80(type.getContext());
+      return mlir::Float80Type::get(type.getContext());
 
     case 128:
-      return mlir::FloatType::getF128(type.getContext());
+      return mlir::Float128Type::get(type.getContext());
 
     default:
-      return mlir::FloatType::getF64(type.getContext());
+      return mlir::Float64Type::get(type.getContext());
     }
   }
 };
@@ -98,7 +98,7 @@ struct DerivableTypeTensorModel
     : public DerivableTypeInterface::ExternalModel<DerivableTypeTensorModel,
                                                    mlir::RankedTensorType> {
   mlir::FailureOr<mlir::Type> derive(mlir::Type type) const {
-    auto tensorType = type.cast<mlir::RankedTensorType>();
+    auto tensorType = mlir::cast<mlir::RankedTensorType>(type);
     mlir::Type elementType = tensorType.getElementType();
 
     auto derivableElementType =

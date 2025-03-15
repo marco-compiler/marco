@@ -57,7 +57,7 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
                     SumOp, SymmetricOp, TanOp, TanhOp, TransposeOp, ZerosOp>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
-    if (op.getBase().getType().isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(op.getBase().getType())) {
       return true;
     }
 
@@ -152,24 +152,24 @@ protected:
   }
 
   [[nodiscard]] std::string getMangledType(mlir::Type type) const {
-    if (auto indexType = type.dyn_cast<mlir::IndexType>()) {
+    if (auto indexType = mlir::dyn_cast<mlir::IndexType>(type)) {
       return getMangledType(this->getTypeConverter()->convertType(type));
     }
 
-    if (auto integerType = type.dyn_cast<mlir::IntegerType>()) {
+    if (auto integerType = mlir::dyn_cast<mlir::IntegerType>(type)) {
       return getMangler()->getIntegerType(integerType.getWidth());
     }
 
-    if (auto floatType = type.dyn_cast<mlir::FloatType>()) {
+    if (auto floatType = mlir::dyn_cast<mlir::FloatType>(type)) {
       return getMangler()->getFloatingPointType(floatType.getWidth());
     }
 
-    if (auto tensorType = type.dyn_cast<mlir::UnrankedTensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::UnrankedTensorType>(type)) {
       return getMangler()->getArrayType(
           getMangledType(tensorType.getElementType()));
     }
 
-    if (auto memRefType = type.dyn_cast<mlir::UnrankedMemRefType>()) {
+    if (auto memRefType = mlir::dyn_cast<mlir::UnrankedMemRefType>(type)) {
       return getMangler()->getArrayType(
           getMangledType(memRefType.getElementType()));
     }
@@ -218,22 +218,22 @@ protected:
                   mlir::Value argument) const {
     mlir::Type argType = argument.getType();
 
-    if (argType.isa<mlir::IntegerType, mlir::FloatType>()) {
+    if (mlir::isa<mlir::IntegerType, mlir::FloatType>(argType)) {
       arguments.push_back(argument);
       return mlir::success();
     }
 
-    if (argType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(argType)) {
       arguments.push_back(builder.create<CastOp>(
           argument.getLoc(), builder.getI64Type(), argument));
 
       return mlir::success();
     }
 
-    if (auto tensorType = argType.dyn_cast<mlir::RankedTensorType>()) {
+    if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(argType)) {
       mlir::Value tensor = argument;
 
-      if (!tensor.getType().isa<mlir::UnrankedTensorType>()) {
+      if (!mlir::isa<mlir::UnrankedTensorType>(tensor.getType())) {
         auto unrankedTensorType =
             mlir::UnrankedTensorType::get(tensorType.getElementType());
 
@@ -245,10 +245,10 @@ protected:
       return mlir::success();
     }
 
-    if (auto memRefType = argType.dyn_cast<mlir::MemRefType>()) {
+    if (auto memRefType = mlir::dyn_cast<mlir::MemRefType>(argType)) {
       mlir::Value memRef = argument;
 
-      if (!memRef.getType().isa<mlir::UnrankedMemRefType>()) {
+      if (!mlir::isa<mlir::UnrankedMemRefType>(memRef.getType())) {
         auto unrankedMemRefType = mlir::UnrankedMemRefType::get(
             memRefType.getElementType(), memRefType.getMemorySpace());
 
@@ -265,7 +265,7 @@ protected:
 
   mlir::Value convertToUnrankedMemRef(mlir::OpBuilder &builder,
                                       mlir::Value memRef) const {
-    auto memRefType = memRef.getType().cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(memRef.getType());
 
     auto unrankedMemRefType = mlir::UnrankedMemRefType::get(
         memRefType.getElementType(), memRefType.getMemorySpace());
@@ -276,7 +276,7 @@ protected:
 
   mlir::Value convertToTensor(mlir::OpBuilder &builder,
                               mlir::Value memRef) const {
-    auto memRefType = memRef.getType().cast<mlir::MemRefType>();
+    auto memRefType = mlir::cast<mlir::MemRefType>(memRef.getType());
 
     auto tensorType = mlir::RankedTensorType::get(memRefType.getShape(),
                                                   memRefType.getElementType());
@@ -305,8 +305,8 @@ struct PowOpLowering : public RuntimeOpConversionPattern<PowOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value base = adaptor.getBase();
 
-    if (!base.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            base.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible base operand");
     }
 
@@ -353,8 +353,8 @@ struct AbsOpLowering : public RuntimeOpConversionPattern<AbsOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -398,14 +398,14 @@ struct AcosOpLowering : public RuntimeOpConversionPattern<AcosOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -449,14 +449,14 @@ struct AsinOpLowering : public RuntimeOpConversionPattern<AsinOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -500,14 +500,14 @@ struct AtanOpLowering : public RuntimeOpConversionPattern<AtanOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -552,19 +552,19 @@ struct Atan2OpLowering : public RuntimeOpConversionPattern<Atan2Op> {
     mlir::Value yValue = adaptor.getY();
     mlir::Value xValue = adaptor.getX();
 
-    if (!yValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            yValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!xValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            xValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
     mlir::Type mostGenericType = getMostGenericScalarType(yValue, xValue);
 
-    if (!mostGenericType.isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(mostGenericType) ||
         (mostGenericType.getIntOrFloatBitWidth() != 32 &&
          mostGenericType.getIntOrFloatBitWidth() != 64)) {
       mostGenericType = rewriter.getF64Type();
@@ -622,8 +622,8 @@ struct CeilOpLowering : public RuntimeOpConversionPattern<CeilOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -667,14 +667,14 @@ struct CosOpLowering : public RuntimeOpConversionPattern<CosOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -718,14 +718,14 @@ struct CoshOpLowering : public RuntimeOpConversionPattern<CoshOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -773,7 +773,7 @@ struct DiagonalOpLowering : public RuntimeOpConversionPattern<DiagonalOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -802,7 +802,7 @@ struct DiagonalOpLowering : public RuntimeOpConversionPattern<DiagonalOp> {
     result = convertToUnrankedMemRef(rewriter, result);
 
     // Convert the values tensor to an unranked memref.
-    auto valuesTensorType = values.getType().cast<mlir::TensorType>();
+    auto valuesTensorType = mlir::cast<mlir::TensorType>(values.getType());
 
     if (requestedResultTensorType.getElementType() !=
         valuesTensorType.getElementType()) {
@@ -847,13 +847,13 @@ struct DivTruncOpLowering : public RuntimeOpConversionPattern<DivTruncOp> {
     mlir::Value xValue = adaptor.getX();
     mlir::Value yValue = adaptor.getY();
 
-    if (!xValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            xValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!yValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            yValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -911,8 +911,8 @@ struct ExpOpLowering : public RuntimeOpConversionPattern<ExpOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value exponent = adaptor.getExponent();
 
-    if (!exponent.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            exponent.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -956,8 +956,8 @@ struct FloorOpLowering : public RuntimeOpConversionPattern<FloorOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -1005,7 +1005,7 @@ struct IdentityOpLowering : public RuntimeOpConversionPattern<IdentityOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -1015,7 +1015,7 @@ struct IdentityOpLowering : public RuntimeOpConversionPattern<IdentityOp> {
         if (dynamicDimensions.empty()) {
           mlir::Value indexSize = size;
 
-          if (!indexSize.getType().isa<mlir::IndexType>()) {
+          if (!mlir::isa<mlir::IndexType>(indexSize.getType())) {
             indexSize = rewriter.create<CastOp>(loc, rewriter.getIndexType(),
                                                 indexSize);
           }
@@ -1066,8 +1066,8 @@ struct IntegerOpLowering : public RuntimeOpConversionPattern<IntegerOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -1116,7 +1116,7 @@ struct LinspaceOpLowering : public RuntimeOpConversionPattern<LinspaceOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
@@ -1124,7 +1124,7 @@ struct LinspaceOpLowering : public RuntimeOpConversionPattern<LinspaceOp> {
     if (requestedResultTensorType.getDimSize(0) == mlir::ShapedType::kDynamic) {
       mlir::Value amount = adaptor.getAmount();
 
-      if (!amount.getType().isa<mlir::IndexType>()) {
+      if (!mlir::isa<mlir::IndexType>(amount.getType())) {
         amount = rewriter.create<CastOp>(loc, rewriter.getIndexType(), amount);
       }
 
@@ -1146,7 +1146,7 @@ struct LinspaceOpLowering : public RuntimeOpConversionPattern<LinspaceOp> {
 
     mlir::Type mostGenericType = getMostGenericScalarType(begin, end);
 
-    if (!mostGenericType.isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(mostGenericType) ||
         (mostGenericType.getIntOrFloatBitWidth() != 32 &&
          mostGenericType.getIntOrFloatBitWidth() != 64)) {
       mostGenericType = rewriter.getF64Type();
@@ -1194,8 +1194,8 @@ struct LogOpLowering : public RuntimeOpConversionPattern<LogOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -1239,8 +1239,8 @@ struct Log10OpLowering : public RuntimeOpConversionPattern<Log10Op> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -1290,13 +1290,13 @@ struct MaxOpScalarsLowering : public RuntimeOpConversionPattern<MaxOp> {
     mlir::Value first = adaptor.getFirst();
     mlir::Value second = adaptor.getSecond();
 
-    if (!first.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            first.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!second.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            second.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1368,7 +1368,7 @@ struct MaxOpArrayLowering : public RuntimeOpConversionPattern<MaxOp> {
 
     // Create the call to the runtime library.
     mlir::Type elementType =
-        array.getType().cast<mlir::TensorType>().getElementType();
+        mlir::cast<mlir::TensorType>(array.getType()).getElementType();
 
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
@@ -1409,13 +1409,13 @@ struct MinOpScalarsLowering : public RuntimeOpConversionPattern<MinOp> {
     mlir::Value first = adaptor.getFirst();
     mlir::Value second = adaptor.getSecond();
 
-    if (!first.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            first.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!second.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            second.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1487,7 +1487,7 @@ struct MinOpArrayLowering : public RuntimeOpConversionPattern<MinOp> {
 
     // Create the call to the runtime library.
     mlir::Type elementType =
-        array.getType().cast<mlir::TensorType>().getElementType();
+        mlir::cast<mlir::TensorType>(array.getType()).getElementType();
 
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
@@ -1523,13 +1523,13 @@ struct ModOpLowering : public RuntimeOpConversionPattern<ModOp> {
     mlir::Value xValue = adaptor.getX();
     mlir::Value yValue = adaptor.getY();
 
-    if (!xValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            xValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!yValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            yValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1591,7 +1591,7 @@ struct OnesOpLowering : public RuntimeOpConversionPattern<OnesOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -1602,7 +1602,7 @@ struct OnesOpLowering : public RuntimeOpConversionPattern<OnesOp> {
           mlir::ShapedType::kDynamic) {
         mlir::Value size = sizes[dim];
 
-        if (!size.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(size.getType())) {
           size = rewriter.create<CastOp>(loc, rewriter.getIndexType(), size);
         }
 
@@ -1658,7 +1658,7 @@ struct ProductOpLowering : public RuntimeOpConversionPattern<ProductOp> {
 
     // Create the call to the runtime library.
     mlir::Type elementType =
-        array.getType().cast<mlir::TensorType>().getElementType();
+        mlir::cast<mlir::TensorType>(array.getType()).getElementType();
 
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
@@ -1694,13 +1694,13 @@ struct RemOpLowering : public RuntimeOpConversionPattern<RemOp> {
     mlir::Value xValue = adaptor.getX();
     mlir::Value yValue = adaptor.getY();
 
-    if (!xValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            xValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
-    if (!yValue.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            yValue.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -1758,8 +1758,8 @@ struct SignOpLowering : public RuntimeOpConversionPattern<SignOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -1803,14 +1803,14 @@ struct SinOpLowering : public RuntimeOpConversionPattern<SinOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -1854,14 +1854,14 @@ struct SinhOpLowering : public RuntimeOpConversionPattern<SinhOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -1905,14 +1905,14 @@ struct SqrtOpLowering : public RuntimeOpConversionPattern<SqrtOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -1965,7 +1965,7 @@ struct SumOpLowering : public RuntimeOpConversionPattern<SumOp> {
 
     // Create the call to the runtime library.
     mlir::Type elementType =
-        array.getType().cast<mlir::TensorType>().getElementType();
+        mlir::cast<mlir::TensorType>(array.getType()).getElementType();
 
     auto callee = getOrDeclareRuntimeFunction(
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
@@ -2004,7 +2004,7 @@ struct SymmetricOpLowering : public RuntimeOpConversionPattern<SymmetricOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -2068,14 +2068,14 @@ struct TanOpLowering : public RuntimeOpConversionPattern<TanOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -2119,14 +2119,14 @@ struct TanhOpLowering : public RuntimeOpConversionPattern<TanhOp> {
     mlir::Location loc = op.getLoc();
     mlir::Value operand = adaptor.getOperand();
 
-    if (!operand.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            operand.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     llvm::SmallVector<mlir::Value, 1> arguments;
 
-    if (!op.getType().isa<mlir::FloatType>() ||
+    if (!mlir::isa<mlir::FloatType>(op.getType()) ||
         (operand.getType().getIntOrFloatBitWidth() != 32 &&
          operand.getType().getIntOrFloatBitWidth() != 64)) {
       operand = rewriter.create<CastOp>(loc, rewriter.getF64Type(), operand);
@@ -2174,7 +2174,7 @@ struct TransposeOpLowering : public RuntimeOpConversionPattern<TransposeOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -2242,7 +2242,7 @@ struct ZerosOpLowering : public RuntimeOpConversionPattern<ZerosOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     // Allocate the memory for the result.
     llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -2253,7 +2253,7 @@ struct ZerosOpLowering : public RuntimeOpConversionPattern<ZerosOp> {
           mlir::ShapedType::kDynamic) {
         mlir::Value size = sizes[dim];
 
-        if (!size.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(size.getType())) {
           size = rewriter.create<CastOp>(loc, rewriter.getIndexType(), size);
         }
 

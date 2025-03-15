@@ -346,7 +346,7 @@ void CallLowerer::getFunctionExpectedArgRanks(
     mlir::FunctionType functionType = functionOp.getFunctionType();
 
     for (mlir::Type type : functionType.getInputs()) {
-      if (auto shapedType = type.dyn_cast<mlir::ShapedType>()) {
+      if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(type)) {
         ranks.push_back(shapedType.getRank());
       } else {
         ranks.push_back(0);
@@ -375,7 +375,7 @@ void CallLowerer::getFunctionExpectedArgRanks(
     mlir::FunctionType functionType = functionOp.getFunctionType();
 
     for (mlir::Type type : functionType.getInputs()) {
-      if (auto shapedType = type.dyn_cast<mlir::ShapedType>()) {
+      if (auto shapedType = mlir::dyn_cast<mlir::ShapedType>(type)) {
         ranks.push_back(shapedType.getRank());
       } else {
         ranks.push_back(0);
@@ -432,7 +432,7 @@ bool CallLowerer::getVectorizedResultTypes(
   for (size_t argIndex = 0, e = args.size(); argIndex < e; ++argIndex) {
     mlir::Value arg = args[argIndex];
     mlir::Type argType = arg.getType();
-    auto argShapedType = argType.dyn_cast<mlir::ShapedType>();
+    auto argShapedType = mlir::dyn_cast<mlir::ShapedType>(argType);
 
     int64_t argExpectedRank = expectedArgRanks[argIndex];
     int64_t argActualRank = 0;
@@ -489,7 +489,8 @@ bool CallLowerer::getVectorizedResultTypes(
     llvm::SmallVector<int64_t, 3> shape;
     shape.append(dimensions);
 
-    if (auto shapedType = scalarizedResultType.dyn_cast<mlir::ShapedType>()) {
+    if (auto shapedType =
+            mlir::dyn_cast<mlir::ShapedType>(scalarizedResultType)) {
       auto previousShape = shapedType.getShape();
       shape.append(previousShape.begin(), previousShape.end());
 
@@ -1124,7 +1125,8 @@ std::optional<Results> CallLowerer::div(const ast::Call &call) {
 
   mlir::Type resultType = IntegerType::get(builder().getContext());
 
-  if (args[0].getType().isa<RealType>() || args[1].getType().isa<RealType>()) {
+  if (mlir::isa<RealType>(args[0].getType()) ||
+      mlir::isa<RealType>(args[1].getType())) {
     resultType = RealType::get(builder().getContext());
   }
 
@@ -1449,7 +1451,7 @@ std::optional<Results> CallLowerer::maxArray(const ast::Call &call) {
   }
 
   mlir::Type resultType =
-      args[0].getType().cast<mlir::ShapedType>().getElementType();
+      mlir::cast<mlir::ShapedType>(args[0].getType()).getElementType();
 
   mlir::Value result =
       builder().create<MaxOp>(loc(call.getLocation()), resultType, args);
@@ -1513,7 +1515,7 @@ std::optional<Results> CallLowerer::minArray(const ast::Call &call) {
   }
 
   mlir::Type resultType =
-      args[0].getType().cast<mlir::ShapedType>().getElementType();
+      mlir::cast<mlir::ShapedType>(args[0].getType()).getElementType();
 
   mlir::Value result =
       builder().create<MinOp>(loc(call.getLocation()), resultType, args);
@@ -1560,7 +1562,8 @@ std::optional<Results> CallLowerer::mod(const ast::Call &call) {
 
   mlir::Type resultType = IntegerType::get(builder().getContext());
 
-  if (args[0].getType().isa<RealType>() || args[1].getType().isa<RealType>()) {
+  if (mlir::isa<RealType>(args[0].getType()) ||
+      mlir::isa<RealType>(args[1].getType())) {
     resultType = RealType::get(builder().getContext());
   }
 
@@ -1652,7 +1655,7 @@ std::optional<Results> CallLowerer::productArray(const ast::Call &call) {
     return std::nullopt;
   }
 
-  auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+  auto argShapedType = mlir::cast<mlir::ShapedType>(args[0].getType());
   mlir::Type resultType = argShapedType.getElementType();
 
   mlir::Value result =
@@ -1682,7 +1685,8 @@ std::optional<Results> CallLowerer::rem(const ast::Call &call) {
 
   mlir::Type resultType = IntegerType::get(builder().getContext());
 
-  if (args[0].getType().isa<RealType>() || args[1].getType().isa<RealType>()) {
+  if (mlir::isa<RealType>(args[0].getType()) ||
+      mlir::isa<RealType>(args[1].getType())) {
     resultType = RealType::get(builder().getContext());
   }
 
@@ -1813,7 +1817,7 @@ std::optional<Results> CallLowerer::size(const ast::Call &call) {
 
   if (args.size() == 1) {
     mlir::Type resultType = mlir::RankedTensorType::get(
-        args[0].getType().cast<mlir::ShapedType>().getRank(),
+        mlir::cast<mlir::ShapedType>(args[0].getType()).getRank(),
         IntegerType::get(builder().getContext()));
 
     mlir::Value result =
@@ -1904,7 +1908,7 @@ std::optional<Results> CallLowerer::sumArray(const ast::Call &call) {
     return std::nullopt;
   }
 
-  auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+  auto argShapedType = mlir::cast<mlir::ShapedType>(args[0].getType());
   mlir::Type resultType = argShapedType.getElementType();
 
   mlir::Value result =
@@ -2033,7 +2037,7 @@ std::optional<Results> CallLowerer::transpose(const ast::Call &call) {
   }
 
   llvm::SmallVector<int64_t, 2> shape;
-  auto argShapedType = args[0].getType().cast<mlir::ShapedType>();
+  auto argShapedType = mlir::cast<mlir::ShapedType>(args[0].getType());
   shape.push_back(argShapedType.getDimSize(1));
   shape.push_back(argShapedType.getDimSize(0));
 

@@ -263,11 +263,13 @@ mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
 
     rewriter.setInsertionPointToEnd(parallelOp.getBody());
 
-    auto newScheduleOp =
-        rewriter.create<ScheduleBlockOp>(parallelOp.getLoc(), false);
+    VariablesList writtenVariables;
+    VariablesList readVariables;
 
-    mergeVariableAccesses(newScheduleOp.getProperties().writtenVariables,
-                          newScheduleOp.getProperties().readVariables, blocks);
+    mergeVariableAccesses(writtenVariables, readVariables, blocks);
+
+    auto newScheduleOp = rewriter.create<ScheduleBlockOp>(
+        parallelOp.getLoc(), false, writtenVariables, readVariables);
 
     rewriter.createBlock(&newScheduleOp.getBodyRegion());
     rewriter.setInsertionPointToStart(newScheduleOp.getBody());

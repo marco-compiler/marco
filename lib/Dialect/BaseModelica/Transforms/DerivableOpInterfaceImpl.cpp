@@ -914,7 +914,7 @@ struct QualifiedVariableGetOpInterface
     builder.setInsertionPointAfter(castedOp);
 
     if (auto tensorType =
-            castedOp.getResult().getType().dyn_cast<mlir::TensorType>()) {
+            mlir::dyn_cast<mlir::TensorType>(castedOp.getResult().getType())) {
       auto elementType = tensorType.getElementType();
 
       auto materializableType =
@@ -934,7 +934,8 @@ struct QualifiedVariableGetOpInterface
       return mlir::success();
     }
 
-    if (auto arrayType = castedOp.getResult().getType().dyn_cast<ArrayType>()) {
+    if (auto arrayType =
+            mlir::dyn_cast<ArrayType>(castedOp.getResult().getType())) {
       auto elementType = arrayType.getElementType();
 
       auto materializableType =
@@ -994,7 +995,7 @@ struct GlobalVariableGetOpInterface
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(castedOp);
 
-    auto arrayType = castedOp.getResult().getType().cast<ArrayType>();
+    auto arrayType = mlir::cast<ArrayType>(castedOp.getResult().getType());
     auto elementType = arrayType.getElementType();
 
     auto materializableType =
@@ -1042,18 +1043,18 @@ struct ConstantOpInterface
 
     mlir::Type resultType = castedOp.getResult().getType();
 
-    if (resultType.isa<RangeType>()) {
+    if (mlir::isa<RangeType>(resultType)) {
       state.mapDerivative(castedOp, castedOp);
       return mlir::success();
     }
 
     mlir::Type baseType = resultType;
 
-    if (auto resultArrayType = resultType.dyn_cast<ArrayType>()) {
+    if (auto resultArrayType = mlir::dyn_cast<ArrayType>(resultType)) {
       baseType = resultArrayType.getElementType();
     }
 
-    if (auto resultTensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto resultTensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       baseType = resultTensorType.getElementType();
     }
 
@@ -1080,12 +1081,12 @@ struct ConstantOpInterface
         constantMaterializableDerivedBaseType.materializeIntConstant(
             builder, castedOp.getResult().getLoc(), 0);
 
-    if (auto resultArrayType = resultType.dyn_cast<ArrayType>()) {
+    if (auto resultArrayType = mlir::dyn_cast<ArrayType>(resultType)) {
       result = builder.create<ArrayBroadcastOp>(
           result.getLoc(), resultArrayType.clone(*derivedBaseType), result);
     }
 
-    if (auto resultTensorType = resultType.dyn_cast<mlir::TensorType>()) {
+    if (auto resultTensorType = mlir::dyn_cast<mlir::TensorType>(resultType)) {
       result = builder.create<TensorBroadcastOp>(
           result.getLoc(), resultTensorType.clone(*derivedBaseType), result);
     }

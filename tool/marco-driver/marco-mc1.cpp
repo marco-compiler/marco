@@ -15,7 +15,7 @@ extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0) {
   llvm::InitializeAllAsmParsers();
 
   // Create the diagnostics engine.
-  instance->createDiagnostics();
+  instance->createDiagnostics(*llvm::vfs::getRealFileSystem());
 
   // Parse the arguments.
   bool success = CompilerInvocation::createFromArgs(

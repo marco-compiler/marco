@@ -83,8 +83,8 @@ bool areExpressionOperandsEquivalent(
     }
 
     // Check if both are induction variables
-    auto firstArg = firstOperand.dyn_cast<mlir::BlockArgument>();
-    auto secondArg = secondOperand.dyn_cast<mlir::BlockArgument>();
+    auto firstArg = mlir::dyn_cast<mlir::BlockArgument>(firstOperand);
+    auto secondArg = mlir::dyn_cast<mlir::BlockArgument>(secondOperand);
     if (!firstArg || !secondArg) {
       return false;
     }
@@ -287,7 +287,7 @@ struct ReductionOpInterface
 
       auto iterableAttr = constantOp.getValue();
 
-      if (auto rangeAttr = iterableAttr.dyn_cast<IntegerRangeAttr>()) {
+      if (auto rangeAttr = mlir::dyn_cast<IntegerRangeAttr>(iterableAttr)) {
         assert(rangeAttr.getStep() == 1);
 
         auto lowerBound =
@@ -305,7 +305,7 @@ struct ReductionOpInterface
         continue;
       }
 
-      if (auto rangeAttr = iterableAttr.dyn_cast<RealRangeAttr>()) {
+      if (auto rangeAttr = mlir::dyn_cast<RealRangeAttr>(iterableAttr)) {
         assert(rangeAttr.getStep().convertToDouble() == 1);
 
         auto lowerBound = static_cast<Range::data_type>(
@@ -440,7 +440,8 @@ struct CallOpInterface
   static void getArgNamesPos(mlir::ArrayAttr argNames,
                              llvm::StringMap<size_t> &pos) {
     for (auto argName : llvm::enumerate(argNames)) {
-      auto name = argName.value().cast<mlir::FlatSymbolRefAttr>().getValue();
+      auto name =
+          mlir::cast<mlir::FlatSymbolRefAttr>(argName.value()).getValue();
       pos[name] = argName.index();
     }
   }
@@ -1022,7 +1023,7 @@ struct VariableGetOpInterface
     auto numOfInductions =
         static_cast<uint64_t>(explicitInductionsPositionMap.size());
 
-    if (auto tensorType = castedOp.getType().dyn_cast<mlir::TensorType>();
+    if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(castedOp.getType());
         tensorType &&
         tensorType.getRank() > static_cast<int64_t>(reverted.size())) {
       // Access to each scalar variable.
@@ -1096,27 +1097,28 @@ struct ConstantOpInterface
       const llvm::DenseMap<mlir::Value, int64_t> &inductions) const {
     auto castedOp = mlir::cast<ConstantOp>(op);
 
-    if (auto boolAttr = castedOp.getValue().dyn_cast<BooleanAttr>()) {
+    if (auto boolAttr = mlir::dyn_cast<BooleanAttr>(castedOp.getValue())) {
       os << (boolAttr.getValue() ? "true" : "false");
       return;
     }
 
-    if (auto integerAttr = castedOp.getValue().dyn_cast<IntegerAttr>()) {
+    if (auto integerAttr = mlir::dyn_cast<IntegerAttr>(castedOp.getValue())) {
       os << integerAttr.getValue();
       return;
     }
 
-    if (auto realAttr = castedOp.getValue().dyn_cast<RealAttr>()) {
+    if (auto realAttr = mlir::dyn_cast<RealAttr>(castedOp.getValue())) {
       os << realAttr.getValue().convertToDouble();
       return;
     }
 
-    if (auto integerAttr = castedOp.getValue().dyn_cast<mlir::IntegerAttr>()) {
+    if (auto integerAttr =
+            mlir::dyn_cast<mlir::IntegerAttr>(castedOp.getValue())) {
       os << integerAttr.getValue();
       return;
     }
 
-    if (auto floatAttr = castedOp.getValue().dyn_cast<mlir::FloatAttr>()) {
+    if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(castedOp.getValue())) {
       os << floatAttr.getValueAsDouble();
       return;
     }

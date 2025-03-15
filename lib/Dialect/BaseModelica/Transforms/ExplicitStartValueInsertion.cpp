@@ -66,8 +66,8 @@ ExplicitStartValueInsertionPass::processModelOp(ModelOp modelOp) {
     }
 
     auto constantMaterializableType =
-        variableType.getElementType()
-            .dyn_cast<ConstantMaterializableTypeInterface>();
+        mlir::dyn_cast<ConstantMaterializableTypeInterface>(
+            variableType.getElementType());
 
     if (!constantMaterializableType) {
       // Proceed only if a zero-valued constant can be materialized.

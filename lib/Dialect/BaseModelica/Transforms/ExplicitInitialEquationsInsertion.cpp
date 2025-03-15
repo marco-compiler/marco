@@ -106,7 +106,7 @@ void ExplicitInitialEquationsInsertionPass::createInitialEquationsFromStartOps(
     mlir::Value expressionValue = yieldOp.getValues()[0];
 
     if (auto expressionShapedType =
-            expressionValue.getType().dyn_cast<mlir::ShapedType>()) {
+            mlir::dyn_cast<mlir::ShapedType>(expressionValue.getType())) {
       expressionRank = expressionShapedType.getRank();
     }
 

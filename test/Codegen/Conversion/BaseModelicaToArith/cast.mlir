@@ -2,9 +2,7 @@
 
 // CHECK-LABEL: @BooleanToBoolean
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.bool)
-// CHECK: %[[casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.bool to i1
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[casted]]
-// CHECK: return %[[result]]
+// CHECK: return %[[arg0]]
 
 func.func @BooleanToBoolean(%arg0 : !bmodelica.bool) -> !bmodelica.bool {
     %0 = bmodelica.cast %arg0: !bmodelica.bool -> !bmodelica.bool
@@ -124,9 +122,7 @@ func.func @IntegerToBoolean(%arg0 : !bmodelica.int) -> !bmodelica.bool {
 
 // CHECK-LABEL: @IntegerToInteger
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int)
-// CHECK: %[[casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.int to i64
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[casted]]
-// CHECK: return %[[result]]
+// CHECK: return %[[arg0]]
 
 func.func @IntegerToInteger(%arg0 : !bmodelica.int) -> !bmodelica.int {
     %0 = bmodelica.cast %arg0: !bmodelica.int -> !bmodelica.int
@@ -244,9 +240,7 @@ func.func @RealToInteger(%arg0 : !bmodelica.real) -> !bmodelica.int {
 
 // CHECK-LABEL: @RealToReal
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.real)
-// CHECK: %[[casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.real to f64
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[casted]]
-// CHECK: return %[[result]]
+// CHECK: return %[[arg0]]
 
 func.func @RealToReal(%arg0 : !bmodelica.real) -> !bmodelica.real {
     %0 = bmodelica.cast %arg0: !bmodelica.real -> !bmodelica.real

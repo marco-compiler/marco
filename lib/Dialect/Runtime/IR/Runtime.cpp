@@ -11,17 +11,17 @@ struct RuntimeOpAsmDialectInterface : public mlir::OpAsmDialectInterface {
 
   AliasResult getAlias(mlir::Attribute attr,
                        llvm::raw_ostream &os) const override {
-    if (attr.isa<MultidimensionalRangeAttr>()) {
+    if (mlir::isa<MultidimensionalRangeAttr>(attr)) {
       os << "range";
       return AliasResult::OverridableAlias;
     }
 
-    if (attr.isa<VariableAttr>()) {
+    if (mlir::isa<VariableAttr>(attr)) {
       os << "var";
       return AliasResult::OverridableAlias;
     }
 
-    if (attr.isa<DerivativeAttr>()) {
+    if (mlir::isa<DerivativeAttr>(attr)) {
       os << "der";
       return AliasResult::OverridableAlias;
     }

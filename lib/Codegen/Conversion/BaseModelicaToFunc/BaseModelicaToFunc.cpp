@@ -92,14 +92,15 @@ struct EquationFunctionOpLowering
   mlir::LogicalResult
   matchAndRewrite(EquationFunctionOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto originalFunctionType = op.getFunctionType();
     llvm::SmallVector<mlir::Type> argsTypes;
     llvm::SmallVector<mlir::Type> resultsTypes;
 
-    for (mlir::Type argType : op.getFunctionType().getInputs()) {
+    for (mlir::Type argType : originalFunctionType.getInputs()) {
       argsTypes.push_back(getTypeConverter()->convertType(argType));
     }
 
-    for (mlir::Type resultType : op.getFunctionType().getResults()) {
+    for (mlir::Type resultType : originalFunctionType.getResults()) {
       resultsTypes.push_back(getTypeConverter()->convertType(resultType));
     }
 
@@ -176,14 +177,15 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
   mlir::LogicalResult
   matchAndRewrite(RawFunctionOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    auto originalFunctionType = op.getFunctionType();
     llvm::SmallVector<mlir::Type> argsTypes;
     llvm::SmallVector<mlir::Type> resultsTypes;
 
-    for (mlir::Type argType : op.getFunctionType().getInputs()) {
+    for (mlir::Type argType : originalFunctionType.getInputs()) {
       argsTypes.push_back(getTypeConverter()->convertType(argType));
     }
 
-    for (mlir::Type resultType : op.getFunctionType().getResults()) {
+    for (mlir::Type resultType : originalFunctionType.getResults()) {
       resultsTypes.push_back(getTypeConverter()->convertType(resultType));
     }
 
@@ -298,7 +300,7 @@ struct RawVariableScalarLowering
     mlir::Location loc = op.getLoc();
 
     auto variableMemeRefType =
-        op.getVariable().getType().dyn_cast<mlir::MemRefType>();
+        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
 
     if (!variableMemeRefType) {
       return rewriter.notifyMatchFailure(op, "Not a memref variable");
@@ -382,7 +384,7 @@ struct RawVariableStaticArrayLowering
     mlir::Location loc = op.getLoc();
 
     auto variableMemRefType =
-        op.getVariable().getType().dyn_cast<mlir::MemRefType>();
+        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
 
     if (!variableMemRefType) {
       return rewriter.notifyMatchFailure(op, "Not a memref variable");
@@ -466,7 +468,7 @@ struct RawVariableDynamicArrayLowering
     mlir::Location loc = op.getLoc();
 
     auto variableMemRefType =
-        op.getVariable().getType().dyn_cast<mlir::MemRefType>();
+        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
 
     if (!variableMemRefType) {
       return rewriter.notifyMatchFailure(op, "Not an memref variable");
@@ -563,7 +565,7 @@ struct RawVariableDynamicArrayLowering
     rewriter.setInsertionPoint(op);
 
     auto variableMemRefType =
-        op.getVariable().getType().cast<mlir::MemRefType>();
+        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
 
     mlir::Value memRef =
         rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
@@ -584,7 +586,7 @@ struct RawVariableDynamicArrayLowering
     rewriter.setInsertionPoint(op);
 
     auto variableMemRefType =
-        op.getVariable().getType().cast<mlir::MemRefType>();
+        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
 
     // The destination array has dynamic and unknown sizes. Thus, the array
     // has not been allocated yet, and we need to create a copy of the
@@ -764,15 +766,15 @@ BaseModelicaRawVariablesConversionPass::convertRawVariables() {
   target.addLegalDialect<BaseModelicaDialect>();
 
   target.addDynamicallyLegalOp<RawVariableOp>([](RawVariableOp op) {
-    return !op.getVariable().getType().isa<mlir::MemRefType>();
+    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
   });
 
   target.addDynamicallyLegalOp<RawVariableGetOp>([](RawVariableGetOp op) {
-    return !op.getVariable().getType().isa<mlir::MemRefType>();
+    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
   });
 
   target.addDynamicallyLegalOp<RawVariableSetOp>([](RawVariableSetOp op) {
-    return !op.getVariable().getType().isa<mlir::MemRefType>();
+    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
   });
 
   mlir::RewritePatternSet patterns(&getContext());

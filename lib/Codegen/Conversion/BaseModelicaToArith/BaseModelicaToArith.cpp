@@ -43,19 +43,19 @@ struct CastOpIndexLowering : public mlir::OpConversionPattern<CastOp> {
     mlir::Value operand = adaptor.getValue();
     mlir::Type operandType = operand.getType();
 
-    if (!operandType.isa<mlir::IndexType>()) {
+    if (!mlir::isa<mlir::IndexType>(operandType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     mlir::Type resultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (!resultType
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            resultType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
-    if (resultType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(resultType)) {
       rewriter.replaceOp(op, operand);
       return mlir::success();
     }
@@ -66,7 +66,7 @@ struct CastOpIndexLowering : public mlir::OpConversionPattern<CastOp> {
     result = rewriter.create<mlir::arith::IndexCastOp>(
         loc, rewriter.getIntegerType(requestedBitWidth), result);
 
-    if (resultType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(resultType)) {
       if (requestedBitWidth == 1) {
         result =
             rewriter.create<mlir::arith::UIToFPOp>(loc, resultType, result);
@@ -91,21 +91,21 @@ struct CastOpIntegerLowering : public mlir::OpConversionPattern<CastOp> {
     mlir::Value operand = adaptor.getValue();
     mlir::Type operandType = operand.getType();
 
-    if (!operandType.isa<mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IntegerType>(operandType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     mlir::Type resultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (resultType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(resultType)) {
       rewriter.replaceOpWithNewOp<mlir::arith::IndexCastOp>(op, resultType,
                                                             operand);
 
       return mlir::success();
     }
 
-    if (!resultType.isa<mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IntegerType, mlir::FloatType>(resultType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
@@ -129,7 +129,7 @@ struct CastOpIntegerLowering : public mlir::OpConversionPattern<CastOp> {
           loc, requestedBitWidthIntegerType, result);
     }
 
-    if (resultType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(resultType)) {
       if (requestedBitWidth == 1) {
         result =
             rewriter.create<mlir::arith::UIToFPOp>(loc, resultType, result);
@@ -154,15 +154,15 @@ struct CastOpFloatLowering : public mlir::OpConversionPattern<CastOp> {
     mlir::Value operand = adaptor.getValue();
     mlir::Type operandType = operand.getType();
 
-    if (!operandType.isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(operandType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
     mlir::Type resultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (!resultType
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            resultType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible result type");
     }
 
@@ -170,7 +170,7 @@ struct CastOpFloatLowering : public mlir::OpConversionPattern<CastOp> {
     auto bitWidth = result.getType().getIntOrFloatBitWidth();
     auto requestedBitWidth = resultType.getIntOrFloatBitWidth();
 
-    if (resultType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(resultType)) {
       if (bitWidth == 1) {
         result = rewriter.create<mlir::arith::FPToUIOp>(
             loc, rewriter.getIntegerType(1), result);
@@ -180,12 +180,12 @@ struct CastOpFloatLowering : public mlir::OpConversionPattern<CastOp> {
       }
     }
 
-    if (resultType.isa<mlir::IndexType>()) {
+    if (mlir::isa<mlir::IndexType>(resultType)) {
       result =
           rewriter.create<mlir::arith::IndexCastOp>(loc, resultType, result);
     }
 
-    if (resultType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(resultType)) {
       if (bitWidth < requestedBitWidth) {
         result = rewriter.create<mlir::arith::ExtFOp>(loc, resultType, result);
       } else if (bitWidth > requestedBitWidth) {
@@ -252,14 +252,14 @@ struct EqOpLowering : public mlir::OpConversionPattern<EqOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -278,7 +278,7 @@ struct EqOpLowering : public mlir::OpConversionPattern<EqOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::eq, lhs,
           rhs);
@@ -291,7 +291,7 @@ struct EqOpLowering : public mlir::OpConversionPattern<EqOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OEQ, lhs,
           rhs);
@@ -319,14 +319,14 @@ struct NotEqOpLowering : public mlir::OpConversionPattern<NotEqOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -345,7 +345,7 @@ struct NotEqOpLowering : public mlir::OpConversionPattern<NotEqOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::ne, lhs,
           rhs);
@@ -358,7 +358,7 @@ struct NotEqOpLowering : public mlir::OpConversionPattern<NotEqOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::ONE, lhs,
           rhs);
@@ -386,14 +386,14 @@ struct GtOpLowering : public mlir::OpConversionPattern<GtOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible left-hand side operands");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operands");
     }
@@ -412,7 +412,7 @@ struct GtOpLowering : public mlir::OpConversionPattern<GtOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sgt, lhs,
           rhs);
@@ -425,7 +425,7 @@ struct GtOpLowering : public mlir::OpConversionPattern<GtOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OGT, lhs,
           rhs);
@@ -453,14 +453,14 @@ struct GteOpLowering : public mlir::OpConversionPattern<GteOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible left-hand side operands");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operands");
     }
@@ -479,7 +479,7 @@ struct GteOpLowering : public mlir::OpConversionPattern<GteOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sge, lhs,
           rhs);
@@ -492,7 +492,7 @@ struct GteOpLowering : public mlir::OpConversionPattern<GteOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OGE, lhs,
           rhs);
@@ -520,14 +520,14 @@ struct LtOpLowering : public mlir::OpConversionPattern<LtOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible left-hand side operands");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operands");
     }
@@ -546,7 +546,7 @@ struct LtOpLowering : public mlir::OpConversionPattern<LtOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::slt, lhs,
           rhs);
@@ -559,7 +559,7 @@ struct LtOpLowering : public mlir::OpConversionPattern<LtOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OLT, lhs,
           rhs);
@@ -587,14 +587,14 @@ struct LteOpLowering : public mlir::OpConversionPattern<LteOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible left-hand side operands");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operands");
     }
@@ -613,7 +613,7 @@ struct LteOpLowering : public mlir::OpConversionPattern<LteOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sle, lhs,
           rhs);
@@ -626,7 +626,7 @@ struct LteOpLowering : public mlir::OpConversionPattern<LteOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
           loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OLE, lhs,
           rhs);
@@ -660,7 +660,7 @@ struct NotOpIntegerLowering : public mlir::OpConversionPattern<NotOp> {
     mlir::Value operand = adaptor.getOperand();
     mlir::Type operandType = operand.getType();
 
-    if (!operandType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(operandType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible operand");
     }
 
@@ -694,7 +694,7 @@ struct NotOpFloatLowering : public mlir::OpConversionPattern<NotOp> {
     mlir::Value operand = adaptor.getOperand();
     mlir::Type operandType = operand.getType();
 
-    if (!operandType.isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(operandType)) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -729,8 +729,8 @@ struct AndOpIntegersLikeLowering : public mlir::OpConversionPattern<AndOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::IndexType, mlir::IntegerType>() ||
-        !rhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(lhs.getType()) ||
+        !mlir::isa<mlir::IndexType, mlir::IntegerType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -775,8 +775,8 @@ struct AndOpFloatsLowering : public mlir::OpConversionPattern<AndOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::FloatType>() ||
-        !rhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(lhs.getType()) ||
+        !mlir::isa<mlir::FloatType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(op, "Incompatible operands");
     }
 
@@ -821,12 +821,12 @@ struct AndOpIntegerLikeFloatLowering : public mlir::OpConversionPattern<AndOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -872,12 +872,12 @@ struct AndOpFloatIntegerLikeLowering : public mlir::OpConversionPattern<AndOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -923,12 +923,12 @@ struct OrOpIntegersLikeLowering : public mlir::OpConversionPattern<OrOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -974,12 +974,12 @@ struct OrOpFloatsLowering : public mlir::OpConversionPattern<OrOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1025,12 +1025,12 @@ struct OrOpIntegerLikeFloatLowering : public mlir::OpConversionPattern<OrOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1076,12 +1076,12 @@ struct OrOpFloatIntegerLikeLowering : public mlir::OpConversionPattern<OrOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType().isa<mlir::FloatType>()) {
+    if (!mlir::isa<mlir::FloatType>(lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType().isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType>(rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1145,25 +1145,25 @@ private:
   mlir::TypedAttr convertAttribute(mlir::OpBuilder &builder,
                                    mlir::Type resultType,
                                    mlir::TypedAttr attribute) const {
-    if (resultType.isa<mlir::TensorType>()) {
+    if (mlir::isa<mlir::TensorType>(resultType)) {
       return convertTensorTypedAttribute(builder, resultType, attribute);
     }
 
-    if (attribute.getType()
-            .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            attribute.getType())) {
       return attribute;
     }
 
-    if (auto booleanAttribute = attribute.dyn_cast<BooleanAttr>()) {
+    if (auto booleanAttribute = mlir::dyn_cast<BooleanAttr>(attribute)) {
       return builder.getBoolAttr(booleanAttribute.getValue());
     }
 
-    if (auto integerAttribute = attribute.dyn_cast<IntegerAttr>()) {
+    if (auto integerAttribute = mlir::dyn_cast<IntegerAttr>(attribute)) {
       return builder.getIntegerAttr(resultType,
                                     integerAttribute.getValue().getSExtValue());
     }
 
-    if (auto realAttribute = attribute.dyn_cast<RealAttr>()) {
+    if (auto realAttribute = mlir::dyn_cast<RealAttr>(attribute)) {
       return builder.getFloatAttr(resultType, realAttribute.getValue());
     }
 
@@ -1173,7 +1173,7 @@ private:
   mlir::TypedAttr convertTensorTypedAttribute(mlir::OpBuilder &builder,
                                               mlir::Type resultType,
                                               mlir::TypedAttr attribute) const {
-    if (attribute.isa<mlir::DenseIntOrFPElementsAttr>()) {
+    if (mlir::isa<mlir::DenseIntOrFPElementsAttr>(attribute)) {
       return attribute;
     }
 
@@ -1212,7 +1212,7 @@ struct NegateOpLowering : public mlir::OpConversionPattern<NegateOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (operandType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(operandType)) {
       mlir::Value zeroValue = rewriter.create<mlir::arith::ConstantOp>(
           loc, rewriter.getZeroAttr(operandType));
 
@@ -1228,7 +1228,7 @@ struct NegateOpLowering : public mlir::OpConversionPattern<NegateOp> {
       return mlir::success();
     }
 
-    if (operandType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(operandType)) {
       mlir::Value result =
           rewriter.create<mlir::arith::NegFOp>(loc, adaptor.getOperand());
 
@@ -1256,14 +1256,14 @@ struct AddOpLowering : public mlir::OpConversionPattern<AddOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1282,7 +1282,7 @@ struct AddOpLowering : public mlir::OpConversionPattern<AddOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::AddIOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1294,7 +1294,7 @@ struct AddOpLowering : public mlir::OpConversionPattern<AddOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::AddFOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1319,14 +1319,14 @@ struct AddEWOpLowering : public mlir::OpConversionPattern<AddEWOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1349,14 +1349,14 @@ struct SubOpLowering : public mlir::OpConversionPattern<SubOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1375,7 +1375,7 @@ struct SubOpLowering : public mlir::OpConversionPattern<SubOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::SubIOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1387,7 +1387,7 @@ struct SubOpLowering : public mlir::OpConversionPattern<SubOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::SubFOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1412,14 +1412,14 @@ struct SubEWOpLowering : public mlir::OpConversionPattern<SubEWOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1442,14 +1442,14 @@ struct MulOpLowering : public mlir::OpConversionPattern<MulOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1468,7 +1468,7 @@ struct MulOpLowering : public mlir::OpConversionPattern<MulOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::MulIOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1480,7 +1480,7 @@ struct MulOpLowering : public mlir::OpConversionPattern<MulOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::MulFOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1505,14 +1505,14 @@ struct MulEWOpLowering : public mlir::OpConversionPattern<MulEWOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1535,14 +1535,14 @@ struct DivOpLowering : public mlir::OpConversionPattern<DivOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1561,7 +1561,7 @@ struct DivOpLowering : public mlir::OpConversionPattern<DivOp> {
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (genericType.isa<mlir::IndexType, mlir::IntegerType>()) {
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1573,7 +1573,7 @@ struct DivOpLowering : public mlir::OpConversionPattern<DivOp> {
       return mlir::success();
     }
 
-    if (genericType.isa<mlir::FloatType>()) {
+    if (mlir::isa<mlir::FloatType>(genericType)) {
       mlir::Value result = rewriter.create<mlir::arith::DivFOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1598,14 +1598,14 @@ struct DivEWOpLowering : public mlir::OpConversionPattern<DivEWOp> {
     mlir::Value lhs = adaptor.getLhs();
     mlir::Value rhs = adaptor.getRhs();
 
-    if (!lhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            lhs.getType())) {
       return rewriter.notifyMatchFailure(op,
                                          "Incompatible left-hand side operand");
     }
 
-    if (!rhs.getType()
-             .isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>()) {
+    if (!mlir::isa<mlir::IndexType, mlir::IntegerType, mlir::FloatType>(
+            rhs.getType())) {
       return rewriter.notifyMatchFailure(
           op, "Incompatible right-hand side operand");
     }
@@ -1626,7 +1626,7 @@ struct ReductionOpLowering : public mlir::OpConversionPattern<ReductionOp> {
     mlir::Location loc = op.getLoc();
 
     if (llvm::any_of(op.getIterables(), [](mlir::Value iterable) {
-          return !iterable.getType().isa<RangeType>();
+          return !mlir::isa<RangeType>(iterable.getType());
         })) {
       return mlir::failure();
     }
@@ -1753,21 +1753,21 @@ private:
                    llvm::StringRef action, mlir::Type resultType,
                    llvm::SmallVectorImpl<mlir::Value> &initialValues) const {
     if (action == "add") {
-      if (resultType.isa<mlir::IntegerType>()) {
+      if (mlir::isa<mlir::IntegerType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getIntegerAttr(resultType, 0)));
 
         return mlir::success();
       }
 
-      if (resultType.isa<mlir::FloatType>()) {
+      if (mlir::isa<mlir::FloatType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getFloatAttr(resultType, 0)));
 
         return mlir::success();
       }
 
-      if (resultType.isa<mlir::IndexType>()) {
+      if (mlir::isa<mlir::IndexType>(resultType)) {
         initialValues.push_back(
             builder.create<ConstantOp>(loc, builder.getIndexAttr(0)));
 
@@ -1776,21 +1776,21 @@ private:
     }
 
     if (action == "mul") {
-      if (resultType.isa<mlir::IntegerType>()) {
+      if (mlir::isa<mlir::IntegerType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getIntegerAttr(resultType, 1)));
 
         return mlir::success();
       }
 
-      if (resultType.isa<mlir::FloatType>()) {
+      if (mlir::isa<mlir::FloatType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getFloatAttr(resultType, 1)));
 
         return mlir::success();
       }
 
-      if (resultType.isa<mlir::IndexType>()) {
+      if (mlir::isa<mlir::IndexType>(resultType)) {
         initialValues.push_back(
             builder.create<ConstantOp>(loc, builder.getIndexAttr(1)));
 
@@ -1799,7 +1799,7 @@ private:
     }
 
     if (action == "min") {
-      if (resultType.isa<mlir::IntegerType>()) {
+      if (mlir::isa<mlir::IntegerType>(resultType)) {
         unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
 
         if (bitWidth == 8) {
@@ -1835,7 +1835,7 @@ private:
         }
       }
 
-      if (resultType.isa<mlir::FloatType>()) {
+      if (mlir::isa<mlir::FloatType>(resultType)) {
         unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
 
         if (bitWidth == 32) {
@@ -1855,7 +1855,7 @@ private:
         }
       }
 
-      if (resultType.isa<mlir::IndexType>()) {
+      if (mlir::isa<mlir::IndexType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getIndexAttr(std::numeric_limits<int64_t>::max())));
 
@@ -1864,7 +1864,7 @@ private:
     }
 
     if (action == "max") {
-      if (resultType.isa<mlir::IntegerType>()) {
+      if (mlir::isa<mlir::IntegerType>(resultType)) {
         unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
 
         if (bitWidth == 8) {
@@ -1900,7 +1900,7 @@ private:
         }
       }
 
-      if (resultType.isa<mlir::FloatType>()) {
+      if (mlir::isa<mlir::FloatType>(resultType)) {
         unsigned int bitWidth = resultType.getIntOrFloatBitWidth();
 
         if (bitWidth == 32) {
@@ -1920,7 +1920,7 @@ private:
         }
       }
 
-      if (resultType.isa<mlir::IndexType>()) {
+      if (mlir::isa<mlir::IndexType>(resultType)) {
         initialValues.push_back(builder.create<ConstantOp>(
             loc, builder.getIndexAttr(std::numeric_limits<int64_t>::min())));
 
@@ -1981,10 +1981,11 @@ struct SelectOpLowering : public mlir::OpConversionPattern<SelectOp> {
     mlir::Value trueValue = adaptor.getTrueValues()[0];
     mlir::Value falseValue = adaptor.getFalseValues()[0];
 
-    auto trueValueTensorType = trueValue.getType().dyn_cast<mlir::TensorType>();
+    auto trueValueTensorType =
+        mlir::dyn_cast<mlir::TensorType>(trueValue.getType());
 
     auto falseValueTensorType =
-        falseValue.getType().dyn_cast<mlir::TensorType>();
+        mlir::dyn_cast<mlir::TensorType>(falseValue.getType());
 
     if (trueValueTensorType && falseValueTensorType) {
       mlir::Type genericElementType =
@@ -2045,13 +2046,13 @@ struct SelectOpLowering : public mlir::OpConversionPattern<SelectOp> {
 struct SelectOpMultipleValuesPattern : public mlir::OpRewritePattern<SelectOp> {
   using mlir::OpRewritePattern<SelectOp>::OpRewritePattern;
 
-  mlir::LogicalResult match(SelectOp op) const override {
-    return mlir::LogicalResult::success(op.getTrueValues().size() > 1 ||
-                                        op.getFalseValues().size() > 1);
-  }
-
-  void rewrite(SelectOp op, mlir::PatternRewriter &rewriter) const override {
+  mlir::LogicalResult
+  matchAndRewrite(SelectOp op, mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
+
+    if (!(op.getTrueValues().size() > 1 || op.getFalseValues().size() > 1)) {
+      return rewriter.notifyMatchFailure(op, "Expected multiple operands");
+    }
 
     mlir::TypeRange resultTypes = op.getResultTypes();
     llvm::SmallVector<mlir::Value> results;
@@ -2070,6 +2071,7 @@ struct SelectOpMultipleValuesPattern : public mlir::OpRewritePattern<SelectOp> {
     }
 
     rewriter.replaceOp(op, results);
+    return mlir::success();
   }
 };
 } // namespace
@@ -2088,10 +2090,9 @@ mlir::LogicalResult BaseModelicaToArithConversionPass::convertOperations() {
                          mlir::arith::ArithDialect, mlir::scf::SCFDialect>();
 
   target.addDynamicallyLegalOp<CastOp>([](CastOp op) {
-    if (op.getValue()
-            .getType()
-            .isa<BooleanType, IntegerType, RealType, mlir::IndexType,
-                 mlir::IntegerType, mlir::FloatType>()) {
+    if (mlir::isa<BooleanType, IntegerType, RealType, mlir::IndexType,
+                  mlir::IntegerType, mlir::FloatType>(
+            op.getValue().getType())) {
       return false;
     }
 
@@ -2113,7 +2114,7 @@ mlir::LogicalResult BaseModelicaToArithConversionPass::convertOperations() {
                       DivOp, DivEWOp>();
 
   target.addDynamicallyLegalOp<PowOp>(
-      [](PowOp op) { return !op.getBase().getType().isa<ArrayType>(); });
+      [](PowOp op) { return !mlir::isa<ArrayType>(op.getBase().getType()); });
 
   target.addIllegalOp<ReductionOp, SelectOp>();
 

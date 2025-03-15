@@ -284,7 +284,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
     VariableType variableType = variableOp.getVariableType();
 
     if (variableOp.isInput()) {
-      if (variableType.getElementType().isa<RealType>()) {
+      if (mlir::isa<RealType>(variableType.getElementType())) {
         if (isTimeDerivative(name, functionOp, functionOrder)) {
           continue;
         }
@@ -295,7 +295,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
         inverseDerivativesNamesMap[derName] = name;
       }
     } else if (variableOp.isOutput()) {
-      if (variableType.getElementType().isa<RealType>()) {
+      if (mlir::isa<RealType>(variableType.getElementType())) {
         auto derName = getNextTimeDerVariableName(name, derivativeOrder);
         newOutputVariableNames.push_back(derName);
         newOutputVariableTypes.push_back(variableType);

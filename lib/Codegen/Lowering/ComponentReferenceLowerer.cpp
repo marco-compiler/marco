@@ -43,7 +43,7 @@ std::optional<Results> ComponentReferenceLowerer::lower(
 
     mlir::Type baseType = parentType;
 
-    if (auto parentShapedType = parentType.dyn_cast<mlir::ShapedType>()) {
+    if (auto parentShapedType = mlir::dyn_cast<mlir::ShapedType>(parentType)) {
       baseType = parentShapedType.getElementType();
     }
 
@@ -68,16 +68,18 @@ std::optional<Results> ComponentReferenceLowerer::lower(
 
       llvm::SmallVector<int64_t, 3> shape;
 
-      if (auto parentShapedType = parentType.dyn_cast<mlir::ShapedType>()) {
+      if (auto parentShapedType =
+              mlir::dyn_cast<mlir::ShapedType>(parentType)) {
         llvm::append_range(shape, parentShapedType.getShape());
       }
 
       mlir::Type componentType = variableOp.getVariableType().unwrap();
 
       if (auto componentShapedType =
-              componentType.dyn_cast<mlir::ShapedType>()) {
+              mlir::dyn_cast<mlir::ShapedType>(componentType)) {
         llvm::append_range(shape, componentShapedType.getShape());
-        componentType = componentShapedType.clone(shape).cast<mlir::Type>();
+        componentType =
+            mlir::cast<mlir::Type>(componentShapedType.clone(shape));
       } else if (!shape.empty()) {
         componentType = mlir::RankedTensorType::get(shape, componentType);
       }
@@ -128,7 +130,8 @@ std::optional<Reference> ComponentReferenceLowerer::lowerSubscripts(
     mlir::Value tensor = current.get(loc(entry.getLocation()));
 
     if ((!isFirst && isLast) || (isFirst && !isLast)) {
-      int64_t sourceRank = tensor.getType().cast<mlir::TensorType>().getRank();
+      int64_t sourceRank =
+          mlir::cast<mlir::TensorType>(tensor.getType()).getRank();
       auto providedSubscripts = static_cast<int64_t>(subscripts.size());
 
       if (sourceRank > providedSubscripts) {

@@ -80,7 +80,7 @@ createEquationTemplate(mlir::RewriterBase &rewriter,
                                            templateOp.getInductionVariables());
   }
 
-  if (auto rhsTensorType = rhs.getType().dyn_cast<mlir::TensorType>()) {
+  if (auto rhsTensorType = mlir::dyn_cast<mlir::TensorType>(rhs.getType())) {
     int64_t rhsRank = rhsTensorType.getRank();
 
     rhs = rewriter.create<TensorExtractOp>(

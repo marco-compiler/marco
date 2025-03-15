@@ -13,15 +13,15 @@ include "mlir/IR/SymbolInterfaces.td"
 //===---------------------------------------------------------------------===//
 
 // IDA instance type.
-def IDAInstance : Type<CPred<"$_self.isa<::mlir::ida::InstanceType>()">,
+def IDAInstance : Type<CPred<"mlir::isa<::mlir::ida::InstanceType>($_self)">,
                        "instance", "::mlir::ida::InstanceType">;
 
 // IDA equation type.
-def IDAEquation : Type<CPred<"$_self.isa<::mlir::ida::EquationType>()">,
+def IDAEquation : Type<CPred<"mlir::isa<::mlir::ida::EquationType>($_self)">,
                              "equation", "::mlir::ida::EquationType">;
 
 // IDA variable type.
-def IDAVariable : Type<CPred<"$_self.isa<::mlir::ida::VariableType>()">,
+def IDAVariable : Type<CPred<"mlir::isa<::mlir::ida::VariableType>($_self)">,
                              "variable", "::mlir::ida::VariableType">;
 
 //===---------------------------------------------------------------------===//
@@ -30,7 +30,7 @@ def IDAVariable : Type<CPred<"$_self.isa<::mlir::ida::VariableType>()">,
 
 // Multidimensional range attribute.
 def MultidimensionalRangeAttr
-    : Attr<CPred<"$_self.isa<::mlir::ida::MultidimensionalRangeAttr>()">,
+    : Attr<CPred<"mlir::isa<::mlir::ida::MultidimensionalRangeAttr>($_self)">,
                  "Multidimensional range attribute">
 {
   let storageType = [{ ::mlir::ida::MultidimensionalRangeAttr }];

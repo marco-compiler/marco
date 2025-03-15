@@ -24,14 +24,14 @@ struct FunctionOpInterface
     llvm::append_range(results, functionOp.getResultTypes());
 
     for (mlir::Type arg : functionOp.getArgumentTypes()) {
-      if (auto tensorType = arg.dyn_cast<mlir::RankedTensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(arg)) {
         args.push_back(mlir::MemRefType::get(tensorType.getShape(),
                                              tensorType.getElementType()));
 
         continue;
       }
 
-      if (auto tensorType = arg.dyn_cast<mlir::UnrankedTensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::UnrankedTensorType>(arg)) {
         auto memSpace = options.defaultMemorySpaceFn(tensorType);
 
         if (!memSpace) {
@@ -95,7 +95,7 @@ struct CallOpInterface
     llvm::SmallVector<mlir::Value> args;
 
     for (mlir::Value arg : callOp.getArgs()) {
-      if (arg.getType().isa<mlir::TensorType>()) {
+      if (mlir::isa<mlir::TensorType>(arg.getType())) {
         auto argBuffer = getBuffer(rewriter, arg, options);
 
         if (mlir::failed(argBuffer)) {
@@ -108,8 +108,9 @@ struct CallOpInterface
       }
     }
 
-    replaceOpWithNewBufferizedOp<CallOp>(rewriter, op, callOp.getResultTypes(),
-                                         callOp.getCallee(), args);
+    replaceOpWithNewBufferizedOp<CallOp>(
+        rewriter, op, callOp.getResultTypes(), callOp.getCallee(), args,
+        callOp.getArgAttrsAttr(), callOp.getResAttrsAttr());
 
     return mlir::success();
   }

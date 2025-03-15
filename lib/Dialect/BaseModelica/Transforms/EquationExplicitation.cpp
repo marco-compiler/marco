@@ -335,15 +335,16 @@ mlir::LogicalResult EquationExplicitationPass::createEquationBlocks(
 
   rewriter.setInsertionPoint(sccOp);
 
-  auto scheduleBlockOp =
-      rewriter.create<ScheduleBlockOp>(modelOp.getLoc(), true);
+  VariablesList writtenVariables;
+  VariablesList readVariables;
 
-  if (mlir::failed(
-          getAccessAttrs(scheduleBlockOp.getProperties().writtenVariables,
-                         scheduleBlockOp.getProperties().readVariables,
-                         symbolTableCollection, equationOp))) {
+  if (mlir::failed(getAccessAttrs(writtenVariables, readVariables,
+                                  symbolTableCollection, equationOp))) {
     return mlir::failure();
   }
+
+  auto scheduleBlockOp = rewriter.create<ScheduleBlockOp>(
+      modelOp.getLoc(), true, writtenVariables, readVariables);
 
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
@@ -540,7 +541,7 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
             lhsGetOp.getLoc(), lhsGetOp.getVariable(), std::nullopt, rhs);
       } else {
         auto lhsTensorType =
-            lhsGetOp.getResult().getType().cast<mlir::TensorType>();
+            mlir::cast<mlir::TensorType>(lhsGetOp.getResult().getType());
 
         lhs = rewriter.create<QualifiedVariableGetOp>(
             lhsGetOp.getLoc(),
@@ -553,11 +554,11 @@ EquationExplicitationPass::cloneEquationTemplateIntoFunction(
                                                 lhsSubscripts[e - i - 1]);
         }
 
-        if (auto rhsArrayType = rhs.getType().dyn_cast<ArrayType>()) {
+        if (auto rhsArrayType = mlir::dyn_cast<ArrayType>(rhs.getType())) {
           rewriter.create<ArrayCopyOp>(equationSidesOp.getLoc(), rhs, lhs);
         } else {
           mlir::Type lhsElementType =
-              lhs.getType().cast<ArrayType>().getElementType();
+              mlir::cast<ArrayType>(lhs.getType()).getElementType();
 
           if (rhs.getType() != lhsElementType) {
             rhs = rewriter.create<CastOp>(rhs.getLoc(), lhsElementType, rhs);
@@ -632,7 +633,11 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
 mlir::LogicalResult EquationExplicitationPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
-  return mlir::applyPatternsAndFoldGreedily(modelOp, std::move(patterns));
+
+  mlir::GreedyRewriteConfig config;
+  config.fold = true;
+
+  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

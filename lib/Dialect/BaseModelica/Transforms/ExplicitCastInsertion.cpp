@@ -60,20 +60,20 @@ public:
     for (auto [arg, type] : llvm::zip(op.getArgs(), argumentTypes)) {
       mlir::Type actualType = arg.getType();
 
-      if (!actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
+      if (!mlir::isa<ArrayType>(actualType) && !mlir::isa<ArrayType>(type)) {
         continue;
       }
 
-      if (!actualType.isa<ArrayType>() && type.isa<ArrayType>()) {
+      if (!mlir::isa<ArrayType>(actualType) && mlir::isa<ArrayType>(type)) {
         return mlir::failure();
       }
 
-      if (actualType.isa<ArrayType>() && !type.isa<ArrayType>()) {
+      if (mlir::isa<ArrayType>(actualType) && !mlir::isa<ArrayType>(type)) {
         return mlir::failure();
       }
 
-      if (actualType.cast<ArrayType>().getRank() !=
-          type.cast<ArrayType>().getRank()) {
+      if (mlir::cast<ArrayType>(actualType).getRank() !=
+          mlir::cast<ArrayType>(type).getRank()) {
         return mlir::failure();
       }
     }
@@ -83,7 +83,7 @@ public:
 
     for (auto [arg, type] : llvm::zip(op.getArgs(), argumentTypes)) {
       if (arg.getType() != type) {
-        if (arg.getType().isa<ArrayType>()) {
+        if (mlir::isa<ArrayType>(arg.getType())) {
           arg = rewriter.create<ArrayCastOp>(location, type, arg);
         } else {
           arg = rewriter.create<CastOp>(location, type, arg);
@@ -113,7 +113,7 @@ struct SubscriptionOpPattern : public mlir::OpRewritePattern<SubscriptionOp> {
     llvm::SmallVector<mlir::Value, 3> indexes;
 
     for (mlir::Value index : op.getIndices()) {
-      if (!index.getType().isa<mlir::IndexType>()) {
+      if (!mlir::isa<mlir::IndexType>(index.getType())) {
         index =
             rewriter.create<CastOp>(location, rewriter.getIndexType(), index);
       }
@@ -193,13 +193,13 @@ void ExplicitCastInsertionPass::runOnOperation() {
     auto indexes = op.getIndices();
 
     return llvm::all_of(indexes, [](mlir::Value index) {
-      return index.getType().isa<mlir::IndexType>();
+      return mlir::isa<mlir::IndexType>(index.getType());
     });
   });
 
   target.addDynamicallyLegalOp<ConditionOp>([](ConditionOp op) {
     mlir::Type conditionType = op.getCondition().getType();
-    return conditionType.isa<BooleanType>();
+    return mlir::isa<BooleanType>(conditionType);
   });
 
   mlir::RewritePatternSet patterns(&getContext());

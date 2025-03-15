@@ -47,7 +47,7 @@ getTemplates(llvm::SmallVectorImpl<EquationInstanceOp> &instanceOps) {
       instancesByTemplate;
   for (EquationInstanceOp equationOp : instanceOps) {
     llvm::SmallVector<EquationInstanceOp> &group =
-        instancesByTemplate.getOrInsertDefault(equationOp.getTemplate());
+        instancesByTemplate[equationOp.getTemplate()];
     group.push_back(equationOp);
   }
   // Filter out conflicting instances.
@@ -87,7 +87,7 @@ collectCallOps(ModelOp modelOp) {
     equationTemplateWithRanges.first->walk([&](CallOp callOp) {
       // Skip functions with tensor results
       if (llvm::any_of(callOp.getResultTypes(), [](mlir::Type type) {
-            return type.isa<mlir::TensorType>();
+            return mlir::isa<mlir::TensorType>(type);
           })) {
         return;
       }

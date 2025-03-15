@@ -212,7 +212,7 @@ bool ModelLowerer::lowerVariableAttributes(
   VariableType variableType = lastVariableOp.getVariableType();
   mlir::Type elementType = variableType.getElementType();
 
-  if (auto recordType = elementType.dyn_cast<RecordType>()) {
+  if (auto recordType = mlir::dyn_cast<RecordType>(elementType)) {
     auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
 
     auto recordOp = mlir::cast<RecordOp>(

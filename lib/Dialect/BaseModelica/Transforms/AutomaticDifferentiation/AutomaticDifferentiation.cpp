@@ -204,7 +204,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   for (auto independentVariable :
        llvm::enumerate(derFunctionOp.getIndependentVars())) {
     auto independentVarName =
-        independentVariable.value().cast<mlir::StringAttr>().getValue();
+        mlir::cast<mlir::StringAttr>(independentVariable.value()).getValue();
 
     assert(baseInputVarsPositions.contains(independentVarName));
     auto independentVarPos = baseInputVarsPositions[independentVarName];
@@ -213,14 +213,14 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
       double seed = i == independentVarPos ? 1 : 0;
       auto argType = templateFunctionArgTypes[visitedTemplateArgs++];
 
-      if (seed == 1 && argType.isa<mlir::ShapedType>()) {
+      if (seed == 1 && mlir::isa<mlir::ShapedType>(argType)) {
         derFunctionOp.emitOpError()
             << "Can't compute a derivative with respect to an array";
 
         return mlir::failure();
       }
 
-      if (auto tensorType = argType.dyn_cast<mlir::TensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(argType)) {
         llvm::SmallVector<mlir::Value> dynamicSizes;
 
         for (int64_t dim = 0, rank = tensorType.getRank(); dim < rank; ++dim) {

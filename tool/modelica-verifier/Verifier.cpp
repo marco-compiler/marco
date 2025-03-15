@@ -350,7 +350,7 @@ mlir::func::FuncOp createEquationSideFunction(
     auto tensorType = mlir::RankedTensorType::get(
         variableOp.getVariableType().getShape(), builder.getF64Type());
 
-    auto stridesAndOffset = getStridesAndOffset(memRefType);
+    auto stridesAndOffset = memRefType.getStridesAndOffset();
 
     auto reinterpretOp = builder.create<mlir::memref::ReinterpretCastOp>(
         loc, memRefType,
@@ -382,7 +382,7 @@ mlir::func::FuncOp createEquationSideFunction(
       assert(variables.contains(getOp.getVariable()));
       mlir::Value mappedValue = variables.lookup(getOp.getVariable());
 
-      if (auto tensorType = getOp.getType().dyn_cast<mlir::TensorType>()) {
+      if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(getOp.getType())) {
         if (tensorType != mappedValue.getType()) {
           mappedValue = builder
                             .create<mlir::UnrealizedConversionCastOp>(

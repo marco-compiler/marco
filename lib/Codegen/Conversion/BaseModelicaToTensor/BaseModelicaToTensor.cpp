@@ -44,7 +44,7 @@ struct TensorFromElementsOpLowering
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto resultType = getTypeConverter()->convertType(op.getResult().getType());
 
-    auto resultTensorType = resultType.cast<mlir::TensorType>();
+    auto resultTensorType = mlir::cast<mlir::TensorType>(resultType);
     auto resultElementType = resultTensorType.getElementType();
 
     llvm::SmallVector<mlir::Value, 10> operands;
@@ -74,7 +74,7 @@ struct TensorBroadcastOpLowering
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto resultType = getTypeConverter()->convertType(op.getResult().getType());
 
-    auto resultTensorType = resultType.cast<mlir::TensorType>();
+    auto resultTensorType = mlir::cast<mlir::TensorType>(resultType);
     auto resultElementType = resultTensorType.getElementType();
 
     mlir::Value operand = adaptor.getValue();
@@ -106,22 +106,22 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
     llvm::SmallVector<int64_t, 10> resultShape;
 
     for (mlir::Value subscript : adaptor.getSubscriptions()) {
-      if (subscript.getType().isa<RangeType>()) {
+      if (mlir::isa<RangeType>(subscript.getType())) {
         mlir::Value begin = rewriter.create<RangeBeginOp>(loc, subscript);
         mlir::Value size = rewriter.create<RangeSizeOp>(loc, subscript);
         mlir::Value step = rewriter.create<RangeStepOp>(loc, subscript);
 
-        if (!begin.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(begin.getType())) {
           begin = rewriter.create<CastOp>(begin.getLoc(),
                                           rewriter.getIndexType(), begin);
         }
 
-        if (!size.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(size.getType())) {
           size = rewriter.create<CastOp>(size.getLoc(), rewriter.getIndexType(),
                                          size);
         }
 
-        if (!step.getType().isa<mlir::IndexType>()) {
+        if (!mlir::isa<mlir::IndexType>(step.getType())) {
           step = rewriter.create<CastOp>(step.getLoc(), rewriter.getIndexType(),
                                          step);
         }
@@ -141,7 +141,7 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
         static_cast<int64_t>(adaptor.getSubscriptions().size());
 
     auto sourceTensorType =
-        adaptor.getSource().getType().cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(adaptor.getSource().getType());
 
     int64_t sourceRank = sourceTensorType.getRank();
 
@@ -166,7 +166,7 @@ struct TensorViewOpLowering : public mlir::OpConversionPattern<TensorViewOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     auto resultType = requestedResultTensorType.clone(
         resultShape, requestedResultTensorType.getElementType());
@@ -195,7 +195,7 @@ struct TensorExtractOpLowering
     llvm::SmallVector<mlir::Value, 10> indices;
 
     for (mlir::Value index : adaptor.getIndices()) {
-      if (!index.getType().isa<mlir::IndexType>()) {
+      if (!mlir::isa<mlir::IndexType>(index.getType())) {
         index = rewriter.create<CastOp>(loc, rewriter.getIndexType(), index);
       }
 
@@ -227,7 +227,7 @@ struct TensorInsertOpLowering
     mlir::Location loc = op.getLoc();
 
     mlir::Value tensor = adaptor.getDestination();
-    auto tensorType = tensor.getType().cast<mlir::TensorType>();
+    auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
     mlir::Type elementType = tensorType.getElementType();
 
     mlir::Value value = adaptor.getValue();
@@ -239,7 +239,7 @@ struct TensorInsertOpLowering
     llvm::SmallVector<mlir::Value, 10> indices;
 
     for (mlir::Value index : adaptor.getIndices()) {
-      if (!index.getType().isa<mlir::IndexType>()) {
+      if (!mlir::isa<mlir::IndexType>(index.getType())) {
         index = rewriter.create<CastOp>(loc, rewriter.getIndexType(), index);
       }
 
@@ -274,7 +274,8 @@ struct TensorInsertSliceOpLowering
 
     mlir::Value destination = adaptor.getDestination();
 
-    auto destinationTensorType = destination.getType().cast<mlir::TensorType>();
+    auto destinationTensorType =
+        mlir::cast<mlir::TensorType>(destination.getType());
 
     auto subscriptions = adaptor.getSubscriptions();
     size_t numOfSubscriptions = subscriptions.size();
@@ -291,7 +292,7 @@ struct TensorInsertSliceOpLowering
     // obtain it at runtime.
     auto getDimSizeFn = [&](mlir::Value tensor,
                             int64_t dim) -> mlir::OpFoldResult {
-      auto tensorType = tensor.getType().cast<mlir::TensorType>();
+      auto tensorType = mlir::cast<mlir::TensorType>(tensor.getType());
       assert(dim < tensorType.getRank());
 
       if (auto dimSize = tensorType.getDimSize(dim);
@@ -311,13 +312,13 @@ struct TensorInsertSliceOpLowering
       if (subscriptionsIndex < numOfSubscriptions) {
         mlir::Value subscription = subscriptions[subscriptionsIndex];
 
-        if (subscription.getType().isa<RangeType>()) {
+        if (mlir::isa<RangeType>(subscription.getType())) {
           // The offset is either the begin or the end of the range,
           // depending on the step value.
           // The size is given by the source dimension size.
           // The stride is given by the step.
           assert(sourceDimension <
-                 source.getType().cast<mlir::TensorType>().getRank());
+                 mlir::cast<mlir::TensorType>(source.getType()).getRank());
 
           mlir::Value beginValue =
               rewriter.create<RangeBeginOp>(loc, subscription);
@@ -352,7 +353,7 @@ struct TensorInsertSliceOpLowering
         // The remaining dimensions are copied from the source into the
         // destination.
         assert(sourceDimension <
-               source.getType().cast<mlir::TensorType>().getRank());
+               mlir::cast<mlir::TensorType>(source.getType()).getRank());
 
         offsets.push_back(rewriter.getI64IntegerAttr(0));
         sizes.push_back(getDimSizeFn(source, sourceDimension++));
@@ -374,7 +375,8 @@ struct NDimsOpLowering : public mlir::OpConversionPattern<NDimsOp> {
   matchAndRewrite(NDimsOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = op.getLoc();
-    auto tensorType = adaptor.getArray().getType().cast<mlir::TensorType>();
+    auto tensorType =
+        mlir::cast<mlir::TensorType>(adaptor.getArray().getType());
 
     mlir::Value result = rewriter.create<mlir::arith::ConstantOp>(
         loc, rewriter.getIndexAttr(tensorType.getRank()));
@@ -406,7 +408,7 @@ struct SizeOpDimensionLowering : public mlir::OpConversionPattern<SizeOp> {
 
     mlir::Value index = op.getDimension();
 
-    if (!index.getType().isa<mlir::IndexType>()) {
+    if (!mlir::isa<mlir::IndexType>(index.getType())) {
       index = rewriter.create<CastOp>(loc, rewriter.getIndexType(), index);
     }
 
@@ -442,7 +444,7 @@ struct SizeOpArrayLowering : public mlir::OpConversionPattern<SizeOp> {
         getTypeConverter()->convertType(op.getResult().getType());
 
     auto requestedResultTensorType =
-        requestedResultType.cast<mlir::TensorType>();
+        mlir::cast<mlir::TensorType>(requestedResultType);
 
     mlir::Type requestedResultElementType =
         requestedResultTensorType.getElementType();
