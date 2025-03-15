@@ -60,7 +60,6 @@ TEST(GraphDumper, dump_vprinter_only) {
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto edgeAB = graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 

@@ -316,8 +316,6 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
 
     for (auto variableDescriptor : llvm::make_range(baseGraph->verticesBegin(),
                                                     baseGraph->verticesEnd())) {
-      const auto &variable = (*baseGraph)[variableDescriptor];
-
       for (auto dependencyDescriptor :
            llvm::make_range(baseGraph->linkedVerticesBegin(variableDescriptor),
                             baseGraph->linkedVerticesEnd(variableDescriptor))) {
