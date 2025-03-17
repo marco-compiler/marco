@@ -3,17 +3,15 @@
 #include "llvm/ADT/StringRef.h"
 #include "gtest/gtest.h"
 #include <llvm/Support/raw_ostream.h>
-#include <typeinfo>
 
 using namespace marco::modeling::internal;
 
 TEST(GraphDumperMermaidBackend, dump_vprinter_only) {
-
   DirectedGraph<char, int> graph{};
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto edgeAB = graph.addEdge(nodeA, nodeB, 2);
+  graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 
@@ -28,12 +26,11 @@ TEST(GraphDumperMermaidBackend, dump_vprinter_only) {
 }
 
 TEST(GraphDumperMermaidBackend, dump_vprinter_eprinter) {
-
   DirectedGraph<char, int> graph{};
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto edgeAB = graph.addEdge(nodeA, nodeB, 2);
+  graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 

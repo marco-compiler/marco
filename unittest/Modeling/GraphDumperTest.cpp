@@ -1,7 +1,6 @@
 #include "marco/Modeling/GraphDumper.h"
 #include "marco/Modeling/Graph.h"
 #include "llvm/ADT/StringRef.h"
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <llvm/Support/raw_ostream.h>
 #include <typeinfo>
@@ -55,12 +54,11 @@ private:
 };
 
 TEST(GraphDumper, dump_vprinter_only) {
-
   DirectedGraph<char, int> graph{};
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto edgeAB = graph.addEdge(nodeA, nodeB, 2);
+  graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 
@@ -75,12 +73,11 @@ TEST(GraphDumper, dump_vprinter_only) {
 }
 
 TEST(GraphDumper, dump_both_printers) {
-
   DirectedGraph<char, int> graph{};
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto _ = graph.addEdge(nodeA, nodeB, 2);
+  graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 
@@ -175,7 +172,7 @@ TEST(GraphDumper, variadic) {
 
   auto nodeA = graph.addVertex('a');
   auto nodeB = graph.addVertex('b');
-  auto _ = graph.addEdge(nodeA, nodeB, 2);
+  graph.addEdge(nodeA, nodeB, 2);
 
   auto vprinter = [](char v, llvm::raw_ostream &os) { os << v; };
 
