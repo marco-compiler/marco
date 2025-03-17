@@ -11,9 +11,6 @@ DimensionAccessRange::DimensionAccessRange(mlir::MLIRContext *context,
 DimensionAccessRange::DimensionAccessRange(const DimensionAccessRange &other) =
     default;
 
-DimensionAccessRange::DimensionAccessRange(
-    DimensionAccessRange &&other) noexcept = default;
-
 DimensionAccessRange::~DimensionAccessRange() = default;
 
 DimensionAccessRange &
@@ -22,9 +19,6 @@ DimensionAccessRange::operator=(const DimensionAccessRange &other) {
   swap(*this, result);
   return *this;
 }
-
-DimensionAccessRange &DimensionAccessRange::operator=(
-    DimensionAccessRange &&other) noexcept = default;
 
 void swap(DimensionAccessRange &first, DimensionAccessRange &second) {
   using std::swap;

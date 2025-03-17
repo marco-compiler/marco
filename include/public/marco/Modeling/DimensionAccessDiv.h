@@ -12,13 +12,9 @@ public:
 
   DimensionAccessDiv(const DimensionAccessDiv &other);
 
-  DimensionAccessDiv(DimensionAccessDiv &&other) noexcept;
-
   ~DimensionAccessDiv() override;
 
   DimensionAccessDiv &operator=(const DimensionAccessDiv &other);
-
-  DimensionAccessDiv &operator=(DimensionAccessDiv &&other) noexcept;
 
   friend void swap(DimensionAccessDiv &first, DimensionAccessDiv &second);
 

@@ -11,13 +11,9 @@ public:
 
   DimensionAccessRange(const DimensionAccessRange &other);
 
-  DimensionAccessRange(DimensionAccessRange &&other) noexcept;
-
   ~DimensionAccessRange() override;
 
   DimensionAccessRange &operator=(const DimensionAccessRange &other);
-
-  DimensionAccessRange &operator=(DimensionAccessRange &&other) noexcept;
 
   friend void swap(DimensionAccessRange &first, DimensionAccessRange &second);
 

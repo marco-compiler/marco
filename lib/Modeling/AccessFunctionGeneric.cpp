@@ -37,9 +37,6 @@ AccessFunctionGeneric::AccessFunctionGeneric(const AccessFunctionGeneric &other)
   }
 }
 
-AccessFunctionGeneric::AccessFunctionGeneric(AccessFunctionGeneric &&other) =
-    default;
-
 AccessFunctionGeneric::~AccessFunctionGeneric() = default;
 
 AccessFunctionGeneric &
@@ -48,9 +45,6 @@ AccessFunctionGeneric::operator=(const AccessFunctionGeneric &other) {
   swap(*this, result);
   return *this;
 }
-
-AccessFunctionGeneric &
-AccessFunctionGeneric::operator=(AccessFunctionGeneric &&other) = default;
 
 void swap(AccessFunctionGeneric &first, AccessFunctionGeneric &second) {
   using std::swap;

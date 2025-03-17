@@ -20,13 +20,9 @@ protected:
 public:
   AccessFunctionGeneric(const AccessFunctionGeneric &other);
 
-  AccessFunctionGeneric(AccessFunctionGeneric &&other);
-
   ~AccessFunctionGeneric() override;
 
   AccessFunctionGeneric &operator=(const AccessFunctionGeneric &other);
-
-  AccessFunctionGeneric &operator=(AccessFunctionGeneric &&other);
 
   friend void swap(AccessFunctionGeneric &first, AccessFunctionGeneric &second);
 
