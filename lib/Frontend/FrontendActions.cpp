@@ -688,8 +688,12 @@ bool CodeGenAction::generateMLIRLLVM() {
   mlir::PassManager pm(&getMLIRContext());
   CompilerInstance &ci = getInstance();
 
-  // Enable verification.
+  // Enable verification in case of a debug build.
+#ifdef NDEBUG
+  pm.enableVerifier(false);
+#else
   pm.enableVerifier(true);
+#endif
 
   // If requested, print the statistics.
   if (ci.getFrontendOptions().printStatistics) {
