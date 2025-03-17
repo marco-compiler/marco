@@ -738,6 +738,10 @@ IndexSet ListIndexSet::intersect(const IndexSet::Impl &other) const {
 
   IndexSet result;
 
+  if (other.empty()) {
+    return result;
+  }
+
   for (const MultidimensionalRange &range1 : ranges) {
     for (const MultidimensionalRange &range2 :
          llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
@@ -752,6 +756,10 @@ IndexSet ListIndexSet::intersect(const IndexSet::Impl &other) const {
 
 IndexSet ListIndexSet::intersect(const ListIndexSet &other) const {
   IndexSet result;
+
+  if (other.empty()) {
+    return result;
+  }
 
   for (const MultidimensionalRange &range1 : ranges) {
     for (const MultidimensionalRange &range2 : other.ranges) {

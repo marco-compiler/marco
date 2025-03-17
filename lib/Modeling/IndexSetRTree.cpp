@@ -1241,7 +1241,7 @@ IndexSet RTreeIndexSet::intersect(const IndexSet::Impl &other) const {
 
   IndexSet result;
 
-  if (root == nullptr) {
+  if (root == nullptr || other.empty()) {
     return result;
   }
 
@@ -1256,7 +1256,7 @@ IndexSet RTreeIndexSet::intersect(const IndexSet::Impl &other) const {
 IndexSet RTreeIndexSet::intersect(const RTreeIndexSet &other) const {
   IndexSet result;
 
-  if (root == nullptr) {
+  if (root == nullptr || other.empty()) {
     return result;
   }
 
