@@ -236,9 +236,23 @@ public:
           cachedWriteAccesses[equationDescriptor].push_back(std::move(access));
         }
 
+        // Prefer affine write access functions.
+        llvm::sort(cachedWriteAccesses[equationDescriptor],
+                   [](const Access &first, const Access &second) {
+                     return first.getAccessFunction().isAffine() &&
+                            !second.getAccessFunction().isAffine();
+                   });
+
         for (auto &access : equation.getReads()) {
           cachedReadAccesses[equationDescriptor].push_back(std::move(access));
         }
+
+        // Prefer invertible read access functions.
+        llvm::sort(cachedWriteAccesses[equationDescriptor],
+                   [](const Access &first, const Access &second) {
+                     return first.getAccessFunction().isInvertible() &&
+                            !second.getAccessFunction().isInvertible();
+                   });
       }
 
       llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
@@ -387,141 +401,154 @@ private:
       Path path) const {
     llvm::SmallVector<Path> newCycles;
 
-    // Explore the current equation accesses.
-    const auto &currentEquationWriteAccesses = cachedWriteAccesses[equation];
-    const auto &currentEquationReadAccesses = cachedReadAccesses[equation];
+    // Visit all the write accesses. When the indices of the equation get
+    // restricted, the written indices may differ and even not overlap anymore.
+    // We keep track of the visited indices to avoid going through access
+    // functions that would lead to the same cycles.
+    IndexSet visitedWrittenIndices;
 
-    // Prefer affine access functions.
-    const Access &currentEquationWriteAccess = getAccessWithProperty(
-        currentEquationWriteAccesses, [](const Access &access) {
-          return access.getAccessFunction().isAffine();
-        });
+    for (const Access &currentEquationWriteAccess :
+         cachedWriteAccesses[equation]) {
+      IndexSet currentEquationWrittenIndices =
+          currentEquationWriteAccess.getAccessFunction().map(equationIndices);
 
-    IndexSet currentEquationWrittenIndices =
-        currentEquationWriteAccess.getAccessFunction().map(equationIndices);
+      if (visitedWrittenIndices.contains(currentEquationWrittenIndices)) {
+        continue;
+      }
 
-    for (const Access &readAccess : currentEquationReadAccesses) {
-      const auto &accessFunction = readAccess.getAccessFunction();
-      auto readVariableIndices = accessFunction.map(equationIndices);
+      visitedWrittenIndices += currentEquationWrittenIndices;
 
-      auto writingEquations = writesMap.equal_range(readAccess.getVariable());
+      // The set of read accesses needs to be recomputed according to the
+      // current write access being considered. Restrict the set of indices
+      // considered for the equation may indeed lead some write accesses to
+      // become read accesses. For example, consider the accesses x[i] and
+      // x[10 - i], and the original equation indices [0 to 10]. In this case,
+      // both the accesses write to the indices [0 to 10] of x. However, if the
+      // indices get restricted to [3, 5], they would respectively access
+      // x[3 to 5] and x[7 to 5]. When considering the first access as a write
+      // access, the second access should be considered a write access for the
+      // equation indices [5 to 5], which lead to x[5], while it should be
+      // considered as a read access for the equation indices [3 to 4], which
+      // lead to x[7 to 6].
 
-      for (const auto &[variableId, writeInfo] :
-           llvm::make_range(writingEquations.first, writingEquations.second)) {
-        const IndexSet &writtenVariableIndices =
-            writeInfo.getWrittenVariableIndexes();
+      llvm::SmallVector<Access> currentEquationReadAccesses;
 
-        // If the ranges do not overlap, then there is no loop involving
-        // the writing equation.
-        if (!readVariableIndices.overlaps(writtenVariableIndices)) {
-          continue;
+      // The original read accesses remain read accesses. At most, they access
+      // to a reduced set of indices, but they will not overlap with written
+      // indices.
+      llvm::append_range(currentEquationReadAccesses,
+                         cachedReadAccesses[equation]);
+
+      // Write accesses, on the contrary, may overlap.
+      for (const Access &access : cachedWriteAccesses[equation]) {
+        IndexSet accessedVariableIndices =
+            access.getAccessFunction().map(equationIndices);
+
+        IndexSet remainingIndices =
+            accessedVariableIndices - currentEquationWrittenIndices;
+
+        if (!remainingIndices.empty()) {
+          currentEquationReadAccesses.push_back(access);
+        }
+      }
+
+      for (const Access &readAccess : currentEquationReadAccesses) {
+        IndexSet readVariableIndices =
+            readAccess.getAccessFunction().map(equationIndices);
+
+        if (readAccess.getVariable() ==
+            currentEquationWriteAccess.getVariable()) {
+          // Ensure that the written indices are excluded in case of read
+          // accesses obtained from write accesses as a consequence of indices
+          // restriction.
+          readVariableIndices -= currentEquationWrittenIndices;
         }
 
-        // Determine the indices of the writing equation that lead to the
-        // requested access.
-        auto variableIndicesIntersection =
-            readVariableIndices.intersect(writtenVariableIndices);
+        auto writingEquations = writesMap.equal_range(readAccess.getVariable());
 
-        EquationDescriptor writingEquation = writeInfo.getEquation();
+        for (const auto &[variableId, writeInfo] :
+             llvm::make_range(writingEquations)) {
+          EquationDescriptor writingEquation = writeInfo.getEquation();
 
-        IndexSet allWritingEquationIndices(
-            arrayDependencyGraph.getEquation(writingEquation)
-                .getIterationRanges());
+          const IndexSet &writtenVariableIndices =
+              writeInfo.getWrittenVariableIndexes();
 
-        const auto &writingEquationWriteAccesses =
-            cachedWriteAccesses[writingEquation];
-
-        // Prefer invertible access functions.
-        const Access &writingEquationWriteAccess = getAccessWithProperty(
-            writingEquationWriteAccesses, [](const Access &access) {
-              return access.getAccessFunction().isInvertible();
-            });
-
-        const AccessFunction &writingEquationAccessFunction =
-            writingEquationWriteAccess.getAccessFunction();
-
-        IndexSet usedWritingEquationIndices =
-            writingEquationAccessFunction.inverseMap(
-                variableIndicesIntersection, allWritingEquationIndices);
-
-        // Avoid visiting the same indices multiple times.
-        usedWritingEquationIndices -= visitedEquationIndices[writingEquation];
-
-        if (usedWritingEquationIndices.empty()) {
-          continue;
-        }
-
-        Path extendedPath =
-            path + PathDependency(equation, equationIndices,
-                                  currentEquationWriteAccess,
-                                  currentEquationWrittenIndices, readAccess,
-                                  readVariableIndices);
-
-        restrictPathIndices(extendedPath);
-
-        if (auto pathLength = extendedPath.size(); pathLength > 1) {
-          // Search along the restricted path if the current equation has
-          // already been visited with some of the current indices.
-          auto dependencyIt = llvm::find_if(
-              extendedPath, [&](const PathDependency &dependency) {
-                if (dependency.equation != writingEquation) {
-                  return false;
-                }
-
-                return dependency.equationIndices.overlaps(
-                    usedWritingEquationIndices);
-              });
-
-          if (dependencyIt != extendedPath.end()) {
-            // Check if the path involves more than one array equation.
-            bool isSelfLoop = std::all_of(
-                dependencyIt, extendedPath.end(),
-                [&](const PathDependency &dependency) {
-                  return dependency.equation == extendedPath.begin()->equation;
-                });
-
-            if (!isSelfLoop) {
-              Path cycle;
-
-              for (auto it = dependencyIt; it != extendedPath.end(); ++it) {
-                cycle = cycle + std::move(*it);
-              }
-
-              cycles.push_back(cycle);
-            }
-
+          // If the ranges do not overlap, then there is no loop involving
+          // the writing equation.
+          if (!readVariableIndices.overlaps(writtenVariableIndices)) {
             continue;
           }
+
+          // The indices of the read variable that are also written by the
+          // identified writing equation.
+          auto variableIndicesIntersection =
+              readVariableIndices.intersect(writtenVariableIndices);
+
+          // Determine the indices of the writing equation that lead to the
+          // requested access.
+          IndexSet writingEquationIndices = getWritingEquationIndices(
+              writingEquation, cachedWriteAccesses[writingEquation],
+              variableIndicesIntersection);
+
+          // Avoid visiting the same indices multiple times.
+          writingEquationIndices -= visitedEquationIndices[writingEquation];
+
+          if (writingEquationIndices.empty()) {
+            continue;
+          }
+
+          // Append the current equation to the traversal path.
+          Path extendedPath =
+              path + PathDependency(equation, equationIndices,
+                                    currentEquationWriteAccess,
+                                    currentEquationWrittenIndices, readAccess,
+                                    variableIndicesIntersection);
+
+          // Visit the path backwards and restrict the equation indices, if
+          // necessary.
+          restrictPathIndices(extendedPath);
+
+          // Check if the writing equation leads to a cycle.
+          if (auto cycle = extractCycleIfAny(extendedPath, writingEquation,
+                                             writingEquationIndices)) {
+            newCycles.push_back(std::move(*cycle));
+            continue;
+          }
+
+          getEquationsCycles(newCycles, writesMap, cachedWriteAccesses,
+                             cachedReadAccesses, visitedEquationIndices,
+                             writingEquation, writingEquationIndices,
+                             std::move(extendedPath));
+        }
+      }
+
+      for (Path &cycle : newCycles) {
+        for (const PathDependency &pathDependency : cycle) {
+          visitedEquationIndices[pathDependency.equation] +=
+              pathDependency.equationIndices;
         }
 
-        getEquationsCycles(newCycles, writesMap, cachedWriteAccesses,
-                           cachedReadAccesses, visitedEquationIndices,
-                           writingEquation, usedWritingEquationIndices,
-                           std::move(extendedPath));
+        cycles.push_back(std::move(cycle));
       }
-    }
-
-    for (Path &cycle : newCycles) {
-      for (const PathDependency &pathDependency : cycle) {
-        visitedEquationIndices[pathDependency.equation] +=
-            pathDependency.equationIndices;
-      }
-
-      cycles.push_back(std::move(cycle));
     }
   }
 
-  const Access &getAccessWithProperty(
-      llvm::ArrayRef<Access> accesses,
-      std::function<bool(const Access &)> preferenceFn) const {
-    assert(!accesses.empty());
-    auto it = llvm::find_if(accesses, preferenceFn);
+  /// Compute the indices of an equation that lead to a write to the given
+  /// indices of a variable.
+  IndexSet getWritingEquationIndices(EquationDescriptor equation,
+                                     llvm::ArrayRef<Access> writeAccesses,
+                                     const IndexSet &variableIndices) const {
+    IndexSet allEquationIndices(
+        arrayDependencyGraph.getEquation(equation).getIterationRanges());
 
-    if (it == accesses.end()) {
-      it = accesses.begin();
+    IndexSet writingEquationIndices;
+
+    for (const Access &access : writeAccesses) {
+      writingEquationIndices += access.getAccessFunction().inverseMap(
+          variableIndices, allEquationIndices);
     }
 
-    return *it;
+    return writingEquationIndices;
   }
 
   void restrictPathIndices(Path &path) const {
@@ -559,6 +586,45 @@ private:
 
       prevIt = it;
     }
+  }
+
+  std::optional<Path>
+  extractCycleIfAny(const Path &path, EquationDescriptor nextEquation,
+                    const IndexSet &nextEquationIndices) const {
+    if (auto length = path.size(); length <= 1) {
+      return std::nullopt;
+    }
+
+    // Search along the restricted path if the next equation has
+    // already been visited with some of the given indices.
+    auto dependencyIt =
+        llvm::find_if(path, [&](const PathDependency &dependency) {
+          if (dependency.equation != nextEquation) {
+            return false;
+          }
+
+          return dependency.equationIndices.overlaps(nextEquationIndices);
+        });
+
+    if (dependencyIt != path.end()) {
+      // Check if the path involves more than one array equation.
+      bool isSelfLoop = std::all_of(
+          dependencyIt, path.end(), [&](const PathDependency &dependency) {
+            return dependency.equation == path.begin()->equation;
+          });
+
+      if (!isSelfLoop) {
+        Path cycle;
+
+        for (auto it = dependencyIt; it != path.end(); ++it) {
+          cycle = cycle + std::move(*it);
+        }
+
+        return cycle;
+      }
+    }
+
+    return std::nullopt;
   }
 };
 } // namespace marco::modeling
