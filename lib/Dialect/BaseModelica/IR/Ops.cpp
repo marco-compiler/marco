@@ -7935,7 +7935,7 @@ mlir::LogicalResult EquationTemplateOp::getWriteAccesses(
 
     if (matchedVariable.indices.empty() && accessedVariableIndices.empty()) {
       result.push_back(access);
-    } else if (matchedVariable.indices.overlaps(accessedVariableIndices)) {
+    } else if (matchedVariable.indices.contains(accessedVariableIndices)) {
       result.push_back(access);
     }
   }
