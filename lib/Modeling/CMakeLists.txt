@@ -19,6 +19,7 @@ set(SOURCES
     DimensionAccessSub.cpp
     Dumpable.cpp
     Graph.cpp
+    IndexReduction.cpp
     IndexSet.cpp
     IndexSetList.cpp
     IndexSetRTree.cpp
