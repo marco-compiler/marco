@@ -1,4 +1,3 @@
-#include <functional>
 #define DEBUG_TYPE "index-reduction"
 
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
@@ -36,14 +35,9 @@ private:
   std::optional<std::reference_wrapper<VariableAccessAnalysis>>
   getVariableAccessAnalysis(EquationTemplateOp equationTemplate,
                             mlir::SymbolTableCollection &symbolTableCollection);
-
-  void pantelides();
-
-  bool augmenPath();
 };
 } // namespace
 
-using IndexReductionGraph = marco::modeling::IndexReductionGraph;
 using VariableBridge = mlir::bmodelica::bridge::VariableBridge;
 using EquationBridge = mlir::bmodelica::bridge::EquationBridge;
 
@@ -54,16 +48,16 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   modelOp.collectInitialEquations(initialEquations);
   modelOp.collectMainEquations(mainEquations);
 
-  IndexReductionGraph graph;
+  marco::modeling::IndexReductionGraph graph;
 
   mlir::SymbolTableCollection symbolTableCollection;
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
-    auto &bridge = variableBridges.emplace_back(
-        VariableBridge::build(variableOp));
+    auto &bridge =
+        variableBridges.emplace_back(VariableBridge::build(variableOp));
     graph.addVariable(bridge.get());
     variablesMap[bridge->name] = bridge.get();
   }
@@ -84,6 +78,8 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
     graph.addEquation(bridge.get());
   }
 
+  graph.setDerivatives(modelOp.getProperties().getDerivativesMap());
+
   LLVM_DEBUG(graph.dump(llvm::dbgs()));
 
   // For now, only handle main + scalar equations
@@ -97,8 +93,6 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   return mlir::success();
 }
 
-void IndexReductionPass::pantelides() {}
-
 void IndexReductionPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
   walkClasses(getOperation(), [&](mlir::Operation *op) {
@@ -109,13 +103,13 @@ void IndexReductionPass::runOnOperation() {
 
   auto handleModel = [&](mlir::Operation *op) {
     auto modelOp = mlir::cast<ModelOp>(op);
-    //LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
+    // LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
     if (mlir::failed(processModelOp(modelOp))) {
       return mlir::failure();
     }
 
-    //LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
+    // LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
     return mlir::success();
   };

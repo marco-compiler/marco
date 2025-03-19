@@ -1,6 +1,7 @@
 #ifndef MARCO_MODELING_INDEXREDUCTION_H
 #define MARCO_MODELING_INDEXREDUCTION_H
 
+#include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/EquationPath.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/EquationBridge.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
@@ -10,11 +11,11 @@
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "mlir/Dialect/Linalg/Utils/Utils.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include <variant>
-#include <vector>
 
 namespace marco::modeling {
 
@@ -58,6 +59,12 @@ public:
         accessFunction(other.accessFunction->clone()),
         equationPath(other.equationPath) {}
 
+  Access& operator=(Access&& other) noexcept {
+    Access tmp(std::move(other));
+    std::swap(*this, tmp);
+    return *this;
+  }
+
   ~Access() = default;
 
   VariableVertex::Id getVariableId() const { return variableId; }
@@ -70,9 +77,9 @@ public:
   const EquationPath &getEquationPath() const { return equationPath; }
 
 private:
-  const VariableVertex::Id variableId;
-  const std::unique_ptr<AccessFunction> accessFunction;
-  const EquationPath equationPath;
+  VariableVertex::Id variableId;
+  std::unique_ptr<AccessFunction> accessFunction;
+  EquationPath equationPath;
 };
 
 class EquationVertex final : public Dumpable {
@@ -101,7 +108,7 @@ public:
     return iterationSpace;
   }
 
-  std::vector<Access> getVariableAccesses() const {
+  llvm::SmallVector<Access> getVariableAccesses() const {
     if (bridge->hasAccessAnalysis()) {
       if (auto cachedAccesses = bridge->getAccessAnalysis().getAccesses(
               bridge->getSymbolTableCollection())) {
@@ -118,10 +125,10 @@ public:
     llvm_unreachable("Can't compute the accesses");
   }
 
-  static std::vector<Access> convertAccesses(
+  static llvm::SmallVector<Access> convertAccesses(
       const Bridge *bridge,
       const llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses) {
-    std::vector<Access> result;
+    llvm::SmallVector<Access> result;
     for (const auto &access : accesses) {
       auto accessFunction =
           convertAccessFunction(bridge->getOp().getContext(), access);
@@ -206,6 +213,23 @@ private:
   using EquationIterator = Graph::FilteredVertexIterator;
 
   template <typename VertexType>
+  VertexType &getVertexFromDescriptor(const VertexDescriptor descriptor) {
+    Vertex &vertex = graph[descriptor];
+    assert(std::holds_alternative<VertexType>(vertex) &&
+           "Invalid vertex type for descriptor");
+    return std::get<VertexType>(vertex);
+  }
+
+  template <typename VertexType>
+  const VertexType &
+  getVertexFromDescriptor(const VertexDescriptor descriptor) const {
+    const Vertex &vertex = graph[descriptor];
+    assert(std::holds_alternative<VertexType>(vertex) &&
+           "Invalid vertex type for descriptor");
+    return std::get<VertexType>(vertex);
+  }
+
+  template <typename VertexType>
   auto getDescriptorRange() const {
     auto filter = [](const Vertex &vertex) -> bool {
       return std::holds_alternative<VertexType>(vertex);
@@ -214,37 +238,20 @@ private:
                             graph.verticesEnd(filter));
   }
 
+  template <typename VertexType>
+  auto getVertexRange() const {
+    return llvm::map_range(
+        getDescriptorRange<VertexType>(), [&](auto descriptor) {
+          return std::ref(getVertexFromDescriptor<VertexType>(descriptor));
+        });
+  }
+
   auto edgesRange(VertexDescriptor vertex) const {
     return llvm::make_range(graph.outgoingEdgesBegin(vertex),
                             graph.outgoingEdgesEnd(vertex));
   }
 
 public:
-  using Dumpable::dump;
-  void dump(llvm::raw_ostream &os) const override {
-    os << "-----\n" << "Index Reduction Graph:\n";
-
-    os << " Variables:\n";
-    for (const auto &descriptor : getDescriptorRange<Variable>()) {
-      const auto &variable = getVariableFromDescriptor(descriptor);
-      os << "  ";
-      variable.dump(os);
-      os << "\n";
-    }
-
-    os << " Equations:\n";
-    for (const auto &descriptor : getDescriptorRange<Equation>()) {
-      const auto &equation = getEquationFromDescriptor(descriptor);
-      os << "  ";
-      equation.dump(os);
-      os << "\n";
-      for (const auto &edgeDescriptor : edgesRange(descriptor)) {
-        graph[edgeDescriptor].dump(os);
-      }
-    }
-    os << "-----\n";
-  };
-
   void addVariable(Variable::Bridge *variableBridge) {
     Variable variable(variableBridge);
     auto id = variable.getId();
@@ -255,18 +262,20 @@ public:
 
   void addEquation(Equation::Bridge *equationBridge) {
     Equation eq(equationBridge);
-    auto id = eq.getId();
+    Equation::Id id = eq.getId();
     assert(!hasEquationWithId(id) && "Already existing equation");
     VertexDescriptor equationDescriptor = graph.addVertex(std::move(eq));
     equationsMap[id] = equationDescriptor;
 
-    Equation &equation = getEquationFromDescriptor(equationDescriptor);
+    const Equation &equation =
+        getVertexFromDescriptor<Equation>(equationDescriptor);
     IndexSet equationRanges = equation.getIterationRanges();
 
     for (const auto &access : equation.getVariableAccesses()) {
       VertexDescriptor variableDescriptor =
           getVariableDescriptorFromId(access.getVariableId());
-      Variable &variable = getVariableFromDescriptor(variableDescriptor);
+      const Variable &variable =
+          getVertexFromDescriptor<Variable>(variableDescriptor);
 
       IndexSet indices = variable.getIndices().getCanonicalRepresentation();
 
@@ -279,26 +288,67 @@ public:
     }
   }
 
+  void setDerivatives(const mlir::bmodelica::DerivativesMap &derivativesMap) {
+    for (const VertexDescriptor &variableDescriptor :
+         getDescriptorRange<Variable>()) {
+      const Variable &variable =
+          getVertexFromDescriptor<Variable>(variableDescriptor);
+
+      if (auto derivativeId = derivativesMap.getDerivative(variable.getId())) {
+
+        IndexSet indices;
+        if (auto subIndices = derivativesMap.getDerivedIndices(variable.getId())) {
+          indices = *subIndices;
+        } else {
+          indices = variable.getIndices();
+        }
+
+        variableAssociations.insert({
+            variable.getId(),
+            std::make_pair(*derivativeId, indices),
+        });
+      }
+    }
+  }
+
+  using Dumpable::dump;
+
+  void dump(llvm::raw_ostream &os) const override {
+    os << "-----\n" << "Index Reduction Graph:\n";
+
+    os << " Variables:\n";
+    for (const Variable &variable : getVertexRange<Variable>()) {
+      os << "  ";
+      variable.dump(os);
+      if (auto derivative = getDerivative(variable.getId())) {
+        os << " -> ";
+        os << "Derivative(id: " << derivative->first << ")";
+        os << " with indices: ";
+        derivative->second.dump(os);
+      }
+      os << "\n";
+    }
+
+    os << " Equations:\n";
+    for (const VertexDescriptor &descriptor : getDescriptorRange<Equation>()) {
+      const Equation &equation = getVertexFromDescriptor<Equation>(descriptor);
+      os << "  ";
+      equation.dump(os);
+      os << "\n";
+      for (const EdgeDescriptor &edgeDescriptor : edgesRange(descriptor)) {
+        graph[edgeDescriptor].dump(os);
+      }
+    }
+    os << "-----\n";
+  };
+
 private:
   bool hasVariableWithId(const Variable::Id id) const {
     return variablesMap.find(id) != variablesMap.end();
   }
 
-  bool isVariable(const VertexDescriptor vertex) const {
-    return std::holds_alternative<Variable>(graph[vertex]);
-  }
-
-  Variable &getVariableFromDescriptor(const VertexDescriptor descriptor) {
-    Vertex &vertex = graph[descriptor];
-    assert(std::holds_alternative<Variable>(vertex));
-    return std::get<Variable>(vertex);
-  }
-
-  const Variable &
-  getVariableFromDescriptor(const VertexDescriptor descriptor) const {
-    const Vertex &vertex = graph[descriptor];
-    assert(std::holds_alternative<Variable>(vertex));
-    return std::get<Variable>(vertex);
+  bool hasEquationWithId(const Equation::Id id) const {
+    return equationsMap.find(id) != equationsMap.end();
   }
 
   VertexDescriptor getVariableDescriptorFromId(const Variable::Id id) const {
@@ -307,31 +357,33 @@ private:
     return it->second;
   }
 
-  bool hasEquationWithId(const Equation::Id id) const {
-    return equationsMap.find(id) != equationsMap.end();
+  VertexDescriptor getEquationDescriptorFromId(const Equation::Id id) const {
+    auto it = equationsMap.find(id);
+    assert(it != equationsMap.end() && "Equation not found");
+    return it->second;
   }
 
-  bool isEquation(const VertexDescriptor vertex) const {
-    return std::holds_alternative<Equation>(graph[vertex]);
-  }
-
-  Equation &getEquationFromDescriptor(const VertexDescriptor descriptor) {
-    Vertex &vertex = graph[descriptor];
-    assert(std::holds_alternative<Equation>(vertex));
-    return std::get<Equation>(vertex);
-  }
-
-  const Equation &
-  getEquationFromDescriptor(const VertexDescriptor descriptor) const {
-    const Vertex &vertex = graph[descriptor];
-    assert(std::holds_alternative<Equation>(vertex));
-    return std::get<Equation>(vertex);
+  std::optional<std::pair<Variable::Id, IndexSet>>
+  getDerivative(const Variable::Id id) const {
+    auto it = variableAssociations.find(id);
+    if (it != variableAssociations.end()) {
+      return it->getSecond();
+    }
+    return std::nullopt;
   }
 
   Graph graph;
 
-  std::map<Variable::Id, VertexDescriptor> variablesMap;
-  std::map<Equation::Id, VertexDescriptor> equationsMap;
+  llvm::DenseMap<Variable::Id, VertexDescriptor> variablesMap;
+  llvm::DenseMap<Equation::Id, VertexDescriptor> equationsMap;
+
+  // Associates a variable with its derivative.
+  // var -> var' (for the given indices)
+  llvm::DenseMap<Variable::Id, std::pair<Variable::Id, IndexSet>>
+      variableAssociations;
+  // Associates an equation with its derivative.
+  // eq -> eq'
+  llvm::DenseMap<Equation::Id, Equation::Id> equationAssociations;
 };
 
 } // namespace marco::modeling
