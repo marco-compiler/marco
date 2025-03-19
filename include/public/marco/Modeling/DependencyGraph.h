@@ -7,7 +7,6 @@
 #include "marco/Modeling/SCC.h"
 #include "mlir/IR/Threading.h"
 #include "llvm/ADT/SCCIterator.h"
-#include <list>
 
 namespace marco::modeling {
 namespace internal::dependency {
@@ -35,7 +34,7 @@ template <typename EquationDescriptor, typename Access>
 class Path {
 private:
   using Dependency = PathDependency<EquationDescriptor, Access>;
-  using Container = std::list<Dependency>;
+  using Container = llvm::SmallVector<Dependency>;
 
 public:
   using iterator = typename Container::iterator;
@@ -64,6 +63,10 @@ public:
   [[nodiscard]] reverse_iterator rend() { return equations.rend(); }
 
   [[nodiscard]] const_reverse_iterator rend() const { return equations.rend(); }
+
+  Dependency &operator[](size_t index) { return equations[index]; }
+
+  const Dependency &operator[](size_t index) const { return equations[index]; }
 
   Dependency &back() { return equations.back(); }
 
@@ -215,8 +218,84 @@ public:
     return arrayDependencyGraph[descriptor];
   }
 
-  std::vector<Cycle> getEquationsCycles() const {
-    std::vector<Cycle> result;
+  llvm::SmallVector<Cycle> getEquationsCycles() const {
+    llvm::SmallVector<Cycle> result;
+    std::mutex resultMutex;
+
+    auto SCCs = arrayDependencyGraph.getSCCs();
+
+    auto processFn = [&](const typename ArrayDependencyGraph::SCC &scc) {
+      auto writesMap =
+          arrayDependencyGraph.getWritesMap(scc.begin(), scc.end());
+
+      CachedAccesses cachedWriteAccesses;
+      CachedAccesses cachedReadAccesses;
+
+      for (EquationDescriptor equationDescriptor : scc) {
+        const auto &equation =
+            arrayDependencyGraph.getEquation(equationDescriptor);
+
+        for (auto &access : equation.getWrites()) {
+          cachedWriteAccesses[equationDescriptor].push_back(std::move(access));
+        }
+
+        // Prefer affine write access functions.
+        llvm::sort(cachedWriteAccesses[equationDescriptor],
+                   [](const Access &first, const Access &second) {
+                     return first.getAccessFunction().isAffine() &&
+                            !second.getAccessFunction().isAffine();
+                   });
+
+        for (auto &access : equation.getReads()) {
+          cachedReadAccesses[equationDescriptor].push_back(std::move(access));
+        }
+
+        // Prefer invertible read access functions.
+        llvm::sort(cachedWriteAccesses[equationDescriptor],
+                   [](const Access &first, const Access &second) {
+                     return first.getAccessFunction().isInvertible() &&
+                            !second.getAccessFunction().isInvertible();
+                   });
+      }
+
+      llvm::SmallVector<Path> allPaths;
+      llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
+
+      for (const EquationDescriptor &equationDescriptor : scc) {
+        llvm::SmallVector<Path> paths;
+
+        getEquationsCycles(paths, writesMap, cachedWriteAccesses,
+                           cachedReadAccesses, visitedEquationIndices, false,
+                           equationDescriptor);
+
+        llvm::append_range(allPaths, std::move(paths));
+      }
+
+      std::lock_guard<std::mutex> lockGuard(resultMutex);
+
+      for (Path &path : allPaths) {
+        Cycle cyclicEquations;
+
+        for (PathDependency &dependency : path) {
+          cyclicEquations.push_back(CyclicEquation(
+              dependency.equation, std::move(dependency.equationIndices),
+              std::move(dependency.writeAccess),
+              std::move(dependency.writtenVariableIndices),
+              std::move(dependency.readAccess),
+              std::move(dependency.readVariableIndices)));
+        }
+
+        result.push_back(std::move(cyclicEquations));
+      }
+    };
+
+    mlir::parallelForEach(getContext(), SCCs, processFn);
+    return result;
+  }
+
+  llvm::SmallVector<SCC> getSCCs() const {
+    llvm::SmallVector<SCC> result;
+    llvm::SmallVector<Path> allPaths;
     std::mutex resultMutex;
 
     auto SCCs = arrayDependencyGraph.getSCCs();
@@ -261,41 +340,27 @@ public:
         llvm::SmallVector<Path> paths;
 
         getEquationsCycles(paths, writesMap, cachedWriteAccesses,
-                           cachedReadAccesses, visitedEquationIndices,
+                           cachedReadAccesses, visitedEquationIndices, true,
                            equationDescriptor);
 
-        std::lock_guard<std::mutex> lockGuard(resultMutex);
-
         for (Path &path : paths) {
-          Cycle cyclicEquations;
-
-          for (PathDependency &dependency : path) {
-            cyclicEquations.push_back(CyclicEquation(
-                dependency.equation, std::move(dependency.equationIndices),
-                std::move(dependency.writeAccess),
-                std::move(dependency.writtenVariableIndices),
-                std::move(dependency.readAccess),
-                std::move(dependency.readVariableIndices)));
-          }
-
-          result.push_back(std::move(cyclicEquations));
+          addCycle(allPaths, std::move(path));
         }
       }
     };
 
     mlir::parallelForEach(getContext(), SCCs, processFn);
-    return result;
-  }
 
-  void getSCCs(llvm::SmallVectorImpl<SCC> &result) const {
-    std::vector<Cycle> cycles = getEquationsCycles();
+    assert(checkEquationsPartitioning(allPaths) &&
+           "Found overlapping and non-equal equation indices");
 
     // Function to search for an SCC into which a cycle should be merged.
-    auto searchSCCFn = [&](const Cycle &cycle) {
-      for (const CyclicEquation &cyclicEquation : cycle) {
+    auto searchSCCFn = [&](const Path &cycle) {
+      for (const PathDependency &cyclicEquation : cycle) {
         auto sccIt = llvm::find_if(result, [&](const SCC &scc) {
           for (const EquationView &sccEquation : scc) {
-            if (*sccEquation == cyclicEquation.equation) {
+            if (*sccEquation == cyclicEquation.equation &&
+                sccEquation.getIndices() == cyclicEquation.equationIndices) {
               return true;
             }
           }
@@ -314,14 +379,14 @@ public:
     // Keep track of all the indices belonging to SCCs.
     llvm::DenseMap<EquationDescriptor, IndexSet> processedIndices;
 
-    for (const auto &cycle : cycles) {
-      auto sccIt = searchSCCFn(cycle);
+    for (const Path &path : allPaths) {
+      auto sccIt = searchSCCFn(path);
 
       if (sccIt == result.end()) {
         // New SCC.
         SCC newSCC;
 
-        for (const CyclicEquation &cyclicEquation : cycle) {
+        for (const PathDependency &cyclicEquation : path) {
           newSCC.addEquation(EquationView(cyclicEquation.equation,
                                           cyclicEquation.equationIndices));
 
@@ -334,7 +399,7 @@ public:
         // Merge the cycle into an SCC having some common equations.
         llvm::DenseMap<EquationDescriptor, IndexSet> mergedEquations;
 
-        for (const CyclicEquation &cyclicEquation : cycle) {
+        for (const PathDependency &cyclicEquation : path) {
           mergedEquations[cyclicEquation.equation] +=
               cyclicEquation.equationIndices;
 
@@ -375,21 +440,54 @@ public:
         result.push_back(std::move(newSCC));
       }
     }
+
+    return result;
   }
 
 private:
+  [[maybe_unused, nodiscard]] bool
+  checkEquationsPartitioning(llvm::ArrayRef<Path> cycles) const {
+    auto checkEquationFn = [&](EquationDescriptor equation,
+                               const IndexSet &indices) {
+      for (const Path &path : cycles) {
+        for (const PathDependency &pathDependency : path) {
+          if (pathDependency.equation == equation) {
+            if (pathDependency.equationIndices.overlaps(indices) &&
+                pathDependency.equationIndices != indices) {
+              return false;
+            }
+          }
+        }
+      }
+
+      return true;
+    };
+
+    for (const Path &path : cycles) {
+      for (const PathDependency &pathDependency : path) {
+        if (!checkEquationFn(pathDependency.equation,
+                             pathDependency.equationIndices)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   void getEquationsCycles(
       llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
       CachedAccesses &cachedWriteAccesses, CachedAccesses &cachedReadAccesses,
       llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
-      EquationDescriptor equation) const {
+      bool includeSubCycles, EquationDescriptor equation) const {
     // The first equation starts with the full range, as it has no
     // predecessors.
     IndexSet equationIndices(
         arrayDependencyGraph.getEquation(equation).getIterationRanges());
 
     getEquationsCycles(cycles, writesMap, cachedWriteAccesses,
-                       cachedReadAccesses, visitedEquationIndices, equation,
+                       cachedReadAccesses, visitedEquationIndices,
+                       includeSubCycles, equation,
                        equationIndices - visitedEquationIndices[equation], {});
   }
 
@@ -397,8 +495,8 @@ private:
       llvm::SmallVectorImpl<Path> &cycles, const WritesMap &writesMap,
       CachedAccesses &cachedWriteAccesses, CachedAccesses &cachedReadAccesses,
       llvm::DenseMap<EquationDescriptor, IndexSet> &visitedEquationIndices,
-      EquationDescriptor equation, const IndexSet &equationIndices,
-      Path path) const {
+      bool includeSubCycles, EquationDescriptor equation,
+      const IndexSet &equationIndices, Path path) const {
     llvm::SmallVector<Path> newCycles;
 
     // Visit all the write accesses. When the indices of the equation get
@@ -506,30 +604,35 @@ private:
 
           // Visit the path backwards and restrict the equation indices, if
           // necessary.
-          restrictPathIndices(extendedPath);
+          restrictPathIndicesBackward(extendedPath, extendedPath.size() - 1);
 
           // Check if the writing equation leads to a cycle.
-          if (auto cycle = extractCycleIfAny(extendedPath, writingEquation,
-                                             writingEquationIndices)) {
-            newCycles.push_back(std::move(*cycle));
+          if (auto cycle =
+                  extractCycleIfAny(extendedPath, writingEquation,
+                                    writingEquationIndices, includeSubCycles);
+              cycle.first) {
+            if (cycle.second) {
+              newCycles.push_back(std::move(*cycle.first));
+            }
+
             continue;
           }
 
           getEquationsCycles(newCycles, writesMap, cachedWriteAccesses,
                              cachedReadAccesses, visitedEquationIndices,
-                             writingEquation, writingEquationIndices,
-                             std::move(extendedPath));
+                             includeSubCycles, writingEquation,
+                             writingEquationIndices, std::move(extendedPath));
         }
       }
+    }
 
-      for (Path &cycle : newCycles) {
-        for (const PathDependency &pathDependency : cycle) {
-          visitedEquationIndices[pathDependency.equation] +=
-              pathDependency.equationIndices;
-        }
-
-        cycles.push_back(std::move(cycle));
+    for (Path &cycle : newCycles) {
+      for (const PathDependency &pathDependency : cycle) {
+        visitedEquationIndices[pathDependency.equation] +=
+            pathDependency.equationIndices;
       }
+
+      cycles.push_back(std::move(cycle));
     }
   }
 
@@ -551,48 +654,73 @@ private:
     return writingEquationIndices;
   }
 
-  void restrictPathIndices(Path &path) const {
-    auto it = path.rbegin();
-    auto endIt = path.rend();
+  void restrictPathIndicesForward(Path &path, size_t startingPoint) const {
+    PathDependency *previous = &path[startingPoint];
 
-    if (it == endIt) {
-      return;
-    }
+    for (size_t i = startingPoint + 1, e = path.size(); i < e; ++i) {
+      PathDependency *current = &path[i];
 
-    // Traverse the path backwards.
-    auto prevIt = it;
+      // Propagate the indices read by the previous equation.
+      current->writtenVariableIndices = previous->readVariableIndices;
 
-    while (++it != endIt) {
-      // Propagate the indices written by the current equation as the indices
-      // read by the equation preceding in the path.
-      it->readVariableIndices = prevIt->writtenVariableIndices;
+      // Compute the indices of the equation that lead to that write access.
+      IndexSet newEquationIndices =
+          current->writeAccess.getAccessFunction().inverseMap(
+              current->writtenVariableIndices, current->equationIndices);
 
-      // Compute the indices of the equation that lead to that read access.
-      const Access &readAccess = it->readAccess;
-
-      IndexSet newEquationIndices = readAccess.getAccessFunction().inverseMap(
-          it->readVariableIndices, it->equationIndices);
-
-      if (newEquationIndices == it->equationIndices) {
+      if (newEquationIndices == current->equationIndices) {
         // Stop iterating through the path.
         // No further modifications will be performed.
         return;
       }
 
-      it->equationIndices = std::move(newEquationIndices);
+      current->equationIndices = std::move(newEquationIndices);
 
-      it->writtenVariableIndices =
-          it->writeAccess.getAccessFunction().map(it->equationIndices);
+      current->readVariableIndices =
+          current->readAccess.getAccessFunction().map(current->equationIndices);
 
-      prevIt = it;
+      previous = current;
     }
   }
 
-  std::optional<Path>
+  void restrictPathIndicesBackward(Path &path, size_t startingPoint) const {
+    PathDependency *previous = &path[startingPoint];
+
+    for (size_t i = 1, e = startingPoint; i <= e; ++i) {
+      PathDependency *current = &path[e - i];
+
+      // Propagate the indices written by the current equation as the indices
+      // read by the equation preceding in the path.
+      current->readVariableIndices = previous->writtenVariableIndices;
+
+      // Compute the indices of the equation that lead to that read access.
+      const Access &readAccess = current->readAccess;
+
+      IndexSet newEquationIndices = readAccess.getAccessFunction().inverseMap(
+          current->readVariableIndices, current->equationIndices);
+
+      if (newEquationIndices == current->equationIndices) {
+        // Stop iterating through the path.
+        // No further modifications will be performed.
+        return;
+      }
+
+      current->equationIndices = std::move(newEquationIndices);
+
+      current->writtenVariableIndices =
+          current->writeAccess.getAccessFunction().map(
+              current->equationIndices);
+
+      previous = current;
+    }
+  }
+
+  std::pair<std::optional<Path>, bool>
   extractCycleIfAny(const Path &path, EquationDescriptor nextEquation,
-                    const IndexSet &nextEquationIndices) const {
+                    const IndexSet &nextEquationIndices,
+                    bool includeSubCycles) const {
     if (auto length = path.size(); length <= 1) {
-      return std::nullopt;
+      return {std::nullopt, false};
     }
 
     // Search along the restricted path if the next equation has
@@ -614,17 +742,111 @@ private:
           });
 
       if (!isSelfLoop) {
+        bool shouldKeep = includeSubCycles || dependencyIt == path.begin();
         Path cycle;
 
         for (auto it = dependencyIt; it != path.end(); ++it) {
           cycle = cycle + std::move(*it);
         }
 
-        return cycle;
+        return {cycle, shouldKeep};
       }
     }
 
-    return std::nullopt;
+    return {std::nullopt, false};
+  }
+
+  void addCycle(llvm::SmallVectorImpl<Path> &cycles, Path newCycle) const {
+    // Split the existing cycles.
+    for (const PathDependency &pathDependency : newCycle) {
+      llvm::SmallVector<Path> newCycles;
+
+      for (Path &existingCycle : cycles) {
+        splitCycle(newCycles, std::move(existingCycle), pathDependency.equation,
+                   pathDependency.equationIndices);
+      }
+
+      cycles = newCycles;
+    }
+
+    // Split the new cycle.
+    llvm::SmallVector<Path> newCycles;
+    newCycles.push_back(std::move(newCycle));
+
+    for (const Path &cycle : cycles) {
+      for (const PathDependency &pathDependency : cycle) {
+        llvm::SmallVector<Path> split;
+
+        for (Path &currentNewCycle : newCycles) {
+          splitCycle(split, std::move(currentNewCycle), pathDependency.equation,
+                     pathDependency.equationIndices);
+        }
+
+        newCycles = split;
+      }
+    }
+
+    llvm::append_range(cycles, newCycles);
+  }
+
+  /// Split a cycle so that its components either exactly match or do not
+  /// overlap the given equation.
+  void splitCycle(llvm::SmallVectorImpl<Path> &result, Path cycle,
+                  EquationDescriptor equation,
+                  const IndexSet &equationIndices) const {
+    llvm::SmallVector<Path> workList;
+    workList.push_back(std::move(cycle));
+
+    auto findOverlappingPos = [&](const Path &path) -> std::optional<size_t> {
+      for (const auto &pathDependency : llvm::enumerate(path)) {
+        if (pathDependency.value().equation == equation &&
+            pathDependency.value().equationIndices.overlaps(equationIndices) &&
+            !equationIndices.contains(pathDependency.value().equationIndices)) {
+          return pathDependency.index();
+        }
+      }
+
+      return std::nullopt;
+    };
+
+    while (!workList.empty()) {
+      Path currentCycle = workList.pop_back_val();
+
+      // Search for an equation that has overlapping but fully contained
+      // indices.
+      std::optional<size_t> overlappingPos = findOverlappingPos(currentCycle);
+
+      if (!overlappingPos) {
+        // No need for a split.
+        result.push_back(std::move(currentCycle));
+        continue;
+      }
+
+      const PathDependency &node = currentCycle[*overlappingPos];
+      IndexSet commonIndices = node.equationIndices.intersect(equationIndices);
+      IndexSet difference = node.equationIndices - commonIndices;
+
+      // Copy the original cycle and set the indices obtained as difference.
+      Path differenceCycle(currentCycle);
+      setEquationIndices(differenceCycle[*overlappingPos], difference);
+      restrictPathIndicesForward(differenceCycle, *overlappingPos);
+      restrictPathIndicesBackward(differenceCycle, *overlappingPos);
+      workList.push_back(std::move(differenceCycle));
+
+      // Create the cycle with the common indices. Reuse the original instance
+      // to reduce the copy overhead.
+      setEquationIndices(currentCycle[*overlappingPos], commonIndices);
+      restrictPathIndicesForward(currentCycle, *overlappingPos);
+      restrictPathIndicesBackward(currentCycle, *overlappingPos);
+      workList.push_back(std::move(currentCycle));
+    }
+  }
+
+  void setEquationIndices(PathDependency &node, const IndexSet &indices) const {
+    node.equationIndices = indices;
+    node.writtenVariableIndices =
+        node.writeAccess.getAccessFunction().map(indices);
+    node.readVariableIndices = node.readAccess.getAccessFunction().map(indices);
   }
 };
 } // namespace marco::modeling

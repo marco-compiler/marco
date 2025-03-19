@@ -2044,9 +2044,7 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
   DependencyGraph dependencyGraph(rewriter.getContext());
   dependencyGraph.addEquations(equationPtrs);
 
-  llvm::SmallVector<DependencyGraph::SCC> SCCs;
-  dependencyGraph.getSCCs(SCCs);
-
+  llvm::SmallVector<DependencyGraph::SCC> SCCs = dependencyGraph.getSCCs();
   rewriter.setInsertionPointToEnd(dynamicOp.getBody());
 
   for (const DependencyGraph::SCC &scc : SCCs) {

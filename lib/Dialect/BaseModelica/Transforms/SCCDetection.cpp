@@ -173,9 +173,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
   DependencyGraph dependencyGraph(&getContext());
   dependencyGraph.addEquations(equationPtrs);
 
-  llvm::SmallVector<DependencyGraph::SCC> SCCs;
-  dependencyGraph.getSCCs(SCCs);
-
+  llvm::SmallVector<DependencyGraph::SCC> SCCs = dependencyGraph.getSCCs();
   rewriter.setInsertionPointToEnd(modelOp.getBody());
 
   if (initial) {

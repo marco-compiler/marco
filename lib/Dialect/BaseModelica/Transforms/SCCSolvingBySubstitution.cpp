@@ -700,8 +700,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
   DependencyGraph dependencyGraph(&getContext());
   dependencyGraph.addEquations(equationPtrs);
 
-  llvm::SmallVector<DependencyGraph::SCC> SCCs;
-  dependencyGraph.getSCCs(SCCs);
+  llvm::SmallVector<DependencyGraph::SCC> SCCs = dependencyGraph.getSCCs();
 
   rewriter.setInsertionPointAfter(originalSCC);
 

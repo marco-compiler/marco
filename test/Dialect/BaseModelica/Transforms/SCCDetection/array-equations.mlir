@@ -56,9 +56,12 @@ bmodelica.model @CycleAmongDifferentEquations {
     }
 
     // CHECK:     bmodelica.scc
-    // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[0,4]}, match = <@x, {[0,4]}>
-    // CHECK-DAG: bmodelica.equation_instance %[[t1]], indices = {[0,2]}, match = <@y, {[0,2]}>
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[3,4]}, match = <@x, {[3,4]}>
     // CHECK-DAG: bmodelica.equation_instance %[[t2]], indices = {[3,4]}, match = <@y, {[3,4]}>
+
+    // CHECK:     bmodelica.scc
+    // CHECK-DAG: bmodelica.equation_instance %[[t0]], indices = {[0,2]}, match = <@x, {[0,2]}>
+    // CHECK-DAG: bmodelica.equation_instance %[[t1]], indices = {[0,2]}, match = <@y, {[0,2]}>
 
     // CHECK-NOT: bmodelica.equation_instance
 }
