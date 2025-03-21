@@ -839,24 +839,21 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const MultidimensionalRange &rhs) {
     return *this;
   }
 
-  std::unique_ptr<Node> oldRoot = std::move(root);
-  root = nullptr;
+  llvm::SmallVector<MultidimensionalRange> differences;
 
-  llvm::SmallVector<const Node *> nodes;
-  nodes.push_back(oldRoot.get());
-
-  while (!nodes.empty()) {
-    auto node = nodes.pop_back_val();
-
-    for (const auto &child : node->children) {
-      nodes.push_back(child.get());
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    if (range.overlaps(rhs)) {
+      llvm::append_range(differences, range.subtract(rhs));
+    } else {
+      differences.push_back(range);
     }
+  }
 
-    for (const auto &value : node->values) {
-      for (const MultidimensionalRange &difference : value.subtract(rhs)) {
-        *this += difference;
-      }
-    }
+  if (differences.empty()) {
+    root = nullptr;
+  } else {
+    setFromRanges(differences);
   }
 
   return *this;
