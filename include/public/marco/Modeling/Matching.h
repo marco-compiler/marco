@@ -20,9 +20,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <atomic>
 #include <list>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <numeric>
@@ -233,11 +231,11 @@ private:
 
 namespace internal::matching {
 template <typename T>
-void insertOrAdd(std::map<T, IndexSet> &map, T key, IndexSet value) {
+void insertOrAdd(llvm::DenseMap<T, IndexSet> &map, T key, IndexSet value) {
   if (auto it = map.find(key); it != map.end()) {
     it->second += std::move(value);
   } else {
-    map.emplace(key, std::move(value));
+    map[key] = std::move(value);
   }
 }
 
@@ -1434,7 +1432,7 @@ private:
       // The path's validity is unknown, so we must avoid polluting the
       // list of visited scalar nodes. If the path will be marked as valid,
       // then the new visits will be merged with the already found ones.
-      std::map<VertexDescriptor, IndexSet> newVisits;
+      llvm::DenseMap<VertexDescriptor, IndexSet> newVisits;
 
       const BFSStep *curStep = pathEnd.get();
       MCIM map = curStep->getMappedFlow();
@@ -1737,8 +1735,8 @@ private:
     // matched by eq1 would result as unmatched. If we instead first
     // apply the removals, the new matches are not wrongly erased anymore.
 
-    std::map<VertexDescriptor, IndexSet> removedMatches;
-    std::map<VertexDescriptor, IndexSet> newMatches;
+    llvm::DenseMap<VertexDescriptor, IndexSet> removedMatches;
+    llvm::DenseMap<VertexDescriptor, IndexSet> newMatches;
 
     // Update the match matrices on the edges and store the information
     // about the vertices to be updated later.
