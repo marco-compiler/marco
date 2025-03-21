@@ -4,7 +4,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <queue>
-#include <set>
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::impl;
