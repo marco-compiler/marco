@@ -111,6 +111,8 @@ public:
 
   friend llvm::hash_code hash_value(const IndexSet &value);
 
+  static IndexSet getTombstoneKey();
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const IndexSet &obj);
 
@@ -211,5 +213,20 @@ private:
   std::unique_ptr<Impl> impl;
 };
 } // namespace marco::modeling
+
+namespace llvm {
+template <>
+struct DenseMapInfo<marco::modeling::IndexSet> {
+  using Key = marco::modeling::IndexSet;
+
+  static inline Key getEmptyKey() { return {}; }
+
+  static inline Key getTombstoneKey() { return Key::getTombstoneKey(); }
+
+  static unsigned getHashValue(const Key &val) { return hash_value(val); }
+
+  static bool isEqual(const Key &lhs, const Key &rhs) { return lhs == rhs; }
+};
+} // namespace llvm
 
 #endif // MARCO_MODELING_INDEXSET_H

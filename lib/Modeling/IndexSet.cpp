@@ -80,9 +80,7 @@ std::ostream &operator<<(std::ostream &os, const IndexSet::Impl &obj) {
 //===---------------------------------------------------------------------===//
 
 namespace marco::modeling {
-IndexSet::IndexSet(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {
-  assert(this->impl != nullptr);
-}
+IndexSet::IndexSet(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
 
 IndexSet::IndexSet() : impl(std::make_unique<impl::RTreeIndexSet>()) {}
 
@@ -119,6 +117,8 @@ llvm::hash_code hash_value(const IndexSet &value) {
   return llvm::hash_value(value.flatSize());
 }
 
+IndexSet IndexSet::getTombstoneKey() { return IndexSet(nullptr); }
+
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const IndexSet &obj) {
   assert(obj.impl != nullptr);
   return obj.impl->dump(os);
@@ -140,25 +140,25 @@ bool IndexSet::operator==(const MultidimensionalRange &rhs) const {
 }
 
 bool IndexSet::operator==(const IndexSet &rhs) const {
-  assert(impl != nullptr);
-  assert(rhs.impl != nullptr);
+  if (impl == nullptr) {
+    return rhs.impl == nullptr;
+  }
+
+  if (rhs.impl == nullptr) {
+    return false;
+  }
+
   return *impl == *rhs.impl;
 }
 
-bool IndexSet::operator!=(const Point &rhs) const {
-  assert(impl != nullptr);
-  return *impl == rhs;
-}
+bool IndexSet::operator!=(const Point &rhs) const { return !(*impl == rhs); }
 
 bool IndexSet::operator!=(const MultidimensionalRange &rhs) const {
-  assert(impl != nullptr);
-  return *impl == rhs;
+  return !(*impl == rhs);
 }
 
 bool IndexSet::operator!=(const IndexSet &rhs) const {
-  assert(impl != nullptr);
-  assert(rhs.impl != nullptr);
-  return *impl != *rhs.impl;
+  return !(*impl == *rhs.impl);
 }
 
 IndexSet &IndexSet::operator+=(const Point &rhs) {
