@@ -405,7 +405,7 @@ IndexSet::PointIterator::PointIterator(std::unique_ptr<Impl> impl)
     : impl(std::move(impl)) {}
 
 IndexSet::PointIterator::PointIterator(const IndexSet::PointIterator &other)
-    : impl(other.impl->clone()) {}
+    : impl(other.impl == nullptr ? nullptr : other.impl->clone()) {}
 
 IndexSet::PointIterator::PointIterator(IndexSet::PointIterator &&other) =
     default;
@@ -430,16 +430,16 @@ bool IndexSet::PointIterator::operator==(
     return true;
   }
 
+  if (!impl || !it.impl) {
+    return false;
+  }
+
   return *impl == *it.impl;
 }
 
 bool IndexSet::PointIterator::operator!=(
     const IndexSet::PointIterator &it) const {
-  if (impl == it.impl) {
-    return false;
-  }
-
-  return *impl != *it.impl;
+  return !(*this == it);
 }
 
 IndexSet::PointIterator &IndexSet::PointIterator::operator++() {
@@ -483,7 +483,7 @@ IndexSet::RangeIterator::RangeIterator(std::unique_ptr<Impl> impl)
     : impl(std::move(impl)) {}
 
 IndexSet::RangeIterator::RangeIterator(const IndexSet::RangeIterator &other)
-    : impl(other.impl->clone()) {}
+    : impl(other.impl == nullptr ? nullptr : other.impl->clone()) {}
 
 IndexSet::RangeIterator::RangeIterator(IndexSet::RangeIterator &&other) =
     default;
@@ -504,12 +504,20 @@ void swap(IndexSet::RangeIterator &first, IndexSet::RangeIterator &second) {
 
 bool IndexSet::RangeIterator::operator==(
     const IndexSet::RangeIterator &it) const {
+  if (impl == it.impl) {
+    return true;
+  }
+
+  if (!impl || !it.impl) {
+    return false;
+  }
+
   return *impl == *it.impl;
 }
 
 bool IndexSet::RangeIterator::operator!=(
     const IndexSet::RangeIterator &it) const {
-  return *impl != *it.impl;
+  return !(*this == it);
 }
 
 IndexSet::RangeIterator &IndexSet::RangeIterator::operator++() {

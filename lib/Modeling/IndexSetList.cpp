@@ -88,6 +88,10 @@ ListIndexSet::PointIterator::clone() const {
 
 IndexSet::PointIterator
 ListIndexSet::PointIterator::begin(const ListIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   auto currentRangeIt = indexSet.rangesBegin();
   auto endRangeIt = indexSet.rangesEnd();
 
@@ -112,6 +116,10 @@ ListIndexSet::PointIterator::begin(const ListIndexSet &indexSet) {
 
 IndexSet::PointIterator
 ListIndexSet::PointIterator::end(const ListIndexSet &indexSet) {
+  if (indexSet.empty()) {
+    return {nullptr};
+  }
+
   ListIndexSet::PointIterator it(indexSet.rangesEnd(), indexSet.rangesEnd(),
                                  std::nullopt, std::nullopt);
 
