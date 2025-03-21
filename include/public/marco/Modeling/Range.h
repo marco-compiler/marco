@@ -2,6 +2,7 @@
 #define MARCO_MODELING_RANGE_H
 
 #include "marco/Modeling/Point.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/Hashing.h"
 
 namespace llvm {
@@ -108,5 +109,26 @@ private:
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Range &obj);
 } // namespace marco::modeling
+
+namespace llvm {
+template <>
+struct DenseMapInfo<marco::modeling::Range> {
+  using Key = marco::modeling::Range;
+
+  static inline Key getEmptyKey() {
+    return {llvm::DenseMapInfo<Key::data_type>::getEmptyKey() - 1,
+            llvm::DenseMapInfo<Key::data_type>::getEmptyKey()};
+  }
+
+  static inline Key getTombstoneKey() {
+    return {llvm::DenseMapInfo<Key::data_type>::getTombstoneKey() - 1,
+            llvm::DenseMapInfo<Key::data_type>::getTombstoneKey()};
+  }
+
+  static unsigned getHashValue(const Key &val) { return hash_value(val); }
+
+  static bool isEqual(const Key &lhs, const Key &rhs) { return lhs == rhs; }
+};
+} // namespace llvm
 
 #endif // MARCO_MODELING_RANGE_H
