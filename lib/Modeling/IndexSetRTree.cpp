@@ -1252,18 +1252,54 @@ IndexSet RTreeIndexSet::intersect(const IndexSet::Impl &other) const {
 }
 
 IndexSet RTreeIndexSet::intersect(const RTreeIndexSet &other) const {
-  IndexSet result;
-
-  if (root == nullptr || other.empty()) {
-    return result;
+  if (empty() || other.empty()) {
+    return {};
   }
 
-  for (const MultidimensionalRange &range :
-       llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-    result += this->intersect(range);
+  using OverlappingNodePair = std::pair<const Node *, const Node *>;
+  llvm::SmallVector<OverlappingNodePair> overlappingNodes;
+
+  const Node *lhsRoot = getRoot();
+  const Node *rhsRoot = other.getRoot();
+
+  if (lhsRoot->getBoundary().overlaps(rhsRoot->getBoundary())) {
+    overlappingNodes.emplace_back(lhsRoot, rhsRoot);
   }
 
-  return result;
+  llvm::SmallVector<MultidimensionalRange> result;
+
+  while (!overlappingNodes.empty()) {
+    OverlappingNodePair overlappingNodePair = overlappingNodes.pop_back_val();
+
+    const Node *lhs = overlappingNodePair.first;
+    const Node *rhs = overlappingNodePair.second;
+
+    if (lhs->isLeaf()) {
+      if (rhs->isLeaf()) {
+        for (const MultidimensionalRange &lhsRange : lhs->values) {
+          for (const MultidimensionalRange &rhsRange : rhs->values) {
+            if (lhsRange.overlaps(rhsRange)) {
+              result.push_back(lhsRange.intersect(rhsRange));
+            }
+          }
+        }
+      } else {
+        for (const auto &child : rhs->children) {
+          if (child->getBoundary().overlaps(lhs->getBoundary())) {
+            overlappingNodes.emplace_back(lhs, child.get());
+          }
+        }
+      }
+    } else {
+      for (const auto &child : lhs->children) {
+        if (child->getBoundary().overlaps(rhs->getBoundary())) {
+          overlappingNodes.emplace_back(child.get(), rhs);
+        }
+      }
+    }
+  }
+
+  return {result};
 }
 
 IndexSet RTreeIndexSet::complement(const MultidimensionalRange &other) const {
