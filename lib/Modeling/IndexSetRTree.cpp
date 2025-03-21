@@ -526,16 +526,18 @@ RTreeIndexSet::RTreeIndexSet(size_t minElements, size_t maxElements)
 }
 
 RTreeIndexSet::RTreeIndexSet(llvm::ArrayRef<Point> points) : RTreeIndexSet() {
+  llvm::SmallVector<MultidimensionalRange> ranges;
+
   for (const Point &point : points) {
-    *this += point;
+    ranges.emplace_back(point);
   }
+
+  setFromRanges(ranges);
 }
 
 RTreeIndexSet::RTreeIndexSet(llvm::ArrayRef<MultidimensionalRange> ranges)
     : RTreeIndexSet() {
-  for (const MultidimensionalRange &range : ranges) {
-    *this += range;
-  }
+  setFromRanges(ranges);
 }
 
 RTreeIndexSet::RTreeIndexSet(const RTreeIndexSet &other)
@@ -1452,6 +1454,179 @@ RTreeIndexSet::getCanonicalRepresentation() const {
 }
 
 const RTreeIndexSet::Node *RTreeIndexSet::getRoot() const { return root.get(); }
+
+void RTreeIndexSet::setFromRanges(
+    llvm::ArrayRef<MultidimensionalRange> ranges) {
+  root = nullptr;
+
+  if (ranges.empty()) {
+    return;
+  }
+
+  initialized = true;
+  allowedRank = ranges.front().rank();
+
+  // Sort the original ranges.
+  llvm::SmallVector<MultidimensionalRange> sorted;
+  llvm::append_range(sorted, ranges);
+  llvm::sort(sorted);
+  merge(sorted);
+
+  // Ensure that the ranges don't overlap.
+  llvm::SmallVector<MultidimensionalRange> nonOverlappingRanges;
+
+  for (const MultidimensionalRange &current : sorted) {
+    if (nonOverlappingRanges.empty()) {
+      nonOverlappingRanges.push_back(current);
+      continue;
+    }
+
+    size_t possibleOverlapIndex = nonOverlappingRanges.size();
+
+    while (possibleOverlapIndex > 0 &&
+           current.anyDimensionOverlaps(
+               nonOverlappingRanges[possibleOverlapIndex - 1])) {
+      --possibleOverlapIndex;
+    }
+
+    llvm::SmallVector<MultidimensionalRange> differences;
+    differences.push_back(current);
+
+    for (size_t i = possibleOverlapIndex, e = nonOverlappingRanges.size();
+         i < e; ++i) {
+      const MultidimensionalRange &other = nonOverlappingRanges[i];
+      llvm::SmallVector<MultidimensionalRange> newDifferences;
+
+      for (MultidimensionalRange &currentDifference : differences) {
+        if (currentDifference.overlaps(other)) {
+          llvm::append_range(newDifferences, currentDifference.subtract(other));
+        } else {
+          newDifferences.push_back(std::move(currentDifference));
+        }
+      }
+
+      differences = std::move(newDifferences);
+    }
+
+    llvm::append_range(nonOverlappingRanges, std::move(differences));
+
+    llvm::sort(
+        std::next(std::begin(nonOverlappingRanges), possibleOverlapIndex),
+        std::end(nonOverlappingRanges));
+  }
+
+  assert(llvm::none_of(nonOverlappingRanges,
+                       [&](const MultidimensionalRange &range) {
+                         for (const MultidimensionalRange &other :
+                              nonOverlappingRanges) {
+                           if (range.overlaps(other) && range != other) {
+                             return true;
+                           }
+                         }
+
+                         return false;
+                       }) &&
+         "Overlapping ranges found during initialization of R-Tree IndexSet");
+
+  // Create the tree structure.
+  llvm::SmallVector<std::unique_ptr<Node>> nodes;
+
+  if (nonOverlappingRanges.size() > maxElements) {
+    size_t numOfGroups = nonOverlappingRanges.size() / minElements;
+    size_t remainingElements = nonOverlappingRanges.size() % minElements;
+
+    for (size_t i = 0; i < numOfGroups; ++i) {
+      auto &node = nodes.emplace_back(std::make_unique<Node>(
+          nullptr, nonOverlappingRanges[i * minElements]));
+
+      for (size_t j = 0; j < minElements; ++j) {
+        node->values.push_back(
+            std::move(nonOverlappingRanges[i * minElements + j]));
+      }
+
+      node->recalcBoundary();
+    }
+
+    for (size_t i = 0; i < remainingElements; ++i) {
+      nodes[i]->values.push_back(
+          std::move(nonOverlappingRanges[numOfGroups * minElements + i]));
+    }
+
+    for (auto &node : nodes) {
+      node->recalcBoundary();
+    }
+  } else {
+    auto &node = nodes.emplace_back(
+        std::make_unique<Node>(nullptr, nonOverlappingRanges[0]));
+
+    llvm::append_range(node->values, std::move(nonOverlappingRanges));
+    node->recalcBoundary();
+  }
+
+  while (nodes.size() > maxElements) {
+    llvm::SmallVector<std::unique_ptr<Node>> newNodes;
+
+    for (size_t i = 0, e = nodes.size(); i < e; i += maxElements) {
+      auto &parent = newNodes.emplace_back(
+          std::make_unique<Node>(nullptr, nodes[i]->getBoundary()));
+
+      for (size_t j = 0; j < maxElements; ++j) {
+        if (i + j >= e) {
+          break;
+        }
+
+        auto &child = parent->children.emplace_back(std::move(nodes[i + j]));
+        child->parent = parent.get();
+      }
+
+      parent->recalcBoundary();
+    }
+
+    nodes = std::move(newNodes);
+  }
+
+  if (nodes.size() > 1) {
+    auto parent = std::make_unique<Node>(nullptr, nodes[0]->getBoundary());
+
+    for (auto &child : nodes) {
+      child->parent = parent.get();
+      parent->children.emplace_back(std::move(child));
+    }
+
+    parent->recalcBoundary();
+
+    nodes.clear();
+    nodes.push_back(std::move(parent));
+  }
+
+  root = std::move(nodes.front());
+
+  assert(isValid() && "Inconsistent initialization of the R-Tree IndexSet");
+
+  assert(llvm::all_of(ranges,
+                      [&](const MultidimensionalRange &range) {
+                        for (Point point : range) {
+                          if (!contains(point)) {
+                            return false;
+                          }
+                        }
+
+                        return true;
+                      }) &&
+         "Not all indices have been inserted");
+
+  assert(llvm::all_of(*this,
+                      [&](Point point) {
+                        for (const MultidimensionalRange &range : ranges) {
+                          if (range.contains(point)) {
+                            return true;
+                          }
+                        }
+
+                        return false;
+                      }) &&
+         "Some non-requested indices have been inserted");
+}
 
 RTreeIndexSet::Node *
 RTreeIndexSet::chooseLeaf(const MultidimensionalRange &entry) const {
