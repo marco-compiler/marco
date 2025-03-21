@@ -1199,10 +1199,8 @@ bool RTreeIndexSet::overlapsGenericIndexSet(const IndexSet::Impl &other) const {
 }
 
 IndexSet RTreeIndexSet::intersect(const MultidimensionalRange &other) const {
-  IndexSet result;
-
   if (root == nullptr) {
-    return result;
+    return {};
   }
 
   llvm::SmallVector<const Node *> nodes;
@@ -1210,8 +1208,10 @@ IndexSet RTreeIndexSet::intersect(const MultidimensionalRange &other) const {
   if (root->getBoundary().overlaps(other)) {
     nodes.push_back(root.get());
   } else {
-    return result;
+    return {};
   }
+
+  llvm::SmallVector<MultidimensionalRange> result;
 
   while (!nodes.empty()) {
     const Node *node = nodes.pop_back_val();
@@ -1224,12 +1224,12 @@ IndexSet RTreeIndexSet::intersect(const MultidimensionalRange &other) const {
 
     for (const auto &value : node->values) {
       if (value.overlaps(other)) {
-        result += other.intersect(value);
+        result.push_back(other.intersect(value));
       }
     }
   }
 
-  return result;
+  return {result};
 }
 
 IndexSet RTreeIndexSet::intersect(const IndexSet::Impl &other) const {
