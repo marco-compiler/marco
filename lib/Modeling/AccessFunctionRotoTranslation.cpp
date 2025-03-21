@@ -183,14 +183,14 @@ AccessFunctionRotoTranslation::map(const MultidimensionalRange &indices) const {
 }
 
 IndexSet AccessFunctionRotoTranslation::map(const IndexSet &indices) const {
-  IndexSet result;
+  llvm::SmallVector<MultidimensionalRange> mapped;
 
   for (const MultidimensionalRange &range :
        llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-    result += map(range);
+    mapped.push_back(map(range));
   }
 
-  return result;
+  return {mapped};
 }
 
 IndexSet
@@ -247,7 +247,7 @@ AccessFunctionRotoTranslation::inverseMap(const IndexSet &accessedIndices,
     }
 
     // Insert the indices corresponding to the skipped dimensions.
-    IndexSet result;
+    llvm::SmallVector<MultidimensionalRange> mapped;
 
     for (const MultidimensionalRange &parentRange : llvm::make_range(
              parentIndices.rangesBegin(), parentIndices.rangesEnd())) {
@@ -265,11 +265,11 @@ AccessFunctionRotoTranslation::inverseMap(const IndexSet &accessedIndices,
           }
         }
 
-        result += MultidimensionalRange(ranges);
+        mapped.push_back(MultidimensionalRange(ranges));
       }
     }
 
-    return result;
+    return {mapped};
   }
 
   return AccessFunction::inverseMap(accessedIndices, parentIndices);

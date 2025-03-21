@@ -197,15 +197,15 @@ std::unique_ptr<AccessFunction> AccessFunction::inverse() const {
 
 IndexSet AccessFunction::inverseMap(const IndexSet &accessedIndices,
                                     const IndexSet &parentIndices) const {
-  IndexSet result;
+  llvm::SmallVector<Point> mapped;
 
   for (const Point &point : parentIndices) {
     if (accessedIndices.contains(map(point))) {
-      result += point;
+      mapped.push_back(point);
     }
   }
 
-  return result;
+  return {mapped};
 }
 
 std::unique_ptr<AccessFunction>
