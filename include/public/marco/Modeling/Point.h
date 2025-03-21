@@ -3,6 +3,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
@@ -62,5 +63,30 @@ private:
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Point &obj);
 } // namespace marco::modeling
+
+namespace llvm {
+template <>
+struct DenseMapInfo<marco::modeling::Point> {
+  using Key = marco::modeling::Point;
+
+  static inline Key getEmptyKey() {
+    using ArrayRefDenseInfo =
+        llvm::DenseMapInfo<llvm::ArrayRef<Key::data_type>>;
+
+    return {ArrayRefDenseInfo::getEmptyKey()};
+  }
+
+  static inline Key getTombstoneKey() {
+    using ArrayRefDenseInfo =
+        llvm::DenseMapInfo<llvm::ArrayRef<Key::data_type>>;
+
+    return {ArrayRefDenseInfo::getTombstoneKey()};
+  }
+
+  static unsigned getHashValue(const Key &val) { return hash_value(val); }
+
+  static bool isEqual(const Key &lhs, const Key &rhs) { return lhs == rhs; }
+};
+} // namespace llvm
 
 #endif // MARCO_MODELING_POINT_H
