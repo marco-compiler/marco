@@ -31,8 +31,8 @@ LocalMatchingSolutions::iterator LocalMatchingSolutions::end() {
 }
 
 bool isValidLocalMatchingSolution(const MCIM &matrix) {
-  IndexSet equations = matrix.getEquationRanges();
-  IndexSet variables = matrix.getVariableRanges();
+  IndexSet equations = matrix.getEquationSpace();
+  IndexSet variables = matrix.getVariableSpace();
 
   // Check that each row has at most one 1.
   for (Point equation : equations) {

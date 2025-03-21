@@ -2,6 +2,7 @@
 #define MARCO_MODELING_MCIM_H
 
 #include "marco/Modeling/MCIMGroup.h"
+#include <memory>
 
 namespace llvm {
 class raw_ostream;
@@ -50,8 +51,14 @@ public:
 
   MCIM(MultidimensionalRange equationRanges,
        MultidimensionalRange variableRanges);
+
   MCIM(IndexSet equationRanges, IndexSet variableRanges);
 
+private:
+  MCIM(std::shared_ptr<const IndexSet> equationRanges,
+       std::shared_ptr<const IndexSet> variableRanges);
+
+public:
   MCIM(const MCIM &other);
 
   MCIM(MCIM &&other);
@@ -68,9 +75,9 @@ public:
 
   bool operator!=(const MCIM &other) const;
 
-  const IndexSet &getEquationRanges() const;
+  const IndexSet &getEquationSpace() const;
 
-  const IndexSet &getVariableRanges() const;
+  const IndexSet &getVariableSpace() const;
 
   IndicesIterator indicesBegin() const;
 
@@ -115,8 +122,8 @@ private:
   MCIMGroup &addGroup(std::unique_ptr<MCIMGroup> group);
 
 private:
-  IndexSet equationRanges;
-  IndexSet variableRanges;
+  std::shared_ptr<const IndexSet> equationSpace;
+  std::shared_ptr<const IndexSet> variableSpace;
   std::vector<std::unique_ptr<MCIMGroup>> groups;
   IndexSet points;
 };

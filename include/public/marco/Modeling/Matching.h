@@ -1000,7 +1000,7 @@ public:
       const auto &u = edge.getIncidenceMatrix();
 
       auto matchOptions = internal::solveLocalMatchingProblem(
-          u.getEquationRanges(), u.getVariableRanges(),
+          u.getEquationSpace(), u.getVariableSpace(),
           edge.getAccessFunction().clone());
 
       // The simplification steps is executed only in case of a single

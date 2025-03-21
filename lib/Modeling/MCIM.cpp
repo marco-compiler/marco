@@ -76,18 +76,23 @@ void MCIM::IndicesIterator::advance() {
 //===----------------------------------------------------------------------===//
 
 namespace marco::modeling::internal {
-MCIM::MCIM(MultidimensionalRange equationRanges,
-           MultidimensionalRange variableRanges)
-    : equationRanges(std::move(equationRanges)),
-      variableRanges(std::move(variableRanges)) {}
+MCIM::MCIM(MultidimensionalRange equationSpace,
+           MultidimensionalRange variableSpace)
+    : MCIM(std::make_shared<const IndexSet>(std::move(equationSpace)),
+           std::make_shared<const IndexSet>(std::move(variableSpace))) {}
 
-MCIM::MCIM(IndexSet equationRanges, IndexSet variableRanges)
-    : equationRanges(std::move(equationRanges)),
-      variableRanges(std::move(variableRanges)) {}
+MCIM::MCIM(IndexSet equationSpace, IndexSet variableSpace)
+    : MCIM(std::make_shared<const IndexSet>(std::move(equationSpace)),
+           std::make_shared<const IndexSet>(std::move(variableSpace))) {}
+
+MCIM::MCIM(std::shared_ptr<const IndexSet> equationSpace,
+           std::shared_ptr<const IndexSet> variableSpace)
+    : equationSpace(std::move(equationSpace)),
+      variableSpace(std::move(variableSpace)) {}
 
 MCIM::MCIM(const MCIM &other)
-    : equationRanges(other.equationRanges),
-      variableRanges(other.variableRanges), points(other.points) {
+    : equationSpace(other.equationSpace), variableSpace(other.variableSpace),
+      points(other.points) {
   for (const auto &group : other.groups) {
     addGroup(group->clone());
   }
@@ -107,22 +112,22 @@ MCIM &MCIM::operator=(MCIM &&other) = default;
 
 void swap(MCIM &first, MCIM &second) {
   using std::swap;
-  swap(first.equationRanges, second.equationRanges);
-  swap(first.variableRanges, second.variableRanges);
+  swap(first.equationSpace, second.equationSpace);
+  swap(first.variableSpace, second.variableSpace);
   swap(first.groups, second.groups);
   swap(first.points, second.points);
 }
 
-const IndexSet &MCIM::getEquationRanges() const { return equationRanges; }
+const IndexSet &MCIM::getEquationSpace() const { return *equationSpace; }
 
-const IndexSet &MCIM::getVariableRanges() const { return variableRanges; }
+const IndexSet &MCIM::getVariableSpace() const { return *variableSpace; }
 
 bool MCIM::operator==(const MCIM &rhs) const {
-  if (equationRanges != rhs.equationRanges) {
+  if (getEquationSpace() != rhs.getEquationSpace()) {
     return false;
   }
 
-  if (variableRanges != rhs.variableRanges) {
+  if (getVariableSpace() != rhs.getVariableSpace()) {
     return false;
   }
 
@@ -138,11 +143,11 @@ bool MCIM::operator==(const MCIM &rhs) const {
 }
 
 bool MCIM::operator!=(const MCIM &rhs) const {
-  if (getEquationRanges() != rhs.getEquationRanges()) {
+  if (getEquationSpace() != rhs.getEquationSpace()) {
     return true;
   }
 
-  if (getVariableRanges() != rhs.getVariableRanges()) {
+  if (getVariableSpace() != rhs.getVariableSpace()) {
     return true;
   }
 
@@ -158,26 +163,29 @@ bool MCIM::operator!=(const MCIM &rhs) const {
 }
 
 MCIM::IndicesIterator MCIM::indicesBegin() const {
-  return IndicesIterator(equationRanges, variableRanges,
+  return IndicesIterator(getEquationSpace(), getVariableSpace(),
                          [](const IndexSet &range) { return range.begin(); });
 }
 
 MCIM::IndicesIterator MCIM::indicesEnd() const {
-  return IndicesIterator(equationRanges, variableRanges,
+  return IndicesIterator(getEquationSpace(), getVariableSpace(),
                          [](const IndexSet &range) { return range.end(); });
 }
 
 MCIM &MCIM::operator+=(const MCIM &rhs) {
-  assert(equationRanges == rhs.equationRanges && "Different equation ranges");
-  assert(variableRanges == rhs.variableRanges && "Different variable ranges");
+  assert(getEquationSpace() == rhs.getEquationSpace() &&
+         "Different equation ranges");
+
+  assert(getVariableSpace() == rhs.getVariableSpace() &&
+         "Different variable ranges");
 
   for (const auto &group : rhs.groups) {
     apply(group->getKeys(), group->getAccessFunction());
   }
 
   for (Point otherPoint : rhs.points) {
-    Point equation = otherPoint.takeFront(equationRanges.rank());
-    Point variable = otherPoint.takeBack(variableRanges.rank());
+    Point equation = otherPoint.takeFront(getEquationSpace().rank());
+    Point variable = otherPoint.takeBack(getVariableSpace().rank());
     set(equation, variable);
   }
 
@@ -201,8 +209,11 @@ MCIM MCIM::operator+(const MCIM &rhs) const {
 }
 
 MCIM &MCIM::operator-=(const MCIM &rhs) {
-  assert(equationRanges == rhs.equationRanges && "Different equation ranges");
-  assert(variableRanges == rhs.variableRanges && "Different variable ranges");
+  assert(getEquationSpace() == rhs.getEquationSpace() &&
+         "Different equation ranges");
+
+  assert(getVariableSpace() == rhs.getVariableSpace() &&
+         "Different variable ranges");
 
   std::vector<std::unique_ptr<MCIMGroup>> oldGroups;
   swap(oldGroups, groups);
@@ -221,10 +232,10 @@ MCIM &MCIM::operator-=(const MCIM &rhs) {
       for (const MultidimensionalRange &range :
            llvm::make_range(rhs.points.rangesBegin(), rhs.points.rangesEnd())) {
         MultidimensionalRange equations =
-            range.takeFirstDimensions(rhs.equationRanges.rank());
+            range.takeFirstDimensions(rhs.getEquationSpace().rank());
 
         MultidimensionalRange variables =
-            range.takeLastDimensions(rhs.variableRanges.rank());
+            range.takeLastDimensions(rhs.getVariableSpace().rank());
 
         IndexSet inverseKeys = group->getAccessFunction().inverseMap(
             IndexSet(variables), group->getKeys());
@@ -261,17 +272,17 @@ MCIM MCIM::operator-(const MCIM &rhs) const {
 }
 
 void MCIM::apply(const AccessFunction &access) {
-  apply(equationRanges, access);
+  apply(getEquationSpace(), access);
 }
 
 void MCIM::apply(const MultidimensionalRange &equations,
                  const AccessFunction &access) {
-  assert(equationRanges.contains(equations));
+  assert(getEquationSpace().contains(equations));
   apply(IndexSet(equations), access);
 }
 
 void MCIM::apply(const IndexSet &equations, const AccessFunction &access) {
-  assert(equationRanges.contains(equations));
+  assert(getEquationSpace().contains(equations));
 
   auto groupIt =
       std::find_if(groups.begin(), groups.end(),
@@ -288,9 +299,10 @@ void MCIM::apply(const IndexSet &equations, const AccessFunction &access) {
 }
 
 bool MCIM::get(const Point &equation, const Point &variable) const {
-  assert(equationRanges.contains(equation) &&
+  assert(getEquationSpace().contains(equation) &&
          "Equation indices don't belong to the equation ranges");
-  assert(variableRanges.contains(variable) &&
+
+  assert(getVariableSpace().contains(variable) &&
          "Variable indices don't belong to the variable ranges");
 
   if (points.contains(equation.append(variable))) {
@@ -303,9 +315,10 @@ bool MCIM::get(const Point &equation, const Point &variable) const {
 }
 
 void MCIM::set(const Point &equation, const Point &variable) {
-  assert(equationRanges.contains(equation) &&
+  assert(getEquationSpace().contains(equation) &&
          "Equation indices don't belong to the equation ranges");
-  assert(variableRanges.contains(variable) &&
+
+  assert(getVariableSpace().contains(variable) &&
          "Variable indices don't belong to the variable ranges");
 
   bool anyGroupSet = false;
@@ -320,9 +333,10 @@ void MCIM::set(const Point &equation, const Point &variable) {
 }
 
 void MCIM::unset(const Point &equation, const Point &variable) {
-  assert(equationRanges.contains(equation) &&
+  assert(getEquationSpace().contains(equation) &&
          "Equation indices don't belong to the equation ranges");
-  assert(variableRanges.contains(variable) &&
+
+  assert(getVariableSpace().contains(variable) &&
          "Variable indices don't belong to the variable ranges");
 
   std::vector<std::unique_ptr<MCIMGroup>> newGroups;
@@ -353,7 +367,7 @@ IndexSet MCIM::flattenRows() const {
     result += group->getValues();
   }
 
-  result += points.takeLastDimensions(variableRanges.rank());
+  result += points.takeLastDimensions(getVariableSpace().rank());
   return result;
 }
 
@@ -364,12 +378,12 @@ IndexSet MCIM::flattenColumns() const {
     result += group->getKeys();
   }
 
-  result += points.takeFirstDimensions(equationRanges.rank());
+  result += points.takeFirstDimensions(getEquationSpace().rank());
   return result;
 }
 
 MCIM MCIM::filterRows(const IndexSet &filter) const {
-  MCIM result(equationRanges, variableRanges);
+  MCIM result(equationSpace, variableSpace);
 
   for (const auto &group : groups) {
     std::unique_ptr<MCIMGroup> filteredGroup = group->filterKeys(filter);
@@ -379,11 +393,11 @@ MCIM MCIM::filterRows(const IndexSet &filter) const {
     }
   }
 
-  IndexSet rows = points.takeFirstDimensions(equationRanges.rank());
+  IndexSet rows = points.takeFirstDimensions(getEquationSpace().rank());
   IndexSet filteredRows = rows.intersect(filter);
 
   if (!filteredRows.empty()) {
-    IndexSet enrichedRows = filteredRows.append(variableRanges);
+    IndexSet enrichedRows = filteredRows.append(getVariableSpace());
     IndexSet filteredPoints = points.intersect(enrichedRows);
     result.points += filteredPoints;
   }
@@ -392,7 +406,7 @@ MCIM MCIM::filterRows(const IndexSet &filter) const {
 }
 
 MCIM MCIM::filterColumns(const IndexSet &filter) const {
-  MCIM result(equationRanges, variableRanges);
+  MCIM result(equationSpace, variableSpace);
 
   for (const auto &group : groups) {
     std::unique_ptr<MCIMGroup> filteredGroup = group->filterValues(filter);
@@ -402,11 +416,11 @@ MCIM MCIM::filterColumns(const IndexSet &filter) const {
     }
   }
 
-  IndexSet columns = points.takeLastDimensions(variableRanges.rank());
+  IndexSet columns = points.takeLastDimensions(getVariableSpace().rank());
   IndexSet filteredColumns = columns.intersect(filter);
 
   if (!filteredColumns.empty()) {
-    IndexSet enrichedColumns = filteredColumns.prepend(equationRanges);
+    IndexSet enrichedColumns = filteredColumns.prepend(getEquationSpace());
     IndexSet filteredPoints = points.intersect(enrichedColumns);
     result.points += filteredPoints;
   }
@@ -418,28 +432,28 @@ std::vector<MCIM> MCIM::splitGroups() const {
   std::vector<MCIM> result;
 
   for (const auto &group : groups) {
-    assert(equationRanges.contains(group->getKeys()));
-    assert(variableRanges.contains(group->getValues()));
+    assert(getEquationSpace().contains(group->getKeys()));
+    assert(getVariableSpace().contains(group->getValues()));
 
     auto localSolutions =
         solveLocalMatchingProblem(group->getKeys(), group->getValues(),
                                   group->getAccessFunction().clone());
 
     for (auto &localSolution : localSolutions) {
-      assert(localSolution.equationRanges == group->getKeys());
-      assert(localSolution.variableRanges == group->getValues());
+      assert(localSolution.getEquationSpace() == group->getKeys());
+      assert(localSolution.getVariableSpace() == group->getValues());
 
-      localSolution.equationRanges = equationRanges;
-      localSolution.variableRanges = variableRanges;
+      localSolution.equationSpace = equationSpace;
+      localSolution.variableSpace = variableSpace;
 
       result.push_back(std::move(localSolution));
     }
   }
 
   for (Point point : points) {
-    MCIM group(equationRanges, variableRanges);
-    Point equation = point.takeFront(equationRanges.rank());
-    Point variable = point.takeBack(variableRanges.rank());
+    MCIM group(equationSpace, variableSpace);
+    Point equation = point.takeFront(getEquationSpace().rank());
+    Point variable = point.takeBack(getVariableSpace().rank());
     group.set(equation, variable);
     result.push_back(std::move(group));
   }
@@ -448,8 +462,8 @@ std::vector<MCIM> MCIM::splitGroups() const {
 }
 
 MCIMGroup &MCIM::addGroup(std::unique_ptr<MCIMGroup> group) {
-  assert(equationRanges.contains(group->getKeys()));
-  assert(variableRanges.contains(group->getValues()));
+  assert(getEquationSpace().contains(group->getKeys()));
+  assert(getVariableSpace().contains(group->getValues()));
   return *groups.emplace_back(std::move(group));
 }
 } // namespace marco::modeling::internal
@@ -514,8 +528,8 @@ static size_t getWrappedIndexesLength(size_t indexesLength,
 
 namespace marco::modeling::internal {
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MCIM &obj) {
-  const auto &equationRanges = obj.getEquationRanges();
-  const auto &variableRanges = obj.getVariableRanges();
+  const IndexSet &equationRanges = obj.getEquationSpace();
+  const IndexSet &variableRanges = obj.getVariableSpace();
 
   // Determine the max widths of the indexes of the equation, so that they
   // will be properly aligned.
