@@ -1040,6 +1040,63 @@ public:
 
   DirectedGraph &operator=(DirectedGraph &&other) = default;
 };
+
+template <typename T>
+struct UniquePtrWrapper {
+  std::unique_ptr<T> value;
+
+  UniquePtrWrapper(std::unique_ptr<T> value) : value(std::move(value)) {}
+
+  UniquePtrWrapper(T *value) : value(value) {}
+
+  friend llvm::hash_code hash_value(const UniquePtrWrapper &val) {
+    return hash_value(*val.value);
+  }
+
+  operator std::unique_ptr<T> &() { return value; }
+
+  operator const std::unique_ptr<T> &() { return value; }
+
+  template <typename U>
+  bool operator==(const U &other) const {
+    return value == other;
+  }
+
+  template <typename U>
+  bool operator==(U &&other) const {
+    return value == other;
+  }
+
+  template <typename U>
+  bool operator!=(const U &other) const {
+    return value != other;
+  }
+
+  template <typename U>
+  bool operator!=(U &&other) const {
+    return value != other;
+  }
+
+  T &operator*() {
+    assert(value && "Null pointer");
+    return *value;
+  }
+
+  const T &operator*() const {
+    assert(value && "Null pointer");
+    return *value;
+  }
+
+  T *operator->() {
+    assert(value && "Null pointer");
+    return value.get();
+  }
+
+  const T *operator->() const {
+    assert(value && "Null pointer");
+    return value.get();
+  }
+};
 } // namespace marco::modeling::internal
 
 namespace llvm {

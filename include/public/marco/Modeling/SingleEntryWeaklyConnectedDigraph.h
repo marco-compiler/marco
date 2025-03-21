@@ -21,8 +21,8 @@ public:
   using EdgeProperty = EP;
 
 private:
-  using Graph = DirectedGraph<std::unique_ptr<VertexProperty>,
-                              std::unique_ptr<EdgeProperty>>;
+  using Graph = DirectedGraph<internal::UniquePtrWrapper<VertexProperty>,
+                              internal::UniquePtrWrapper<EdgeProperty>>;
 
 public:
   using VertexDescriptor = typename Graph::VertexDescriptor;
