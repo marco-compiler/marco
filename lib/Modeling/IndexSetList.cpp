@@ -369,10 +369,6 @@ std::unique_ptr<IndexSet::Impl> ListIndexSet::clone() const {
   return std::make_unique<ListIndexSet>(*this);
 }
 
-llvm::hash_code hash_value(const ListIndexSet &value) {
-  return llvm::hash_combine_range(value.ranges.begin(), value.ranges.end());
-}
-
 llvm::raw_ostream &ListIndexSet::dump(llvm::raw_ostream &os) const {
   os << "{";
 

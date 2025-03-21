@@ -553,10 +553,6 @@ std::unique_ptr<IndexSet::Impl> RTreeIndexSet::clone() const {
   return std::make_unique<RTreeIndexSet>(*this);
 }
 
-llvm::hash_code hash_value(const RTreeIndexSet &value) {
-  return llvm::hash_combine_range(value.rangesBegin(), value.rangesEnd());
-}
-
 llvm::raw_ostream &RTreeIndexSet::dump(llvm::raw_ostream &os) const {
   os << "{";
 

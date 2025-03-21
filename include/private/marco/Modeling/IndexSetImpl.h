@@ -56,8 +56,6 @@ public:
 
   /// }
 
-  friend llvm::hash_code hash_value(const IndexSet::Impl &value);
-
   virtual llvm::raw_ostream &dump(llvm::raw_ostream &os) const = 0;
 
   virtual bool operator==(const Point &rhs) const = 0;

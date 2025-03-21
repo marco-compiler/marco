@@ -73,19 +73,6 @@ std::ostream &operator<<(std::ostream &os, const IndexSet::Impl &obj) {
 
   return os;
 }
-
-llvm::hash_code hash_value(const IndexSet::Impl &value) {
-  if (auto *objCasted = value.dyn_cast<impl::ListIndexSet>()) {
-    return hash_value(*objCasted);
-  }
-
-  if (auto *objCasted = value.dyn_cast<impl::RTreeIndexSet>()) {
-    return hash_value(*objCasted);
-  }
-
-  llvm_unreachable("Unknown IndexSet type");
-  return {0};
-}
 } // namespace marco::modeling
 
 //===---------------------------------------------------------------------===//
@@ -125,8 +112,11 @@ void swap(IndexSet &first, IndexSet &second) {
 }
 
 llvm::hash_code hash_value(const IndexSet &value) {
-  assert(value.impl != nullptr);
-  return hash_value(*value.impl);
+  if (value.impl == nullptr) {
+    return 0;
+  }
+
+  return llvm::hash_value(value.flatSize());
 }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const IndexSet &obj) {
