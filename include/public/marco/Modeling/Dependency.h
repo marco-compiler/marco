@@ -137,6 +137,10 @@ public:
 
   explicit ArrayVariable(VariableProperty property) : property(property) {}
 
+  friend llvm::hash_code hash_value(const ArrayVariable &val) {
+    return hash_value(val.property);
+  }
+
   bool operator==(const ArrayVariable &other) const {
     return getId() == other.getId();
   }
@@ -204,6 +208,10 @@ public:
   using Access = typename Traits::Access;
 
   explicit ArrayEquation(EquationProperty property) : property(property) {}
+
+  friend llvm::hash_code hash_value(const ArrayEquation &val) {
+    return hash_value(val.property);
+  }
 
   bool operator==(const ArrayEquation &other) const {
     return getId() == other.getId();

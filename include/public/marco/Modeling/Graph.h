@@ -24,6 +24,10 @@ public:
   VertexDescriptor(const Graph *graph, Property *value)
       : graph(std::move(graph)), value(std::move(value)) {}
 
+  friend llvm::hash_code hash_value(const VertexDescriptor &descriptor) {
+    return hash_value(*descriptor.value);
+  }
+
   bool operator==(const VertexDescriptor &other) const {
     return graph == other.graph && value == other.value;
   }
@@ -69,6 +73,10 @@ template <typename T>
 class PropertyWrapper {
 public:
   PropertyWrapper(T property) : value(std::move(property)) {}
+
+  friend llvm::hash_code hash_value(const PropertyWrapper &val) {
+    return hash_value(val.value);
+  }
 
   T &operator*() { return value; }
 

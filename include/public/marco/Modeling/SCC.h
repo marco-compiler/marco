@@ -51,6 +51,10 @@ public:
   SCC(const Graph &graph, It equationsBegin, It equationsEnd)
       : graph(&graph), equations(equationsBegin, equationsEnd) {}
 
+  friend llvm::hash_code hash_value(const SCC &val) {
+    return llvm::hash_combine_range(val.equations.begin(), val.equations.end());
+  }
+
   const Graph &getGraph() const {
     assert(graph != nullptr);
     return *graph;

@@ -31,6 +31,10 @@ public:
   ScalarEquation(EquationProperty property, Point index)
       : property(std::move(property)), index(std::move(index)) {}
 
+  friend llvm::hash_code hash_value(const ScalarEquation &val) {
+    return llvm::hash_combine(val.property, val.index);
+  }
+
   Id getId() const { return VectorEquationTraits::getId(&property); }
 
   const EquationProperty &getProperty() const { return property; }
