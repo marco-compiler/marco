@@ -147,6 +147,20 @@ bool MultidimensionalRange::overlaps(const MultidimensionalRange &other) const {
   return true;
 }
 
+bool MultidimensionalRange::anyDimensionOverlaps(
+    const MultidimensionalRange &other) const {
+  assert(rank() == other.rank() &&
+         "Can't compare ranges defined on different hyper-spaces");
+
+  for (const auto &[x, y] : llvm::zip(ranges, other.ranges)) {
+    if (x.overlaps(y)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 MultidimensionalRange
 MultidimensionalRange::intersect(const MultidimensionalRange &other) const {
   assert(overlaps(other));

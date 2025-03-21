@@ -84,6 +84,8 @@ public:
 
   bool overlaps(const MultidimensionalRange &other) const;
 
+  bool anyDimensionOverlaps(const MultidimensionalRange &other) const;
+
   MultidimensionalRange intersect(const MultidimensionalRange &other) const;
 
   /// Check if two multidimensional ranges can be merged.
