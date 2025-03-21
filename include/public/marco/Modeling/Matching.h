@@ -508,6 +508,11 @@ public:
     steps.push_back(std::move(step));
   }
 
+  template <typename It>
+  void insert(const_iterator posIt, It beginIt, It endIt) {
+    steps.insert(posIt, beginIt, endIt);
+  }
+
   void clear() { steps.clear(); }
 
   void swap(Frontier &other) { steps.swap(other.steps); }
@@ -1593,18 +1598,12 @@ private:
 
         if (!localFrontier.empty()) {
           std::lock_guard<std::mutex> lock(newFrontierMutex);
-
-          for (auto &localStep : localFrontier) {
-            newFrontier.push_back(std::move(localStep));
-          }
+          llvm::append_range(newFrontier, std::move(localFrontier));
         }
 
         if (!localPaths.empty()) {
           std::lock_guard<std::mutex> lock(pathsMutex);
-
-          for (auto &localStep : localPaths) {
-            paths.push_back(std::move(localStep));
-          }
+          llvm::append_range(paths, std::move(localPaths));
         }
       };
 
