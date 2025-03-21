@@ -5,6 +5,7 @@
 #include "mlir/IR/AffineMap.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -130,5 +131,24 @@ private:
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const MultidimensionalRange &obj);
 } // namespace marco::modeling
+
+namespace llvm {
+template <>
+struct DenseMapInfo<marco::modeling::MultidimensionalRange> {
+  using Key = marco::modeling::MultidimensionalRange;
+
+  static inline Key getEmptyKey() {
+    return {llvm::DenseMapInfo<marco::modeling::Range>::getEmptyKey()};
+  }
+
+  static inline Key getTombstoneKey() {
+    return {llvm::DenseMapInfo<marco::modeling::Range>::getTombstoneKey()};
+  }
+
+  static unsigned getHashValue(const Key &val) { return hash_value(val); }
+
+  static bool isEqual(const Key &lhs, const Key &rhs) { return lhs == rhs; }
+};
+} // namespace llvm
 
 #endif // MARCO_MODELING_MULTIDIMENSIONALRANGE_H
