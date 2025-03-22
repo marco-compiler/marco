@@ -230,15 +230,6 @@ private:
 } // namespace matching
 
 namespace internal::matching {
-template <typename T>
-void insertOrAdd(llvm::DenseMap<T, IndexSet> &map, T key, IndexSet value) {
-  if (auto it = map.find(key); it != map.end()) {
-    it->second += std::move(value);
-  } else {
-    map[key] = std::move(value);
-  }
-}
-
 /// Graph node representing an equation.
 template <typename EquationProperty>
 class EquationVertex : public Matchable, public Dumpable {
@@ -1421,7 +1412,7 @@ private:
     // For each traversed node, keep track of the indices that have already
     // been traversed by some augmenting path. A new candidate path can be
     // accepted only if it does not traverse any of them.
-    std::map<VertexDescriptor, IndexSet> visited;
+    llvm::DenseMap<VertexDescriptor, IndexSet> visited;
 
     for (const std::shared_ptr<BFSStep> &pathEnd : paths) {
       // All the candidate paths consist in at least two nodes by construction
@@ -1457,25 +1448,22 @@ private:
                         curStep->getEdge(), map);
         }
 
-        auto touchedIndexes = isVariable(curStep->getNode())
-                                  ? map.flattenRows()
-                                  : map.flattenColumns();
+        IndexSet touchedIndices = isVariable(curStep->getNode())
+                                      ? map.flattenRows()
+                                      : map.flattenColumns();
 
         if (auto it = visited.find(curStep->getNode()); it != visited.end()) {
-          auto &alreadyTouchedIndices = it->second;
-
-          if (touchedIndexes.overlaps(alreadyTouchedIndices)) {
-            // The current path intersects another one, so we need to discard it
+          if (touchedIndices.overlaps(it->second)) {
+            // Discard the current path, as it overlaps with another one.
             validPath = false;
           } else {
-            insertOrAdd(newVisits, curStep->getNode(),
-                        alreadyTouchedIndices + touchedIndexes);
+            newVisits[curStep->getNode()] += touchedIndices;
           }
         } else {
-          insertOrAdd(newVisits, curStep->getNode(), touchedIndexes);
+          newVisits[curStep->getNode()] = std::move(touchedIndices);
         }
 
-        // Move backwards inside the candidate augmenting path
+        // Move backwards inside the candidate augmenting path.
         curStep = curStep->getPrevious();
       }
 
@@ -1753,19 +1741,18 @@ private:
 
       if (isVariable(from)) {
         // Backward node
-        insertOrAdd(removedMatches, from, deltaVariables);
-        insertOrAdd(removedMatches, to, deltaEquations);
+        removedMatches[from] += deltaVariables;
+        removedMatches[to] += deltaEquations;
         edge.removeMatch(flow.delta);
       } else {
         // Forward node
-        insertOrAdd(newMatches, from, deltaEquations);
-        insertOrAdd(newMatches, to, deltaVariables);
+        newMatches[from] += deltaEquations;
+        newMatches[to] += deltaVariables;
         edge.addMatch(flow.delta);
       }
     }
 
-    // Update the match information stored on the vertices
-
+    // Update the match information stored in the vertices.
     for (const auto &match : removedMatches) {
       std::visit([&match](auto &node) { node.removeMatch(match.second); },
                  graph[match.first]);
