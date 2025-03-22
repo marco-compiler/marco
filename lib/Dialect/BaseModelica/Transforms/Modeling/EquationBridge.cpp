@@ -34,6 +34,10 @@ EquationBridge::EquationBridge(
     : id(id), op(op), symbolTable(&symbolTable),
       accessAnalysis(&accessAnalysis), variablesMap(&variablesMap) {}
 
+llvm::hash_code hash_value(const EquationBridge &val) {
+  return llvm::hash_value(val.id);
+}
+
 int64_t EquationBridge::getId() const { return id; }
 
 EquationInstanceOp EquationBridge::getOp() const { return op; }
@@ -71,6 +75,10 @@ EquationBridge::VariablesMap &EquationBridge::getVariablesMap() {
 const EquationBridge::VariablesMap &EquationBridge::getVariablesMap() const {
   assert(variablesMap);
   return *variablesMap;
+}
+
+llvm::hash_code hash_value(const EquationBridge *val) {
+  return hash_value(*val);
 }
 } // namespace mlir::bmodelica::bridge
 

@@ -45,6 +45,8 @@ public:
   EquationBridge &operator=(const EquationBridge &other) = delete;
   EquationBridge &operator==(const EquationBridge &other) = delete;
 
+  friend llvm::hash_code hash_value(const EquationBridge &val);
+
   /// @Getters
   /// {
 
@@ -68,6 +70,8 @@ public:
 
   /// }
 };
+
+llvm::hash_code hash_value(const EquationBridge *val);
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::matching {
