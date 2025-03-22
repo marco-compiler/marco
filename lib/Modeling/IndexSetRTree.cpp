@@ -1421,23 +1421,11 @@ std::unique_ptr<IndexSet::Impl>
 RTreeIndexSet::prepend(const IndexSet &other) const {
   llvm::SmallVector<MultidimensionalRange> result;
 
-  if (empty()) {
-    for (const MultidimensionalRange &range :
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    for (const MultidimensionalRange &otherRange :
          llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-      result.push_back(range);
-    }
-  } else if (other.empty()) {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      result.push_back(range);
-    }
-  } else {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      for (const MultidimensionalRange &otherRange :
-           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-        result.push_back(range.prepend(otherRange));
-      }
+      result.push_back(range.prepend(otherRange));
     }
   }
 
@@ -1448,23 +1436,11 @@ std::unique_ptr<IndexSet::Impl>
 RTreeIndexSet::append(const IndexSet &other) const {
   llvm::SmallVector<MultidimensionalRange> result;
 
-  if (empty()) {
-    for (const MultidimensionalRange &range :
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    for (const MultidimensionalRange &otherRange :
          llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-      result.push_back(range);
-    }
-  } else if (other.empty()) {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      result.push_back(range);
-    }
-  } else {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      for (const MultidimensionalRange &otherRange :
-           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-        result.push_back(range.append(otherRange));
-      }
+      result.push_back(range.append(otherRange));
     }
   }
 

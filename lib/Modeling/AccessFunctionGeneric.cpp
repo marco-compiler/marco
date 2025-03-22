@@ -218,8 +218,13 @@ IndexSet AccessFunctionGeneric::map(const Point &point) const {
 
   // No dependencies among iteration spaces.
   for (const auto &result : getResults()) {
-    mappedIndices =
-        mappedIndices.append(result->map(point, currentIterationSpacePoint));
+    IndexSet appended = result->map(point, currentIterationSpacePoint);
+
+    if (mappedIndices.empty()) {
+      mappedIndices = std::move(appended);
+    } else {
+      mappedIndices = mappedIndices.append(appended);
+    }
   }
 
   return mappedIndices;
@@ -244,8 +249,13 @@ void AccessFunctionGeneric::map(
   IndexSet currentMappedIndices;
 
   for (const auto &result : getResults()) {
-    currentMappedIndices = currentMappedIndices.append(
-        result->map(point, currentIterationSpacePoint));
+    IndexSet appended = result->map(point, currentIterationSpacePoint);
+
+    if (currentMappedIndices.empty()) {
+      currentMappedIndices = std::move(appended);
+    } else {
+      currentMappedIndices = currentMappedIndices.append(appended);
+    }
   }
 
   mappedIndices += currentMappedIndices;

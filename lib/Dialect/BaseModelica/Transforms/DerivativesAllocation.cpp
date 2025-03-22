@@ -348,8 +348,12 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
           extraDimensions.push_back(Range(0, variableShape[i]));
         }
 
-        derivedIndices = derivedIndices.append(
-            IndexSet(MultidimensionalRange(extraDimensions)));
+        if (derivedIndices.empty()) {
+          derivedIndices = {MultidimensionalRange(extraDimensions)};
+        } else {
+          derivedIndices = derivedIndices.append(
+              IndexSet(MultidimensionalRange(extraDimensions)));
+        }
       }
 
       // Add the derived indices.

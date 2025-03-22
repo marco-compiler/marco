@@ -297,7 +297,12 @@ struct ReductionOpInterface
             static_cast<Range::data_type>(rangeAttr.getUpperBound());
 
         Range range(lowerBound, upperBound + 1);
-        indices = indices.append(IndexSet(MultidimensionalRange(range)));
+
+        if (indices.empty()) {
+          indices = {MultidimensionalRange(range)};
+        } else {
+          indices = indices.append(IndexSet());
+        }
 
         auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
         inductionsMap.emplace_back(induction, currentDimension);
@@ -315,7 +320,12 @@ struct ReductionOpInterface
             rangeAttr.getUpperBound().convertToDouble());
 
         Range range(lowerBound, upperBound);
-        indices = indices.append(IndexSet(MultidimensionalRange(range)));
+
+        if (indices.empty()) {
+          indices = {MultidimensionalRange(range)};
+        } else {
+          indices = indices.append(IndexSet(MultidimensionalRange(range)));
+        }
 
         auto currentDimension = static_cast<int64_t>(indices.rank() - 1);
         inductionsMap.emplace_back(induction, currentDimension);

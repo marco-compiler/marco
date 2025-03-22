@@ -897,23 +897,11 @@ std::unique_ptr<IndexSet::Impl>
 ListIndexSet::prepend(const IndexSet &other) const {
   auto result = std::make_unique<ListIndexSet>();
 
-  if (empty()) {
-    for (const MultidimensionalRange &range :
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    for (const MultidimensionalRange &otherRange :
          llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-      *result += range;
-    }
-  } else if (other.empty()) {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      *result += range;
-    }
-  } else {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      for (const MultidimensionalRange &otherRange :
-           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-        *result += range.prepend(otherRange);
-      }
+      *result += range.prepend(otherRange);
     }
   }
 
@@ -924,23 +912,11 @@ std::unique_ptr<IndexSet::Impl>
 ListIndexSet::append(const IndexSet &other) const {
   auto result = std::make_unique<ListIndexSet>();
 
-  if (empty()) {
-    for (const MultidimensionalRange &range :
+  for (const MultidimensionalRange &range :
+       llvm::make_range(rangesBegin(), rangesEnd())) {
+    for (const MultidimensionalRange &otherRange :
          llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-      *result += range;
-    }
-  } else if (other.empty()) {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      *result += range;
-    }
-  } else {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(rangesBegin(), rangesEnd())) {
-      for (const MultidimensionalRange &otherRange :
-           llvm::make_range(other.rangesBegin(), other.rangesEnd())) {
-        *result += range.append(otherRange);
-      }
+      *result += range.append(otherRange);
     }
   }
 
