@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --detect-scc --canonicalize-model-for-debug | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --mlir-disable-threading --detect-scc --canonicalize-model-for-debug | FileCheck %s
 
 // CHECK-LABEL: @CycleAmongDifferentEquations
 
