@@ -202,6 +202,13 @@ private:
 
   std::pair<std::unique_ptr<Node>, std::unique_ptr<Node>> splitNode(Node &node);
 
+  /// Check and adjust the tree structure so that each node has between a
+  /// minimum and maximum amount of children.
+  /// The values contained in collapsed nodes are given back to the caller for
+  /// reinsertion.
+  void adjustTree(Node *node,
+                  llvm::SmallVectorImpl<MultidimensionalRange> &toReinsert);
+
   /// Check if all the invariants are respected.
   bool isValid() const;
 

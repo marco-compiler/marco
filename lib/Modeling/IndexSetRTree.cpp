@@ -642,17 +642,17 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
   assert(rhs.rank() == allowedRank && "Incompatible rank");
 
   // We must add only the non-existing points.
-  std::queue<MultidimensionalRange> nonOverlappingRanges;
+  llvm::SmallVector<MultidimensionalRange> nonOverlappingRanges;
 
   if (root == nullptr) {
-    nonOverlappingRanges.push(rhs);
+    nonOverlappingRanges.push_back(rhs);
   } else {
-    std::vector<MultidimensionalRange> current;
+    llvm::SmallVector<MultidimensionalRange> current;
     current.push_back(rhs);
 
     for (const MultidimensionalRange &range :
          llvm::make_range(rangesBegin(), rangesEnd())) {
-      std::vector<MultidimensionalRange> next;
+      llvm::SmallVector<MultidimensionalRange> next;
 
       for (const MultidimensionalRange &curr : current) {
         for (MultidimensionalRange &diff : curr.subtract(range)) {
@@ -662,7 +662,7 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
             // For safety, also check that all the ranges we are going to add
             // do belong to the original range.
             assert(rhs.contains(diff));
-            nonOverlappingRanges.push(std::move(diff));
+            nonOverlappingRanges.push_back(std::move(diff));
           }
         }
       }
@@ -671,8 +671,10 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
     }
   }
 
-  while (!nonOverlappingRanges.empty()) {
-    MultidimensionalRange &range = nonOverlappingRanges.front();
+  // The amount of ranges to be inserted may increase due to reinsertions.
+  // For this reason, the vector size is computed at each iteration.
+  for (size_t i = 0; i < nonOverlappingRanges.size(); ++i) {
+    MultidimensionalRange &range = nonOverlappingRanges[i];
 
     // Check that all the range do not overlap the existing points.
     assert(!overlaps(range));
@@ -691,97 +693,9 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
       llvm::sort(node->values);
       merge(node->values);
 
-      if (!node->isRoot() && node->fanOut() < minElements) {
-        while (node != nullptr && !node->isRoot() &&
-               node->fanOut() < minElements) {
-          llvm::SmallVector<Node *> nodes;
-          nodes.push_back(node);
-
-          while (!nodes.empty()) {
-            auto current = nodes.pop_back_val();
-
-            for (auto &child : current->children) {
-              nodes.push_back(child.get());
-            }
-
-            for (auto &value : current->values) {
-              assert(value.rank() == rank());
-              nonOverlappingRanges.push(std::move(value));
-            }
-          }
-
-          Node *parent = node->parent;
-          assert(parent != nullptr);
-
-          // The new children of the parent will be the old ones except the
-          // current node, which has been collapsed and its ranges queued for
-          // a new insertion.
-          llvm::SmallVector<std::unique_ptr<Node>> newChildren;
-
-          for (auto &child : node->parent->children) {
-            if (child.get() != node) {
-              newChildren.push_back(std::move(child));
-            }
-          }
-
-          parent->children = std::move(newChildren);
-
-          if (parent->children.empty()) {
-            // If the root has no children, then the tree has to be
-            // reinitialized.
-            assert(parent->isRoot());
-            root = nullptr;
-            node = nullptr;
-          } else {
-            parent->recalcBoundary();
-            node = parent;
-          }
-        }
-      } else if (node->fanOut() > maxElements) {
-        // Propagate node splits.
-        while (node->fanOut() > maxElements) {
-          auto newNodes = splitNode(*node);
-
-          if (node->isRoot()) {
-            // If node split propagation caused the root to split, then
-            // create a new root whose children are the two resulting nodes.
-
-            auto rootBoundary = getMBR(newNodes.first->getBoundary(),
-                                       newNodes.second->getBoundary());
-
-            root = std::make_unique<Node>(nullptr, rootBoundary);
-
-            newNodes.first->parent = root.get();
-            newNodes.second->parent = root.get();
-
-            root->add(std::move(newNodes.first));
-            root->add(std::move(newNodes.second));
-
-            node = root.get();
-            break;
-          }
-
-          *node = std::move(*newNodes.first);
-
-          for (auto &child : node->children) {
-            child->parent = node;
-          }
-
-          node->parent->add(std::move(newNodes.second));
-
-          // Propagate changes upward.
-          node = node->parent;
-        }
-      }
-
-      // Fix all the boundaries up to the root.
-      while (node != nullptr) {
-        node->recalcBoundary();
-        node = node->parent;
-      }
+      // Split and collapse nodes, if necessary.
+      adjustTree(node, nonOverlappingRanges);
     }
-
-    nonOverlappingRanges.pop();
 
     // Check that all the invariants are respected.
     assert(isValid());
@@ -830,29 +744,57 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const MultidimensionalRange &rhs) {
 
   assert(rhs.rank() == allowedRank && "Incompatible rank");
 
-  if (root == nullptr) {
+  if (empty()) {
     return *this;
   }
 
-  if (!root->getBoundary().overlaps(rhs)) {
-    return *this;
-  }
+  llvm::SmallVector<MultidimensionalRange> toInsert;
+  bool modified;
 
-  llvm::SmallVector<MultidimensionalRange> differences;
+  do {
+    modified = false;
+    llvm::SmallVector<Node *> nodeVisits;
 
-  for (const MultidimensionalRange &range :
-       llvm::make_range(rangesBegin(), rangesEnd())) {
-    if (range.overlaps(rhs)) {
-      llvm::append_range(differences, range.subtract(rhs));
-    } else {
-      differences.push_back(range);
+    if (root->getBoundary().overlaps(rhs)) {
+      nodeVisits.push_back(root.get());
     }
-  }
 
-  if (differences.empty()) {
-    root = nullptr;
-  } else {
-    setFromRanges(differences);
+    while (!nodeVisits.empty()) {
+      Node *node = nodeVisits.pop_back_val();
+
+      if (!node->isLeaf()) {
+        for (auto &child : node->children) {
+          if (child->getBoundary().overlaps(rhs)) {
+            nodeVisits.push_back(child.get());
+          }
+        }
+
+        continue;
+      }
+
+      llvm::SmallVector<MultidimensionalRange> differences;
+
+      for (MultidimensionalRange &value : node->values) {
+        if (value.overlaps(rhs)) {
+          modified = true;
+          llvm::append_range(differences, value.subtract(rhs));
+        } else {
+          differences.emplace_back(std::move(value));
+        }
+      }
+
+      node->values = std::move(differences);
+
+      if (modified) {
+        // Split and collapse nodes, if necessary.
+        adjustTree(node, toInsert);
+        break;
+      }
+    }
+  } while (modified && root);
+
+  for (const MultidimensionalRange &range : toInsert) {
+    *this += range;
   }
 
   return *this;
@@ -871,10 +813,58 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const IndexSet::Impl &rhs) {
   return *this;
 }
 
-IndexSet::Impl &RTreeIndexSet::operator-=(const RTreeIndexSet &rhs) {
-  for (const MultidimensionalRange &range :
-       llvm::make_range(rhs.rangesBegin(), rhs.rangesEnd())) {
-    *this -= range;
+IndexSet::Impl &RTreeIndexSet::operator-=(const RTreeIndexSet &other) {
+  if (empty() || other.empty()) {
+    return *this;
+  }
+
+  using OverlappingNodePair = std::pair<const Node *, const Node *>;
+  llvm::SmallVector<OverlappingNodePair> overlappingNodePairs;
+
+  llvm::SmallVector<std::reference_wrapper<const MultidimensionalRange>>
+      overlappingRanges;
+
+  const Node *lhsRoot = root.get();
+  const Node *rhsRoot = other.root.get();
+
+  if (lhsRoot->getBoundary().overlaps(rhsRoot->getBoundary())) {
+    overlappingNodePairs.emplace_back(lhsRoot, rhsRoot);
+  }
+
+  while (!overlappingNodePairs.empty()) {
+    OverlappingNodePair overlappingNodePair =
+        overlappingNodePairs.pop_back_val();
+
+    const Node *lhs = overlappingNodePair.first;
+    const Node *rhs = overlappingNodePair.second;
+
+    if (lhs->isLeaf()) {
+      if (rhs->isLeaf()) {
+        for (const MultidimensionalRange &lhsRange : lhs->values) {
+          for (const MultidimensionalRange &rhsRange : rhs->values) {
+            if (lhsRange.overlaps(rhsRange)) {
+              overlappingRanges.emplace_back(rhsRange);
+            }
+          }
+        }
+      } else {
+        for (const auto &child : rhs->children) {
+          if (lhs->getBoundary().overlaps(child->getBoundary())) {
+            overlappingNodePairs.emplace_back(lhs, child.get());
+          }
+        }
+      }
+    } else {
+      for (const auto &child : lhs->children) {
+        if (child->getBoundary().overlaps(rhs->getBoundary())) {
+          overlappingNodePairs.emplace_back(child.get(), rhs);
+        }
+      }
+    }
+  }
+
+  for (const auto &overlappingRange : overlappingRanges) {
+    *this -= overlappingRange;
   }
 
   return *this;
@@ -1882,6 +1872,101 @@ RTreeIndexSet::splitNode(Node &node) {
     return result;
   }
 }
+
+void RTreeIndexSet::adjustTree(
+    Node *node, llvm::SmallVectorImpl<MultidimensionalRange> &toReinsert) {
+  if (node->isRoot() && node->fanOut() == 0) {
+    root = nullptr;
+    node = nullptr;
+  } else if (!node->isRoot() && node->fanOut() < minElements) {
+    while (node && !node->isRoot() && node->fanOut() < minElements) {
+      llvm::SmallVector<Node *> nodes;
+      nodes.push_back(node);
+
+      while (!nodes.empty()) {
+        auto current = nodes.pop_back_val();
+
+        for (auto &child : current->children) {
+          nodes.push_back(child.get());
+        }
+
+        for (auto &value : current->values) {
+          assert(value.rank() == rank());
+          toReinsert.push_back(std::move(value));
+        }
+      }
+
+      Node *parent = node->parent;
+      assert(parent != nullptr);
+
+      // The new children of the parent will be the old ones except the
+      // current node, which has been collapsed and its ranges queued for
+      // a new insertion.
+      llvm::SmallVector<std::unique_ptr<Node>> newChildren;
+
+      for (auto &child : node->parent->children) {
+        if (child.get() != node) {
+          newChildren.push_back(std::move(child));
+        }
+      }
+
+      parent->children = std::move(newChildren);
+
+      if (parent->children.empty()) {
+        // If the root has no children, then the tree has to be
+        // reinitialized.
+        assert(parent->isRoot());
+        root = nullptr;
+        node = nullptr;
+      } else {
+        parent->recalcBoundary();
+        node = parent;
+      }
+    }
+  } else if (node->fanOut() > maxElements) {
+    // Propagate node splits.
+    while (node->fanOut() > maxElements) {
+      auto newNodes = splitNode(*node);
+
+      if (node->isRoot()) {
+        // If node split propagation caused the root to split, then
+        // create a new root whose children are the two resulting nodes.
+
+        auto rootBoundary = getMBR(newNodes.first->getBoundary(),
+                                   newNodes.second->getBoundary());
+
+        root = std::make_unique<Node>(nullptr, rootBoundary);
+
+        newNodes.first->parent = root.get();
+        newNodes.second->parent = root.get();
+
+        root->add(std::move(newNodes.first));
+        root->add(std::move(newNodes.second));
+
+        node = root.get();
+        break;
+      }
+
+      *node = std::move(*newNodes.first);
+
+      for (auto &child : node->children) {
+        child->parent = node;
+      }
+
+      node->parent->add(std::move(newNodes.second));
+
+      // Propagate changes upward.
+      node = node->parent;
+    }
+  }
+
+  // Fix all the boundaries up to the root.
+  while (node != nullptr) {
+    node->recalcBoundary();
+    node = node->parent;
+  }
+}
+
 } // namespace marco::modeling
 
 /// Check that all the children of a node has the correct parent set.
