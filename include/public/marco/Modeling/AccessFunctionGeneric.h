@@ -32,7 +32,8 @@ public:
   /// {
 
   static bool classof(const AccessFunction *obj) {
-    return obj->getKind() == Generic;
+    return obj->getKind() >= Kind::Generic &&
+           obj->getKind() <= Kind::Generic_LastArgument;
   }
 
   /// }

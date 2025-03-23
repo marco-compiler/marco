@@ -15,7 +15,15 @@ namespace marco::modeling {
 /// The access function describes how an array variable is accessed.
 class AccessFunction {
 public:
-  enum Kind { Empty, Constant, Generic, RotoTranslation };
+  enum class Kind {
+    Generic,
+    Constant,
+    Generic_LastArgument,
+    Affine,
+    Empty,
+    RotoTranslation,
+    Affine_LastArgument,
+  };
 
   static std::unique_ptr<AccessFunction>
   build(mlir::MLIRContext *context, unsigned int numOfDimensions,

@@ -12,6 +12,16 @@ public:
 
   AccessFunctionAffineMap(Kind kind, mlir::AffineMap affineMap);
 
+  /// @name LLVM-style RTTI methods
+  /// {
+
+  static bool classof(const AccessFunction *obj) {
+    return obj->getKind() >= Kind::Affine &&
+           obj->getKind() <= Kind::Affine_LastArgument;
+  }
+
+  /// }
+
   llvm::raw_ostream &dump(llvm::raw_ostream &os) const override;
 
   [[nodiscard]] uint64_t getNumOfDims() const override;

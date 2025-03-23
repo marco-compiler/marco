@@ -26,7 +26,7 @@ public:
   /// {
 
   static bool classof(const AccessFunction *obj) {
-    return obj->getKind() == RotoTranslation;
+    return obj->getKind() == Kind::RotoTranslation;
   }
 
   /// }
