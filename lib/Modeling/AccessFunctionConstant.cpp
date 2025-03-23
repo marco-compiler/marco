@@ -55,6 +55,10 @@ AccessFunctionConstant::inverseMap(const IndexSet &accessedIndices,
                                    const IndexSet &parentIndices) const {
   auto expectedAccessedIndices = map(parentIndices);
 
+  if (accessedIndices.empty() && !expectedAccessedIndices.empty()) {
+    return {};
+  }
+
   if (expectedAccessedIndices.contains(accessedIndices)) {
     return parentIndices;
   }
