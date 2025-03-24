@@ -1529,17 +1529,17 @@ private:
       secondPtr = secondPtr->hasPrevious() ? secondPtr->getPrevious() : nullptr;
     } while (firstPtr && secondPtr);
 
+    if (firstPtr == nullptr && secondPtr == nullptr) {
+      return 0;
+    }
+
     if (firstPtr == nullptr) {
       // First path is shorter.
       return -1;
     }
 
-    if (secondPtr == nullptr) {
-      // Second path is shorter.
-      return 1;
-    }
-
-    return 0;
+    // Second path is shorter.
+    return 1;
   }
 
   std::vector<std::shared_ptr<BFSStep>> getCandidateAugmentingPaths() const {
