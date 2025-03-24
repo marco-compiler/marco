@@ -498,6 +498,11 @@ public:
   }
 
   template <typename It>
+  void insert(iterator posIt, It beginIt, It endIt) {
+    steps.insert(posIt, beginIt, endIt);
+  }
+
+  template <typename It>
   void insert(const_iterator posIt, It beginIt, It endIt) {
     steps.insert(posIt, beginIt, endIt);
   }
