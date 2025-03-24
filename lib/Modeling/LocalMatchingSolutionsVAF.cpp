@@ -33,8 +33,11 @@ private:
   std::unique_ptr<MCIM> value;
 
   // Data used for progressive computation.
-  std::unique_ptr<IndexSet::const_point_iterator> pointsIt;
-  std::unique_ptr<IndexSet::const_point_iterator> pointsEndIt;
+  std::unique_ptr<IndexSet::const_point_iterator> equationPointsIt;
+  std::unique_ptr<IndexSet::const_point_iterator> equationPointsEndIt;
+  IndexSet variableIndices;
+  std::unique_ptr<IndexSet::const_point_iterator> variablePointsIt;
+  std::unique_ptr<IndexSet::const_point_iterator> variablePointsEndIt;
 };
 } // namespace
 
@@ -44,14 +47,17 @@ GeneratorDefault::GeneratorDefault(const IndexSet &matrixEquationIndices,
     : matrixEquationIndices(&matrixEquationIndices),
       matrixVariableIndices(&matrixVariableIndices),
       accessFunction(&accessFunction), pointsIt(nullptr), pointsEndIt(nullptr) {
+      accessFunction(&accessFunction), equationPointsIt(nullptr),
+      equationPointsEndIt(nullptr), variablePointsIt(nullptr),
+      variablePointsEndIt(nullptr) {
   initialize();
 }
 
 void GeneratorDefault::initialize() {
-  pointsIt = std::make_unique<IndexSet::const_point_iterator>(
+  equationPointsIt = std::make_unique<IndexSet::const_point_iterator>(
       matrixEquationIndices->begin());
 
-  pointsEndIt = std::make_unique<IndexSet::const_point_iterator>(
+  equationPointsEndIt = std::make_unique<IndexSet::const_point_iterator>(
       matrixEquationIndices->end());
 
   fetchNext();
@@ -72,20 +78,38 @@ void GeneratorDefault::setValue(std::unique_ptr<MCIM> newValue) {
 }
 
 void GeneratorDefault::fetchNext() {
-  if (*pointsIt == *pointsEndIt) {
-    value = nullptr;
-  } else {
-    Point equationPoint = **pointsIt;
-    auto variablePoints = accessFunction->map(equationPoint);
-
-    for (Point variablePoint : variablePoints) {
-      MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
-      matrix.set(equationPoint, variablePoint);
-      setValue(std::make_unique<MCIM>(std::move(matrix)));
-
-      ++(*pointsIt);
+  do {
+    if (*equationPointsIt == *equationPointsEndIt) {
+      value = nullptr;
+      return;
     }
-  }
+
+    if (!variablePointsIt || !variablePointsEndIt) {
+      variableIndices = accessFunction->map(**equationPointsIt);
+
+      variablePointsIt = std::make_unique<IndexSet::const_point_iterator>(
+          variableIndices.begin());
+
+      variablePointsEndIt = std::make_unique<IndexSet::const_point_iterator>(
+          variableIndices.end());
+    }
+
+    if (*variablePointsIt == *variablePointsEndIt) {
+      ++(*equationPointsIt);
+      variablePointsIt = nullptr;
+      variablePointsEndIt = nullptr;
+    }
+  } while (!variablePointsIt || !variablePointsEndIt ||
+           *variablePointsIt == *variablePointsEndIt);
+
+  assert(*equationPointsIt != *equationPointsEndIt);
+  assert(variablePointsIt && variablePointsEndIt);
+  assert(*variablePointsIt != *variablePointsEndIt);
+
+  MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
+  matrix.set(**equationPointsIt, **variablePointsIt);
+  setValue(std::make_unique<MCIM>(std::move(matrix)));
+  ++(*variablePointsIt);
 }
 
 namespace {
@@ -349,11 +373,27 @@ bool VAFSolutions::compareAccessFunctions(
 
 size_t
 VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
+  if (auto casted = accessFunction.dyn_cast<AccessFunctionConstant>()) {
+    return getSolutionsAmount(*casted);
+  }
+
   if (auto casted = accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
     return getSolutionsAmount(*casted);
   }
 
-  return equationIndices.flatSize();
+  size_t solutionsAmount = 0;
+
+  for (Point equation : *equationIndices) {
+    solutionsAmount += accessFunction.map(equation).flatSize();
+  }
+
+  return solutionsAmount;
+}
+
+size_t VAFSolutions::getSolutionsAmount(
+    const AccessFunctionConstant &accessFunction) const {
+  return equationIndices->flatSize() *
+         accessFunction.map(IndexSet()).flatSize();
 }
 
 size_t VAFSolutions::getSolutionsAmount(
