@@ -54,7 +54,6 @@ public:
 
   MCIM(IndexSet equationRanges, IndexSet variableRanges);
 
-private:
   MCIM(std::shared_ptr<const IndexSet> equationRanges,
        std::shared_ptr<const IndexSet> variableRanges);
 

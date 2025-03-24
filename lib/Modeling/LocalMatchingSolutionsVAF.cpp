@@ -6,8 +6,8 @@ using namespace ::marco::modeling::internal;
 namespace {
 class GeneratorDefault : public VAFSolutions::Generator {
 public:
-  GeneratorDefault(const IndexSet &matrixEquationIndices,
-                   const IndexSet &matrixVariableIndices,
+  GeneratorDefault(std::shared_ptr<const IndexSet> matrixEquationIndices,
+                   std::shared_ptr<const IndexSet> matrixVariableIndices,
                    const AccessFunction &accessFunction);
 
   bool hasValue() const override;
@@ -23,8 +23,8 @@ private:
 
 private:
   // The domain upon which the matrix has to be constructed.
-  const IndexSet *matrixEquationIndices;
-  const IndexSet *matrixVariableIndices;
+  std::shared_ptr<const IndexSet> matrixEquationIndices;
+  std::shared_ptr<const IndexSet> matrixVariableIndices;
 
   // The access function.
   const AccessFunction *accessFunction;
@@ -41,12 +41,12 @@ private:
 };
 } // namespace
 
-GeneratorDefault::GeneratorDefault(const IndexSet &matrixEquationIndices,
-                                   const IndexSet &matrixVariableIndices,
-                                   const AccessFunction &accessFunction)
-    : matrixEquationIndices(&matrixEquationIndices),
-      matrixVariableIndices(&matrixVariableIndices),
-      accessFunction(&accessFunction), pointsIt(nullptr), pointsEndIt(nullptr) {
+GeneratorDefault::GeneratorDefault(
+    std::shared_ptr<const IndexSet> matrixEquationIndices,
+    std::shared_ptr<const IndexSet> matrixVariableIndices,
+    const AccessFunction &accessFunction)
+    : matrixEquationIndices(std::move(matrixEquationIndices)),
+      matrixVariableIndices(std::move(matrixVariableIndices)),
       accessFunction(&accessFunction), equationPointsIt(nullptr),
       equationPointsEndIt(nullptr), variablePointsIt(nullptr),
       variablePointsEndIt(nullptr) {
@@ -106,7 +106,7 @@ void GeneratorDefault::fetchNext() {
   assert(variablePointsIt && variablePointsEndIt);
   assert(*variablePointsIt != *variablePointsEndIt);
 
-  MCIM matrix(*matrixEquationIndices, *matrixVariableIndices);
+  MCIM matrix(matrixEquationIndices, matrixVariableIndices);
   matrix.set(**equationPointsIt, **variablePointsIt);
   setValue(std::make_unique<MCIM>(std::move(matrix)));
   ++(*variablePointsIt);
@@ -115,9 +115,10 @@ void GeneratorDefault::fetchNext() {
 namespace {
 class GeneratorRotoTranslation : public VAFSolutions::Generator {
 public:
-  GeneratorRotoTranslation(const IndexSet &matrixEquationIndices,
-                           const IndexSet &matrixVariableIndices,
-                           const AccessFunctionRotoTranslation &accessFunction);
+  GeneratorRotoTranslation(
+      std::shared_ptr<const IndexSet> matrixEquationIndices,
+      std::shared_ptr<const IndexSet> matrixVariableIndices,
+      const AccessFunctionRotoTranslation &accessFunction);
 
   bool hasValue() const override;
 
@@ -132,8 +133,8 @@ private:
 
 private:
   // The domain upon which the matrix has to be constructed.
-  const IndexSet *matrixEquationIndices;
-  const IndexSet *matrixVariableIndices;
+  std::shared_ptr<const IndexSet> matrixEquationIndices;
+  std::shared_ptr<const IndexSet> matrixVariableIndices;
 
   // The access function.
   const AccessFunctionRotoTranslation *accessFunction;
@@ -155,13 +156,13 @@ private:
 } // namespace
 
 GeneratorRotoTranslation::GeneratorRotoTranslation(
-    const IndexSet &matrixEquationIndices,
-    const IndexSet &matrixVariableIndices,
+    std::shared_ptr<const IndexSet> matrixEquationIndices,
+    std::shared_ptr<const IndexSet> matrixVariableIndices,
     const AccessFunctionRotoTranslation &accessFunction)
-    : matrixEquationIndices(&matrixEquationIndices),
-      matrixVariableIndices(&matrixVariableIndices),
+    : matrixEquationIndices(std::move(matrixEquationIndices)),
+      matrixVariableIndices(std::move(matrixVariableIndices)),
       accessFunction(&accessFunction),
-      currentEquationsRangeIt(matrixEquationIndices.rangesBegin()),
+      currentEquationsRangeIt(this->matrixEquationIndices->rangesBegin()),
       value(nullptr) {
   initialize();
 }
@@ -271,8 +272,8 @@ namespace marco::modeling::internal {
 VAFSolutions::VAFSolutions(
     llvm::ArrayRef<std::unique_ptr<AccessFunction>> accessFunctions,
     IndexSet equationIndices, IndexSet variableIndices)
-    : equationIndices(std::move(equationIndices)),
-      variableIndices(std::move(variableIndices)) {
+    : equationIndices(std::make_shared<const IndexSet>(equationIndices)),
+      variableIndices(std::make_shared<const IndexSet>(variableIndices)) {
   for (const auto &accessFunction : accessFunctions) {
     this->accessFunctions.push_back(accessFunction->clone());
   }
@@ -404,7 +405,7 @@ size_t VAFSolutions::getSolutionsAmount(
   accessFunction.countVariablesUsages(inductionsUsage);
 
   for (const MultidimensionalRange &range : llvm::make_range(
-           equationIndices.rangesBegin(), equationIndices.rangesEnd())) {
+           equationIndices->rangesBegin(), equationIndices->rangesEnd())) {
     size_t count = 1;
 
     for (const auto &usage : llvm::enumerate(inductionsUsage)) {

@@ -60,8 +60,8 @@ private:
 
 private:
   llvm::SmallVector<std::unique_ptr<AccessFunction>, 3> accessFunctions;
-  IndexSet equationIndices;
-  IndexSet variableIndices;
+  std::shared_ptr<const IndexSet> equationIndices;
+  std::shared_ptr<const IndexSet> variableIndices;
 
   // Total number of possible match matrices.
   size_t solutionsAmount;
