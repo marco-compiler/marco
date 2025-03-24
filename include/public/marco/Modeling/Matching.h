@@ -693,7 +693,7 @@ public:
     equationsMap = std::move(other.equationsMap);
   }
 
-  ~MatchingGraph() = default;
+  ~MatchingGraph() override = default;
 
   MatchingGraph &operator=(const MatchingGraph &other) = delete;
 
