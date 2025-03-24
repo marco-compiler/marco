@@ -29,7 +29,7 @@ IndexSet::Impl &IndexSet::Impl::operator=(IndexSet::Impl &&other) {
   return *this;
 }
 
-int IndexSet::Impl::compareGenericIndexSet(const IndexSet::Impl &other) const {
+int IndexSet::Impl::compare(const IndexSet::Impl &other) const {
   auto firstCanonical = getCanonicalRepresentation();
   auto secondCanonical = other.getCanonicalRepresentation();
 

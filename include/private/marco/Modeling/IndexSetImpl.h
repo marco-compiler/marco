@@ -98,9 +98,7 @@ public:
 
   virtual const_range_iterator rangesEnd() const = 0;
 
-  virtual int compare(const IndexSet::Impl &other) const = 0;
-
-  int compareGenericIndexSet(const IndexSet::Impl &other) const;
+  int compare(const IndexSet::Impl &other) const;
 
   virtual bool contains(const Point &other) const = 0;
 

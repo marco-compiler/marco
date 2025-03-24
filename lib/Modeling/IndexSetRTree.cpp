@@ -903,21 +903,6 @@ RTreeIndexSet::const_range_iterator RTreeIndexSet::rangesEnd() const {
   return RTreeIndexSet::RangeIterator::end(*this);
 }
 
-int RTreeIndexSet::compare(const IndexSet::Impl &other) const {
-  if (auto *otherCasted = other.dyn_cast<RTreeIndexSet>()) {
-    int optimizedResult = compare(*otherCasted);
-    assert(optimizedResult == compareGenericIndexSet(other));
-    return optimizedResult;
-  }
-
-  return compareGenericIndexSet(other);
-}
-
-int RTreeIndexSet::compare(const RTreeIndexSet &other) const {
-  // TODO Implement optimized comparison
-  return compareGenericIndexSet(other);
-}
-
 bool RTreeIndexSet::contains(const Point &other) const {
   return contains(MultidimensionalRange(other));
 }

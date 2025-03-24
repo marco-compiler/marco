@@ -146,10 +146,6 @@ public:
 
   const_range_iterator rangesEnd() const override;
 
-  int compare(const IndexSet::Impl &other) const override;
-
-  int compare(const RTreeIndexSet &other) const;
-
   bool contains(const Point &other) const override;
 
   bool contains(const MultidimensionalRange &other) const override;
