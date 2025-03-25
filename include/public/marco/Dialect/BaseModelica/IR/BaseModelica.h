@@ -126,6 +126,10 @@ mlir::LogicalResult
 getWritesMap(WritesMap<VariableOp, ScheduleBlockOp> &writesMap, ModelOp modelOp,
              llvm::ArrayRef<ScheduleBlockOp> scheduleBlocks,
              mlir::SymbolTableCollection &symbolTableCollection);
+
+bool isReservedVariable(llvm::StringRef name);
+
+std::string getReservedVariableName(llvm::StringRef name);
 } // namespace mlir::bmodelica
 
 #endif // MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICA_H

@@ -810,4 +810,10 @@ getWritesMap(WritesMap<VariableOp, ScheduleBlockOp> &writesMap, ModelOp modelOp,
 
   return mlir::success();
 }
+
+bool isReservedVariable(llvm::StringRef name) { return name.starts_with("__"); }
+
+std::string getReservedVariableName(llvm::StringRef name) {
+  return "__" + name.str();
+}
 } // namespace mlir::bmodelica

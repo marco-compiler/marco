@@ -775,7 +775,8 @@ mlir::LogicalResult RungeKuttaPass::solveMainModel(
 namespace {
 VariableOp declareFutureVariable(mlir::OpBuilder &builder,
                                  VariableOp variableOp) {
-  std::string name = "__rk_" + variableOp.getSymName().str();
+  std::string name =
+      getReservedVariableName("rk_" + variableOp.getSymName().str());
 
   auto variableType =
       VariableType::get(variableOp.getVariableType().getShape(),
@@ -787,8 +788,8 @@ VariableOp declareFutureVariable(mlir::OpBuilder &builder,
 
 VariableOp declareSlopeVariable(mlir::OpBuilder &builder, VariableOp variableOp,
                                 int order) {
-  std::string name =
-      "__rk_k" + std::to_string(order) + "_" + variableOp.getSymName().str();
+  std::string name = getReservedVariableName(
+      "rk_k" + std::to_string(order) + "_" + variableOp.getSymName().str());
 
   auto variableType =
       VariableType::get(variableOp.getVariableType().getShape(),
@@ -800,7 +801,8 @@ VariableOp declareSlopeVariable(mlir::OpBuilder &builder, VariableOp variableOp,
 
 VariableOp declareErrorVariable(mlir::OpBuilder &builder,
                                 VariableOp variableOp) {
-  std::string name = "__rk_e_" + variableOp.getSymName().str();
+  std::string name =
+      getReservedVariableName("rk_e_" + variableOp.getSymName().str());
 
   auto variableType =
       VariableType::get(variableOp.getVariableType().getShape(),

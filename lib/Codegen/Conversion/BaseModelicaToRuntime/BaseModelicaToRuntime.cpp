@@ -14,10 +14,6 @@ namespace mlir {
 using namespace ::mlir::bmodelica;
 
 namespace {
-bool isReservedVariable(llvm::StringRef name) { return name.starts_with("__"); }
-} // namespace
-
-namespace {
 class BaseModelicaToRuntimeConversionPass
     : public mlir::impl::BaseModelicaToRuntimeConversionPassBase<
           BaseModelicaToRuntimeConversionPass> {
