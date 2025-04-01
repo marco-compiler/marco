@@ -1,18 +1,18 @@
 #define DEBUG_TYPE "index-reduction"
-
+#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
+#include "marco/Modeling/IndexReduction.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/SymbolTable.h"
+#include "mlir/Support/LogicalResult.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-
-#include "mlir/Support/LogicalResult.h"
-
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
-#include "marco/Modeling/Dumpable.h"
-#include "marco/Modeling/IndexReduction.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_INDEXREDUCTIONPASS
@@ -30,32 +30,38 @@ public:
   void runOnOperation() override;
 
 private:
+  using IndexReductionGraph = marco::modeling::IndexReductionGraph;
+  using VariableBridge = mlir::bmodelica::bridge::VariableBridge;
+  using EquationBridge = mlir::bmodelica::bridge::EquationBridge;
+
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
   std::optional<std::reference_wrapper<VariableAccessAnalysis>>
   getVariableAccessAnalysis(EquationTemplateOp equationTemplate,
                             mlir::SymbolTableCollection &symbolTableCollection);
+
+  mlir::LogicalResult initializeGraph(
+      IndexReductionGraph &graph,
+      llvm::SmallVectorImpl<std::unique_ptr<VariableBridge>> &variableBridges,
+      llvm::SmallVectorImpl<std::unique_ptr<EquationBridge>> &equationBridges,
+      mlir::SymbolTableCollection &symbolTableCollection,
+      llvm::ArrayRef<EquationInstanceOp> mainEquations,
+      llvm::ArrayRef<VariableOp> variables,
+      const DerivativesMap &derivativesMap);
 };
 } // namespace
 
-using VariableBridge = mlir::bmodelica::bridge::VariableBridge;
-using EquationBridge = mlir::bmodelica::bridge::EquationBridge;
-
-mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
-  // Collect equations.
-  llvm::SmallVector<EquationInstanceOp> initialEquations;
-  llvm::SmallVector<EquationInstanceOp> mainEquations;
-  modelOp.collectInitialEquations(initialEquations);
-  modelOp.collectMainEquations(mainEquations);
-
-  marco::modeling::IndexReductionGraph graph;
-
-  mlir::SymbolTableCollection symbolTableCollection;
-  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+mlir::LogicalResult IndexReductionPass::initializeGraph(
+    IndexReductionGraph &graph,
+    llvm::SmallVectorImpl<std::unique_ptr<VariableBridge>> &variableBridges,
+    llvm::SmallVectorImpl<std::unique_ptr<EquationBridge>> &equationBridges,
+    mlir::SymbolTableCollection &symbolTableCollection,
+    const llvm::ArrayRef<EquationInstanceOp> mainEquations,
+    const llvm::ArrayRef<VariableOp> variables,
+    const DerivativesMap &derivativesMap) {
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
 
-  for (VariableOp variableOp : modelOp.getVariables()) {
+  for (VariableOp variableOp : variables) {
     auto &bridge =
         variableBridges.emplace_back(VariableBridge::build(variableOp));
     graph.addVariable(bridge.get());
@@ -78,16 +84,93 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
     graph.addEquation(bridge.get());
   }
 
-  graph.setDerivatives(modelOp.getProperties().getDerivativesMap());
+  graph.setDerivatives(derivativesMap);
+  return mlir::success();
+}
 
-  LLVM_DEBUG(graph.dump(llvm::dbgs()));
+const bool skipArrays = false;
 
-  // For now, only handle main + scalar equations
-  if (llvm::any_of(mainEquations, [](EquationInstanceOp &instanceOp) {
+mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
+  mlir::SymbolTableCollection symbolTableCollection;
+  mlir::OpBuilder builder(modelOp.getContext());
+  builder.setInsertionPointToEnd(modelOp.getBody());
+
+  // Collect equations.
+  llvm::SmallVector<EquationInstanceOp> mainEquations;
+  modelOp.collectMainEquations(mainEquations);
+  // llvm::SmallVector<EquationInstanceOp> initialEquations;
+  // modelOp.collectInitialEquations(initialEquations);
+
+  if (skipArrays &&
+      llvm::any_of(mainEquations, [](EquationInstanceOp &instanceOp) {
         return !instanceOp.getIterationSpace().empty();
       })) {
     LLVM_DEBUG(llvm::dbgs() << "Skipping model with non-scalar equations\n");
     return mlir::success();
+  }
+
+  // Collect variables
+  llvm::SmallVector<VariableOp> variables;
+  modelOp.collectVariables(variables);
+  auto derivativesMap = modelOp.getProperties().getDerivativesMap();
+
+  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
+
+  llvm::SmallVector<VariableOp> derivedVariables;
+
+  std::function differentiateVariable =
+      [&](const VariableBridge *bridge,
+          const IndexSet &indices) -> VariableBridge * {
+    std::string derivativeName = bridge->name.getLeafReference().str() + "_d";
+    std::string uniqueName = derivativeName;
+
+    mlir::SymbolTable symbolTable =
+        symbolTableCollection.getSymbolTable(modelOp);
+    int i = 0;
+    while (symbolTable.lookup(uniqueName)) {
+      uniqueName = derivativeName + "_" + std::to_string(i++);
+    }
+
+    mlir::SymbolRefAttr symbolRef =
+        mlir::SymbolRefAttr::get(modelOp->getContext(), uniqueName);
+
+    LLVM_DEBUG(llvm::dbgs()
+               << "Creating derivative for variable " << bridge->name
+               << " with name " << uniqueName << "\n");
+
+    return variableBridges
+        .emplace_back(VariableBridge::build(symbolRef, bridge->indices))
+        .get();
+  };
+
+  std::function differentiateEquation =
+      [&](const EquationBridge *bridge) -> EquationBridge * {
+    auto id = static_cast<int64_t>(equationBridges.size());
+    LLVM_DEBUG(llvm::dbgs() << "Creating derivative for equation "
+                            << bridge->getId() << " with id " << id << "\n");
+    return equationBridges
+        .emplace_back(EquationBridge::build(
+            id, bridge->getOp(), symbolTableCollection, variablesMap))
+        .get();
+  };
+
+  // Build graph
+  IndexReductionGraph graph(differentiateVariable, differentiateEquation);
+
+  if (mlir::failed(initializeGraph(graph, variableBridges, equationBridges,
+                                   symbolTableCollection, mainEquations,
+                                   variables, derivativesMap))) {
+    return mlir::failure();
+  }
+
+  LLVM_DEBUG(graph.dump(llvm::dbgs()));
+
+  graph.pandelides();
+
+  for (VariableOp variable : derivedVariables) {
+    variable.erase();
   }
 
   return mlir::success();
@@ -103,13 +186,10 @@ void IndexReductionPass::runOnOperation() {
 
   auto handleModel = [&](mlir::Operation *op) {
     auto modelOp = mlir::cast<ModelOp>(op);
-    // LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
     if (mlir::failed(processModelOp(modelOp))) {
       return mlir::failure();
     }
-
-    // LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
 
     return mlir::success();
   };
