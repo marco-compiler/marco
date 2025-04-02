@@ -167,7 +167,7 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   LLVM_DEBUG(graph.dump(llvm::dbgs()));
 
-  graph.pandelides();
+  graph.pantelides();
 
   for (VariableOp variable : derivedVariables) {
     variable.erase();
