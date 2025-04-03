@@ -10,17 +10,6 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SmallVectorExtras.h"
-#include "llvm/ADT/iterator_range.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-#include <cassert>
-#include <cstddef>
-#include <functional>
-#include <utility>
-#include <variant>
 
 namespace marco::modeling {
 
@@ -269,15 +258,9 @@ private:
   }
 
   /// Returns a range of the incident edges of [vertex].
-  auto getEdgesRange(VertexDescriptor vertex) const {
-    return llvm::make_filter_range(
-        llvm::make_range(graph.outgoingEdgesBegin(vertex),
-                         graph.outgoingEdgesEnd(vertex)),
-        [&](const EdgeDescriptor &descriptor) {
-          return true;
-          // TODO: Maybe filter out invisible edges here.
-          // graph[descriptor].isVisible();
-        });
+  auto getEdgesRange(const VertexDescriptor vertex) const {
+    return llvm::make_range(graph.outgoingEdgesBegin(vertex),
+                            graph.outgoingEdgesEnd(vertex));
   }
 
   bool hasVariableWithId(const VariableVertex::Id id) const {
@@ -302,7 +285,7 @@ private:
     return it->second;
   }
 
-  /// Get the derivative of a variable if it exists, along with the derived
+  /// Get the derivative of a variable if it has one, along with the derived
   /// indices.
   std::optional<std::pair<VariableVertex::Id, IndexSet>>
   getVariableDerivative(const VariableVertex::Id id) const {
@@ -321,6 +304,27 @@ private:
       return it->getSecond();
     }
     return std::nullopt;
+  }
+
+  /// Remove coloring from all vertices in the graph.
+  void uncolorAllVertices() {
+    for (VertexDescriptor descriptor : getDescriptorRange<VariableVertex>()) {
+      getVertex<VariableVertex>(descriptor).clearColoring();
+    }
+    for (VertexDescriptor descriptor : getDescriptorRange<EquationVertex>()) {
+      getVertex<EquationVertex>(descriptor).setColored(false);
+    }
+  }
+
+  /// Hide the (indices of) variables that have derivatives (of those indices).
+  void hideDerivedVariables() {
+    for (VertexDescriptor descriptor : getDescriptorRange<VariableVertex>()) {
+      VariableVertex &variable = getVertex<VariableVertex>(descriptor);
+      if (auto derivative = getVariableDerivative(variable.getId())) {
+        const IndexSet &derivedIndices = derivative->second;
+        variable.hideIndices(derivedIndices);
+      }
+    }
   }
 
   /// Augment path procedure from the Pantelides algorithm.
@@ -406,29 +410,6 @@ private:
     return false;
   }
 
-  /// Remove coloring from all vertices in the graph.
-  void uncolorAllVertices() {
-    for (VertexDescriptor descriptor : getDescriptorRange<VariableVertex>()) {
-      getVertex<VariableVertex>(descriptor).clearColoring();
-    }
-    for (VertexDescriptor descriptor : getDescriptorRange<EquationVertex>()) {
-      getVertex<EquationVertex>(descriptor).setColored(false);
-    }
-  }
-
-  /// Hide the (indices of) variables that have derivatives (of those indices).
-  void hideDerivedVariables() {
-    for (VertexDescriptor descriptor : getDescriptorRange<VariableVertex>()) {
-      VariableVertex &variable = getVertex<VariableVertex>(descriptor);
-      if (auto derivative = getVariableDerivative(variable.getId())) {
-        const IndexSet &derivedIndices = derivative->second;
-        variable.hideIndices(derivedIndices);
-        // Here we might want to hide parts of the edge as well, for now we
-        // must check if the variable indices are hidden at arrival.
-      }
-    }
-  }
-
 public:
   IndexReductionGraph(
       const std::function<VariableBridge *(
@@ -477,7 +458,8 @@ public:
   }
 
   /// Establish the relationship between variables and derivative variables.
-  void setDerivatives(const mlir::bmodelica::DerivativesMap &derivativesMap) {
+  void
+  initializeDerivatives(const mlir::bmodelica::DerivativesMap &derivativesMap) {
     for (const VariableVertex &variable : getVertexRange<VariableVertex>()) {
       const VariableVertex::Id variableId = variable.getId();
       if (auto derivativeId = derivativesMap.getDerivative(variableId)) {
@@ -499,6 +481,7 @@ public:
   }
 
   /// Apply the pantelides algorithm to the graph.
+  /// Returns how many times each equation should be differentiated.
   llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> pantelides() {
     Assignments variableAssignments;
 
@@ -517,14 +500,11 @@ public:
                    << " #indices: " << numIndices << "\n";
     });
 
-    // TODO: Check if the end of the iterator is moved when a new equation is
-    //       added. This should only iterate over the equations that were
-    //       initially part of the model.
     for (size_t kId = 0; kId < numEquations; kId++) {
       LLVM_DEBUG(llvm::dbgs() << "----------\n" << "k = " << kId << "\n");
       // 3a
-      EquationVertex i = getVertex<EquationVertex>(
-          getEquationDescriptorFromId(static_cast<int64_t>(kId)));
+      auto i = getVertex<EquationVertex>(getEquationDescriptorFromId(kId));
+
       // 3b
       while (true) {
         LLVM_DEBUG({
@@ -535,19 +515,19 @@ public:
 
         // 3b-1
         hideDerivedVariables();
+
         // 3b-2
         uncolorAllVertices();
-        // 3b-(3 & 4)
 
-        LLVM_DEBUG({
-          dumpVisibilityState(llvm::dbgs());
-          llvm::dbgs() << "Augmenting path from " << i.getId();
-        });
+        // 3b-(3 & 4)
         bool res = augmentPath(i.getId(), variableAssignments);
         LLVM_DEBUG({
-          llvm::dbgs() << (res ? " SUCCEEDED" : " FAILED") << "\n";
-          if (!res)
+          dumpVisibilityState(llvm::dbgs());
+          llvm::dbgs() << "Augmenting path from " << i.getId()
+                       << (res ? " SUCCEEDED" : " FAILED") << "\n";
+          if (!res) {
             dumpColoringState(llvm::dbgs());
+          }
           dumpAssignmentState(llvm::dbgs(), variableAssignments);
         });
 
@@ -572,14 +552,26 @@ public:
               llvm::dbgs() << " at indices " << coloredIndices << "\n";
             });
 
-            // TODO: This needs to be reworked to handle indices correctly.
-            //       The original variable might already be differentiated.
-            //       So the functor might return a modified version of the
-            //       original. Atm we crash if this happens.
             VariableBridge *dj =
                 differentiateVariable(j.getBridge(), coloredIndices);
-            addVariable(dj);
-            variableAssociations.insert({j.getId(), {dj->id, coloredIndices}});
+            assert(
+                dj->indices.contains(coloredIndices) &&
+                "Variables was not differentiated for the requested indices.");
+            if (hasVariableWithId(dj->id)) {
+              // The variable is an array that was already differentiated along
+              // other indices. Therefore update the derived indices.
+              IndexSet newIndices =
+                  getVariableDerivative(j.getId())->second + coloredIndices;
+              variableAssociations.insert_or_assign(
+                  j.getId(), std::make_pair(dj->id, newIndices));
+            } else {
+              // The variable is a scalar or an array that was not yet
+              // differentiated. Therefore add the variable, and establish the
+              // derivative relationship.
+              addVariable(dj);
+              variableAssociations.insert(
+                  {j.getId(), {dj->id, coloredIndices}});
+            }
           }
 
           // Collect colored equations
@@ -591,6 +583,7 @@ public:
                   });
           // 3b-5 (ii) - Differentiate colored equations
           for (const VertexDescriptor &lDescriptor : coloredEquations) {
+            // Generate and add derivative equation
             const EquationVertex &l = getVertex<EquationVertex>(lDescriptor);
             EquationVertex dl(differentiateEquation(l.getBridge()));
             assert(!hasEquationWithId(dl.getId()) &&
@@ -600,8 +593,6 @@ public:
             VertexDescriptor dlDescriptor = graph.addVertex(std::move(dl));
             equationsMap[dl.getId()] = dlDescriptor;
 
-            // TODO: Add edges from dl to the variables that have edges with
-            // l. And their derivatives.
             for (EdgeDescriptor edgeDescriptor :
                  getEdgesRange(getEquationDescriptorFromId(l.getId()))) {
               const Edge &edge = graph[edgeDescriptor];
@@ -620,7 +611,8 @@ public:
                 graph.addEdge(dlDescriptor,
                               getVariableDescriptorFromId(dj->first), edge);
               }
-              LLVM_DEBUG(llvm::dbgs() << "\n");
+              LLVM_DEBUG(llvm::dbgs()
+                         << " at " << edge.accessedVariableIndices() << "\n");
             }
 
             equationAssociations[l.getId()] = dl.getId();
@@ -636,12 +628,8 @@ public:
 
             // As j was colored we know we just gave it a derivative
             auto dj = getVariableDerivative(j.getId());
-            const IndexSet &derivedIndices = dj->second;
-
-            // NOTE: this will not hold in the future when we might
-            // re-differentiate a separate part of the variable.
-            assert(derivedIndices == coloredIndices &&
-                   "derived indices different from colored indices");
+            assert(dj->second.contains(coloredIndices) &&
+                   "The colored indices should just have been derived");
 
             IndexSet unassignedIndices = coloredIndices;
             llvm::SmallVector<Assignment> djAssignment;

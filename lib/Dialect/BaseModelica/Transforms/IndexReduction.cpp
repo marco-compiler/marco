@@ -48,6 +48,7 @@ private:
       mlir::SymbolTableCollection &symbolTableCollection,
       llvm::ArrayRef<EquationInstanceOp> mainEquations,
       llvm::ArrayRef<VariableOp> variables,
+      llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap,
       const DerivativesMap &derivativesMap);
 };
 } // namespace
@@ -59,14 +60,14 @@ mlir::LogicalResult IndexReductionPass::initializeGraph(
     mlir::SymbolTableCollection &symbolTableCollection,
     const llvm::ArrayRef<EquationInstanceOp> mainEquations,
     const llvm::ArrayRef<VariableOp> variables,
+    llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap,
     const DerivativesMap &derivativesMap) {
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
 
   for (VariableOp variableOp : variables) {
     auto &bridge =
         variableBridges.emplace_back(VariableBridge::build(variableOp));
     graph.addVariable(bridge.get());
-    variablesMap[bridge->name] = bridge.get();
+    variablesMap.insert({bridge->name, bridge.get()});
   }
 
   for (EquationInstanceOp equationInstanceOp : mainEquations) {
@@ -85,11 +86,9 @@ mlir::LogicalResult IndexReductionPass::initializeGraph(
     graph.addEquation(bridge.get());
   }
 
-  graph.setDerivatives(derivativesMap);
+  graph.initializeDerivatives(derivativesMap);
   return mlir::success();
 }
-
-const bool skipArrays = false;
 
 mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   mlir::SymbolTableCollection symbolTableCollection;
@@ -102,14 +101,6 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   // llvm::SmallVector<EquationInstanceOp> initialEquations;
   // modelOp.collectInitialEquations(initialEquations);
 
-  if (skipArrays &&
-      llvm::any_of(mainEquations, [](EquationInstanceOp &instanceOp) {
-        return !instanceOp.getIterationSpace().empty();
-      })) {
-    LLVM_DEBUG(llvm::dbgs() << "Skipping model with non-scalar equations\n");
-    return mlir::success();
-  }
-
   // Collect variables
   llvm::SmallVector<VariableOp> variables;
   modelOp.collectVariables(variables);
@@ -119,21 +110,34 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
   llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
 
-  llvm::SmallVector<VariableOp> derivedVariables;
-
+  // Callback to enable building a new differentiated variable from within the
+  // graph.
+  // Name
   std::function differentiateVariable =
       [&](const VariableBridge *bridge,
           const IndexSet &indices) -> VariableBridge * {
-    std::string derivativeName = bridge->name.getLeafReference().str() + "_d";
-    std::string uniqueName = derivativeName;
-
-    mlir::SymbolTable symbolTable =
-        symbolTableCollection.getSymbolTable(modelOp);
-    int i = 0;
-    while (symbolTable.lookup(uniqueName)) {
-      uniqueName = derivativeName + "_" + std::to_string(i++);
+    assert(bridge->indices.contains(indices) &&
+           "Indices to differentiated must be valid.");
+    // If the variable is already differentiated, extend the differentiated
+    // indices, and return the existing bridge.
+    if (auto derivative = derivativesMap.getDerivative(bridge->id)) {
+      VariableBridge *derivativeBridge = variablesMap[*derivative];
+      IndexSet derivedIndices = *derivativesMap.getDerivedIndices(bridge->id);
+      assert(!derivedIndices.overlaps(indices) &&
+             "Variable is already differentiated along indices");
+      // Save the updated derived indices
+      derivativesMap.setDerivedIndices(bridge->id, derivedIndices + indices);
+      return derivativeBridge;
     }
 
+    // Create a new derivative, named after the original variable.
+    std::string derivativeName = bridge->name.getLeafReference().str() + "_d";
+    mlir::SymbolTable symbolTable =
+        symbolTableCollection.getSymbolTable(modelOp);
+    std::string uniqueName = derivativeName;
+    for (int i = 0; symbolTable.lookup(uniqueName); i++) {
+      uniqueName = derivativeName + "_" + std::to_string(i);
+    }
     mlir::SymbolRefAttr symbolRef =
         mlir::SymbolRefAttr::get(modelOp->getContext(), uniqueName);
 
@@ -162,7 +166,7 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   if (mlir::failed(initializeGraph(graph, variableBridges, equationBridges,
                                    symbolTableCollection, mainEquations,
-                                   variables, derivativesMap))) {
+                                   variables, variablesMap, derivativesMap))) {
     return mlir::failure();
   }
 
@@ -173,10 +177,10 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   LLVM_DEBUG({
     llvm::dbgs() << "Pantelides result:\n";
     size_t index = 0;
-    for (const auto &pair : res) {
-      llvm::dbgs() << "Equation id: " << pair.first
-                   << ", number of derivations: " << pair.second << "\n";
-      index = std::max(index, pair.second);
+    for (const auto &[id, numDerivatives] : res) {
+      llvm::dbgs() << "Equation id: " << id
+                   << ", number of derivations: " << numDerivatives << "\n";
+      index = std::max(index, numDerivatives);
     }
 
     if (index > 0) {
@@ -199,10 +203,6 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
     }
   });
 
-  for (VariableOp variable : derivedVariables) {
-    variable.erase();
-  }
-
   return mlir::success();
 }
 
@@ -215,9 +215,8 @@ void IndexReductionPass::runOnOperation() {
   });
 
   auto handleModel = [&](mlir::Operation *op) {
-    auto modelOp = mlir::cast<ModelOp>(op);
-
-    if (mlir::failed(processModelOp(modelOp))) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op);
+        mlir::failed(processModelOp(modelOp))) {
       return mlir::failure();
     }
 
