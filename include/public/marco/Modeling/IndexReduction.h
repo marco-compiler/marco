@@ -12,12 +12,14 @@
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallVectorExtras.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <utility>
 #include <variant>
 
 namespace marco::modeling {
@@ -303,7 +305,7 @@ private:
   /// Get the derivative of a variable if it exists, along with the derived
   /// indices.
   std::optional<std::pair<VariableVertex::Id, IndexSet>>
-  getDerivative(const VariableVertex::Id id) const {
+  getVariableDerivative(const VariableVertex::Id id) const {
     if (auto it = variableAssociations.find(id);
         it != variableAssociations.end()) {
       return it->getSecond();
@@ -313,7 +315,7 @@ private:
 
   /// Get the derivative of an equation if it has one.
   std::optional<EquationVertex::Id>
-  getDerivative(const EquationVertex::Id id) const {
+  getEquationDerivative(const EquationVertex::Id id) const {
     if (auto it = equationAssociations.find(id);
         it != equationAssociations.end()) {
       return it->getSecond();
@@ -418,7 +420,7 @@ private:
   void hideDerivedVariables() {
     for (VertexDescriptor descriptor : getDescriptorRange<VariableVertex>()) {
       VariableVertex &variable = getVertex<VariableVertex>(descriptor);
-      if (auto derivative = getDerivative(variable.getId())) {
+      if (auto derivative = getVariableDerivative(variable.getId())) {
         const IndexSet &derivedIndices = derivative->second;
         variable.hideIndices(derivedIndices);
         // Here we might want to hide parts of the edge as well, for now we
@@ -497,11 +499,11 @@ public:
   }
 
   /// Apply the pantelides algorithm to the graph.
-  Assignments pantelides() {
+  llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> pantelides() {
     Assignments variableAssignments;
 
-    size_t numEquations = llvm::count_if(getDescriptorRange<EquationVertex>(),
-                                         [](auto) { return true; });
+    const size_t numEquations = llvm::count_if(
+        getDescriptorRange<EquationVertex>(), [](auto) { return true; });
     LLVM_DEBUG({
       size_t numVariables = 0;
       size_t numIndices = 0;
@@ -551,13 +553,19 @@ public:
 
         // 3b-5
         if (!res) {
-          // 3b-5 (i) - Differentiate visited variables
-          for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
+          // Collect colored variables
+          llvm::SmallVector<VertexDescriptor> coloredVariables =
+              llvm::filter_to_vector(getDescriptorRange<VariableVertex>(),
+                                     [&](const VertexDescriptor descriptor) {
+                                       return !getVertex<VariableVertex>(
+                                                   descriptor)
+                                                   .getColoredIndices()
+                                                   .empty();
+                                     });
+          // 3b-5 (i) - Differentiate colored variables
+          for (const VertexDescriptor &jDescriptor : coloredVariables) {
+            const VariableVertex &j = getVertex<VariableVertex>(jDescriptor);
             const IndexSet &coloredIndices = j.getColoredIndices();
-            if (coloredIndices.empty()) {
-              continue;
-            }
-
             LLVM_DEBUG({
               llvm::dbgs() << "Differentiating ";
               j.dump(llvm::dbgs());
@@ -571,15 +579,19 @@ public:
             VariableBridge *dj =
                 differentiateVariable(j.getBridge(), coloredIndices);
             addVariable(dj);
-            variableAssociations.insert({j.getId(), {dj->id, IndexSet()}});
+            variableAssociations.insert({j.getId(), {dj->id, coloredIndices}});
           }
 
-          // 3b-5 (ii) - Differentiate visited equations
-          for (auto lDescriptor : getDescriptorRange<EquationVertex>()) {
+          // Collect colored equations
+          llvm::SmallVector<VertexDescriptor> coloredEquations =
+              llvm::filter_to_vector(
+                  getDescriptorRange<EquationVertex>(),
+                  [&](const VertexDescriptor descriptor) {
+                    return getVertex<EquationVertex>(descriptor).isColored();
+                  });
+          // 3b-5 (ii) - Differentiate colored equations
+          for (const VertexDescriptor &lDescriptor : coloredEquations) {
             const EquationVertex &l = getVertex<EquationVertex>(lDescriptor);
-            if (!l.isColored()) {
-              continue;
-            }
             EquationVertex dl(differentiateEquation(l.getBridge()));
             assert(!hasEquationWithId(dl.getId()) &&
                    "Already existing equation");
@@ -590,7 +602,8 @@ public:
 
             // TODO: Add edges from dl to the variables that have edges with
             // l. And their derivatives.
-            for (EdgeDescriptor edgeDescriptor : getEdgesRange(lDescriptor)) {
+            for (EdgeDescriptor edgeDescriptor :
+                 getEdgesRange(getEquationDescriptorFromId(l.getId()))) {
               const Edge &edge = graph[edgeDescriptor];
               const auto &j = getVertex<VariableVertex>(edgeDescriptor.to);
               LLVM_DEBUG(llvm::dbgs() << "Adding edge(s) from " << dl.getId()
@@ -598,7 +611,7 @@ public:
 
               graph.addEdge(dlDescriptor, edgeDescriptor.to, edge);
 
-              if (auto dj = getDerivative(j.getId())) {
+              if (auto dj = getVariableDerivative(j.getId())) {
                 LLVM_DEBUG(llvm::dbgs() << ", " << dj->first);
                 assert(dj->second.contains(edge.accessedVariableIndices()) &&
                        "Variable derivative does not contain accessed "
@@ -615,6 +628,39 @@ public:
 
           // 3b-5 (iii) - Assign derivatives of colored variables to the
           // derivatives of their assigned equations.
+          for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
+            const IndexSet &coloredIndices = j.getColoredIndices();
+            if (coloredIndices.empty()) {
+              continue;
+            }
+
+            // As j was colored we know we just gave it a derivative
+            auto dj = getVariableDerivative(j.getId());
+            const IndexSet &derivedIndices = dj->second;
+
+            // NOTE: this will not hold in the future when we might
+            // re-differentiate a separate part of the variable.
+            assert(derivedIndices == coloredIndices &&
+                   "derived indices different from colored indices");
+
+            IndexSet unassignedIndices = coloredIndices;
+            llvm::SmallVector<Assignment> djAssignment;
+            for (const auto &[equation, indices] :
+                 variableAssignments[j.getId()]) {
+
+              // The indices of dj are a subset of the indices of j.
+              // Therefore we have to check that the indices of an assignment
+              // are valid for dj before we use it.
+              if (unassignedIndices.contains(indices)) {
+                unassignedIndices -= indices;
+                djAssignment.emplace_back(*getEquationDerivative(equation),
+                                          indices);
+              }
+            }
+
+            assert(unassignedIndices.empty() && "Did not assign all indices.");
+            variableAssignments.insert({dj->first, std::move(djAssignment)});
+          }
 
           // 3b-5 (iv) - Continue from the derivative of the current equation
           EquationVertex::Id nextId = equationAssociations[i.getId()];
@@ -622,12 +668,22 @@ public:
         } else {
           break;
         }
-        llvm::dbgs() << "Press enter to continue\n";
-        std::cin.get();
       }
     }
 
-    return variableAssignments;
+    llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> neededDerivations;
+    // Measure the length of the derivation-chain for each original equation
+    for (size_t equationId = 0; equationId < numEquations; equationId++) {
+      size_t numDerivations = 0;
+      auto derivative = equationAssociations.find(equationId);
+      while (derivative != equationAssociations.end()) {
+        numDerivations++;
+        derivative = equationAssociations.find(derivative->second);
+      }
+      neededDerivations.emplace_back(equationId, numDerivations);
+    }
+
+    return neededDerivations;
   }
 
   void dumpVisibilityState(llvm::raw_ostream &os) const {
@@ -697,7 +753,7 @@ public:
     os << " Variables:\n";
     for (const VariableVertex &variable : getVertexRange<VariableVertex>()) {
       os << "  ", variable.dump(os);
-      if (auto derivative = getDerivative(variable.getId())) {
+      if (auto derivative = getVariableDerivative(variable.getId())) {
         os << " -> ";
         os << "Derivative(id: " << derivative->first << ")";
         os << " for indices: ";
@@ -711,7 +767,7 @@ public:
          getDescriptorRange<EquationVertex>()) {
       auto &equation = getVertex<EquationVertex>(descriptor);
       os << "  ", equation.dump(os);
-      if (auto derivative = getDerivative(equation.getId())) {
+      if (auto derivative = getEquationDerivative(equation.getId())) {
         os << " -> ";
         os << "Derivative(id: " << *derivative << ")";
       }

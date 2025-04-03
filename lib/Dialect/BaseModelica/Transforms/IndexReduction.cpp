@@ -1,8 +1,9 @@
+#include <algorithm>
 #define DEBUG_TYPE "index-reduction"
-#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
+#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Modeling/IndexReduction.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -167,7 +168,36 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   LLVM_DEBUG(graph.dump(llvm::dbgs()));
 
-  graph.pantelides();
+  auto res = graph.pantelides();
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "Pantelides result:\n";
+    size_t index = 0;
+    for (const auto &pair : res) {
+      llvm::dbgs() << "Equation id: " << pair.first
+                   << ", number of derivations: " << pair.second << "\n";
+      index = std::max(index, pair.second);
+    }
+
+    if (index > 0) {
+      llvm::dbgs() << "DAE index: " << index + 1 << "\n";
+    } else {
+      bool anyMissingDerivative =
+          llvm::any_of(variableBridges, [&](auto &bridge) {
+            bool hasDerivative =
+                derivativesMap.getDerivative(bridge->id).has_value();
+            bool isDerivative =
+                derivativesMap.getDerivedVariable(bridge->id).has_value();
+            return !(hasDerivative || isDerivative);
+          });
+
+      if (anyMissingDerivative) {
+        llvm::dbgs() << "DAE index: 1\n";
+      } else {
+        llvm::dbgs() << "DAE index: 0\n";
+      }
+    }
+  });
 
   for (VariableOp variable : derivedVariables) {
     variable.erase();
