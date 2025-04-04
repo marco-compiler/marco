@@ -229,7 +229,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   bool firstElementListParsable = true;
 
   while (!lookahead[0].isa<TokenKind::End>() &&
-         !lookahead[0].isa<TokenKind::Annotation>()) {
+         !lookahead[0].isa<TokenKind::Annotation>() && 
+         !lookahead[0].isa<TokenKind::External>()) {
     if (lookahead[0].isa<TokenKind::Initial>() &&
         lookahead[1].isa<TokenKind::Equation>()) {
       TRY(section, parseEquationSection());
@@ -295,6 +296,11 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
         members.push_back(std::move(element));
       }
     }
+  }
+
+  if (!lookahead[0].isa<TokenKind::External>()) {
+    TRY(external, parseExternal());
+    //TODO
   }
 
   // Parse an optional annotation.
@@ -1885,4 +1891,10 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
   EXPECT(TokenKind::RPar);
   return std::move(expression);
 }
+
+ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
+  //TODO
+  EXPECT(TokenKind::Semicolon);
+}
+
 } // namespace marco::parser
