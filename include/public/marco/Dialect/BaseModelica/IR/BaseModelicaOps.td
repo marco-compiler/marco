@@ -2359,7 +2359,8 @@ def Modelica_AcosOp : BaseModelica_Op<"acos",
 }
 
 def Modelica_AsinOp : BaseModelica_Op<"asin",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Trigonometric inverse sine function";
 

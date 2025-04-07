@@ -6129,6 +6129,35 @@ mlir::OpFoldResult AsinOp::fold(FoldAdaptor adaptor) {
 
   return {};
 }
+
+void AsinOp::generateRuntimeVerification(
+  mlir::OpBuilder& builder, mlir::Location loc)
+{
+  mlir::Value operand = getOperand();
+  // convert operand to arith-compatible type
+  mlir::Value argCast = builder.create<CastOp>(
+      loc, builder.getF64Type(), operand);
+
+  mlir::Value minusone = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getF64FloatAttr(-1));
+
+  mlir::Value one = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getF64FloatAttr(1));
+
+  mlir::Value firstcondition = builder.create<mlir::arith::CmpFOp>(
+      loc, mlir::arith::CmpFPredicate::OGE, argCast, minusone);
+
+  mlir::Value secondcondition = builder.create<mlir::arith::CmpFOp>(
+      loc, mlir::arith::CmpFPredicate::OLE, argCast, one);
+
+  builder.create<mlir::cf::AssertOp>(
+      loc, firstcondition, builder.getStringAttr(
+        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
+
+  builder.create<mlir::cf::AssertOp>(
+      loc, secondcondition, builder.getStringAttr(
+        "Model error: Argument of asin outside the domain. It should be -1 <= arg <= 1"));
+}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
