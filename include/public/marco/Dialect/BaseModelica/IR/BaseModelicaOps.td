@@ -2547,7 +2547,8 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
     }];
 }
 
-def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc", []>
+def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc",
+    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Get the integer part of a quotient.";
 
