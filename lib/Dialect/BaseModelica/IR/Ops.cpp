@@ -943,6 +943,36 @@ void DimOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
                                         mlir::MLIRContext *context) {
   patterns.add<DimOpStaticDimensionPattern>(context);
 }
+
+void DimOp::generateRuntimeVerification(
+  mlir::OpBuilder& builder, mlir::Location loc)
+{
+  size_t numDimensions = getArray().getType().getShape().size();
+  mlir::Value dimIndex = getDimension();
+
+  // convert operand to arith-compatible type
+  mlir::Value argCast = builder.create<CastOp>(
+      loc, builder.getI64Type(), dimIndex);
+
+  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getI64IntegerAttr(0));
+  mlir::Value arrayShapeSize = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getI64IntegerAttr(numDimensions));
+
+  mlir::Value firstCondition = builder.create<mlir::arith::CmpIOp>(
+      loc, mlir::arith::CmpIPredicate::sgt, argCast, zero);
+
+  mlir::Value secondCondition = builder.create<mlir::arith::CmpIOp>(
+      loc, mlir::arith::CmpIPredicate::slt, argCast, arrayShapeSize);
+
+  builder.create<mlir::cf::AssertOp>(
+      loc, firstCondition, builder.getStringAttr(
+        "size_of_dimension_base_array failed (ndims out of bounds)"));
+
+  builder.create<mlir::cf::AssertOp>(
+      loc, secondCondition, builder.getStringAttr(
+        "size_of_dimension_base_array failed (ndims out of bounds)"));
+}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
