@@ -228,6 +228,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
   bool firstElementListParsable = true;
 
+  // "!lookahead[0].isa<TokenKind::External>()" added to while
   while (!lookahead[0].isa<TokenKind::End>() &&
          !lookahead[0].isa<TokenKind::Annotation>() && 
          !lookahead[0].isa<TokenKind::External>()) {

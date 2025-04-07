@@ -75,7 +75,8 @@ public:
     VariableType,
     VariableType_BuiltIn,
     VariableType_UserDefined,
-    VariableType_LastVariableType
+    VariableType_LastVariableType,
+    //TO-DO : AST-Node identifier
   };
 
   ASTNode(Kind kind, SourceRange location, ASTNode *parent = nullptr);
