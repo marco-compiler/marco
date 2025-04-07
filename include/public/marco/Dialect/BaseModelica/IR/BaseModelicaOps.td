@@ -2333,7 +2333,8 @@ def BaseModelica_AbsOp : BaseModelica_Op<"abs",
 }
 
 def Modelica_AcosOp : BaseModelica_Op<"acos",
-    [NoMemoryEffect]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
 {
     let summary = "Trigonometric inverse cosine function.";
 
