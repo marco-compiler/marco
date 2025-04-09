@@ -156,10 +156,10 @@ static void verifyArgumentIsPositive(
   builder.createBlock(&assertOp.getConditionRegion());
 
   mlir::Value zero; 
-  if(arg.getType().isa<RealType>())
+  if(mlir::isa<RealType>(arg.getType()))
     zero = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), 0.0f));
-  else if(arg.getType().isa<IntegerType>()) {
+  else if(mlir::isa<IntegerType>(arg.getType())) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
   } else {
@@ -190,7 +190,7 @@ static void verifyArgumentIsNotZero(
   builder.createBlock(&assertOp.getConditionRegion());
 
   mlir::Value zero;
-  bool isIntegerArg = arg.getType().isa<IntegerType>();
+  bool isIntegerArg = mlir::isa<IntegerType>(arg.getType());
   if(isIntegerArg) {
     zero = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), 0));
@@ -226,12 +226,12 @@ static void verifyArgumentIsBetween(
 
   mlir::Value lowerBound;
   mlir::Value upperBound;
-  if(arg.getType().isa<RealType>()) {
+  if(mlir::isa<RealType>(arg.getType())) {
     lowerBound = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), lower));
     upperBound = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), upper));
-  } else if(arg.getType().isa<IntegerType>()) {
+  } else if(mlir::isa<IntegerType>(arg.getType())) {
     lowerBound = builder.create<ConstantOp>(
         loc, IntegerAttr::get(builder.getContext(), lower));
     upperBound = builder.create<ConstantOp>(
@@ -936,10 +936,10 @@ void TensorInsertSliceOp::generateRuntimeVerification(
   mlir::Value source = getValue();
 
   //verify if the source is a tensor
-  if(auto tensorType = getValue().getType().dyn_cast<TensorType>()) {
+  if(auto tensorType = mlir::dyn_cast<TensorType>(getValue().getType())) {
     int64_t firstOperand = 0;
     for(mlir::Value operand: getSubscriptions()){
-      if(operand.getType().isa<RangeType>()){
+      if(mlir::isa<RangeType>(operand.getType())){
         break;
       }
       firstOperand++;
@@ -1191,7 +1191,7 @@ void DimOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
 void DimOp::generateRuntimeVerification(
     mlir::OpBuilder &builder, mlir::Location loc) {
   mlir::Value dim = getDimension();
-  auto arrayShapedType = getArray().getType().cast<mlir::ShapedType>();
+  auto arrayShapedType = mlir::cast<mlir::ShapedType>(getArray().getType());
   int64_t rank = arrayShapedType.getRank();
 
   verifyArgumentIsBetween(builder, loc, dim, 0, false, rank, true,
@@ -1311,14 +1311,14 @@ void LoadOp::generateRuntimeVerification(
     // at some point down the pipeline, so convert everything
     // to tensor to avoid issues
     mlir::Value operand;
-    auto operandShapedType = getArrayType().cast<mlir::ShapedType>();
+    auto operandShapedType = mlir::cast<mlir::ShapedType>(getArrayType());
     auto operandTensorType = mlir::RankedTensorType::get(
               operandShapedType.getShape(),
               operandShapedType.getElementType());
     operand = builder.create<ArrayToTensorOp>(loc,
         operandTensorType, getArray());
 
-    auto tensorShapedType = operand.getType().cast<mlir::ShapedType>();
+    auto tensorShapedType = mlir::cast<mlir::ShapedType>(operand.getType());
     int64_t rank = tensorShapedType.getRank();
 
     verifyTensorIndexedAccess(builder, loc, operand, indices, rank,
@@ -1397,14 +1397,14 @@ void StoreOp::generateRuntimeVerification(
     // at some point down the pipeline, so convert everything
     // to tensor to avoid issues
     mlir::Value operand;
-    auto operandShapedType = getArrayType().cast<mlir::ShapedType>();
+    auto operandShapedType = mlir::cast<mlir::ShapedType>(getArrayType());
     auto operandTensorType = mlir::RankedTensorType::get(
               operandShapedType.getShape(),
               operandShapedType.getElementType());
     operand = builder.create<ArrayToTensorOp>(loc,
         operandTensorType, getArray());
 
-    auto tensorShapedType = operand.getType().cast<mlir::ShapedType>();
+    auto tensorShapedType = mlir::cast<mlir::ShapedType>(operand.getType());
     int64_t rank = tensorShapedType.getRank();
 
     verifyTensorIndexedAccess(builder, loc, operand, indices, rank,
@@ -1552,7 +1552,7 @@ void SubscriptionOp::generateRuntimeVerification(
   // Modelica arrays will eventually be converted to MLIR tensors
   // at some point down the pipeline, so convert everything
   // to tensor to avoid issues
-  auto operandShapedType = getSourceArrayType().cast<mlir::ShapedType>();
+  auto operandShapedType = mlir::cast<mlir::ShapedType>(getSourceArrayType());
   auto operandTensorType = mlir::RankedTensorType::get(
             operandShapedType.getShape(),
             operandShapedType.getElementType());
@@ -5239,10 +5239,10 @@ void DivEWOp::generateRuntimeVerification(
   bool isRhsScalar = isScalar(rhs.getType());
   bool isIntegerArg;
   if(isRhsScalar) {
-    isIntegerArg = rhs.getType().isa<IntegerType>();
+    isIntegerArg = mlir::isa<IntegerType>(rhs.getType());
   } else {
-    rhsShapedType = rhs.getType().dyn_cast<mlir::ShapedType>();
-    isIntegerArg = rhsShapedType.getElementType().isa<IntegerType>();
+    rhsShapedType = mlir::dyn_cast<mlir::ShapedType>(rhs.getType());
+    isIntegerArg = mlir::isa<IntegerType>(rhsShapedType.getElementType());
   }
 
   auto assertOp = builder.create<AssertOp>(
@@ -7533,7 +7533,7 @@ void SizeOp::generateRuntimeVerification(
     mlir::OpBuilder &builder, mlir::Location loc) {
   if(getNumOperands() == 2) {
     mlir::Value dim = getDimension();
-    auto arrayShapedType = getArray().getType().cast<mlir::ShapedType>();
+    auto arrayShapedType = mlir::cast<mlir::ShapedType>(getArray().getType());
     int64_t rank = arrayShapedType.getRank();
 
     verifyArgumentIsBetween(builder, loc, dim, 0, false, rank, true,
@@ -7615,7 +7615,7 @@ void TanOp::generateRuntimeVerification(
   mlir::Value operand = getOperand();
 
   // Tangent of an integer will never have any problems
-  if(operand.getType().isa<IntegerType>())
+  if(mlir::isa<IntegerType>(operand.getType()))
     return;
 
   auto assertOp = builder.create<AssertOp>(
