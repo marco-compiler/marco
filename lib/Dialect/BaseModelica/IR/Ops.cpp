@@ -772,6 +772,7 @@ void TensorExtractOp::generateRuntimeVerification(
 
 //===---------------------------------------------------------------------===//
 // TensorInsertOp
+
 namespace mlir::bmodelica
 {
 void TensorInsertOp::generateRuntimeVerification(
@@ -807,7 +808,7 @@ void TensorInsertOp::generateRuntimeVerification(
     }
   }
 }
-}
+} // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
 // Array operations
@@ -4883,20 +4884,20 @@ void DivOp::generateRuntimeVerification(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(&assertOp.getConditionRegion());
 
-    if(isIntegerArg) {
-      condition = builder.create<NotEqOp>(
-          loc, rhs, zero);
-    } else {
-      mlir::Value epsilon = builder.create<ConstantOp>(
-          loc, RealAttr::get(builder.getContext(), 1E-4));
-      mlir::Value rhsAbs = builder.create<AbsOp>(
-          loc, RealType::get(builder.getContext()), rhs);
-      condition = builder.create<GteOp>(
-          loc, rhsAbs, epsilon);
-    }
-    
-    builder.create<YieldOp>(assertOp.getLoc(), condition);
+  if(isIntegerArg) {
+    condition = builder.create<NotEqOp>(
+        loc, rhs, zero);
+  } else {
+    mlir::Value epsilon = builder.create<ConstantOp>(
+        loc, RealAttr::get(builder.getContext(), 1E-4));
+    mlir::Value rhsAbs = builder.create<AbsOp>(
+        loc, RealType::get(builder.getContext()), rhs);
+    condition = builder.create<GteOp>(
+        loc, rhsAbs, epsilon);
   }
+  
+  builder.create<YieldOp>(assertOp.getLoc(), condition);
+}
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
@@ -6501,11 +6502,11 @@ void AcosOp::generateRuntimeVerification(
       loc, RealAttr::get(builder.getContext(), 1.0f));
 
   auto assertOp1 = builder.create<AssertOp>(
-    loc, 
-    builder.getStringAttr(
-      "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1\n"),
-    builder.getI64IntegerAttr(2));
-
+      loc, 
+      builder.getStringAttr(
+        "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1\n"),
+      builder.getI64IntegerAttr(2));
+  
   mlir::OpBuilder::InsertionGuard guard1(builder);
   builder.createBlock(&assertOp1.getConditionRegion());
 
@@ -6529,7 +6530,7 @@ void AcosOp::generateRuntimeVerification(
   
   builder.create<YieldOp>(assertOp2.getLoc(), secondcondition);
 }
-}
+} // namespace mlir::bmodelica
 
 
 //===---------------------------------------------------------------------===//
@@ -6561,9 +6562,8 @@ mlir::OpFoldResult AsinOp::fold(FoldAdaptor adaptor) {
 
   return {};
 }
-
 void AsinOp::generateRuntimeVerification(
-  mlir::OpBuilder& builder, mlir::Location loc)
+    mlir::OpBuilder& builder, mlir::Location loc)
 {
   mlir::Value operand = getOperand();
   // convert operand to arith-compatible type
@@ -6987,6 +6987,7 @@ mlir::OpFoldResult Log10Op::fold(FoldAdaptor adaptor) {
 
   return {};
 }
+
 void Log10Op::generateRuntimeVerification(
     mlir::OpBuilder& builder, mlir::Location loc)
 {
