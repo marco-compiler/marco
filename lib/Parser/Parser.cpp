@@ -299,9 +299,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     }
   }
 
-  if (!lookahead[0].isa<TokenKind::External>()) {
-    TRY(external, parseExternal());
-    //TODO
+  if (lookahead[0].isa<TokenKind::External>()) {
+    TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
   }
 
   // Parse an optional annotation.
@@ -329,6 +328,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   result->dyn_cast<Class>()->setEquationSections(equationSections);
   result->dyn_cast<Class>()->setAlgorithms(algorithms);
   result->dyn_cast<Class>()->setInnerClasses(innerClasses);
+  //TO-DO: result->dyn_cast<Class>()->setExternalRef(externalRef)
 
   return std::move(result);
 }
@@ -1894,8 +1894,33 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
-  //TODO
+  std::unique_ptr<ast::ASTNode> result;
+
+  EXPECT(TokenKind::External);
+  parseString();
+  parseExternalFunctionCall();
+  if (lookahead[0].isa<TokenKind::Annotation>()) {
+    {
+      TRY(annotation, parseAnnotation());
+    }
   EXPECT(TokenKind::Semicolon);
+
+  return (std::move(result));  
+}
+
+ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
+  if (lookahead[0].isa<TokenKind::Dot>())
+    {
+      TRY(compRef, parseComponentReference());
+      EXPECT(TokenKind::Equal)
+    }
+  parseIdentifier();
+  EXPECT(TokenKind::LPar);
+  TRY(expressionList, parseExpressionList());
+  EXPECT(TokenKind::RPar);
+}
+ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExpressionList() {
+  //FARLO PER ULTIMO (MOLTO SIMILE A PARSE OUTPUT EXPRESSION LIST)
 }
 
 } // namespace marco::parser
