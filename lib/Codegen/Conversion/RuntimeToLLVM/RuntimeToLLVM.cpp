@@ -380,9 +380,9 @@ struct SchedulerRunOpLowering : public RuntimeOpConversion<SchedulerRunOp> {
   }
 };
 
-class FunctionOpLowering : public mlir::ConvertOpToLLVMPattern<FunctionOp> {
+class FunctionOpLowering : public RuntimeOpConversion<FunctionOp> {
 public:
-  using mlir::ConvertOpToLLVMPattern<FunctionOp>::ConvertOpToLLVMPattern;
+  using RuntimeOpConversion<FunctionOp>::RuntimeOpConversion;
 
   mlir::LogicalResult
   matchAndRewrite(FunctionOp op, OpAdaptor adaptor,
@@ -411,9 +411,14 @@ public:
       }
     }
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
+    auto moduleOpSt = symbolTableCollection->getSymbolTable(op->getParentOfType<mlir::ModuleOp>());
+    moduleOpSt.remove(op);
+
+    auto llvmFuncOp = rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
         op, op.getSymName(),
         mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
+
+    moduleOpSt.insert(llvmFuncOp);
 
     return mlir::success();
   }
@@ -585,7 +590,7 @@ mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps() {
 
   mlir::DataLayout dataLayout(moduleOp);
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
-  mlir::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+  mlir::runtime::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
@@ -603,9 +608,14 @@ void populateRuntimeToLLVMPatterns(
                   SchedulerDestroyOpLowering, SchedulerAddEquationOpLowering,
                   SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<FunctionOpLowering, CallOpLowering>(typeConverter);
- 
-  patterns.insert<StringOpLowering>(typeConverter, symbolTableCollection);
+  patterns.insert<StringOpLowering>(typeConverter,
+      symbolTableCollection);
+
+  patterns.insert<FunctionOpLowering>(typeConverter,
+      symbolTableCollection);
+
+  patterns.insert<CallOpLowering>(
+      typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass() {
