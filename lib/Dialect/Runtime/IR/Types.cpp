@@ -18,13 +18,11 @@ using namespace ::mlir::runtime;
 // RuntimeDialect
 //===---------------------------------------------------------------------===//
 
-namespace mlir::runtime
-{
-  void RuntimeDialect::registerTypes()
-  {
-    addTypes<
-      #define GET_TYPEDEF_LIST
-      #include "marco/Dialect/Runtime/IR/RuntimeTypes.cpp.inc"
-    >();
-  }
+namespace mlir::runtime {
+void RuntimeDialect::registerTypes() {
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "marco/Dialect/Runtime/IR/RuntimeTypes.cpp.inc"
+      >();
+}
 } // namespace mlir::runtime

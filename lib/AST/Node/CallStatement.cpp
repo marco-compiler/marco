@@ -13,8 +13,7 @@ CallStatement::CallStatement(const CallStatement &other) : Statement(other) {
   setCall(other.call->clone());
 }
 
-std::unique_ptr<ASTNode> CallStatement::clone() const
-{
+std::unique_ptr<ASTNode> CallStatement::clone() const {
   return std::make_unique<CallStatement>(*this);
 }
 
@@ -27,24 +26,20 @@ llvm::json::Value CallStatement::toJSON() const {
   return result;
 }
 
-Call* CallStatement::getCall()
-{
+Call *CallStatement::getCall() {
   assert(call != nullptr && "Call not set");
   return call->cast<Call>();
 }
 
-const Call* CallStatement::getCall() const
-{
+const Call *CallStatement::getCall() const {
   assert(call != nullptr && "Call not set");
   return call->cast<Call>();
 }
 
-void CallStatement::setCall(std::unique_ptr<ASTNode> node)
-{
+void CallStatement::setCall(std::unique_ptr<ASTNode> node) {
   assert(node->isa<Call>());
   call = std::move(node);
   call->setParent(this);
 }
-
 
 } // namespace marco::ast

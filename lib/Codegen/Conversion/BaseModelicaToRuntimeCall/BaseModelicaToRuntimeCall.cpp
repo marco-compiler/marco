@@ -1,5 +1,5 @@
-#include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Conversion/BaseModelicaToRuntimeCall/BaseModelicaToRuntimeCall.h"
+#include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
@@ -56,13 +56,12 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
       mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect,
       mlir::LLVM::LLVMDialect>();
 
-  target
-      .addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
-                    CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp, IdentityOp,
-                    IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp, MaxOp, MinOp,
-                    ModOp, ProductOp, RemOp, SignOp, SinOp, SinhOp, SqrtOp,
-                    SumOp, SymmetricOp, TanOp, TanhOp, TransposeOp, ZerosOp,
-                    AssertOp>();
+  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
+                      CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp,
+                      IdentityOp, IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp,
+                      MaxOp, MinOp, ModOp, ProductOp, RemOp, SignOp, SinOp,
+                      SinhOp, SqrtOp, SumOp, SymmetricOp, TanOp, TanhOp,
+                      TransposeOp, ZerosOp, AssertOp>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
     if (mlir::isa<mlir::TensorType>(op.getBase().getType())) {
@@ -182,7 +181,8 @@ protected:
           getMangledType(memRefType.getElementType()));
     }
 
-    if (auto stringType = mlir::dyn_cast<mlir::runtime::RuntimeStringType>(type)) {
+    if (auto stringType =
+            mlir::dyn_cast<mlir::runtime::RuntimeStringType>(type)) {
       return getMangler()->getVoidPointerType();
     }
 
@@ -301,7 +301,7 @@ protected:
     return *symbolTableCollection;
   }
 
-  private:
+private:
   RuntimeFunctionsMangling mangler;
   mlir::SymbolTableCollection *symbolTableCollection;
 };
@@ -2341,7 +2341,7 @@ struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
         loc, rewriter.getType<mlir::runtime::RuntimeStringType>(),
         rewriter.getStringAttr(message));
 
-    if ( ! yieldArgument.getType().isInteger(1) ) {
+    if (!yieldArgument.getType().isInteger(1)) {
       yieldArgument = getTypeConverter()->materializeTargetConversion(
           rewriter, loc, rewriter.getIntegerType(1), yieldArgument);
     }
@@ -2355,7 +2355,6 @@ struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
         rewriter, op->getParentOfType<mlir::ModuleOp>(),
         getMangledFunctionName("assert", std::nullopt, arguments), std::nullopt,
         arguments);
-
 
     auto callOp =
         rewriter.create<mlir::runtime::CallOp>(loc, callee, arguments);

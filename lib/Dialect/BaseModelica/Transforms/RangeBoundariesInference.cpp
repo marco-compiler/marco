@@ -71,24 +71,24 @@ public:
     return mlir::success();
   }
 };
-  
+
 class TensorInsertSliceOpPattern
-    : public mlir::OpRewritePattern<TensorInsertSliceOp>
-{
+    : public mlir::OpRewritePattern<TensorInsertSliceOp> {
 public:
   using mlir::OpRewritePattern<TensorInsertSliceOp>::OpRewritePattern;
 
-  mlir::LogicalResult matchAndRewrite(TensorInsertSliceOp op,
-                                      mlir::PatternRewriter& rewriter) const override {
+  mlir::LogicalResult
+  matchAndRewrite(TensorInsertSliceOp op,
+                  mlir::PatternRewriter &rewriter) const override {
     if (llvm::all_of(op.getSubscriptions(), [](mlir::Value index) {
-      mlir::Operation* definingOp = index.getDefiningOp();
+          mlir::Operation *definingOp = index.getDefiningOp();
 
-      if (!definingOp) {
-        return true;
-      }
+          if (!definingOp) {
+            return true;
+          }
 
-      return !mlir::isa<UnboundedRangeOp>(definingOp);
-    })) {
+          return !mlir::isa<UnboundedRangeOp>(definingOp);
+        })) {
       return mlir::failure();
     }
 
@@ -98,8 +98,7 @@ public:
     for (size_t i = 0, e = op.getSubscriptions().size(); i < e; ++i) {
       mlir::Value index = op.getSubscriptions()[i];
 
-      if (auto unboundedRangeOp =
-              index.getDefiningOp<UnboundedRangeOp>()) {
+      if (auto unboundedRangeOp = index.getDefiningOp<UnboundedRangeOp>()) {
         mlir::Value lowerBound =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 
@@ -119,8 +118,7 @@ public:
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
 
         mlir::Value range = rewriter.create<RangeOp>(
-            loc,
-            RangeType::get(getContext(), rewriter.getIndexType()),
+            loc, RangeType::get(getContext(), rewriter.getIndexType()),
             lowerBound, upperBound, step);
 
         newIndices.push_back(range);
@@ -130,8 +128,8 @@ public:
       newIndices.push_back(index);
     }
 
-    rewriter.replaceOpWithNewOp<TensorInsertSliceOp>(op, op.getValue(), op.getDestination(),
-                                                     newIndices);
+    rewriter.replaceOpWithNewOp<TensorInsertSliceOp>(
+        op, op.getValue(), op.getDestination(), newIndices);
 
     return mlir::success();
   }

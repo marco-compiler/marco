@@ -4,20 +4,13 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
-namespace marco::codegen::lowering
-{
+namespace marco::codegen::lowering {
 
-  CallStatementLowerer::CallStatementLowerer(BridgeInterface *bridge)
-    : Lowerer(bridge)
-  {}
+CallStatementLowerer::CallStatementLowerer(BridgeInterface *bridge)
+    : Lowerer(bridge) {}
 
-  bool CallStatementLowerer::lower(const ast::CallStatement &statement)
-  {
-    return static_cast<bool>(lower(*statement.getCall()));
-  }
-
-
-
+bool CallStatementLowerer::lower(const ast::CallStatement &statement) {
+  return static_cast<bool>(lower(*statement.getCall()));
+}
 
 } // namespace marco::codegen::lowering
-

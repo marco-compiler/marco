@@ -2087,16 +2087,13 @@ std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
 }
 
 std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
-  enum class AssertionLevel : int64_t {
-    WARNING = 0,
-    ERROR = 1
-  };
+  enum class AssertionLevel : int64_t { WARNING = 0, ERROR = 1 };
 
-  auto parseAssertionLevelCR = [] ( const std::string &name )
-                               -> std::optional<AssertionLevel>
-  {
+  auto parseAssertionLevelCR =
+      [](const std::string &name) -> std::optional<AssertionLevel> {
     const int beginsWith = name.find("AssertionLevel.");
-    if (beginsWith != 0) return std::nullopt;
+    if (beginsWith != 0)
+      return std::nullopt;
 
     std::string_view nestedName = name;
 
@@ -2137,9 +2134,11 @@ std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
 
     const ast::FunctionArgument *levelArg = call.getArgument(2);
 
-    if (const auto *expressionArg = levelArg->dyn_cast<ast::ExpressionFunctionArgument>()) {
+    if (const auto *expressionArg =
+            levelArg->dyn_cast<ast::ExpressionFunctionArgument>()) {
 
-      const auto *expr = expressionArg->getExpression()->cast<ast::ComponentReference>();
+      const auto *expr =
+          expressionArg->getExpression()->cast<ast::ComponentReference>();
 
       auto name = expr->getName();
 

@@ -12,6 +12,7 @@
 #include "marco/AST/Node/AssignmentStatement.h"
 #include "marco/AST/Node/BreakStatement.h"
 #include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/CallStatement.h"
 #include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/ComponentReference.h"
 #include "marco/AST/Node/ComponentReferenceEntry.h"
@@ -47,6 +48,5 @@
 #include "marco/AST/Node/WhenEquation.h"
 #include "marco/AST/Node/WhenStatement.h"
 #include "marco/AST/Node/WhileStatement.h"
-#include "marco/AST/Node/CallStatement.h"
 
 #endif // MARCO_AST_AST_H

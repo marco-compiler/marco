@@ -47,7 +47,7 @@ public:
 
       return static_cast<T>(!std::get<std::string>(value).empty());
     } else if constexpr (std::is_base_of<std::basic_string<char>, T>::value) {
-      if ( std::holds_alternative<std::string>(value)) {
+      if (std::holds_alternative<std::string>(value)) {
         return static_cast<T>(std::get<std::string>(value));
       }
     } else {

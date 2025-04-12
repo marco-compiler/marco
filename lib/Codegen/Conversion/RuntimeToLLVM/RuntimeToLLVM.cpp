@@ -411,7 +411,8 @@ public:
       }
     }
 
-    auto moduleOpSt = symbolTableCollection->getSymbolTable(op->getParentOfType<mlir::ModuleOp>());
+    auto moduleOpSt = symbolTableCollection->getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
     moduleOpSt.remove(op);
 
     auto llvmFuncOp = rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
@@ -529,9 +530,7 @@ class StringOpLowering : public RuntimeOpConversion<StringOp> {
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
     mlir::Value constantString = createGlobalString(
-        rewriter, loc, moduleOp, "globalString",
-        op.getString());
-
+        rewriter, loc, moduleOp, "globalString", op.getString());
 
     rewriter.replaceOp(op, constantString);
 
@@ -590,7 +589,8 @@ mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps() {
 
   mlir::DataLayout dataLayout(moduleOp);
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
-  mlir::runtime::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+  mlir::runtime::LLVMTypeConverter typeConverter(&getContext(),
+                                                 llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
@@ -608,14 +608,11 @@ void populateRuntimeToLLVMPatterns(
                   SchedulerDestroyOpLowering, SchedulerAddEquationOpLowering,
                   SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<StringOpLowering>(typeConverter,
-      symbolTableCollection);
+  patterns.insert<StringOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<FunctionOpLowering>(typeConverter,
-      symbolTableCollection);
+  patterns.insert<FunctionOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<CallOpLowering>(
-      typeConverter);
+  patterns.insert<CallOpLowering>(typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass() {
