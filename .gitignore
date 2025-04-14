@@ -102,6 +102,3 @@ sundials_libraries/sundials*
 # Doxygen
 docs/html/
 docs/latex/
-
-# Clangd cache
-.cache/
