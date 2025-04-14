@@ -408,7 +408,7 @@ public:
       }
     }
 
-    auto moduleOpSt = symbolTableCollection->getSymbolTable(
+    auto &moduleOpSt = symbolTableCollection->getSymbolTable(
         op->getParentOfType<mlir::ModuleOp>());
     moduleOpSt.remove(op);
 
