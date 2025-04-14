@@ -8,7 +8,8 @@
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::impl;
 
-static void merge(llvm::SmallVector<MultidimensionalRange> &ranges) {
+namespace {
+void merge(llvm::SmallVector<MultidimensionalRange> &ranges) {
   if (ranges.empty()) {
     return;
   }
@@ -44,7 +45,6 @@ static void merge(llvm::SmallVector<MultidimensionalRange> &ranges) {
   assert(!ranges.empty());
 }
 
-namespace {
 template <typename T>
 const MultidimensionalRange &getShape(const T &obj);
 
@@ -1954,8 +1954,9 @@ void RTreeIndexSet::adjustTree(
 
 } // namespace marco::modeling
 
+namespace {
 /// Check that all the children of a node has the correct parent set.
-static bool checkParentRelationships(const impl::RTreeIndexSet &indexSet) {
+bool checkParentRelationships(const impl::RTreeIndexSet &indexSet) {
   llvm::SmallVector<const impl::RTreeIndexSet::Node *> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
@@ -1978,7 +1979,7 @@ static bool checkParentRelationships(const impl::RTreeIndexSet &indexSet) {
 }
 
 /// Check the correctness of the MBR of all the nodes.
-static bool checkMBRsInvariant(const impl::RTreeIndexSet &indexSet) {
+bool checkMBRsInvariant(const impl::RTreeIndexSet &indexSet) {
   llvm::SmallVector<const impl::RTreeIndexSet::Node *> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
@@ -2008,7 +2009,7 @@ static bool checkMBRsInvariant(const impl::RTreeIndexSet &indexSet) {
 
 /// Check that all the nodes have between a minimum and a maximum
 /// amount of out edges (apart the root node).
-static bool checkFanOutInvariant(const impl::RTreeIndexSet &indexSet) {
+bool checkFanOutInvariant(const impl::RTreeIndexSet &indexSet) {
   llvm::SmallVector<const impl::RTreeIndexSet::Node *> nodes;
 
   if (auto root = indexSet.getRoot(); root != nullptr) {
@@ -2032,6 +2033,7 @@ static bool checkFanOutInvariant(const impl::RTreeIndexSet &indexSet) {
 
   return true;
 }
+} // namespace
 
 namespace marco::modeling::impl {
 bool RTreeIndexSet::isValid() const {
