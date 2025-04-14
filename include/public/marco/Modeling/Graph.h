@@ -47,19 +47,31 @@ public:
 template <typename Graph, typename T, typename VertexDescriptor>
 struct EdgeDescriptor {
 public:
+  EdgeDescriptor() : graph(nullptr), value(nullptr) {}
+
   EdgeDescriptor(const Graph *graph, VertexDescriptor from, VertexDescriptor to,
                  T *value)
       : graph(std::move(graph)), from(std::move(from)), to(std::move(to)),
         value(std::move(value)) {}
 
-  bool
-  operator==(const EdgeDescriptor<Graph, T, VertexDescriptor> &other) const {
+  friend llvm::hash_code hash_value(const EdgeDescriptor &descriptor) {
+    return llvm::hash_combine(descriptor.from, descriptor.to);
+  }
+
+  bool operator==(const EdgeDescriptor &other) const {
     return from == other.from && to == other.to && value == other.value;
   }
 
-  bool
-  operator!=(const EdgeDescriptor<Graph, T, VertexDescriptor> &other) const {
+  bool operator!=(const EdgeDescriptor &other) const {
     return from != other.from || to != other.to || value != other.value;
+  }
+
+  bool operator<(const EdgeDescriptor &other) const {
+    if (from != to) {
+      return from < to;
+    }
+
+    return false;
   }
 
   const Graph *graph;
@@ -1144,6 +1156,31 @@ struct DenseMapInfo<
     return Key(llvm::DenseMapInfo<const Graph *>::getTombstoneKey(),
                llvm::DenseMapInfo<VertexProperty *>::getTombstoneKey(),
                llvm::DenseMapInfo<uint64_t>::getTombstoneKey());
+  }
+
+  static unsigned getHashValue(const Key &Val) { return hash_value(Val); }
+
+  static bool isEqual(const Key &LHS, const Key &RHS) {
+    return LHS.value == RHS.value;
+  }
+};
+
+template <typename Graph, typename T, typename VertexDescriptor>
+struct DenseMapInfo<marco::modeling::internal::impl::EdgeDescriptor<
+    Graph, T, VertexDescriptor>> {
+  using Key = marco::modeling::internal::impl::EdgeDescriptor<Graph, T,
+                                                              VertexDescriptor>;
+
+  static Key getEmptyKey() {
+    auto emptyVertex = llvm::DenseMapInfo<VertexDescriptor>::getEmptyKey();
+    return Key(nullptr, emptyVertex, emptyVertex, nullptr);
+  }
+
+  static Key getTombstoneKey() {
+    auto tombstoneVertex =
+        llvm::DenseMapInfo<VertexDescriptor>::getTombstoneKey();
+
+    return Key(nullptr, tombstoneVertex, tombstoneVertex, nullptr);
   }
 
   static unsigned getHashValue(const Key &Val) { return hash_value(Val); }
