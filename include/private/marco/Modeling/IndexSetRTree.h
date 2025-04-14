@@ -200,16 +200,31 @@ private:
   static void updateBoundaries(Node *node);
 
   /// Select a leaf node in which to place a new entry.
-  Node *chooseLeaf(const MultidimensionalRange &entry) const;
+  static Node *chooseLeaf(Node *searchRoot, const MultidimensionalRange &entry);
 
-  std::pair<std::unique_ptr<Node>, std::unique_ptr<Node>> splitNode(Node &node);
+  /// Get the node that best accomodates the insertion of a new element with a
+  /// given boundary.
+  static Node *
+  chooseDestinationNode(llvm::ArrayRef<std::unique_ptr<Node>> nodes,
+                        const MultidimensionalRange &boundary);
 
-  /// Check and adjust the tree structure so that each node has between a
-  /// minimum and maximum amount of children.
-  /// The values contained in collapsed nodes are given back to the caller for
-  /// reinsertion.
-  void adjustTree(Node *node,
-                  llvm::SmallVectorImpl<MultidimensionalRange> &toReinsert);
+  /// Check and adjust the tree structure, starting from a given node, so that
+  /// each node has between a minimum and maximum amount of children.
+  void adjustTree(Node *node);
+
+  /// Split a node and its ancestors, if needed.
+  void splitNodeAndPropagate(Node *node);
+
+  /// Split a node.
+  std::pair<std::unique_ptr<Node>, std::unique_ptr<Node>>
+  splitNode(Node &node) const;
+
+  /// Collapse a node and its ancestors, if needed. The remaining values and
+  /// subtrees are relocated.
+  void collapseNodeAndPropagate(Node *node);
+
+  /// Remove a child for a node.
+  static void removeChild(Node *parent, const Node *child);
 
   /// Check if all the invariants are respected.
   bool isValid() const;

@@ -649,7 +649,7 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
   // We must add only the non-existing points.
   llvm::SmallVector<MultidimensionalRange> nonOverlappingRanges;
 
-  if (root == nullptr) {
+  if (!getRoot()) {
     nonOverlappingRanges.push_back(rhs);
   } else {
     llvm::SmallVector<MultidimensionalRange> current;
@@ -689,7 +689,7 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
       newRoot->add(std::move(range));
     } else {
       // Find position for the new record.
-      Node *node = chooseLeaf(range);
+      Node *node = chooseLeaf(root.get(), range);
 
       // Add the record to the leaf node.
       node->add(std::move(range));
@@ -699,7 +699,7 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
       merge(node->values);
 
       // Split and collapse nodes, if necessary.
-      adjustTree(node, nonOverlappingRanges);
+      adjustTree(node);
     }
 
     // Check that all the invariants are respected.
@@ -757,7 +757,6 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const MultidimensionalRange &rhs) {
     return *this;
   }
 
-  llvm::SmallVector<MultidimensionalRange> toInsert;
   bool modified;
 
   do {
@@ -796,7 +795,7 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const MultidimensionalRange &rhs) {
 
       if (modified) {
         // Split and collapse nodes, if necessary.
-        adjustTree(node, toInsert);
+        adjustTree(node);
         break;
       }
     }
@@ -1642,40 +1641,53 @@ void RTreeIndexSet::updateBoundaries(Node *node) {
 }
 
 RTreeIndexSet::Node *
-RTreeIndexSet::chooseLeaf(const MultidimensionalRange &entry) const {
-  Node *node = root.get();
+RTreeIndexSet::chooseLeaf(Node *searchRoot,
+                          const MultidimensionalRange &entry) {
+  Node *node = searchRoot;
 
   while (!node->isLeaf()) {
-    // Choose the child that needs the least enlargement to include the new
-    // element.
-    std::vector<std::pair<MultidimensionalRange, size_t>> candidateMBRs;
-
-    for (const auto &child : node->children) {
-      auto mbr = getMBR(child->getBoundary(), entry);
-      size_t flatDifference = mbr.flatSize() - child->getFlatSize();
-      candidateMBRs.emplace_back(std::move(mbr), flatDifference);
-    }
-
-    // Select the child that needs the least enlargement to include the new
-    // entry. Resolve ties by choosing the node with the rectangle with the
-    // smallest area.
-    auto enumeratedCandidates = llvm::enumerate(candidateMBRs);
-
-    auto it = std::min_element(
-        enumeratedCandidates.begin(), enumeratedCandidates.end(),
-        [](const auto &first, const auto &second) {
-          if (first.value().second == second.value().second) {
-            return first.value().first.flatSize() <
-                   second.value().first.flatSize();
-          }
-
-          return first.value().second < second.value().second;
-        });
-
-    node = node->children[(*it).index()].get();
+    node = chooseDestinationNode(node->children, entry);
   }
 
   return node;
+}
+
+RTreeIndexSet::Node *RTreeIndexSet::chooseDestinationNode(
+    llvm::ArrayRef<std::unique_ptr<RTreeIndexSet::Node>> nodes,
+    const MultidimensionalRange &boundary) {
+  assert(!nodes.empty());
+
+  if (nodes.size() == 1) {
+    return nodes.front().get();
+  }
+
+  // Choose the child that needs the least enlargement to include the new
+  // element.
+  std::vector<std::pair<MultidimensionalRange, size_t>> candidateMBRs;
+
+  for (const auto &child : nodes) {
+    auto mbr = getMBR(child->getBoundary(), boundary);
+    size_t flatDifference = mbr.flatSize() - child->getFlatSize();
+    candidateMBRs.emplace_back(std::move(mbr), flatDifference);
+  }
+
+  // Select the child that needs the least enlargement to include the new
+  // entry. Resolve ties by choosing the node with the rectangle with the
+  // smallest area.
+  auto enumeratedCandidates = llvm::enumerate(candidateMBRs);
+
+  auto it =
+      std::min_element(enumeratedCandidates.begin(), enumeratedCandidates.end(),
+                       [](const auto &first, const auto &second) {
+                         if (first.value().second == second.value().second) {
+                           return first.value().first.flatSize() <
+                                  second.value().first.flatSize();
+                         }
+
+                         return first.value().second < second.value().second;
+                       });
+
+  return nodes[(*it).index()].get();
 }
 } // namespace marco::modeling::impl
 
@@ -1730,9 +1742,11 @@ size_t pickNext(llvm::ArrayRef<T> entries,
     auto d1 =
         getMBR(getShape(entry.value()), firstNode.getBoundary()).flatSize() -
         firstNode.getBoundary().flatSize();
+
     auto d2 =
         getMBR(getShape(entry.value()), secondNode.getBoundary()).flatSize() -
         secondNode.getBoundary().flatSize();
+
     auto minMax = std::minmax(d1, d2);
     costs.emplace_back(entry.index(), minMax.second - minMax.first);
   }
@@ -1747,9 +1761,7 @@ size_t pickNext(llvm::ArrayRef<T> entries,
 
   return it->first;
 }
-} // namespace
 
-namespace {
 template <typename T>
 std::pair<std::unique_ptr<RTreeIndexSet::Node>,
           std::unique_ptr<RTreeIndexSet::Node>>
@@ -1796,8 +1808,9 @@ splitNode(RTreeIndexSet::Node &node, const size_t minElements,
 
       assert(movedValues.size() == containerFn(node).size());
       break;
+    }
 
-    } else if (containerFn(*secondNew).size() + remaining == minElements) {
+    if (containerFn(*secondNew).size() + remaining == minElements) {
       auto &container = containerFn(node);
 
       for (size_t i = 0, e = container.size(); i < e; ++i) {
@@ -1866,127 +1879,197 @@ splitNode(RTreeIndexSet::Node &node, const size_t minElements,
 } // namespace
 
 namespace marco::modeling {
+void RTreeIndexSet::adjustTree(Node *node) {
+  if (node->isRoot()) {
+    if (node->fanOut() == 0) {
+      setRoot(nullptr);
+    } else if (node->fanOut() > maxElements) {
+      splitNodeAndPropagate(node);
+    } else {
+      updateBoundaries(node);
+    }
+  } else if (node->fanOut() < minElements) {
+    collapseNodeAndPropagate(node);
+  } else if (node->fanOut() > maxElements) {
+    splitNodeAndPropagate(node);
+  } else {
+    updateBoundaries(node);
+  }
+}
+
+void RTreeIndexSet::splitNodeAndPropagate(Node *node) {
+  // Propagate node splits.
+  while (node->fanOut() > maxElements) {
+    auto newNodes = splitNode(*node);
+
+    if (node->isRoot()) {
+      // If node split propagation caused the root to split, then
+      // create a new root whose children are the two resulting nodes.
+
+      auto rootBoundary =
+          getMBR(newNodes.first->getBoundary(), newNodes.second->getBoundary());
+
+      node = setRoot(std::make_unique<Node>(nullptr, rootBoundary));
+      node->add(std::move(newNodes.first));
+      node->add(std::move(newNodes.second));
+      break;
+    }
+
+    *node = std::move(*newNodes.first);
+
+    for (auto &child : node->children) {
+      child->parent = node;
+    }
+
+    node->parent->add(std::move(newNodes.second));
+
+    if (node->parent->fanOut() <= maxElements) {
+      node->parent->recalcBoundary();
+    }
+
+    // Propagate changes upward.
+    node = node->parent;
+  }
+
+  // Fix the boundaries.
+  if (!node->isRoot()) {
+    updateBoundaries(node->parent);
+  }
+}
+
 std::pair<std::unique_ptr<RTreeIndexSet::Node>,
           std::unique_ptr<RTreeIndexSet::Node>>
-RTreeIndexSet::splitNode(Node &node) {
+RTreeIndexSet::splitNode(Node &node) const {
   if (node.isLeaf()) {
     return ::splitNode<MultidimensionalRange>(
         node, minElements,
         [](Node &node) -> llvm::SmallVectorImpl<MultidimensionalRange> & {
           return node.values;
         });
-  } else {
-    auto result = ::splitNode<std::unique_ptr<Node>>(
-        node, minElements,
-        [](Node &node) -> llvm::SmallVectorImpl<std::unique_ptr<Node>> & {
-          return node.children;
-        });
+  }
 
-    // We need to fix the parent address.
-    for (auto &child : result.first->children) {
-      child->parent = result.first.get();
+  auto result = ::splitNode<std::unique_ptr<Node>>(
+      node, minElements,
+      [](Node &node) -> llvm::SmallVectorImpl<std::unique_ptr<Node>> & {
+        return node.children;
+      });
+
+  // The old children node have been moved to a different node, so we need to
+  // update their parent.
+  for (auto &child : result.first->children) {
+    child->parent = result.first.get();
+  }
+
+  for (auto &child : result.second->children) {
+    child->parent = result.second.get();
+  }
+
+  return result;
+}
+
+void RTreeIndexSet::collapseNodeAndPropagate(Node *node) {
+  if (node->isRoot()) {
+    return;
+  }
+
+  // Additional nodes to be collapsed may be obtained during the process.
+  llvm::SmallVector<Node *> nodesToCollapse;
+  nodesToCollapse.push_back(node);
+
+  while (!nodesToCollapse.empty()) {
+    node = nodesToCollapse.pop_back_val();
+
+    // Move the values out of the node being removed.
+    // This is done only once, as the nodes that will possibly visited later are
+    // not leafes.
+    llvm::SmallVector<MultidimensionalRange> valuesToRelocate =
+        std::move(node->values);
+
+    while (!node->isRoot() && node->fanOut() < minElements) {
+      // The nodes to be relocated.
+      llvm::SmallVector<std::unique_ptr<Node>> nodesToRelocate;
+
+      // Move the values out of the node being removed.
+      for (auto &child : node->children) {
+        nodesToRelocate.push_back(std::move(child));
+      }
+
+      // Remove the node from the list of children of the parent.
+      // The node itself will be erased, and any usage of 'node' will be
+      // invalid. Therefore, we need to store the reference to the parent
+      // elsewhere.
+      Node *parent = node->parent;
+      removeChild(parent, node);
+
+      // Relocate the orphaned values.
+      if (!valuesToRelocate.empty() && !parent->children.empty()) {
+        for (MultidimensionalRange &value : valuesToRelocate) {
+          // Find the new position.
+          Node *destination = chooseLeaf(parent, value);
+
+          // Add the value to the leaf node.
+          destination->add(std::move(value));
+
+          // Merge the adjacent ranges.
+          llvm::sort(destination->values);
+          merge(destination->values);
+
+          if (destination->fanOut() > maxElements) {
+            // Split the node.
+            splitNodeAndPropagate(destination);
+          } else if (destination->fanOut() < minElements) {
+            // Schedule the node for removal.
+            nodesToCollapse.push_back(destination);
+          } else {
+            updateBoundaries(destination);
+          }
+        }
+
+        valuesToRelocate.clear();
+      }
+
+      // Relocate the orphaned nodes.
+      for (auto &nodeToRelocate : nodesToRelocate) {
+        // Find the new position.
+        Node *destination = chooseDestinationNode(
+            parent->children, nodeToRelocate->getBoundary());
+
+        // Add the value to the leaf node.
+        destination->add(std::move(nodeToRelocate));
+
+        if (destination->fanOut() > maxElements) {
+          // Split the node.
+          splitNodeAndPropagate(destination);
+        } else {
+          updateBoundaries(destination);
+        }
+      }
+
+      // Move towards the root of the tree.
+      node = parent;
     }
 
-    for (auto &child : result.second->children) {
-      child->parent = result.second.get();
-    }
+    // Update the boundaries.
+    updateBoundaries(node);
 
-    return result;
+    assert(valuesToRelocate.empty() && "Not all values have been relocated");
+
+    if (getRoot() && getRoot()->children.size() == 1) {
+      setRoot(std::move(root->children.front()));
+    }
   }
 }
 
-void RTreeIndexSet::adjustTree(
-    Node *node, llvm::SmallVectorImpl<MultidimensionalRange> &toReinsert) {
-  if (node->isRoot() && node->fanOut() == 0) {
-    root = nullptr;
-    node = nullptr;
-  } else if (!node->isRoot() && node->fanOut() < minElements) {
-    while (node && !node->isRoot() && node->fanOut() < minElements) {
-      llvm::SmallVector<Node *> nodes;
-      nodes.push_back(node);
+void RTreeIndexSet::removeChild(Node *parent, const Node *child) {
+  llvm::SmallVector<std::unique_ptr<Node>> newChildren;
 
-      while (!nodes.empty()) {
-        auto current = nodes.pop_back_val();
-
-        for (auto &child : current->children) {
-          nodes.push_back(child.get());
-        }
-
-        for (auto &value : current->values) {
-          assert(value.rank() == rank());
-          toReinsert.push_back(std::move(value));
-        }
-      }
-
-      Node *parent = node->parent;
-      assert(parent != nullptr);
-
-      // The new children of the parent will be the old ones except the
-      // current node, which has been collapsed and its ranges queued for
-      // a new insertion.
-      llvm::SmallVector<std::unique_ptr<Node>> newChildren;
-
-      for (auto &child : node->parent->children) {
-        if (child.get() != node) {
-          newChildren.push_back(std::move(child));
-        }
-      }
-
-      parent->children = std::move(newChildren);
-
-      if (parent->children.empty()) {
-        // If the root has no children, then the tree has to be
-        // reinitialized.
-        assert(parent->isRoot());
-        root = nullptr;
-        node = nullptr;
-      } else {
-        parent->recalcBoundary();
-        node = parent;
-      }
-    }
-  } else if (node->fanOut() > maxElements) {
-    // Propagate node splits.
-    while (node->fanOut() > maxElements) {
-      auto newNodes = splitNode(*node);
-
-      if (node->isRoot()) {
-        // If node split propagation caused the root to split, then
-        // create a new root whose children are the two resulting nodes.
-
-        auto rootBoundary = getMBR(newNodes.first->getBoundary(),
-                                   newNodes.second->getBoundary());
-
-        root = std::make_unique<Node>(nullptr, rootBoundary);
-
-        newNodes.first->parent = root.get();
-        newNodes.second->parent = root.get();
-
-        root->add(std::move(newNodes.first));
-        root->add(std::move(newNodes.second));
-
-        node = root.get();
-        break;
-      }
-
-      *node = std::move(*newNodes.first);
-
-      for (auto &child : node->children) {
-        child->parent = node;
-      }
-
-      node->parent->add(std::move(newNodes.second));
-
-      // Propagate changes upward.
-      node = node->parent;
+  for (auto &currentChild : parent->children) {
+    if (currentChild.get() != child) {
+      newChildren.push_back(std::move(currentChild));
     }
   }
 
-  // Fix all the boundaries up to the root.
-  while (node != nullptr) {
-    node->recalcBoundary();
-    node = node->parent;
-  }
+  parent->children = std::move(newChildren);
 }
 
 } // namespace marco::modeling
