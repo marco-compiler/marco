@@ -2,8 +2,7 @@
 #define MARCO_MODELING_INDEXSETRTREE_H
 
 #include "marco/Modeling/IndexSetImpl.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include <memory>
 
 namespace marco::modeling::impl {
