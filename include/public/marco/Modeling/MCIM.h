@@ -115,6 +115,9 @@ public:
 
   MCIM filterColumns(const IndexSet &filter) const;
 
+  MCIM withSpace(std::shared_ptr<const IndexSet> newEquationSpace,
+                 std::shared_ptr<const IndexSet> newVariableSpace) const;
+
   std::vector<MCIM> splitGroups() const;
 
 private:

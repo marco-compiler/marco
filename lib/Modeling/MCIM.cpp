@@ -428,6 +428,47 @@ MCIM MCIM::filterColumns(const IndexSet &filter) const {
   return result;
 }
 
+MCIM MCIM::withSpace(std::shared_ptr<const IndexSet> newEquationSpace,
+                     std::shared_ptr<const IndexSet> newVariableSpace) const {
+  if (empty() || !getEquationSpace().overlaps(*newEquationSpace) ||
+      !getVariableSpace().overlaps(*newVariableSpace)) {
+    return {newEquationSpace, newVariableSpace};
+  }
+
+  if (*newEquationSpace == getEquationSpace() &&
+      *newVariableSpace == getVariableSpace()) {
+    return {*this};
+  }
+
+  MCIM result(newEquationSpace, newVariableSpace);
+
+  auto filterKeysFn = [&](const MCIMGroup &group) -> IndexSet {
+    if (!getVariableSpace().contains(*newVariableSpace)) {
+      auto filteredGroup = group.filterValues(*newVariableSpace);
+      return filteredGroup->getKeys().intersect(*newEquationSpace);
+    }
+
+    return group.getKeys().intersect(*newEquationSpace);
+  };
+
+  for (const auto &group : groups) {
+    IndexSet filteredKeys = filterKeysFn(*group);
+
+    if (!filteredKeys.empty()) {
+      auto newGroup = MCIMGroup::build(group->getAccessFunction());
+      newGroup->addKeys(filteredKeys);
+      result.addGroup(std::move(newGroup));
+    }
+  }
+
+  if (!result.points.empty()) {
+    result.points =
+        points.intersect(newEquationSpace->append(*newVariableSpace));
+  }
+
+  return result;
+}
+
 std::vector<MCIM> MCIM::splitGroups() const {
   std::vector<MCIM> result;
 
