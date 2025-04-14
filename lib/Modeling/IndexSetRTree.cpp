@@ -160,6 +160,7 @@ size_t RTreeIndexSet::Node::fanOut() const {
 
 void RTreeIndexSet::Node::add(std::unique_ptr<Node> child) {
   assert(values.empty());
+  child->parent = this;
   children.push_back(std::move(child));
 }
 
@@ -1570,8 +1571,7 @@ void RTreeIndexSet::setFromRanges(
           break;
         }
 
-        auto &child = parent->children.emplace_back(std::move(nodes[i + j]));
-        child->parent = parent.get();
+        parent->add(std::move(nodes[i + j]));
       }
 
       parent->recalcBoundary();
@@ -1584,8 +1584,7 @@ void RTreeIndexSet::setFromRanges(
     auto parent = std::make_unique<Node>(nullptr, nodes[0]->getBoundary());
 
     for (auto &child : nodes) {
-      child->parent = parent.get();
-      parent->children.emplace_back(std::move(child));
+      parent->add(std::move(child));
     }
 
     parent->recalcBoundary();
