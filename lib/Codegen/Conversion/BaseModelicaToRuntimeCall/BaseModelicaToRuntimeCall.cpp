@@ -56,12 +56,12 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
       mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect,
       mlir::LLVM::LLVMDialect>();
 
-  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CeilOp, CosOp,
+  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AssertOp, AtanOp, Atan2Op, CeilOp, CosOp,
                       CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp,
                       IdentityOp, IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp,
                       MaxOp, MinOp, ModOp, ProductOp, RemOp, SignOp, SinOp,
                       SinhOp, SqrtOp, SumOp, SymmetricOp, TanOp, TanhOp,
-                      TransposeOp, ZerosOp, AssertOp>();
+                      TransposeOp, ZerosOp>();
 
   target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
     if (mlir::isa<mlir::TensorType>(op.getBase().getType())) {

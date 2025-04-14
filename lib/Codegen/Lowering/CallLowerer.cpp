@@ -527,6 +527,7 @@ bool CallLowerer::isBuiltInFunction(
       .Case("abs", true)
       .Case("acos", true)
       .Case("asin", true)
+      .Case("assert", true)
       .Case("atan", true)
       .Case("atan2", true)
       .Case("ceil", true)
@@ -561,7 +562,6 @@ bool CallLowerer::isBuiltInFunction(
       .Case("tanh", true)
       .Case("transpose", true)
       .Case("zeros", true)
-      .Case("assert", true)
       .Default(false);
 }
 
@@ -582,6 +582,10 @@ CallLowerer::dispatchBuiltInFunctionCall(const ast::Call &call) {
 
   if (callee == "asin") {
     return asin(call);
+  }
+
+  if (callee == "assert") {
+    return builtinAssert(call);
   }
 
   if (callee == "atan") {
@@ -718,10 +722,6 @@ CallLowerer::dispatchBuiltInFunctionCall(const ast::Call &call) {
 
   if (callee == "zeros") {
     return zeros(call);
-  }
-
-  if (callee == "assert") {
-    return builtinAssert(call);
   }
 
   llvm_unreachable("Unknown built-in function");

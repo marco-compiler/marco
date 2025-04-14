@@ -107,6 +107,8 @@ public:
 
   [[nodiscard]] virtual bool lower(const ast::BreakStatement &statement) = 0;
 
+  [[nodiscard]] virtual bool lower(const ast::CallStatement &statement) = 0;
+
   [[nodiscard]] virtual bool lower(const ast::ForStatement &statement) = 0;
 
   [[nodiscard]] virtual bool lower(const ast::IfStatement &statement) = 0;
@@ -116,8 +118,6 @@ public:
   [[nodiscard]] virtual bool lower(const ast::WhenStatement &statement) = 0;
 
   [[nodiscard]] virtual bool lower(const ast::WhileStatement &statement) = 0;
-
-  [[nodiscard]] virtual bool lower(const ast::CallStatement &statement) = 0;
 };
 } // namespace marco::codegen::lowering
 

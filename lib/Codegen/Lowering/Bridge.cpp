@@ -144,6 +144,8 @@ public:
 
   [[nodiscard]] bool lower(const ast::BreakStatement &statement) override;
 
+  [[nodiscard]] bool lower(const ast::CallStatement &statement) override;
+
   [[nodiscard]] bool lower(const ast::ForStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::IfStatement &statement) override;
@@ -153,8 +155,6 @@ public:
   [[nodiscard]] bool lower(const ast::WhenStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::WhileStatement &statement) override;
-
-  [[nodiscard]] bool lower(const ast::CallStatement &statement) override;
 
 private:
   std::unique_ptr<LoweringContext> context;
@@ -187,12 +187,12 @@ private:
   std::unique_ptr<StatementLowerer> statementLowerer;
   std::unique_ptr<AssignmentStatementLowerer> assignmentStatementLowerer;
   std::unique_ptr<BreakStatementLowerer> breakStatementLowerer;
+  std::unique_ptr<CallStatementLowerer> callStatementLowerer;
   std::unique_ptr<ForStatementLowerer> forStatementLowerer;
   std::unique_ptr<IfStatementLowerer> ifStatementLowerer;
   std::unique_ptr<ReturnStatementLowerer> returnStatementLowerer;
   std::unique_ptr<WhenStatementLowerer> whenStatementLowerer;
   std::unique_ptr<WhileStatementLowerer> whileStatementLowerer;
-  std::unique_ptr<CallStatementLowerer> callStatementLowerer;
 };
 
 Bridge::Impl::Impl(mlir::MLIRContext &context) {
@@ -245,6 +245,8 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
 
   this->breakStatementLowerer = std::make_unique<BreakStatementLowerer>(this);
 
+  this->callStatementLowerer = std::make_unique<CallStatementLowerer>(this);
+
   this->forStatementLowerer = std::make_unique<ForStatementLowerer>(this);
   this->ifStatementLowerer = std::make_unique<IfStatementLowerer>(this);
 
@@ -253,8 +255,6 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
   this->whenStatementLowerer = std::make_unique<WhenStatementLowerer>(this);
 
   this->whileStatementLowerer = std::make_unique<WhileStatementLowerer>(this);
-
-  this->callStatementLowerer = std::make_unique<CallStatementLowerer>(this);
 }
 
 Bridge::Impl::~Impl() {
@@ -512,6 +512,11 @@ bool Bridge::Impl::lower(const ast::BreakStatement &statement) {
   return breakStatementLowerer->lower(statement);
 }
 
+bool Bridge::Impl::lower(const ast::CallStatement &statement) {
+  assert(callStatementLowerer != nullptr);
+  return callStatementLowerer->lower(statement);
+}
+
 bool Bridge::Impl::lower(const ast::ForStatement &statement) {
   assert(forStatementLowerer != nullptr);
   return forStatementLowerer->lower(statement);
@@ -535,11 +540,6 @@ bool Bridge::Impl::lower(const ast::WhenStatement &statement) {
 bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
-}
-
-bool Bridge::Impl::lower(const ast::CallStatement &statement) {
-  assert(callStatementLowerer != nullptr);
-  return callStatementLowerer->lower(statement);
 }
 
 Bridge::Bridge(mlir::MLIRContext &context)

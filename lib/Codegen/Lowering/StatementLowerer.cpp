@@ -16,6 +16,10 @@ bool StatementLowerer::lower(const ast::Statement &statement) {
     return lower(*casted);
   }
 
+  if (auto casted = statement.dyn_cast<ast::CallStatement>()) {
+    return lower(*casted);
+  }
+
   if (auto casted = statement.dyn_cast<ast::ForStatement>()) {
     return lower(*casted);
   }
@@ -33,10 +37,6 @@ bool StatementLowerer::lower(const ast::Statement &statement) {
   }
 
   if (auto casted = statement.dyn_cast<ast::WhenStatement>()) {
-    return lower(*casted);
-  }
-
-  if (auto casted = statement.dyn_cast<ast::CallStatement>()) {
     return lower(*casted);
   }
 
