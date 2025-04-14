@@ -40,12 +40,16 @@ public:
 
   data_type operator[](size_t index) const;
 
+  bool operator<(const Point &other) const;
+
   /// Get the number of dimensions.
   size_t rank() const;
 
   const_iterator begin() const;
 
   const_iterator end() const;
+
+  int compare(const Point &other) const;
 
   Point append(const Point &other) const;
 

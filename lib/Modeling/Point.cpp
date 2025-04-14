@@ -37,11 +37,38 @@ Point::data_type Point::operator[](size_t index) const {
   return values[index];
 }
 
+bool Point::operator<(const Point &other) const { return compare(other) < 0; }
+
 size_t Point::rank() const { return values.size(); }
 
 Point::const_iterator Point::begin() const { return values.begin(); }
 
 Point::const_iterator Point::end() const { return values.end(); }
+
+int Point::compare(const Point &other) const {
+  size_t l1 = values.size();
+  size_t l2 = other.values.size();
+
+  if (l1 < l2) {
+    return -1;
+  }
+
+  if (l2 < l1) {
+    return 1;
+  }
+
+  for (size_t i = 0; i < l1; ++i) {
+    if (values[i] < other.values[i]) {
+      return -1;
+    }
+
+    if (values[i] > other.values[i]) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
 
 Point Point::append(const Point &other) const {
   llvm::SmallVector<data_type> newValues{llvm::ArrayRef<data_type>(values)};
