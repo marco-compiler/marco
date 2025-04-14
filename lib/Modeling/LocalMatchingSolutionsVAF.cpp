@@ -3,6 +3,10 @@
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;
 
+//===---------------------------------------------------------------------===//
+// GeneratorDefault
+//===---------------------------------------------------------------------===//
+
 namespace {
 class GeneratorDefault : public VAFSolutions::Generator {
 public:
@@ -111,6 +115,88 @@ void GeneratorDefault::fetchNext() {
   setValue(std::make_unique<MCIM>(std::move(matrix)));
   ++(*variablePointsIt);
 }
+
+//===---------------------------------------------------------------------===//
+// GeneratorAffineConstant
+//===---------------------------------------------------------------------===//
+
+namespace {
+class GeneratorAffineConstant : public VAFSolutions::Generator {
+public:
+  GeneratorAffineConstant(std::shared_ptr<const IndexSet> matrixEquationIndices,
+                          std::shared_ptr<const IndexSet> matrixVariableIndices,
+                          const AccessFunctionAffineConstant &accessFunction);
+
+  bool hasValue() const override;
+
+  MCIM getValue() const override;
+
+  void fetchNext() override;
+
+private:
+  void initialize();
+
+  void setValue(std::unique_ptr<MCIM> newValue);
+
+private:
+  // The domain upon which the matrix has to be constructed.
+  std::shared_ptr<const IndexSet> matrixEquationIndices;
+  std::shared_ptr<const IndexSet> matrixVariableIndices;
+
+  // The access function.
+  const AccessFunctionAffineConstant *accessFunction;
+
+  // The next value to be returned.
+  std::unique_ptr<MCIM> value;
+
+  // Data used for progressive computation.
+  IndexSet::const_point_iterator equationPointsIt;
+};
+} // namespace
+
+GeneratorAffineConstant::GeneratorAffineConstant(
+    std::shared_ptr<const IndexSet> matrixEquationIndices,
+    std::shared_ptr<const IndexSet> matrixVariableIndices,
+    const AccessFunctionAffineConstant &accessFunction)
+    : matrixEquationIndices(std::move(matrixEquationIndices)),
+      matrixVariableIndices(std::move(matrixVariableIndices)),
+      accessFunction(&accessFunction),
+      equationPointsIt(this->matrixEquationIndices->begin()) {
+  initialize();
+}
+
+void GeneratorAffineConstant::initialize() { fetchNext(); }
+
+bool GeneratorAffineConstant::hasValue() const { return value != nullptr; }
+
+MCIM GeneratorAffineConstant::getValue() const {
+  assert(hasValue());
+  return *value;
+}
+
+void GeneratorAffineConstant::setValue(std::unique_ptr<MCIM> newValue) {
+  assert(isValidLocalMatchingSolution(*newValue) &&
+         "Invalid VAF local matching solution");
+
+  value = std::move(newValue);
+}
+
+void GeneratorAffineConstant::fetchNext() {
+  if (equationPointsIt == matrixEquationIndices->end()) {
+    value = nullptr;
+    return;
+  }
+
+  MCIM matrix(matrixEquationIndices, matrixVariableIndices);
+  matrix.apply(*equationPointsIt, *accessFunction);
+  setValue(std::make_unique<MCIM>(std::move(matrix)));
+
+  ++equationPointsIt;
+}
+
+//===---------------------------------------------------------------------===//
+// GeneratorRotoTranslation
+//===---------------------------------------------------------------------===//
 
 namespace {
 class GeneratorRotoTranslation : public VAFSolutions::Generator {
@@ -374,6 +460,10 @@ bool VAFSolutions::compareAccessFunctions(
 
 size_t
 VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
+  if (auto casted = accessFunction.dyn_cast<AccessFunctionAffineConstant>()) {
+    return getSolutionsAmount(*casted);
+  }
+
   if (auto casted = accessFunction.dyn_cast<AccessFunctionConstant>()) {
     return getSolutionsAmount(*casted);
   }
@@ -389,6 +479,11 @@ VAFSolutions::getSolutionsAmount(const AccessFunction &accessFunction) const {
   }
 
   return solutionsAmount;
+}
+
+size_t
+VAFSolutions::getSolutionsAmount(const AccessFunctionAffineConstant &) const {
+  return equationIndices->flatSize();
 }
 
 size_t VAFSolutions::getSolutionsAmount(
@@ -422,6 +517,11 @@ size_t VAFSolutions::getSolutionsAmount(
 
 std::unique_ptr<VAFSolutions::Generator>
 VAFSolutions::getGenerator(const AccessFunction &accessFunction) const {
+  if (auto casted = accessFunction.dyn_cast<AccessFunctionAffineConstant>()) {
+    return std::make_unique<GeneratorAffineConstant>(equationIndices,
+                                                     variableIndices, *casted);
+  }
+
   if (auto casted = accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
     return std::make_unique<GeneratorRotoTranslation>(equationIndices,
                                                       variableIndices, *casted);

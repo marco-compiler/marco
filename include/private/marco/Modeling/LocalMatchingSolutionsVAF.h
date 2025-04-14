@@ -2,6 +2,7 @@
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSVAF_H
 
 #include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionAffineConstant.h"
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
 #include "marco/Modeling/LocalMatchingSolutionsImpl.h"
@@ -49,6 +50,9 @@ private:
                               const AccessFunctionRotoTranslation &rhs) const;
 
   size_t getSolutionsAmount(const AccessFunction &accessFunction) const;
+
+  size_t
+  getSolutionsAmount(const AccessFunctionAffineConstant &accessFunction) const;
 
   size_t getSolutionsAmount(const AccessFunctionConstant &accessFunction) const;
 
