@@ -15,5 +15,4 @@ private:
 };
 } // namespace mlir::runtime
 
-#endif /* end of include guard:                                                \
-          MARCO_CODEGEN_CONVERSION_RUNTIMETOLLVM_LLVMTYPECONVERTER */
+#endif // MARCO_CODEGEN_CONVERSION_RUNTIMETOLLVM_LLVMTYPECONVERTER

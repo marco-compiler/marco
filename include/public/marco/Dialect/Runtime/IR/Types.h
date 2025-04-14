@@ -6,4 +6,4 @@
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeTypes.h.inc"
 
-#endif /* end of include guard: MARCO_DIALECT_RUNTIME_IR_TYPES */
+#endif // MARCO_DIALECT_RUNTIME_IR_TYPES
