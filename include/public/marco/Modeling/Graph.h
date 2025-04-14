@@ -135,7 +135,17 @@ struct GraphTraits {
   using Vertex = VertexWrapper<VertexProperty, EdgeProperty *>;
   using Edge = EdgeWrapper<VertexProperty, EdgeProperty *>;
 
-  using Base = llvm::DirectedGraph<Vertex, Edge>;
+  class Base : public llvm::DirectedGraph<Vertex, Edge> {
+  public:
+    /// Add a vertex that is known to be unique.
+    bool addUniqueNode(Vertex &node) {
+      // Override base implementation, as it scales quadratically due to the
+      // search for duplicates.
+      this->Nodes.push_back(&node);
+      return true;
+    }
+  };
+
   using BaseVertexIterator = typename Base::const_iterator;
   using BaseEdgeIterator = typename llvm::DGNode<Vertex, Edge>::const_iterator;
 
@@ -611,7 +621,7 @@ public:
     auto *ptr = new Vertex(std::move(property), id);
     vertices.push_back(ptr);
 
-    [[maybe_unused]] bool vertexInsertion = graph.addNode(*ptr);
+    [[maybe_unused]] bool vertexInsertion = graph.addUniqueNode(*ptr);
     assert(vertexInsertion);
 
     return VertexDescriptor(this, ptr, id);
