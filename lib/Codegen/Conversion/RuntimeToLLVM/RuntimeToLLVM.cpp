@@ -1,14 +1,11 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
 #include "marco/Codegen/Conversion/RuntimeToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
-#include "marco/Dialect/Runtime/IR/Ops.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
-#include "marco/Dialect/Runtime/IR/Types.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/IR/SymbolTable.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_RUNTIMETOLLVMCONVERSIONPASS

@@ -1,8 +1,4 @@
 #include "marco/Codegen/Lowering/CallLowerer.h"
-#include "marco/Dialect/BaseModelica/IR/Attributes.h"
-#include "marco/Dialect/BaseModelica/IR/Ops.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/Support/LLVM.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace ::marco;

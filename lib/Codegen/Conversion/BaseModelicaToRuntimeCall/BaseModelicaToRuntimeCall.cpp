@@ -2,18 +2,13 @@
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
-#include "marco/Dialect/Runtime/IR/Types.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "llvm/Support/Debug.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_BASEMODELICATORUNTIMECALLCONVERSIONPASS
