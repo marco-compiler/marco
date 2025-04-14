@@ -29,6 +29,7 @@ set(SOURCES
     Matching.cpp
     MCIM.cpp
     MCIMGroup.cpp
+    MCIMGroupAffineConstant.cpp
     MCIMGroupEmpty.cpp
     MCIMGroupGeneric.cpp
     MultidimensionalRange.cpp
