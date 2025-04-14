@@ -701,6 +701,10 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
     assert(isValid());
   }
 
+  assert(
+      llvm::all_of(rhs, [&](const Point &point) { return contains(point); }) &&
+      "Not all points have been inserted");
+
   return *this;
 }
 
@@ -793,9 +797,11 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const MultidimensionalRange &rhs) {
     }
   } while (modified && root);
 
-  for (const MultidimensionalRange &range : toInsert) {
-    *this += range;
-  }
+  assert(isValid());
+
+  assert(
+      llvm::all_of(rhs, [&](const Point &point) { return !contains(point); }) &&
+      "Not all points have been removed");
 
   return *this;
 }
@@ -866,6 +872,12 @@ IndexSet::Impl &RTreeIndexSet::operator-=(const RTreeIndexSet &other) {
   for (const auto &overlappingRange : overlappingRanges) {
     *this -= overlappingRange;
   }
+
+  assert(isValid());
+
+  assert(llvm::all_of(other,
+                      [&](const Point &point) { return !contains(point); }) &&
+         "Not all points have been removed");
 
   return *this;
 }
