@@ -54,13 +54,12 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 namespace llvm {
 template <>
 struct DenseMapInfo<::mlir::bmodelica::bridge::VariableBridge::Id> {
-  static inline ::mlir::bmodelica::bridge::VariableBridge::Id getEmptyKey() {
-    return {nullptr};
+  static ::mlir::bmodelica::bridge::VariableBridge::Id getEmptyKey() {
+    return {llvm::DenseMapInfo<mlir::SymbolRefAttr>::getEmptyKey()};
   }
 
-  static inline ::mlir::bmodelica::bridge::VariableBridge::Id
-  getTombstoneKey() {
-    return {nullptr};
+  static ::mlir::bmodelica::bridge::VariableBridge::Id getTombstoneKey() {
+    return {llvm::DenseMapInfo<mlir::SymbolRefAttr>::getTombstoneKey()};
   }
 
   static unsigned
