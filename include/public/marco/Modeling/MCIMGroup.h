@@ -26,6 +26,8 @@ public:
 
   virtual bool hasKey(const Point &key) const = 0;
 
+  virtual void setKeys(IndexSet newKeys) = 0;
+
   virtual void addKeys(const IndexSet &newKeys) = 0;
 
   virtual void removeKeys(const IndexSet &removedKeys) = 0;

@@ -28,6 +28,8 @@ bool MCIMGroupGeneric::hasKey(const Point &key) const {
   return keys.contains(key);
 }
 
+void MCIMGroupGeneric::setKeys(IndexSet newKeys) { keys = std::move(newKeys); }
+
 void MCIMGroupGeneric::addKeys(const IndexSet &newKeys) { keys += newKeys; }
 
 void MCIMGroupGeneric::removeKeys(const IndexSet &removedKeys) {

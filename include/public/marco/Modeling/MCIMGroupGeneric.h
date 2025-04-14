@@ -26,6 +26,8 @@ public:
 
   bool hasKey(const Point &key) const override;
 
+  void setKeys(IndexSet newKeys) override;
+
   void addKeys(const IndexSet &newKeys) override;
 
   void removeKeys(const IndexSet &removedKeys) override;
