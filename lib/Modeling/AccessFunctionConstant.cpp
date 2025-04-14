@@ -45,6 +45,10 @@ std::unique_ptr<AccessFunction> AccessFunctionConstant::clone() const {
 }
 
 IndexSet AccessFunctionConstant::map(const IndexSet &indices) const {
+  if (indices.empty() && getNumOfDims() != 0) {
+    return {};
+  }
+
   llvm::SmallVector<Point::data_type> dummyCoordinates(getNumOfDims(), 0);
   Point dummyPoint(dummyCoordinates);
   return map(dummyPoint);
