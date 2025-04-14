@@ -20,7 +20,13 @@ std::unique_ptr<MCIMGroup> MCIMGroupEmpty::clone() const {
   return std::make_unique<MCIMGroupEmpty>(*this);
 }
 
-IndexSet MCIMGroupEmpty::getValues() const { return IndexSet(Point(0)); }
+IndexSet MCIMGroupEmpty::getValues() const {
+  if (keys.empty()) {
+    return {};
+  }
+
+  return IndexSet(Point(0));
+}
 
 bool MCIMGroupEmpty::hasValue(const Point &point) const {
   return getValues().contains(point);
