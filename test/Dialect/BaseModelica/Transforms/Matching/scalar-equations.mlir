@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
-// COOM: y = x
+// COM: y = x
 // COM: y = 0
 
 bmodelica.model @Test {
