@@ -5,7 +5,6 @@ using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast {
-
 CallStatement::CallStatement(SourceRange location)
     : Statement(ASTNode::Kind::Statement_Call, std::move(location)) {}
 
@@ -41,5 +40,4 @@ void CallStatement::setCall(std::unique_ptr<ASTNode> node) {
   call = std::move(node);
   call->setParent(this);
 }
-
 } // namespace marco::ast

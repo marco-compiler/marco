@@ -56,8 +56,8 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
       mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect,
       mlir::LLVM::LLVMDialect>();
 
-  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AssertOp, AtanOp, Atan2Op, CeilOp, CosOp,
-                      CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp,
+  target.addIllegalOp<AbsOp, AcosOp, AsinOp, AssertOp, AtanOp, Atan2Op, CeilOp,
+                      CosOp, CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp,
                       IdentityOp, IntegerOp, LinspaceOp, LogOp, Log10Op, OnesOp,
                       MaxOp, MinOp, ModOp, ProductOp, RemOp, SignOp, SinOp,
                       SinhOp, SqrtOp, SumOp, SymmetricOp, TanOp, TanhOp,
@@ -2313,7 +2313,6 @@ struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
   mlir::LogicalResult
   matchAndRewrite(AssertOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-
     mlir::Location loc = op.getLoc();
 
     // Collect the arguments for the function call.

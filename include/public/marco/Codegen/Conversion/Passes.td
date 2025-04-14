@@ -305,7 +305,7 @@ def BaseModelicaToRuntimeConversionPass
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
         "mlir::runtime::RuntimeDialect",
-        "mlir::func::FuncDialect",
+        "mlir::func::FuncDialect"
     ];
 
     let options = [

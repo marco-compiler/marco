@@ -10,7 +10,6 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-
 //===---------------------------------------------------------------------===//
 // Properties
 //===---------------------------------------------------------------------===//
