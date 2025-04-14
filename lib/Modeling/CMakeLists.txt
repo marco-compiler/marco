@@ -1,5 +1,6 @@
 set(SOURCES
     AccessFunction.cpp
+        AccessFunctionAffineConstant.cpp
     AccessFunctionAffineMap.cpp
     AccessFunctionConstant.cpp
     AccessFunctionEmpty.cpp

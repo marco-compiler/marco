@@ -1,4 +1,5 @@
 #include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunctionAffineConstant.h"
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/AccessFunctionEmpty.h"
 #include "marco/Modeling/AccessFunctionGeneric.h"
@@ -15,6 +16,11 @@ build(mlir::MLIRContext *context, unsigned int numOfDimensions,
   if (AccessFunctionEmpty::canBeBuilt(numOfDimensions, results)) {
     return std::make_unique<AccessFunctionEmpty>(context, numOfDimensions,
                                                  results);
+  }
+
+  if (AccessFunctionAffineConstant::canBeBuilt(results)) {
+    return std::make_unique<AccessFunctionAffineConstant>(
+        context, numOfDimensions, results);
   }
 
   if (AccessFunctionConstant::canBeBuilt(results)) {

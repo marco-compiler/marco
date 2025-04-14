@@ -20,6 +20,7 @@ public:
     Constant,
     Generic_LastArgument,
     Affine,
+    Affine_Constant,
     Empty,
     RotoTranslation,
     Affine_LastArgument,
