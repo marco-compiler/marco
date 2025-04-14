@@ -26,7 +26,7 @@ public:
 
   ListIndexSet(ListIndexSet &&other);
 
-  ~ListIndexSet();
+  ~ListIndexSet() override;
 
   ListIndexSet &operator=(const ListIndexSet &other) = delete;
 

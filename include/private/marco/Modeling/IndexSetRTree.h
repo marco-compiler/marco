@@ -79,7 +79,7 @@ public:
 
   RTreeIndexSet(RTreeIndexSet &&other);
 
-  ~RTreeIndexSet();
+  ~RTreeIndexSet() override;
 
   RTreeIndexSet &operator=(const RTreeIndexSet &other) = delete;
 
