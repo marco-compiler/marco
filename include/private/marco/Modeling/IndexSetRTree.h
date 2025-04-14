@@ -32,7 +32,8 @@ public:
     const MultidimensionalRange &getBoundary() const;
 
     /// Recalculate the MBR containing all the values / children.
-    void recalcBoundary();
+    /// Return true if the boundary changed, false otherwise.
+    bool recalcBoundary();
 
     /// Get the multidimensional space (area, volume, etc.) covered by
     /// the MBR.

@@ -128,14 +128,16 @@ const MultidimensionalRange &RTreeIndexSet::Node::getBoundary() const {
   return boundary;
 }
 
-void RTreeIndexSet::Node::recalcBoundary() {
+bool RTreeIndexSet::Node::recalcBoundary() {
+  MultidimensionalRange oldBoundary(std::move(boundary));
+
   if (isLeaf()) {
     boundary = getMBR(llvm::ArrayRef(values));
   } else {
     boundary = getMBR(llvm::ArrayRef(children));
   }
 
-  // Check the validity of the MBR
+  // Check the validity of the MBR.
   assert(llvm::all_of(children, [&](const auto &child) {
     return boundary.contains(getShape(child));
   }));
@@ -144,8 +146,10 @@ void RTreeIndexSet::Node::recalcBoundary() {
     return boundary.contains(getShape(value));
   }));
 
-  // Update the covered area
+  // Update the covered area.
   flatSize = boundary.flatSize();
+
+  return boundary != oldBoundary;
 }
 
 unsigned int RTreeIndexSet::Node::getFlatSize() const { return flatSize; }
@@ -680,9 +684,7 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
     // Check that all the range do not overlap the existing points.
     assert(!overlaps(range));
 
-    if (root == nullptr) {
-      root = std::make_unique<Node>(nullptr, range);
-      root->add(std::move(range));
+    if (!getRoot()) {
       Node *newRoot = setRoot(std::make_unique<Node>(nullptr, range));
       newRoot->add(std::move(range));
     } else {
