@@ -683,6 +683,8 @@ IndexSet::Impl &RTreeIndexSet::operator+=(const MultidimensionalRange &rhs) {
     if (root == nullptr) {
       root = std::make_unique<Node>(nullptr, range);
       root->add(std::move(range));
+      Node *newRoot = setRoot(std::make_unique<Node>(nullptr, range));
+      newRoot->add(std::move(range));
     } else {
       // Find position for the new record.
       Node *node = chooseLeaf(range);
@@ -1453,7 +1455,7 @@ const RTreeIndexSet::Node *RTreeIndexSet::getRoot() const { return root.get(); }
 
 void RTreeIndexSet::setFromRanges(
     llvm::ArrayRef<MultidimensionalRange> ranges) {
-  root = nullptr;
+  setRoot(nullptr);
 
   if (ranges.empty()) {
     return;
@@ -1593,8 +1595,7 @@ void RTreeIndexSet::setFromRanges(
     nodes.push_back(std::move(parent));
   }
 
-  root = std::move(nodes.front());
-
+  setRoot(std::move(nodes.front()));
   assert(isValid() && "Inconsistent initialization of the R-Tree IndexSet");
 
   assert(llvm::all_of(ranges,
@@ -1620,6 +1621,16 @@ void RTreeIndexSet::setFromRanges(
                         return false;
                       }) &&
          "Some non-requested indices have been inserted");
+}
+
+RTreeIndexSet::Node *RTreeIndexSet::setRoot(std::unique_ptr<Node> node) {
+  root = std::move(node);
+
+  if (root) {
+    root->parent = nullptr;
+  }
+
+  return root.get();
 }
 
 RTreeIndexSet::Node *

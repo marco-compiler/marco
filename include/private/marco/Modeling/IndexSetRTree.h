@@ -193,6 +193,8 @@ public:
 private:
   void setFromRanges(llvm::ArrayRef<MultidimensionalRange> ranges);
 
+  Node *setRoot(std::unique_ptr<Node> node);
+
   /// Select a leaf node in which to place a new entry.
   Node *chooseLeaf(const MultidimensionalRange &entry) const;
 
