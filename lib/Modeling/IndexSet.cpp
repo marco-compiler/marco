@@ -161,6 +161,29 @@ bool IndexSet::operator!=(const IndexSet &rhs) const {
   return !(*impl == *rhs.impl);
 }
 
+bool IndexSet::operator<(const IndexSet &rhs) const {
+  auto lhsIt = rangesBegin();
+  auto lhsEndIt = rangesEnd();
+
+  auto rhsIt = rhs.rangesBegin();
+  auto rhsEndIt = rhs.rangesEnd();
+
+  while (lhsIt != lhsEndIt && rhsIt != rhsEndIt) {
+    if (*lhsIt != *rhsIt) {
+      return *lhsIt < *rhsIt;
+    }
+
+    ++lhsIt;
+    ++rhsIt;
+  }
+
+  if (lhsIt == lhsEndIt && rhsIt == rhsEndIt) {
+    return false;
+  }
+
+  return rhsIt == rhsEndIt;
+}
+
 IndexSet &IndexSet::operator+=(const Point &rhs) {
   assert(impl != nullptr);
   *impl += rhs;

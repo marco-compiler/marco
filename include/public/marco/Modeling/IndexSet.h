@@ -130,6 +130,8 @@ public:
 
   bool operator!=(const IndexSet &rhs) const;
 
+  bool operator<(const IndexSet &rhs) const;
+
   IndexSet &operator+=(const Point &rhs);
 
   IndexSet &operator+=(const MultidimensionalRange &rhs);
