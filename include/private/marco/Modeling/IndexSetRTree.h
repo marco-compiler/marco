@@ -195,6 +195,10 @@ private:
 
   Node *setRoot(std::unique_ptr<Node> node);
 
+  /// Update the boundary of a given node and propagate changes upwards in the
+  /// tree.
+  static void updateBoundaries(Node *node);
+
   /// Select a leaf node in which to place a new entry.
   Node *chooseLeaf(const MultidimensionalRange &entry) const;
 

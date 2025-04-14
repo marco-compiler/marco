@@ -1635,6 +1635,12 @@ RTreeIndexSet::Node *RTreeIndexSet::setRoot(std::unique_ptr<Node> node) {
   return root.get();
 }
 
+void RTreeIndexSet::updateBoundaries(Node *node) {
+  while (node && node->recalcBoundary()) {
+    node = node->parent;
+  }
+}
+
 RTreeIndexSet::Node *
 RTreeIndexSet::chooseLeaf(const MultidimensionalRange &entry) const {
   Node *node = root.get();
