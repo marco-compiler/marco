@@ -301,6 +301,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
   if (lookahead[0].isa<TokenKind::External>()) {
     TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
+    EXPECT(TokenKind::Semicolon);
+    result->dyn_cast<Class>()->setExternalRef(std::move(*external));
   }
 
   // Parse an optional annotation.
@@ -328,8 +330,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   result->dyn_cast<Class>()->setEquationSections(equationSections);
   result->dyn_cast<Class>()->setAlgorithms(algorithms);
   result->dyn_cast<Class>()->setInnerClasses(innerClasses);
-  //TO-DO: result->dyn_cast<Class>()->setExternalRef(externalRef)
-
+  
   return std::move(result);
 }
 
@@ -1894,33 +1895,84 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
-  std::unique_ptr<ast::ASTNode> result;
+
+  SourceRange loc = getLocation();
+
+  auto result = std::make_unique<ExternalRef>(loc);
 
   EXPECT(TokenKind::External);
-  parseString();
-  parseExternalFunctionCall();
+  TRY(str, parseString());
+  result->setLanguageSpecification(str->getValue());
+  TRY(ext, parseExternalFunctionCall());
+  loc.end = (*ext)->getLocation().end;
+  result->setExternalFunctionCall(std::move(*ext));
+
   if (lookahead[0].isa<TokenKind::Annotation>()) {
     {
       TRY(annotation, parseAnnotation());
+
+      result->setAnnotation(std::move(*annotation));
+      //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
+      
     }
-  EXPECT(TokenKind::Semicolon);
 
   return (std::move(result));  
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
+  
+    SourceRange loc = getLocation();
+
+  auto result = std::make_unique<ExternalFunctionCall>(loc);
+
   if (lookahead[0].isa<TokenKind::Dot>())
     {
       TRY(compRef, parseComponentReference());
-      EXPECT(TokenKind::Equal)
+      result->setComponentReference(std::move(*compRef));
+      loc.end = (*compRef)->getLocation().end;
+      EXPECT(TokenKind::Equal);
     }
-  parseIdentifier();
+
+  TRY(id, parseIdentifier());
+  result->setName(id->getValue());
+
   EXPECT(TokenKind::LPar);
   TRY(expressionList, parseExpressionList());
-  EXPECT(TokenKind::RPar);
+  result->setExpressionList(std::move(*expressionList));
+  loc.end = (*expressionList)->getLocation().end;
+
+  return (std::move(result));
 }
-ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExpressionList() {
-  //FARLO PER ULTIMO (MOLTO SIMILE A PARSE OUTPUT EXPRESSION LIST)
+WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressionList() {
+  std::vector<std::unique_ptr<ast::ASTNode>> expressions;
+
+  TRY(expression, parseExpression());
+  expressions.push_back(std::move(*expression));
+
+  while (!lookahead[0].isa<TokenKind::RPar>()) {
+    accept<TokenKind::Comma>();
+    SourceRange loc = lookahead[0].getLocation();
+    
+    TRY(expression, parseExpression());
+    //expression->setDummy(true);
+    expressions.push_back(std::move(*expression));
+  }
+  
+  SourceRange loc = getCursorLocation();
+
+  loc = expressions.front()->getLocation();
+  loc.end = expressions.back()->getLocation().end;
+
+  return ValueWrapper(std::move(loc), std::move(expressions));     
+    
 }
 
-} // namespace marco::parser
+/**
+ * COSE DA TESTARE SUL PARSER: (14/04/2025)
+ * -> viene parsizzato correttamente ciascun token? In particolare, sono gestiti correttamente tutti i token opzionali?
+ * -> viene composto correttamente l'AST?
+ * -> viene settata correttamente "loc.end"?
+*/
+
+ // namespace marco::parser
+}
