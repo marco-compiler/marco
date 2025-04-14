@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --match | FileCheck %s
 
 // COM: for i in 0:1
-// COM:   x[i] + x[i + 1]
+// COM:   x[i] + x[i + 1] = 0
 // COM: x[2] = 0
 
 bmodelica.model @Test {
