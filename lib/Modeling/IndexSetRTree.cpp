@@ -1670,8 +1670,15 @@ std::pair<size_t, size_t> pickSeeds(llvm::ArrayRef<T> entries) {
     for (size_t j = i + 1; j < entries.size(); ++j) {
       auto mbr = getMBR(getShape(entries[i]), getShape(entries[j]));
 
-      auto difference = mbr.flatSize() - getShape(entries[i]).flatSize() -
-                        getShape(entries[j]).flatSize();
+      size_t mbrSize = mbr.flatSize();
+      size_t firstEntryBoundarySize = getShape(entries[i]).flatSize();
+      size_t secondEntryBoundarySize = getShape(entries[j]).flatSize();
+
+      size_t difference = 0;
+
+      if (firstEntryBoundarySize + secondEntryBoundarySize < mbrSize) {
+        difference = mbrSize - firstEntryBoundarySize - secondEntryBoundarySize;
+      }
 
       candidates.emplace_back(i, j, difference);
     }
