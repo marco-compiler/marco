@@ -919,7 +919,7 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
 
   // Solve the model.
   pm.addPass(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::bmodelica::createMatchingPass());
+  pm.addPass(createMLIRMatchingPass());
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
 
   if (ci.getCodeGenOptions().singleValuedInductionElimination) {
@@ -1115,6 +1115,16 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLegalizeForExportPass());
+}
+
+std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
+  CompilerInstance &ci = getInstance();
+  mlir::bmodelica::MatchingPassOptions options;
+
+  options.enableScalarization =
+      ci.getCodeGenOptions().matchingGraphScalarization;
+
+  return mlir::bmodelica::createMatchingPass(options);
 }
 
 std::unique_ptr<mlir::Pass>

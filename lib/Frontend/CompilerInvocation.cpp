@@ -351,6 +351,7 @@ static bool parseTargetArgs(clang::TargetOptions &targetOptions,
 #define TARGET_OPTION_WITH_MARSHALLING(...)                                    \
   PARSE_OPTION_WITH_MARSHALLING(args, diags, __VA_ARGS__)
 #include "clang/Driver/Options.inc"
+
 #undef TARGET_OPTION_WITH_MARSHALLING
 
   if (llvm::opt::Arg *A = args.getLastArg(options::OPT_target_sdk_version_EQ)) {
@@ -581,6 +582,11 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
       args.hasFlag(options::OPT_read_only_variables_propagation,
                    options::OPT_no_read_only_variables_propagation,
                    options.readOnlyVariablesPropagation);
+
+  options.matchingGraphScalarization =
+      args.hasFlag(options::OPT_matching_scalarization,
+                   options::OPT_no_matching_scalarization,
+                   options.matchingGraphScalarization);
 
   options.variablesToParametersPromotion =
       args.hasFlag(options::OPT_variables_to_parameters_promotion,

@@ -168,6 +168,8 @@ protected:
   /// @name Modelica passes.
   /// {
 
+  std::unique_ptr<mlir::Pass> createMLIRMatchingPass();
+
   std::unique_ptr<mlir::Pass> createMLIRFunctionScalarizationPass();
   std::unique_ptr<mlir::Pass> createMLIRReadOnlyVariablesPropagationPass();
 
