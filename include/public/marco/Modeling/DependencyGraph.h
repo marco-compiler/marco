@@ -799,7 +799,7 @@ private:
                    pathDependency.equationIndices);
       }
 
-      cycles = newCycles;
+      cycles = std::move(newCycles);
     }
 
     // Split the new cycle.
@@ -815,11 +815,11 @@ private:
                      pathDependency.equationIndices);
         }
 
-        newCycles = split;
+        newCycles = std::move(split);
       }
     }
 
-    llvm::append_range(cycles, newCycles);
+    llvm::append_range(cycles, std::move(newCycles));
   }
 
   /// Split a cycle so that its components either exactly match or do not
