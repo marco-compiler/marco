@@ -286,17 +286,22 @@ void MCIM::apply(const MultidimensionalRange &equations,
 void MCIM::apply(const IndexSet &equations, const AccessFunction &access) {
   assert(getEquationSpace().contains(equations));
 
-  auto groupIt =
-      std::find_if(groups.begin(), groups.end(),
-                   [&access](const std::unique_ptr<MCIMGroup> &group) {
-                     return group->getAccessFunction() == access;
-                   });
+  IndexSet filteredEquations = access.inverseMap(
+      access.map(equations).intersect(getVariableSpace()), equations);
 
-  if (groupIt != groups.end()) {
-    (*groupIt)->addKeys(equations);
-  } else {
-    auto &group = addGroup(MCIMGroup::build(access));
-    group.addKeys(equations);
+  if (!filteredEquations.empty()) {
+    auto groupIt =
+        std::find_if(groups.begin(), groups.end(),
+                     [&access](const std::unique_ptr<MCIMGroup> &group) {
+                       return group->getAccessFunction() == access;
+                     });
+
+    if (groupIt != groups.end()) {
+      (*groupIt)->addKeys(filteredEquations);
+    } else {
+      auto &group = addGroup(MCIMGroup::build(access));
+      group.addKeys(filteredEquations);
+    }
   }
 }
 
