@@ -2012,32 +2012,24 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
                             mlir::SymbolTableCollection &symbolTableCollection,
                             ModelOp modelOp, DynamicOp dynamicOp,
                             llvm::ArrayRef<EquationInstanceOp> equationOps) {
-  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  auto storage = bridge::Storage::create();
   llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
-    auto &bridge =
-        variableBridges.emplace_back(VariableBridge::build(variableOp));
-
-    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
-    variablesMap[symbolRefAttr] = bridge.get();
+    storage->addVariable(variableOp);
   }
 
   for (EquationInstanceOp equation : equationOps) {
-    auto variableAccessAnalysis = getVariableAccessAnalysis(
-        equation.getTemplate(), symbolTableCollection);
+    auto &bridge = storage->addEquation(
+        static_cast<int64_t>(storage->equationBridges.size()), equation,
+        symbolTableCollection);
 
-    if (!variableAccessAnalysis) {
-      return mlir::failure();
+    if (auto accessAnalysis = getVariableAccessAnalysis(
+            equation.getTemplate(), symbolTableCollection)) {
+      bridge.setAccessAnalysis(*accessAnalysis);
     }
 
-    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
-        static_cast<int64_t>(equationBridges.size()), equation,
-        symbolTableCollection, *variableAccessAnalysis, variablesMap));
-
-    equationPtrs.push_back(bridge.get());
+    equationPtrs.push_back(&bridge);
   }
 
   using DependencyGraph =

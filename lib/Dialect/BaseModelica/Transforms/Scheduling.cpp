@@ -290,21 +290,14 @@ mlir::LogicalResult SchedulingPass::schedule(
 
   Scheduler scheduler(&getContext());
 
-  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
-  llvm::SmallVector<std::unique_ptr<SCCBridge>> sccBridges;
+  auto storage = bridge::Storage::create();
   llvm::SmallVector<SCCBridge *> sccBridgePtrs;
 
   llvm::DenseMap<EquationInstanceOp, EquationBridge *> equationsMap;
 
   // Collect the variables.
-  for (VariableOp variable : modelOp.getOps<VariableOp>()) {
-    auto &bridge =
-        variableBridges.emplace_back(VariableBridge::build(variable));
-
-    auto symbolRefAttr = mlir::SymbolRefAttr::get(variable.getSymNameAttr());
-    variablesMap[symbolRefAttr] = bridge.get();
+  for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+    storage->addVariable(variableOp);
   }
 
   // Collect the SCCs and the equations.
@@ -316,25 +309,23 @@ mlir::LogicalResult SchedulingPass::schedule(
       continue;
     }
 
-    auto &sccBridge = sccBridges.emplace_back(
+    auto &sccBridge = storage->sccBridges.emplace_back(
         SCCBridge::build(scc, symbolTableCollection, matchedEquationsWritesMap,
                          startEquationsWritesMap, equationsMap));
 
     sccBridgePtrs.push_back(sccBridge.get());
 
     for (EquationInstanceOp equation : equations) {
-      auto variableAccessAnalysis =
-          getVariableAccessAnalysis(equation, symbolTableCollection);
+      auto &equationBridge = storage->addEquation(
+          static_cast<int64_t>(storage->equationBridges.size()), equation,
+          symbolTableCollection);
 
-      if (!variableAccessAnalysis) {
-        return mlir::failure();
+      equationsMap[equation] = &equationBridge;
+
+      if (auto accessAnalysis =
+              getVariableAccessAnalysis(equation, symbolTableCollection)) {
+        equationBridge.setAccessAnalysis(*accessAnalysis);
       }
-
-      auto &equationBridge = equationBridges.emplace_back(EquationBridge::build(
-          static_cast<int64_t>(equationBridges.size()), equation,
-          symbolTableCollection, *variableAccessAnalysis, variablesMap));
-
-      equationsMap[equation] = equationBridge.get();
     }
   }
 

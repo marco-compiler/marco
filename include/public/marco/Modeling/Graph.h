@@ -569,7 +569,9 @@ public:
   // the original and the new graph would get destructed.
   Graph(const Graph &other) = delete;
 
-  Graph(Graph &&other) = default;
+  // Moving the graph would result in an invalidation of vertex descriptors,
+  // which contain the address of the graph.
+  Graph(Graph &&other) = delete;
 
   virtual ~Graph() {
     for (EdgeProperty *edgeProperty : edgeProperties) {
@@ -587,7 +589,7 @@ public:
 
   Graph &operator=(const Graph &other) = delete;
 
-  Graph &operator=(Graph &&other) = default;
+  Graph &operator=(Graph &&other) = delete;
 
   /// @name Data access methods
   /// {
@@ -856,34 +858,6 @@ public:
                                           linkedVerticesEnd(vertex), filter);
   }
 
-  /// Create a deep copy of the graph.
-  Derived clone() const {
-    // Perform a deep copy of the graph.
-    // Cloning the descriptors is in fact insufficient, as the wrapped
-    // nodes would be deallocated once the original graph ceases to
-    // exist.
-
-    Derived result;
-
-    llvm::DenseMap<VertexDescriptor, VertexDescriptor> verticesMap;
-    llvm::DenseMap<VertexDescriptor, VertexDescriptor> edgesMap;
-
-    for (VertexDescriptor vertex :
-         llvm::make_range(verticesBegin(), verticesEnd())) {
-      VertexDescriptor vertexClone =
-          result.addVertex(getVertexPropertyFromDescriptor(vertex));
-      verticesMap.try_emplace(vertex, vertexClone);
-    }
-
-    for (EdgeDescriptor edge : llvm::make_range(edgesBegin(), edgesEnd())) {
-      const VertexDescriptor &from = verticesMap.find(edge.from)->second;
-      const VertexDescriptor &to = verticesMap.find(edge.to)->second;
-      result.addEdge(from, to, getEdgePropertyFromDescriptor(edge));
-    }
-
-    return std::move(result);
-  }
-
   /// Split the graph into multiple independent ones, if possible.
   std::vector<Derived> getDisjointSubGraphs() const {
     std::vector<Derived> result;
@@ -1036,13 +1010,13 @@ public:
 
   UndirectedGraph(const UndirectedGraph &other) = delete;
 
-  UndirectedGraph(UndirectedGraph &&other) = default;
+  UndirectedGraph(UndirectedGraph &&other) = delete;
 
-  ~UndirectedGraph() = default;
+  ~UndirectedGraph() override = default;
 
   UndirectedGraph &operator=(const UndirectedGraph &other) = delete;
 
-  UndirectedGraph &operator=(UndirectedGraph &&other) = default;
+  UndirectedGraph &operator=(UndirectedGraph &&other) = delete;
 };
 
 /// Directed graph.
@@ -1072,13 +1046,13 @@ public:
 
   DirectedGraph(const DirectedGraph &other) = delete;
 
-  DirectedGraph(DirectedGraph &&other) = default;
+  DirectedGraph(DirectedGraph &&other) = delete;
 
-  ~DirectedGraph() = default;
+  ~DirectedGraph() override = default;
 
   DirectedGraph &operator=(const DirectedGraph &other) = delete;
 
-  DirectedGraph &operator=(DirectedGraph &&other) = default;
+  DirectedGraph &operator=(DirectedGraph &&other) = delete;
 };
 
 template <typename T>

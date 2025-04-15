@@ -16,6 +16,39 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::bridge;
 
+using MatchingGraph =
+    ::marco::modeling::MatchingGraph<VariableBridge *, EquationBridge *>;
+
+namespace {
+/// Utility class to pack the matching graph with its underlying storage.
+class MatchingGraphWrapper {
+  MatchingGraph graph;
+  std::shared_ptr<Storage> storage;
+
+public:
+  MatchingGraphWrapper(MatchingGraph graph, std::shared_ptr<Storage> storage)
+      : graph(std::move(graph)), storage(std::move(storage)) {}
+
+  MatchingGraph &operator*() { return graph; }
+
+  const MatchingGraph &operator*() const { return graph; }
+
+  MatchingGraph *operator->() { return &graph; }
+
+  const MatchingGraph *operator->() const { return &graph; }
+
+  Storage &getStorage() {
+    assert(storage && "Storage not set");
+    return *storage;
+  }
+
+  const Storage &getStorage() const {
+    assert(storage && "Storage not set");
+    return *storage;
+  }
+};
+} // namespace
+
 namespace {
 class MatchingPass
     : public mlir::bmodelica::impl::MatchingPassBase<MatchingPass>,
@@ -41,6 +74,13 @@ private:
         mlir::SymbolTableCollection &symbolTable,
         llvm::function_ref<std::optional<IndexSet>(VariableOp)>
             matchableIndicesFn);
+
+  std::optional<MatchingGraphWrapper>
+  buildMatchingGraph(mlir::SymbolTableCollection &symbolTableCollection,
+                     llvm::ArrayRef<VariableOp> variableOps,
+                     llvm::ArrayRef<EquationInstanceOp> equationOps,
+                     llvm::function_ref<std::optional<IndexSet>(VariableOp)>
+                         matchableIndicesFn);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -208,15 +248,12 @@ MatchingPass::getVariableAccessAnalysis(
   return std::reference_wrapper(analysis);
 }
 
-using MatchingGraph =
-    ::marco::modeling::MatchingGraph<VariableBridge *, EquationBridge *>;
-
 namespace {
 void printMatchingGraph(const MatchingGraph &graph) {
   for (auto vertexDescriptor :
        llvm::make_range(graph.variablesBegin(), graph.variablesEnd())) {
-    const auto &variable = graph.getVariable(vertexDescriptor);
-    llvm::errs() << "Variable " << variable.getProperty()->name << "\n";
+    auto variable = graph.getVariable(vertexDescriptor);
+    llvm::errs() << "Variable " << variable.getProperty()->getId() << "\n";
     llvm::errs() << "  - Indices: " << variable.getIndices() << "\n";
     llvm::errs() << "  - Matched indices: " << variable.getMatched() << "\n";
   }
@@ -227,7 +264,7 @@ void printMatchingGraph(const MatchingGraph &graph) {
     llvm::errs() << "Equation ";
     equation.getProperty()->getOp().printInline(llvm::errs());
     llvm::errs() << "\n";
-    llvm::errs() << "  - Indices: " << equation.getIterationRanges() << "\n";
+    llvm::errs() << "  - Indices: " << equation.getIndices() << "\n";
     llvm::errs() << "  - Matched indices: " << equation.getMatched() << "\n";
   }
 }
@@ -239,47 +276,20 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
                     mlir::SymbolTableCollection &symbolTableCollection,
                     llvm::function_ref<std::optional<IndexSet>(VariableOp)>
                         matchableIndicesFn) {
-  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
-  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+  llvm::SmallVector<VariableOp> variables;
+  modelOp.collectVariables(variables);
 
-  // Create the matching graph. We use the pointers to the real nodes in order
-  // to speed up the copies.
-  MatchingGraph matchingGraph(&getContext());
+  auto optionalMatchingGraph = buildMatchingGraph(
+      symbolTableCollection, variables, equations, matchableIndicesFn);
 
-  for (VariableOp variableOp : modelOp.getVariables()) {
-    std::optional<IndexSet> indices = matchableIndicesFn(variableOp);
-
-    if (indices) {
-      auto symbolRefAttr =
-          mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
-
-      auto &bridge = variableBridges.emplace_back(
-          VariableBridge::build(symbolRefAttr, std::move(*indices)));
-
-      variablesMap[symbolRefAttr] = bridge.get();
-      matchingGraph.addVariable(bridge.get());
-    }
+  if (!optionalMatchingGraph) {
+    return mlir::failure();
   }
 
-  for (EquationInstanceOp equation : equations) {
-    auto accessAnalysis = getVariableAccessAnalysis(equation.getTemplate(),
-                                                    symbolTableCollection);
+  auto &matchingGraph = *optionalMatchingGraph;
 
-    if (!accessAnalysis) {
-      equation.emitOpError() << "Can't obtain access analysis";
-      return mlir::failure();
-    }
-
-    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
-        static_cast<int64_t>(equationBridges.size()), equation,
-        symbolTableCollection, *accessAnalysis, variablesMap));
-
-    matchingGraph.addEquation(bridge.get());
-  }
-
-  auto numberOfScalarEquations = matchingGraph.getNumberOfScalarEquations();
-  auto numberOfScalarVariables = matchingGraph.getNumberOfScalarVariables();
+  auto numberOfScalarEquations = matchingGraph->getNumberOfScalarEquations();
+  auto numberOfScalarVariables = matchingGraph->getNumberOfScalarVariables();
 
   if (numberOfScalarEquations < numberOfScalarVariables) {
     modelOp.emitError() << "Underdetermined model. Found "
@@ -287,7 +297,9 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
                         << numberOfScalarVariables << " scalar variables.";
 
     return mlir::failure();
-  } else if (numberOfScalarEquations > numberOfScalarVariables) {
+  }
+
+  if (numberOfScalarEquations > numberOfScalarVariables) {
     modelOp.emitError() << "Overdetermined model. Found "
                         << numberOfScalarEquations << " scalar equations and "
                         << numberOfScalarVariables << " scalar variables.";
@@ -295,86 +307,67 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     return mlir::failure();
   }
 
-  if (enableSimplificationAlgorithm) {
-    // Apply the simplification algorithm to solve the obliged matches.
-    if (!matchingGraph.simplify()) {
-      modelOp.emitError()
-          << "Inconsistency found during the matching simplification process";
+  // Apply the matching algorithm.
+  using MatchingSolution = MatchingGraph::MatchingSolution;
+  llvm::SmallVector<MatchingSolution> matchingSolutions;
 
-      printMatchingGraph(matchingGraph);
-      return mlir::failure();
-    }
-  }
-
-  // Apply the full matching algorithm for the equations and variables that
-  // are still unmatched.
-  if (!matchingGraph.match()) {
+  if (!matchingGraph->match(matchingSolutions, enableSimplificationAlgorithm,
+                            enableScalarization, scalarAccessThreshold)) {
     modelOp.emitError()
-        << "Generic matching algorithm could not solve the matching problem";
+        << "Matching algorithm could not solve the matching problem";
 
-    printMatchingGraph(matchingGraph);
+    printMatchingGraph(*matchingGraph);
     return mlir::failure();
   }
 
   // Keep track of the old instances to be erased.
   llvm::DenseSet<EquationInstanceOp> toBeErased;
 
-  // Get the matching solution.
-  using MatchingSolution = MatchingGraph::MatchingSolution;
-  llvm::SmallVector<MatchingSolution> matchingSolutions;
-
-  if (!matchingGraph.getMatch(matchingSolutions)) {
-    modelOp.emitOpError() << "Not all the equations have been matched";
-    return mlir::failure();
-  }
-
   for (const MatchingSolution &solution : matchingSolutions) {
-    const IndexSet &matchedEquationIndices = solution.getIndexes();
+    // Scalar equations and scalar variables are masked as array equations and
+    // array variables, so there should always be some matched indices.
+    assert(!solution.getEquationIndices().empty());
+    assert(!solution.getVariableIndices().empty());
 
-    // Scalar equations are masked as for-equations, so there should always be
-    // some matched index.
-    assert(!matchedEquationIndices.empty());
+    auto equationBridge =
+        matchingGraph.getStorage().equationsMap[solution.getEquation()];
 
-    const EquationPath &matchedPath = solution.getAccess();
-    EquationBridge *equation = solution.getEquation();
+    auto variableBridge =
+        matchingGraph.getStorage().variablesMap[solution.getVariable()];
 
-    std::optional<VariableAccess> matchedAccess =
-        equation->getOp().getAccessAtPath(symbolTableCollection, matchedPath);
+    size_t equationRank =
+        equationBridge->getOp().getInductionVariables().size();
 
-    if (!matchedAccess) {
-      return mlir::failure();
-    }
-
-    size_t numOfInductions = equation->getOp().getInductionVariables().size();
-    bool isScalarEquation = numOfInductions == 0;
+    size_t variableRank = variableBridge->getIndices().rank();
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointAfter(equation->getOp());
+    rewriter.setInsertionPointAfter(equationBridge->getOp());
 
     auto matchedEquationOp = rewriter.create<EquationInstanceOp>(
-        equation->getOp().getLoc(), equation->getOp().getTemplate());
+        equationBridge->getOp().getLoc(),
+        equationBridge->getOp().getTemplate());
 
-    matchedEquationOp.getProperties() = equation->getOp().getProperties();
+    matchedEquationOp.getProperties() = equationBridge->getOp().getProperties();
 
-    // Compute the matched variable indices.
-    IndexSet matchedIndices;
-
-    if (!isScalarEquation) {
-      matchedIndices =
-          matchedEquationIndices.takeFirstDimensions(numOfInductions);
+    if (equationRank != 0) {
+      if (mlir::failed(matchedEquationOp.setIndices(
+              solution.getEquationIndices(), symbolTableCollection))) {
+        return mlir::failure();
+      }
     }
 
-    if (mlir::failed(matchedEquationOp.setIndices(matchedIndices,
-                                                  symbolTableCollection))) {
-      return mlir::failure();
-    }
+    IndexSet matchedVariableIndices = solution.getVariableIndices();
 
-    matchedEquationOp.getProperties().match =
-        Variable(matchedAccess->getVariable(),
-                 matchedAccess->getAccessFunction().map(matchedIndices));
+    if (variableRank == 0) {
+      matchedEquationOp.getProperties().match =
+          Variable(variableBridge->getName(), {});
+    } else {
+      matchedEquationOp.getProperties().match =
+          Variable(variableBridge->getName(), solution.getVariableIndices());
+    }
 
     // Mark the old instance as obsolete.
-    toBeErased.insert(equation->getOp());
+    toBeErased.insert(equationBridge->getOp());
   }
 
   // Erase the old equation instances.
@@ -383,6 +376,41 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
   }
 
   return mlir::success();
+}
+
+std::optional<MatchingGraphWrapper> MatchingPass::buildMatchingGraph(
+    mlir::SymbolTableCollection &symbolTableCollection,
+    llvm::ArrayRef<VariableOp> variableOps,
+    llvm::ArrayRef<EquationInstanceOp> equationOps,
+    llvm::function_ref<std::optional<IndexSet>(VariableOp)>
+        matchableIndicesFn) {
+  MatchingGraph graph(&getContext());
+  auto storage = Storage::create();
+
+  for (VariableOp variableOp : variableOps) {
+    if (auto indices = matchableIndicesFn(variableOp)) {
+      auto symbolRefAttr =
+          mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
+
+      auto &bridge = storage->addVariable(symbolRefAttr, std::move(*indices));
+      graph.addVariable(&bridge);
+    }
+  }
+
+  for (EquationInstanceOp equationOp : equationOps) {
+    auto &bridge = storage->addEquation(
+        static_cast<int64_t>(storage->equationBridges.size()), equationOp,
+        symbolTableCollection);
+
+    if (auto accessAnalysis = getVariableAccessAnalysis(
+            equationOp.getTemplate(), symbolTableCollection)) {
+      bridge.setAccessAnalysis(*accessAnalysis);
+    }
+
+    graph.addEquation(&bridge);
+  }
+
+  return MatchingGraphWrapper(std::move(graph), std::move(storage));
 }
 
 mlir::LogicalResult MatchingPass::cleanModelOp(ModelOp modelOp) {

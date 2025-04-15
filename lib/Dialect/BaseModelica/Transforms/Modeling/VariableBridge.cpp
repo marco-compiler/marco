@@ -1,19 +1,19 @@
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/VariableBridge.h"
+#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 
 using namespace mlir::bmodelica;
 using namespace mlir::bmodelica::bridge;
 
-static IndexSet getNonEmptyIndices(IndexSet indices) {
-  if (indices.empty()) {
-    // Scalar variable.
-    indices += MultidimensionalRange(Range(0, 1));
-  }
-
-  return std::move(indices);
-}
-
 namespace mlir::bmodelica::bridge {
 VariableBridge::Id::Id(mlir::SymbolRefAttr name) : name(name) {}
+
+bool VariableBridge::Id::operator==(const Id &other) const {
+  return name == other.name;
+}
+
+bool VariableBridge::Id::operator!=(const Id &other) const {
+  return !(*this == other);
+}
 
 bool VariableBridge::Id::operator<(const VariableBridge::Id &other) const {
   if (auto rootCmp =
@@ -39,32 +39,46 @@ bool VariableBridge::Id::operator<(const VariableBridge::Id &other) const {
     return true;
   }
 
+  if (l2 < l1) {
+    return false;
+  }
+
   return false;
 }
 
-bool VariableBridge::Id::operator==(const Id &other) const {
-  return name == other.name;
+llvm::hash_code hash_value(const VariableBridge::Id &val) {
+  return llvm::hash_value(val.name.getRootReference().getValue());
 }
 
-bool VariableBridge::Id::operator!=(const Id &other) const {
-  return !(*this == other);
+namespace {
+class VariableBridgeImpl : public VariableBridge {
+public:
+  template <typename... Arg>
+  VariableBridgeImpl(Arg &&...arg)
+      : VariableBridge(std::forward<Arg>(arg)...) {}
+};
+} // namespace
+
+VariableBridge &Storage::addVariable(mlir::SymbolRefAttr name,
+                                     IndexSet indices) {
+  auto &ptr = variableBridges.emplace_back(
+      std::make_unique<VariableBridgeImpl>(name, std::move(indices)));
+
+  variablesMap[ptr->getName()] = ptr.get();
+  return *ptr;
 }
 
-VariableBridge::Id::operator mlir::SymbolRefAttr() const { return name; }
-
-std::unique_ptr<VariableBridge> VariableBridge::build(mlir::SymbolRefAttr name,
-                                                      IndexSet indices) {
-  return std::make_unique<VariableBridge>(name, std::move(indices));
-}
-
-std::unique_ptr<VariableBridge> VariableBridge::build(VariableOp variable) {
+VariableBridge &Storage::addVariable(VariableOp variable) {
   auto nameAttr = mlir::SymbolRefAttr::get(variable.getSymNameAttr());
-  return build(nameAttr, getNonEmptyIndices(variable.getIndices()));
+  return addVariable(nameAttr, variable.getIndices());
 }
 
-VariableBridge::VariableBridge(mlir::SymbolRefAttr name,
-                               marco::modeling::IndexSet indices)
+VariableBridge::VariableBridge(mlir::SymbolRefAttr name, IndexSet indices)
     : id(name), name(name), indices(std::move(indices)) {}
+
+llvm::hash_code hash_value(const VariableBridge &val) {
+  return hash_value(val.id);
+}
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const VariableBridge::Id &obj) {
@@ -75,11 +89,11 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 namespace marco::modeling::matching {
 VariableTraits<VariableBridge *>::Id
 VariableTraits<VariableBridge *>::getId(const Variable *variable) {
-  return (*variable)->id;
+  return (*variable)->getId();
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
-  size_t rank = (*variable)->indices.rank();
+  size_t rank = (*variable)->getIndices().rank();
 
   if (rank == 0) {
     return 1;
@@ -90,7 +104,7 @@ size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
 
 IndexSet
 VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
-  const IndexSet &result = (*variable)->indices;
+  const IndexSet &result = (*variable)->getIndices();
 
   if (result.empty()) {
     return {Point(0)};
@@ -102,18 +116,18 @@ VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
 llvm::raw_ostream &
 VariableTraits<VariableBridge *>::dump(const Variable *variable,
                                        llvm::raw_ostream &os) {
-  return os << (*variable)->name;
+  return os << (*variable)->getId();
 }
 } // namespace marco::modeling::matching
 
 namespace marco::modeling::dependency {
 VariableTraits<VariableBridge *>::Id
 VariableTraits<VariableBridge *>::getId(const Variable *variable) {
-  return (*variable)->id;
+  return (*variable)->getId();
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
-  size_t rank = (*variable)->indices.rank();
+  size_t rank = (*variable)->getIndices().rank();
 
   if (rank == 0) {
     return 1;
@@ -124,7 +138,7 @@ size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
 
 IndexSet
 VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
-  const IndexSet &result = (*variable)->indices;
+  const IndexSet &result = (*variable)->getIndices();
 
   if (result.empty()) {
     return {Point(0)};
@@ -136,6 +150,6 @@ VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
 llvm::raw_ostream &
 VariableTraits<VariableBridge *>::dump(const Variable *variable,
                                        llvm::raw_ostream &os) {
-  return os << (*variable)->name;
+  return os << (*variable)->getId();
 }
 } // namespace marco::modeling::dependency

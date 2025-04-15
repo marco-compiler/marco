@@ -456,6 +456,12 @@ def MatchingPass : Pass<"match", "mlir::ModuleOp">
     ];
 
     let options = [
+        Option<"enableScalarization",
+               "enable-scalarization", "bool", "true",
+               "Enable the scalarization of variables with a high number of incident edges">,
+        Option<"scalarAccessThreshold",
+               "scalar-access-threshold", "double", "0.5",
+               "The percentage of scalarly-accessed indices after which an array variable is scalarized">,
         Option<"enableSimplificationAlgorithm",
                "enable-simplification-algorithm", "bool", "true",
                "Enable the usage of the simplification algorithm">

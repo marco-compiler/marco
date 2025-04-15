@@ -11,34 +11,55 @@ class raw_ostream;
 }
 
 namespace mlir::bmodelica::bridge {
+class Storage;
+
 class EquationBridge {
 public:
-  using VariablesMap = llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *>;
+  using Id = uint64_t;
+
+  /// Wrapper for the list of accesses to variables.
+  /// The list of accesses can be referenced or owned by the class, thus
+  /// allowing to hide the caching level to downstream users.
+  class AccessesList {
+    using Reference = llvm::ArrayRef<VariableAccess>;
+    using Container = llvm::SmallVector<VariableAccess>;
+
+    std::variant<Reference, Container> accesses;
+
+  public:
+    explicit AccessesList(Reference accesses);
+    explicit AccessesList(Container accesses);
+
+    operator llvm::ArrayRef<VariableAccess>() const;
+
+    auto begin() const {
+      return static_cast<llvm::ArrayRef<VariableAccess>>(*this).begin();
+    }
+
+    auto end() const {
+      return static_cast<llvm::ArrayRef<VariableAccess>>(*this).end();
+    }
+  };
 
 private:
-  int64_t id;
+  /// Unique identifier.
+  const Id id;
+
+  /// IR operation.
   EquationInstanceOp op;
+
+  const Storage &storage;
   mlir::SymbolTableCollection *symbolTable;
   VariableAccessAnalysis *accessAnalysis;
-  VariablesMap *variablesMap;
+
+protected:
+  // The constructors are not made public in order to enforce the construction
+  // through the Storage class.
+  EquationBridge(uint64_t id, EquationInstanceOp op,
+                 mlir::SymbolTableCollection &symbolTableCollection,
+                 const Storage &storage);
 
 public:
-  template <typename... Args>
-  static std::unique_ptr<EquationBridge> build(Args &&...args) {
-    return std::make_unique<EquationBridge>(std::forward<Args>(args)...);
-  }
-
-  EquationBridge(
-      int64_t id, EquationInstanceOp op,
-      mlir::SymbolTableCollection &symbolTable,
-      llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap);
-
-  EquationBridge(
-      int64_t id, EquationInstanceOp op,
-      mlir::SymbolTableCollection &symbolTable,
-      VariableAccessAnalysis &accessAnalysis,
-      llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> &variablesMap);
-
   // Forbid copies to avoid dangling pointers by design.
   EquationBridge(const EquationBridge &other) = delete;
   EquationBridge(EquationBridge &&other) = delete;
@@ -50,7 +71,7 @@ public:
   /// @Getters
   /// {
 
-  int64_t getId() const;
+  Id getId() const;
 
   EquationInstanceOp getOp() const;
 
@@ -64,41 +85,71 @@ public:
 
   const VariableAccessAnalysis &getAccessAnalysis() const;
 
-  VariablesMap &getVariablesMap();
-
   const VariablesMap &getVariablesMap() const;
 
   /// }
+  /// @name Setters.
+  /// {
+
+  void setAccessAnalysis(VariableAccessAnalysis &accessAnalysis);
+
+  /// }
+
+  size_t getOriginalRank() const;
+
+  IndexSet getOriginalIndices() const;
+
+  AccessesList getOriginalAccesses();
+
+  AccessesList getOriginalWriteAccesses();
+
+  AccessesList getOriginalReadAccesses();
+
+  size_t getRank() const;
+
+  IndexSet getIndices() const;
+
+  using AccessWalkFn = llvm::function_ref<void(
+      const VariableAccess &access, VariableBridge *variable,
+      const AccessFunction &accessFunction)>;
+
+  void walkAccesses(AccessWalkFn callbackFn);
+
+  void walkWriteAccesses(AccessWalkFn callbackFn);
+
+  void walkReadAccesses(AccessWalkFn callbackFn);
 };
 
 llvm::hash_code hash_value(const EquationBridge *val);
+
+using EquationsMap = llvm::DenseMap<EquationBridge::Id, EquationBridge *>;
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::matching {
 template <>
 struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
   using Equation = ::mlir::bmodelica::bridge::EquationBridge *;
-  using Id = int64_t;
+  using Id = ::mlir::bmodelica::bridge::EquationBridge::Id;
 
   static Id getId(const Equation *equation);
 
   static size_t getNumOfIterationVars(const Equation *equation);
 
-  static IndexSet getIterationRanges(const Equation *equation);
+  static IndexSet getIndices(const Equation *equation);
 
   using VariableType = ::mlir::bmodelica::bridge::VariableBridge *;
-  using AccessProperty = ::mlir::bmodelica::EquationPath;
+  using VariableId = VariableTraits<VariableType>::Id;
 
-  static std::vector<Access<VariableType, AccessProperty>>
-  getAccesses(const Equation *equation);
+  static std::vector<Access<VariableId>> getAccesses(const Equation *equation);
 
   static llvm::raw_ostream &dump(const Equation *equation,
                                  llvm::raw_ostream &os);
 
 private:
-  static std::vector<Access<VariableType, AccessProperty>>
-  convertAccesses(const Equation *equation,
-                  llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses);
+  static Access<VariableId>
+  convertAccess(const mlir::bmodelica::VariableAccess &access,
+                mlir::bmodelica::bridge::VariableBridge *variable,
+                const AccessFunction &accessFunction);
 };
 } // namespace marco::modeling::matching
 
@@ -106,7 +157,7 @@ namespace marco::modeling::dependency {
 template <>
 struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
   using Equation = ::mlir::bmodelica::bridge::EquationBridge *;
-  using Id = int64_t;
+  using Id = ::mlir::bmodelica::bridge::EquationBridge::Id;
 
   static Id getId(const Equation *equation);
 
@@ -131,9 +182,10 @@ struct EquationTraits<::mlir::bmodelica::bridge::EquationBridge *> {
                                  llvm::raw_ostream &os);
 
 private:
-  static std::vector<Access<VariableType, AccessProperty>>
-  convertAccesses(const Equation *equation,
-                  llvm::ArrayRef<mlir::bmodelica::VariableAccess> accesses);
+  static Access<VariableType, AccessProperty>
+  convertAccess(const mlir::bmodelica::VariableAccess &access,
+                mlir::bmodelica::bridge::VariableBridge *variable,
+                const AccessFunction &accessFunction);
 };
 } // namespace marco::modeling::dependency
 

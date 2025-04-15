@@ -250,36 +250,34 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
   auto baseGraph = std::make_shared<DependencyGraphBase>();
   DependencyGraph graph(&getContext(), baseGraph);
 
-  llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
+  auto storage = bridge::Storage::create();
   llvm::SmallVector<VariableBridge *> variablePtrs;
-  llvm::DenseMap<mlir::SymbolRefAttr, VariableBridge *> variablesMap;
+
   llvm::DenseMap<mlir::SymbolRefAttr, DependencyGraph::VariableDescriptor>
       variableDescriptors;
-  llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;
+
   llvm::SmallVector<EquationBridge *> equationPtrs;
 
   for (VariableOp variableOp : modelOp.getVariables()) {
-    auto &bridge =
-        variableBridges.emplace_back(VariableBridge::build(variableOp));
-
-    auto symbolRefAttr = mlir::SymbolRefAttr::get(variableOp.getSymNameAttr());
-    variablePtrs.push_back(bridge.get());
-    variablesMap[symbolRefAttr] = bridge.get();
+    auto &bridge = storage->addVariable(variableOp);
+    variablePtrs.push_back(&bridge);
   }
 
   for (EquationInstanceOp equation : equations) {
-    auto variableAccessAnalysis = getVariableAccessAnalysis(
-        equation.getTemplate(), symbolTableCollection);
+    auto &bridge =
+        storage->addEquation(static_cast<int64_t>(equationPtrs.size()),
+                             equation, symbolTableCollection);
 
-    auto &bridge = equationBridges.emplace_back(EquationBridge::build(
-        static_cast<int64_t>(equationBridges.size()), equation,
-        symbolTableCollection, *variableAccessAnalysis, variablesMap));
+    if (auto variableAccessAnalysis = getVariableAccessAnalysis(
+            equation.getTemplate(), symbolTableCollection)) {
+      bridge.setAccessAnalysis(*variableAccessAnalysis);
+    }
 
-    equationPtrs.push_back(bridge.get());
+    equationPtrs.push_back(&bridge);
   }
 
   for (VariableBridge *variable : variablePtrs) {
-    variableDescriptors[variable->name] = graph.addVariable(variable);
+    variableDescriptors[variable->getName()] = graph.addVariable(variable);
   }
 
   graph.addEquations(equationPtrs);
@@ -290,25 +288,30 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
 
     // Connect to the entry node if it is an output variable.
     auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
-        modelOp, variable->name);
+        modelOp, variable->getName());
 
     if (outputVariables.contains(variableOp)) {
       baseGraph->addEdge(baseGraph->getEntryNode(),
-                         variableDescriptors[variable->name]);
+                         variableDescriptors[variable->getName()]);
     }
 
     // Add the implicit relations introduced by derivatives.
-    walkDerivedVariables(modelOp, variable->name,
-                         [&](mlir::SymbolRefAttr derivedVarName) {
-                           graph.addEdge(variable->name, derivedVarName);
-                           graph.addEdge(derivedVarName, variable->name);
-                         });
+    walkDerivedVariables(
+        modelOp, variable->getName(), [&](mlir::SymbolRefAttr derivedVarName) {
+          graph.addEdge(variable->getId(),
+                        storage->variablesMap[derivedVarName]->getId());
+          graph.addEdge(storage->variablesMap[derivedVarName]->getId(),
+                        variable->getId());
+        });
 
-    walkDerivativeVariables(modelOp, variable->name,
-                            [&](mlir::SymbolRefAttr derivativeVarName) {
-                              graph.addEdge(variable->name, derivativeVarName);
-                              graph.addEdge(derivativeVarName, variable->name);
-                            });
+    walkDerivativeVariables(
+        modelOp, variable->getName(),
+        [&](mlir::SymbolRefAttr derivativeVarName) {
+          graph.addEdge(variable->getId(),
+                        storage->variablesMap[derivativeVarName]->getId());
+          graph.addEdge(storage->variablesMap[derivativeVarName]->getId(),
+                        variable->getId());
+        });
   }
 
   LLVM_DEBUG({
@@ -320,7 +323,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
            llvm::make_range(baseGraph->linkedVerticesBegin(variableDescriptor),
                             baseGraph->linkedVerticesEnd(variableDescriptor))) {
         const auto &dependency = (*baseGraph)[dependencyDescriptor];
-        llvm::dbgs() << "  |-> " << dependency.getProperty()->name << "\n";
+        llvm::dbgs() << "  |-> " << dependency.getProperty()->getName() << "\n";
       }
     }
   });
@@ -328,7 +331,7 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
   // Collect the variables.
   for (auto scc : graph.getSCCs()) {
     for (auto variableDescriptor : scc) {
-      auto variableName = scc[variableDescriptor].getProperty()->name;
+      auto variableName = scc[variableDescriptor].getProperty()->getName();
 
       auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
           modelOp, variableName);

@@ -101,30 +101,6 @@ private:
   int value;
 };
 
-TEST(UndirectedGraph, moveConstructor) {
-  UndirectedGraph<Vertex, Edge> first;
-  auto x = first.addVertex(Vertex("x"));
-  auto y = first.addVertex(Vertex("y"));
-  first.addEdge(x, y, Edge("e"));
-
-  UndirectedGraph<Vertex, Edge> second(std::move(first));
-  EXPECT_EQ(second.verticesCount(), 2);
-  EXPECT_EQ(second.edgesCount(), 1);
-}
-
-TEST(UndirectedGraph, moveAssignmentOperator) {
-  UndirectedGraph<Vertex, Edge> first;
-  auto x = first.addVertex(Vertex("x"));
-  auto y = first.addVertex(Vertex("y"));
-  first.addEdge(x, y, Edge("e"));
-
-  UndirectedGraph<Vertex, Edge> second;
-  second = std::move(first);
-
-  EXPECT_EQ(second.verticesCount(), 2);
-  EXPECT_EQ(second.edgesCount(), 1);
-}
-
 TEST(UndirectedGraph, addVertex) {
   UndirectedGraph<Vertex, Edge> graph;
   auto x = graph.addVertex(Vertex("x"));
@@ -321,16 +297,4 @@ TEST(UndirectedGraph, filteredEdges) {
               UnorderedElementsAre(UnwrappedEdge(x, y, e1),
                                    UnwrappedEdge(x, z, e3),
                                    UnwrappedEdge(y, z, e4)));
-}
-
-TEST(UndirectedGraph, clone) {
-  UndirectedGraph<Vertex, Edge> first;
-  auto x = first.addVertex(Vertex("x"));
-  auto y = first.addVertex(Vertex("y"));
-  first.addEdge(x, y, Edge("e"));
-
-  UndirectedGraph<Vertex, Edge> second = first.clone();
-
-  EXPECT_EQ(second.verticesCount(), first.verticesCount());
-  EXPECT_EQ(second.edgesCount(), first.edgesCount());
 }

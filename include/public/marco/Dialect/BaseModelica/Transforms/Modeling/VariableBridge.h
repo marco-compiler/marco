@@ -6,49 +6,71 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/Matching.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
 class raw_ostream;
 }
 
 namespace mlir::bmodelica::bridge {
+class Storage;
+
 class VariableBridge {
 public:
-  struct Id {
+  class Id {
     mlir::SymbolRefAttr name;
 
+  public:
     Id(mlir::SymbolRefAttr name);
-
-    bool operator<(const Id &other) const;
 
     bool operator==(const Id &other) const;
 
     bool operator!=(const Id &other) const;
 
-    operator mlir::SymbolRefAttr() const;
+    bool operator<(const Id &other) const;
+
+    friend llvm::hash_code hash_value(const Id &val);
+
+    friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Id &obj);
   };
 
-  Id id;
-  mlir::SymbolRefAttr name;
-  marco::modeling::IndexSet indices;
+private:
+  /// Unique identifier.
+  const Id id;
+
+  /// The name of the variable.
+  const mlir::SymbolRefAttr name;
+
+  /// The indices of the variable.
+  const IndexSet indices;
+
+protected:
+  // The constructor is not made public in order to enforce the construction
+  // through the Storage class.
+  VariableBridge(mlir::SymbolRefAttr name, IndexSet indices);
 
 public:
-  static std::unique_ptr<VariableBridge> build(mlir::SymbolRefAttr name,
-                                               IndexSet indices);
-
-  static std::unique_ptr<VariableBridge> build(VariableOp variable);
-
-  VariableBridge(mlir::SymbolRefAttr name, marco::modeling::IndexSet indices);
-
   // Forbid copies to avoid dangling pointers by design.
   VariableBridge(const VariableBridge &other) = delete;
   VariableBridge(VariableBridge &&other) = delete;
   VariableBridge &operator=(const VariableBridge &other) = delete;
   VariableBridge &operator==(const VariableBridge &other) = delete;
+
+  friend llvm::hash_code hash_value(const VariableBridge &val);
+
+  /// @name Getters.
+  /// {
+
+  const Id &getId() const { return id; }
+
+  mlir::SymbolRefAttr getName() const { return name; }
+
+  const IndexSet &getIndices() const { return indices; }
+
+  /// }
 };
 
-llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                              const VariableBridge::Id &obj);
+using VariablesMap = llvm::DenseMap<VariableBridge::Id, VariableBridge *>;
 } // namespace mlir::bmodelica::bridge
 
 namespace llvm {
@@ -64,7 +86,7 @@ struct DenseMapInfo<::mlir::bmodelica::bridge::VariableBridge::Id> {
 
   static unsigned
   getHashValue(const ::mlir::bmodelica::bridge::VariableBridge::Id &val) {
-    return llvm::DenseMapInfo<mlir::SymbolRefAttr>::getHashValue(val.name);
+    return hash_value(val);
   }
 
   static bool
