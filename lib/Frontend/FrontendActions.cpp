@@ -1124,6 +1124,9 @@ std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
   options.enableScalarization =
       ci.getCodeGenOptions().matchingGraphScalarization;
 
+  options.scalarAccessThreshold =
+      ci.getCodeGenOptions().matchingGraphScalarizationThreshold;
+
   return mlir::bmodelica::createMatchingPass(options);
 }
 

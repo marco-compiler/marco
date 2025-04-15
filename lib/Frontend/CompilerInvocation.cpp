@@ -588,6 +588,16 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
                    options::OPT_no_matching_scalarization,
                    options.matchingGraphScalarization);
 
+  if (const llvm::opt::Arg *arg =
+          args.getLastArg(options::OPT_matching_scalarization_threshold)) {
+    llvm::StringRef stringValue = arg->getValue();
+    double value;
+
+    if (stringValue.getAsDouble(value)) {
+      options.matchingGraphScalarizationThreshold = value;
+    }
+  }
+
   options.variablesToParametersPromotion =
       args.hasFlag(options::OPT_variables_to_parameters_promotion,
                    options::OPT_no_variables_to_parameters_promotion,

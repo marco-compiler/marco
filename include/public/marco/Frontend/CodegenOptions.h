@@ -21,6 +21,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool heapToStackPromotion = false;
   bool readOnlyVariablesPropagation = false;
   bool matchingGraphScalarization = true;
+  double matchingGraphScalarizationThreshold = 0.5;
   bool variablesPruning = false;
   bool variablesToParametersPromotion = false;
   int64_t sccSolvingBySubstitutionMaxIterations = 100;
