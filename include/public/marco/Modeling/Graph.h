@@ -21,27 +21,26 @@ public:
 
   VertexDescriptor() : graph(nullptr), value(nullptr) {}
 
-  VertexDescriptor(const Graph *graph, Property *value)
-      : graph(std::move(graph)), value(std::move(value)) {}
+  VertexDescriptor(const Graph *graph, Property *value, uint64_t id)
+      : graph(std::move(graph)), value(std::move(value)), id(id) {}
 
   friend llvm::hash_code hash_value(const VertexDescriptor &descriptor) {
-    return hash_value(*descriptor.value);
+    return llvm::hash_value(descriptor.id);
   }
 
   bool operator==(const VertexDescriptor &other) const {
-    return graph == other.graph && value == other.value;
+    return graph == other.graph && id == other.id;
   }
 
   bool operator!=(const VertexDescriptor &other) const {
-    return graph != other.graph || value != other.value;
+    return graph != other.graph || id != other.id;
   }
 
-  bool operator<(const VertexDescriptor &other) const {
-    return value < other.value;
-  }
+  bool operator<(const VertexDescriptor &other) const { return id < other.id; }
 
   const Graph *graph;
   Property *value;
+  uint64_t id{0};
 };
 
 /// Light-weight class referring to an edge of the graph.
@@ -97,9 +96,13 @@ class VertexWrapper
     : public PropertyWrapper<VertexProperty>,
       public llvm::DGNode<VertexWrapper<VertexProperty, EdgeProperty>,
                           EdgeWrapper<VertexProperty, EdgeProperty>> {
+  uint64_t id;
+
 public:
-  explicit VertexWrapper(VertexProperty property)
-      : PropertyWrapper<VertexProperty>(std::move(property)) {}
+  explicit VertexWrapper(VertexProperty property, uint64_t id)
+      : PropertyWrapper<VertexProperty>(std::move(property)), id(id) {}
+
+  uint64_t getId() const { return id; }
 };
 
 template <typename VertexProperty, typename EdgeProperty>
@@ -185,7 +188,7 @@ public:
 
   VertexDescriptor operator*() const {
     Vertex *vertex = *current;
-    return VertexDescriptor(graph, vertex);
+    return VertexDescriptor(graph, vertex, vertex->getId());
   }
 
   /// @name Construction methods
@@ -264,8 +267,11 @@ public:
   }
 
   EdgeDescriptor operator*() const {
-    VertexDescriptor source(graph, *currentVertexIt);
-    VertexDescriptor destination(graph, &(**currentEdgeIt)->getTargetNode());
+    Vertex *sourceNode = *currentVertexIt;
+    VertexDescriptor source(graph, sourceNode, sourceNode->getId());
+    Vertex &targetNode = (**currentEdgeIt)->getTargetNode();
+    VertexDescriptor destination(graph, &targetNode, targetNode.getId());
+
     return EdgeDescriptor(graph, std::move(source), std::move(destination),
                           **currentEdgeIt);
   }
@@ -317,7 +323,7 @@ private:
     Vertex *source = *currentVertexIt;
     Vertex *destination = &(**currentEdgeIt)->getTargetNode();
 
-    return source < destination;
+    return source->getId() < destination->getId();
   }
 
   void fetchNext() {
@@ -401,7 +407,8 @@ public:
 
   EdgeDescriptor operator*() const {
     auto &edge = *current;
-    VertexDescriptor to(graph, &edge->getTargetNode());
+    auto &targetNode = edge->getTargetNode();
+    VertexDescriptor to(graph, &targetNode, targetNode.getId());
     return EdgeDescriptor(graph, from, to, *current);
   }
 
@@ -472,7 +479,8 @@ public:
 
   VertexDescriptor operator*() const {
     auto &edge = *current;
-    return VertexDescriptor(graph, &edge->getTargetNode());
+    auto &targetNode = edge->getTargetNode();
+    return VertexDescriptor(graph, &targetNode, targetNode.getId());
   }
 
   /// @name Construction methods
@@ -599,13 +607,14 @@ public:
   /// Add a vertex to the graph.
   /// The property is cloned and its lifetime is tied to the graph.
   VertexDescriptor addVertex(VertexProperty property) {
-    auto *ptr = new Vertex(std::move(property));
+    uint64_t id = nextVertexId++;
+    auto *ptr = new Vertex(std::move(property), id);
     vertices.push_back(ptr);
 
     [[maybe_unused]] bool vertexInsertion = graph.addNode(*ptr);
     assert(vertexInsertion);
 
-    return VertexDescriptor(this, ptr);
+    return VertexDescriptor(this, ptr, id);
   }
 
   /// Get the begin iterator for the vertices of the graph.
@@ -969,6 +978,7 @@ private:
 private:
   bool directed;
   std::vector<Vertex *> vertices;
+  uint64_t nextVertexId{0};
   std::vector<Edge *> edges;
   std::vector<EdgeProperty *> edgeProperties;
   typename Traits::Base graph;
@@ -1108,19 +1118,25 @@ struct UniquePtrWrapper {
 } // namespace marco::modeling::internal
 
 namespace llvm {
-template <typename Graph, typename AccessProperty>
+template <typename Graph, typename VertexProperty>
 struct DenseMapInfo<
-    marco::modeling::internal::impl::VertexDescriptor<Graph, AccessProperty>> {
+    marco::modeling::internal::impl::VertexDescriptor<Graph, VertexProperty>> {
   using Key =
-      marco::modeling::internal::impl::VertexDescriptor<Graph, AccessProperty>;
+      marco::modeling::internal::impl::VertexDescriptor<Graph, VertexProperty>;
 
-  static inline Key getEmptyKey() { return Key(nullptr, nullptr); }
-
-  static inline Key getTombstoneKey() { return Key(nullptr, nullptr); }
-
-  static unsigned getHashValue(const Key &Val) {
-    return std::hash<typename Key::Property *>{}(Val.value);
+  static Key getEmptyKey() {
+    return Key(llvm::DenseMapInfo<const Graph *>::getEmptyKey(),
+               llvm::DenseMapInfo<VertexProperty *>::getEmptyKey(),
+               llvm::DenseMapInfo<uint64_t>::getEmptyKey());
   }
+
+  static Key getTombstoneKey() {
+    return Key(llvm::DenseMapInfo<const Graph *>::getTombstoneKey(),
+               llvm::DenseMapInfo<VertexProperty *>::getTombstoneKey(),
+               llvm::DenseMapInfo<uint64_t>::getTombstoneKey());
+  }
+
+  static unsigned getHashValue(const Key &Val) { return hash_value(Val); }
 
   static bool isEqual(const Key &LHS, const Key &RHS) {
     return LHS.value == RHS.value;
