@@ -6,6 +6,8 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/SCC.h"
 #include "mlir/IR/Threading.h"
+#include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SCCIterator.h"
 
 namespace marco::modeling {
@@ -136,7 +138,38 @@ private:
   IndexSet indices;
 };
 } // namespace internal::dependency
+} // namespace marco::modeling
 
+namespace llvm {
+template <typename EquationDescriptor>
+struct DenseMapInfo<marco::modeling::internal::dependency::ReducedEquationView<
+    EquationDescriptor>> {
+  using Key = marco::modeling::internal::dependency::ReducedEquationView<
+      EquationDescriptor>;
+
+  static Key getEmptyKey() {
+    return {DenseMapInfo<EquationDescriptor>::getEmptyKey(),
+            DenseMapInfo<marco::modeling::IndexSet>::getEmptyKey()};
+  }
+
+  static Key getTombstoneKey() {
+    return {DenseMapInfo<EquationDescriptor>::getTombstoneKey(),
+            DenseMapInfo<marco::modeling::IndexSet>::getTombstoneKey()};
+  }
+
+  static unsigned getHashValue(const Key &val) {
+    return llvm::hash_combine(*val, val.getIndices());
+  }
+
+  static bool isEqual(const Key &lhs, const Key &rhs) {
+    return DenseMapInfo<EquationDescriptor>::isEqual(*lhs, *rhs) &&
+           DenseMapInfo<marco::modeling::IndexSet>::isEqual(lhs.getIndices(),
+                                                            rhs.getIndices());
+  }
+};
+} // namespace llvm
+
+namespace marco::modeling {
 namespace internal::dependency_graph {
 template <typename EquationView>
 class SCC {
