@@ -44,6 +44,8 @@ std::unique_ptr<AccessFunction> AccessFunctionConstant::clone() const {
   return std::make_unique<AccessFunctionConstant>(*this);
 }
 
+bool AccessFunctionConstant::isConstant() const { return true; }
+
 IndexSet AccessFunctionConstant::map(const IndexSet &indices) const {
   if (indices.empty() && getNumOfDims() != 0) {
     return {};

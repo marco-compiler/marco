@@ -30,6 +30,8 @@ public:
 
   /// }
 
+  [[nodiscard]] bool isConstant() const override;
+
   using AccessFunctionGeneric::map;
 
   [[nodiscard]] IndexSet map(const IndexSet &indices) const override;

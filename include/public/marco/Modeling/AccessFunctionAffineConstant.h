@@ -40,6 +40,8 @@ public:
   [[nodiscard]] bool
   operator!=(const AccessFunctionAffineConstant &other) const;
 
+  [[nodiscard]] bool isConstant() const override;
+
   using AccessFunctionAffineMap::map;
 
   [[nodiscard]] IndexSet map(const IndexSet &indices) const override;

@@ -43,6 +43,8 @@ public:
       llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
           &dependentDimensions) const override;
 
+  [[nodiscard]] bool isConstant() const override;
+
   [[nodiscard]] mlir::AffineExpr
   getAffineExpr(unsigned int numOfDimensions,
                 FakeDimensionsMap &fakeDimensionsMap) const override;

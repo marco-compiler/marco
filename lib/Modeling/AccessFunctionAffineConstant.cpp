@@ -66,6 +66,8 @@ bool AccessFunctionAffineConstant::operator!=(
   return !(*this == other);
 }
 
+bool AccessFunctionAffineConstant::isConstant() const { return true; }
+
 IndexSet AccessFunctionAffineConstant::map(const IndexSet &indices) const {
   if (indices.empty() && getNumOfDims() != 0) {
     return {};

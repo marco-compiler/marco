@@ -53,6 +53,8 @@ void DimensionAccessConstant::collectIterationSpaces(
     llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
         &dependentDimensions) const {}
 
+bool DimensionAccessConstant::isConstant() const { return true; }
+
 bool DimensionAccessConstant::isAffine() const { return true; }
 
 mlir::AffineExpr DimensionAccessConstant::getAffineExpr() const {

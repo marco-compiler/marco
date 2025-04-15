@@ -52,6 +52,8 @@ public:
 
   [[nodiscard]] uint64_t getNumOfResults() const override;
 
+  [[nodiscard]] bool isConstant() const override;
+
   [[nodiscard]] bool isAffine() const override;
 
   [[nodiscard]] mlir::AffineMap getAffineMap() const override;

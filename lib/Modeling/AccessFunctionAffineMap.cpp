@@ -31,6 +31,10 @@ uint64_t AccessFunctionAffineMap::getNumOfResults() const {
   return affineMap.getNumResults();
 }
 
+bool AccessFunctionAffineMap::isConstant() const {
+  return affineMap.isConstant();
+}
+
 bool AccessFunctionAffineMap::isAffine() const { return true; }
 
 mlir::AffineMap AccessFunctionAffineMap::getAffineMap() const {

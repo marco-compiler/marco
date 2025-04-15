@@ -150,6 +150,11 @@ uint64_t AccessFunctionGeneric::getNumOfResults() const {
   return results.size();
 }
 
+bool AccessFunctionGeneric::isConstant() const {
+  return llvm::all_of(results,
+                      [](const auto &result) { return result->isConstant(); });
+}
+
 bool AccessFunctionGeneric::isAffine() const {
   return llvm::all_of(getResults(),
                       [](const std::unique_ptr<DimensionAccess> &result) {

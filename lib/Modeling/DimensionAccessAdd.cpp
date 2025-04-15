@@ -85,6 +85,10 @@ void DimensionAccessAdd::collectIterationSpaces(
   getSecond().collectIterationSpaces(iterationSpaces, dependentDimensions);
 }
 
+bool DimensionAccessAdd::isConstant() const {
+  return getFirst().isConstant() && getSecond().isConstant();
+}
+
 bool DimensionAccessAdd::isAffine() const {
   return getFirst().isAffine() && getSecond().isAffine();
 }

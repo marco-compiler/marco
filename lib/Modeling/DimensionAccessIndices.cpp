@@ -71,6 +71,8 @@ void DimensionAccessIndices::collectIterationSpaces(
   }
 }
 
+bool DimensionAccessIndices::isConstant() const { return true; }
+
 mlir::AffineExpr DimensionAccessIndices::getAffineExpr(
     unsigned int numOfDimensions,
     DimensionAccess::FakeDimensionsMap &fakeDimensionsMap) const {

@@ -133,6 +133,8 @@ public:
 
   [[nodiscard]] mlir::MLIRContext *getContext() const;
 
+  [[nodiscard]] virtual bool isConstant() const = 0;
+
   [[nodiscard]] virtual bool isAffine() const;
 
   [[nodiscard]] virtual mlir::AffineExpr getAffineExpr() const;

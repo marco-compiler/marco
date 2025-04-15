@@ -103,6 +103,9 @@ public:
   /// Get the affine map representing the access function.
   [[nodiscard]] virtual mlir::AffineMap getAffineMap() const;
 
+  /// Check whether the accessed indices are constant.
+  [[nodiscard]] virtual bool isConstant() const = 0;
+
   /// Check if the access function has an identity layout, that is if the
   /// i-th dimension accesses the i-th induction variable with offset 0
   /// (e.g. [i0][i1][i2]).

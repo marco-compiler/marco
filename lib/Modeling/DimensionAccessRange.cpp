@@ -72,6 +72,8 @@ void DimensionAccessRange::collectIterationSpaces(
     llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
         &dependentDimensions) const {}
 
+bool DimensionAccessRange::isConstant() const { return true; }
+
 mlir::AffineExpr DimensionAccessRange::getAffineExpr(
     unsigned int numOfDimensions,
     DimensionAccess::FakeDimensionsMap &fakeDimensionsMap) const {

@@ -49,6 +49,8 @@ bool AccessFunctionEmpty::operator!=(const AccessFunctionEmpty &other) const {
   return false;
 }
 
+bool AccessFunctionEmpty::isConstant() const { return true; }
+
 bool AccessFunctionEmpty::isInvertible() const { return true; }
 
 std::unique_ptr<AccessFunction> AccessFunctionEmpty::inverse() const {

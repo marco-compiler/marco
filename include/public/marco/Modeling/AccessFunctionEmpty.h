@@ -38,6 +38,8 @@ public:
 
   [[nodiscard]] bool operator!=(const AccessFunctionEmpty &other) const;
 
+  [[nodiscard]] bool isConstant() const override;
+
   [[nodiscard]] bool isInvertible() const override;
 
   [[nodiscard]] std::unique_ptr<AccessFunction> inverse() const override;
