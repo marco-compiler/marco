@@ -222,6 +222,8 @@ MCIM &MCIM::operator-=(const MCIM &rhs) {
     for (auto &group : oldGroups) {
       if (group->getAccessFunction() == rhsGroup->getAccessFunction()) {
         group->removeKeys(rhsGroup->getKeys());
+      } else {
+        group->removeValues(rhsGroup->getValues());
       }
     }
   }

@@ -42,6 +42,11 @@ bool MCIMGroupGeneric::hasValue(const Point &point) const {
   return getValues().contains(point);
 }
 
+void MCIMGroupGeneric::removeValues(const IndexSet &removedValues) {
+  IndexSet commonValues = removedValues.intersect(getValues());
+  removeKeys(getAccessFunction().inverseMap(commonValues, keys));
+}
+
 bool MCIMGroupGeneric::has(const Point &key, const Point &value) const {
   return keys.contains(key) && getAccessFunction().map(key).contains(value);
 }

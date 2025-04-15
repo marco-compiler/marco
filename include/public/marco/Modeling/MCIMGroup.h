@@ -34,6 +34,8 @@ public:
 
   virtual bool hasValue(const Point &point) const = 0;
 
+  virtual void removeValues(const IndexSet &removedValues) = 0;
+
   /// Check if a (key, value) pair belongs to the group.
   virtual bool has(const Point &key, const Point &value) const = 0;
 

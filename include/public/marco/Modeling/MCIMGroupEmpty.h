@@ -22,6 +22,8 @@ public:
 
   bool hasValue(const Point &point) const override;
 
+  void removeValues(const IndexSet &removedValues) override;
+
   bool has(const Point &key, const Point &value) const override;
 
   bool set(const Point &key, const Point &value) override;

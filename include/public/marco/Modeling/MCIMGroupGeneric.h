@@ -6,6 +6,9 @@
 
 namespace marco::modeling {
 class MCIMGroupGeneric : public MCIMGroup {
+protected:
+  IndexSet keys;
+
 public:
   static std::unique_ptr<MCIMGroup> build(const AccessFunction &accessFunction);
 
@@ -31,6 +34,8 @@ public:
 
   bool hasValue(const Point &point) const override;
 
+  void removeValues(const IndexSet &removedValues) override;
+
   bool has(const Point &key, const Point &value) const override;
 
   bool set(const Point &key, const Point &value) override;
@@ -41,9 +46,6 @@ public:
 
   std::unique_ptr<MCIMGroup>
   filterValues(const IndexSet &filter) const override;
-
-private:
-  IndexSet keys;
 };
 } // namespace marco::modeling
 

@@ -26,6 +26,12 @@ bool MCIMGroupEmpty::hasValue(const Point &point) const {
   return getValues().contains(point);
 }
 
+void MCIMGroupEmpty::removeValues(const IndexSet &removedValues) {
+  if (removedValues.contains(Point(0))) {
+    keys.clear();
+  }
+}
+
 bool MCIMGroupEmpty::has(const Point &key, const Point &value) const {
   return getKeys().contains(key) && value == Point(0);
 }
