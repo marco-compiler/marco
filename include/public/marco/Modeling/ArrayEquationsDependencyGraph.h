@@ -23,6 +23,7 @@ public:
   using Base = Graph;
 
   using Variable = internal::dependency::ArrayVariable<VariableProperty>;
+  using VariableId = typename Variable::Id;
   using Equation = typename Graph::VertexProperty;
 
   using EquationDescriptor = typename Graph::VertexDescriptor;
@@ -32,10 +33,9 @@ public:
       ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
 
   using WriteInfo =
-      internal::dependency::WriteInfo<Graph, typename Variable::Id,
-                                      EquationDescriptor>;
+      internal::dependency::WriteInfo<Graph, VariableId, EquationDescriptor>;
 
-  using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
+  using WritesMap = std::multimap<VariableId, WriteInfo>;
 
   using SCC = internal::dependency::SCC<Graph>;
 
@@ -234,12 +234,23 @@ private:
       equationLockGuard.unlock();
 
       std::vector<Access> reads = equation.getReads();
+      llvm::MapVector<VariableId, IndexSet> readVariables;
 
+      // First collect the read indices, so that only one edge can be later
+      // created in case of multiple accesses to the same variable.
       for (const Access &read : reads) {
         IndexSet readIndices =
             read.getAccessFunction().map(equation.getIterationRanges());
 
-        auto writeInfos = writesMap.equal_range(read.getVariable());
+        readVariables[read.getVariable()] += readIndices;
+      }
+
+      // Create the edges.
+      for (const auto &readEntry : readVariables) {
+        const VariableId &variableId = readEntry.first;
+        const IndexSet &readIndices = readEntry.second;
+
+        auto writeInfos = writesMap.equal_range(variableId);
 
         for (const auto &[variableId, writeInfo] :
              llvm::make_range(writeInfos.first, writeInfos.second)) {
