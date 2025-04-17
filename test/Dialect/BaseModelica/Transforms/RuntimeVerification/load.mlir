@@ -1,5 +1,23 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
+// COM: Scalar load
+
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<!bmodelica.int>)
+
+func.func @Test(%arg0: !bmodelica.array<!bmodelica.int>) -> !bmodelica.int {
+
+    // CHECK-NOT: bmodelica.assert
+    // CHECK: {{.*}} = bmodelica.load %[[arg0]][]
+
+    %0 = bmodelica.load %arg0[] : !bmodelica.array<!bmodelica.int>
+    func.return %0 : !bmodelica.int
+}
+
+// -----
+
+// COM: Array load
+
 // CHECK-LABEL: @Test
 // CHECK-SAME: (%[[arg0:.*]]: !bmodelica.array<2x?x!bmodelica.int>, %[[arg1:.*]]: index, %[[arg2:.*]]: index)
 
