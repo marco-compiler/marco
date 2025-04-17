@@ -53,6 +53,8 @@ public:
     Expression_Subscript,
     Expression_Tuple,
     Expression_LastExpression,
+    External_Function_Call,
+    External_Ref, 
     ForIndex,
     FunctionArgument,
     FunctionArgument_Expression,
@@ -76,7 +78,6 @@ public:
     VariableType_BuiltIn,
     VariableType_UserDefined,
     VariableType_LastVariableType,
-    //TO-DO : AST-Node identifier
   };
 
   ASTNode(Kind kind, SourceRange location, ASTNode *parent = nullptr);

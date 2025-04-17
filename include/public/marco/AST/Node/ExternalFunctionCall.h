@@ -5,18 +5,27 @@ namespace marco::ast {
 
 class ExternalFunctionCall : public ASTNode {
 public:
-  explicit ExternalFunctionCall(SourceRange location);
 
-  ~ExternalFunctionCall() override;
+  explicit ExternalFunctionCall(SourceRange location); 
+
+  ~ExternalFunctionCall() override; 
 
   std::unique_ptr<ASTNode> clone() const override;
-
   llvm::json::Value toJSON() const override;
 
-private:
-  std::unique_ptr<ASTNode> lhs; 
-  std::unique_ptr<ASTNode> operation; 
+  void setName(llvm::StringRef name); 
+  llvm::StringRef getName() const; 
 
+  void setComponentReference(std::unique_ptr<ASTNode> node); 
+  std::unique_ptr<ASTNode> getComponentReference() const; 
+
+  void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
+  llvm::ArrayRef<std::unique_ptr> getExpressions() const; 
+
+private:
+  std::string name; 
+  std::unique_ptr<ASTNode> componentReference; 
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions; 
 };
 } // namespace marco::ast
 
