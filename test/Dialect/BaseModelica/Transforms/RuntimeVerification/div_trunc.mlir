@@ -7,11 +7,10 @@
 
 func.func @Test(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
-    // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.neq %[[rhs]], %[[zero]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[zero:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.neq %[[rhs]], %[[zero]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.div_trunc %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
     func.return %0 : !bmodelica.real
@@ -26,12 +25,11 @@ func.func @Test(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.real
 
 func.func @Test(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
-    // CHECK-NEXT:      %[[epsilon:.*]] = bmodelica.constant #bmodelica<real 1.000000e-04> : !bmodelica.real
-    // CHECK-NEXT:      %[[rhs_abs:.*]] = bmodelica.abs %[[rhs]] : !bmodelica.real -> !bmodelica.real
-    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.gte %[[rhs_abs]], %[[epsilon]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
-    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[epsilon:.*]] = bmodelica.constant #bmodelica<real 1.000000e-04> : !bmodelica.real
+    // CHECK-NEXT:  %[[rhs_abs:.*]] = bmodelica.abs %[[rhs]]
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.gte %[[rhs_abs]], %[[epsilon]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.div_trunc %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
     func.return %0 : !bmodelica.real

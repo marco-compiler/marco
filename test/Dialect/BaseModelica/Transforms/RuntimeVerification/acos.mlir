@@ -7,14 +7,13 @@
 
 func.func @Test(%arg0: !bmodelica.int) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"} {
-    // CHECK-NEXT:      %[[lower_bound:.*]] = bmodelica.constant #bmodelica<int -1> : !bmodelica.int
-    // CHECK-NEXT:      %[[upper_bound:.*]] = bmodelica.constant #bmodelica<int 1> : !bmodelica.int
-    // CHECK-NEXT:      %[[cond1:.*]] = bmodelica.gte %[[arg0]], %[[lower_bound]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    // CHECK-NEXT:      %[[cond2:.*]] = bmodelica.lte %[[arg0]], %[[upper_bound]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.and %[[cond1]], %[[cond2]] : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
-    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[lower_bound:.*]] = bmodelica.constant #bmodelica<int -1> : !bmodelica.int
+    // CHECK-NEXT:  %[[upper_bound:.*]] = bmodelica.constant #bmodelica<int 1> : !bmodelica.int
+    // CHECK-NEXT:  %[[subcond_1:.*]] = bmodelica.gte %[[arg0]], %[[lower_bound]]
+    // CHECK-NEXT:  %[[subcond_2:.*]] = bmodelica.lte %[[arg0]], %[[upper_bound]]
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.and %[[subcond_1]], %[[subcond_2]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.acos %arg0 : !bmodelica.int -> !bmodelica.real
     func.return %0 : !bmodelica.real
@@ -29,14 +28,13 @@ func.func @Test(%arg0: !bmodelica.int) -> !bmodelica.real {
 
 func.func @Test(%arg0: !bmodelica.real) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: Argument of acos outside the domain. It should be -1 <= arg <= 1"} {
-    // CHECK-NEXT:      %[[lower_bound:.*]] = bmodelica.constant #bmodelica<real -1.000000e+00> : !bmodelica.real
-    // CHECK-NEXT:      %[[upper_bound:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00> : !bmodelica.real
-    // CHECK-NEXT:      %[[cond1:.*]] = bmodelica.gte %[[arg0]], %[[lower_bound]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
-    // CHECK-NEXT:      %[[cond2:.*]] = bmodelica.lte %[[arg0]], %[[upper_bound]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
-    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.and %[[cond1]], %[[cond2]] : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
-    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[lower_bound:.*]] = bmodelica.constant #bmodelica<real -1.000000e+00> : !bmodelica.real
+    // CHECK-NEXT:  %[[upper_bound:.*]] = bmodelica.constant #bmodelica<real 1.000000e+00> : !bmodelica.real
+    // CHECK-NEXT:  %[[subcond_1:.*]] = bmodelica.gte %[[arg0]], %[[lower_bound]]
+    // CHECK-NEXT:  %[[subcond_2:.*]] = bmodelica.lte %[[arg0]], %[[upper_bound]]
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.and %[[subcond_1]], %[[subcond_2]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.acos %arg0 : !bmodelica.real -> !bmodelica.real
     func.return %0 : !bmodelica.real

@@ -7,12 +7,10 @@
 
 func.func @Test(%arg0: !bmodelica.int) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: Argument of sqrt outside the domain. It should be >= 0"} {
-    // CHECK-NEXT:      %[[constant:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.gte %[[arg0]], %[[constant]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
-    // CHECK-NEXT:  %{{.*}} = bmodelica.sqrt %[[arg0]] : !bmodelica.int -> !bmodelica.real
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[zero:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.gte %[[arg0]], %[[zero]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.sqrt %arg0 : !bmodelica.int -> !bmodelica.real
     func.return %0 : !bmodelica.real
@@ -27,11 +25,10 @@ func.func @Test(%arg0: !bmodelica.int) -> !bmodelica.real {
 
 func.func @Test(%arg0: !bmodelica.real) -> !bmodelica.real {
 
-    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: Argument of sqrt outside the domain. It should be >= 0"} {
-    // CHECK-NEXT:    %[[constant:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00> : !bmodelica.real
-    // CHECK-NEXT:    %[[cond:.*]] = bmodelica.gte %[[arg0]], %[[constant]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
-    // CHECK-NEXT:    bmodelica.yield %[[cond]] : !bmodelica.bool
-    // CHECK-NEXT:  }
+    // CHECK:       bmodelica.assert
+    // CHECK-NEXT:  %[[zero:.*]] = bmodelica.constant #bmodelica<real 0.000000e+00> : !bmodelica.real
+    // CHECK-NEXT:  %[[cond:.*]] = bmodelica.gte %[[arg0]], %[[zero]]
+    // CHECK-NEXT:  bmodelica.yield %[[cond]] : !bmodelica.bool
 
     %0 = bmodelica.sqrt %arg0 : !bmodelica.real -> !bmodelica.real
     func.return %0 : !bmodelica.real
