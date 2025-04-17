@@ -3,14 +3,15 @@
 // COM: Integer operand
 
 // CHECK-LABEL: @Test
+
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.int>
 
     // CHECK:       %[[arg:.*]] = bmodelica.variable_get @x
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: Argument of sqrt outside the domain. It should be >= 0"} {
-    // CHECK-NEXT:    %[[constant:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
-    // CHECK-NEXT:    %[[cond:.*]] = bmodelica.gte %[[arg]], %[[constant]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
-    // CHECK-NEXT:    bmodelica.yield %[[cond]] : !bmodelica.bool
+    // CHECK-NEXT:      %[[constant:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
+    // CHECK-NEXT:      %[[cond:.*]] = bmodelica.gte %[[arg]], %[[constant]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
+    // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
     // CHECK-NEXT:  %{{[0-9]+}} = bmodelica.sqrt %[[arg]] : !bmodelica.int -> !bmodelica.real
 
@@ -23,6 +24,7 @@ bmodelica.model @Test {
 // COM: Real operand
 
 // CHECK-LABEL: @Test
+
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
 
