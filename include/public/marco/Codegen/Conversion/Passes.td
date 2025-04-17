@@ -430,8 +430,7 @@ def BaseModelicaToRuntimeCallConversionPass
         "mlir::bufferization::BufferizationDialect",
         "mlir::memref::MemRefDialect",
         "mlir::runtime::RuntimeDialect",
-        "mlir::tensor::TensorDialect",
-        "mlir::LLVM::LLVMDialect"
+        "mlir::tensor::TensorDialect"
     ];
 
     let constructor = "mlir::createBaseModelicaToRuntimeCallConversionPass()";

@@ -5,7 +5,6 @@
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -48,8 +47,7 @@ BaseModelicaToRuntimeCallConversionPass::convertOperations() {
   target.addLegalDialect<
       BaseModelicaDialect, mlir::arith::ArithDialect,
       mlir::bufferization::BufferizationDialect, mlir::memref::MemRefDialect,
-      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect,
-      mlir::LLVM::LLVMDialect>();
+      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect>();
 
   target.addIllegalOp<AbsOp, AcosOp, AsinOp, AssertOp, AtanOp, Atan2Op, CeilOp,
                       CosOp, CoshOp, DiagonalOp, DivTruncOp, ExpOp, FloorOp,
@@ -2357,41 +2355,6 @@ struct AssertOpLowering : public RuntimeOpConversionPattern<AssertOp> {
     rewriter.replaceOp(op, callOp);
 
     return mlir::success();
-  }
-
-  mlir::Value createGlobalString(mlir::OpBuilder &builder, mlir::Location loc,
-                                 mlir::ModuleOp moduleOp,
-                                 mlir::SymbolTable &symTable,
-                                 mlir::StringRef name,
-                                 mlir::StringRef value) const {
-    mlir::LLVM::GlobalOp global;
-
-    {
-      // Create the global at the entry of the module.
-      mlir::OpBuilder::InsertionGuard insertGuard(builder);
-      builder.setInsertionPointToStart(moduleOp.getBody());
-
-      auto type = mlir::LLVM::LLVMArrayType::get(
-          mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
-
-      global = builder.create<mlir::LLVM::GlobalOp>(
-          loc, type, true, mlir::LLVM::Linkage::Internal, name,
-          builder.getStringAttr(
-              llvm::StringRef(value.data(), value.size() + 1)));
-
-      symTable.insert(global);
-    }
-
-    // Get the pointer to the first character of the global string.
-    mlir::Value globalPtr =
-        builder.create<mlir::LLVM::AddressOfOp>(loc, global);
-
-    mlir::Type type = mlir::LLVM::LLVMArrayType::get(
-        mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
-
-    return builder.create<mlir::LLVM::GEPOp>(
-        loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
-        globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
   }
 };
 
