@@ -291,6 +291,7 @@ protected:
   }
 
   mlir::SymbolTableCollection &getSymbolTableCollection() const {
+    assert(symbolTableCollection != nullptr);
     return *symbolTableCollection;
   }
 
