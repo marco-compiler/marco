@@ -24,11 +24,11 @@ llvm::json::Value toJSON() const {
 }
 
 void setName(llvm::StringRef name) {
-  name = name; 
+  name = name.str(); 
 }
 
 llvm::StringRef getName() const {
-  return name.str(); 
+  return name; 
 }
 
 void setComponentReference(std::unique_ptr<ASTNode> node) {

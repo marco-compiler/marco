@@ -7,14 +7,19 @@ class ExternalRef : public ASTNode {
 public:
   explicit ExternalRef(SourceRange location);
 
-  ExternalRef(const ExternalRef &other);
-
-
   ~ExternalRef() override;
 
   std::unique_ptr<ASTNode> clone() const override;
-
   llvm::json::Value toJSON() const override;
+
+  void setLanguageSpecification(llvm::StringRef languageSpecification); 
+  llvm::StringRef getLanguageSpecification(); 
+
+  void setExternalFunctionCall(std::unique_ptr<ASTNode> externalFunctionCall); 
+  std::unique_ptr<ASTNode> getExternalFunctionCall(); 
+
+  void setAnnotationClause(std::unique_ptr<ASTNode> annotationClause); 
+  std::unique_ptr<ASTNode> getAnnotationClause(); 
 
 
 private:
