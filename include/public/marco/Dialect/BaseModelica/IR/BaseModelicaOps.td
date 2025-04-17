@@ -3326,39 +3326,36 @@ def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
 }
 
 def BaseModelica_AssertOp : BaseModelica_Op<"assert",
-   [ MemoryEffects<[MemWrite]>, SingleBlock]>
+    [MemoryEffects<[MemWrite]>,
+    SingleBlock]>
 {
-  let summary = "Assert truth of assertion argument";
+    let summary = "Assert truth of assertion argument";
 
-// TODO: Add a proper description when the MLIR IR for assertion op is known
-  let description = [{
-    Takes in an expression that should yield a boolean truth value.
+    let description = [{
+        Takes in an expression that should yield a boolean truth value.
 
-    Example:
+        Example:
 
-    ```mlir
-    bmodelica.assert { message = "...", level = ... } {
-      ...
-      %condition = ...
-      bmodelica.yield %condition
-    }
-    ```
-  }];
+        ```mlir
+        bmodelica.assert {message = "...", level = ... } {
+            ...
+            %condition = ...
+            bmodelica.yield %condition
+        }
+        ```
+    }];
 
+    let arguments = (ins
+        StrAttr:$message,
+        I64Attr:$level
+    );
 
-  let arguments = (ins
-    StrAttr:$message,
-    I64Attr:$level
-  );
+    // TODO(Tor): Tighten the region constraint
+    let regions = (region AnyRegion:$conditionRegion);
 
-  // TODO(Tor): Tighten the region constraint
-  let regions = (region
-    AnyRegion:$conditionRegion
-  );
+    let results = (outs);
 
-  let results = (outs);
-
-  let hasCustomAssemblyFormat = 1;
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
