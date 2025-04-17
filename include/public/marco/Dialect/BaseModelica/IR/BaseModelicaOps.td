@@ -3333,14 +3333,16 @@ def BaseModelica_AssertOp : BaseModelica_Op<"assert",
 
     let description = [{
         Takes in an expression that should yield a boolean truth value.
+        The `level` attribute specifies the assertion level: 0 indicates
+        a warning while everything above 1 indicates an error.
 
         Example:
 
         ```mlir
-        bmodelica.assert {message = "...", level = ... } {
+        bmodelica.assert {level = 1 : i64, message = "ERROR: ..."} {
             ...
             %condition = ...
-            bmodelica.yield %condition
+            bmodelica.yield %condition : !bmodelica.bool
         }
         ```
     }];
