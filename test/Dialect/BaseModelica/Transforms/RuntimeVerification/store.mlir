@@ -6,7 +6,7 @@
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
 // CHECK-SAME: %[[arg1:.*]]: index
 
-func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
+func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index) {
     %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x!bmodelica.int> -> tensor<2x!bmodelica.int>
@@ -21,8 +21,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
     // CHECK-NEXT:  }
     
     bmodelica.store %arg0[%arg1], %0 : !bmodelica.array<2x!bmodelica.int>
-
-    return
+    func.return
 }
 
 // -----
@@ -33,7 +32,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x2x!bmodelica.int>
 // CHECK-SAME: %[[arg:.*]]: index
 
-func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index){
+func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index) {
     %0 = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x2x!bmodelica.int> -> tensor<2x2x!bmodelica.int>
@@ -46,6 +45,7 @@ func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2
     // CHECK-NEXT:      %[[cond:.*]] = bmodelica.and %[[gte]], %[[lt]] : (!bmodelica.bool, !bmodelica.bool) -> !bmodelica.bool
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
+
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: StoreOp out of bounds access"} {
     // CHECK-NEXT:      %[[intzero_2:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
     // CHECK-NEXT:      %[[constzero_2:.*]] = bmodelica.constant 1 : index
@@ -57,6 +57,5 @@ func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2
     // CHECK-NEXT:  }
     
     bmodelica.store %arg0[%arg1, %arg2], %0 : !bmodelica.array<2x2x!bmodelica.int>
-
-    return 
+    func.return 
 }

@@ -6,7 +6,7 @@
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
 // CHECK-SAME: %[[arg1:.*]]: index
 
-func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
+func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index) {
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x!bmodelica.int> -> tensor<2x!bmodelica.int>
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: SubscriptionOp out of bounds access"} {
@@ -20,8 +20,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
     // CHECK-NEXT:  }
 
     %0 = bmodelica.subscription %arg0[%arg1] : <2x!bmodelica.int>, index -> !bmodelica.array<!bmodelica.real>
-
-    return
+    func.return
 }
 
 // -----
@@ -32,7 +31,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x2x!bmodelica.int>
 // CHECK-SAME: %[[arg1:.*]]: index
 
-func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index){
+func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2: index) {
 
     // CHECK:       %[[conv:.*]] = bmodelica.array_to_tensor %arg0 : <2x2x!bmodelica.int> -> tensor<2x2x!bmodelica.int>
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: SubscriptionOp out of bounds access"} {
@@ -56,6 +55,5 @@ func.func @Test(%arg0: !bmodelica.array<2x2x!bmodelica.int>, %arg1: index, %arg2
     // CHECK-NEXT:  }
 
     %0 = bmodelica.subscription %arg0[%arg1, %arg2] : <2x2x!bmodelica.int>, index, index -> !bmodelica.array<!bmodelica.int>
-
-    return
+    func.return
 }

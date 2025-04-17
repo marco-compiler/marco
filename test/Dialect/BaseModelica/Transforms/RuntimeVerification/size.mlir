@@ -3,10 +3,9 @@
 // COM: One-dimensional tensor
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: tensor<3x!bmodelica.real>)
 
-bmodelica.model @Test {
-    bmodelica.variable @v : !bmodelica.variable<3x!bmodelica.real>
-    %0 = bmodelica.variable_get @v : tensor<3x!bmodelica.real>
+func.func @Test(%arg0: tensor<3x!bmodelica.real>) -> index {
 
     // CHECK:       %[[index:.*]] = bmodelica.constant
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
@@ -18,19 +17,19 @@ bmodelica.model @Test {
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %1 = bmodelica.constant 1 : index
-    %2 = bmodelica.size %0, %1 : (tensor<3x!bmodelica.real>, index) -> !bmodelica.int
+    %0 = bmodelica.constant 1 : index
+    %1 = bmodelica.size %arg0, %0 : (tensor<3x!bmodelica.real>, index) -> index
+    func.return %1 : index
 }
 
 // -----
 
 // COM: One-dimensional tensor, dimension index as function argument
 
-// CHECK-LABEL: @test
-// CHECK-SAME: %{{.*}}: tensor<3x!bmodelica.real>
-// CHECK-SAME: %[[arg1:.*]]: index
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: tensor<3x!bmodelica.real>, %[[arg1:.*]]: index)
 
-func.func @test(%arg0: tensor<3x!bmodelica.real>, %arg1: index) -> !bmodelica.int {
+func.func @Test(%arg0: tensor<3x!bmodelica.real>, %arg1: index) -> index {
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant 0 : index
@@ -41,8 +40,8 @@ func.func @test(%arg0: tensor<3x!bmodelica.real>, %arg1: index) -> !bmodelica.in
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %0 = bmodelica.size %arg0, %arg1 : (tensor<3x!bmodelica.real>, index) -> !bmodelica.int
-    return %0 : !bmodelica.int
+    %0 = bmodelica.size %arg0, %arg1 : (tensor<3x!bmodelica.real>, index) -> index
+    func.return %0 : index
 }
 
 // -----
@@ -50,15 +49,14 @@ func.func @test(%arg0: tensor<3x!bmodelica.real>, %arg1: index) -> !bmodelica.in
 // COM: One-dimensional tensor, without dimension of interest
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: %[[arg0:.*]]: tensor<3x!bmodelica.real>
 
-bmodelica.model @Test {
-    bmodelica.variable @v : !bmodelica.variable<3x!bmodelica.real>
+func.func @Test(%arg0: tensor<3x!bmodelica.real>) -> tensor<1xindex> {
 
-    // CHECK: %[[v:.*]] = bmodelica.variable_get @v : tensor<3x!bmodelica.real>
-    // CHECK-NEXT: %{{[[:digit:]]+}} = bmodelica.size %[[v]] : tensor<3x!bmodelica.real> -> !bmodelica.int
+    // CHECK: %{{.*}} = bmodelica.size %[[arg0]] : tensor<3x!bmodelica.real> -> tensor<1xindex>
 
-    %0 = bmodelica.variable_get @v : tensor<3x!bmodelica.real>
-    %1 = bmodelica.size %0 : tensor<3x!bmodelica.real> -> !bmodelica.int
+    %0 = bmodelica.size %arg0 : tensor<3x!bmodelica.real> -> tensor<1xindex>
+    func.return %0 : tensor<1xindex>
 }
 
 // -----
@@ -66,10 +64,9 @@ bmodelica.model @Test {
 // COM: Multi-dimensional dynamic tensor
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: tensor<2x?x3x!bmodelica.real>)
 
-bmodelica.model @Test {
-    bmodelica.variable @m : !bmodelica.variable<2x?x3x!bmodelica.real>
-    %0 = bmodelica.variable_get @m : tensor<2x?x3x!bmodelica.real>
+func.func @Test(%arg0: tensor<2x?x3x!bmodelica.real>) -> index {
 
     // CHECK:       %[[index:.*]] = bmodelica.constant
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
@@ -81,19 +78,19 @@ bmodelica.model @Test {
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %1 = bmodelica.constant 1 : index
-    %2 = bmodelica.size %0, %1 : (tensor<2x?x3x!bmodelica.real>, index) -> !bmodelica.int
+    %0 = bmodelica.constant 1 : index
+    %1 = bmodelica.size %arg0, %0 : (tensor<2x?x3x!bmodelica.real>, index) -> index
+    func.return %1 : index
 }
 
 // -----
 
 // COM: Multi-dimensional dynamic tensor, dimension index as function argument
 
-// CHECK-LABEL: @test
-// CHECK-SAME: %{{.*}}: tensor<2x?x3x!bmodelica.real>
-// CHECK-SAME: %[[arg1:.*]]: index
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: tensor<2x?x3x!bmodelica.real>, %[[arg1:.*]]: index)
 
-func.func @test(%arg0: tensor<2x?x3x!bmodelica.real>, %arg1: index) -> !bmodelica.int {
+func.func @Test(%arg0: tensor<2x?x3x!bmodelica.real>, %arg1: index) -> index {
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant 0 : index
@@ -104,8 +101,8 @@ func.func @test(%arg0: tensor<2x?x3x!bmodelica.real>, %arg1: index) -> !bmodelic
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %0 = bmodelica.size %arg0, %arg1 : (tensor<2x?x3x!bmodelica.real>, index) -> !bmodelica.int
-    return %0 : !bmodelica.int
+    %0 = bmodelica.size %arg0, %arg1 : (tensor<2x?x3x!bmodelica.real>, index) -> index
+    func.return %0 : index
 }
 
 // -----
@@ -113,13 +110,12 @@ func.func @test(%arg0: tensor<2x?x3x!bmodelica.real>, %arg1: index) -> !bmodelic
 // COM: Multi-dimensional dynamic tensor, without dimension of interest
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: (%[[arg0:.*]]: tensor<2x?x3x!bmodelica.real>)
 
-bmodelica.model @Test {
-    bmodelica.variable @v : !bmodelica.variable<2x?x3x!bmodelica.real>
+func.func @Test(%arg0: tensor<2x?x3x!bmodelica.real>) -> index {
 
-    // CHECK: %[[v:.*]] = bmodelica.variable_get @v : tensor<2x?x3x!bmodelica.real>
-    // CHECK-NEXT: %{{[[:digit:]]+}} = bmodelica.size %[[v]] : tensor<2x?x3x!bmodelica.real> -> !bmodelica.int
+    // CHECK: %{{.*}} = bmodelica.size %[[arg0]] : tensor<2x?x3x!bmodelica.real> -> index
 
-    %0 = bmodelica.variable_get @v : tensor<2x?x3x!bmodelica.real>
-    %1 = bmodelica.size %0 : tensor<2x?x3x!bmodelica.real> -> !bmodelica.int
+    %0 = bmodelica.size %arg0 : tensor<2x?x3x!bmodelica.real> -> index
+    func.return %0 : index
 }

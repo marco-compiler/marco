@@ -2,9 +2,10 @@
 
 // COM: One-dimensional array
 
-// CHECK-LABEL: @test
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: !bmodelica.array<3x!bmodelica.real>)
 
-func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>) -> index {
+func.func @Test(%arg0: !bmodelica.array<3x!bmodelica.real>) -> index {
 
     // CHECK:       %[[index:.*]] = bmodelica.constant 1 : index
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
@@ -18,18 +19,17 @@ func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>) -> index {
 
     %0 = bmodelica.constant 1 : index
     %1 = bmodelica.dim %arg0, %0 : !bmodelica.array<3x!bmodelica.real>
-    return %1 : index
+    func.return %1 : index
 }
 
 // -----
 
 // COM: One-dimensional array, dimension index as function argument
 
-// CHECK-LABEL: @test
-// CHECK-SAME: %{{.*}}: !bmodelica.array<3x!bmodelica.real>
-// CHECK-SAME: %[[arg1:.*]]: index
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: !bmodelica.array<3x!bmodelica.real>, %[[arg1:.*]]: index)
 
-func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index) -> index {
+func.func @Test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index) -> index {
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
     // CHECK-NEXT:  %[[zero:.*]] = bmodelica.constant 0 : index
@@ -41,16 +41,17 @@ func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index) -> ind
     // CHECK-NEXT:  }
 
     %0 = bmodelica.dim %arg0, %arg1 : !bmodelica.array<3x!bmodelica.real>
-    return %0 : index
+    func.return %0 : index
 }
 
 // -----
 
 // COM: Multi-dimensional dynamic array
 
-// CHECK-LABEL: @test
+// CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: !bmodelica.array<2x?x3x!bmodelica.real>)
 
-func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) -> index {
+func.func @Test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>) -> index {
 
     // CHECK:       %[[index:.*]] = bmodelica.constant 1 : index
     // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
@@ -64,7 +65,7 @@ func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) ->
 
     %0 = bmodelica.constant 1 : index
     %1 = bmodelica.dim %arg0, %0 : !bmodelica.array<2x?x3x!bmodelica.real>
-    return %1 : index
+    func.return %1 : index
 }
 
 // -----
@@ -72,10 +73,9 @@ func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) ->
 // COM: Multi-dimensional dynamic array, dimension index as function argument
 
 // CHECK-LABEL: @test
-// CHECK-SAME: %{{.*}}: !bmodelica.array<2x?x3x!bmodelica.real>
-// CHECK-SAME: %[[arg1:.*]]: index
+// CHECK-SAME: (%{{.*}}: !bmodelica.array<2x?x3x!bmodelica.real>, %[[arg1:.*]]: index)
 
-func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) -> index {
+func.func @Test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) -> index {
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: dimension index out of bounds"} {
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant 0 : index
@@ -87,5 +87,5 @@ func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) ->
     // CHECK-NEXT:  }
 
     %0 = bmodelica.dim %arg0, %arg1 : !bmodelica.array<2x?x3x!bmodelica.real>
-    return %0 : index
+    func.return %0 : index
 }

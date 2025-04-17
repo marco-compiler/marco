@@ -5,7 +5,7 @@
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
 
-func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>){
+func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>) -> !bmodelica.array<2x!bmodelica.int> {
     %0 = bmodelica.constant #bmodelica<int 8> : !bmodelica.int
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: element-wise division by zero"} {
@@ -15,8 +15,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>){
     // CHECK-NEXT:  }
 
     %1 = bmodelica.div_ew %arg0, %0 : (!bmodelica.array<2x!bmodelica.int>, !bmodelica.int) -> !bmodelica.array<2x!bmodelica.int>
-
-    return
+    func.return %1 : !bmodelica.array<2x!bmodelica.int>
 }
 
 // -----
@@ -29,7 +28,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>){
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.real>
 
-func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.real>){
+func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.real>) -> !bmodelica.array<2x!bmodelica.real> {
     %0 = bmodelica.constant #bmodelica<real 8.0> : !bmodelica.real
 
     // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: element-wise division by zero"} {
@@ -41,6 +40,5 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.real>){
     // CHECK-NEXT:  }
 
     %1 = bmodelica.div_ew %arg0, %0 : (!bmodelica.array<2x!bmodelica.real>, !bmodelica.real) -> !bmodelica.array<2x!bmodelica.real>
-
-    return
+    func.return %1 : !bmodelica.array<2x!bmodelica.real>
 }

@@ -3,7 +3,7 @@
 // CHECK-LABEL: @Test
 
 func.func @Test(%arg0: tensor<4x!bmodelica.real>,
-                %arg1: tensor<2x3x!bmodelica.real>, %arg2: index){
+                %arg1: tensor<2x3x!bmodelica.real>, %arg2: index) -> tensor<2x3x!bmodelica.real> {
 
     %0 = bmodelica.constant #bmodelica.int_range<0, 2, 1> : !bmodelica<range index>
 
@@ -17,6 +17,5 @@ func.func @Test(%arg0: tensor<4x!bmodelica.real>,
     // CHECK-NEXT:  }
 
     %1 = bmodelica.tensor_insert_slice %arg0, %arg1[%arg2, %0] : tensor<4x!bmodelica.real>, tensor<2x3x!bmodelica.real>, index, !bmodelica<range index> -> tensor<2x3x!bmodelica.real>
-
-    return
+    func.return %1 : tensor<2x3x!bmodelica.real>
 }

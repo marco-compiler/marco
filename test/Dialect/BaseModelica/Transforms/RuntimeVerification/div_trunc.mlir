@@ -1,46 +1,38 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// COM: Integer operands
+// COM: Integer rhs
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: (%{{.*}}: !bmodelica.int, %[[rhs:.*]]: !bmodelica.int)
 
-bmodelica.model @Test {
-    bmodelica.variable @a : !bmodelica.variable<!bmodelica.int>
-    bmodelica.variable @b : !bmodelica.variable<!bmodelica.int>
+func.func @Test(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.real {
 
-    %0 = bmodelica.variable_get @a : !bmodelica.int
-
-    // CHECK:       %[[rhs:.*]] = bmodelica.variable_get @b
-    // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
+    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
     // CHECK-NEXT:      %[[zero:.*]] = bmodelica.constant #bmodelica<int 0> : !bmodelica.int
     // CHECK-NEXT:      %[[cond:.*]] = bmodelica.neq %[[rhs]], %[[zero]] : (!bmodelica.int, !bmodelica.int) -> !bmodelica.bool
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %1 = bmodelica.variable_get @b : !bmodelica.int
-    %2 = bmodelica.div_trunc %0, %1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
+    %0 = bmodelica.div_trunc %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
+    func.return %0 : !bmodelica.real
 }
 
 // -----
 
-// COM: Real operands
+// COM: Real rhs
 
 // CHECK-LABEL: @Test
+// CHECK-SAME: %{{.*}}: !bmodelica.real, %[[rhs:.*]]: !bmodelica.real)
 
-bmodelica.model @Test {
-    bmodelica.variable @a : !bmodelica.variable<!bmodelica.real>
-    bmodelica.variable @b : !bmodelica.variable<!bmodelica.real>
+func.func @Test(%arg0: !bmodelica.real, %arg1: !bmodelica.real) -> !bmodelica.real {
 
-    %0 = bmodelica.variable_get @a : !bmodelica.real
-
-    // CHECK:       %[[rhs:.*]] = bmodelica.variable_get @b
-    // CHECK-NEXT:  bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
+    // CHECK:       bmodelica.assert {level = 2 : i64, message = "Model error: integer division by zero"} {
     // CHECK-NEXT:      %[[epsilon:.*]] = bmodelica.constant #bmodelica<real 1.000000e-04> : !bmodelica.real
     // CHECK-NEXT:      %[[rhs_abs:.*]] = bmodelica.abs %[[rhs]] : !bmodelica.real -> !bmodelica.real
     // CHECK-NEXT:      %[[cond:.*]] = bmodelica.gte %[[rhs_abs]], %[[epsilon]] : (!bmodelica.real, !bmodelica.real) -> !bmodelica.bool
     // CHECK-NEXT:      bmodelica.yield %[[cond]] : !bmodelica.bool
     // CHECK-NEXT:  }
 
-    %1 = bmodelica.variable_get @b : !bmodelica.real
-    %2 = bmodelica.div_trunc %0, %1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    %0 = bmodelica.div_trunc %arg0, %arg1 : (!bmodelica.real, !bmodelica.real) -> !bmodelica.real
+    func.return %0 : !bmodelica.real
 }
