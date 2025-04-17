@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// COM: Integer operands
+// COM: Integer modulus
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: (%{{.*}}: !bmodelica.int, %[[rhs:.*]]: !bmodelica.int)
@@ -18,7 +18,7 @@ func.func @Test(%arg0: !bmodelica.int, %arg1: !bmodelica.int) -> !bmodelica.real
 
 // -----
 
-// COM: Real operands
+// COM: Real modulus
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.real, %[[rhs:.*]]: !bmodelica.real)
