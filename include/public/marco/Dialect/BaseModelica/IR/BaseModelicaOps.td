@@ -52,11 +52,6 @@ def BaseModelicaIntegerAttr :
     let storageType = [{ ::mlir::bmodelica::IntegerAttr }];
     let returnType = [{ int64_t }];
 
-    let convertFromStorage = [{
-      $_self.getValue().getSExtValue();
-    }];
-
-
     let valueType = BaseModelicaInteger;
 
     let constBuilderCall =
@@ -76,10 +71,6 @@ def BaseModelicaRealAttr :
     let storageType = [{ ::mlir::bmodelica::RealAttr }];
     let returnType = [{ double }];
     let valueType = BaseModelicaReal;
-
-    let convertFromStorage = [{
-      $_self.getValue().convertToDouble();
-    }];
 
     let constBuilderCall =
         "::mlir::bmodelica::RealAttr::get($_builder.getContext(), $0)";
