@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// One-dimensional array
+// COM: One-dimensional array
 
 // CHECK-LABEL: @test
 func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>) -> index {
@@ -21,7 +21,7 @@ func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>) -> index {
 
 // -----
 
-// One-dimensional array + dimension index as function argument
+// COM: One-dimensional array, dimension index as function argument
 
 // CHECK-LABEL: @test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<3x!bmodelica.real>
@@ -42,7 +42,7 @@ func.func @test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index) -> ind
 
 // -----
 
-// Multi-dimensional dynamic array
+// COM: Multi-dimensional dynamic array
 
 // CHECK-LABEL: @test
 func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) -> index {
@@ -63,7 +63,7 @@ func.func @test(%arg0: !bmodelica.array<2x?x3x!bmodelica.real>, %arg1: index) ->
 
 // -----
 
-// Multi-dimensional dynamic array + dimension index as function argument
+// COM: Multi-dimensional dynamic array, dimension index as function argument
 
 // CHECK-LABEL: @test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x?x3x!bmodelica.real>

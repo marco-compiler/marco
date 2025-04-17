@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// Integer operands
+// COM: Integer operands
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -22,7 +22,7 @@ bmodelica.model @Test {
 
 // -----
 
-// Real operands
+// COM: Real operands
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {

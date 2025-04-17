@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// Mono-dimensional
+// COM: Store to mono-dimensional tensor
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -27,7 +27,7 @@ bmodelica.model @Test {
 
 // -----
 
-// Multi-dimensional
+// COM: Store to multi-dimensional tensor
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {

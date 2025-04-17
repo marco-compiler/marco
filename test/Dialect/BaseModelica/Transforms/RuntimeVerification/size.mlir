@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// One-dimensional tensor
+// COM: One-dimensional tensor
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -23,7 +23,7 @@ bmodelica.model @Test {
 
 // -----
 
-// One-dimensional tensor + dimension index as function argument
+// COM: One-dimensional tensor, dimension index as function argument
 
 // CHECK-LABEL: @test
 // CHECK-SAME: %{{.*}}: tensor<3x!bmodelica.real>
@@ -44,7 +44,7 @@ func.func @test(%arg0: tensor<3x!bmodelica.real>, %arg1: index) -> !bmodelica.in
 
 // -----
 
-// One-dimensional tensor, without dimension of interest
+// COM: One-dimensional tensor, without dimension of interest
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -59,7 +59,7 @@ bmodelica.model @Test {
 
 // -----
 
-// Multi-dimensional dynamic tensor
+// COM: Multi-dimensional dynamic tensor
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -82,7 +82,7 @@ bmodelica.model @Test {
 
 // -----
 
-// Multi-dimensional dynamic tensor + dimension index as function argument
+// COM: Multi-dimensional dynamic tensor, dimension index as function argument
 
 // CHECK-LABEL: @test
 // CHECK-SAME: %{{.*}}: tensor<2x?x3x!bmodelica.real>
@@ -103,7 +103,7 @@ func.func @test(%arg0: tensor<2x?x3x!bmodelica.real>, %arg1: index) -> !bmodelic
 
 // -----
 
-// Multi-dimensional dynamic tensor, without dimension of interest
+// COM: Multi-dimensional dynamic tensor, without dimension of interest
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {

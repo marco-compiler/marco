@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// Mono-dimensional
+// COM: Store to mono-dimensional array
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
@@ -26,7 +26,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>, %arg1: index){
 
 // -----
 
-// Multi-dimensional
+// COM: Store to multi-dimensional array
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x2x!bmodelica.int>

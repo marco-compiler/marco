@@ -2,7 +2,7 @@
 
 // -----
 
-// Integer operand
+// COM: Integer operand
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {
@@ -21,7 +21,7 @@ bmodelica.model @Test {
 
 // -----
 
-// Real operand
+// COM: Real operand
 
 // CHECK-LABEL: @Test
 bmodelica.model @Test {

@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// Integer values
+// COM: Integer values
 
 // CHECK-LABEL: @Test
 // CHECK-SAME: %{{.*}}: !bmodelica.array<2x!bmodelica.int>
@@ -20,7 +20,7 @@ func.func @Test(%arg0: !bmodelica.array<2x!bmodelica.int>){
 
 // -----
 
-// Real values
+// COM: Real values
 
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 

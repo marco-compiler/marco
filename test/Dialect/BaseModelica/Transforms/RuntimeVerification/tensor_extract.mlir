@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --generate-runtime-verification | FileCheck %s
 
-// Mono-dimensional
+// COM: Load from mono-dimensional tensor
 
 // CHECK-LABEL: @Test
 func.func @Test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index){
@@ -24,7 +24,7 @@ func.func @Test(%arg0: !bmodelica.array<3x!bmodelica.real>, %arg1: index){
 
 // -----
 
-// Multi-dimensional
+// COM: Load from multi-dimensional tensor
 
 // CHECK-LABEL: @Test
 func.func @Test(%arg0: !bmodelica.array<3x3x!bmodelica.real>, %arg1: index, %arg2: index){
