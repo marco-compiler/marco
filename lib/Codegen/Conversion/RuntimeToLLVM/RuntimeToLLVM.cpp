@@ -527,7 +527,7 @@ class StringOpLowering : public RuntimeOpConversion<StringOp> {
     auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
     mlir::Value constantString = createGlobalString(
-        rewriter, loc, moduleOp, "globalString", op.getString());
+        rewriter, loc, moduleOp, "runtimeStr", op.getString());
 
     rewriter.replaceOp(op, constantString);
 
