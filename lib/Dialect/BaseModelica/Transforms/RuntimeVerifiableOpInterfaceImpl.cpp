@@ -156,11 +156,12 @@ namespace mlir::bmodelica {
 // TensorExtractOp
 
 struct TensorExtractOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<TensorExtractOpRuntimeVerifier, TensorExtractOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<
+          TensorExtractOpRuntimeVerifier, TensorExtractOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
-    auto castedOp = mlir::cast<TensorExtractOp>(op);                                                
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
+    auto castedOp = mlir::cast<TensorExtractOp>(op);
     mlir::Value operand = castedOp.getTensor();
     mlir::ValueRange indices = castedOp.getIndices();
     int64_t rank = castedOp.getTensor().getType().getRank();
@@ -175,17 +176,19 @@ struct TensorExtractOpRuntimeVerifier
 // TensorInsertOp
 
 struct TensorInsertOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<TensorInsertOpRuntimeVerifier, TensorInsertOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<
+          TensorInsertOpRuntimeVerifier, TensorInsertOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
-    auto castedOp = mlir::cast<TensorInsertOp>(op);                                                 
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
+    auto castedOp = mlir::cast<TensorInsertOp>(op);
     mlir::Value operand = castedOp.getDestination();
     mlir::ValueRange indices = castedOp.getIndices();
     int64_t rank = castedOp.getDestination().getType().getRank();
 
-    verifyTensorIndexedAccess(builder, loc, operand, indices, rank,
-                              "Model error: TensorInsertOp out of bounds access");
+    verifyTensorIndexedAccess(
+        builder, loc, operand, indices, rank,
+        "Model error: TensorInsertOp out of bounds access");
   }
 };
 
@@ -193,16 +196,18 @@ struct TensorInsertOpRuntimeVerifier
 // TensorInsertSliceOp
 
 struct TensorInsertSliceOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<TensorInsertSliceOpRuntimeVerifier, TensorInsertSliceOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<
+          TensorInsertSliceOpRuntimeVerifier, TensorInsertSliceOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
     auto castedOp = mlir::cast<TensorInsertSliceOp>(op);
     mlir::Value destination = castedOp.getDestination();
     mlir::Value source = castedOp.getValue();
 
     // verify if the source is a tensor
-    if (auto tensorType = mlir::dyn_cast<TensorType>(castedOp.getValue().getType())) {
+    if (auto tensorType =
+            mlir::dyn_cast<TensorType>(castedOp.getValue().getType())) {
       int64_t firstOperand = 0;
       for (mlir::Value operand : castedOp.getSubscriptions()) {
         if (mlir::isa<RangeType>(operand.getType())) {
@@ -252,13 +257,15 @@ struct TensorInsertSliceOpRuntimeVerifier
 // DimOp
 
 struct DimOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<DimOpRuntimeVerifier, DimOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<DimOpRuntimeVerifier,
+                                                         DimOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                                      mlir::OpBuilder &builder,
-                                                      mlir::Location loc) const {
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
     auto castedOp = mlir::cast<DimOp>(op);
     mlir::Value dim = castedOp.getDimension();
-    auto arrayShapedType = mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
+    auto arrayShapedType =
+        mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
     int64_t rank = arrayShapedType.getRank();
 
     verifyArgumentIsBetween(builder, loc, dim, 0, false, rank, true,
@@ -270,10 +277,11 @@ struct DimOpRuntimeVerifier
 // LoadOp
 
 struct LoadOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<LoadOpRuntimeVerifier, LoadOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<LoadOpRuntimeVerifier,
+                                                         LoadOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
     auto castedOp = mlir::cast<LoadOp>(op);
     mlir::ValueRange indices = castedOp.getIndices();
 
@@ -284,11 +292,12 @@ struct LoadOpRuntimeVerifier
       // at some point down the pipeline, so convert everything
       // to tensor to avoid issues
       mlir::Value operand;
-      auto operandShapedType = mlir::cast<mlir::ShapedType>(castedOp.getArrayType());
+      auto operandShapedType =
+          mlir::cast<mlir::ShapedType>(castedOp.getArrayType());
       auto operandTensorType = mlir::RankedTensorType::get(
           operandShapedType.getShape(), operandShapedType.getElementType());
-      operand =
-          builder.create<ArrayToTensorOp>(loc, operandTensorType, castedOp.getArray());
+      operand = builder.create<ArrayToTensorOp>(loc, operandTensorType,
+                                                castedOp.getArray());
 
       auto tensorShapedType = mlir::cast<mlir::ShapedType>(operand.getType());
       int64_t rank = tensorShapedType.getRank();
@@ -303,10 +312,11 @@ struct LoadOpRuntimeVerifier
 // StoreOp
 
 struct StoreOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<StoreOpRuntimeVerifier, StoreOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<StoreOpRuntimeVerifier,
+                                                         StoreOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
     auto castedOp = mlir::cast<StoreOp>(op);
     mlir::ValueRange indices = castedOp.getIndices();
 
@@ -317,11 +327,12 @@ struct StoreOpRuntimeVerifier
       // at some point down the pipeline, so convert everything
       // to tensor to avoid issues
       mlir::Value operand;
-      auto operandShapedType = mlir::cast<mlir::ShapedType>(castedOp.getArrayType());
+      auto operandShapedType =
+          mlir::cast<mlir::ShapedType>(castedOp.getArrayType());
       auto operandTensorType = mlir::RankedTensorType::get(
           operandShapedType.getShape(), operandShapedType.getElementType());
-      operand =
-          builder.create<ArrayToTensorOp>(loc, operandTensorType, castedOp.getArray());
+      operand = builder.create<ArrayToTensorOp>(loc, operandTensorType,
+                                                castedOp.getArray());
 
       auto tensorShapedType = mlir::cast<mlir::ShapedType>(operand.getType());
       int64_t rank = tensorShapedType.getRank();
@@ -336,26 +347,29 @@ struct StoreOpRuntimeVerifier
 // SubscriptionOp
 
 struct SubscriptionOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<SubscriptionOpRuntimeVerifier, SubscriptionOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<
+          SubscriptionOpRuntimeVerifier, SubscriptionOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
     auto castedOp = mlir::cast<SubscriptionOp>(op);
 
     // Modelica arrays will eventually be converted to MLIR tensors
     // at some point down the pipeline, so convert everything
     // to tensor to avoid issues
-    auto operandShapedType = mlir::cast<mlir::ShapedType>(castedOp.getSourceArrayType());
+    auto operandShapedType =
+        mlir::cast<mlir::ShapedType>(castedOp.getSourceArrayType());
     auto operandTensorType = mlir::RankedTensorType::get(
         operandShapedType.getShape(), operandShapedType.getElementType());
-    auto tensorOperand =
-        builder.create<ArrayToTensorOp>(loc, operandTensorType, castedOp.getSource());
+    auto tensorOperand = builder.create<ArrayToTensorOp>(loc, operandTensorType,
+                                                         castedOp.getSource());
 
     mlir::ValueRange indices = castedOp.getIndices();
     int64_t rank = castedOp.getSourceArrayType().getRank();
 
-    verifyTensorIndexedAccess(builder, loc, tensorOperand, indices, rank,
-                              "Model error: SubscriptionOp out of bounds access");
+    verifyTensorIndexedAccess(
+        builder, loc, tensorOperand, indices, rank,
+        "Model error: SubscriptionOp out of bounds access");
   }
 };
 
@@ -367,7 +381,8 @@ struct SubscriptionOpRuntimeVerifier
 // DivOp
 
 struct DivOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<DivOpRuntimeVerifier, DivOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<DivOpRuntimeVerifier,
+                                                         DivOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -381,7 +396,8 @@ struct DivOpRuntimeVerifier
 // DivEWOp
 
 struct DivEWOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<DivEWOpRuntimeVerifier, DivEWOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<DivEWOpRuntimeVerifier,
+                                                         DivEWOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -400,7 +416,8 @@ struct DivEWOpRuntimeVerifier
     }
 
     auto assertOp = builder.create<AssertOp>(
-        loc, builder.getStringAttr("Model error: element-wise division by zero"),
+        loc,
+        builder.getStringAttr("Model error: element-wise division by zero"),
         builder.getI64IntegerAttr(2));
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -470,7 +487,8 @@ struct DivEWOpRuntimeVerifier
 // AcosOp
 
 struct AcosOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<AcosOpRuntimeVerifier, AcosOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<AcosOpRuntimeVerifier,
+                                                         AcosOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -487,7 +505,8 @@ struct AcosOpRuntimeVerifier
 // AsinOp
 
 struct AsinOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<AsinOpRuntimeVerifier, AsinOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<AsinOpRuntimeVerifier,
+                                                         AsinOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -504,7 +523,8 @@ struct AsinOpRuntimeVerifier
 // DivTruncOp
 
 struct DivTruncOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<DivTruncOpRuntimeVerifier, DivTruncOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<
+          DivTruncOpRuntimeVerifier, DivTruncOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -519,11 +539,12 @@ struct DivTruncOpRuntimeVerifier
 // LogOp
 
 struct LogOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<LogOpRuntimeVerifier, LogOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<LogOpRuntimeVerifier,
+                                                         LogOp> {
   void generateRuntimeVerification(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              mlir::Location loc) const {
-    auto castedOp = mlir::cast<LogOp>(op);                                            
+                                   mlir::OpBuilder &builder,
+                                   mlir::Location loc) const {
+    auto castedOp = mlir::cast<LogOp>(op);
     mlir::Value operand = castedOp.getOperand();
 
     verifyArgumentIsPositive(
@@ -536,7 +557,8 @@ struct LogOpRuntimeVerifier
 // Log10Op
 
 struct Log10OpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<Log10OpRuntimeVerifier, Log10Op> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<Log10OpRuntimeVerifier,
+                                                         Log10Op> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -553,7 +575,8 @@ struct Log10OpRuntimeVerifier
 // ModOp
 
 struct ModOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<ModOpRuntimeVerifier, ModOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<ModOpRuntimeVerifier,
+                                                         ModOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -570,7 +593,8 @@ struct ModOpRuntimeVerifier
 // RemOp
 
 struct RemOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<RemOpRuntimeVerifier, RemOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<RemOpRuntimeVerifier,
+                                                         RemOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -587,14 +611,16 @@ struct RemOpRuntimeVerifier
 // SizeOp
 
 struct SizeOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<SizeOpRuntimeVerifier, SizeOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<SizeOpRuntimeVerifier,
+                                                         SizeOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
     auto castedOp = mlir::cast<SizeOp>(op);
     if (castedOp.getNumOperands() == 2) {
       mlir::Value dim = castedOp.getDimension();
-      auto arrayShapedType = mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
+      auto arrayShapedType =
+          mlir::cast<mlir::ShapedType>(castedOp.getArray().getType());
       int64_t rank = arrayShapedType.getRank();
 
       verifyArgumentIsBetween(builder, loc, dim, 0, false, rank, true,
@@ -607,7 +633,8 @@ struct SizeOpRuntimeVerifier
 // SqrtOp
 
 struct SqrtOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<SqrtOpRuntimeVerifier, SqrtOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<SqrtOpRuntimeVerifier,
+                                                         SqrtOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -623,7 +650,8 @@ struct SqrtOpRuntimeVerifier
 // TanOp
 
 struct TanOpRuntimeVerifier
-    : public RuntimeVerifiableOpInterface::ExternalModel<TanOpRuntimeVerifier, TanOp> {
+    : public RuntimeVerifiableOpInterface::ExternalModel<TanOpRuntimeVerifier,
+                                                         TanOp> {
   void generateRuntimeVerification(mlir::Operation *op,
                                    mlir::OpBuilder &builder,
                                    mlir::Location loc) const {
@@ -643,8 +671,8 @@ struct TanOpRuntimeVerifier
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.createBlock(&assertOp.getConditionRegion());
 
-    mlir::Value operandAbs =
-        builder.create<AbsOp>(loc, RealType::get(builder.getContext()), operand);
+    mlir::Value operandAbs = builder.create<AbsOp>(
+        loc, RealType::get(builder.getContext()), operand);
 
     mlir::Value pi = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), M_PI));
@@ -683,7 +711,8 @@ struct TanOpRuntimeVerifier
         builder.create<AbsOp>(loc, RealType::get(builder.getContext()), diff);
     mlir::Value isMulPiLower = builder.create<LteOp>(loc, diffAbs, epsilon);
 
-    mlir::Value isMulPi = builder.create<OrOp>(loc, isMulPiLower, isMulPiHigher);
+    mlir::Value isMulPi =
+        builder.create<OrOp>(loc, isMulPiLower, isMulPiHigher);
 
     // Same thing for pi/2
 
@@ -704,7 +733,7 @@ struct TanOpRuntimeVerifier
     builder.create<YieldOp>(assertOp.getLoc(), condition);
   }
 };
-} // namespace
+} // namespace mlir::bmodelica
 
 namespace mlir::bmodelica {
 void registerRuntimeVerifiableOpInterfaceExternalModels(
@@ -727,9 +756,11 @@ void registerRuntimeVerifiableOpInterfaceExternalModels(
     StoreOp::attachInterface<::StoreOpRuntimeVerifier>(*context);
     SubscriptionOp::attachInterface<::SubscriptionOpRuntimeVerifier>(*context);
     TanOp::attachInterface<::TanOpRuntimeVerifier>(*context);
-    TensorExtractOp::attachInterface<::TensorExtractOpRuntimeVerifier>(*context);
+    TensorExtractOp::attachInterface<::TensorExtractOpRuntimeVerifier>(
+        *context);
     TensorInsertOp::attachInterface<::TensorInsertOpRuntimeVerifier>(*context);
-    TensorInsertSliceOp::attachInterface<::TensorInsertSliceOpRuntimeVerifier>(*context);
+    TensorInsertSliceOp::attachInterface<::TensorInsertSliceOpRuntimeVerifier>(
+        *context);
   });
 }
 } // namespace mlir::bmodelica
