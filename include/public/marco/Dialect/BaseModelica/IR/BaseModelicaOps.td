@@ -3349,13 +3349,13 @@ def BaseModelica_AssertOp : BaseModelica_Op<"assert",
 
     let arguments = (ins
         StrAttr:$message,
-        I64Attr:$level
-    );
-
-    // TODO(Tor): Tighten the region constraint
-    let regions = (region AnyRegion:$conditionRegion);
+        I64Attr:$level);
 
     let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$conditionRegion
+    );
 
     let hasCustomAssemblyFormat = 1;
 }
