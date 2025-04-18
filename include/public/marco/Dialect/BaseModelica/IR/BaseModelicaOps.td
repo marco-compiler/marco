@@ -15,7 +15,6 @@ include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
-include "mlir/Interfaces/RuntimeVerifiableOpInterface.td"
 
 //===---------------------------------------------------------------------===//
 // Type constraints
@@ -527,8 +526,7 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
     [TypesMatchWith<"result type matches element type of 'tensor'",
                      "tensor", "result",
                      "mlir::cast<mlir::TensorType>($_self).getElementType()">,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    NoMemoryEffect]>
 {
     let arguments = (ins
         AnyTensor:$tensor,
@@ -549,8 +547,7 @@ def Modelica_TensorExtractOp : BaseModelica_Op<"tensor_extract",
 
 def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
     [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+                    "destination", "result", "$_self">]>
 {
     let summary = "Insert a value into a tensor.";
 
@@ -572,8 +569,7 @@ def Modelica_TensorInsertOp : BaseModelica_Op<"tensor_insert",
 
 def Modelica_TensorInsertSliceOp : BaseModelica_Op<"tensor_insert_slice",
     [TypesMatchWith<"result type matches type of 'destination'",
-                    "destination", "result", "$_self">,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+                    "destination", "result", "$_self">]>
 {
     let summary = "Insert a tensor into another one.";
 
@@ -851,8 +847,7 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
 }
 
 def Modelica_DimOp : BaseModelica_Op<"dim", 
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -881,8 +876,7 @@ def BaseModelica_LoadOp : BaseModelica_Op<"load",
     [TypesMatchWith<"result type matches element type of 'array'",
                      "array", "result",
                      "mlir::cast<ArrayType>($_self).getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Load a value from an array.";
 
@@ -931,8 +925,7 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
     [TypesMatchWith<"type of 'value' matches element type of 'array'",
                     "array", "value",
                     "mlir::cast<ArrayType>($_self).getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Store a value into an array.";
 
@@ -980,8 +973,7 @@ def BaseModelica_StoreOp : BaseModelica_Op<"store",
 
 def BaseModelica_SubscriptionOp : BaseModelica_Op<"subscription",
     [ViewLikeOpInterface,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    NoMemoryEffect]>
 {
     let summary = "Create a view over an array.";
 
@@ -1813,8 +1805,7 @@ def BaseModelica_DivOp : BaseModelica_Op<"div",
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
 {
     let summary = "Division.";
 
@@ -1853,8 +1844,7 @@ def BaseModelica_DivEWOp : BaseModelica_Op<"div_ew",
     DeclareOpInterfaceMethods<DistributableOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>]>
 {
     let summary = "Element-wise division.";
 
@@ -2332,8 +2322,7 @@ def BaseModelica_AbsOp : BaseModelica_Op<"abs",
 }
 
 def Modelica_AcosOp : BaseModelica_Op<"acos",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Trigonometric inverse cosine function.";
 
@@ -2359,8 +2348,7 @@ def Modelica_AcosOp : BaseModelica_Op<"acos",
 }
 
 def Modelica_AsinOp : BaseModelica_Op<"asin",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Trigonometric inverse sine function";
 
@@ -2545,8 +2533,7 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
     }];
 }
 
-def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc",
-    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc">
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2725,8 +2712,7 @@ def Modelica_LinspaceOp : BaseModelica_Op<"linspace",
 }
 
 def Modelica_LogOp : BaseModelica_Op<"log",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Natural (base e) logarithm function.";
 
@@ -2752,8 +2738,7 @@ def Modelica_LogOp : BaseModelica_Op<"log",
 }
 
 def Modelica_Log10Op : BaseModelica_Op<"log10",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Base 10 logarithm function.";
 
@@ -2868,8 +2853,7 @@ def BaseModelica_MinOp : BaseModelica_Op<"min",
     }];
 }
 
-def Modelica_ModOp : BaseModelica_Op<"mod",
-    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+def Modelica_ModOp : BaseModelica_Op<"mod">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2975,8 +2959,7 @@ def BaseModelica_ProductOp : BaseModelica_Op<"product",
     }];
 }
 
-def Modelica_RemOp : BaseModelica_Op<"rem",
-    [DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+def Modelica_RemOp : BaseModelica_Op<"rem">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -3083,8 +3066,7 @@ def BaseModelica_SinhOp : BaseModelica_Op<"sinh",
 
 def BaseModelica_SizeOp : BaseModelica_Op<"size",
     [AlwaysSpeculatable,
-    NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    NoMemoryEffect]>
 {
     let summary = "Get the dimensions of an array.";
 
@@ -3125,8 +3107,7 @@ def BaseModelica_SizeOp : BaseModelica_Op<"size",
 }
 
 def Modelica_SqrtOp : BaseModelica_Op<"sqrt",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Square root.";
 
@@ -3208,8 +3189,7 @@ def BaseModelica_SymmetricOp : BaseModelica_Op<"symmetric",
 }
 
 def Modelica_TanOp : BaseModelica_Op<"tan",
-    [NoMemoryEffect,
-    DeclareOpInterfaceMethods<RuntimeVerifiableOpInterface>]>
+    [NoMemoryEffect]>
 {
     let summary = "Trigonometric tangent function.";
 
