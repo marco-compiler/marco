@@ -2399,16 +2399,17 @@ void populateBaseModelicaToRuntimeCallConversionPatterns(
 
   // Built-in functions.
   patterns.insert<
-      AbsOpLowering, AcosOpLowering, AsinOpLowering, AtanOpLowering,
-      Atan2OpLowering, CeilOpLowering, CosOpLowering, CoshOpLowering,
-      DiagonalOpLowering, DivTruncOpLowering, ExpOpLowering, FloorOpLowering,
-      IdentityOpLowering, IntegerOpLowering, LinspaceOpLowering, LogOpLowering,
-      Log10OpLowering, MaxOpScalarsLowering, MaxOpArrayLowering,
-      MinOpScalarsLowering, MinOpArrayLowering, ModOpLowering, OnesOpLowering,
-      ProductOpLowering, RemOpLowering, SignOpLowering, SinOpLowering,
-      SinhOpLowering, SqrtOpLowering, SumOpLowering, SymmetricOpLowering,
-      TanOpLowering, TanhOpLowering, TransposeOpLowering, ZerosOpLowering,
-      AssertOpLowering>(typeConverter, context, symbolTableCollection);
+      AbsOpLowering, AcosOpLowering, AsinOpLowering, AssertOpLowering,
+      AtanOpLowering, Atan2OpLowering, CeilOpLowering, CosOpLowering,
+      CoshOpLowering, DiagonalOpLowering, DivTruncOpLowering, ExpOpLowering,
+      FloorOpLowering, IdentityOpLowering, IntegerOpLowering,
+      LinspaceOpLowering, LogOpLowering, Log10OpLowering, MaxOpScalarsLowering,
+      MaxOpArrayLowering, MinOpScalarsLowering, MinOpArrayLowering,
+      ModOpLowering, OnesOpLowering, ProductOpLowering, RemOpLowering,
+      SignOpLowering, SinOpLowering, SinhOpLowering, SqrtOpLowering,
+      SumOpLowering, SymmetricOpLowering, TanOpLowering, TanhOpLowering,
+      TransposeOpLowering, ZerosOpLowering>(typeConverter, context,
+                                            symbolTableCollection);
 
   // Utility operations.
   patterns.insert<PrintOpLowering>(typeConverter, context,
