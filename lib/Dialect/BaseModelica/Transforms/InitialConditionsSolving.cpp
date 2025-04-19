@@ -119,15 +119,12 @@ addStartEquationsToSchedule(mlir::RewriterBase &rewriter,
       return mlir::failure();
     }
 
-    IndexSet variableIndices =
-        variableOp.getIndices().getCanonicalRepresentation();
-
     rewriter.setInsertionPointToStart(initialOp.getBody());
 
     auto instanceOp =
         rewriter.create<StartEquationInstanceOp>(startOp.getLoc(), templateOp);
 
-    instanceOp.getProperties().setIndices(variableIndices);
+    instanceOp.getProperties().setIndices(variableOp.getIndices());
   }
 
   return mlir::success();

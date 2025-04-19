@@ -272,17 +272,17 @@ public:
       return mlir::failure();
     }
 
-    // Get the canonical version of index sets in order to guarantee
-    // consistency among functions and minimal code size.
-    llvm::DenseMap<size_t, IndexSet> printableIndicesMap;
+    // Get the canonical ranges to guarantee consistency among functions and
+    // minimal code size.
+    llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
+        printableIndicesMap;
 
     for (const auto &printInfo : llvm::enumerate(op.getProperties().value)) {
       if (printInfo.value().isa<IndexSet>()) {
         const IndexSet &indices = printInfo.value().get<IndexSet>();
 
         if (!indices.empty()) {
-          printableIndicesMap[printInfo.index()] =
-              indices.getCanonicalRepresentation();
+          indices.getCompactRanges(printableIndicesMap[printInfo.index()]);
         }
       }
     }
@@ -383,7 +383,8 @@ private:
 
   mlir::LogicalResult createGetVariableNumOfPrintableRangesFunction(
       mlir::OpBuilder &builder, mlir::Location loc,
-      const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const {
+      const llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
+          printableIndicesMap) const {
     auto funcOp = builder.create<mlir::func::FuncOp>(
         loc, "getVariableNumOfPrintableRanges",
         builder.getFunctionType(builder.getI64Type(), builder.getI64Type()));
@@ -404,12 +405,10 @@ private:
     llvm::DenseMap<size_t, llvm::DenseSet<int64_t>> resultsVariablesMap;
 
     for (const auto &entry : printableIndicesMap) {
-      const IndexSet &indexSet = entry.getSecond();
+      const auto &ranges = entry.getSecond();
 
-      if (!indexSet.empty()) {
-        size_t rangesAmount =
-            std::distance(indexSet.rangesBegin(), indexSet.rangesEnd());
-
+      if (!ranges.empty()) {
+        size_t rangesAmount = ranges.size();
         resultsVariablesMap[rangesAmount].insert(entry.getFirst());
       }
     }
@@ -451,7 +450,8 @@ private:
 
   mlir::LogicalResult createGetVariablePrintableRangeBeginFunction(
       mlir::OpBuilder &builder, mlir::Location loc,
-      const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const {
+      const llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
+          printableIndicesMap) const {
     auto callback = [](const Range &range) -> int64_t {
       return range.getBegin();
     };
@@ -463,7 +463,8 @@ private:
 
   mlir::LogicalResult createGetVariablePrintableRangeEndFunction(
       mlir::OpBuilder &builder, mlir::Location loc,
-      const llvm::DenseMap<size_t, IndexSet> printableIndicesMap) const {
+      const llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
+          printableIndicesMap) const {
     auto callback = [](const Range &range) -> int64_t {
       return range.getEnd();
     };
@@ -476,7 +477,8 @@ private:
   mlir::LogicalResult createGetVariablePrintableRangeBoundariesFunction(
       mlir::OpBuilder &builder, mlir::Location loc,
       llvm::StringRef functionName,
-      const llvm::DenseMap<size_t, IndexSet> printableIndicesMap,
+      const llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
+          printableIndicesMap,
       llvm::function_ref<int64_t(const Range &)> boundaryGetterCallback) const {
     llvm::SmallVector<mlir::Type, 3> argTypes;
     argTypes.push_back(builder.getI64Type());
@@ -508,11 +510,10 @@ private:
     std::set<MultidimensionalRange> uniqueMultidimensionalRanges;
 
     for (const auto &entry : printableIndicesMap) {
-      const IndexSet &indexSet = entry.getSecond();
-      assert(!indexSet.empty());
+      const auto &ranges = entry.getSecond();
+      assert(!ranges.empty());
 
-      for (const MultidimensionalRange &multidimensionalRange :
-           llvm::make_range(indexSet.rangesBegin(), indexSet.rangesEnd())) {
+      for (const MultidimensionalRange &multidimensionalRange : ranges) {
         uniqueMultidimensionalRanges.insert(multidimensionalRange);
 
         for (size_t i = 0, e = multidimensionalRange.rank(); i < e; ++i) {
@@ -591,7 +592,7 @@ private:
     llvm::SmallVector<mlir::ValueRange> variablesCaseOperandsRefs;
 
     for (const auto &entry : printableIndicesMap) {
-      const IndexSet &indexSet = entry.getSecond();
+      const auto &ranges = entry.getSecond();
 
       // Create the block for the variable.
       // The arguments are the index of the multidimensional range and its
@@ -619,8 +620,7 @@ private:
       llvm::SmallVector<llvm::SmallVector<mlir::Value, 1>> caseOperands;
       llvm::SmallVector<mlir::ValueRange, 1> caseOperandsRefs;
 
-      for (const MultidimensionalRange &multidimensionalRange :
-           llvm::make_range(indexSet.rangesBegin(), indexSet.rangesEnd())) {
+      for (const MultidimensionalRange &multidimensionalRange : ranges) {
         caseValues.push_back(caseValues.size());
 
         caseBlocks.push_back(

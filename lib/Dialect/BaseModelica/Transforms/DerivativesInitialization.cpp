@@ -122,7 +122,7 @@ mlir::LogicalResult
 createMainEquations(mlir::OpBuilder &builder,
                     mlir::SymbolTableCollection &symbolTableCollection,
                     ModelOp modelOp, mlir::SymbolRefAttr derivativeName,
-                    const IndexSet &indices) {
+                    llvm::ArrayRef<MultidimensionalRange> indices) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(modelOp.getBody());
 
@@ -133,8 +133,8 @@ createMainEquations(mlir::OpBuilder &builder,
 
   auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
 
-  builder.setInsertionPointToStart(
-      equationTemplateOp.createBody(indices.rank()));
+  builder.setInsertionPointToStart(equationTemplateOp.createBody(
+      indices.empty() ? 0 : indices.front().rank()));
 
   mlir::Value variable = builder.create<VariableGetOp>(loc, variableOp);
 
@@ -200,9 +200,12 @@ DerivativesInitializationPass::processModelOp(ModelOp modelOp) {
       }
 
       if (!nonDerivedIndices.empty()) {
-        if (mlir::failed(createMainEquations(
-                builder, symbolTableCollection, modelOp, *derivativeName,
-                nonDerivedIndices.getCanonicalRepresentation()))) {
+        llvm::SmallVector<MultidimensionalRange> compactRanges;
+        nonDerivedIndices.getCompactRanges(compactRanges);
+
+        if (mlir::failed(createMainEquations(builder, symbolTableCollection,
+                                             modelOp, *derivativeName,
+                                             compactRanges))) {
           return mlir::failure();
         }
       }

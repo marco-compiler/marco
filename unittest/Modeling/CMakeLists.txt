@@ -4,8 +4,7 @@ set(SOURCES
     Common.cpp
     CyclesTest.cpp
     DirectedGraphTest.cpp
-    IndexSetListTest.cpp
-    IndexSetRTreeTest.cpp
+    IndexSetTest.cpp
     MCIMTest.cpp
     MultidimensionalRangeTest.cpp
     PointTest.cpp

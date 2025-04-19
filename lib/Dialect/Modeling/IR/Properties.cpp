@@ -28,11 +28,11 @@ mlir::LogicalResult setPropertiesFromAttribute(
 
 mlir::ArrayAttr getPropertiesAsAttribute(mlir::MLIRContext *context,
                                          const IndexSet &prop) {
-  IndexSet canonical = prop.getCanonicalRepresentation();
   llvm::SmallVector<mlir::Attribute> rangeAttrs;
+  llvm::SmallVector<MultidimensionalRange> compactRanges;
+  prop.getCompactRanges(compactRanges);
 
-  for (const MultidimensionalRange &range :
-       llvm::make_range(canonical.rangesBegin(), canonical.rangesEnd())) {
+  for (const MultidimensionalRange &range : compactRanges) {
     rangeAttrs.push_back(MultidimensionalRangeAttr::get(context, range));
   }
 
@@ -81,19 +81,14 @@ mlir::LogicalResult readFromMlirBytecode(mlir::DialectBytecodeReader &reader,
 
 void writeToMlirBytecode(mlir::DialectBytecodeWriter &writer,
                          const IndexSet &prop) {
-  IndexSet canonical = prop.getCanonicalRepresentation();
-  llvm::SmallVector<MultidimensionalRange> ranges;
-
-  for (const MultidimensionalRange &range :
-       llvm::make_range(canonical.rangesBegin(), canonical.rangesEnd())) {
-    ranges.push_back(range);
-  }
+  llvm::SmallVector<MultidimensionalRange> compactRanges;
+  prop.getCompactRanges(compactRanges);
 
   size_t rank = prop.rank();
   writer.writeVarInt(rank);
-  writer.writeVarInt(ranges.size());
+  writer.writeVarInt(compactRanges.size());
 
-  for (const MultidimensionalRange &range : ranges) {
+  for (const MultidimensionalRange &range : compactRanges) {
     for (size_t dim = 0; dim < rank; ++dim) {
       writer.writeSignedVarInt(range[dim].getBegin());
       writer.writeSignedVarInt(range[dim].getEnd());
@@ -139,7 +134,9 @@ mlir::LogicalResult parse(mlir::OpAsmParser &parser, IndexSet &prop) {
 }
 
 void print(mlir::OpAsmPrinter &printer, const IndexSet &prop) {
-  IndexSet canonical = prop.getCanonicalRepresentation();
+  llvm::SmallVector<MultidimensionalRange> compactRanges;
+  prop.getCompactRanges(compactRanges);
+
   printer << "{";
 
   auto rangeFn = [&](const MultidimensionalRange &range) {
@@ -150,10 +147,7 @@ void print(mlir::OpAsmPrinter &printer, const IndexSet &prop) {
   };
 
   auto betweenFn = [&]() { printer << ","; };
-
-  llvm::interleave(canonical.rangesBegin(), canonical.rangesEnd(), rangeFn,
-                   betweenFn);
-
+  llvm::interleave(compactRanges, rangeFn, betweenFn);
   printer << "}";
 }
 

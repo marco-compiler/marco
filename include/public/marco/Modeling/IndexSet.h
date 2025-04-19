@@ -2,55 +2,36 @@
 #define MARCO_MODELING_INDEXSET_H
 
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "mlir/IR/AffineMap.h"
+#include "marco/Modeling/RTree.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
-#include <memory>
 
 namespace llvm {
 class raw_ostream;
 }
 
 namespace marco::modeling {
-class IndexSet {
-public:
-  class PointIterator {
-  public:
-    using iterator_category = std::input_iterator_tag;
-    using value_type = Point;
-    using difference_type = std::ptrdiff_t;
-    using pointer = const Point *;
-    using reference = const Point &;
+/// R-Tree information specialization for the MultidimensionalRange class.
+template <>
+struct RTreeInfo<MultidimensionalRange> {
+  static const MultidimensionalRange &
+  getShape(const MultidimensionalRange &val);
 
-    class Impl;
+  static bool isEqual(const MultidimensionalRange &first,
+                      const MultidimensionalRange &second);
 
-    PointIterator(std::unique_ptr<Impl> impl);
+  static void dump(llvm::raw_ostream &os, const MultidimensionalRange &val);
+};
+} // namespace marco::modeling
 
-    PointIterator(const PointIterator &other);
-
-    PointIterator(PointIterator &&other);
-
-    ~PointIterator();
-
-    PointIterator &operator=(const PointIterator &other);
-
-    friend void swap(PointIterator &first, PointIterator &second);
-
-    bool operator==(const PointIterator &it) const;
-
-    bool operator!=(const PointIterator &it) const;
-
-    PointIterator &operator++();
-
-    PointIterator operator++(int);
-
-    value_type operator*() const;
-
-  private:
-    std::unique_ptr<Impl> impl;
-  };
-
+namespace marco::modeling {
+/// R-Tree IndexSet implementation.
+class IndexSet
+    : public r_tree::impl::RTreeCRTP<IndexSet, MultidimensionalRange> {
   class RangeIterator {
+    using base_iterator = RTreeCRTP::const_object_iterator;
+    base_iterator baseIterator;
+
   public:
     using iterator_category = std::input_iterator_tag;
     using value_type = MultidimensionalRange;
@@ -58,111 +39,135 @@ public:
     using pointer = const MultidimensionalRange *;
     using reference = const MultidimensionalRange &;
 
-    class Impl;
+    RangeIterator(base_iterator baseIterator);
 
-    RangeIterator(std::unique_ptr<Impl> impl);
+    /// @name Constructors.
+    /// {
 
-    RangeIterator(const RangeIterator &other);
+    static IndexSet::RangeIterator begin(const IndexSet &obj);
 
-    RangeIterator(RangeIterator &&other);
+    static IndexSet::RangeIterator end(const IndexSet &obj);
 
-    ~RangeIterator();
+    /// }
 
-    RangeIterator &operator=(const RangeIterator &other);
+    bool operator==(const IndexSet::RangeIterator &other) const;
 
-    friend void swap(RangeIterator &first, RangeIterator &second);
-
-    bool operator==(const RangeIterator &it) const;
-
-    bool operator!=(const RangeIterator &it) const;
+    bool operator!=(const IndexSet::RangeIterator &other) const;
 
     RangeIterator &operator++();
 
-    RangeIterator operator++(int);
+    IndexSet::RangeIterator operator++(int);
 
     reference operator*() const;
-
-  private:
-    std::unique_ptr<Impl> impl;
   };
 
+  class PointIterator {
+    IndexSet::RangeIterator currentRangeIt;
+    IndexSet::RangeIterator endRangeIt;
+    std::optional<MultidimensionalRange::const_iterator> currentPointIt;
+    std::optional<MultidimensionalRange::const_iterator> endPointIt;
+
+  public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = Point;
+    using difference_type = std::ptrdiff_t;
+    using pointer = const Point *;
+    using reference = const Point &;
+
+    /// @name Constructors.
+    /// {
+
+    static IndexSet::PointIterator begin(const IndexSet &indexSet);
+
+    static IndexSet::PointIterator end(const IndexSet &indexSet);
+
+    /// }
+
+    bool operator==(const IndexSet::PointIterator &other) const;
+
+    bool operator!=(const IndexSet::PointIterator &other) const;
+
+    IndexSet::PointIterator &operator++();
+
+    IndexSet::PointIterator operator++(int);
+
+    value_type operator*() const;
+
+  private:
+    PointIterator(
+        IndexSet::RangeIterator currentRangeIt,
+        IndexSet::RangeIterator endRangeIt,
+        std::optional<MultidimensionalRange::const_iterator> currentPointIt,
+        std::optional<MultidimensionalRange::const_iterator> endPointIt);
+
+    bool shouldProceed() const;
+
+    void fetchNext();
+
+    void advance();
+  };
+
+public:
   using const_range_iterator = RangeIterator;
   using const_point_iterator = PointIterator;
 
-  class Impl;
-
-  IndexSet();
+  using RTreeCRTP::RTreeCRTP;
 
   IndexSet(llvm::ArrayRef<Point> points);
 
   IndexSet(llvm::ArrayRef<MultidimensionalRange> ranges);
 
-  IndexSet(const IndexSet &other);
+  using RTreeCRTP::operator==;
 
-  IndexSet(IndexSet &&other);
+  bool operator==(const Point &other) const;
 
-  ~IndexSet();
-
-  IndexSet &operator=(const IndexSet &other);
-
-  IndexSet &operator=(IndexSet &&other);
-
-  friend void swap(IndexSet &first, IndexSet &second);
+  bool operator==(const MultidimensionalRange &other) const;
 
   friend llvm::hash_code hash_value(const IndexSet &value);
 
-  static IndexSet getTombstoneKey();
+  using RTreeCRTP::operator!=;
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const IndexSet &obj);
+  bool operator!=(const Point &other) const;
 
-  llvm::raw_ostream &dump(llvm::raw_ostream &os) const;
+  bool operator!=(const MultidimensionalRange &other) const;
 
-  bool operator==(const Point &rhs) const;
+  int compare(const IndexSet &other) const;
 
-  bool operator==(const MultidimensionalRange &rhs) const;
+  void setFromRanges(llvm::ArrayRef<MultidimensionalRange> ranges);
 
-  bool operator==(const IndexSet &rhs) const;
+  IndexSet &operator+=(Point other);
 
-  bool operator!=(const Point &rhs) const;
+private:
+  void insert(MultidimensionalRange other) override;
 
-  bool operator!=(const MultidimensionalRange &rhs) const;
+public:
+  IndexSet &operator+=(MultidimensionalRange other);
 
-  bool operator!=(const IndexSet &rhs) const;
+  IndexSet &operator+=(const IndexSet &other);
 
-  bool operator<(const IndexSet &rhs) const;
+  IndexSet operator+(Point other) const;
 
-  IndexSet &operator+=(const Point &rhs);
+  IndexSet operator+(MultidimensionalRange other) const;
 
-  IndexSet &operator+=(const MultidimensionalRange &rhs);
+  IndexSet operator+(const IndexSet &other) const;
 
-  IndexSet &operator+=(const IndexSet &rhs);
+  IndexSet &operator-=(const Point &other);
 
-  IndexSet operator+(const Point &rhs) const;
+private:
+  void remove(const MultidimensionalRange &other) override;
 
-  IndexSet operator+(const MultidimensionalRange &rhs) const;
+public:
+  IndexSet &operator-=(const MultidimensionalRange &other);
 
-  IndexSet operator+(const IndexSet &rhs) const;
+  IndexSet &operator-=(const IndexSet &other);
 
-  IndexSet &operator-=(const Point &rhs);
+  IndexSet operator-(const Point &other) const;
 
-  IndexSet &operator-=(const MultidimensionalRange &rhs);
+  IndexSet operator-(const MultidimensionalRange &other) const;
 
-  IndexSet &operator-=(const IndexSet &rhs);
-
-  IndexSet operator-(const Point &rhs) const;
-
-  IndexSet operator-(const MultidimensionalRange &rhs) const;
-
-  IndexSet operator-(const IndexSet &rhs) const;
-
-  bool empty() const;
-
-  size_t rank() const;
+  IndexSet operator-(const IndexSet &other) const;
 
   size_t flatSize() const;
-
-  void clear();
 
   const_point_iterator begin() const;
 
@@ -172,11 +177,11 @@ public:
 
   const_range_iterator rangesEnd() const;
 
-  int compare(const IndexSet &other) const;
+  using RTreeCRTP::contains;
 
   bool contains(const Point &other) const;
 
-  bool contains(const MultidimensionalRange &other) const;
+  bool contains(const MultidimensionalRange &other) const override;
 
   bool contains(const IndexSet &other) const;
 
@@ -206,13 +211,16 @@ public:
 
   IndexSet append(const IndexSet &other) const;
 
-  IndexSet getCanonicalRepresentation() const;
+  void
+  getCompactRanges(llvm::SmallVectorImpl<MultidimensionalRange> &result) const;
 
-private:
-  IndexSet(std::unique_ptr<Impl> impl);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const IndexSet &indexSet);
 
-private:
-  std::unique_ptr<Impl> impl;
+protected:
+  void postObjectInsertionHook(Node &node) override;
+
+  void postObjectRemovalHook(Node &node) override;
 };
 } // namespace marco::modeling
 
@@ -221,14 +229,14 @@ template <>
 struct DenseMapInfo<marco::modeling::IndexSet> {
   using Key = marco::modeling::IndexSet;
 
-  static inline Key getEmptyKey() { return {}; }
+  static Key getEmptyKey();
 
-  static inline Key getTombstoneKey() { return Key::getTombstoneKey(); }
+  static Key getTombstoneKey();
 
-  static unsigned getHashValue(const Key &val) { return hash_value(val); }
+  static unsigned getHashValue(const Key &val);
 
-  static bool isEqual(const Key &lhs, const Key &rhs) { return lhs == rhs; }
+  static bool isEqual(const Key &lhs, const Key &rhs);
 };
 } // namespace llvm
 
-#endif // MARCO_MODELING_INDEXSET_H
+#endif // MARCO_MODELING_INDEXSETRTREE_H
