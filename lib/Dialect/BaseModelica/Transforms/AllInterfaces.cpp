@@ -6,6 +6,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/DerivableTypeInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/EquationExpressionOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/InvertibleOpInterfaceImpl.h"
+#include "marco/Dialect/BaseModelica/Transforms/RuntimeVerifiableOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/Transforms/VectorizableOpInterfaceImpl.h"
 
 namespace mlir::bmodelica {
@@ -17,6 +18,7 @@ void registerAllDialectInterfaceImplementations(
   registerDerivableOpInterfaceExternalModels(registry);
   registerEquationExpressionOpInterfaceExternalModels(registry);
   registerInvertibleOpInterfaceExternalModels(registry);
+  registerRuntimeVerifiableOpInterfaceExternalModels(registry);
   registerVectorizableOpInterfaceExternalModels(registry);
 
   // Type interfaces.

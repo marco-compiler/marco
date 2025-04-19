@@ -189,6 +189,9 @@ protected:
   [[nodiscard]] virtual bool
   lower(const ast::BreakStatement &statement) override;
 
+  [[nodiscard]] virtual bool
+  lower(const ast::CallStatement &statement) override;
+
   [[nodiscard]] virtual bool lower(const ast::ForStatement &statement) override;
 
   [[nodiscard]] virtual bool lower(const ast::IfStatement &statement) override;

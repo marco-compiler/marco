@@ -5,6 +5,7 @@ set(SOURCES
     BreakStatementLowerer.cpp
     Bridge.cpp
     CallLowerer.cpp
+    CallStatementLowerer.cpp
     ClassDependencyGraph.cpp
     ClassPath.cpp
     ClassLowerer.cpp
@@ -36,7 +37,8 @@ set(SOURCES
     VariablesSymbolTable.cpp
     WhenEquationLowerer.cpp
     WhenStatementLowerer.cpp
-    WhileStatementLowerer.cpp)
+    WhileStatementLowerer.cpp
+)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

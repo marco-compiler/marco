@@ -9,6 +9,7 @@ set(AST_NODES
 	Node/ASTNode.cpp
 	Node/BreakStatement.cpp
 	Node/Call.cpp
+	Node/CallStatement.cpp
 	Node/Class.cpp
 	Node/ComponentReference.cpp
 	Node/ComponentReferenceEntry.cpp
@@ -44,7 +45,8 @@ set(AST_NODES
 	Node/TypePrefix.cpp
 	Node/WhenEquation.cpp
 	Node/WhenStatement.cpp
-	Node/WhileStatement.cpp)
+	Node/WhileStatement.cpp
+)
 
 set(SOURCES
 	${AST_NODES})

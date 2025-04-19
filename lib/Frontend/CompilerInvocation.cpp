@@ -527,6 +527,7 @@ static void parseCodegenArgs(marco::frontend::CodegenOptions &options,
   // Set the default options based on the optimization level
   if (options.optLevel.getSpeedupLevel() > 0) {
     options.debug = false;
+    options.runtimeVerification = false;
     options.assertions = false;
   }
 

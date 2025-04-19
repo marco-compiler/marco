@@ -1,5 +1,10 @@
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
+#include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "marco/Dialect/BaseModelica/IR/Types.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -10,6 +15,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/ScopeExit.h"
 #include <cmath>
+#include <cstdint>
 
 using namespace ::mlir::bmodelica;
 
@@ -11212,5 +11218,29 @@ mlir::OpFoldResult CastOp::fold(FoldAdaptor adaptor) {
   }
 
   return {};
+}
+} // namespace mlir::bmodelica
+
+//===----------------------------------------------------------------------==//
+// AssertOp
+//===----------------------------------------------------------------------==//
+
+namespace mlir::bmodelica {
+void AssertOp::print(mlir::OpAsmPrinter &printer) {
+  printer.printOptionalAttrDict(getOperation()->getAttrs());
+  printer << " ";
+  printer.printRegion(getConditionRegion(), false);
+}
+
+mlir::ParseResult AssertOp::parse(mlir::OpAsmParser &parser,
+                                  mlir::OperationState &result) {
+  mlir::Region *conditionRegion = result.addRegion();
+
+  if (parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseRegion(*conditionRegion)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
 }
 } // namespace mlir::bmodelica

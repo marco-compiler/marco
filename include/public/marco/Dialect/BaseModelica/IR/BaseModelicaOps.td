@@ -50,6 +50,7 @@ def BaseModelicaIntegerAttr :
 {
     let storageType = [{ ::mlir::bmodelica::IntegerAttr }];
     let returnType = [{ int64_t }];
+
     let valueType = BaseModelicaInteger;
 
     let constBuilderCall =
@@ -845,7 +846,8 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
     }];
 }
 
-def Modelica_DimOp : BaseModelica_Op<"dim", [NoMemoryEffect]>
+def Modelica_DimOp : BaseModelica_Op<"dim", 
+    [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -2531,7 +2533,7 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
     }];
 }
 
-def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc", []>
+def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc">
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2851,7 +2853,7 @@ def BaseModelica_MinOp : BaseModelica_Op<"min",
     }];
 }
 
-def Modelica_ModOp : BaseModelica_Op<"mod", []>
+def Modelica_ModOp : BaseModelica_Op<"mod">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2957,7 +2959,7 @@ def BaseModelica_ProductOp : BaseModelica_Op<"product",
     }];
 }
 
-def Modelica_RemOp : BaseModelica_Op<"rem", []>
+def Modelica_RemOp : BaseModelica_Op<"rem">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -3301,6 +3303,41 @@ def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
     let assemblyFormat = [{
         $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
+}
+
+def BaseModelica_AssertOp : BaseModelica_Op<"assert",
+    [MemoryEffects<[MemWrite]>,
+    SingleBlock]>
+{
+    let summary = "Assert truth of assertion argument";
+
+    let description = [{
+        Takes in an expression that should yield a boolean truth value.
+        The `level` attribute specifies the assertion level: 0 indicates
+        a warning while everything above 1 indicates an error.
+
+        Example:
+
+        ```mlir
+        bmodelica.assert {level = 1 : i64, message = "ERROR: ..."} {
+            ...
+            %condition = ...
+            bmodelica.yield %condition : !bmodelica.bool
+        }
+        ```
+    }];
+
+    let arguments = (ins
+        StrAttr:$message,
+        I64Attr:$level);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$conditionRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
@@ -4773,7 +4810,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
         Example:
 
         ```mlir
-        %2 = modelica.call @foo(%0, %1) : (!modelica.int, !modelica.real) -> !modelica.real
+        %2 = bmodelica.call @foo(%0, %1) : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
         ```
     }];
 

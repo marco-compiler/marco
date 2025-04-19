@@ -578,6 +578,25 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseStatement() {
   }
 
   TRY(destination, parseComponentReference());
+  if (accept<TokenKind::LPar>()) {
+    TRY(functionArguments, parseFunctionArguments());
+    EXPECT(TokenKind::RPar);
+
+    SourceRange loc = getLocation();
+    auto callee = std::make_unique<ast::ComponentReference>(loc);
+    loc.end = functionArguments->getLocation().end;
+    auto result = std::make_unique<CallStatement>(loc);
+
+    {
+      auto call = std::make_unique<Call>(loc);
+      call->setCallee(std::move(*destination));
+      call->setArguments(functionArguments->getValue());
+      result->setCall(std::move(call));
+    }
+
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+  }
+
   EXPECT(TokenKind::AssignmentOperator);
   TRY(expression, parseExpression());
   SourceRange loc = (*destination)->getLocation();

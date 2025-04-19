@@ -46,6 +46,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp
     RungeKutta.cpp
+    RuntimeVerifiableOpInterfaceImpl.cpp
     SCCAbsenceVerification.cpp
     SCCDetection.cpp
     SCCSolvingBySubstitution.cpp

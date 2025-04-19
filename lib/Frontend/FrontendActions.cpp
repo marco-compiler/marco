@@ -367,6 +367,7 @@ void InitOnlyAction::executeAction() {
   printOption(os, "Debug information", codegenOptions.debug);
   printOption(os, "Assertions", codegenOptions.assertions);
   printOption(os, "Inlining", codegenOptions.inlining);
+  printOption(os, "Runtime verification", codegenOptions.runtimeVerification);
   printOption(os, "Output arrays promotion",
               codegenOptions.outputArraysPromotion);
   printOption(os, "Read-only variables propagation",
@@ -1012,6 +1013,9 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
     pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
   }
 
+  if (ci.getCodeGenOptions().runtimeVerification) {
+    pm.addPass(mlir::createGenerateRuntimeVerificationPass());
+  }
   pm.addPass(mlir::bmodelica::createFunctionDefaultValuesConversionPass());
   pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 

@@ -1,4 +1,5 @@
 #include "marco/Codegen/Conversion/RuntimeToLLVM/RuntimeToLLVM.h"
+#include "marco/Codegen/Conversion/RuntimeToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMInterface.h"
@@ -376,9 +377,9 @@ struct SchedulerRunOpLowering : public RuntimeOpConversion<SchedulerRunOp> {
   }
 };
 
-class FunctionOpLowering : public mlir::ConvertOpToLLVMPattern<FunctionOp> {
+class FunctionOpLowering : public RuntimeOpConversion<FunctionOp> {
 public:
-  using mlir::ConvertOpToLLVMPattern<FunctionOp>::ConvertOpToLLVMPattern;
+  using RuntimeOpConversion<FunctionOp>::RuntimeOpConversion;
 
   mlir::LogicalResult
   matchAndRewrite(FunctionOp op, OpAdaptor adaptor,
@@ -407,9 +408,15 @@ public:
       }
     }
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
+    auto &moduleOpSt = symbolTableCollection->getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+    moduleOpSt.remove(op);
+
+    auto llvmFuncOp = rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
         op, op.getSymName(),
         mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
+
+    moduleOpSt.insert(llvmFuncOp);
 
     return mlir::success();
   }
@@ -508,6 +515,60 @@ public:
 };
 } // namespace
 
+namespace {
+class StringOpLowering : public RuntimeOpConversion<StringOp> {
+  using RuntimeOpConversion<StringOp>::RuntimeOpConversion;
+
+  mlir::LogicalResult
+  matchAndRewrite(StringOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    mlir::Location loc = op.getLoc();
+
+    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+
+    mlir::Value constantString = createGlobalString(
+        rewriter, loc, moduleOp, "runtimeStr", op.getString());
+
+    rewriter.replaceOp(op, constantString);
+
+    return mlir::success();
+  }
+
+  mlir::Value createGlobalString(mlir::OpBuilder &builder, mlir::Location loc,
+                                 mlir::ModuleOp moduleOp, mlir::StringRef name,
+                                 mlir::StringRef value) const {
+    mlir::LLVM::GlobalOp global;
+
+    {
+      // Create the global at the entry of the module.
+      mlir::OpBuilder::InsertionGuard insertGuard(builder);
+      builder.setInsertionPointToStart(moduleOp.getBody());
+
+      auto type = mlir::LLVM::LLVMArrayType::get(
+          mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+
+      global = builder.create<mlir::LLVM::GlobalOp>(
+          loc, type, true, mlir::LLVM::Linkage::Internal, name,
+          builder.getStringAttr(
+              llvm::StringRef(value.data(), value.size() + 1)));
+
+      symbolTableCollection->getSymbolTable(moduleOp).insert(global);
+    }
+
+    // Get the pointer to the first character of the global string.
+    mlir::Value globalPtr =
+        builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+    mlir::Type type = mlir::LLVM::LLVMArrayType::get(
+        mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+
+    return builder.create<mlir::LLVM::GEPOp>(
+        loc, mlir::LLVM::LLVMPointerType::get(builder.getContext()), type,
+        globalPtr, llvm::ArrayRef<mlir::LLVM::GEPArg>{0, 0});
+  }
+};
+} // namespace
+
 mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps() {
   mlir::ModuleOp moduleOp = getOperation();
   mlir::ConversionTarget target(getContext());
@@ -525,7 +586,8 @@ mlir::LogicalResult RuntimeToLLVMConversionPass::convertOps() {
 
   mlir::DataLayout dataLayout(moduleOp);
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext(), dataLayout);
-  mlir::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+  mlir::runtime::LLVMTypeConverter typeConverter(&getContext(),
+                                                 llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
@@ -543,7 +605,11 @@ void populateRuntimeToLLVMPatterns(
                   SchedulerDestroyOpLowering, SchedulerAddEquationOpLowering,
                   SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<FunctionOpLowering, CallOpLowering>(typeConverter);
+  patterns.insert<StringOpLowering>(typeConverter, symbolTableCollection);
+
+  patterns.insert<FunctionOpLowering>(typeConverter, symbolTableCollection);
+
+  patterns.insert<CallOpLowering>(typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass() {

@@ -144,6 +144,7 @@ private:
   std::optional<Results> tanh(const ast::Call &call);
   std::optional<Results> transpose(const ast::Call &call);
   std::optional<Results> zeros(const ast::Call &call);
+  std::optional<Results> builtinAssert(const ast::Call &call);
 
   std::optional<Results> reduction(const ast::Call &call,
                                    llvm::StringRef action);
