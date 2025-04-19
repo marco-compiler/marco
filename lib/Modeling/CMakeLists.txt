@@ -35,6 +35,7 @@ set(SOURCES
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp
+    RTree.cpp
     ScalarEquationsDependencyGraph.cpp
     SCC.cpp
     SCCsDependencyGraph.cpp

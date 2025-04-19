@@ -10,6 +10,7 @@ set(SOURCES
     MultidimensionalRangeTest.cpp
     PointTest.cpp
     RangeTest.cpp
+    RTreeTest.cpp
     SolveLocalMatchingProblemTest.cpp
     UndirectedGraphTest.cpp
     GraphDumperTest.cpp
