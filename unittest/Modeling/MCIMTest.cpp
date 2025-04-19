@@ -362,16 +362,16 @@ TEST(MCIM_SameRank, flattenRows) {
 
   IndexSet flattened = mcim.flattenRows();
 
-  EXPECT_FALSE(flattened.contains({0, 0}));
-  EXPECT_TRUE(flattened.contains({0, 1}));
-  EXPECT_TRUE(flattened.contains({1, 0}));
-  EXPECT_TRUE(flattened.contains({1, 1}));
-  EXPECT_TRUE(flattened.contains({2, 0}));
-  EXPECT_FALSE(flattened.contains({2, 1}));
-  EXPECT_TRUE(flattened.contains({3, 0}));
-  EXPECT_TRUE(flattened.contains({3, 1}));
-  EXPECT_TRUE(flattened.contains({4, 0}));
-  EXPECT_TRUE(flattened.contains({4, 1}));
+  EXPECT_FALSE(flattened.contains(Point({0, 0})));
+  EXPECT_TRUE(flattened.contains(Point({0, 1})));
+  EXPECT_TRUE(flattened.contains(Point({1, 0})));
+  EXPECT_TRUE(flattened.contains(Point({1, 1})));
+  EXPECT_TRUE(flattened.contains(Point({2, 0})));
+  EXPECT_FALSE(flattened.contains(Point({2, 1})));
+  EXPECT_TRUE(flattened.contains(Point({3, 0})));
+  EXPECT_TRUE(flattened.contains(Point({3, 1})));
+  EXPECT_TRUE(flattened.contains(Point({4, 0})));
+  EXPECT_TRUE(flattened.contains(Point({4, 1})));
 }
 
 // Input:
@@ -412,15 +412,15 @@ TEST(MCIM_SameRank, flattenColumns) {
 
   IndexSet flattened = mcim.flattenColumns();
 
-  EXPECT_FALSE(flattened.contains({4, 1}));
-  EXPECT_TRUE(flattened.contains({4, 2}));
-  EXPECT_TRUE(flattened.contains({4, 3}));
-  EXPECT_TRUE(flattened.contains({5, 1}));
-  EXPECT_TRUE(flattened.contains({5, 2}));
-  EXPECT_TRUE(flattened.contains({5, 3}));
-  EXPECT_TRUE(flattened.contains({6, 1}));
-  EXPECT_TRUE(flattened.contains({6, 2}));
-  EXPECT_TRUE(flattened.contains({6, 3}));
+  EXPECT_FALSE(flattened.contains(Point({4, 1})));
+  EXPECT_TRUE(flattened.contains(Point({4, 2})));
+  EXPECT_TRUE(flattened.contains(Point({4, 3})));
+  EXPECT_TRUE(flattened.contains(Point({5, 1})));
+  EXPECT_TRUE(flattened.contains(Point({5, 2})));
+  EXPECT_TRUE(flattened.contains(Point({5, 3})));
+  EXPECT_TRUE(flattened.contains(Point({6, 1})));
+  EXPECT_TRUE(flattened.contains(Point({6, 2})));
+  EXPECT_TRUE(flattened.contains(Point({6, 3})));
 }
 
 // Filter a MCIM by row.
@@ -457,8 +457,8 @@ TEST(MCIM_SameRank, rowsFilter) {
   mcim.set({5, 3}, {1, 0});
 
   IndexSet filter;
-  filter += {4, 2};
-  filter += {5, 3};
+  filter += Point({4, 2});
+  filter += Point({5, 3});
 
   MCIM result = mcim.filterRows(filter);
 
@@ -517,8 +517,8 @@ TEST(MCIM_SameRank, columnsFilter) {
   mcim.set({5, 3}, {1, 0});
 
   IndexSet filter;
-  filter += {0, 0};
-  filter += {1, 1};
+  filter += Point({0, 0});
+  filter += Point({1, 1});
 
   MCIM result = mcim.filterColumns(filter);
 
@@ -849,15 +849,15 @@ TEST(MCIM_UnderdimensionedVariables, flattenColumns) {
 
   IndexSet flattened = mcim.flattenColumns();
 
-  EXPECT_FALSE(flattened.contains({4, 1}));
-  EXPECT_TRUE(flattened.contains({4, 2}));
-  EXPECT_TRUE(flattened.contains({4, 3}));
-  EXPECT_TRUE(flattened.contains({5, 1}));
-  EXPECT_TRUE(flattened.contains({5, 2}));
-  EXPECT_TRUE(flattened.contains({5, 3}));
-  EXPECT_TRUE(flattened.contains({6, 1}));
-  EXPECT_TRUE(flattened.contains({6, 2}));
-  EXPECT_TRUE(flattened.contains({6, 3}));
+  EXPECT_FALSE(flattened.contains(Point({4, 1})));
+  EXPECT_TRUE(flattened.contains(Point({4, 2})));
+  EXPECT_TRUE(flattened.contains(Point({4, 3})));
+  EXPECT_TRUE(flattened.contains(Point({5, 1})));
+  EXPECT_TRUE(flattened.contains(Point({5, 2})));
+  EXPECT_TRUE(flattened.contains(Point({5, 3})));
+  EXPECT_TRUE(flattened.contains(Point({6, 1})));
+  EXPECT_TRUE(flattened.contains(Point({6, 2})));
+  EXPECT_TRUE(flattened.contains(Point({6, 3})));
 }
 
 // Filter a MCIM by row.
@@ -894,8 +894,8 @@ TEST(MCIM_UnderdimensionedVariables, rowsFilter) {
   mcim.set({5, 3}, 2);
 
   IndexSet filter;
-  filter += {4, 2};
-  filter += {5, 3};
+  filter += Point({4, 2});
+  filter += Point({5, 3});
 
   MCIM result = mcim.filterRows(filter);
 
@@ -1233,16 +1233,16 @@ TEST(MCIM_UnderdimensionedEquations, flattenRows) {
 
   IndexSet flattened = mcim.flattenRows();
 
-  EXPECT_FALSE(flattened.contains({0, 0}));
-  EXPECT_TRUE(flattened.contains({0, 1}));
-  EXPECT_TRUE(flattened.contains({1, 0}));
-  EXPECT_TRUE(flattened.contains({1, 1}));
-  EXPECT_TRUE(flattened.contains({2, 0}));
-  EXPECT_FALSE(flattened.contains({2, 1}));
-  EXPECT_TRUE(flattened.contains({3, 0}));
-  EXPECT_TRUE(flattened.contains({3, 1}));
-  EXPECT_TRUE(flattened.contains({4, 0}));
-  EXPECT_TRUE(flattened.contains({4, 1}));
+  EXPECT_FALSE(flattened.contains(Point({0, 0})));
+  EXPECT_TRUE(flattened.contains(Point({0, 1})));
+  EXPECT_TRUE(flattened.contains(Point({1, 0})));
+  EXPECT_TRUE(flattened.contains(Point({1, 1})));
+  EXPECT_TRUE(flattened.contains(Point({2, 0})));
+  EXPECT_FALSE(flattened.contains(Point({2, 1})));
+  EXPECT_TRUE(flattened.contains(Point({3, 0})));
+  EXPECT_TRUE(flattened.contains(Point({3, 1})));
+  EXPECT_TRUE(flattened.contains(Point({4, 0})));
+  EXPECT_TRUE(flattened.contains(Point({4, 1})));
 }
 
 // Input:
@@ -1388,8 +1388,8 @@ TEST(MCIM_UnderdimensionedEquations, columnsFilter) {
   mcim.set(6, {1, 0});
 
   IndexSet filter;
-  filter += {0, 0};
-  filter += {1, 1};
+  filter += Point({0, 0});
+  filter += Point({1, 1});
 
   MCIM result = mcim.filterColumns(filter);
 

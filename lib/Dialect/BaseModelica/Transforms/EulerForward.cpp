@@ -386,15 +386,16 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
   // Create the schedule blocks and the calls to the equation function.
   builder.setInsertionPointToEnd(dynamicOp.getBody());
 
-  IndexSet indices = stateVariable.getIndices().getCanonicalRepresentation();
+  IndexSet indices = stateVariable.getIndices();
 
   if (indices.empty()) {
     createStateUpdateFunctionCall(builder, stateVariable, derivativeVariable,
                                   nullptr, equationFuncOp);
   } else {
-    for (const MultidimensionalRange &range :
-         llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+    llvm::SmallVector<MultidimensionalRange> canonicalRanges;
+    indices.getCanonicalRanges(canonicalRanges);
 
+    for (const MultidimensionalRange &range : canonicalRanges) {
       createStateUpdateFunctionCall(
           builder, stateVariable, derivativeVariable,
           MultidimensionalRangeAttr::get(&getContext(), range), equationFuncOp);

@@ -36,7 +36,7 @@ template <typename EquationDescriptor, typename Access>
 class Path {
 private:
   using Dependency = PathDependency<EquationDescriptor, Access>;
-  using Container = llvm::SmallVector<Dependency>;
+  using Container = llvm::SmallVector<Dependency, 3>;
 
 public:
   using iterator = typename Container::iterator;
@@ -216,7 +216,7 @@ public:
   using CyclicEquation =
       internal::dependency::CyclicEquation<EquationDescriptor, Access>;
 
-  using Cycle = llvm::SmallVector<CyclicEquation>;
+  using Cycle = llvm::SmallVector<CyclicEquation, 3>;
 
   using EquationView =
       internal::dependency::ReducedEquationView<EquationDescriptor>;
@@ -251,8 +251,8 @@ public:
     return arrayDependencyGraph[descriptor];
   }
 
-  llvm::SmallVector<Cycle> getEquationsCycles() const {
-    llvm::SmallVector<Cycle> result;
+  llvm::SmallVector<Cycle, 3> getEquationsCycles() const {
+    llvm::SmallVector<Cycle, 3> result;
     std::mutex resultMutex;
 
     auto SCCs = arrayDependencyGraph.getSCCs();
@@ -291,7 +291,7 @@ public:
                    });
       }
 
-      llvm::SmallVector<Path> allPaths;
+      llvm::SmallVector<Path, 3> allPaths;
       llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
 
       for (const EquationDescriptor &equationDescriptor : scc) {
@@ -362,7 +362,7 @@ public:
                    });
       }
 
-      llvm::SmallVector<Path> cycles;
+      llvm::SmallVector<Path, 3> cycles;
       llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
 
       llvm::DenseMap<EquationDescriptor, llvm::DenseSet<MultidimensionalRange>>
@@ -385,7 +385,7 @@ public:
         }
       }
 
-      llvm::SmallVector<Path> partitionedCycles;
+      llvm::SmallVector<Path, 3> partitionedCycles;
 
       for (Path &cycle : cycles) {
         addCycleAndSplit(partitionedCycles, std::move(cycle));
@@ -782,7 +782,7 @@ private:
                         Path newCycle) const {
     // Split the existing cycles.
     for (const PathDependency &pathDependency : newCycle) {
-      llvm::SmallVector<Path> newCycles;
+      llvm::SmallVector<Path, 3> newCycles;
 
       for (Path &existingCycle : cycles) {
         splitCycle(newCycles, std::move(existingCycle), pathDependency.equation,
@@ -793,12 +793,12 @@ private:
     }
 
     // Split the new cycle.
-    llvm::SmallVector<Path> newCycles;
+    llvm::SmallVector<Path, 3> newCycles;
     newCycles.push_back(std::move(newCycle));
 
     for (const Path &cycle : cycles) {
       for (const PathDependency &pathDependency : cycle) {
-        llvm::SmallVector<Path> split;
+        llvm::SmallVector<Path, 3> split;
 
         for (Path &currentNewCycle : newCycles) {
           splitCycle(split, std::move(currentNewCycle), pathDependency.equation,
@@ -817,7 +817,7 @@ private:
   void splitCycle(llvm::SmallVectorImpl<Path> &result, Path cycle,
                   EquationDescriptor equation,
                   const IndexSet &equationIndices) const {
-    llvm::SmallVector<Path> workList;
+    llvm::SmallVector<Path, 3> workList;
     workList.push_back(std::move(cycle));
 
     auto findOverlappingPos = [&](const Path &path) -> std::optional<size_t> {

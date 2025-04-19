@@ -21,8 +21,6 @@ set(SOURCES
     Dumpable.cpp
     Graph.cpp
     IndexSet.cpp
-    IndexSetList.cpp
-    IndexSetRTree.cpp
     LocalMatchingSolutions.cpp
     LocalMatchingSolutionsMCIM.cpp
     LocalMatchingSolutionsVAF.cpp
