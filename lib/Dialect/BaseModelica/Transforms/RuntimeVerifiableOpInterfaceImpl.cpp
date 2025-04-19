@@ -1,5 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/RuntimeVerifiableOpInterfaceImpl.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
 using namespace ::mlir::bmodelica;
@@ -421,7 +422,7 @@ struct DivEWOpRuntimeVerifier
         builder.getI64IntegerAttr(2));
 
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.createBlock(&assertOp.getConditionRegion());
+    auto assertBlock = builder.createBlock(&assertOp.getConditionRegion());
 
     mlir::Value zero;
     if (isIntegerArg)
@@ -430,6 +431,18 @@ struct DivEWOpRuntimeVerifier
     else
       zero = builder.create<ConstantOp>(
           loc, RealAttr::get(builder.getContext(), 0.0f));
+
+    auto bmodelicaBoolType =
+        mlir::bmodelica::BooleanType::get(builder.getContext());
+
+    mlir::MemRefType memrefType = mlir::MemRefType::get({}, bmodelicaBoolType);
+    auto condition = builder.create<mlir::memref::AllocOp>(loc, memrefType);
+
+    auto trueAttr = mlir::bmodelica::BooleanAttr::get(bmodelicaBoolType, true);
+
+    mlir::Value trueValue =
+        builder.create<ConstantOp>(loc, bmodelicaBoolType, trueAttr);
+    builder.create<mlir::memref::StoreOp>(loc, trueValue, condition);
 
     if (!isRhsScalar) {
       mlir::Value zeroIdx =
@@ -464,18 +477,37 @@ struct DivEWOpRuntimeVerifier
       elemToCheck = builder.create<TensorExtractOp>(loc, rhs, inductionVars);
     }
 
-    mlir::Value condition;
+    mlir::Value tempCondition;
     if (isIntegerArg) {
-      condition = builder.create<NotEqOp>(loc, elemToCheck, zero);
+      tempCondition = builder.create<NotEqOp>(loc, elemToCheck, zero);
+      if (isRhsScalar) {
+        builder.create<mlir::memref::StoreOp>(loc, tempCondition, condition);
+      } else {
+        mlir::Value oldRes =
+            builder.create<memref::LoadOp>(loc, condition, mlir::ValueRange{});
+        mlir::Value res = builder.create<AndOp>(loc, oldRes, tempCondition);
+        builder.create<mlir::memref::StoreOp>(loc, res, condition);
+      }
     } else {
       mlir::Value epsilon = builder.create<ConstantOp>(
           loc, RealAttr::get(builder.getContext(), 1E-4));
       mlir::Value elemAbs = builder.create<AbsOp>(
           loc, RealType::get(builder.getContext()), elemToCheck);
-      condition = builder.create<GteOp>(loc, elemAbs, epsilon);
+      tempCondition = builder.create<GteOp>(loc, elemAbs, epsilon);
+      if (isRhsScalar) {
+        builder.create<mlir::memref::StoreOp>(loc, tempCondition, condition);
+      } else {
+        mlir::Value oldRes =
+            builder.create<memref::LoadOp>(loc, condition, mlir::ValueRange{});
+        mlir::Value res = builder.create<AndOp>(loc, oldRes, tempCondition);
+        builder.create<mlir::memref::StoreOp>(loc, res, condition);
+      }
     }
 
-    builder.create<YieldOp>(assertOp.getLoc(), condition);
+    builder.setInsertionPointToEnd(assertBlock);
+    mlir::Value res =
+        builder.create<memref::LoadOp>(loc, condition, mlir::ValueRange{});
+    builder.create<YieldOp>(assertOp.getLoc(), res);
   }
 };
 
@@ -740,6 +772,8 @@ void registerRuntimeVerifiableOpInterfaceExternalModels(
     mlir::DialectRegistry &registry) {
   registry.addExtension(+[](mlir::MLIRContext *context,
                             BaseModelicaDialect *dialect) {
+    context->getOrLoadDialect<mlir::memref::MemRefDialect>();
+    context->getOrLoadDialect<mlir::scf::SCFDialect>();
     AcosOp::attachInterface<::AcosOpRuntimeVerifier>(*context);
     AsinOp::attachInterface<::AsinOpRuntimeVerifier>(*context);
     DimOp::attachInterface<::DimOpRuntimeVerifier>(*context);
