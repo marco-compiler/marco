@@ -892,6 +892,9 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   // Materialize the derivatives.
   pm.addPass(mlir::bmodelica::createDerivativesMaterializationPass());
 
+  // Initialize derivative variables.
+  pm.addPass(mlir::bmodelica::createDerivativesInitializationPass());
+
   // Legalize the model.
   pm.addPass(mlir::bmodelica::createBindingEquationConversionPass());
   pm.addPass(mlir::bmodelica::createExplicitStartValueInsertionPass());

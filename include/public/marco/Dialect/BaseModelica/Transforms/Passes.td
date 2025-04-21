@@ -443,6 +443,23 @@ def DerivativesMaterializationPass
         "mlir::bmodelica::createDerivativesMaterializationPass()";
 }
 
+def DerivativesInitializationPass
+    : Pass<"derivatives-initialization", "mlir::ModuleOp">
+{
+    let summary = "Create necessary initial equations and start values for derivatives";
+
+    let description = [{
+        Give all derivative variables a start value, and create initial equations for unused indices of array derivatives.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor =
+        "mlir::bmodelica::createDerivativesInitializationPass()";
+}
+
 def MatchingPass : Pass<"match", "mlir::ModuleOp">
 {
     let summary = "Perform the matching process";

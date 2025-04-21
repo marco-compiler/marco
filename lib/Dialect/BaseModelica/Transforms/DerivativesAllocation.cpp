@@ -2,7 +2,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
 #include "mlir/IR/Threading.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include <mutex>
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_DERIVATIVESMATERIALIZATIONPASS
@@ -63,11 +62,6 @@ private:
   removeDerOps(mlir::SymbolTableCollection &symbolTableCollection,
                const DerivativesMap &derivativesMap,
                MutexCollection &mutexCollection, AlgorithmOp algorithmOp);
-
-  mlir::LogicalResult createStartOpsAndDummyEquations(
-      ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      const llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
-      const DerivativesMap &derivativesMap, MutexCollection &mutexCollection);
 };
 } // namespace
 
@@ -147,14 +141,6 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
             return removeDerOps(symbolTableCollection, derivativesMap,
                                 mutexCollection, algorithmOp);
           }))) {
-    return mlir::failure();
-  }
-
-  // Create the start values for all the indices and the equations for the
-  // indices that are not derived.
-  if (mlir::failed(createStartOpsAndDummyEquations(
-          modelOp, symbolTableCollection, derivedVariables, derivativesMap,
-          mutexCollection))) {
     return mlir::failure();
   }
 
@@ -438,6 +424,11 @@ mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
 
   // Add the new attributes.
   for (mlir::SymbolRefAttr variable : derivedVariables) {
+    // If the derivative map contains the derivative, a variable already exists.
+    if (derivativesMap.getDerivative(variable).has_value()) {
+      continue;
+    }
+
     llvm::SmallVector<int64_t, 3> variableShape;
 
     if (mlir::failed(getShape(variableShape, modelOp, symbolTableCollection,
@@ -568,131 +559,6 @@ mlir::LogicalResult DerivativesMaterializationPass::removeDerOps(
                                    derivativesMap);
 
   return mlir::applyPatternsGreedily(algorithmOp, std::move(patterns));
-}
-
-static mlir::LogicalResult
-createStartOp(mlir::OpBuilder &builder,
-              mlir::SymbolTableCollection &symbolTableCollection,
-              ModelOp modelOp, mlir::SymbolRefAttr variable) {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToEnd(modelOp.getBody());
-
-  VariableOp variableOp =
-      resolveVariable(modelOp, symbolTableCollection, variable);
-
-  mlir::Location loc = variableOp.getLoc();
-
-  auto startOp = builder.create<StartOp>(loc, variable, false, false, true);
-  assert(startOp.getBodyRegion().empty());
-  mlir::Block *bodyBlock = builder.createBlock(&startOp.getBodyRegion());
-  builder.setInsertionPointToStart(bodyBlock);
-
-  mlir::Value zero =
-      builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
-
-  VariableType variableType = variableOp.getVariableType();
-
-  if (!variableType.isScalar()) {
-    zero = builder.create<TensorBroadcastOp>(loc, variableType.toTensorType(),
-                                             zero);
-  }
-
-  builder.create<YieldOp>(loc, zero);
-  return mlir::success();
-}
-
-static mlir::LogicalResult
-createMainEquations(mlir::OpBuilder &builder,
-                    mlir::SymbolTableCollection &symbolTableCollection,
-                    ModelOp modelOp, mlir::SymbolRefAttr derivativeName,
-                    const IndexSet &indices) {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToEnd(modelOp.getBody());
-
-  VariableOp variableOp =
-      resolveVariable(modelOp, symbolTableCollection, derivativeName);
-
-  mlir::Location loc = variableOp.getLoc();
-
-  auto equationTemplateOp = builder.create<EquationTemplateOp>(loc);
-
-  builder.setInsertionPointToStart(
-      equationTemplateOp.createBody(indices.rank()));
-
-  mlir::Value variable = builder.create<VariableGetOp>(loc, variableOp);
-
-  variable = builder.create<TensorExtractOp>(
-      loc, variable, equationTemplateOp.getInductionVariables());
-
-  mlir::Value zero =
-      builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
-
-  mlir::Value lhs = builder.create<EquationSideOp>(loc, variable);
-  mlir::Value rhs = builder.create<EquationSideOp>(loc, zero);
-  builder.create<EquationSidesOp>(loc, lhs, rhs);
-
-  builder.setInsertionPointAfter(equationTemplateOp);
-
-  auto dynamicOp = builder.create<DynamicOp>(modelOp.getLoc());
-  builder.createBlock(&dynamicOp.getBodyRegion());
-
-  auto instanceOp = builder.create<EquationInstanceOp>(loc, equationTemplateOp);
-
-  if (mlir::failed(instanceOp.setIndices(indices, symbolTableCollection))) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-mlir::LogicalResult
-DerivativesMaterializationPass::createStartOpsAndDummyEquations(
-    ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    const llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
-    const DerivativesMap &derivativesMap, MutexCollection &mutexCollection) {
-  mlir::OpBuilder builder(modelOp);
-
-  for (mlir::SymbolRefAttr variableName : derivedVariables) {
-    auto derivativeName = derivativesMap.getDerivative(variableName);
-
-    if (!derivativeName) {
-      continue;
-    }
-
-    // Create the start value.
-    if (mlir::failed(createStartOp(builder, symbolTableCollection, modelOp,
-                                   *derivativeName))) {
-      return mlir::failure();
-    }
-
-    // Create the equations for the non-derived indices.
-    llvm::SmallVector<int64_t, 3> variableDimensions;
-
-    if (mlir::failed(getShape(
-            variableDimensions, modelOp, symbolTableCollection,
-            mutexCollection.symbolTableCollectionMutex, variableName))) {
-      return mlir::failure();
-    }
-
-    if (!variableDimensions.empty()) {
-      IndexSet nonDerivedIndices = shapeToIndexSet(variableDimensions);
-
-      if (auto derivedIndices =
-              derivativesMap.getDerivedIndices(variableName)) {
-        nonDerivedIndices -= derivedIndices->get();
-      }
-
-      if (!nonDerivedIndices.empty()) {
-        if (mlir::failed(createMainEquations(
-                builder, symbolTableCollection, modelOp, *derivativeName,
-                nonDerivedIndices.getCanonicalRepresentation()))) {
-          return mlir::failure();
-        }
-      }
-    }
-  }
-
-  return mlir::success();
 }
 
 namespace mlir::bmodelica {
