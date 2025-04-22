@@ -20,7 +20,7 @@ public:
   std::unique_ptr<ASTNode> getComponentReference() const; 
 
   void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
-  llvm::ArrayRef<std::unique_ptr> getExpressions() const; 
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions() const; 
 
 private:
   std::string name; 

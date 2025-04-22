@@ -1896,7 +1896,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
-  SourceRange loc = getLocation();
+  SourceRange loc = lookahead[0].getLocation();
 
   auto result = std::make_unique<ExternalRef>(loc);
 
@@ -1921,7 +1921,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   
-    SourceRange loc = getLocation();
+    SourceRange loc = lookahead[0].getLocation();
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
 
