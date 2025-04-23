@@ -366,24 +366,10 @@ public:
       llvm::SmallVector<Path, 3> cycles;
       llvm::DenseMap<EquationDescriptor, IndexSet> visitedEquationIndices;
 
-      llvm::DenseMap<EquationDescriptor, llvm::DenseSet<MultidimensionalRange>>
-          allCyclicEquationIndices;
-
       for (const EquationDescriptor &equationDescriptor : scc) {
         getEquationsCycles(cycles, writesMap, cachedWriteAccesses,
                            cachedReadAccesses, visitedEquationIndices,
                            equationDescriptor);
-
-        for (const Path &cycle : cycles) {
-          for (const PathDependency &pathDependency : cycle) {
-            for (const MultidimensionalRange &cyclicRange :
-                 llvm::make_range(pathDependency.equationIndices.rangesBegin(),
-                                  pathDependency.equationIndices.rangesEnd())) {
-              allCyclicEquationIndices[pathDependency.equation].insert(
-                  cyclicRange);
-            }
-          }
-        }
       }
 
       llvm::SmallVector<Path, 3> partitionedCycles;
@@ -451,15 +437,10 @@ public:
 
       // Create the SCCs for the remaining indices.
       for (const EquationDescriptor &equation : scc) {
-        IndexSet allEquationIndices =
+        IndexSet remainingEquationIndices =
             arrayDependencyGraph.getEquation(equation).getIterationRanges();
 
-        llvm::SmallVector<MultidimensionalRange> cyclicIndices(
-            allCyclicEquationIndices[equation].begin(),
-            allCyclicEquationIndices[equation].end());
-
-        IndexSet remainingEquationIndices =
-            allEquationIndices - IndexSet(cyclicIndices);
+        remainingEquationIndices -= visitedEquationIndices[equation];
 
         if (!remainingEquationIndices.empty()) {
           std::lock_guard<std::mutex> lock(resultMutex);
