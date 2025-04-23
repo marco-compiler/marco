@@ -35,10 +35,8 @@ public:
   const IndexSet &getVisibleIndices() const { return visibleIndices; }
 
   explicit VariableVertex(const VariableBridge &bridge)
-      : id(bridge.getId()),
-        indices(!bridge.getIndices().empty() ? bridge.getIndices()
-                                             : IndexSet(Point(0))),
-        coloredIndices(), visibleIndices(indices) {
+      : id(bridge.getId()), indices(bridge.getIndices()), coloredIndices(),
+        visibleIndices(indices) {
     assert(!indices.empty() && "Variable must have indices");
   }
 
@@ -556,25 +554,25 @@ public:
               llvm::dbgs() << " at indices " << coloredIndices << "\n";
             });
 
-            const VariableBridge &dj =
+            const VariableBridge &djBridge =
                 differentiateVariable(j.getId(), coloredIndices);
             assert(
-                dj.getIndices().contains(coloredIndices) &&
+                djBridge.getIndices().contains(coloredIndices) &&
                 "Variables was not differentiated for the requested indices.");
-            if (hasVariableWithId(dj.getId())) {
+            if (hasVariableWithId(djBridge.getId())) {
               // The variable is an array that was already differentiated along
               // other indices. Therefore update the derived indices.
               IndexSet newIndices =
                   getVariableDerivative(j.getId())->second + coloredIndices;
               variableAssociations.insert_or_assign(
-                  j.getId(), std::make_pair(dj.getId(), newIndices));
+                  j.getId(), std::make_pair(djBridge.getId(), newIndices));
             } else {
               // The variable is a scalar or an array that was not yet
-              // differentiated. Therefore add the variable, and establish the
+              // differentiated. Therefore, add it variable, and establish the
               // derivative relationship.
-              addVariable(dj);
+              addVariable(djBridge);
               variableAssociations.insert(
-                  {j.getId(), {dj.getId(), coloredIndices}});
+                  {j.getId(), {djBridge.getId(), coloredIndices}});
             }
           }
 

@@ -65,7 +65,17 @@ public:
 
   mlir::SymbolRefAttr getName() const { return name; }
 
-  const IndexSet &getIndices() const { return indices; }
+  /// These are guaranteed to be non-empty, scalar variables are represented by
+  /// a single point - (0, 0).
+  IndexSet getIndices() const {
+    if (auto originalIndices = getOriginalIndices(); !originalIndices.empty()) {
+      return originalIndices;
+    }
+
+    return {Point(0)};
+  }
+
+  const IndexSet &getOriginalIndices() const { return indices; }
 
   /// }
 };

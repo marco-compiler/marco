@@ -93,24 +93,12 @@ VariableTraits<VariableBridge *>::getId(const Variable *variable) {
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
-  size_t rank = (*variable)->getIndices().rank();
-
-  if (rank == 0) {
-    return 1;
-  }
-
-  return rank;
+  return (*variable)->getIndices().rank();
 }
 
 IndexSet
 VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
-  const IndexSet &result = (*variable)->getIndices();
-
-  if (result.empty()) {
-    return {Point(0)};
-  }
-
-  return result;
+  return (*variable)->getIndices();
 }
 
 llvm::raw_ostream &
@@ -127,24 +115,12 @@ VariableTraits<VariableBridge *>::getId(const Variable *variable) {
 }
 
 size_t VariableTraits<VariableBridge *>::getRank(const Variable *variable) {
-  size_t rank = (*variable)->getIndices().rank();
-
-  if (rank == 0) {
-    return 1;
-  }
-
-  return rank;
+  return (*variable)->getIndices().rank();
 }
 
 IndexSet
 VariableTraits<VariableBridge *>::getIndices(const Variable *variable) {
-  const IndexSet &result = (*variable)->getIndices();
-
-  if (result.empty()) {
-    return {Point(0)};
-  }
-
-  return result;
+  return (*variable)->getIndices();
 }
 
 llvm::raw_ostream &
