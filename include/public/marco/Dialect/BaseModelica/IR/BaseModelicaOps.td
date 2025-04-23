@@ -2531,7 +2531,7 @@ def BaseModelica_DiagonalOp : BaseModelica_Op<"diagonal",
     }];
 }
 
-def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc", []>
+def Modelica_DivTruncOp : BaseModelica_Op<"div_trunc">
 {
     let summary = "Get the integer part of a quotient.";
 
@@ -2851,7 +2851,7 @@ def BaseModelica_MinOp : BaseModelica_Op<"min",
     }];
 }
 
-def Modelica_ModOp : BaseModelica_Op<"mod", []>
+def Modelica_ModOp : BaseModelica_Op<"mod">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -2957,7 +2957,7 @@ def BaseModelica_ProductOp : BaseModelica_Op<"product",
     }];
 }
 
-def Modelica_RemOp : BaseModelica_Op<"rem", []>
+def Modelica_RemOp : BaseModelica_Op<"rem">
 {
     let summary = "Get the modulus of a division of two numbers.";
 
@@ -4773,7 +4773,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
         Example:
 
         ```mlir
-        %2 = modelica.call @foo(%0, %1) : (!modelica.int, !modelica.real) -> !modelica.real
+        %2 = bmodelica.call @foo(%0, %1) : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
         ```
     }];
 
