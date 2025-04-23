@@ -255,34 +255,55 @@ template <typename Graph, typename VariableId, typename EquationDescriptor>
 class WriteInfo : public Dumpable {
 public:
   WriteInfo(const Graph &graph, VariableId variable,
-            EquationDescriptor equation, IndexSet indexes)
+            MultidimensionalRange writtenVariableIndices,
+            EquationDescriptor equation)
       : graph(&graph), variable(std::move(variable)),
-        equation(std::move(equation)), indexes(std::move(indexes)) {}
+        writtenVariableIndices(std::move(writtenVariableIndices)),
+        equation(std::move(equation)) {}
 
   using Dumpable::dump;
 
   void dump(llvm::raw_ostream &os) const override {
     os << "Write information\n";
     os << "Variable: " << variable << "\n";
+    os << "Written variable indices: " << writtenVariableIndices << "\n";
     os << "Equation: " << (*graph)[equation].getId() << "\n";
-    os << "Written variable indexes: " << indexes << "\n";
   }
 
   const VariableId &getVariable() const { return variable; }
 
-  EquationDescriptor getEquation() const { return equation; }
+  const MultidimensionalRange &getWrittenVariableIndices() const {
+    return writtenVariableIndices;
+  }
 
-  const IndexSet &getWrittenVariableIndexes() const { return indexes; }
+  EquationDescriptor getEquation() const { return equation; }
 
 private:
   // Used for debugging purpose.
   const Graph *graph;
   VariableId variable;
-
+  MultidimensionalRange writtenVariableIndices;
   EquationDescriptor equation;
-  IndexSet indexes;
 };
 } // namespace internal::dependency
+
+template <typename Graph, typename VariableId, typename EquationDescriptor>
+struct RTreeInfo<
+    internal::dependency::WriteInfo<Graph, VariableId, EquationDescriptor>> {
+  using Object =
+      internal::dependency::WriteInfo<Graph, VariableId, EquationDescriptor>;
+
+  static const MultidimensionalRange &getShape(const Object &object) {
+    return object.getWrittenVariableIndices();
+  }
+
+  static bool isEqual(const Object &first, const Object &second) {
+    return first.getEquation() == second.getEquation() &&
+           first.getVariable() == second.getVariable() &&
+           first.getWrittenVariableIndices() ==
+               second.getWrittenVariableIndices();
+  }
+};
 } // namespace marco::modeling
 
 #endif // MARCO_MODELING_DEPENDENCY_H

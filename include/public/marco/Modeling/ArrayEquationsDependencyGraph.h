@@ -35,8 +35,7 @@ public:
   using WriteInfo =
       internal::dependency::WriteInfo<Graph, VariableId, EquationDescriptor>;
 
-  using WritesMap = std::multimap<VariableId, WriteInfo>;
-
+  using WritesMap = llvm::DenseMap<VariableId, RTree<WriteInfo>>;
   using SCC = internal::dependency::SCC<Graph>;
 
 private:
@@ -148,9 +147,13 @@ public:
           writtenIndices += accessFunction.map(equation.getIterationRanges());
         }
 
-        result.emplace(writeAccesses[0].getVariable(),
-                       WriteInfo(*graph, writeAccesses[0].getVariable(), *it,
-                                 std::move(writtenIndices)));
+        for (const MultidimensionalRange &writtenIndicesRange :
+             llvm::make_range(writtenIndices.rangesBegin(),
+                              writtenIndices.rangesEnd())) {
+          result[writeAccesses[0].getVariable()].insert(
+              WriteInfo(*graph, writeAccesses[0].getVariable(),
+                        writtenIndicesRange, *it));
+        }
       }
     }
 
@@ -213,10 +216,12 @@ private:
 
       std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
 
-      writesMap.emplace(writeAccesses[0].getVariable(),
-                        WriteInfo(*graph, writeAccesses[0].getVariable(),
-                                  equationDescriptor,
-                                  std::move(writtenIndices)));
+      for (const MultidimensionalRange &writtenIndicesRange : llvm::make_range(
+               writtenIndices.rangesBegin(), writtenIndices.rangesEnd())) {
+        writesMap[writeAccesses[0].getVariable()].insert(
+            WriteInfo(*graph, writeAccesses[0].getVariable(),
+                      writtenIndicesRange, equationDescriptor));
+      }
     }
   }
 
@@ -249,18 +254,24 @@ private:
       for (const auto &readEntry : readVariables) {
         const VariableId &variableId = readEntry.first;
         const IndexSet &readIndices = readEntry.second;
+        auto writeInfosIt = writesMap.find(variableId);
 
-        auto writeInfos = writesMap.equal_range(variableId);
+        if (writeInfosIt == writesMap.end()) {
+          continue;
+        }
 
-        for (const auto &[variableId, writeInfo] :
-             llvm::make_range(writeInfos.first, writeInfos.second)) {
-          const IndexSet &writtenIndices =
-              writeInfo.getWrittenVariableIndexes();
+        for (const auto &readIndicesRange : llvm::make_range(
+                 readIndices.rangesBegin(), readIndices.rangesEnd())) {
+          writeInfosIt->second.walkOverlappingObjects(
+              readIndicesRange, [&](const WriteInfo &writeInfo) {
+                const MultidimensionalRange &writtenIndices =
+                    writeInfo.getWrittenVariableIndices();
 
-          if (writtenIndices.overlaps(readIndices)) {
-            std::lock_guard<std::mutex> edgeLockGuard(graphMutex);
-            graph->addEdge(equationDescriptor, writeInfo.getEquation());
-          }
+                if (readIndices.overlaps(writtenIndices)) {
+                  std::lock_guard edgeLockGuard(graphMutex);
+                  graph->addEdge(equationDescriptor, writeInfo.getEquation());
+                }
+              });
         }
       }
     };

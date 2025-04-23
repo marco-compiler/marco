@@ -76,7 +76,7 @@ public:
       internal::dependency::WriteInfo<Graph, typename Variable::Id,
                                       ScalarEquationDescriptor>;
 
-  using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
+  using WritesMap = llvm::DenseMap<typename Variable::Id, RTree<WriteInfo>>;
 
 private:
   mlir::MLIRContext *context;
@@ -191,10 +191,13 @@ private:
         IndexSet writtenIndices(accessFunction.map(equationIndices));
         std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
 
-        writesMap.emplace(writeAccess.getVariable(),
-                          WriteInfo(*graph, writeAccess.getVariable(),
-                                    scalarEquationDescriptor,
-                                    std::move(writtenIndices)));
+        for (const MultidimensionalRange &writtenIndicesRange :
+             llvm::make_range(writtenIndices.rangesBegin(),
+                              writtenIndices.rangesEnd())) {
+          writesMap[writeAccess.getVariable()].insert(
+              WriteInfo(*graph, writeAccess.getVariable(), writtenIndicesRange,
+                        scalarEquationDescriptor));
+        }
       }
     };
 
@@ -252,19 +255,27 @@ private:
       auto reads = ArrayEquationTraits::getReads(&scalarEquation.getProperty());
 
       for (const Access &read : reads) {
-        auto readIndexes =
+        IndexSet readIndices =
             read.getAccessFunction().map(scalarEquation.getIndex());
 
-        auto writeInfos = writesMap.equal_range(read.getVariable());
+        auto writeInfosIt = writesMap.find(read.getVariable());
 
-        for (const auto &[variableId, writeInfo] :
-             llvm::make_range(writeInfos.first, writeInfos.second)) {
-          const auto &writtenIndexes = writeInfo.getWrittenVariableIndexes();
+        if (writeInfosIt == writesMap.end()) {
+          continue;
+        }
 
-          if (writtenIndexes == readIndexes) {
-            std::lock_guard<std::mutex> edgeLockGuard(graphMutex);
-            graph->addEdge(equationDescriptor, writeInfo.getEquation());
-          }
+        for (const auto &readIndicesRange : llvm::make_range(
+                 readIndices.rangesBegin(), readIndices.rangesEnd())) {
+          writeInfosIt->second.walkOverlappingObjects(
+              readIndicesRange, [&](const WriteInfo &writeInfo) {
+                const MultidimensionalRange &writtenIndices =
+                    writeInfo.getWrittenVariableIndices();
+
+                if (readIndices == writtenIndices) {
+                  std::lock_guard edgeLockGuard(graphMutex);
+                  graph->addEdge(equationDescriptor, writeInfo.getEquation());
+                }
+              });
         }
       }
     };
