@@ -11,20 +11,6 @@ class raw_ostream;
 }
 
 namespace marco::modeling {
-/// R-Tree information specialization for the MultidimensionalRange class.
-template <>
-struct RTreeInfo<MultidimensionalRange> {
-  static const MultidimensionalRange &
-  getShape(const MultidimensionalRange &val);
-
-  static bool isEqual(const MultidimensionalRange &first,
-                      const MultidimensionalRange &second);
-
-  static void dump(llvm::raw_ostream &os, const MultidimensionalRange &val);
-};
-} // namespace marco::modeling
-
-namespace marco::modeling {
 /// R-Tree IndexSet implementation.
 class IndexSet
     : public r_tree::impl::RTreeCRTP<IndexSet, MultidimensionalRange> {

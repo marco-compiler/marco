@@ -2,6 +2,23 @@
 
 using namespace ::marco::modeling::r_tree;
 
+namespace marco::modeling {
+const MultidimensionalRange &
+RTreeInfo<MultidimensionalRange>::getShape(const MultidimensionalRange &val) {
+  return val;
+}
+
+bool RTreeInfo<MultidimensionalRange>::isEqual(
+    const MultidimensionalRange &first, const MultidimensionalRange &second) {
+  return first == second;
+}
+
+void RTreeInfo<MultidimensionalRange>::dump(llvm::raw_ostream &os,
+                                            const MultidimensionalRange &val) {
+  os << val;
+}
+} // namespace marco::modeling
+
 namespace marco::modeling::r_tree::impl {
 MultidimensionalRange getMBR(const MultidimensionalRange &first,
                              const MultidimensionalRange &second) {

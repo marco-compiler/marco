@@ -20,6 +20,18 @@ struct RTreeInfo {
   using Info = typename T::UnknownTypeError;
 };
 
+/// R-Tree information specialization for the MultidimensionalRange class.
+template <>
+struct RTreeInfo<MultidimensionalRange> {
+  static const MultidimensionalRange &
+  getShape(const MultidimensionalRange &val);
+
+  static bool isEqual(const MultidimensionalRange &first,
+                      const MultidimensionalRange &second);
+
+  static void dump(llvm::raw_ostream &os, const MultidimensionalRange &val);
+};
+
 namespace r_tree::impl {
 template <typename T>
 decltype(auto) getShape(const T &obj) {
