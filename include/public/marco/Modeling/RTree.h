@@ -1226,7 +1226,7 @@ private:
     });
   }
 
-protected:
+public:
   void walkOverlappingObjects(const MultidimensionalRange &range,
                               llvm::function_ref<void(T &)> walkFn) {
     walkOverlappingObjects(getRoot(), range, walkFn);
