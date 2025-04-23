@@ -143,12 +143,10 @@ int IndexSet::compare(const IndexSet &other) const {
 }
 
 void IndexSet::setFromRanges(llvm::ArrayRef<MultidimensionalRange> ranges) {
-
   // Sort the original ranges.
   llvm::SmallVector<MultidimensionalRange> sorted;
   llvm::append_range(sorted, ranges);
   llvm::sort(sorted);
-  merge(sorted);
 
   // Ensure that the ranges don't overlap.
   llvm::SmallVector<MultidimensionalRange> nonOverlappingRanges;
