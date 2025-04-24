@@ -663,6 +663,41 @@ TEST(Parser, statement_assignmentWithIgnoredResults) // NOLINT
             0);
 }
 
+TEST(Parser, statement_function_call) {
+  auto str = R"(assert(false))";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseStatement();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_TRUE((*node)->isa<CallStatement>());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 13);
+
+  ASSERT_TRUE((*node)->isa<CallStatement>());
+  auto statement = (*node)->cast<CallStatement>();
+
+  EXPECT_EQ(
+      statement->getCall()->getCallee()->cast<ComponentReference>()->getName(),
+      "assert");
+
+  EXPECT_EQ(statement->getCall()->getNumOfArguments(), 1);
+}
+
 TEST(Parser, statement_if) {
   auto str =
       R"(if false then

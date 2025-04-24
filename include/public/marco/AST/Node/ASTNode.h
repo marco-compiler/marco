@@ -64,6 +64,7 @@ public:
     Statement,
     Statement_Assignment,
     Statement_Break,
+    Statement_Call,
     Statement_For,
     Statement_If,
     Statement_Return,

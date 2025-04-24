@@ -12,6 +12,7 @@
 #include "marco/AST/Node/AssignmentStatement.h"
 #include "marco/AST/Node/BreakStatement.h"
 #include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/CallStatement.h"
 #include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/ComponentReference.h"
 #include "marco/AST/Node/ComponentReferenceEntry.h"
