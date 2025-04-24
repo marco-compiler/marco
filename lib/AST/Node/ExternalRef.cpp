@@ -36,7 +36,7 @@ std::unique_ptr<ASTNode> getExternalFunctionCall(){
   return externalFunctionCall; 
 }
 
-externalFunctionCall *getExternalFunctionCallPtr() {
+ExternalFunctionCall *getExternalFunctionCallPtr() {
   return externalFunctionCall->cast<ExternalFunctionCall>();
 }
 

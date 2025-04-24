@@ -21,6 +21,8 @@ public:
   void setAnnotationClause(std::unique_ptr<ASTNode> annotationClause); 
   std::unique_ptr<ASTNode> getAnnotationClause(); 
 
+  ExternalFunctionCall *getExternalFunctionCallPtr(); 
+  Annotation *getAnnotationPtr(); 
 
 private:
   std::string languageSpecification; 
