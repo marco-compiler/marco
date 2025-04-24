@@ -1,17 +1,17 @@
-#include "mlir/IR/MLIRContext.h"
 #define DEBUG_TYPE "index-reduction"
 
+#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/Common.h"
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
-#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/EquationBridge.h"
 #include "marco/Modeling/IndexReduction.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/SymbolTable.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -30,6 +30,7 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 
 namespace {
+
 class IndexReductionPass final
     : public impl::IndexReductionPassBase<IndexReductionPass> {
 public:
@@ -144,6 +145,9 @@ mlir::LogicalResult IndexReductionPass::initializeGraph(
     mlir::SymbolRefAttr derivativeName =
         *derivativesMap.getDerivative(derivedName);
     IndexSet derivedIndices = *derivativesMap.getDerivedIndices(derivedName);
+    if (derivedIndices.empty()) {
+      derivedIndices = IndexSet(Point(0));
+    }
 
     auto *derivedBridge = storage.variablesMap[derivedName];
     assert(derivedBridge && "Variable not found");
@@ -169,8 +173,8 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   // Collect variables
   llvm::SmallVector<VariableOp> variables;
   modelOp.collectVariables(variables);
-  auto derivativesMap = modelOp.getProperties().getDerivativesMap();
 
+  DerivativesMap derivativesMap = modelOp.getProperties().getDerivativesMap();
   std::unique_ptr<bridge::Storage> storage = bridge::Storage::create();
 
   // Callback to build a new differentiated variable from within the graph.
