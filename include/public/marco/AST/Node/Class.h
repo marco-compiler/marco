@@ -4,6 +4,9 @@
 #include "marco/AST/Node/ASTNode.h"
 
 namespace marco::ast {
+
+class ExternalRef;
+
 class Annotation;
 
 class Class : public ASTNode {
