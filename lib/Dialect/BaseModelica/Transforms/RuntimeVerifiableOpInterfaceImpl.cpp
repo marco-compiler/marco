@@ -182,15 +182,10 @@ struct TensorInsertSliceOpRuntimeVerifier
     mlir::Value source = castedOp.getValue();
     mlir::Value destination = castedOp.getDestination();
 
-    auto destinationTensorType =
-        mlir::cast<mlir::TensorType>(destination.getType());
-
-    int64_t destinationRank = destinationTensorType.getRank();
-    int64_t destinationDimension = 0;
-
     auto sourceTensorType = mlir::cast<mlir::TensorType>(source.getType());
     int64_t sourceRank = sourceTensorType.getRank();
     int64_t sourceDimension = 0;
+    int64_t destinationDimension = 0;
 
     for (mlir::Value subscript : castedOp.getSubscriptions()) {
       destinationDimension++;
@@ -221,7 +216,8 @@ struct TensorInsertSliceOpRuntimeVerifier
       builder.create<YieldOp>(assertOp.getLoc(), condition);
     }
 
-    assert(destinationRank - destinationDimension ==
+    assert(mlir::cast<mlir::TensorType>(destination.getType()).getRank() -
+               destinationDimension ==
            sourceRank - sourceDimension);
 
     while (sourceDimension < sourceRank) {
