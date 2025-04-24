@@ -34,6 +34,7 @@ struct CodegenOptions : public clang::CodeGenOptions {
   bool loopFusion = false;
   bool loopHoisting = false;
   bool loopTiling = false;
+  bool runtimeVerification = true;
 
   uint64_t bitWidth = 64;
 
