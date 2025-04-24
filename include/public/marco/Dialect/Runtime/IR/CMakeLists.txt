@@ -10,12 +10,18 @@ mlir_tablegen(RuntimeOps.h.inc -gen-op-decls)
 mlir_tablegen(RuntimeOps.cpp.inc -gen-op-defs)
 add_public_tablegen_target(MLIRRuntimeOpsIncGen)
 
+set(LLVM_TARGET_DEFINITIONS RuntimeTypes.td)
+mlir_tablegen(RuntimeTypes.h.inc -gen-typedef-decls -typedefs-dialect=runtime)
+mlir_tablegen(RuntimeTypes.cpp.inc -gen-typedef-defs -typedefs-dialect=runtime)
+add_public_tablegen_target(MLIRRuntimeTypesIncGen)
+
 set(LLVM_TARGET_DEFINITIONS Runtime.td)
 mlir_tablegen(Runtime.h.inc -gen-dialect-decls -dialect=runtime)
 mlir_tablegen(Runtime.cpp.inc -gen-dialect-defs -dialect=runtime)
 add_public_tablegen_target(MLIRRuntimeIncGen)
 
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeAttributesIncGen)
+add_dependencies(MLIRRuntimeIncGen MLIRRuntimeTypesIncGen)
 add_dependencies(MLIRRuntimeIncGen MLIRRuntimeOpsIncGen)
 
 add_mlir_doc(RuntimeAttributes RuntimeAttributes Dialects/ -gen-attrdef-doc)

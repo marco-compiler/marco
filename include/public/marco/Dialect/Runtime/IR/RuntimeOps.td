@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_RUNTIME_IR_RUNTIMOPS_TD
 
 include "marco/Dialect/Runtime/IR/RuntimeAttributes.td"
+include "marco/Dialect/Runtime/IR/RuntimeTypes.td"
 include "marco/Dialect/Runtime/IR/Runtime.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
@@ -760,6 +761,29 @@ def Runtime_ReturnOp : Runtime_Op<"return",
     let results = (outs);
 
     let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
+}
+
+def Runtime_StringOp : Runtime_Op<"string", [NoMemoryEffect]>
+{
+  let summary = "Runtime string operation";
+
+  let description = [{
+    The runtime StringOp introduces a string value.
+
+    ```mlir
+      %res = runtime.string "message"
+    ```
+  }];
+
+  let arguments = (ins
+    StrAttr:$string
+  );
+
+  let results = (outs
+    StringType:$result
+  );
+
+  let assemblyFormat = "$string attr-dict";
 }
 
 def Runtime_CallOp : Runtime_Op<"call",
