@@ -13,7 +13,7 @@ std::unique_ptr<ASTNode> clone() const {
 llvm::json::Value toJSON() const {
   llvm::json::Object result; 
   result['name'] = getName();
-  result['component_reference'] = getComponentReference().toJSON(); 
+  result['component_reference'] = getComponentReferencePtr().toJSON(); 
   llvm::SmallVector<llvm::json::Value> expressionsJson; 
   for (const auto &expression : expressions){
     expressionsJson.push_back(expression -> toJSON());
@@ -39,6 +39,10 @@ void setComponentReference(std::unique_ptr<ASTNode> node) {
 
 std::unique_ptr<ASTNode> getComponentReference() {
   return componentReference; 
+}
+
+ComponentReference *getComponentReferencePtr() {
+  return componentReference->cast<ComponentReference>();
 }
 
 void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {

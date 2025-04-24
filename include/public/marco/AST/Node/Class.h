@@ -55,6 +55,10 @@ public:
 
   bool hasAnnotation() const;
 
+  void setExternalRef(std::unique_ptr<ASTNode> node); 
+
+  std::unique_ptr<ASTNode> getExternalRef(); 
+
   Annotation *getAnnotation();
 
   const Annotation *getAnnotation() const;
@@ -67,6 +71,7 @@ private:
   llvm::SmallVector<std::unique_ptr<ASTNode>> equationSections;
   llvm::SmallVector<std::unique_ptr<ASTNode>> algorithms;
   llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;
+  std::unique_ptr<ASTNode> externalRef; 
   std::unique_ptr<ASTNode> annotation;
 };
 } // namespace marco::ast

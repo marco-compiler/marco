@@ -13,8 +13,8 @@ std::unique_ptr<ASTNode> clone() const {
 llvm::json::Value toJSON() const {
   llvm::json::Object result;
   result["language_specification"] = languageSpecification;
-  result["external_function_call"] = externalFunctionCall -> toJSON();
-  result["annotation_clause"] = annotationClause -> toJSON();
+  result["external_function_call"] = getExternalFunctionCallPtr() -> toJSON();
+  result["annotation_clause"] = getAnnotationPtr() -> toJSON();
   addJSONProperties(result);
   return result;
 }
@@ -36,6 +36,10 @@ std::unique_ptr<ASTNode> getExternalFunctionCall(){
   return externalFunctionCall; 
 }
 
+externalFunctionCall *getExternalFunctionCallPtr() {
+  return externalFunctionCall->cast<ExternalFunctionCall>();
+}
+
 void setAnnotationClause(std::unique_ptr<ASTNode> annotationClause){
   annotationClause = std::move(annotationClause); 
   annotationClause -> setParent(this); 
@@ -44,6 +48,12 @@ void setAnnotationClause(std::unique_ptr<ASTNode> annotationClause){
 std::unique_ptr<ASTNode> getAnnotationClause() {
   return annotationClause; 
 }
+
+Annotation *getAnnotationPtr() {
+  return annotationClause->cast<Annotation>();
+}
+
+
 
 
 } // namespace marco::ast
