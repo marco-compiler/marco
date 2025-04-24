@@ -23,6 +23,13 @@ convertAccessFunction(mlir::MLIRContext *context,
 
   return accessFunction.clone();
 }
+
+class EquationBridgeImpl : public EquationBridge {
+public:
+  template <typename... Arg>
+  EquationBridgeImpl(Arg &&...arg)
+      : EquationBridge(std::forward<Arg>(arg)...) {}
+};
 } // namespace
 
 namespace mlir::bmodelica::bridge {
@@ -39,15 +46,6 @@ EquationBridge::AccessesList::operator llvm::ArrayRef<VariableAccess>() const {
 
   return std::get<Container>(accesses);
 }
-
-namespace {
-class EquationBridgeImpl : public EquationBridge {
-public:
-  template <typename... Arg>
-  EquationBridgeImpl(Arg &&...arg)
-      : EquationBridge(std::forward<Arg>(arg)...) {}
-};
-} // namespace
 
 EquationBridge &
 Storage::addEquation(uint64_t id, EquationInstanceOp op,
