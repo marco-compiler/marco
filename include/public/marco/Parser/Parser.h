@@ -228,7 +228,7 @@ public:
 
   ParseResult<std::unique_ptr<ast::ASTNode>> parseExternal();
 
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseExpresssionList();
+  ParseResult<std::unique_ptr<ast::ASTNode>> parseExpressionList();
 
   ParseResult<std::unique_ptr<ast::ASTNode>> parseExternalFunctionCall();
 
