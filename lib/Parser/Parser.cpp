@@ -1902,7 +1902,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
     EXPECT(TokenKind::External);
     TRY(str, parseString());
-    result->setLanguageSpecification(str->getValue());
+    result->setLanguageSpecification(str);
     TRY(ext, parseExternalFunctionCall());
     loc.end = (*ext)->getLocation().end;
     result->setExternalFunctionCall(std::move(*ext));

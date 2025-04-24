@@ -57,7 +57,7 @@ void Class::addJSONProperties(llvm::json::Object &obj) const {
 
   obj["inner_classes"] = llvm::json::Array(innerClassesJson);
 
-  obj["external_ref"] = getExternalRefPtr() -> toJson(); 
+  obj["external_ref"] = getExternalRefPtr() -> toJSON(); 
 
   ASTNode::addJSONProperties(obj);
 }
