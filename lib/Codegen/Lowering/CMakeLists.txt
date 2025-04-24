@@ -5,6 +5,7 @@ set(SOURCES
     BreakStatementLowerer.cpp
     Bridge.cpp
     CallLowerer.cpp
+    CallStatementLowerer.cpp
     ClassDependencyGraph.cpp
     ClassPath.cpp
     ClassLowerer.cpp

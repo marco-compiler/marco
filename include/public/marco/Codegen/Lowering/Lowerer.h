@@ -15,7 +15,7 @@ public:
 
   explicit Lowerer(BridgeInterface *bridge);
 
-  virtual ~Lowerer();
+  ~Lowerer() override;
 
 protected:
   /// Helper to convert an AST location to a MLIR location.
@@ -188,6 +188,9 @@ protected:
 
   [[nodiscard]] virtual bool
   lower(const ast::BreakStatement &statement) override;
+
+  [[nodiscard]] virtual bool
+  lower(const ast::CallStatement &statement) override;
 
   [[nodiscard]] virtual bool lower(const ast::ForStatement &statement) override;
 

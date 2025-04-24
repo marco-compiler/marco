@@ -36,19 +36,45 @@ public:
 
   template <typename T>
   T as() const {
-    if (std::holds_alternative<bool>(value)) {
-      return static_cast<T>(std::get<bool>(value));
-    }
+    if constexpr (std::is_same_v<T, std::string>) {
+      if (std::holds_alternative<std::string>(value)) {
+        return std::get<std::string>(value);
+      }
 
-    if (std::holds_alternative<int64_t>(value)) {
-      return static_cast<T>(std::get<int64_t>(value));
-    }
+      if (std::holds_alternative<bool>(value)) {
+        return std::get<bool>(value) ? "true" : "false";
+      }
 
-    if (std::holds_alternative<double>(value)) {
-      return static_cast<T>(std::get<double>(value));
-    }
+      if (std::holds_alternative<int64_t>(value)) {
+        return std::to_string(std::get<int64_t>(value));
+      }
 
-    return static_cast<T>(!std::get<std::string>(value).empty());
+      return std::to_string(std::get<double>(value));
+    } else if constexpr (std::is_same_v<T, bool> || std::is_integral_v<T>) {
+      if (std::holds_alternative<bool>(value)) {
+        return static_cast<T>(std::get<bool>(value));
+      }
+
+      if (std::holds_alternative<int64_t>(value)) {
+        return static_cast<T>(std::get<int64_t>(value));
+      }
+
+      return static_cast<T>(!std::get<std::string>(value).empty());
+    } else {
+      if (std::holds_alternative<bool>(value)) {
+        return static_cast<T>(std::get<bool>(value));
+      }
+
+      if (std::holds_alternative<int64_t>(value)) {
+        return static_cast<T>(std::get<int64_t>(value));
+      }
+
+      if (std::holds_alternative<double>(value)) {
+        return static_cast<T>(std::get<double>(value));
+      }
+
+      return static_cast<T>(!std::get<std::string>(value).empty());
+    }
   }
 
   void setValue(bool newValue);

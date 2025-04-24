@@ -368,6 +368,10 @@ bool Lowerer::lower(const ast::BreakStatement &statement) {
   return bridge->lower(statement);
 }
 
+bool Lowerer::lower(const ast::CallStatement &statement) {
+  return bridge->lower(statement);
+}
+
 bool Lowerer::lower(const ast::ForStatement &statement) {
   return bridge->lower(statement);
 }

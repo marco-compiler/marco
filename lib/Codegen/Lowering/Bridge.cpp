@@ -5,6 +5,7 @@
 #include "marco/Codegen/Lowering/BreakStatementLowerer.h"
 #include "marco/Codegen/Lowering/BridgeInterface.h"
 #include "marco/Codegen/Lowering/CallLowerer.h"
+#include "marco/Codegen/Lowering/CallStatementLowerer.h"
 #include "marco/Codegen/Lowering/ClassLowerer.h"
 #include "marco/Codegen/Lowering/ComponentReferenceLowerer.h"
 #include "marco/Codegen/Lowering/ConstantLowerer.h"
@@ -143,6 +144,8 @@ public:
 
   [[nodiscard]] bool lower(const ast::BreakStatement &statement) override;
 
+  [[nodiscard]] bool lower(const ast::CallStatement &statement) override;
+
   [[nodiscard]] bool lower(const ast::ForStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::IfStatement &statement) override;
@@ -184,6 +187,7 @@ private:
   std::unique_ptr<StatementLowerer> statementLowerer;
   std::unique_ptr<AssignmentStatementLowerer> assignmentStatementLowerer;
   std::unique_ptr<BreakStatementLowerer> breakStatementLowerer;
+  std::unique_ptr<CallStatementLowerer> callStatementLowerer;
   std::unique_ptr<ForStatementLowerer> forStatementLowerer;
   std::unique_ptr<IfStatementLowerer> ifStatementLowerer;
   std::unique_ptr<ReturnStatementLowerer> returnStatementLowerer;
@@ -240,7 +244,7 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
       std::make_unique<AssignmentStatementLowerer>(this);
 
   this->breakStatementLowerer = std::make_unique<BreakStatementLowerer>(this);
-
+  this->callStatementLowerer = std::make_unique<CallStatementLowerer>(this);
   this->forStatementLowerer = std::make_unique<ForStatementLowerer>(this);
   this->ifStatementLowerer = std::make_unique<IfStatementLowerer>(this);
 
@@ -504,6 +508,11 @@ bool Bridge::Impl::lower(const ast::AssignmentStatement &statement) {
 bool Bridge::Impl::lower(const ast::BreakStatement &statement) {
   assert(breakStatementLowerer != nullptr);
   return breakStatementLowerer->lower(statement);
+}
+
+bool Bridge::Impl::lower(const ast::CallStatement &statement) {
+  assert(callStatementLowerer != nullptr);
+  return callStatementLowerer->lower(statement);
 }
 
 bool Bridge::Impl::lower(const ast::ForStatement &statement) {

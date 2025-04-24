@@ -523,6 +523,7 @@ bool CallLowerer::isBuiltInFunction(
       .Case("abs", true)
       .Case("acos", true)
       .Case("asin", true)
+      .Case("assert", true)
       .Case("atan", true)
       .Case("atan2", true)
       .Case("ceil", true)
@@ -577,6 +578,10 @@ CallLowerer::dispatchBuiltInFunctionCall(const ast::Call &call) {
 
   if (callee == "asin") {
     return asin(call);
+  }
+
+  if (callee == "assert") {
+    return builtinAssert(call);
   }
 
   if (callee == "atan") {
@@ -2075,6 +2080,90 @@ std::optional<Results> CallLowerer::zeros(const ast::Call &call) {
       builder().create<ZerosOp>(loc(call.getLocation()), resultType, args);
 
   return Reference::ssa(builder(), result);
+}
+
+std::optional<Results> CallLowerer::builtinAssert(const ast::Call &call) {
+  assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+         "assert");
+
+  size_t numOfArguments = call.getNumOfArguments();
+  constexpr size_t minExpectedNumArgs = 2;
+  constexpr size_t maxExpectedNumArgs = 3;
+
+  if (numOfArguments < minExpectedNumArgs ||
+      numOfArguments > maxExpectedNumArgs) {
+    emitErrorNumArgumentsRange("assert", call.getLocation(),
+                               call.getNumOfArguments(), minExpectedNumArgs,
+                               maxExpectedNumArgs);
+    return std::nullopt;
+  }
+
+  auto parseAssertionLevelFn = [](llvm::StringRef level) -> AssertionLevel {
+    if (!level.starts_with("AssertionLevel.")) {
+      return AssertionLevel::Error;
+    }
+
+    level = level.drop_front(15);
+
+    if (level == "warning") {
+      return AssertionLevel::Warning;
+    }
+
+    if (level == "error") {
+      return AssertionLevel::Error;
+    }
+
+    return AssertionLevel::Error;
+  };
+
+  AssertionLevel assertionLevel = AssertionLevel::Error;
+
+  if (call.getNumOfArguments() == 3) {
+    const ast::FunctionArgument *levelArg = call.getArgument(2);
+
+    if (const auto *expressionArg =
+            levelArg->dyn_cast<ast::ExpressionFunctionArgument>()) {
+
+      const auto *expr =
+          expressionArg->getExpression()->cast<ast::ComponentReference>();
+
+      assertionLevel = parseAssertionLevelFn(expr->getName());
+    }
+  }
+
+  auto *messageArg =
+      call.getArgument(1)->cast<ast::ExpressionFunctionArgument>();
+
+  auto messageStr =
+      messageArg->getExpression()->cast<ast::Constant>()->as<std::string>();
+
+  // Create the operation.
+  auto assertOp = builder().create<AssertOp>(loc(call.getLocation()),
+                                             messageStr, assertionLevel);
+
+  mlir::OpBuilder::InsertionGuard guard(builder());
+  builder().createBlock(&assertOp.getConditionRegion());
+
+  // Lower the condition.
+  auto *conditionArg =
+      call.getArgument(0)->cast<ast::ExpressionFunctionArgument>();
+
+  std::optional<Results> conditionResults =
+      lower(*conditionArg->getExpression());
+
+  assert(conditionResults->size() == 1);
+
+  mlir::Value condition =
+      (*conditionResults)[0].get((*conditionResults)[0].getLoc());
+
+  if (!mlir::isa<BooleanType>(condition.getType())) {
+    condition = builder().create<CastOp>(
+        condition.getLoc(), BooleanType::get(builder().getContext()),
+        condition);
+  }
+
+  builder().create<YieldOp>(assertOp.getLoc(), condition);
+  return Results();
 }
 
 std::optional<Results> CallLowerer::reduction(const ast::Call &call,
