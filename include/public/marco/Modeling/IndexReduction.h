@@ -12,6 +12,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling {
 
@@ -151,10 +152,12 @@ private:
     VariableVertex::Id id;
     IndexSet indices;
   };
+
   struct EquationSubset {
     EquationVertex::Id id;
     IndexSet indices;
   };
+
   using VariableAssignments =
       llvm::DenseMap<VariableVertex::Id, llvm::SmallVector<EquationSubset>>;
 
@@ -230,6 +233,11 @@ private:
     return std::nullopt;
   }
 
+  void setVariableDerivative(const VariableVertex::Id id,
+                             const VariableSubset &derivative) {
+    variableAssociations.insert_or_assign(id, derivative);
+  }
+
   /// Get the derivative of an equation if it has one.
   std::optional<EquationSubset>
   getEquationDerivative(const EquationVertex::Id id) const {
@@ -238,6 +246,11 @@ private:
       return it->getSecond();
     }
     return std::nullopt;
+  }
+
+  void setEquationDerivative(const EquationVertex::Id id,
+                             const EquationSubset &derivative) {
+    equationAssociations.insert_or_assign(id, derivative);
   }
 
   /// Remove coloring from all vertices in the graph.
@@ -283,23 +296,6 @@ private:
     return result;
   }
 
-  /// Attempt to create an augmenting path from the given equation.
-  ///
-  /// - from: the id of the equation vertex to start from
-  /// - assignments: the current assignments
-  ///
-  /// Returns true if an augmenting path was found for all indices.
-  ///
-  /// When false is returned, the colored vertices make up a
-  /// structurally singular subset of the system.
-  bool augmentPath(EquationVertex::Id from, VariableAssignments &assignments) {
-    IndexSet equationIndices =
-        getVertex<EquationVertex>(getEquationDescriptorFromId(from))
-            .getIndices();
-    // Start the traversal from all the indices of the equation.
-    return augmentPath(from, equationIndices, assignments).empty();
-  }
-
   /// Augment path
   ///
   /// - from: the id of the equation vertex to start from
@@ -308,7 +304,7 @@ private:
   ///
   /// Returns the indices for which an augmenting path was not found.
   ///
-  /// When false is returned, the colored vertices make up a
+  /// If the indices are not empty, the colored vertices make up a
   /// structurally singular subset of the system.
   IndexSet augmentPath(EquationVertex::Id from, const IndexSet &equationIndices,
                        VariableAssignments &assignments) {
@@ -446,67 +442,6 @@ private:
     */
   }
 
-  void dumpVisibilityState(llvm::raw_ostream &os) const {
-    os << "Visibility state:\n";
-    for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
-      os << " ";
-      j.dump(os);
-      auto visibleIndices = j.getVisibleIndices();
-      auto hiddenIndices = j.getIndices() - visibleIndices;
-      if (visibleIndices.empty())
-        os << " is completely hidden\n";
-      else if (hiddenIndices.empty())
-        os << " is completely visible\n";
-      else
-        os << " has hidden indices " << hiddenIndices << "\n";
-    }
-  }
-
-  void dumpColoringState(llvm::raw_ostream &os) const {
-    os << "Coloring state:\n";
-
-    os << " colored equation id(s):";
-    for (const EquationVertex &l : getVertexRange<EquationVertex>()) {
-      // TODO: Show colored indices
-      if (!l.getColoredIndices().empty()) {
-        os << " " << l.getId();
-      }
-    }
-    os << "\n";
-
-    for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
-      os << " ";
-      j.dump(os);
-      auto coloredIndices = j.getColoredIndices();
-      auto uncoloredIndices = j.getIndices() - coloredIndices;
-      if (uncoloredIndices.empty())
-        os << " is completely colored\n";
-      else if (coloredIndices.empty())
-        os << " is not colored\n";
-      else
-        os << " has colored indices " << coloredIndices << "\n";
-    }
-  }
-
-  void
-  dumpAssignmentState(llvm::raw_ostream &os,
-                      const VariableAssignments &variableAssignments) const {
-    os << "Variable assignments:\n";
-    for (const auto &[id, assignments] : variableAssignments) {
-      if (assignments.empty()) {
-        continue;
-      }
-      auto variable =
-          getVertex<VariableVertex>(getVariableDescriptorFromId(id));
-
-      os << " ";
-      variable.dump(os), os << " is assigned to equations:\n";
-      for (const auto &[equationId, indices] : assignments) {
-        os << "  " << equationId << " at " << indices << "\n";
-      }
-    }
-  }
-
 public:
   IndexReductionGraph(const std::function<VariableBridge &(VariableBridge::Id,
                                                            const IndexSet &)>
@@ -525,8 +460,8 @@ public:
     variablesMap[id] = variableDescriptor;
   }
 
-  /// Add an equation to the graph, all variables accessed by the equation are
-  /// expected to already be present in the graph.
+  /// Add an equation to the graph, all variables accessed by the equation must
+  /// already be present in the graph.
   void addEquation(
       EquationBridge &equationBridge,
       const llvm::ArrayRef<
@@ -562,43 +497,32 @@ public:
   void setVariableDerivative(VariableVertex::Id variableId,
                              VariableVertex::Id derivativeId,
                              const IndexSet &derivedIndices) {
-    variableAssociations.try_emplace(
-        variableId, VariableSubset{derivativeId, derivedIndices});
+    setVariableDerivative(variableId,
+                          VariableSubset{derivativeId, derivedIndices});
   }
 
   /// Apply the pantelides algorithm to the graph.
+  ///
   /// Returns how many times each equation should be differentiated.
   llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> pantelides() {
-    VariableAssignments variableAssignments;
+    LLVM_DEBUG(dumpInitialState());
 
+    VariableAssignments variableAssignments;
     const size_t numEquations = llvm::count_if(
         getDescriptorRange<EquationVertex>(), [](auto) { return true; });
-    LLVM_DEBUG({
-      size_t numVariables = 0;
-      size_t numIndices = 0;
-      for (const VariableVertex &variable : getVertexRange<VariableVertex>()) {
-        numVariables++;
-        // TODO: This isn't quite right for derivatives (where we maybe only
-        // care about a subset of the indices)
-        numIndices += variable.getIndices().flatSize();
-      }
-      llvm::dbgs() << "Pantelides initial state:\n"
-                   << " #equations: " << numEquations << "\n"
-                   << " #variables: " << numVariables << " ->"
-                   << " #indices: " << numIndices << "\n";
-    });
+    for (size_t k = 0; k < numEquations; k++) {
+      LLVM_DEBUG(llvm::dbgs() << "----------\n" << "k = " << k << "\n");
 
-    for (size_t kId = 0; kId < numEquations; kId++) {
-      LLVM_DEBUG(llvm::dbgs() << "----------\n" << "k = " << kId << "\n");
       // 3a
-      auto i = getVertex<EquationVertex>(getEquationDescriptorFromId(kId));
+      auto i = getVertex<EquationVertex>(getEquationDescriptorFromId(k));
+      // Start from all indices of the equation.
+      IndexSet indices = i.getIndices();
 
       // 3b
       while (true) {
         LLVM_DEBUG({
           llvm::dbgs() << "---\n"
                        << "i = " << i.getId() << "\n";
-          // Dump the graph
           dump(llvm::dbgs());
         });
 
@@ -609,17 +533,9 @@ public:
         uncolorAllVertices();
 
         // 3b-(3 & 4)
-        bool res = augmentPath(i.getId(), variableAssignments);
+        bool res = augmentPath(i.getId(), indices, variableAssignments).empty();
 
-        LLVM_DEBUG({
-          dumpVisibilityState(llvm::dbgs());
-          llvm::dbgs() << "Augmenting path from " << i.getId()
-                       << (res ? " SUCCEEDED" : " FAILED") << "\n";
-          if (!res) {
-            dumpColoringState(llvm::dbgs());
-          }
-          dumpAssignmentState(llvm::dbgs(), variableAssignments);
-        });
+        LLVM_DEBUG(dumpPathResult(i, indices, variableAssignments, res));
 
         // 3b-5
         if (res) {
@@ -644,17 +560,16 @@ public:
           if (hasVariableWithId(djBridge.getId())) {
             // The variable is an array that was already differentiated along
             // other indices. Therefore update the derived indices.
-            IndexSet newIndices =
-                getVariableDerivative(j.getId())->indices + coloredIndices;
-            variableAssociations.insert_or_assign(
-                j.getId(), VariableSubset{djBridge.getId(), newIndices});
+            VariableSubset dj = *getVariableDerivative(j.getId());
+            dj.indices += coloredIndices;
+            setVariableDerivative(j.getId(), dj);
           } else {
             // The variable is a scalar or an array that was not yet
             // differentiated. Therefore, add it variable, and establish the
             // derivative relationship.
             addVariable(djBridge);
-            variableAssociations.insert(
-                {j.getId(), {djBridge.getId(), coloredIndices}});
+            setVariableDerivative(
+                j.getId(), VariableSubset{djBridge.getId(), coloredIndices});
           }
         }
 
@@ -676,10 +591,11 @@ public:
             assert(dl.getIndices() == l.getIndices() &&
                    "Differentiated equation has wrong iteration ranges");
 
+            // Add the equation node.
             VertexDescriptor dlDescriptor = graph.addVertex(std::move(dl));
             equationsMap[dl.getId()] = dlDescriptor;
 
-            // Iterate the edges of the initial equation
+            // Iterate the edges of the initial equation.
             for (EdgeDescriptor edgeDescriptor :
                  getEdgesRange(getEquationDescriptorFromId(l.getId()))) {
               const Edge &edge = graph[edgeDescriptor];
@@ -702,15 +618,14 @@ public:
                          << " at " << edge.accessedVariableIndices() << "\n");
             }
 
-            equationAssociations[l.getId()] = {dl.getId(), coloredIndices};
+            setEquationDerivative(l.getId(), {dl.getId(), coloredIndices});
           } else {
             // An equation derivative already exists.
             // Therefore validate any newly derived indices and update the
             // association.
-            auto [dlId, derivedIndices] = *dl;
-            equationAssociations[l.getId()] = {dlId,
-                                               derivedIndices + coloredIndices};
-            getVertex<EquationVertex>(getEquationDescriptorFromId(dlId))
+            dl->indices += coloredIndices;
+            setEquationDerivative(l.getId(), *dl);
+            getVertex<EquationVertex>(getEquationDescriptorFromId(dl->id))
                 .validateIndices(coloredIndices);
           }
         }
@@ -724,8 +639,8 @@ public:
           }
 
           // As j was colored we know we just gave it a derivative
-          auto [djId, derivedIndices] = *getVariableDerivative(j.getId());
-          assert(derivedIndices.contains(coloredIndices) &&
+          VariableSubset dj = *getVariableDerivative(j.getId());
+          assert(dj.indices.contains(coloredIndices) &&
                  "The colored indices should have been derived");
 
           IndexSet unassignedIndices = coloredIndices;
@@ -746,16 +661,19 @@ public:
           }
 
           assert(unassignedIndices.empty() && "Did not assign all indices.");
-          variableAssignments[djId] = std::move(djAssignment);
+          variableAssignments[dj.id] = std::move(djAssignment);
         }
 
         // 3b-5 (iv) - Continue from the derivative of the current equation
-        auto [diId, derivedIndices] = *getEquationDerivative(i.getId());
-        i = getVertex<EquationVertex>(getEquationDescriptorFromId(diId));
+        EquationSubset di = *getEquationDerivative(i.getId());
+        i = getVertex<EquationVertex>(getEquationDescriptorFromId(di.id));
+        // Continue from the newly derived indices.
+        // NOTE: How does this work if only certain indices are in fact new?
+        indices = i.getColoredIndices();
       }
     }
 
-    llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> neededDerivations;
+    llvm::SmallVector<std::pair<EquationVertex::Id, size_t>> differentiations;
     // Measure the length of the derivation-chain for each original equation
     for (size_t equationId = 0; equationId < numEquations; equationId++) {
       size_t numDerivations = 0;
@@ -764,10 +682,9 @@ public:
         numDerivations++;
         derivative = equationAssociations.find(derivative->getFirst());
       }
-      neededDerivations.emplace_back(equationId, numDerivations);
+      differentiations.emplace_back(equationId, numDerivations);
     }
-
-    return neededDerivations;
+    return differentiations;
   }
 
   void dump(llvm::raw_ostream &os) const override {
@@ -802,6 +719,104 @@ public:
     }
     os << "---\n";
   };
+
+private:
+  void dumpVisibilityState() const {
+    llvm::raw_ostream &os = llvm::dbgs();
+    os << "Visibility state:\n";
+    for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
+      os << " ";
+      j.dump(os);
+      auto visibleIndices = j.getVisibleIndices();
+      auto hiddenIndices = j.getIndices() - visibleIndices;
+      if (visibleIndices.empty())
+        os << " is completely hidden\n";
+      else if (hiddenIndices.empty())
+        os << " is completely visible\n";
+      else
+        os << " has hidden indices " << hiddenIndices << "\n";
+    }
+  }
+
+  void dumpColoringState() const {
+    llvm::raw_ostream &os = llvm::dbgs();
+    os << "Coloring state:\n";
+
+    os << " colored equation id(s):";
+    for (const EquationVertex &l : getVertexRange<EquationVertex>()) {
+      const IndexSet &coloredIndices = l.getColoredIndices();
+      if (!coloredIndices.empty()) {
+        os << " " << l.getId() << " at " << coloredIndices;
+      }
+    }
+    os << "\n";
+
+    for (const VariableVertex &j : getVertexRange<VariableVertex>()) {
+      os << " ", j.dump(os);
+      auto coloredIndices = j.getColoredIndices();
+      auto uncoloredIndices = j.getIndices() - coloredIndices;
+      if (uncoloredIndices.empty())
+        os << " is completely colored\n";
+      else if (coloredIndices.empty())
+        os << " is not colored\n";
+      else
+        os << " has colored indices " << coloredIndices << "\n";
+    }
+  }
+
+  void
+  dumpAssignmentState(const VariableAssignments &variableAssignments) const {
+    llvm::raw_ostream &os = llvm::dbgs();
+    os << "Variable assignments:\n";
+    for (const auto &[id, assignments] : variableAssignments) {
+      if (assignments.empty()) {
+        continue;
+      }
+      auto variable =
+          getVertex<VariableVertex>(getVariableDescriptorFromId(id));
+
+      os << " ";
+      variable.dump(os), os << " is assigned to equations:\n";
+      for (const auto &[equationId, indices] : assignments) {
+        os << "  " << equationId << " at " << indices << "\n";
+      }
+    }
+  }
+
+  void dumpInitialState() const {
+    const size_t numEquations = llvm::count_if(
+        getDescriptorRange<EquationVertex>(), [](auto) { return true; });
+    size_t numVariables = 0;
+    size_t numIndices = 0;
+    for (const VariableVertex &variable : getVertexRange<VariableVertex>()) {
+      numVariables++;
+      IndexSet indices = variable.getIndices();
+      // Derivative variables are only "active" at the derived indices.
+      for (const auto &[_, derivative] : variableAssociations) {
+        if (derivative.id == variable.getId()) {
+          indices = derivative.indices;
+        }
+      }
+      numIndices += indices.flatSize();
+    }
+    llvm::dbgs() << "Pantelides initial state:\n"
+                 << " #equations: " << numEquations << "\n"
+                 << " #variables: " << numVariables << " ->"
+                 << " #indices: " << numIndices << "\n";
+  }
+
+  void dumpPathResult(const EquationVertex &i, const IndexSet &indices,
+                      const VariableAssignments &variableAssignments,
+                      const bool res) const {
+    dumpVisibilityState();
+    llvm::dbgs() << "Augmenting path from " << i.getId() << " at indices "
+                 << indices << (res ? " SUCCEEDED" : " FAILED") << "\n";
+    if (!res) {
+      dumpColoringState();
+    }
+    dumpAssignmentState(variableAssignments);
+  }
+
 
 private:
   Graph graph;
