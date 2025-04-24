@@ -4,6 +4,7 @@ add_mlir_dialect_library(MLIRBaseModelica
     DefaultValuesDependencyGraph.cpp
     DerivativesMap.cpp
     Dialect.cpp
+    Enums.cpp
     EquationPath.cpp
     ExpressionPath.cpp
     Ops.cpp

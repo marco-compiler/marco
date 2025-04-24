@@ -3,6 +3,7 @@
 
 #include "marco/Dialect/BaseModelica/IR/Attributes.h"
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
+#include "marco/Dialect/BaseModelica/IR/Enums.h"
 #include "marco/Dialect/BaseModelica/IR/OpInterfaces.h"
 #include "marco/Dialect/BaseModelica/IR/Properties.h"
 #include "marco/Dialect/BaseModelica/IR/Types.h"

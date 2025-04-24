@@ -2,6 +2,7 @@
 #define MARCO_DIALECT_BASEMODELICA_IR_BASEMODELICAOPS_TD
 
 include "marco/Dialect/BaseModelica/IR/BaseModelica.td"
+include "marco/Dialect/BaseModelica/IR/BaseModelicaEnums.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaTypes.td"
 include "marco/Dialect/BaseModelica/IR/BaseModelicaOpInterfaces.td"
 include "marco/Dialect/Modeling/IR/ModelingProperties.td"
@@ -3301,6 +3302,41 @@ def BaseModelica_ZerosOp : BaseModelica_Op<"zeros",
     let assemblyFormat = [{
         $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
+}
+
+def BaseModelica_AssertOp : BaseModelica_Op<"assert",
+    [MemoryEffects<[MemWrite]>,
+    SingleBlock]>
+{
+    let summary = "Assert truth of assertion argument";
+
+    let description = [{
+        Takes in an expression that should yield a boolean truth value.
+        The `level` attribute specifies the assertion level: 0 indicates
+        a warning while 1 indicates an error.
+
+        Example:
+
+        ```mlir
+        bmodelica.assert {level = 1 : i64, message = "message"} {
+            ...
+            %condition = ...
+            bmodelica.yield %condition : !bmodelica.bool
+        }
+        ```
+    }];
+
+    let arguments = (ins
+        StrAttr:$message,
+        AssertionLevel:$level);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$conditionRegion
+    );
+
+    let assemblyFormat = "attr-dict-with-keyword $conditionRegion";
 }
 
 def Modelica_ReductionOp : BaseModelica_Op<"reduction", [SingleBlock]>
