@@ -5,6 +5,7 @@
 
 namespace marco::ast {
 class Annotation;
+class ExternalRef;
 
 class Class : public ASTNode {
 public:
