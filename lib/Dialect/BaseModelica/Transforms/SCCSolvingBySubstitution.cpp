@@ -71,29 +71,26 @@ private:
 
   mlir::LogicalResult
   getCycles(llvm::SmallVectorImpl<Cycle> &result,
-            mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-            llvm::ArrayRef<VariableOp> variableOps,
-            llvm::ArrayRef<EquationInstanceOp> equations);
+            mlir::SymbolTableCollection &symbolTableCollection,
+            llvm::ArrayRef<EquationInstanceOp> equations, Storage &storage);
 
   mlir::LogicalResult
   solveCycles(mlir::RewriterBase &rewriter,
               mlir::SymbolTableCollection &symbolTableCollection,
-              ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
-              llvm::ArrayRef<SCCOp> SCCs);
+              ModelOp modelOp, llvm::ArrayRef<SCCOp> SCCs, Storage &storage);
 
   mlir::LogicalResult
   solveCycle(mlir::RewriterBase &rewriter,
              mlir::SymbolTableCollection &symbolTableCollection,
-             ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
-             SCCOp scc);
+             ModelOp modelOp, SCCOp scc, Storage &storage);
 
   /// Detect the SCCs among a set of equations and create the SCC
   /// operations containing them.
   mlir::LogicalResult
   createSCCs(mlir::RewriterBase &rewriter,
              mlir::SymbolTableCollection &symbolTableCollection,
-             ModelOp modelOp, llvm::ArrayRef<VariableOp> variableOps,
-             SCCOp originalSCC, llvm::ArrayRef<EquationInstanceOp> equations);
+             ModelOp modelOp, SCCOp originalSCC,
+             llvm::ArrayRef<EquationInstanceOp> equations, Storage &storage);
 
   mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
@@ -204,10 +201,18 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
   // The symbol table collection to be used for caching.
   mlir::SymbolTableCollection symbolTableCollection;
 
+  // Create the storage for the variable and equation bridges.
+  auto storage = Storage::create();
+
+  for (VariableOp variableOp : variableOps) {
+    storage->addVariable(variableOp);
+    ;
+  }
+
   // Perform the solving process on the 'initial conditions' model.
   if (!initialSCCs.empty()) {
     if (mlir::failed(solveCycles(rewriter, symbolTableCollection, modelOp,
-                                 variableOps, initialSCCs))) {
+                                 initialSCCs, *storage))) {
       modelOp.emitError()
           << "Cycles solving failed for the 'initial conditions' model";
 
@@ -218,7 +223,7 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
   // Perform the solving process on the 'main' model.
   if (!mainSCCs.empty()) {
     if (mlir::failed(solveCycles(rewriter, symbolTableCollection, modelOp,
-                                 variableOps, mainSCCs))) {
+                                 mainSCCs, *storage))) {
       modelOp.emitError() << "Cycles solving failed for the 'main' model";
       return mlir::failure();
     }
@@ -229,9 +234,8 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
 
 mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     llvm::SmallVectorImpl<Cycle> &result,
-    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps,
-    llvm::ArrayRef<EquationInstanceOp> equations) {
+    mlir::SymbolTableCollection &symbolTableCollection,
+    llvm::ArrayRef<EquationInstanceOp> equations, Storage &storage) {
   LLVM_DEBUG({
     llvm::dbgs() << "Searching cycles among the following equations:\n";
 
@@ -244,16 +248,12 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     }
   });
 
-  auto storage = bridge::Storage::create();
   llvm::SmallVector<EquationBridge *> equationPtrs;
-
-  for (VariableOp variableOp : variableOps) {
-    storage->addVariable(variableOp);
-  }
+  storage.clearEquations();
 
   for (EquationInstanceOp equation : equations) {
-    auto &bridge = storage->addEquation(
-        static_cast<int64_t>(storage->equationBridges.size()), equation,
+    auto &bridge = storage.addEquation(
+        static_cast<int64_t>(storage.equationBridges.size()), equation,
         symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(
@@ -498,10 +498,10 @@ static bool isContainedInBiggerCycle(llvm::ArrayRef<Cycle> cycles,
 mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycles(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps, llvm::ArrayRef<SCCOp> SCCs) {
+    llvm::ArrayRef<SCCOp> SCCs, Storage &storage) {
   for (SCCOp scc : SCCs) {
-    if (mlir::failed(solveCycle(rewriter, symbolTableCollection, modelOp,
-                                variableOps, scc))) {
+    if (mlir::failed(solveCycle(rewriter, symbolTableCollection, modelOp, scc,
+                                storage))) {
       return mlir::failure();
     }
   }
@@ -512,7 +512,7 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycles(
 mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps, SCCOp scc) {
+    SCCOp scc, Storage &storage) {
   // The equations that initially compose the SCC.
   llvm::SmallVector<EquationInstanceOp> originalEquations;
   scc.collectEquations(originalEquations);
@@ -539,8 +539,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
   // Compute the cyclic dependencies within the SCC.
   llvm::SmallVector<Cycle, 3> cycles;
 
-  if (mlir::failed(getCycles(cycles, symbolTableCollection, modelOp,
-                             variableOps, currentEquations))) {
+  if (mlir::failed(getCycles(cycles, symbolTableCollection, currentEquations,
+                             storage))) {
     return mlir::failure();
   }
 
@@ -629,8 +629,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
       }
     }
 
-    if (mlir::failed(getCycles(cycles, symbolTableCollection, modelOp,
-                               variableOps, currentEquations))) {
+    if (mlir::failed(getCycles(cycles, symbolTableCollection, currentEquations,
+                               storage))) {
       return mlir::failure();
     }
   }
@@ -646,8 +646,8 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
     }
 
     // Compute the new SCCs and erase the original one.
-    if (mlir::failed(createSCCs(rewriter, symbolTableCollection, modelOp,
-                                variableOps, scc, resultEquations))) {
+    if (mlir::failed(createSCCs(rewriter, symbolTableCollection, modelOp, scc,
+                                resultEquations, storage))) {
       return mlir::failure();
     }
 
@@ -671,20 +671,16 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::solveCycle(
 mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
     mlir::RewriterBase &rewriter,
     mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps, SCCOp originalSCC,
-    llvm::ArrayRef<EquationInstanceOp> equations) {
+    SCCOp originalSCC, llvm::ArrayRef<EquationInstanceOp> equations,
+    Storage &storage) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
 
-  auto storage = bridge::Storage::create();
   llvm::SmallVector<EquationBridge *> equationPtrs;
-
-  for (VariableOp variableOp : variableOps) {
-    storage->addVariable(variableOp);
-  }
+  storage.clearEquations();
 
   for (EquationInstanceOp equation : equations) {
-    auto &bridge = storage->addEquation(
-        static_cast<int64_t>(storage->equationBridges.size()), equation,
+    auto &bridge = storage.addEquation(
+        static_cast<int64_t>(storage.equationBridges.size()), equation,
         symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(

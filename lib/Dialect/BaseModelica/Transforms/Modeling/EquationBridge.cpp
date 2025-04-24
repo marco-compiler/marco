@@ -57,6 +57,24 @@ Storage::addEquation(uint64_t id, EquationInstanceOp op,
   return *ptr;
 }
 
+void Storage::clear() {
+  clearVariables();
+  clearEquations();
+  clearSCCs();
+}
+
+void Storage::clearVariables() {
+  variableBridges.clear();
+  variablesMap.clear();
+}
+
+void Storage::clearEquations() {
+  equationBridges.clear();
+  equationsMap.clear();
+}
+
+void Storage::clearSCCs() { sccBridges.clear(); }
+
 EquationBridge::EquationBridge(uint64_t id, EquationInstanceOp op,
                                mlir::SymbolTableCollection &symbolTable,
                                const Storage &storage)

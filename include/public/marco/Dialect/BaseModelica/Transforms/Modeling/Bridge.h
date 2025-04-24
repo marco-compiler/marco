@@ -34,6 +34,14 @@ public:
   EquationBridge &
   addEquation(uint64_t id, EquationInstanceOp op,
               mlir::SymbolTableCollection &symbolTableCollection);
+
+  void clear();
+
+  void clearVariables();
+
+  void clearEquations();
+
+  void clearSCCs();
 };
 } // namespace mlir::bmodelica::bridge
 
