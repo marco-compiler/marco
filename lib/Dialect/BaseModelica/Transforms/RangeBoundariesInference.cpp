@@ -36,7 +36,7 @@ public:
     for (size_t i = 0, e = op.getSubscriptions().size(); i < e; ++i) {
       mlir::Value index = op.getSubscriptions()[i];
 
-      if (auto unboundedRangeOp = index.getDefiningOp<UnboundedRangeOp>()) {
+      if (index.getDefiningOp<UnboundedRangeOp>()) {
         mlir::Value lowerBound =
             rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 
@@ -71,6 +71,69 @@ public:
     return mlir::success();
   }
 };
+
+class TensorInsertSliceOpPattern
+    : public mlir::OpRewritePattern<TensorInsertSliceOp> {
+public:
+  using mlir::OpRewritePattern<TensorInsertSliceOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(TensorInsertSliceOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    if (llvm::all_of(op.getSubscriptions(), [](mlir::Value index) {
+          mlir::Operation *definingOp = index.getDefiningOp();
+
+          if (!definingOp) {
+            return true;
+          }
+
+          return !mlir::isa<UnboundedRangeOp>(definingOp);
+        })) {
+      return mlir::failure();
+    }
+
+    mlir::Location loc = op.getLoc();
+    llvm::SmallVector<mlir::Value> newIndices;
+
+    for (size_t i = 0, e = op.getSubscriptions().size(); i < e; ++i) {
+      mlir::Value index = op.getSubscriptions()[i];
+
+      if (index.getDefiningOp<UnboundedRangeOp>()) {
+        mlir::Value lowerBound =
+            rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
+
+        mlir::Value dimensionIndex = rewriter.create<ConstantOp>(
+            loc, rewriter.getIndexAttr(static_cast<int64_t>(i)));
+
+        mlir::Value dimensionSize = rewriter.create<mlir::tensor::DimOp>(
+            loc, op.getDestination(), dimensionIndex);
+
+        mlir::Value offset =
+            rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(-1));
+
+        mlir::Value upperBound = rewriter.create<AddOp>(
+            loc, rewriter.getIndexType(), dimensionSize, offset);
+
+        mlir::Value step =
+            rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
+
+        mlir::Value range = rewriter.create<RangeOp>(
+            loc, RangeType::get(getContext(), rewriter.getIndexType()),
+            lowerBound, upperBound, step);
+
+        newIndices.push_back(range);
+        continue;
+      }
+
+      newIndices.push_back(index);
+    }
+
+    rewriter.replaceOpWithNewOp<TensorInsertSliceOp>(
+        op, op.getValue(), op.getDestination(), newIndices);
+
+    return mlir::success();
+  }
+};
 } // namespace
 
 namespace {
@@ -84,7 +147,8 @@ public:
     mlir::ModuleOp moduleOp = getOperation();
     mlir::RewritePatternSet patterns(&getContext());
 
-    patterns.insert<TensorViewOpPattern>(&getContext());
+    patterns.insert<TensorViewOpPattern, TensorInsertSliceOpPattern>(
+        &getContext());
 
     mlir::GreedyRewriteConfig config;
     config.fold = true;
