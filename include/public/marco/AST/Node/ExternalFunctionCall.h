@@ -1,4 +1,5 @@
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/ComponentReference.h"
 #include <memory>
 
 namespace marco::ast {

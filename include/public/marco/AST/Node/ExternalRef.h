@@ -1,4 +1,6 @@
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/ExternalFunctionCall.h"
+#include "marco/AST/Node/Annotation.h"
 #include <memory>
 
 namespace marco::ast {

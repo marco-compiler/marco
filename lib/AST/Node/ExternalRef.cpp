@@ -1,3 +1,5 @@
+#include "marco/AST/Node/ExternalRef.h"
+
 using namespace ::marco;
 using namespace ::marco::ast;
 

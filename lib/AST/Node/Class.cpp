@@ -3,7 +3,7 @@
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/EquationSection.h"
 #include "marco/AST/Node/Member.h"
-#include "match/AST/Node/ExternalRef.h"
+#include "marco/AST/Node/ExternalRef.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
