@@ -491,6 +491,27 @@ struct FillOpLowering : public mlir::OpRewritePattern<FillOp> {
     return mlir::success();
   }
 };
+
+struct DimOpLowering : public mlir::OpConversionPattern<mlir::tensor::DimOp> {
+  using mlir::OpConversionPattern<mlir::tensor::DimOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::tensor::DimOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    if (llvm::all_of(llvm::zip(op.getOperands(), adaptor.getOperands()),
+                     [](const auto &operands) {
+                       return std::get<0>(operands).getType() ==
+                              std::get<1>(operands).getType();
+                     })) {
+      return rewriter.notifyMatchFailure(op, "Already legal operand types");
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::tensor::DimOp>(op, adaptor.getSource(),
+                                                     adaptor.getIndex());
+
+    return mlir::success();
+  }
+};
 } // namespace
 
 mlir::LogicalResult BaseModelicaToTensorConversionPass::convertOperations() {
@@ -529,6 +550,7 @@ void populateBaseModelicaToTensorConversionPatterns(
               NDimsOpLowering, SizeOpDimensionLowering, SizeOpArrayLowering>(
           typeConverter, context);
 
+  patterns.insert<DimOpLowering>(typeConverter, context);
   patterns.insert<FillOpLowering>(context);
 }
 

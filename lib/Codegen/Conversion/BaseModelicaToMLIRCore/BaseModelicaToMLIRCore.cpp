@@ -60,6 +60,11 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
                          mlir::runtime::RuntimeDialect,
                          mlir::tensor::TensorDialect>();
 
+  target.addDynamicallyLegalOp<mlir::tensor::DimOp>([](mlir::tensor::DimOp op) {
+    return !mlir::isa<BooleanType, IntegerType, RealType>(
+        op.getSource().getType().getElementType());
+  });
+
   target.addLegalOp<RangeOp, RangeBeginOp, RangeEndOp, RangeStepOp>();
   target.addIllegalOp<CastOp>();
 
