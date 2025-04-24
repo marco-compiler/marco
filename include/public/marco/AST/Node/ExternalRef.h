@@ -32,5 +32,3 @@ private:
   std::unique_ptr<ASTNode> annotationClause; 
 };
 } // namespace marco::ast
-
-#endif // MARCO_AST_NODE_ALGORITHM_H

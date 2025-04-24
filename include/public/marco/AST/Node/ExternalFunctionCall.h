@@ -31,5 +31,3 @@ private:
   llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions; 
 };
 } // namespace marco::ast
-
-#endif // MARCO_AST_NODE_ALGORITHM_H

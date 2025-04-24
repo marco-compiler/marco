@@ -59,6 +59,8 @@ public:
 
   std::unique_ptr<ASTNode> getExternalRef(); 
 
+  ExternalRef * getExternalRefPtr(); 
+
   Annotation *getAnnotation();
 
   const Annotation *getAnnotation() const;
