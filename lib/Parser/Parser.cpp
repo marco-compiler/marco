@@ -1896,27 +1896,28 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
-  SourceRange loc = lookahead[0].getLocation();
+    SourceRange loc = lookahead[0].getLocation();
 
-  auto result = std::make_unique<ExternalRef>(loc);
+    auto result = std::make_unique<ExternalRef>(loc);
 
-  EXPECT(TokenKind::External);
-  TRY(str, parseString());
-  result->setLanguageSpecification(str->getValue());
-  TRY(ext, parseExternalFunctionCall());
-  loc.end = (*ext)->getLocation().end;
-  result->setExternalFunctionCall(std::move(*ext));
+    EXPECT(TokenKind::External);
+    TRY(str, parseString());
+    result->setLanguageSpecification(str->getValue());
+    TRY(ext, parseExternalFunctionCall());
+    loc.end = (*ext)->getLocation().end;
+    result->setExternalFunctionCall(std::move(*ext));
 
-  if (lookahead[0].isa<TokenKind::Annotation>()) {
-    {
-      TRY(annotation, parseAnnotation());
+    if (lookahead[0].isa<TokenKind::Annotation>()) {
+      {
+        TRY(annotation, parseAnnotation());
 
-      result->setAnnotation(std::move(*annotation));
-      //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
-      
-    }
+        result->setAnnotation(std::move(*annotation));
+        //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
+        
+      }
 
-  return (std::move(result));  
+    return (std::move(result));  
+  }
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
@@ -1975,4 +1976,3 @@ WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressio
 */
 
  // namespace marco::parser
-}

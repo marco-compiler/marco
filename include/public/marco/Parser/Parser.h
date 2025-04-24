@@ -226,6 +226,13 @@ public:
   /// Parse the 'annotation' symbol.
   ParseResult<std::unique_ptr<ast::ASTNode>> parseAnnotation();
 
+  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternal();
+
+  ParseResult<std::unique_ptr<ast::ASTNode>> parseExpresssionList();
+
+  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternalFunctionCall();
+
+
 private:
   std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
   parseElementList(bool publicSection);

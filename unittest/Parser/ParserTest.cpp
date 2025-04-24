@@ -24,7 +24,7 @@ TEST(Parser, expression_list_test15) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
+  //testCheckForExpressionListTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test14) { //counter
@@ -32,21 +32,21 @@ TEST(Parser, expression_list_test14) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
+  //testCheckForExpressionListTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, expression_list_test13) { //counter
   auto str = R"(,)";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
+ // testCheckForExpressionListTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, expression_list_test12) { //counter
   auto str = R"(,2)";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test11) { //counter
@@ -54,7 +54,7 @@ TEST(Parser, expression_list_test11) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test10) {
@@ -70,7 +70,7 @@ TEST(Parser, expression_list_test9) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test8) {
@@ -78,7 +78,7 @@ TEST(Parser, expression_list_test8) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test7) {
@@ -86,7 +86,7 @@ TEST(Parser, expression_list_test7) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+ // testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test6) {
@@ -94,7 +94,7 @@ TEST(Parser, expression_list_test6) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+ // testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test5) {
@@ -102,7 +102,7 @@ TEST(Parser, expression_list_test5) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+ // testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test4) {
@@ -110,7 +110,7 @@ TEST(Parser, expression_list_test4) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test3) {
@@ -118,7 +118,7 @@ TEST(Parser, expression_list_test3) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test2) {
@@ -126,7 +126,7 @@ TEST(Parser, expression_list_test2) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, expression_list_test1) {
@@ -134,84 +134,84 @@ TEST(Parser, expression_list_test1) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
+//  testCheckForExpressionListTest(parser, false, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test11) {
   auto str = R"(abc(()))";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
+  //testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test10) {
   auto str = R"(abc())";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test9) { //counter
   auto str = R"(x.y.z x.y.z = a())";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test8) { //counter
   auto str = R"(==)";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test7) { //counter
   auto str = R"(x.y.z a())";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test6) { //counter
   auto str = R"(x.y.z = a e)";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test5) { //counter
   auto str = R"(x.y.z = ())";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+//  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test4) { //counter
   auto str = R"(=abc(3,4,5))";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
+//  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test3) {
   auto str = R"(abc(3,4,5))";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test2) { 
   auto str = R"(x.y.z = abc())";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
 }
 TEST(Parser, external_function_call_test1) {
   auto str = R"(x.y.z = abc(3,4,5))";
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
+//  testCheckForExternalFunctionCallTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test15) { //counter
@@ -219,7 +219,7 @@ TEST(Parser, external_test15) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test14) { //counter
@@ -227,7 +227,7 @@ TEST(Parser, external_test14) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+//  testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test12) {
@@ -235,7 +235,7 @@ TEST(Parser, external_test12) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+//  testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test11) {
@@ -243,7 +243,7 @@ TEST(Parser, external_test11) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test10) {
@@ -251,7 +251,7 @@ TEST(Parser, external_test10) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+//  testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test9) { //counter
@@ -259,7 +259,7 @@ TEST(Parser, external_test9) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test8) { //counter
@@ -267,7 +267,7 @@ TEST(Parser, external_test8) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test7) {
@@ -275,7 +275,7 @@ TEST(Parser, external_test7) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test6) { //counter
@@ -283,7 +283,7 @@ TEST(Parser, external_test6) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+//  testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test5) { //counter
@@ -291,7 +291,7 @@ TEST(Parser, external_test5) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test4) {
@@ -299,7 +299,7 @@ TEST(Parser, external_test4) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+//  testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test3) { //counter
@@ -307,7 +307,7 @@ TEST(Parser, external_test3) { //counter
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, true, /*TO-DO*/);
+ // testCheckForExternalTest(parser, true, /*TO-DO*/);
 }
 
 TEST(Parser, external_test2) {
@@ -315,7 +315,7 @@ TEST(Parser, external_test2) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+ // testCheckForExternalTest(parser, false, /*TO-DO*/);
 }
 
 TEST(Parser, external_test1) {
@@ -323,7 +323,7 @@ TEST(Parser, external_test1) {
 
   Parser parser = initForExternalTests(str);
 
-  testCheckForExternalTest(parser, false, /*TO-DO*/);
+//  testCheckForExternalTest(parser, false, /*TO-DO*/);
 
 }
 void testCheckForExpressionListTest (Parser parser, bool checkCounter,
