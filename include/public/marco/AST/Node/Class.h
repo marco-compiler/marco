@@ -5,7 +5,6 @@
 
 namespace marco::ast {
 class Annotation;
-class ExternalRef;
 
 class Class : public ASTNode {
 public:
@@ -60,7 +59,7 @@ public:
 
   std::unique_ptr<ASTNode> getExternalRef(); 
 
-  ExternalRef * getExternalRefPtr(); 
+  ExternalRef *getExternalRefPtr(); 
 
   Annotation *getAnnotation();
 
