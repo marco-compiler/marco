@@ -376,9 +376,9 @@ struct SchedulerRunOpLowering : public RuntimeOpConversion<SchedulerRunOp> {
   }
 };
 
-class FunctionOpLowering : public mlir::ConvertOpToLLVMPattern<FunctionOp> {
+class FunctionOpLowering : public RuntimeOpConversion<FunctionOp> {
 public:
-  using mlir::ConvertOpToLLVMPattern<FunctionOp>::ConvertOpToLLVMPattern;
+  using RuntimeOpConversion<FunctionOp>::RuntimeOpConversion;
 
   mlir::LogicalResult
   matchAndRewrite(FunctionOp op, OpAdaptor adaptor,
@@ -407,10 +407,16 @@ public:
       }
     }
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
+    mlir::SymbolTable &symbolTable = symbolTableCollection->getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+
+    symbolTable.remove(op);
+
+    auto llvmFuncOp = rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
         op, op.getSymName(),
         mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
 
+    symbolTable.insert(llvmFuncOp);
     return mlir::success();
   }
 };
@@ -543,7 +549,8 @@ void populateRuntimeToLLVMPatterns(
                   SchedulerDestroyOpLowering, SchedulerAddEquationOpLowering,
                   SchedulerRunOpLowering>(typeConverter, symbolTableCollection);
 
-  patterns.insert<FunctionOpLowering, CallOpLowering>(typeConverter);
+  patterns.insert<FunctionOpLowering>(typeConverter, symbolTableCollection);
+  patterns.insert<CallOpLowering>(typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> createRuntimeToLLVMConversionPass() {
