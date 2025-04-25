@@ -1,11 +1,11 @@
 #define DEBUG_TYPE "index-reduction"
 
-#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/Common.h"
 #include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
 #include "marco/Dialect/BaseModelica/IR/Ops.h"
 #include "marco/Dialect/BaseModelica/IR/VariableAccess.h"
+#include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/EquationBridge.h"
 #include "marco/Modeling/IndexReduction.h"
@@ -13,7 +13,6 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/SymbolTable.h"
-#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
@@ -179,55 +178,35 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   // Callback to build a new differentiated variable from within the graph.
   std::function differentiateVariable =
-      [&](VariableBridge::Id variableId,
-          const IndexSet &indices) -> VariableBridge & {
+      [&](const VariableBridge::Id variableId) -> VariableBridge & {
     auto *bridge = storage->variablesMap[variableId];
     assert(bridge && "Variable not found");
-    assert(bridge->getIndices().contains(indices) &&
-           "Indices to differentiated must be valid.");
-    // If the variable is already differentiated, extend the differentiated
-    // indices, and return the existing bridge.
-    if (auto derivative = derivativesMap.getDerivative(bridge->getName())) {
-      VariableBridge *derivativeBridge = storage->variablesMap[*derivative];
-      IndexSet derivedIndices =
-          *derivativesMap.getDerivedIndices(bridge->getName());
-      assert(!derivedIndices.overlaps(indices) &&
-             "Variable is already differentiated along indices");
-      // Save the updated derived indices
-      derivativesMap.setDerivedIndices(bridge->getName(),
-                                       derivedIndices + indices);
-      return *derivativeBridge;
-    }
+    assert(!derivativesMap.getDerivative(bridge->getName()) &&
+           "Variable already has a derivative");
 
-    // Create a new derivative, named after the original variable.
+    // Create a derivative variable, named after the original variable.
+    // Ensure the name is unique in the local scope.
     std::string derivativeName =
         bridge->getName().getLeafReference().str() + "_d";
-    mlir::SymbolTable symbolTable =
-        symbolTableCollection.getSymbolTable(modelOp);
-    std::string uniqueName = derivativeName;
-    for (int i = 0; symbolTable.lookup(uniqueName); i++) {
-      uniqueName = derivativeName + "_" + std::to_string(i);
+    auto symbolTable = symbolTableCollection.getSymbolTable(modelOp);
+    while (symbolTable.lookup(derivativeName)) {
+      derivativeName = "_" + derivativeName;
     }
     mlir::SymbolRefAttr symbolRef =
-        mlir::SymbolRefAttr::get(modelOp->getContext(), uniqueName);
+        mlir::SymbolRefAttr::get(modelOp->getContext(), derivativeName);
 
-    LLVM_DEBUG(llvm::dbgs()
-               << "Creating derivative for variable " << bridge->getName()
-               << " with name " << uniqueName << "\n");
-
+    derivativesMap.setDerivative(bridge->getName(), symbolRef);
     return storage->addVariable(symbolRef, bridge->getIndices());
   };
 
   // Callback to build a new differentiated equation from within the graph.
   std::function differentiateEquation =
-      [&](EquationBridge::Id id) -> EquationBridge & {
+      [&](const EquationBridge::Id id) -> EquationBridge & {
     auto *bridge = storage->equationsMap[id];
+    assert(bridge && "Equation not found");
     auto derivativeId = static_cast<int64_t>(storage->equationBridges.size());
-    LLVM_DEBUG(llvm::dbgs()
-               << "Creating derivative for equation " << bridge->getId()
-               << " with id " << derivativeId << "\n");
-
-    return storage->addEquation(id, bridge->getOp(), symbolTableCollection);
+    return storage->addEquation(derivativeId, bridge->getOp(),
+                                symbolTableCollection);
   };
 
   // Build graph
@@ -240,15 +219,21 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   LLVM_DEBUG(graph.dump(llvm::dbgs()));
 
-  auto res = graph.pantelides();
+  llvm::SmallVector<std::pair<EquationBridge::Id, llvm::SmallVector<IndexSet>>>
+      res = graph.pantelides();
 
   LLVM_DEBUG({
     llvm::dbgs() << "Pantelides result:\n";
     size_t index = 0;
-    for (const auto &[id, numDerivatives] : res) {
-      llvm::dbgs() << "Equation id: " << id
-                   << ", number of derivations: " << numDerivatives << "\n";
-      index = std::max(index, numDerivatives);
+    for (const auto &[id, derivatives] : res) {
+      llvm::dbgs() << "Equation: " << id
+                   << " -> #derivations: " << derivatives.size() << " @ ";
+      for (size_t i = 0; i < derivatives.size(); i++) {
+        llvm::dbgs() << derivatives[i]
+                     << (i + 1 < derivatives.size() ? " -> " : "");
+      }
+      llvm::dbgs() << "\n";
+      index = std::max(index, derivatives.size());
     }
 
     if (index > 0) {
@@ -271,6 +256,11 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
       }
     }
   });
+
+  if (res.empty()) {
+    // The system has index 0 or 1, so no changes are necessary;
+    return mlir::success();
+  }
 
   return mlir::success();
 }
