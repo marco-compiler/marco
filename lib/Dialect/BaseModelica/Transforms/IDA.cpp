@@ -268,7 +268,7 @@ bool IDAInstance::hasDerivativeVariable(VariableOp variable) const {
 
 bool IDAInstance::hasEquation(EquationInstanceOp equation) const {
   assert(equation != nullptr);
-  return llvm::find(equations, equation) != equations.end();
+  return equations.contains(equation);
 }
 
 void IDAInstance::addEquation(EquationInstanceOp equation) {
