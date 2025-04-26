@@ -470,9 +470,18 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   // First create the writes map, that is the knowledge of which equation
   // writes into a variable and in which indices.
   WritesMap<VariableOp, EquationInstanceOp> writesMap;
+  llvm::SmallVector<EquationInstanceOp> nonOwnedEquations;
 
-  if (mlir::failed(
-          getWritesMap(writesMap, modelOp, allSCCs, *symbolTableCollection))) {
+  for (SCCOp sccOp : allSCCs) {
+    for (EquationInstanceOp equationOp : sccOp.getOps<EquationInstanceOp>()) {
+      if (!hasEquation(equationOp)) {
+        nonOwnedEquations.push_back(equationOp);
+      }
+    }
+  }
+
+  if (mlir::failed(getWritesMap(writesMap, modelOp, nonOwnedEquations,
+                                *symbolTableCollection))) {
     return mlir::failure();
   }
 
@@ -570,11 +579,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           llvm::dbgs() << "\n";
         });
 
-        if (hasEquation(writingEquationOp)) {
-          // Ignore the equation if it is already managed by IDA.
-          LLVM_DEBUG(llvm::dbgs() << "The equation is managed by IDA\n");
-          continue;
-        }
+        assert(!hasEquation(writingEquationOp));
 
         const IndexSet &writtenVariableIndices = entry.writtenVariableIndices;
         bool overlaps = false;
