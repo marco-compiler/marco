@@ -12,10 +12,10 @@ std::string getPartialDerFunctionName(llvm::StringRef baseName);
 
 std::string getPartialDerVariableName(llvm::StringRef baseName, uint64_t order);
 
-std::optional<FunctionOp>
-createFunctionPartialDerivative(mlir::OpBuilder &builder, State &state,
-                                FunctionOp functionOp,
-                                llvm::StringRef derivativeName);
+std::optional<FunctionOp> createFunctionPartialDerivative(
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection, State &state,
+    FunctionOp functionOp, llvm::StringRef derivativeName);
 
 std::string getTimeDerFunctionName(llvm::StringRef baseName);
 
@@ -39,14 +39,15 @@ std::string getNextTimeDerVariableName(llvm::StringRef currentName,
 bool isTimeDerivative(llvm::StringRef name, FunctionOp functionOp,
                       uint64_t maxOrder);
 
-void mapTimeDerivativeFunctionVariables(FunctionOp functionOp,
-                                        ad::forward::State &state);
+void mapTimeDerivativeFunctionVariables(
+    FunctionOp functionOp, mlir::SymbolTableCollection &symbolTableCollection,
+    ad::forward::State &state);
 
-std::optional<FunctionOp>
-createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
-                             FunctionOp functionOp, uint64_t functionOrder,
-                             llvm::StringRef derivativeName,
-                             uint64_t derivativeOrder);
+std::optional<FunctionOp> createFunctionTimeDerivative(
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection, State &state,
+    FunctionOp functionOp, uint64_t functionOrder,
+    llvm::StringRef derivativeName, uint64_t derivativeOrder);
 } // namespace mlir::bmodelica::ad::forward
 
 #endif // MARCO_DIALECT_BASEMODELICA_TRANSFORMS_AUTOMATIC_DIFFERENTIATION_FORWARD_AD_H

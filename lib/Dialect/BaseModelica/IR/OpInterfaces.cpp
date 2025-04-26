@@ -88,10 +88,6 @@ State::~State() = default;
 
 State &State::operator=(State &&other) = default;
 
-mlir::SymbolTableCollection &State::getSymbolTableCollection() {
-  return symbolTableCollection;
-}
-
 void State::mapDerivative(mlir::Value original, mlir::Value mapped) {
   valueMapping.map(original, mapped);
 }

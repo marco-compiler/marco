@@ -1492,7 +1492,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   ad::forward::State state;
 
   auto derTemplate = ad::forward::createFunctionPartialDerivative(
-      rewriter, state, functionOp, templateName);
+      rewriter, *symbolTableCollection, state, functionOp, templateName);
 
   if (!derTemplate) {
     return nullptr;

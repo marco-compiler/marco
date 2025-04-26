@@ -32,11 +32,15 @@ void DerivativeChainRulePass::runOnOperation() {
 
 namespace {
 class FoldDerPattern : public mlir::OpRewritePattern<DerOp> {
+  mlir::SymbolTableCollection *symbolTableCollection;
+  llvm::DenseMap<mlir::Operation *, ad::forward::State> *states;
+
 public:
   FoldDerPattern(mlir::MLIRContext *context,
+                 mlir::SymbolTableCollection &symbolTableCollection,
                  llvm::DenseMap<mlir::Operation *, ad::forward::State> &states)
       : mlir::OpRewritePattern<DerOp>::OpRewritePattern(context),
-        states(&states) {}
+        symbolTableCollection(&symbolTableCollection), states(&states) {}
 
   mlir::LogicalResult
   matchAndRewrite(DerOp op, mlir::PatternRewriter &rewriter) const override {
@@ -57,7 +61,8 @@ public:
     if (states->find(classOp) == states->end()) {
       auto &state = (*states)[classOp];
 
-      if (mlir::failed(mapClassVariables(classOp, state))) {
+      if (mlir::failed(
+              mapClassVariables(classOp, *symbolTableCollection, state))) {
         op.emitOpError() << "Can't map derivative variables of parent class";
 
         return mlir::failure();
@@ -67,7 +72,8 @@ public:
     // Compute the derivative.
     auto &state = (*states)[classOp];
 
-    if (mlir::failed(operandOp.createTimeDerivative(rewriter, state, true))) {
+    if (mlir::failed(operandOp.createTimeDerivative(
+            rewriter, *symbolTableCollection, state, true))) {
       return mlir::failure();
     }
 
@@ -82,27 +88,27 @@ public:
   }
 
 private:
-  mlir::LogicalResult mapClassVariables(mlir::Operation *op,
-                                        ad::forward::State &state) const {
+  mlir::LogicalResult
+  mapClassVariables(mlir::Operation *op,
+                    mlir::SymbolTableCollection &symbolTableCollection,
+                    ad::forward::State &state) const {
     if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
-      mapTimeDerivativeFunctionVariables(functionOp, state);
+      mapTimeDerivativeFunctionVariables(functionOp, symbolTableCollection,
+                                         state);
       return mlir::success();
     }
 
     return mlir::failure();
   }
-
-private:
-  llvm::DenseMap<mlir::Operation *, ad::forward::State> *states;
 };
 } // namespace
 
 mlir::LogicalResult DerivativeChainRulePass::applyChainRule() {
-  ad::forward::State state;
+  mlir::SymbolTableCollection symbolTableCollection;
   llvm::DenseMap<mlir::Operation *, ad::forward::State> states;
 
   mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<FoldDerPattern>(&getContext(), states);
+  patterns.insert<FoldDerPattern>(&getContext(), symbolTableCollection, states);
 
   mlir::GreedyRewriteConfig config;
   config.fold = true;

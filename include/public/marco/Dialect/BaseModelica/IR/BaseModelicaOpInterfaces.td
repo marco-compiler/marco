@@ -280,12 +280,14 @@ def DerivableOpInterface : BaseModelica_OpInterface<"DerivableOpInterface">
             "Compute the partial derivative of the operation.",
             "::mlir::LogicalResult", "createPartialDerivative",
             (ins "::mlir::OpBuilder&":$builder,
+                 "mlir::SymbolTableCollection&":$symbolTableCollection,
                  "ad::forward::State&":$state)
         >,
         InterfaceMethod<
             "Compute the derivative of the operation with respect to time.",
             "::mlir::LogicalResult", "createTimeDerivative",
             (ins "::mlir::OpBuilder&":$builder,
+                 "mlir::SymbolTableCollection&":$symbolTableCollection,
                  "ad::forward::State&":$state,
                  "bool":$deriveDependencies)
         >

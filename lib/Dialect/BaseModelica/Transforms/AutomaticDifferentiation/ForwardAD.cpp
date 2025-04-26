@@ -32,10 +32,10 @@ std::string getPartialDerVariableName(llvm::StringRef baseName) {
   return "pder_" + baseName.str();
 }
 
-std::optional<FunctionOp>
-createFunctionPartialDerivative(mlir::OpBuilder &builder, State &state,
-                                FunctionOp functionOp,
-                                llvm::StringRef derivativeName) {
+std::optional<FunctionOp> createFunctionPartialDerivative(
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection, State &state,
+    FunctionOp functionOp, llvm::StringRef derivativeName) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointAfter(functionOp);
 
@@ -47,8 +47,7 @@ createFunctionPartialDerivative(mlir::OpBuilder &builder, State &state,
   mlir::Operation *parentSymbolTable =
       derivedFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-  state.getSymbolTableCollection()
-      .getSymbolTable(parentSymbolTable)
+  symbolTableCollection.getSymbolTable(parentSymbolTable)
       .insert(derivedFunctionOp);
 
   // Create the function body.
@@ -101,7 +100,8 @@ createFunctionPartialDerivative(mlir::OpBuilder &builder, State &state,
     mlir::Operation *clonedOp = builder.clone(nestedOp, mapping);
 
     if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(clonedOp)) {
-      if (mlir::failed(derivableOp.createPartialDerivative(builder, state))) {
+      if (mlir::failed(derivableOp.createPartialDerivative(
+              builder, symbolTableCollection, state))) {
         return std::nullopt;
       }
     }
@@ -169,10 +169,11 @@ bool isTimeDerivative(llvm::StringRef name, FunctionOp functionOp,
   return false;
 }
 
-void mapTimeDerivativeFunctionVariables(FunctionOp functionOp,
-                                        ad::forward::State &state) {
+void mapTimeDerivativeFunctionVariables(
+    FunctionOp functionOp, mlir::SymbolTableCollection &symbolTableCollection,
+    ad::forward::State &state) {
   mlir::SymbolTable &symbolTable =
-      state.getSymbolTableCollection().getSymbolTable(functionOp);
+      symbolTableCollection.getSymbolTable(functionOp);
 
   for (VariableOp variableOp : functionOp.getOps<VariableOp>()) {
     // Given a variable "x", first search for "der_x". If it doesn't exist,
@@ -214,11 +215,11 @@ void mapTimeDerivativeFunctionVariables(FunctionOp functionOp,
   }
 }
 
-std::optional<FunctionOp>
-createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
-                             FunctionOp functionOp, uint64_t functionOrder,
-                             llvm::StringRef derivativeName,
-                             uint64_t derivativeOrder) {
+std::optional<FunctionOp> createFunctionTimeDerivative(
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection, State &state,
+    FunctionOp functionOp, uint64_t functionOrder,
+    llvm::StringRef derivativeName, uint64_t derivativeOrder) {
   // TODO support the generation of higher derivatives
   assert(derivativeOrder == functionOrder + 1);
 
@@ -226,7 +227,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
   builder.setInsertionPointAfter(functionOp);
 
   // Map the existing derivative relationships among the variables.
-  mapTimeDerivativeFunctionVariables(functionOp, state);
+  mapTimeDerivativeFunctionVariables(functionOp, symbolTableCollection, state);
 
   // Create the derived function.
   auto derivedFunctionOp =
@@ -237,8 +238,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
   mlir::Operation *functionParentSymbolTable =
       derivedFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-  state.getSymbolTableCollection()
-      .getSymbolTable(functionParentSymbolTable)
+  symbolTableCollection.getSymbolTable(functionParentSymbolTable)
       .insert(derivedFunctionOp);
 
   // Create the function body.
@@ -255,8 +255,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
     auto clonedVariableOp = mlir::cast<VariableOp>(
         builder.clone(*variableOp.getOperation(), mapping));
 
-    state.getSymbolTableCollection()
-        .getSymbolTable(derivedFunctionOp)
+    symbolTableCollection.getSymbolTable(derivedFunctionOp)
         .insert(clonedVariableOp);
 
     VariableType variableType = clonedVariableOp.getVariableType();
@@ -324,9 +323,8 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
     for (const auto &[name, type] : llvm::zip(derNames, derTypes)) {
       auto baseVariableName = inverseDerivativesNamesMap[name];
 
-      auto baseVariable =
-          state.getSymbolTableCollection().lookupSymbolIn<VariableOp>(
-              derivedFunctionOp, builder.getStringAttr(baseVariableName));
+      auto baseVariable = symbolTableCollection.lookupSymbolIn<VariableOp>(
+          derivedFunctionOp, builder.getStringAttr(baseVariableName));
 
       auto clonedOp = mlir::cast<VariableOp>(
           builder.clone(*baseVariable.getOperation(), mapping));
@@ -334,8 +332,7 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
       clonedOp.setSymName(name);
       clonedOp.setType(type);
 
-      state.getSymbolTableCollection()
-          .getSymbolTable(derivedFunctionOp)
+      symbolTableCollection.getSymbolTable(derivedFunctionOp)
           .insert(clonedOp.getOperation());
 
       state.mapGenericOpDerivative(baseVariable, clonedOp);
@@ -346,7 +343,8 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
   createDerVarsFn(newOutputVariableNames, newOutputVariableTypes);
   createDerVarsFn(newProtectedVariableNames, newProtectedVariableTypes);
 
-  mapTimeDerivativeFunctionVariables(derivedFunctionOp, state);
+  mapTimeDerivativeFunctionVariables(derivedFunctionOp, symbolTableCollection,
+                                     state);
 
   // Clone the rest of the function body.
   for (auto &nestedOp : functionOp.getOps()) {
@@ -358,8 +356,8 @@ createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
     mlir::Operation *clonedOp = builder.clone(nestedOp, mapping);
 
     if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(clonedOp)) {
-      if (mlir::failed(
-              derivableOp.createTimeDerivative(builder, state, false))) {
+      if (mlir::failed(derivableOp.createTimeDerivative(
+              builder, symbolTableCollection, state, false))) {
         return std::nullopt;
       }
     }

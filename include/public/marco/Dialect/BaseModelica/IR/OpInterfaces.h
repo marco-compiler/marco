@@ -84,8 +84,6 @@ public:
 
   State &operator=(State &&other);
 
-  mlir::SymbolTableCollection &getSymbolTableCollection();
-
   void mapDerivative(mlir::Value original, mlir::Value mapped);
 
   void mapDerivatives(mlir::ValueRange original, mlir::ValueRange mapped);
@@ -104,7 +102,6 @@ public:
   getGenericOpDerivative(mlir::Operation *original) const;
 
 private:
-  mlir::SymbolTableCollection symbolTableCollection;
   mlir::IRMapping valueMapping;
   llvm::DenseMap<mlir::Operation *, mlir::Operation *> generalOpMapping;
 };

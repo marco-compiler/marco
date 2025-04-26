@@ -1213,7 +1213,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   ad::forward::State state;
 
   auto derTemplate = ad::forward::createFunctionPartialDerivative(
-      rewriter, state, functionOp, templateName);
+      rewriter, *symbolTableCollection, state, functionOp, templateName);
 
   LLVM_DEBUG({
     llvm::dbgs() << "Function being derived:\n" << functionOp << "\n";

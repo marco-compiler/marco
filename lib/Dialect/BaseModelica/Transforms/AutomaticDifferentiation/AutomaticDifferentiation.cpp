@@ -20,27 +20,34 @@ public:
   void runOnOperation() override;
 
 private:
-  mlir::LogicalResult createTimeDerFunctions();
+  mlir::LogicalResult
+  createTimeDerFunctions(mlir::SymbolTableCollection &symbolTableCollection);
 
-  mlir::LogicalResult createPartialDerFunctions();
+  mlir::LogicalResult
+  createPartialDerFunctions(mlir::SymbolTableCollection &symbolTableCollection);
 
-  mlir::LogicalResult convertPartialDerFunction(mlir::OpBuilder &builder,
-                                                ad::forward::State &state,
-                                                DerFunctionOp derFunctionOp);
+  mlir::LogicalResult
+  convertPartialDerFunction(mlir::OpBuilder &builder,
+                            mlir::SymbolTableCollection &symbolTableCollection,
+                            ad::forward::State &state,
+                            DerFunctionOp derFunctionOp);
 };
 } // namespace
 
 void AutomaticDifferentiationPass::runOnOperation() {
-  if (mlir::failed(createTimeDerFunctions())) {
+  mlir::SymbolTableCollection symbolTableCollection;
+
+  if (mlir::failed(createTimeDerFunctions(symbolTableCollection))) {
     return signalPassFailure();
   }
 
-  if (mlir::failed(createPartialDerFunctions())) {
+  if (mlir::failed(createPartialDerFunctions(symbolTableCollection))) {
     return signalPassFailure();
   }
 }
 
-mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions() {
+mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions(
+    mlir::SymbolTableCollection &symbolTableCollection) {
   auto moduleOp = getOperation();
   mlir::OpBuilder builder(moduleOp);
   ad::forward::State state;
@@ -58,8 +65,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions() {
     uint64_t order = functionOp.getTimeDerivativeOrder();
 
     if (!ad::forward::createFunctionTimeDerivative(
-            builder, state, functionOp, order, derivativeAttr.getName(),
-            derivativeAttr.getOrder())) {
+            builder, symbolTableCollection, state, functionOp, order,
+            derivativeAttr.getName(), derivativeAttr.getOrder())) {
       return mlir::failure();
     }
   }
@@ -67,7 +74,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::createTimeDerFunctions() {
   return mlir::success();
 }
 
-mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions() {
+mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions(
+    mlir::SymbolTableCollection &symbolTableCollection) {
   auto moduleOp = getOperation();
   mlir::OpBuilder builder(moduleOp);
 
@@ -78,8 +86,8 @@ mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions() {
   ad::forward::State state;
 
   for (DerFunctionOp derFunctionOp : toBeProcessed) {
-    if (mlir::failed(
-            convertPartialDerFunction(builder, state, derFunctionOp))) {
+    if (mlir::failed(convertPartialDerFunction(builder, symbolTableCollection,
+                                               state, derFunctionOp))) {
       return mlir::failure();
     }
   }
@@ -88,17 +96,17 @@ mlir::LogicalResult AutomaticDifferentiationPass::createPartialDerFunctions() {
 }
 
 mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
-    mlir::OpBuilder &builder, ad::forward::State &state,
-    DerFunctionOp derFunctionOp) {
+    mlir::OpBuilder &builder,
+    mlir::SymbolTableCollection &symbolTableCollection,
+    ad::forward::State &state, DerFunctionOp derFunctionOp) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(derFunctionOp);
 
   // Get the function to be derived.
   auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-  auto baseFunctionOp =
-      resolveSymbol<FunctionOp>(moduleOp, state.getSymbolTableCollection(),
-                                derFunctionOp.getDerivedFunction());
+  auto baseFunctionOp = resolveSymbol<FunctionOp>(
+      moduleOp, symbolTableCollection, derFunctionOp.getDerivedFunction());
 
   assert(baseFunctionOp && "Can't find the function to be derived");
 
@@ -111,15 +119,15 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
         ad::forward::getPartialDerFunctionName(templateFunction->getSymName());
 
     auto newTemplateFunction = ad::forward::createFunctionPartialDerivative(
-        builder, state, *templateFunction, derivativeName);
+        builder, symbolTableCollection, state, *templateFunction,
+        derivativeName);
 
     if (order != 0) {
       // Erase the temporary template functions.
       mlir::Operation *templateParentSymbolTable =
           (*templateFunction)->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-      state.getSymbolTableCollection()
-          .getSymbolTable(templateParentSymbolTable)
+      symbolTableCollection.getSymbolTable(templateParentSymbolTable)
           .erase(*templateFunction);
     }
 
@@ -137,8 +145,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
   mlir::Operation *parentSymbolTable =
       derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-  auto &symbolTable =
-      state.getSymbolTableCollection().getSymbolTable(parentSymbolTable);
+  auto &symbolTable = symbolTableCollection.getSymbolTable(parentSymbolTable);
 
   // Create the derived function.
   builder.setInsertionPointAfter(derFunctionOp);

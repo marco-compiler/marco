@@ -5,7 +5,8 @@
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::ad::forward;
 
-static mlir::FailureOr<mlir::Type> getDerivedType(mlir::Type type) {
+namespace {
+mlir::FailureOr<mlir::Type> getDerivedType(mlir::Type type) {
   auto derivableType = mlir::dyn_cast<DerivableTypeInterface>(type);
 
   if (!derivableType) {
@@ -17,8 +18,7 @@ static mlir::FailureOr<mlir::Type> getDerivedType(mlir::Type type) {
 
 // The function is a wrapper to the State class method, but also emits an error
 // in case of failure.
-static std::optional<mlir::Value> getDerivative(State &state,
-                                                mlir::Value original) {
+std::optional<mlir::Value> getDerivative(State &state, mlir::Value original) {
   auto result = state.getDerivative(original);
 
   if (!result) {
@@ -30,7 +30,7 @@ static std::optional<mlir::Value> getDerivative(State &state,
 
 // The function is a wrapper to the State class method, but also emits an error
 // in case of failure.
-static std::optional<mlir::Operation *>
+std::optional<mlir::Operation *>
 getGenericOpDerivative(State &state, mlir::Operation *original) {
   auto result = state.getGenericOpDerivative(original);
 
@@ -41,38 +41,7 @@ getGenericOpDerivative(State &state, mlir::Operation *original) {
   return result;
 }
 
-/*
-// The function is a wrapper to the State class method, but also emits an error
-// in case of failure.
-static std::optional<mlir::StringAttr> getDerivative(
-    State& state, mlir::StringAttr original, mlir::Location loc)
-{
-  auto result = state.getDerivative(original);
-
-  if (!result) {
-    mlir::emitError(loc) << "Can't get derivative of '" << original.getValue()
-                         << "'";
-  }
-
-  return result;
-}
-
-// The function is a wrapper to the State class method, but also emits an error
-// in case of failure.
-static std::optional<mlir::SymbolRefAttr> getDerivative(
-    State& state, mlir::SymbolRefAttr original, mlir::Location loc)
-{
-  auto result = state.getDerivative(original);
-
-  if (!result) {
-    mlir::emitError(loc) << "Can't get derivative of " << original;
-  }
-
-  return result;
-}
- */
-
-static mlir::LogicalResult deriveRegion(
+mlir::LogicalResult deriveRegion(
     mlir::Region &region, mlir::OpBuilder &builder, State &state,
     llvm::function_ref<mlir::LogicalResult(DerivableOpInterface)> deriveFn) {
   for (auto &op : llvm::make_early_inc_range(region.getOps())) {
@@ -90,24 +59,26 @@ static mlir::LogicalResult deriveRegion(
   return mlir::success();
 }
 
-static mlir::LogicalResult createValueTimeDerivative(mlir::OpBuilder &builder,
-                                                     State &state,
-                                                     mlir::Value value) {
+mlir::LogicalResult
+createValueTimeDerivative(mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state, mlir::Value value) {
   auto derivableOp = value.getDefiningOp<DerivableOpInterface>();
 
   if (!derivableOp) {
     return mlir::failure();
   }
 
-  return derivableOp.createTimeDerivative(builder, state, true);
+  return derivableOp.createTimeDerivative(builder, symbolTableCollection, state,
+                                          true);
 }
 
-namespace {
 struct TimeOpInterface
     : public DerivableOpInterface::ExternalModel<TimeOpInterface, TimeOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto castedOp = mlir::cast<TimeOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -120,10 +91,10 @@ struct TimeOpInterface
     return mlir::success();
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TimeOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -140,21 +111,23 @@ struct TimeOpInterface
 struct TensorFromElementsOpInterface
     : public DerivableOpInterface::ExternalModel<TensorFromElementsOpInterface,
                                                  TensorFromElementsOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorFromElementsOp>(op);
 
     if (deriveDependencies) {
       for (mlir::Value value : castedOp.getValues()) {
-        if (mlir::failed(createValueTimeDerivative(builder, state, value))) {
+        if (mlir::failed(createValueTimeDerivative(
+                builder, symbolTableCollection, state, value))) {
           return mlir::failure();
         }
       }
@@ -200,21 +173,22 @@ struct TensorFromElementsOpInterface
 struct TensorBroadcastOpInterface
     : public DerivableOpInterface::ExternalModel<TensorBroadcastOpInterface,
                                                  TensorBroadcastOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorBroadcastOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
@@ -253,21 +227,22 @@ struct TensorBroadcastOpInterface
 struct TensorViewOpInterface
     : public DerivableOpInterface::ExternalModel<TensorViewOpInterface,
                                                  TensorViewOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorViewOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getSource()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getSource()))) {
         return mlir::failure();
       }
     }
@@ -300,21 +275,22 @@ struct TensorViewOpInterface
 struct TensorExtractOpInterface
     : public DerivableOpInterface::ExternalModel<TensorExtractOpInterface,
                                                  TensorExtractOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorExtractOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getTensor()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getTensor()))) {
         return mlir::failure();
       }
     }
@@ -347,26 +323,28 @@ struct TensorExtractOpInterface
 struct TensorInsertOpInterface
     : public DerivableOpInterface::ExternalModel<TensorInsertOpInterface,
                                                  TensorInsertOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorInsertOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state,
                                                  castedOp.getDestination()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
@@ -402,26 +380,28 @@ struct TensorInsertOpInterface
 struct TensorInsertSliceOpInterface
     : public DerivableOpInterface::ExternalModel<TensorInsertSliceOpInterface,
                                                  TensorInsertSliceOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TensorInsertSliceOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state,
                                                  castedOp.getDestination()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
@@ -456,16 +436,17 @@ struct TensorInsertSliceOpInterface
 
 struct AllocaOpInterface
     : public DerivableOpInterface::ExternalModel<AllocaOpInterface, AllocaOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     return createDerivative(op, builder, state);
   }
 
@@ -493,16 +474,17 @@ struct AllocaOpInterface
 
 struct AllocOpInterface
     : public DerivableOpInterface::ExternalModel<AllocOpInterface, AllocOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     return createDerivative(op, builder, state);
   }
 
@@ -531,21 +513,23 @@ struct AllocOpInterface
 struct ArrayFromElementsOpInterface
     : public DerivableOpInterface::ExternalModel<ArrayFromElementsOpInterface,
                                                  ArrayFromElementsOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<ArrayFromElementsOp>(op);
 
     if (deriveDependencies) {
       for (mlir::Value value : castedOp.getValues()) {
-        if (mlir::failed(createValueTimeDerivative(builder, state, value))) {
+        if (mlir::failed(createValueTimeDerivative(
+                builder, symbolTableCollection, state, value))) {
           return mlir::failure();
         }
       }
@@ -591,21 +575,22 @@ struct ArrayFromElementsOpInterface
 struct ArrayBroadcastOpInterface
     : public DerivableOpInterface::ExternalModel<ArrayBroadcastOpInterface,
                                                  ArrayBroadcastOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<ArrayBroadcastOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
@@ -644,21 +629,22 @@ struct ArrayBroadcastOpInterface
 struct SubscriptionOpInterface
     : public DerivableOpInterface::ExternalModel<SubscriptionOpInterface,
                                                  SubscriptionOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SubscriptionOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getSource()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getSource()))) {
         return mlir::failure();
       }
     }
@@ -686,21 +672,22 @@ struct SubscriptionOpInterface
 
 struct LoadOpInterface
     : public DerivableOpInterface::ExternalModel<LoadOpInterface, LoadOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<LoadOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getArray()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getArray()))) {
         return mlir::failure();
       }
     }
@@ -728,26 +715,27 @@ struct LoadOpInterface
 
 struct StoreOpInterface
     : public DerivableOpInterface::ExternalModel<StoreOpInterface, StoreOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<StoreOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getArray()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getArray()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
@@ -785,22 +773,24 @@ struct StoreOpInterface
 struct VariableGetOpInterface
     : public DerivableOpInterface::ExternalModel<VariableGetOpInterface,
                                                  VariableGetOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
-    return createDerivative(op, builder, state);
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
+    return createDerivative(op, builder, symbolTableCollection, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
-    return createDerivative(op, builder, state);
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
+    return createDerivative(op, builder, symbolTableCollection, state);
   }
 
-  mlir::LogicalResult createDerivative(mlir::Operation *op,
-                                       mlir::OpBuilder &builder,
-                                       State &state) const {
+  mlir::LogicalResult
+  createDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                   mlir::SymbolTableCollection &symbolTableCollection,
+                   State &state) const {
     auto castedOp = mlir::cast<VariableGetOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -809,9 +799,8 @@ struct VariableGetOpInterface
     mlir::Operation *parentClass =
         castedOp->getParentWithTrait<ClassInterface::Trait>();
 
-    auto variableOp =
-        state.getSymbolTableCollection().lookupSymbolIn<VariableOp>(
-            parentClass, castedOp.getVariableAttr());
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        parentClass, castedOp.getVariableAttr());
 
     assert(variableOp && "Variable lookup failed");
     auto derivativeVariableOp = getGenericOpDerivative(state, variableOp);
@@ -831,31 +820,33 @@ struct VariableGetOpInterface
 struct VariableSetOpInterface
     : public DerivableOpInterface::ExternalModel<VariableSetOpInterface,
                                                  VariableSetOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
-    return createDerivative(op, builder, state);
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
+    return createDerivative(op, builder, symbolTableCollection, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<VariableSetOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getValue()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getValue()))) {
         return mlir::failure();
       }
     }
 
-    return createDerivative(op, builder, state);
+    return createDerivative(op, builder, symbolTableCollection, state);
   }
 
-  mlir::LogicalResult createDerivative(mlir::Operation *op,
-                                       mlir::OpBuilder &builder,
-                                       State &state) const {
+  mlir::LogicalResult
+  createDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                   mlir::SymbolTableCollection &symbolTableCollection,
+                   State &state) const {
     auto castedOp = mlir::cast<VariableSetOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -864,9 +855,8 @@ struct VariableSetOpInterface
     mlir::Operation *parentClass =
         castedOp->getParentWithTrait<ClassInterface::Trait>();
 
-    auto variableOp =
-        state.getSymbolTableCollection().lookupSymbolIn<VariableOp>(
-            parentClass, castedOp.getVariableAttr());
+    auto variableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+        parentClass, castedOp.getVariableAttr());
 
     assert(variableOp && "Variable lookup failed");
     auto derivativeVariableOp = getGenericOpDerivative(state, variableOp);
@@ -892,16 +882,17 @@ struct VariableSetOpInterface
 struct QualifiedVariableGetOpInterface
     : public DerivableOpInterface::ExternalModel<
           QualifiedVariableGetOpInterface, QualifiedVariableGetOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     return createDerivative(op, builder, state);
   }
 
@@ -974,16 +965,17 @@ struct QualifiedVariableGetOpInterface
 struct GlobalVariableGetOpInterface
     : public DerivableOpInterface::ExternalModel<GlobalVariableGetOpInterface,
                                                  GlobalVariableGetOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     return createDerivative(op, builder, state);
   }
 
@@ -1019,16 +1011,17 @@ struct GlobalVariableGetOpInterface
 struct ConstantOpInterface
     : public DerivableOpInterface::ExternalModel<ConstantOpInterface,
                                                  ConstantOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     return createDerivative(op, builder, state);
   }
 
@@ -1098,21 +1091,22 @@ struct ConstantOpInterface
 
 struct NegateOpInterface
     : public DerivableOpInterface::ExternalModel<NegateOpInterface, NegateOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<NegateOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -1150,26 +1144,27 @@ struct NegateOpInterface
 
 struct AddOpInterface
     : public DerivableOpInterface::ExternalModel<AddOpInterface, AddOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<AddOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1215,26 +1210,27 @@ struct AddOpInterface
 
 struct AddEWOpInterface
     : public DerivableOpInterface::ExternalModel<AddEWOpInterface, AddEWOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<AddEWOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1280,26 +1276,27 @@ struct AddEWOpInterface
 
 struct SubOpInterface
     : public DerivableOpInterface::ExternalModel<SubOpInterface, SubOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SubOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1345,26 +1342,27 @@ struct SubOpInterface
 
 struct SubEWOpInterface
     : public DerivableOpInterface::ExternalModel<SubEWOpInterface, SubEWOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SubEWOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1410,26 +1408,27 @@ struct SubEWOpInterface
 
 struct MulOpInterface
     : public DerivableOpInterface::ExternalModel<MulOpInterface, MulOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<MulOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1481,26 +1480,27 @@ struct MulOpInterface
 
 struct MulEWOpInterface
     : public DerivableOpInterface::ExternalModel<MulEWOpInterface, MulEWOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<MulEWOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1552,26 +1552,27 @@ struct MulEWOpInterface
 
 struct DivOpInterface
     : public DerivableOpInterface::ExternalModel<DivOpInterface, DivOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<DivOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1638,26 +1639,27 @@ struct DivOpInterface
 
 struct DivEWOpInterface
     : public DerivableOpInterface::ExternalModel<DivEWOpInterface, DivEWOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<DivEWOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getLhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getLhs()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getRhs()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getRhs()))) {
         return mlir::failure();
       }
     }
@@ -1724,26 +1726,27 @@ struct DivEWOpInterface
 
 struct PowOpInterface
     : public DerivableOpInterface::ExternalModel<PowOpInterface, PowOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<PowOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getBase()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getBase()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getExponent()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getExponent()))) {
         return mlir::failure();
       }
     }
@@ -1831,26 +1834,27 @@ struct PowOpInterface
 
 struct PowEWOpInterface
     : public DerivableOpInterface::ExternalModel<PowEWOpInterface, PowEWOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<PowEWOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getBase()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getBase()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getExponent()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getExponent()))) {
         return mlir::failure();
       }
     }
@@ -1915,22 +1919,25 @@ struct PowEWOpInterface
 struct ReductionOpInterface
     : public DerivableOpInterface::ExternalModel<ReductionOpInterface,
                                                  ReductionOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createPartialDerivative(builder, state);
+      return nestedOp.createPartialDerivative(builder, symbolTableCollection,
+                                              state);
     };
 
     return createDerivative(op, builder, state, deriveFn);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createTimeDerivative(builder, state, deriveDependencies);
+      return nestedOp.createTimeDerivative(builder, symbolTableCollection,
+                                           state, deriveDependencies);
     };
 
     return createDerivative(op, builder, state, deriveFn);
@@ -2022,21 +2029,22 @@ struct ReductionOpInterface
 
 struct AcosOpInterface
     : public DerivableOpInterface::ExternalModel<AcosOpInterface, AcosOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<AcosOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2092,21 +2100,22 @@ struct AcosOpInterface
 
 struct AsinOpInterface
     : public DerivableOpInterface::ExternalModel<AsinOpInterface, AsinOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<AsinOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2161,21 +2170,22 @@ struct AsinOpInterface
 
 struct AtanOpInterface
     : public DerivableOpInterface::ExternalModel<AtanOpInterface, AtanOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<AtanOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2228,26 +2238,27 @@ struct AtanOpInterface
 
 struct Atan2OpInterface
     : public DerivableOpInterface::ExternalModel<Atan2OpInterface, Atan2Op> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<Atan2Op>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getY()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getY()))) {
         return mlir::failure();
       }
 
-      if (mlir::failed(
-              createValueTimeDerivative(builder, state, castedOp.getX()))) {
+      if (mlir::failed(createValueTimeDerivative(builder, symbolTableCollection,
+                                                 state, castedOp.getX()))) {
         return mlir::failure();
       }
     }
@@ -2312,21 +2323,22 @@ struct Atan2OpInterface
 
 struct CosOpInterface
     : public DerivableOpInterface::ExternalModel<CosOpInterface, CosOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<CosOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2372,21 +2384,22 @@ struct CosOpInterface
 
 struct CoshOpInterface
     : public DerivableOpInterface::ExternalModel<CoshOpInterface, CoshOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<CoshOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2430,21 +2443,22 @@ struct CoshOpInterface
 
 struct ExpOpInterface
     : public DerivableOpInterface::ExternalModel<ExpOpInterface, ExpOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<ExpOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getExponent()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getExponent()))) {
         return mlir::failure();
       }
     }
@@ -2488,21 +2502,22 @@ struct ExpOpInterface
 
 struct FillOpInterface
     : public DerivableOpInterface::ExternalModel<FillOpInterface, FillOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<FillOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2540,21 +2555,22 @@ struct FillOpInterface
 
 struct LogOpInterface
     : public DerivableOpInterface::ExternalModel<LogOpInterface, LogOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<LogOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2595,21 +2611,22 @@ struct LogOpInterface
 
 struct Log10OpInterface
     : public DerivableOpInterface::ExternalModel<Log10OpInterface, Log10Op> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<Log10Op>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2659,21 +2676,22 @@ struct Log10OpInterface
 
 struct SinOpInterface
     : public DerivableOpInterface::ExternalModel<SinOpInterface, SinOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SinOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2717,21 +2735,22 @@ struct SinOpInterface
 
 struct SinhOpInterface
     : public DerivableOpInterface::ExternalModel<SinhOpInterface, SinhOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SinhOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2775,21 +2794,22 @@ struct SinhOpInterface
 
 struct SqrtOpInterface
     : public DerivableOpInterface::ExternalModel<SqrtOpInterface, SqrtOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<SqrtOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2838,21 +2858,22 @@ struct SqrtOpInterface
 
 struct TanOpInterface
     : public DerivableOpInterface::ExternalModel<TanOpInterface, TanOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TanOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2902,21 +2923,22 @@ struct TanOpInterface
 
 struct TanhOpInterface
     : public DerivableOpInterface::ExternalModel<TanhOpInterface, TanhOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<TanhOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -2965,22 +2987,25 @@ struct TanhOpInterface
 
 struct IfOpInterface
     : public DerivableOpInterface::ExternalModel<IfOpInterface, IfOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createPartialDerivative(builder, state);
+      return nestedOp.createPartialDerivative(builder, symbolTableCollection,
+                                              state);
     };
 
     return createDerivative(op, builder, state, deriveFn);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createTimeDerivative(builder, state, deriveDependencies);
+      return nestedOp.createTimeDerivative(builder, symbolTableCollection,
+                                           state, deriveDependencies);
     };
 
     return createDerivative(op, builder, state, deriveFn);
@@ -3008,22 +3033,25 @@ struct IfOpInterface
 
 struct ForOpInterface
     : public DerivableOpInterface::ExternalModel<ForOpInterface, ForOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createPartialDerivative(builder, state);
+      return nestedOp.createPartialDerivative(builder, symbolTableCollection,
+                                              state);
     };
 
     return createDerivative(op, builder, state, deriveFn);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createTimeDerivative(builder, state, deriveDependencies);
+      return nestedOp.createTimeDerivative(builder, symbolTableCollection,
+                                           state, deriveDependencies);
     };
 
     return createDerivative(op, builder, state, deriveFn);
@@ -3040,22 +3068,25 @@ struct ForOpInterface
 
 struct WhileOpInterface
     : public DerivableOpInterface::ExternalModel<WhileOpInterface, WhileOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createPartialDerivative(builder, state);
+      return nestedOp.createPartialDerivative(builder, symbolTableCollection,
+                                              state);
     };
 
     return createDerivative(op, builder, state, deriveFn);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createTimeDerivative(builder, state, deriveDependencies);
+      return nestedOp.createTimeDerivative(builder, symbolTableCollection,
+                                           state, deriveDependencies);
     };
 
     return createDerivative(op, builder, state, deriveFn);
@@ -3072,21 +3103,22 @@ struct WhileOpInterface
 
 struct CastOpInterface
     : public DerivableOpInterface::ExternalModel<CastOpInterface, CastOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     return createDerivative(op, builder, state);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<CastOp>(op);
 
     if (deriveDependencies) {
-      if (mlir::failed(createValueTimeDerivative(builder, state,
-                                                 castedOp.getOperand()))) {
+      if (mlir::failed(createValueTimeDerivative(
+              builder, symbolTableCollection, state, castedOp.getOperand()))) {
         return mlir::failure();
       }
     }
@@ -3125,9 +3157,10 @@ struct CastOpInterface
 
 struct CallOpInterface
     : public DerivableOpInterface::ExternalModel<CallOpInterface, CallOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto castedOp = mlir::cast<CallOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -3135,8 +3168,8 @@ struct CallOpInterface
 
     auto moduleOp = castedOp->getParentOfType<mlir::ModuleOp>();
 
-    auto calleeOp = resolveSymbol(moduleOp, state.getSymbolTableCollection(),
-                                  castedOp.getCallee());
+    auto calleeOp =
+        resolveSymbol(moduleOp, symbolTableCollection, castedOp.getCallee());
 
     if (!calleeOp) {
       castedOp.emitOpError()
@@ -3156,8 +3189,8 @@ struct CallOpInterface
     }
 
     // Derive the function.
-    auto derivedFunctionOp =
-        createFunctionPartialDerivative(builder, state, functionOp);
+    auto derivedFunctionOp = createFunctionPartialDerivative(
+        builder, symbolTableCollection, state, functionOp);
 
     if (!derivedFunctionOp) {
       castedOp.emitOpError() << "Can't create callee derivative";
@@ -3188,10 +3221,10 @@ struct CallOpInterface
     return mlir::success();
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto castedOp = mlir::cast<CallOp>(op);
 
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -3201,9 +3234,10 @@ struct CallOpInterface
     return mlir::failure();
   }
 
-  std::optional<FunctionOp>
-  createFunctionPartialDerivative(mlir::OpBuilder &builder, State &state,
-                                  FunctionOp functionOp) const {
+  std::optional<FunctionOp> createFunctionPartialDerivative(
+      mlir::OpBuilder &builder,
+      mlir::SymbolTableCollection &symbolTableCollection, State &state,
+      FunctionOp functionOp) const {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointAfter(functionOp);
 
@@ -3212,41 +3246,46 @@ struct CallOpInterface
         getPartialDerFunctionName(functionOp.getSymName());
 
     return ::ad::forward::createFunctionPartialDerivative(
-        builder, state, functionOp, derivedFunctionName);
+        builder, symbolTableCollection, state, functionOp, derivedFunctionName);
   }
 
-  std::optional<FunctionOp>
-  createFunctionTimeDerivative(mlir::OpBuilder &builder, State &state,
-                               FunctionOp functionOp) const {
+  std::optional<FunctionOp> createFunctionTimeDerivative(
+      mlir::OpBuilder &builder,
+      mlir::SymbolTableCollection &symbolTableCollection, State &state,
+      FunctionOp functionOp) const {
     uint64_t order = functionOp.getTimeDerivativeOrder();
 
     std::string derivedFunctionName =
         getTimeDerFunctionName(functionOp.getSymName());
 
     return ad::forward::createFunctionTimeDerivative(
-        builder, state, functionOp, order, derivedFunctionName, order + 1);
+        builder, symbolTableCollection, state, functionOp, order,
+        derivedFunctionName, order + 1);
   }
 };
 
 struct AlgorithmOpInterface
     : public DerivableOpInterface::ExternalModel<AlgorithmOpInterface,
                                                  AlgorithmOp> {
-  mlir::LogicalResult createPartialDerivative(mlir::Operation *op,
-                                              mlir::OpBuilder &builder,
-                                              State &state) const {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createPartialDerivative(builder, state);
+      return nestedOp.createPartialDerivative(builder, symbolTableCollection,
+                                              state);
     };
 
     return createDerivative(op, builder, state, deriveFn);
   }
 
-  mlir::LogicalResult createTimeDerivative(mlir::Operation *op,
-                                           mlir::OpBuilder &builder,
-                                           State &state,
-                                           bool deriveDependencies) const {
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
     auto deriveFn = [&](DerivableOpInterface nestedOp) {
-      return nestedOp.createTimeDerivative(builder, state, deriveDependencies);
+      return nestedOp.createTimeDerivative(builder, symbolTableCollection,
+                                           state, deriveDependencies);
     };
 
     return createDerivative(op, builder, state, deriveFn);
