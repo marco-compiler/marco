@@ -22,6 +22,7 @@ void BaseModelicaDialect::registerOperations() {
   addOperations<
 #define GET_OP_LIST
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"
+
       >();
 }
 } // namespace mlir::bmodelica
@@ -7353,58 +7354,6 @@ mlir::Block *PackageOp::bodyBlock() {
 //===---------------------------------------------------------------------===//
 // ModelOp
 
-namespace {
-struct InitialModelMergePattern : public mlir::OpRewritePattern<ModelOp> {
-  using mlir::OpRewritePattern<ModelOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ModelOp op, mlir::PatternRewriter &rewriter) const override {
-    llvm::SmallVector<InitialOp> initialOps;
-
-    for (InitialOp initialOp : op.getOps<InitialOp>()) {
-      initialOps.push_back(initialOp);
-    }
-
-    if (initialOps.size() <= 1) {
-      return mlir::failure();
-    }
-
-    for (size_t i = 1, e = initialOps.size(); i < e; ++i) {
-      rewriter.mergeBlocks(initialOps[i].getBody(), initialOps[0].getBody());
-
-      rewriter.eraseOp(initialOps[i]);
-    }
-
-    return mlir::success();
-  }
-};
-
-struct MainModelMergePattern : public mlir::OpRewritePattern<ModelOp> {
-  using mlir::OpRewritePattern<ModelOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ModelOp op, mlir::PatternRewriter &rewriter) const override {
-    llvm::SmallVector<DynamicOp> dynamicOps;
-
-    for (DynamicOp dynamicOp : op.getOps<DynamicOp>()) {
-      dynamicOps.push_back(dynamicOp);
-    }
-
-    if (dynamicOps.size() <= 1) {
-      return mlir::failure();
-    }
-
-    for (size_t i = 1, e = dynamicOps.size(); i < e; ++i) {
-      rewriter.mergeBlocks(dynamicOps[i].getBody(), dynamicOps[0].getBody());
-
-      rewriter.eraseOp(dynamicOps[i]);
-    }
-
-    return mlir::success();
-  }
-};
-} // namespace
-
 namespace mlir::bmodelica {
 mlir::LogicalResult ModelOp::verify() {
   mlir::SymbolTableCollection symbolTableCollection;
@@ -7443,9 +7392,7 @@ mlir::LogicalResult ModelOp::verify() {
 }
 
 void ModelOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
-                                          mlir::MLIRContext *context) {
-  patterns.add<InitialModelMergePattern, MainModelMergePattern>(context);
-}
+                                          mlir::MLIRContext *context) {}
 
 mlir::RegionKind ModelOp::getRegionKind(unsigned index) {
   return mlir::RegionKind::Graph;
