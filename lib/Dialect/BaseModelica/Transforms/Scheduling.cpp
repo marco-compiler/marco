@@ -436,17 +436,19 @@ mlir::LogicalResult SchedulingPass::addStartEquations(
   // Determine the first SCC writing to each variable.
   llvm::DenseMap<VariableOp, SCCOp> firstWritingSCCs;
 
-  for (const auto &entry : writesMap) {
-    VariableOp writtenVariable = entry.first;
-    SCCOp scc = entry.second.second;
+  for (VariableOp variableOp : modelOp.getVariables()) {
+    for (const auto &scc :
+         writesMap.getWrites(variableOp, variableOp.getIndices())) {
+      SCCOp sccOp = scc.writingEntity;
 
-    if (auto firstWritingSCCIt = firstWritingSCCs.find(writtenVariable);
-        firstWritingSCCIt != firstWritingSCCs.end()) {
-      if (scc->isBeforeInBlock(firstWritingSCCIt->getSecond())) {
-        firstWritingSCCs[writtenVariable] = scc;
+      if (auto firstWritingSCCIt = firstWritingSCCs.find(variableOp);
+          firstWritingSCCIt != firstWritingSCCs.end()) {
+        if (sccOp->isBeforeInBlock(firstWritingSCCIt->getSecond())) {
+          firstWritingSCCs[variableOp] = sccOp;
+        }
+      } else {
+        firstWritingSCCs[variableOp] = sccOp;
       }
-    } else {
-      firstWritingSCCs[writtenVariable] = scc;
     }
   }
 
@@ -484,22 +486,19 @@ mlir::LogicalResult SchedulingPass::addStartEquations(
       }
 
       const AccessFunction &accessFunction = readAccess.getAccessFunction();
-      auto readIndices = accessFunction.map(equationIndices);
+      IndexSet readIndices = accessFunction.map(equationIndices);
 
       for (const auto &writeEntry :
-           llvm::make_range(writesMap.equal_range(readVariableOp))) {
-        if (readIndices.empty() ||
-            writeEntry.second.first.overlaps(readIndices)) {
-          SCCOp writingSCC = writeEntry.second.second;
+           writesMap.getWrites(readVariableOp, readIndices)) {
+        SCCOp writingSCC = writeEntry.writingEntity;
 
-          if (auto lastSCCDependenciesIt = lastSCCDependencies.find(equation);
-              lastSCCDependenciesIt != lastSCCDependencies.end()) {
-            if (lastSCCDependenciesIt->second->isBeforeInBlock(writingSCC)) {
-              lastSCCDependencies[equation] = writingSCC;
-            }
-          } else {
+        if (auto lastSCCDependenciesIt = lastSCCDependencies.find(equation);
+            lastSCCDependenciesIt != lastSCCDependencies.end()) {
+          if (lastSCCDependenciesIt->second->isBeforeInBlock(writingSCC)) {
             lastSCCDependencies[equation] = writingSCC;
           }
+        } else {
+          lastSCCDependencies[equation] = writingSCC;
         }
       }
     }

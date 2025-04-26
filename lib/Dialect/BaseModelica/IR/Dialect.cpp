@@ -606,36 +606,15 @@ mlir::Value materializeAffineExpr(mlir::OpBuilder &builder, mlir::Location loc,
 } // namespace mlir::bmodelica
 
 namespace {
-/// Get a sorted list of the variables appearing in a writes map.
-/// The function is intended to be used only for debugging purposes.
-template <typename Equation>
-llvm::SmallVector<VariableOp>
-getWritesMapVariables(const WritesMap<VariableOp, Equation> &writesMap) {
-  llvm::DenseSet<VariableOp> uniqueVariables;
-  llvm::SmallVector<VariableOp> variables;
-
-  for (const auto &entry : writesMap) {
-    VariableOp variable = entry.first;
-    assert(variable != nullptr);
-
-    if (!uniqueVariables.contains(variable)) {
-      uniqueVariables.insert(variable);
-      variables.push_back(variable);
-    }
-  }
-
-  return variables;
-}
-
 template <typename Equation>
 llvm::raw_ostream &printWritesMap(llvm::raw_ostream &os,
                                   const WritesMap<VariableOp, Equation> &obj) {
-  for (VariableOp variable : getWritesMapVariables(obj)) {
+  for (VariableOp variable : obj.getVariables()) {
     os << "Variable: " << variable.getSymName() << "\n";
 
-    for (const auto &entry : llvm::make_range(obj.equal_range(variable))) {
-      const IndexSet &indices = entry.second.first;
-      Equation equation = entry.second.second;
+    for (const auto &entry : obj.getWrites(variable, variable.getIndices())) {
+      const IndexSet &indices = entry.writtenVariableIndices;
+      Equation equation = entry.writingEntity;
 
       os << "  - Indices: " << indices << "\n";
       os << "    Equation: ";
@@ -697,9 +676,7 @@ getWritesMap(WritesMap<VariableOp, Equation> &writesMap, ModelOp modelOp,
       writtenVariableIndices += accessFunction.map(equationIndices);
     }
 
-    writesMap.emplace(
-        writtenVariableOp,
-        std::make_pair(std::move(writtenVariableIndices), equationOp));
+    writesMap.addWrite(writtenVariableOp, writtenVariableIndices, equationOp);
   }
 
   return mlir::success();
@@ -729,9 +706,7 @@ getWritesMap(WritesMap<VariableOp, StartEquationInstanceOp> &writesMap,
     IndexSet writtenVariableIndices =
         writeAccess->getAccessFunction().map(equationIndices);
 
-    writesMap.emplace(
-        writtenVariableOp,
-        std::make_pair(std::move(writtenVariableIndices), equation));
+    writesMap.addWrite(writtenVariableOp, writtenVariableIndices, equation);
   }
 
   return mlir::success();
@@ -765,25 +740,39 @@ mlir::LogicalResult getWritesMap<EquationInstanceOp>(
     mlir::SymbolTableCollection &symbolTableCollection) {
   llvm::SmallVector<EquationInstanceOp> equations;
 
-  for (SCCOp scc : SCCs) {
-    for (EquationInstanceOp equation : scc.getOps<EquationInstanceOp>()) {
-      equations.push_back(equation);
+  for (SCCOp sccOp : SCCs) {
+    for (EquationInstanceOp equationOp : sccOp.getOps<EquationInstanceOp>()) {
+      IndexSet equationIndices = equationOp.getIterationSpace();
+      llvm::SmallVector<VariableAccess> accesses;
+
+      if (mlir::failed(
+              equationOp.getAccesses(accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      llvm::SmallVector<VariableAccess> writeAccesses;
+
+      if (mlir::failed(equationOp.getWriteAccesses(
+              writeAccesses, symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      assert(!writeAccesses.empty());
+
+      auto writtenVariableOp = symbolTableCollection.lookupSymbolIn<VariableOp>(
+          modelOp, writeAccesses[0].getVariable());
+
+      assert(writtenVariableOp != nullptr);
+
+      IndexSet writtenVariableIndices;
+
+      for (const VariableAccess &writeAccess : writeAccesses) {
+        const AccessFunction &accessFunction = writeAccess.getAccessFunction();
+        writtenVariableIndices += accessFunction.map(equationIndices);
+      }
+
+      writesMap.addWrite(writtenVariableOp, writtenVariableIndices, sccOp);
     }
-  }
-
-  WritesMap<VariableOp, EquationInstanceOp> equationsWritesMap;
-
-  if (mlir::failed(getWritesMap(equationsWritesMap, modelOp, equations,
-                                symbolTableCollection))) {
-    return mlir::failure();
-  }
-
-  for (const auto &entry : equationsWritesMap) {
-    auto parentSCC = entry.second.second->getParentOfType<SCCOp>();
-    assert(parentSCC != nullptr);
-
-    writesMap.emplace(entry.first,
-                      std::make_pair(entry.second.first, parentSCC));
   }
 
   return mlir::success();
@@ -803,8 +792,7 @@ getWritesMap(WritesMap<VariableOp, ScheduleBlockOp> &writesMap, ModelOp modelOp,
         return mlir::failure();
       }
 
-      writesMap.emplace(variableOp,
-                        std::make_pair(writtenVariable.indices, block));
+      writesMap.addWrite(variableOp, writtenVariable.indices, block);
     }
   }
 

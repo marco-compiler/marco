@@ -479,7 +479,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         auto readIndices = accessFunction.map(iterationSpace);
 
         auto writingEquations =
-            llvm::make_range(mainWritesMap.equal_range(readVariableOp));
+            mainWritesMap.getWrites(readVariableOp, readIndices);
 
         if (writingEquations.empty()) {
           // If there is no equation writing to the variable, then the variable
@@ -488,8 +488,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         }
 
         return llvm::all_of(writingEquations, [&](const auto &entry) {
-          EquationInstanceOp writingEquation = entry.second.second;
-          const IndexSet &writtenIndices = entry.second.first;
+          EquationInstanceOp writingEquation = entry.writingEntity;
 
           if (promotableEquations.contains(writingEquation)) {
             // The writing equation (and the scalar variables it writes to) has
@@ -500,13 +499,6 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
           if (sccEquations.contains(writingEquation)) {
             // If the writing equation belongs to the current SCC, then the
             // whole SCC may still be turned into initial equations.
-            return true;
-          }
-
-          if (!writtenIndices.empty() &&
-              !writtenIndices.overlaps(readIndices)) {
-            // Ignore the equation (consider it valid) if its written indices
-            // don't overlap the read ones.
             return true;
           }
 
@@ -577,24 +569,23 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
     IndexSet variableIndices;
 
     // Initially, consider all the variable indices.
-    for (const auto &entry :
-         llvm::make_range(mainWritesMap.equal_range(variableOp))) {
-      variableIndices += entry.second.first;
+    if (auto writtenIndices = mainWritesMap.getWrittenIndices(variableOp)) {
+      variableIndices += *writtenIndices;
     }
 
     // Then, remove the indices that are written by already existing initial
     // equations.
-    for (const auto &entry :
-         llvm::make_range(initialConditionsWritesMap.equal_range(variableOp))) {
-      variableIndices -= entry.second.first;
+    if (auto writtenIndices =
+            initialConditionsWritesMap.getWrittenIndices(variableOp)) {
+      variableIndices -= *writtenIndices;
     }
 
     // Convert the writing non-initial equations into initial equations.
     auto writingEquations =
-        llvm::make_range(mainWritesMap.equal_range(variableOp));
+        mainWritesMap.getWrites(variableOp, variableIndices);
 
     for (const auto &entry : writingEquations) {
-      EquationInstanceOp equationOp = entry.second.second;
+      EquationInstanceOp equationOp = entry.writingEntity;
       IndexSet writingEquationIndices = equationOp.getIterationSpace();
 
       llvm::SmallVector<VariableAccess> accesses;
@@ -637,8 +628,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         // In case of scalar variables, the initial equation should be created
         // only if there is not one already writing its value.
         shouldCreateInitialEquations =
-            initialConditionsWritesMap.find(variableOp) ==
-            initialConditionsWritesMap.end();
+            !initialConditionsWritesMap.isWritten(variableOp);
       } else {
         shouldCreateInitialEquations =
             !writtenIndices.empty() && !writingEquationIndices.empty();

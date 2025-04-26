@@ -202,18 +202,14 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
           modelOp, readVariable.name);
 
       for (const auto &writingBlock :
-           llvm::make_range(writesMap.equal_range(readVariableOp))) {
-        if (writingBlock.second.second == readingBlock) {
+           writesMap.getWrites(readVariableOp, readVariable.indices)) {
+        if (writingBlock.writingEntity == readingBlock) {
           // Ignore self-loops.
           continue;
         }
 
-        if (writingBlock.second.first.overlaps(readVariable.indices) ||
-            (writingBlock.second.first.empty() &&
-             readVariable.indices.empty())) {
-          dependantBlocks[writingBlock.second.second].insert(readingBlock);
-          inDegrees[readingBlock]++;
-        }
+        dependantBlocks[writingBlock.writingEntity].insert(readingBlock);
+        inDegrees[readingBlock]++;
       }
     }
   }

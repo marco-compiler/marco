@@ -14,31 +14,6 @@ SCCBridge::SCCBridge(
       startEqsWritesMap(&startEqsWritesMap), equationsMap(&equationsMap) {}
 } // namespace mlir::bmodelica::bridge
 
-namespace {
-template <typename Equation>
-static mlir::LogicalResult
-getWritingEquations(llvm::SmallVectorImpl<Equation> &result,
-                    const WritesMap<VariableOp, Equation> &writesMap,
-                    VariableOp variable, const IndexSet &variableIndices) {
-  auto writingEquations = writesMap.equal_range(variable);
-
-  for (const auto &writingEquation :
-       llvm::make_range(writingEquations.first, writingEquations.second)) {
-    if (variableIndices.empty()) {
-      result.push_back(writingEquation.second.second);
-    } else {
-      const IndexSet &writtenVariableIndices = writingEquation.second.first;
-
-      if (writtenVariableIndices.overlaps(variableIndices)) {
-        result.push_back(writingEquation.second.second);
-      }
-    }
-  }
-
-  return mlir::success();
-}
-} // namespace
-
 namespace marco::modeling::dependency {
 std::vector<SCCTraits<SCCBridge *>::ElementRef>
 SCCTraits<SCCBridge *>::getElements(const SCC *scc) {
@@ -110,16 +85,12 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
     IndexSet readVariableIndices =
         readAccess.getAccessFunction().map(equationIndices);
 
-    llvm::SmallVector<EquationInstanceOp> writingEquations;
-
-    if (mlir::failed(getWritingEquations(writingEquations, matchedEqsWritesMap,
-                                         variableOp, readVariableIndices))) {
-      llvm_unreachable("Can't determine the writing equations");
-      return {};
-    }
+    auto writingEquations =
+        matchedEqsWritesMap.getWrites(variableOp, readVariableIndices);
 
     for (const auto &writingEquation : writingEquations) {
-      if (auto writingEquationPtr = equationsMap.lookup(writingEquation)) {
+      if (auto writingEquationPtr =
+              equationsMap.lookup(writingEquation.writingEntity)) {
         result.push_back(writingEquationPtr);
       }
     }
@@ -144,11 +115,11 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
     IndexSet writtenVariableIndices =
         writeAccess.getAccessFunction().map(equationIndices);
 
-    if (mlir::failed(getWritingEquations(startEquations, startEqsWritesMap,
-                                         writtenVariableOp,
-                                         writtenVariableIndices))) {
-      llvm_unreachable("Can't determine the writing equations");
-      return {};
+    auto writingEquations =
+        startEqsWritesMap.getWrites(writtenVariableOp, writtenVariableIndices);
+
+    for (const auto &writingEquation : writingEquations) {
+      startEquations.push_back(writingEquation.writingEntity);
     }
   }
 
@@ -181,17 +152,12 @@ SCCTraits<SCCBridge *>::getDependencies(const SCC *scc, ElementRef equation) {
       IndexSet readVariableIndices =
           startEqRead.getAccessFunction().map(startEquationIndices);
 
-      llvm::SmallVector<EquationInstanceOp> writingEquations;
-
-      if (mlir::failed(getWritingEquations(writingEquations,
-                                           matchedEqsWritesMap, readVariableOp,
-                                           readVariableIndices))) {
-        llvm_unreachable("Can't determine the writing equations");
-        return {};
-      }
+      auto writingEquations =
+          matchedEqsWritesMap.getWrites(readVariableOp, readVariableIndices);
 
       for (const auto &writingEquation : writingEquations) {
-        if (auto writingEquationPtr = equationsMap.lookup(writingEquation)) {
+        if (auto writingEquationPtr =
+                equationsMap.lookup(writingEquation.writingEntity)) {
           result.push_back(writingEquationPtr);
         }
       }

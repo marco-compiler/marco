@@ -559,10 +559,10 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       });
 
       auto writingEquations =
-          llvm::make_range(writesMap.equal_range(accessedVariableOp));
+          writesMap.getWrites(accessedVariableOp, accessedVariableIndices);
 
       for (const auto &entry : writingEquations) {
-        EquationInstanceOp writingEquationOp = entry.second.second;
+        EquationInstanceOp writingEquationOp = entry.writingEntity;
 
         LLVM_DEBUG({
           llvm::dbgs() << "Found the following writing equation:\n";
@@ -576,7 +576,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           continue;
         }
 
-        const IndexSet &writtenVariableIndices = entry.second.first;
+        const IndexSet &writtenVariableIndices = entry.writtenVariableIndices;
         bool overlaps = false;
 
         if (writtenVariableIndices.empty()) {
