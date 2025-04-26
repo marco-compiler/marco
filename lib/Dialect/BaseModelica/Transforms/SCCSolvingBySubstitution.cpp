@@ -91,8 +91,6 @@ private:
              mlir::SymbolTableCollection &symbolTableCollection,
              ModelOp modelOp, SCCOp originalSCC,
              llvm::ArrayRef<EquationInstanceOp> equations, Storage &storage);
-
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
 } // namespace
 
@@ -107,17 +105,11 @@ void SCCSolvingBySubstitutionPass::runOnOperation() {
 
   auto runFn = [&](mlir::Operation *op) {
     auto modelOp = mlir::cast<ModelOp>(op);
-    LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
     if (mlir::failed(processModelOp(modelOp))) {
       return mlir::failure();
     }
 
-    if (mlir::failed(cleanModelOp(modelOp))) {
-      return mlir::failure();
-    }
-
-    LLVM_DEBUG(llvm::dbgs() << "Output model:\n" << modelOp << "\n");
     return mlir::success();
   };
 
@@ -758,15 +750,6 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
   }
 
   return mlir::success();
-}
-
-mlir::LogicalResult
-SCCSolvingBySubstitutionPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-  mlir::GreedyRewriteConfig config;
-  config.fold = true;
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {
