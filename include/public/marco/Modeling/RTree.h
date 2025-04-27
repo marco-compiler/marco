@@ -2,6 +2,7 @@
 #define MARCO_MODELING_RTREE_H
 
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 
@@ -260,7 +261,7 @@ std::pair<size_t, size_t> pickSeeds(llvm::ArrayRef<T> entries) {
 /// Select one remaining entry for classification in a group.
 template <typename T, typename ShapedT>
 size_t pickNext(llvm::ArrayRef<ShapedT> entries,
-                const llvm::SmallDenseSet<size_t> &remainingEntries,
+                const llvm::SmallSetVector<size_t, 16> &remainingEntries,
                 const Node<T> &firstNode, const Node<T> &secondNode) {
   assert(!entries.empty());
 
@@ -298,7 +299,7 @@ std::pair<std::unique_ptr<Node<T>>, std::unique_ptr<Node<T>>> splitNode(
   auto seeds = pickSeeds(llvm::ArrayRef(containerFn(node)));
 
   // The position of the elements yet to be relocated.
-  llvm::SmallDenseSet<size_t> remainingObjects;
+  llvm::SmallSetVector<size_t, 16> remainingObjects;
 
   for (size_t i = 0, e = containerFn(node).size(); i < e; ++i) {
     remainingObjects.insert(i);
@@ -309,7 +310,7 @@ std::pair<std::unique_ptr<Node<T>>, std::unique_ptr<Node<T>>> splitNode(
       containerFn(destination)
           .push_back(std::move(containerFn(node)[objectIndex]));
 
-      remainingObjects.erase(objectIndex);
+      remainingObjects.remove(objectIndex);
     }
   };
 
