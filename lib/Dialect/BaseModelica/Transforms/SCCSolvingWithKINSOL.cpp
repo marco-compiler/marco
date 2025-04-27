@@ -199,7 +199,7 @@ private:
   llvm::DenseMap<VariableOp, size_t> variablesLookup;
 
   /// The equations managed by KINSOL.
-  llvm::DenseSet<EquationInstanceOp> equations;
+  llvm::SetVector<EquationInstanceOp> equations;
 };
 } // namespace
 
