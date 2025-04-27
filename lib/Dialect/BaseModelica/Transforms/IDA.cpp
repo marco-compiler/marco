@@ -201,7 +201,7 @@ private:
   llvm::DenseMap<VariableOp, size_t> derivativeVariablesLookup;
 
   /// The equations managed by IDA.
-  llvm::DenseSet<EquationInstanceOp> equations;
+  llvm::SetVector<EquationInstanceOp> equations;
 };
 } // namespace
 
