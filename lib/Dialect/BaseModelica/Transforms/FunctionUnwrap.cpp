@@ -86,6 +86,7 @@ public:
           symbolTableCollection->getSymbolTable(oldParentSymbolTable);
 
       oldSymbolTable.remove(op);
+      symbolTableCollection->removeSymbolTable(op);
     }
 
     rewriter.eraseOp(op);

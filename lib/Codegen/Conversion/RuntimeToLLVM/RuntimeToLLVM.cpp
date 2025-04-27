@@ -412,6 +412,7 @@ public:
         op->getParentOfType<mlir::ModuleOp>());
 
     symbolTable.remove(op);
+    symbolTableCollection->removeSymbolTable(op);
 
     auto llvmFuncOp = rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
         op, op.getSymName(),

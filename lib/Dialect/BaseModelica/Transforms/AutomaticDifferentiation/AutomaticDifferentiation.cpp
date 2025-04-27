@@ -128,7 +128,12 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
           (*templateFunction)->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
       symbolTableCollection.getSymbolTable(templateParentSymbolTable)
-          .erase(*templateFunction);
+          .remove(*templateFunction);
+
+      symbolTableCollection.removeSymbolTable(*templateFunction);
+
+      // TODO Use rewriter to erase the operation.
+      templateFunction->erase();
     }
 
     if (!newTemplateFunction) {

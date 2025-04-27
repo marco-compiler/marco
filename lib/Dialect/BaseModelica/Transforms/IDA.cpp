@@ -1276,6 +1276,9 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
       VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
                         VariabilityProperty::none, IOProperty::input));
 
+  symbolTableCollection->getSymbolTable(partialDerTemplate)
+      .insert(timeVariable, partialDerTemplate.getBody()->begin());
+
   // Replace the TimeOp with the newly created variable.
   llvm::SmallVector<TimeOp> timeOps;
 
@@ -1311,6 +1314,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
   // Create the function to be derived.
   auto functionOp = rewriter.create<FunctionOp>(loc, functionOpName);
+  symbolTableCollection->getSymbolTable(moduleOp).insert(functionOp);
   rewriter.createBlock(&functionOp.getBodyRegion());
 
   // Start the body of the function.
@@ -1335,6 +1339,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     auto clonedVariableOp = rewriter.create<VariableOp>(
         variableOp.getLoc(), variableOp.getSymName(), variableType);
 
+    symbolTableCollection->getSymbolTable(functionOp).insert(clonedVariableOp);
     allLocalVariables.insert(clonedVariableOp.getSymName());
     mappedVariableOps[variableOp.getSymName()] = clonedVariableOp;
     independentVariablesPos[variableOp] = independentVariableIndex++;
@@ -1369,25 +1374,19 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     auto variableOp =
         rewriter.create<VariableOp>(loc, variableName, variableType);
 
+    symbolTableCollection->getSymbolTable(functionOp).insert(variableOp);
     allLocalVariables.insert(variableOp.getSymName());
     inductionVariablesOps.push_back(variableOp);
   }
 
   // Create the output variable, that is the difference between its equation
   // right-hand side value and its left-hand side value.
-  std::string outVariableName = "out";
-  size_t outVariableNameCounter = 0;
-
-  while (symbolTableCollection->lookupSymbolIn(
-      functionOp, rewriter.getStringAttr(outVariableName))) {
-    outVariableName = "out_" + std::to_string(outVariableNameCounter++);
-  }
-
   auto outputVariableOp = rewriter.create<VariableOp>(
-      loc, outVariableName,
+      loc, "out",
       VariableType::wrap(RealType::get(rewriter.getContext()),
                          VariabilityProperty::none, IOProperty::output));
 
+  symbolTableCollection->getSymbolTable(functionOp).insert(outputVariableOp);
   allLocalVariables.insert(outputVariableOp.getSymName());
 
   // Create the body of the function.
@@ -1498,6 +1497,8 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     return nullptr;
   }
 
+  symbolTableCollection->getSymbolTable(moduleOp).remove(functionOp);
+  symbolTableCollection->removeSymbolTable(functionOp);
   rewriter.eraseOp(functionOp);
 
   // Replace the mapped variables with qualified accesses.
