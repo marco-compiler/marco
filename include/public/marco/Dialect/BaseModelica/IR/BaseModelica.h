@@ -155,7 +155,7 @@ public:
     llvm::SmallVector<WriteInfo<WritingEntity>> result;
     result.reserve(uniqueEntities.size());
 
-    for (const auto &entity : uniqueEntities) {
+    for (auto &entity : uniqueEntities.takeVector()) {
       result.push_back({std::move(entity.second), std::move(entity.first)});
     }
 
