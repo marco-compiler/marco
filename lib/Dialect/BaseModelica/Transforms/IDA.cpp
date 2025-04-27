@@ -486,17 +486,17 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   }
 
   // The equations we are operating on.
-  std::queue<EquationInstanceOp> processedEquations;
+  llvm::SmallVector<EquationInstanceOp> processedEquations;
 
   for (EquationInstanceOp equation : equations) {
-    processedEquations.push(equation);
+    processedEquations.push_back(equation);
   }
 
   LLVM_DEBUG(llvm::dbgs() << "Replacing the non-IDA variables\n");
   llvm::DenseSet<EquationInstanceOp> toBeErased;
 
   while (!processedEquations.empty()) {
-    EquationInstanceOp equationOp = processedEquations.front();
+    EquationInstanceOp equationOp = processedEquations.pop_back_val();
 
     LLVM_DEBUG({
       llvm::dbgs() << "Current equation\n";
@@ -661,7 +661,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         });
 
         for (EquationInstanceOp newEquation : newEquations) {
-          processedEquations.push(newEquation);
+          processedEquations.push_back(newEquation);
         }
       }
     }
@@ -671,8 +671,6 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     } else {
       independentEquations.push_back(equationOp);
     }
-
-    processedEquations.pop();
   }
 
   for (EquationInstanceOp equationOp : toBeErased) {
