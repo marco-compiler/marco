@@ -27,11 +27,11 @@ public:
                               &iterationSpacesIds) const override;
 
   void collectIterationSpaces(
-      llvm::DenseSet<const IndexSet *> &iterationSpaces) const override;
+      llvm::SetVector<const IndexSet *> &iterationSpaces) const override;
 
   void collectIterationSpaces(
       llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+      llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
           &dependentDimensions) const override;
 
   [[nodiscard]] bool isConstant() const override;

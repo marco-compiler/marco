@@ -46,11 +46,11 @@ DimensionAccessConstant::dump(llvm::raw_ostream &os,
 }
 
 void DimensionAccessConstant::collectIterationSpaces(
-    llvm::DenseSet<const IndexSet *> &iterationSpaces) const {}
+    llvm::SetVector<const IndexSet *> &iterationSpaces) const {}
 
 void DimensionAccessConstant::collectIterationSpaces(
     llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-    llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+    llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
         &dependentDimensions) const {}
 
 bool DimensionAccessConstant::isConstant() const { return true; }

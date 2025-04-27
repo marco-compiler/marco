@@ -6,7 +6,7 @@ using namespace ::marco::modeling;
 namespace marco::modeling {
 DimensionAccessIndices::DimensionAccessIndices(
     mlir::MLIRContext *context, std::shared_ptr<IndexSet> space,
-    uint64_t dimension, llvm::DenseSet<uint64_t> dimensionDependencies)
+    uint64_t dimension, llvm::SetVector<uint64_t> dimensionDependencies)
     : DimensionAccess(DimensionAccess::Kind::Indices, context), space(space),
       dimension(dimension),
       dimensionDependencies(std::move(dimensionDependencies)) {
@@ -53,13 +53,13 @@ DimensionAccessIndices::dump(llvm::raw_ostream &os,
 }
 
 void DimensionAccessIndices::collectIterationSpaces(
-    llvm::DenseSet<const IndexSet *> &iterationSpaces) const {
+    llvm::SetVector<const IndexSet *> &iterationSpaces) const {
   iterationSpaces.insert(space.get());
 }
 
 void DimensionAccessIndices::collectIterationSpaces(
     llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-    llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+    llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
         &dependentDimensions) const {
   iterationSpaces.push_back(space.get());
 

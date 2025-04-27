@@ -47,11 +47,11 @@ bool DimensionAccessDimension::operator!=(
 }
 
 void DimensionAccessDimension::collectIterationSpaces(
-    llvm::DenseSet<const IndexSet *> &iterationSpaces) const {}
+    llvm::SetVector<const IndexSet *> &iterationSpaces) const {}
 
 void DimensionAccessDimension::collectIterationSpaces(
     llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-    llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+    llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
         &dependentDimensions) const {}
 
 bool DimensionAccessDimension::isConstant() const { return false; }

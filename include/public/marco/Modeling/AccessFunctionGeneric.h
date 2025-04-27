@@ -81,7 +81,7 @@ public:
 
   void collectIterationSpaces(
       llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+      llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
           &dependendentDimensions) const;
 
 private:

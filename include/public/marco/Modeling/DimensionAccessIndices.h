@@ -3,14 +3,14 @@
 
 #include "marco/Modeling/DimensionAccess.h"
 #include "marco/Modeling/IndexSet.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SetVector.h"
 
 namespace marco::modeling {
 class DimensionAccessIndices : public DimensionAccess {
 public:
   DimensionAccessIndices(mlir::MLIRContext *context,
                          std::shared_ptr<IndexSet> space, uint64_t dimension,
-                         llvm::DenseSet<uint64_t> dimensionDependencies);
+                         llvm::SetVector<uint64_t> dimensionDependencies);
 
   static bool classof(const DimensionAccess *obj) {
     return obj->getKind() == DimensionAccess::Kind::Indices;
@@ -31,11 +31,11 @@ public:
                               &iterationSpacesIds) const override;
 
   void collectIterationSpaces(
-      llvm::DenseSet<const IndexSet *> &iterationSpaces) const override;
+      llvm::SetVector<const IndexSet *> &iterationSpaces) const override;
 
   void collectIterationSpaces(
       llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+      llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
           &dependentDimensions) const override;
 
   [[nodiscard]] bool isConstant() const override;
@@ -55,7 +55,7 @@ public:
 private:
   std::shared_ptr<IndexSet> space;
   uint64_t dimension;
-  llvm::DenseSet<uint64_t> dimensionDependencies;
+  llvm::SetVector<uint64_t> dimensionDependencies;
 };
 } // namespace marco::modeling
 

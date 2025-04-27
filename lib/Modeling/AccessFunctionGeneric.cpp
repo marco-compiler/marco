@@ -111,7 +111,7 @@ llvm::raw_ostream &AccessFunctionGeneric::dump(llvm::raw_ostream &os) const {
 
   os << ") -> (";
 
-  llvm::DenseSet<const IndexSet *> iterationSpaces;
+  llvm::SetVector<const IndexSet *> iterationSpaces;
 
   for (const auto &result : getResults()) {
     result->collectIterationSpaces(iterationSpaces);
@@ -198,7 +198,7 @@ IndexSet AccessFunctionGeneric::map(const Point &point) const {
   // Get the iteration spaces and the dependencies among their dimensions.
   llvm::SmallVector<const IndexSet *, 10> iterationSpaces;
 
-  llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+  llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
       iterationSpacesDependencies;
 
   collectIterationSpaces(iterationSpaces, iterationSpacesDependencies);
@@ -306,7 +306,7 @@ AccessFunctionGeneric::getResults() const {
 
 void AccessFunctionGeneric::collectIterationSpaces(
     llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-    llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+    llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
         &dependendentDimensions) const {
   for (const auto &result : getResults()) {
     result->collectIterationSpaces(iterationSpaces, dependendentDimensions);

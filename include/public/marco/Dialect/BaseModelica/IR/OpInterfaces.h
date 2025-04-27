@@ -32,7 +32,7 @@ using DimensionAccessIndices = ::marco::modeling::DimensionAccessIndices;
 
 class AdditionalInductions {
 public:
-  using Dependencies = llvm::DenseSet<uint64_t>;
+  using Dependencies = llvm::SetVector<uint64_t>;
 
   using IterationSpaceDependencies = llvm::DenseMap<uint64_t, Dependencies>;
 

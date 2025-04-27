@@ -72,14 +72,14 @@ DimensionAccessDiv::dump(llvm::raw_ostream &os,
 }
 
 void DimensionAccessDiv::collectIterationSpaces(
-    llvm::DenseSet<const IndexSet *> &iterationSpaces) const {
+    llvm::SetVector<const IndexSet *> &iterationSpaces) const {
   getFirst().collectIterationSpaces(iterationSpaces);
   getSecond().collectIterationSpaces(iterationSpaces);
 }
 
 void DimensionAccessDiv::collectIterationSpaces(
     llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-    llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+    llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
         &dependentDimensions) const {
   getFirst().collectIterationSpaces(iterationSpaces, dependentDimensions);
   getSecond().collectIterationSpaces(iterationSpaces, dependentDimensions);

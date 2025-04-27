@@ -4,7 +4,7 @@
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/AffineExpr.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Support/Casting.h"
 #include <memory>
 
@@ -112,11 +112,11 @@ public:
       const = 0;
 
   virtual void collectIterationSpaces(
-      llvm::DenseSet<const IndexSet *> &iterationSpaces) const = 0;
+      llvm::SetVector<const IndexSet *> &iterationSpaces) const = 0;
 
   virtual void collectIterationSpaces(
       llvm::SmallVectorImpl<const IndexSet *> &iterationSpaces,
-      llvm::DenseMap<const IndexSet *, llvm::DenseSet<uint64_t>>
+      llvm::DenseMap<const IndexSet *, llvm::SetVector<uint64_t>>
           &dependentDimensions) const = 0;
 
   [[nodiscard]] virtual std::unique_ptr<DimensionAccess>
