@@ -421,7 +421,7 @@ TEST(Parser, external_function_call_test1) {
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
 
   auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
-  ASSERT_EQ(cr.getName(), "x.y.z");
+  ASSERT_EQ(cr->getName(), "x.y.z");
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
 
