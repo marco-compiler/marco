@@ -129,13 +129,6 @@ TEST(Parser, expression_list_test2) {
 //  testCheckForExpressionListTest(parser, false, /*TO-DO);
 }
 
-TEST(Parser, expression_list_test1) {
-  auto str = R"(012345)";
-
-  Parser parser = initForExternalTests(str);
-
-//  testCheckForExpressionListTest(parser, false, /*TO-DO);
-}
 TEST(Parser, external_function_call_test11) {
   auto str = R"(abc(()))";
 
@@ -376,6 +369,22 @@ void testCheckForExpressionListTest (Parser parser, bool checkCounter,
     }
 
   }
+  /*
+Parser initForExternalTests(auto str)
+  {
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    return (parser(*diagnostics, sourceManager, sourceFile));
+  }
+*/
+/*
 void testCheckForExternalTest (Parser parser, bool checkCounter,
   llvm::StringRef exp_str,
   std::unique_ptr<ASTNode> exp_efc,
@@ -403,20 +412,27 @@ void testCheckForExternalTest (Parser parser, bool checkCounter,
     }
 
   }
-Parser initForExternalTests(auto str)
-  {
-    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  */
+TEST(Parser, expression_list_test1) {
+  auto str = R"(012345)";
 
-    auto diagnostics = getDiagnosticsEngine();
-    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-    auto &sourceManager = fileSourceMgr.get();
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-    sourceFile->setMemoryBuffer(buffer.get());
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
 
-    return (parser(*diagnostics, sourceManager, sourceFile));
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
 
-  }*/
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExpressionList();
+  ASSERT_TRUE(node.has_value());
+
+//  testCheckForExpressionListTest(parser, false, /*TO-DO);
+}
+
 TEST(Parser, rawValue_true) {
   auto str = R"(true)";
 
