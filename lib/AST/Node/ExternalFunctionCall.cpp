@@ -9,7 +9,9 @@ namespace marco::ast {
 ExternalFunctionCall::ExternalFunctionCall(SourceRange location) : ASTNode(ASTNode::Kind::External_Function_Call, std::move(location)) {}
 
 ExternalFunctionCall::ExternalFunctionCall(const ExternalFunctionCall &other) : ASTNode(other), name(other.name) {
-  setComponentReference(other.componentReference->clone()); 
+  if (other.hasComponentReference()) {
+    setComponentReference(other.componentReference->clone()); 
+  }
   setExpressions(other.expressions);
 }
 
@@ -22,7 +24,9 @@ std::unique_ptr<ASTNode> ExternalFunctionCall::clone() const {
 llvm::json::Value ExternalFunctionCall::toJSON() const {
   llvm::json::Object result; 
   result["name"] = getName();
-  result["component_reference"] = getComponentReference()->toJSON(); 
+  if (hasComponentReference()) {
+    result["component_reference"] = getComponentReference()->toJSON(); 
+  }
   llvm::SmallVector<llvm::json::Value> expressionsJson; 
   for (const auto &expression : expressions){
     expressionsJson.push_back(expression -> toJSON());
@@ -66,4 +70,7 @@ void ExternalFunctionCall::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode
 llvm::ArrayRef<std::unique_ptr<ASTNode>> ExternalFunctionCall::getExpressions() const {
   return expressions; 
 } 
+
+bool ExternalFunctionCall::hasComponentReference() const {return componentReference != nullptr;}
+
 }

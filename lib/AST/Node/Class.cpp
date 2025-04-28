@@ -14,7 +14,9 @@ Class::Class(const Class &other) : ASTNode(other), name(other.name) {
   setEquationSections(other.equationSections);
   setAlgorithms(other.algorithms);
   setInnerClasses(other.innerClasses);
-  setExternalRef(other.externalRef->clone()); 
+  if (other.hasExternalRef()) {
+    setExternalRef(other.externalRef->clone()); 
+  }
   if (other.hasAnnotation()) {
     setAnnotation(other.annotation->clone());
   }
@@ -57,7 +59,9 @@ void Class::addJSONProperties(llvm::json::Object &obj) const {
 
   obj["inner_classes"] = llvm::json::Array(innerClassesJson);
 
-  obj["external_ref"] = getExternalRef() -> toJSON(); 
+  if (hasExternalRef()) {
+    obj["external_ref"] = getExternalRef() -> toJSON(); 
+  }
 
   ASTNode::addJSONProperties(obj);
 }
@@ -127,6 +131,9 @@ void Class::setInnerClasses(
 }
 
 bool Class::hasAnnotation() const { return annotation != nullptr; }
+
+bool Class::hasExternalRef() const { return externalRef != nullptr; }
+
 
 Annotation *Class::getAnnotation() {
   assert(annotation != nullptr && "Annotation not set");

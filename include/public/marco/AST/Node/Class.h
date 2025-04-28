@@ -57,6 +57,7 @@ public:
   void setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
   bool hasAnnotation() const;
+  bool hasExternalRef() const; 
 
   void setExternalRef(std::unique_ptr<ASTNode> node); 
 

@@ -31,6 +31,9 @@ public:
   void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions() const; 
   
+  bool hasComponentReference() const;
+
+
 private:
   std::string name; 
   std::unique_ptr<ASTNode> componentReference; 

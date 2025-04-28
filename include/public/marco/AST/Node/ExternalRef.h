@@ -34,6 +34,11 @@ public:
   const Annotation *getAnnotationClause() const; 
   Annotation *getAnnotationClause(); 
 
+  bool hasLanguageSpecification() const ;
+  bool hasExternalFunctionCall() const ; 
+  bool hasAnotationClause() const ; 
+
+
 private:
   std::string languageSpecification; 
   std::unique_ptr<ASTNode> externalFunctionCall; 

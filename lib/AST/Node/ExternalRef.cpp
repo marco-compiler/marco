@@ -9,9 +9,16 @@ using namespace ::marco::ast;
 namespace marco::ast {
 ExternalRef::ExternalRef(SourceRange location) : ASTNode(ASTNode::Kind::External_Ref, std::move(location)) {}
 
-ExternalRef::ExternalRef(const ExternalRef &other) : ASTNode(other), languageSpecification(other.languageSpecification) {
-  setExternalFunctionCall(other.externalFunctionCall->clone()); 
-  setAnnotationClause(other.annotationClause->clone());
+ExternalRef::ExternalRef(const ExternalRef &other) : ASTNode(other) {
+  if (other.hasLanguageSpecification()) {
+    setLanguageSpecification(other.languageSpecification); 
+  }
+  if (other.hasExternalFunctionCall()) {
+    setExternalFunctionCall(other.externalFunctionCall->clone()); 
+  }
+  if (other.hasAnnotationClause()) {
+    setAnnotationClause(other.annotationClause->clone());
+  }
 }
 
 ExternalRef::~ExternalRef() = default;
@@ -64,4 +71,9 @@ const Annotation *ExternalRef::getAnnotationClause() const {
 Annotation *ExternalRef::getAnnotationClause(){
   return annotationClause->cast<Annotation>();
 } 
+
+bool ExternalRef::hasLanguageSpecification() const {return languageSpecification != nullptr;}
+bool ExternalRef::hasExternalFunctionCall() const {return externalFunctionCall != nullptr;}
+bool ExternalRef::hasAnotationClause() const {return annotationClause != nullptr;}
+
 } // namespace marco::ast
