@@ -9698,6 +9698,10 @@ EquationTemplateOp EquationInstanceOp::getTemplate() {
 
 mlir::LogicalResult EquationInstanceOp::setIndices(
     IndexSet indices, mlir::SymbolTableCollection &symbolTableCollection) {
+  if (indices == getProperties().indices) {
+    return mlir::success();
+  }
+
   if (getProperties().match) {
     // Update the indices of the matched variable.
     llvm::SmallVector<VariableAccess> accesses;
