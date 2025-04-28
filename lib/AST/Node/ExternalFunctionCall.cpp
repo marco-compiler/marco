@@ -8,6 +8,11 @@ using namespace ::marco::ast;
 namespace marco::ast {
 ExternalFunctionCall::ExternalFunctionCall(SourceRange location) : ASTNode(ASTNode::Kind::External_Function_Call, std::move(location)) {}
 
+ExternalFunctionCall::ExternalFunctionCall(const ExternalFunctionCall &other) : ASTNode(other), name(other.name) {
+  setComponentReference(other.componentReference->clone()); 
+  setExpression(other.expressions);
+}
+
 ExternalFunctionCall::~ExternalFunctionCall() = default; 
 
 std::unique_ptr<ASTNode> ExternalFunctionCall::clone() const {
@@ -49,7 +54,7 @@ const ComponentReference *ExternalFunctionCall::getComponentReference() const {
   return componentReference->cast<ComponentReference>();
 }
 
-void ExternalFunctionCall::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {
+void ExternalFunctionCall::setExpressions(llvm::SmallVector<std::unique_ptr<ASTNode>> newExpressions) {
   expressions.clear();
   for (const auto &expression : newExpressions) {
     assert(expression->isa<Expression>()); 

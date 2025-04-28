@@ -10,6 +10,8 @@ public:
 
   explicit ExternalFunctionCall(SourceRange location); 
 
+  ExternalFunctionCall(const ExternalFunctionCall &other); 
+
   ~ExternalFunctionCall() override; 
 
   static bool classof(const ASTNode *node) {

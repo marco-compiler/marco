@@ -9,6 +9,11 @@ using namespace ::marco::ast;
 namespace marco::ast {
 ExternalRef::ExternalRef(SourceRange location) : ASTNode(ASTNode::Kind::External_Ref, std::move(location)) {}
 
+ExternalRef::ExternalRef(const ExternalRef &other) : ASTNode(other), languageSpecification(other.languageSpecification) {
+  setExternalFunctionCall(other.externalFunctionCall->clone()); 
+  setAnnotationClause(other.annotationClause->clone());
+}
+
 ExternalRef::~ExternalRef() = default;
 
 std::unique_ptr<ASTNode> ExternalRef::clone() const {

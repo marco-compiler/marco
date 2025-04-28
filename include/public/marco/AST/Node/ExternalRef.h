@@ -12,6 +12,8 @@ class ExternalRef : public ASTNode {
 public:
   explicit ExternalRef(SourceRange location);
 
+  ExternalRef(const ExternalRef &other); 
+
   ~ExternalRef() override;
 
   static bool classof(const ASTNode *node) {
