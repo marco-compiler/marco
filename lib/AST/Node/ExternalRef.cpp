@@ -72,7 +72,7 @@ Annotation *ExternalRef::getAnnotationClause(){
   return annotationClause->cast<Annotation>();
 } 
 
-bool ExternalRef::hasLanguageSpecification() const {return languageSpecification != nullptr;}
+bool ExternalRef::hasLanguageSpecification() const {return !languageSpecification.empty();}
 bool ExternalRef::hasExternalFunctionCall() const {return externalFunctionCall != nullptr;}
 bool ExternalRef::hasAnotationClause() const {return annotationClause != nullptr;}
 

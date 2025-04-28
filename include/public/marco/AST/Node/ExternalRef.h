@@ -36,7 +36,7 @@ public:
 
   bool hasLanguageSpecification() const ;
   bool hasExternalFunctionCall() const ; 
-  bool hasAnotationClause() const ; 
+  bool hasAnnotationClause() const ; 
 
 
 private:
