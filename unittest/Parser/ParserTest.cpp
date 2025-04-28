@@ -422,10 +422,11 @@ TEST(Parser, external_function_call_test3) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternalFunctionCall();
-  ASSERT_TRUE(node.has_value());
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
 
-  EXPECT_EQ(*node.hasComponentReference(), false);
-  EXPECT_EQ(*node->getName(), "abc");
+  EXPECT_EQ(*(node)->cast<ExternalFunctionCall>()->hasComponentReference(), false);
+  EXPECT_EQ(*(node)->cast<ExternalFunctionCall>()->getName(), "abc");
+  
  // ASSERT_TRUE(node->getExpression())
 }
 /*
