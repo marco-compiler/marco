@@ -60,9 +60,9 @@ public:
 
   void setExternalRef(std::unique_ptr<ASTNode> node); 
 
-  std::unique_ptr<ASTNode> getExternalRef(); 
+  ExternalRef *getExternalRef();
 
-  ExternalRef *getExternalRefPtr(); 
+  const ExternalRef *getExternalRef() const;
 
   Annotation *getAnnotation();
 

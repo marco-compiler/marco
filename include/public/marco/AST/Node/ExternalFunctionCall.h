@@ -28,7 +28,7 @@ public:
 private:
   std::string name; 
   std::unique_ptr<ASTNode> componentReference; 
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions; 
+  llvm::SmallVector<std::unique_ptr<ASTNode>> expressions; 
 };
 }// namespace marco::ast
 

@@ -57,7 +57,7 @@ void Class::addJSONProperties(llvm::json::Object &obj) const {
 
   obj["inner_classes"] = llvm::json::Array(innerClassesJson);
 
-  obj["external_ref"] = getExternalRefPtr() -> toJSON(); 
+  obj["external_ref"] = getExternalRef() -> toJSON(); 
 
   ASTNode::addJSONProperties(obj);
 }
@@ -138,6 +138,11 @@ const Annotation *Class::getAnnotation() const {
   return annotation->cast<Annotation>();
 }
 
+void Class::setAnnotation(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<Annotation>());
+  annotation = std::move(node);
+  annotation->setParent(this);
+} 
 
 void Class::setExternalRef(std::unique_ptr<ASTNode> node) {
   assert(node->isa<ExternalRef>()); 
@@ -145,17 +150,12 @@ void Class::setExternalRef(std::unique_ptr<ASTNode> node) {
   externalRef -> setParent(this); 
 }
 
-std::unique_ptr<ASTNode> Class::getExternalRef(){
-  return externalRef;   
-}
-
-ExternalRef *Class::getExternalRefPtr() {
+ExternalRef *Class::getExternalRef() {
   return externalRef->cast<ExternalRef>();
 }
 
-void Class::setAnnotation(std::unique_ptr<ASTNode> node) {
-  assert(node->isa<Annotation>());
-  annotation = std::move(node);
-  annotation->setParent(this);
-} 
+const ExternalRef *Class::getExternalRef() const {
+  return externalRef->cast<ExternalRef>();
+}
+
 } // namespace marco::ast

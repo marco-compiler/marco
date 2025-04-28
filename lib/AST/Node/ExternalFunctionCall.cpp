@@ -58,7 +58,7 @@ void ExternalFunctionCall::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode
   }
 }
 
-llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions(){
+llvm::ArrayRef<std::unique_ptr<ASTNode>> ExternalFunctionCall::getExpressions() const {
   return expressions; 
 } 
 }

@@ -7,7 +7,7 @@ using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast {
-ExtenralRef::ExternalRef(SourceRange location) : ASTNode(ASTNode::Kind::External_Ref, std::move(location)) {}
+ExternalRef::ExternalRef(SourceRange location) : ASTNode(ASTNode::Kind::External_Ref, std::move(location)) {}
 
 ExternalRef::~ExternalRef() = default;
 
@@ -28,12 +28,12 @@ void ExternalRef::setLanguageSpecification(llvm::StringRef newLanguageSpecificat
   languageSpecification = newLanguageSpecification.str(); 
 }
 
-llvm::StringRef ExternalRef::getLanguageSpecification() {
+std::string ExternalRef::getLanguageSpecification() const {
   return languageSpecification; 
 }
 
 void ExternalRef::setExternalFunctionCall(std::unique_ptr<ASTNode> externalFunctionCall) {
-  assert(node->isa<ExternalFunctionCall>()); 
+  assert(externalFunctionCall->isa<ExternalFunctionCall>()); 
   externalFunctionCall = std::move(externalFunctionCall); 
   externalFunctionCall -> setParent(this); 
 } 
@@ -47,7 +47,7 @@ ExternalFunctionCall *ExternalRef::getExternalFunctionCall() {
 }
 
 void ExternalRef::setAnnotationClause(std::unique_ptr<ASTNode> annotationClause){
-  assert(node->isa<Annotation>()); 
+  assert(annotationClause->isa<Annotation>()); 
   annotationClause = std::move(annotationClause); 
   annotationClause -> setParent(this); 
 }

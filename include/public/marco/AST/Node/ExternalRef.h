@@ -18,7 +18,7 @@ public:
   llvm::json::Value toJSON() const override;
 
   void setLanguageSpecification(llvm::StringRef languageSpecification); 
-  llvm::StringRef getLanguageSpecification(); 
+  llvm::StringRef getLanguageSpecification() const ; 
 
   void setExternalFunctionCall(std::unique_ptr<ASTNode> externalFunctionCall); 
   const ExternalFunctionCall *getExternalFunctionCall() const; 
