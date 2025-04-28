@@ -29,13 +29,13 @@ std::unique_ptr<ASTNode> ExternalRef::clone() const {
 
 llvm::json::Value ExternalRef::toJSON() const {
   llvm::json::Object result;
-  if (other.hasLanguageSpecification()) {
+  if (hasLanguageSpecification()) {
     result["language_specification"] = getLanguageSpecification();
   }
-  if (other.hasExternalFunctionCall()) {
+  if (hasExternalFunctionCall()) {
     result["external_function_call"] = getExternalFunctionCall() -> toJSON();
   }
-  if (other.hasAnnotationClause()) {
+  if (hasAnnotationClause()) {
     result["annotation_clause"] = getAnnotationClause() -> toJSON();
   }
   addJSONProperties(result);
