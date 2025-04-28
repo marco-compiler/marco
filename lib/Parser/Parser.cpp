@@ -1911,7 +1911,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
       {
         TRY(annotation, parseAnnotation());
 
-        result->setAnnotation(std::move(*annotation));
+        result->setAnnotationClause(std::move(*annotation));
         //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
         
       }
@@ -1939,8 +1939,8 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
 
   EXPECT(TokenKind::LPar);
   TRY(expressionList, parseExpressionList());
-  result->setExpressionList(std::move(*expressionList));
-  loc.end = (*expressionList)->getLocation().end;
+  result->setExpressions(std::move(*expressionList));
+  //loc.end = (*expressionList)->getLocation().end;
 
   return (std::move(result));
 }
@@ -1961,8 +1961,8 @@ WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressio
   
   SourceRange loc = getCursorLocation();
 
-  loc = expressions.front()->getLocation();
-  loc.end = expressions.back()->getLocation().end;
+  //loc = expressions.front()->getLocation();
+  //loc.end = expressions.back()->getLocation().end;
 
   return ValueWrapper(std::move(loc), std::move(expressions));     
     
