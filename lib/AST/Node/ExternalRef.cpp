@@ -29,8 +29,8 @@ llvm::json::Value ExternalRef::toJSON() const {
   return result;
 }
 
-void ExternalRef::setLanguageSpecification(llvm::StringRef newLanguageSpecification) {
-  languageSpecification = newLanguageSpecification.str(); 
+void ExternalRef::setLanguageSpecification(std::string newLanguageSpecification) {
+  languageSpecification = newLanguageSpecification; 
 }
 
 std::string ExternalRef::getLanguageSpecification() const {

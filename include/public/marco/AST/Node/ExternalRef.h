@@ -23,7 +23,7 @@ public:
   std::unique_ptr<ASTNode> clone() const override;
   llvm::json::Value toJSON() const override;
 
-  void setLanguageSpecification(llvm::StringRef languageSpecification); 
+  void setLanguageSpecification(std::string languageSpecification); 
   std::string getLanguageSpecification() const ; 
 
   void setExternalFunctionCall(std::unique_ptr<ASTNode> node); 
