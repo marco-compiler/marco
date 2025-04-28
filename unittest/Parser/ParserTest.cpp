@@ -442,7 +442,6 @@ TEST(Parser, rawValue_true) {
   EXPECT_EQ(node->getLocation().end.column, 4);
 }
 
-TEST(Parser, )
 
 TEST(Parser, rawValue_false) {
   auto str = R"(false)";
