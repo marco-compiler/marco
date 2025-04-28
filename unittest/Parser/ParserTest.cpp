@@ -326,7 +326,7 @@ TEST(Parser, external_test1) {
 //  testCheckForExternalTest(parser, false, /*TO-DO);
 
 }*/
-
+/*
 void testCheckForExpressionListTest (Parser parser, bool checkCounter,
   llvm::ArrayRef<std::unique_ptr<ASTNode>> exp_el, int bl, int bc, int el, int ec)
   {
@@ -349,6 +349,7 @@ void testCheckForExpressionListTest (Parser parser, bool checkCounter,
     }
 
   }
+  */
 /*void testCheckForExternalFunctionCallTest (Parser parser, bool checkCounter,
   llvm::StringRef exp_name,
   std::unique_ptr<ASTNode> exp_cr,
