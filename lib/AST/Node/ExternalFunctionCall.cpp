@@ -41,7 +41,7 @@ llvm::StringRef ExternalFunctionCall::getName() const {
 }
 
 void ExternalFunctionCall::setComponentReference(std::unique_ptr<ASTNode> node) {
-  assert(node->isa<Expression_ComponentReference>()); 
+  assert(node->isa<ComponentReference>()); 
   componentReference = std::move(node); 
   componentReference -> setParent(this); 
 }
