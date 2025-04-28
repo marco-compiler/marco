@@ -14,7 +14,7 @@ Class::Class(const Class &other) : ASTNode(other), name(other.name) {
   setEquationSections(other.equationSections);
   setAlgorithms(other.algorithms);
   setInnerClasses(other.innerClasses);
-
+  setExternalRef(other.externalRef); 
   if (other.hasAnnotation()) {
     setAnnotation(other.annotation->clone());
   }

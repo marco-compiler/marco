@@ -54,7 +54,7 @@ const ComponentReference *ExternalFunctionCall::getComponentReference() const {
   return componentReference->cast<ComponentReference>();
 }
 
-void ExternalFunctionCall::setExpressions(llvm::SmallVector<std::unique_ptr<ASTNode>> newExpressions) {
+void ExternalFunctionCall::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {
   expressions.clear();
   for (const auto &expression : newExpressions) {
     assert(expression->isa<Expression>()); 
@@ -63,7 +63,7 @@ void ExternalFunctionCall::setExpressions(llvm::SmallVector<std::unique_ptr<ASTN
   }
 }
 
-llvm::SmallVector<std::unique_ptr<ASTNode>> ExternalFunctionCall::getExpressions() const {
+llvm::ArrayRef<std::unique_ptr<ASTNode>> ExternalFunctionCall::getExpressions() const {
   return expressions; 
 } 
 }

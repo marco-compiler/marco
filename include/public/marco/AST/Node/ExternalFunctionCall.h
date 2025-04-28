@@ -28,8 +28,8 @@ public:
   ComponentReference *getComponentReference(); 
   const ComponentReference *getComponentReference() const; 
 
-  void setExpressions(llvm::SmallVector<std::unique_ptr<ASTNode>> expressions); 
-  llvm::SmallVector<std::unique_ptr<ASTNode>> getExpressions() const; 
+  void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions() const; 
   
 private:
   std::string name; 
