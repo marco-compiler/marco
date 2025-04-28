@@ -10,7 +10,7 @@ ExternalFunctionCall::ExternalFunctionCall(SourceRange location) : ASTNode(ASTNo
 
 ExternalFunctionCall::ExternalFunctionCall(const ExternalFunctionCall &other) : ASTNode(other), name(other.name) {
   setComponentReference(other.componentReference->clone()); 
-  setExpression(other.expressions);
+  setExpressions(other.expressions);
 }
 
 ExternalFunctionCall::~ExternalFunctionCall() = default; 
