@@ -428,7 +428,7 @@ TEST(Parser, expression_list_test1) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExpressionList();
-  ASSERT_TRUE(node.has_value());
+  ASSERT_TRUE(node.size(), 1);
 
 //  testCheckForExpressionListTest(parser, false, /*TO-DO);
 }
