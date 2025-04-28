@@ -185,13 +185,7 @@ TEST(Parser, external_function_call_test4) { //counter
 
 //  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
 }
-TEST(Parser, external_function_call_test3) {
-  auto str = R"(abc(3,4,5))";
 
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO);
-}
 TEST(Parser, external_function_call_test2) { 
   auto str = R"(x.y.z = abc())";
 
@@ -413,6 +407,25 @@ void testCheckForExternalTest (Parser parser, bool checkCounter,
 
   }
   */
+TEST(Parser, external_function_call_test3) {
+  auto str = R"(abc(3,4,5))";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+  ASSERT_TRUE(node.has_value());
+
+}
+/*
 TEST(Parser, expression_list_test1) {
   auto str = R"(012345)";
 
@@ -432,7 +445,7 @@ TEST(Parser, expression_list_test1) {
 
 //  testCheckForExpressionListTest(parser, false, /*TO-DO);
 }
-
+*/
 TEST(Parser, rawValue_true) {
   auto str = R"(true)";
 
