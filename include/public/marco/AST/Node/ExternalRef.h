@@ -1,9 +1,12 @@
+#ifndef EXTERNAL_REF_H
+#define EXTERNAL_REF_H
+
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/ExternalFunctionCall.h"
-#include "marco/AST/Node/Annotation.h"
-#include <memory>
 
 namespace marco::ast {
+
+class ExternalFunctionCall; 
+class Annotation; 
 
 class ExternalRef : public ASTNode {
 public:
@@ -18,13 +21,12 @@ public:
   llvm::StringRef getLanguageSpecification(); 
 
   void setExternalFunctionCall(std::unique_ptr<ASTNode> externalFunctionCall); 
-  std::unique_ptr<ASTNode> getExternalFunctionCall(); 
+  const ExternalFunctionCall *getExternalFunctionCall() const; 
+  ExternalFunctionCall *getExternalFunctionCall(); 
 
   void setAnnotationClause(std::unique_ptr<ASTNode> annotationClause); 
-  std::unique_ptr<ASTNode> getAnnotationClause(); 
-
-  ExternalFunctionCall *getExternalFunctionCallPtr(); 
-  Annotation *getAnnotationPtr(); 
+  const Annotation *getAnnotationClause() const; 
+  Annotation *getAnnotationClause(); 
 
 private:
   std::string languageSpecification; 
@@ -32,3 +34,5 @@ private:
   std::unique_ptr<ASTNode> annotationClause; 
 };
 } // namespace marco::ast
+
+#endif

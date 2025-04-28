@@ -1,9 +1,10 @@
+#ifndef EXTERNAL_FUNCTION_CALL_H
+#define EXTERNAL_FUNCTION_CALL_H
+
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/ComponentReference.h"
-#include <memory>
 
 namespace marco::ast {
-
+class ComponentReference; 
 class ExternalFunctionCall : public ASTNode {
 public:
 
@@ -18,16 +19,17 @@ public:
   llvm::StringRef getName() const; 
 
   void setComponentReference(std::unique_ptr<ASTNode> node); 
-  std::unique_ptr<ASTNode> getComponentReference() const; 
+  ComponentReference *getComponentReference(); 
+  const ComponentReference *getComponentReference() const; 
 
   void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions() const; 
-
-  ComponentReference* getComponentReferencePtr(); 
   
 private:
   std::string name; 
   std::unique_ptr<ASTNode> componentReference; 
   llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions; 
 };
-} // namespace marco::ast
+}// namespace marco::ast
+
+#endif 

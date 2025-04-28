@@ -19,6 +19,8 @@ set(AST_NODES
 	Node/EqualityEquation.cpp
 	Node/Equation.cpp
 	Node/Expression.cpp
+	Node/ExternalFunctionCall.cpp
+	Node/ExternalRef.cpp
 	Node/ForEquation.cpp
 	Node/ForIndex.cpp
 	Node/ForStatement.cpp

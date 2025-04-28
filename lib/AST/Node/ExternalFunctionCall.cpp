@@ -1,51 +1,55 @@
 #include "marco/AST/Node/ExternalFunctionCall.h"
+#include "marco/AST/Node/ComponentReference.h"
+#include "marco/AST/Node/Expression.h"
 
+using namespace ::marco; 
+using namespace ::marco::ast; 
 
+namespace marco::ast {
+ExternalFunctionCall::ExternalFunctionCall(SourceRange location) : ASTNode(ASTNode::Kind::External_Function_Call, std::move(location)) {}
 
-ExternalFunctionCall(SourceRange location) : ASTNode(ASTNode::Kind::External_Function_Call, std::move(location)) {}
+ExternalFunctionCall::~ExternalFunctionCall() = default; 
 
-~ExternalFunctionCall() = default; 
-
-std::unique_ptr<ASTNode> clone() const {
+std::unique_ptr<ASTNode> ExternalFunctionCall::clone() const {
   return std::make_unique<ExternalFunctionCall>(*this); 
 }
 
-llvm::json::Value toJSON() const {
+llvm::json::Value ExternalFunctionCall::toJSON() const {
   llvm::json::Object result; 
-  result['name'] = getName();
-  result['component_reference'] = getComponentReferencePtr().toJSON(); 
+  result["name"] = getName();
+  result["component_reference"] = getComponentReference()->toJSON(); 
   llvm::SmallVector<llvm::json::Value> expressionsJson; 
   for (const auto &expression : expressions){
     expressionsJson.push_back(expression -> toJSON());
   }
-  result['expressions'] = llvm::json::Array(expressionsJson);
+  result["expressions"] = llvm::json::Array(expressionsJson);
   addJSONProperties(result);
   return result;  
 }
 
-void setName(llvm::StringRef name) {
-  name = name.str(); 
+void ExternalFunctionCall::setName(llvm::StringRef newName) {
+  name = newName.str(); 
 }
 
-llvm::StringRef getName() const {
+llvm::StringRef ExternalFunctionCall::getName() const {
   return name; 
 }
 
-void setComponentReference(std::unique_ptr<ASTNode> node) {
-  assert(node->isa<Expression_ComponentReference>()); 
+void ExternalFunctionCall::setComponentReference(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<ComponentReference>()); 
   componentReference = std::move(node); 
   componentReference -> setParent(this); 
 }
 
-std::unique_ptr<ASTNode> getComponentReference() {
-  return componentReference; 
-}
-
-ComponentReference *getComponentReferencePtr() {
+ComponentReference *ExternalFunctionCall::getComponentReference() {
   return componentReference->cast<ComponentReference>();
 }
 
-void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {
+const ComponentReference *ExternalFunctionCall::getComponentReference() const {
+  return componentReference->cast<ComponentReference>();
+}
+
+void ExternalFunctionCall::setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {
   expressions.clear();
   for (const auto &expression : newExpressions) {
     assert(expression->isa<Expression>()); 
@@ -54,6 +58,7 @@ void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> newExpressions) {
   }
 }
 
-llvm::ArrayRef<std::unique_ptr> getExpressions(){
+llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions(){
   return expressions; 
 } 
+}
