@@ -1939,8 +1939,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
 
   EXPECT(TokenKind::LPar);
   TRY(expressionList, parseExpressionList());
-  result->setExpressions(std::move(*expressionList));
-  //loc.end = (*expressionList)->getLocation().end;
+  loc.end = expressionList->getLocation().end; //loc.end = (*expressionList)->getLocation().end;
+  result->setExpressions(**expressionList);
+
 
   return (std::move(result));
 }
