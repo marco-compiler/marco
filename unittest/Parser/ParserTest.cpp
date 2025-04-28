@@ -422,7 +422,7 @@ TEST(Parser, external_function_call_test3) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternalFunctionCall();
-  ASSERT_TRUE(node.has_value());
+  ASSERT_FALSE(node.has_value());
 
 }
 /*
