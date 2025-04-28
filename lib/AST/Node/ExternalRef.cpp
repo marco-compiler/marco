@@ -32,9 +32,9 @@ std::string ExternalRef::getLanguageSpecification() const {
   return languageSpecification; 
 }
 
-void ExternalRef::setExternalFunctionCall(std::unique_ptr<ASTNode> externalFunctionCall) {
-  assert(externalFunctionCall->isa<ExternalFunctionCall>()); 
-  externalFunctionCall = std::move(externalFunctionCall); 
+void ExternalRef::setExternalFunctionCall(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<ExternalFunctionCall>()); 
+  externalFunctionCall = std::move(node); 
   externalFunctionCall -> setParent(this); 
 } 
 
@@ -46,9 +46,9 @@ ExternalFunctionCall *ExternalRef::getExternalFunctionCall() {
   return externalFunctionCall->cast<ExternalFunctionCall>();
 }
 
-void ExternalRef::setAnnotationClause(std::unique_ptr<ASTNode> annotationClause){
-  assert(annotationClause->isa<Annotation>()); 
-  annotationClause = std::move(annotationClause); 
+void ExternalRef::setAnnotationClause(std::unique_ptr<ASTNode> node){
+  assert(node->isa<Annotation>()); 
+  annotationClause = std::move(node); 
   annotationClause -> setParent(this); 
 }
 

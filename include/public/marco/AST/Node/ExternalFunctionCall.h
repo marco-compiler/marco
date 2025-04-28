@@ -12,6 +12,10 @@ public:
 
   ~ExternalFunctionCall() override; 
 
+  static bool classof(const ASTNode *node) {
+    return node->getKind() == ASTNode::Kind::External_Function_Call; 
+  }
+
   std::unique_ptr<ASTNode> clone() const override;
   llvm::json::Value toJSON() const override;
 
