@@ -28,7 +28,7 @@ public:
   ComponentReference *getComponentReference(); 
   const ComponentReference *getComponentReference() const; 
 
-  void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> expressions); 
+  void setExpressions(llvm::SmallVector<std::unique_ptr<ASTNode>> expressions); 
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getExpressions() const; 
   
 private:
