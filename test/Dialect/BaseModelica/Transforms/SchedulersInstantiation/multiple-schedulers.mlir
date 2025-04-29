@@ -1,7 +1,5 @@
 // RUN: modelica-opt %s --split-input-file --schedulers-instantiation | FileCheck %s
 
-// CHECK-DAG:   #[[range:.*]] = #modeling<multidim_range [0,9]>
-
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.parallel_schedule_blocks {
@@ -21,7 +19,7 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler_0]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_0]] {function = @[[equation_0_wrapper:.*]], ranges = #[[range]]}
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_0]], @[[equation_0_wrapper:.*]] {[0,9]}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {
@@ -37,7 +35,7 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler_1]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_1]] {function = @[[equation_1_wrapper:.*]], ranges = #[[range]]}
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler_1]], @[[equation_1_wrapper:.*]] {[0,9]}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_1_wrapper]](%[[i0_lb:.*]]: index, %[[i0_ub:.*]]: index) {
@@ -57,12 +55,12 @@ module {
             bmodelica.dynamic {
                 bmodelica.parallel_schedule_blocks {
                     bmodelica.schedule_block writtenVariables = [<@x, {[0,9]}>], readVariables = [] {
-                        bmodelica.equation_call @equation_0 {indices = #modeling<multidim_range [0,9]>}
+                        bmodelica.equation_call @equation_0 {[0,9]}
                     } {parallelizable = true}
                 }
                 bmodelica.parallel_schedule_blocks {
                     bmodelica.schedule_block writtenVariables = [<@y, {[0,9]}>], readVariables = [] {
-                        bmodelica.equation_call @equation_1 {indices = #modeling<multidim_range [0,9]>}
+                        bmodelica.equation_call @equation_1 {[0,9]}
                     } {parallelizable = true}
                 }
             }

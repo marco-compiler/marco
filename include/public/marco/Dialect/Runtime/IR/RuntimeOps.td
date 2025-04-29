@@ -4,6 +4,7 @@
 include "marco/Dialect/Runtime/IR/RuntimeAttributes.td"
 include "marco/Dialect/Runtime/IR/RuntimeTypes.td"
 include "marco/Dialect/Runtime/IR/Runtime.td"
+include "marco/Dialect/Modeling/IR/ModelingProperties.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
@@ -124,11 +125,11 @@ def Runtime_SchedulerAddEquationOp : Runtime_Op<"scheduler_add_equation",
     let arguments = (ins
         SymbolNameAttr:$scheduler,
         FlatSymbolRefAttr:$function,
-        OptionalAttr<MultidimensionalRangeAttr>:$ranges,
+        IndexSetProperty:$indices,
         DefaultValuedAttr<BoolAttr, "false">:$independentIndices);
 
     let results = (outs);
-    let assemblyFormat = "$scheduler attr-dict";
+    let assemblyFormat = "$scheduler `,` $function custom<SchedulerEquationIndices>($indices) attr-dict";
 }
 
 def Runtime_SchedulerRunOp : Runtime_Op<"scheduler_run",

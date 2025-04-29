@@ -14,8 +14,8 @@
 
 // CHECK:       runtime.dynamic_model_begin {
 // CHECK-NEXT:      runtime.scheduler_create @[[scheduler]]
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]] {function = @[[equation_0_wrapper:.*]]}
-// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]] {function = @[[equation_1_wrapper:.*]]}
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]], @[[equation_0_wrapper:.*]] {}
+// CHECK-NEXT:      runtime.scheduler_add_equation @[[scheduler]], @[[equation_1_wrapper:.*]] {}
 // CHECK-NEXT:  }
 
 // CHECK:       runtime.equation_function @[[equation_0_wrapper]]() {
@@ -40,10 +40,10 @@ module {
             bmodelica.dynamic {
                 bmodelica.parallel_schedule_blocks {
                     bmodelica.schedule_block writtenVariables = [@x], readVariables = [] {
-                        bmodelica.equation_call @equation_0
+                        bmodelica.equation_call @equation_0 {}
                     } {parallelizable = true}
                     bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
-                        bmodelica.equation_call @equation_1
+                        bmodelica.equation_call @equation_1 {}
                     } {parallelizable = true}
                 }
             }

@@ -149,24 +149,31 @@ struct EquationCallOpLowering
   mlir::LogicalResult
   matchAndRewrite(EquationCallOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto indices = op.getIndices();
-    llvm::SmallVector<mlir::Value, 10> boundaries;
+    mlir::Location loc = op.getLoc();
+    const IndexSet &indices = op.getIndices();
 
-    if (indices) {
-      for (size_t i = 0, e = indices->getValue().rank(); i < e; ++i) {
-        boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
-            op.getLoc(),
-            rewriter.getIndexAttr(indices->getValue()[i].getBegin())));
+    if (indices.empty()) {
+      rewriter.create<mlir::func::CallOp>(loc, op.getCallee(), std::nullopt,
+                                          std::nullopt);
+    } else {
+      for (const MultidimensionalRange &range :
+           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+        llvm::SmallVector<mlir::Value, 10> boundaries;
 
-        boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
-            op.getLoc(),
-            rewriter.getIndexAttr(indices->getValue()[i].getEnd())));
+        for (size_t i = 0, e = range.rank(); i < e; ++i) {
+          boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              op.getLoc(), rewriter.getIndexAttr(range[i].getBegin())));
+
+          boundaries.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              op.getLoc(), rewriter.getIndexAttr(range[i].getEnd())));
+        }
+
+        rewriter.create<mlir::func::CallOp>(loc, op.getCallee(), std::nullopt,
+                                            boundaries);
       }
     }
 
-    rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, op.getCallee(),
-                                                    std::nullopt, boundaries);
-
+    rewriter.eraseOp(op);
     return mlir::success();
   }
 };

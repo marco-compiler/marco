@@ -90,7 +90,7 @@ public:
   mlir::Value
   declareAndGetRangesArray(mlir::OpBuilder &builder, mlir::Location loc,
                            mlir::ModuleOp moduleOp,
-                           std::optional<MultidimensionalRangeAttr> indices,
+                           std::optional<MultidimensionalRange> indices,
                            llvm::StringRef instanceName) const {
     auto ptrType = mlir::LLVM::LLVMPointerType::get(builder.getContext());
 
@@ -98,8 +98,8 @@ public:
       return builder.create<mlir::LLVM::ZeroOp>(loc, ptrType);
     }
 
-    auto globalOp = declareRangesArray(builder, loc, moduleOp,
-                                       indices->getValue(), instanceName);
+    auto globalOp =
+        declareRangesArray(builder, loc, moduleOp, *indices, instanceName);
 
     mlir::Value address =
         builder.create<mlir::LLVM::AddressOfOp>(loc, globalOp);
@@ -300,14 +300,10 @@ struct SchedulerAddEquationOpLowering
     mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
     // Equation rank.
-    int64_t rank = 0;
-
-    if (auto ranges = op.getRanges()) {
-      rank = ranges->getValue().rank();
-    }
+    const IndexSet &indices = op.getProperties().indices;
 
     mlir::Value rankValue = rewriter.create<mlir::LLVM::ConstantOp>(
-        loc, rewriter.getI64IntegerAttr(rank));
+        loc, rewriter.getI64IntegerAttr(indices.rank()));
 
     args.push_back(rankValue);
 
@@ -315,10 +311,7 @@ struct SchedulerAddEquationOpLowering
         mangling.getIntegerType(rankValue.getType().getIntOrFloatBitWidth()));
 
     // Equation ranges.
-    mlir::Value equationRangesPtr = declareAndGetRangesArray(
-        rewriter, loc, moduleOp, adaptor.getRanges(), adaptor.getScheduler());
-
-    args.push_back(equationRangesPtr);
+    mlir::Value &equationRangesPtrArg = args.emplace_back();
 
     mangledArgsTypes.push_back(
         mangling.getPointerType(mangling.getIntegerType(64)));
@@ -340,7 +333,22 @@ struct SchedulerAddEquationOpLowering
     auto funcOp = getOrDeclareFunction(rewriter, moduleOp, loc, functionName,
                                        resultType, args);
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, funcOp, args);
+    if (indices.empty()) {
+      equationRangesPtrArg = declareAndGetRangesArray(
+          rewriter, loc, moduleOp, std::nullopt, adaptor.getScheduler());
+
+      rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
+    } else {
+      for (const MultidimensionalRange &range :
+           llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+        equationRangesPtrArg = declareAndGetRangesArray(
+            rewriter, loc, moduleOp, range, adaptor.getScheduler());
+
+        rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
+      }
+    }
+
+    rewriter.eraseOp(op);
     return mlir::success();
   }
 };

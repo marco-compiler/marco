@@ -4060,11 +4060,11 @@ def BaseModelica_EquationCallOp : BaseModelica_Op<"equation_call", []>
 {
     let arguments = (ins
         SymbolNameAttr:$callee,
-        OptionalAttr<MultidimensionalRangeAttr>:$indices,
+        IndexSetProperty:$indices,
         DefaultValuedAttr<BoolAttr, "false">:$parallelizable);
 
     let results = (outs);
-    let assemblyFormat = "$callee attr-dict";
+    let assemblyFormat = "$callee custom<EquationCallIndices>($indices) attr-dict";
 }
 
 def BaseModelica_InitialOp : BaseModelica_Op<"initial",

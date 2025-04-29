@@ -31,7 +31,8 @@ void BaseModelicaDialect::registerOperations() {
 // BaseModelica Operations
 //===---------------------------------------------------------------------===//
 
-static bool parseWrittenVars(mlir::OpAsmParser &parser, VariablesList &prop) {
+namespace {
+bool parseWrittenVars(mlir::OpAsmParser &parser, VariablesList &prop) {
   if (parser.parseKeyword("writtenVariables") || parser.parseEqual()) {
     return true;
   }
@@ -43,13 +44,13 @@ static bool parseWrittenVars(mlir::OpAsmParser &parser, VariablesList &prop) {
   return false;
 }
 
-static void printWrittenVars(mlir::OpAsmPrinter &printer, mlir::Operation *op,
-                             const VariablesList &prop) {
+void printWrittenVars(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                      const VariablesList &prop) {
   printer << "writtenVariables = ";
   print(printer, prop);
 }
 
-static bool parseReadVars(mlir::OpAsmParser &parser, VariablesList &prop) {
+bool parseReadVars(mlir::OpAsmParser &parser, VariablesList &prop) {
   if (parser.parseKeyword("readVariables") || parser.parseEqual()) {
     return true;
   }
@@ -61,14 +62,13 @@ static bool parseReadVars(mlir::OpAsmParser &parser, VariablesList &prop) {
   return false;
 }
 
-static void printReadVars(mlir::OpAsmPrinter &printer, mlir::Operation *op,
-                          const VariablesList &prop) {
+void printReadVars(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                   const VariablesList &prop) {
   printer << "readVariables = ";
   print(printer, prop);
 }
 
-static bool parseModelDerivativesMap(mlir::OpAsmParser &parser,
-                                     DerivativesMap &prop) {
+bool parseModelDerivativesMap(mlir::OpAsmParser &parser, DerivativesMap &prop) {
   if (mlir::succeeded(parser.parseOptionalKeyword("der"))) {
     if (parser.parseEqual()) {
       return true;
@@ -82,58 +82,67 @@ static bool parseModelDerivativesMap(mlir::OpAsmParser &parser,
   return false;
 }
 
-static void printModelDerivativesMap(mlir::OpAsmPrinter &printer,
-                                     mlir::Operation *op,
-                                     const DerivativesMap &prop) {
+void printModelDerivativesMap(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                              const DerivativesMap &prop) {
   if (!prop.empty()) {
     printer << "der = ";
     print(printer, prop);
   }
 }
 
-static bool parseAbstractEquationWrittenVars(mlir::OpAsmParser &parser,
-                                             VariablesList &prop) {
+bool parseAbstractEquationWrittenVars(mlir::OpAsmParser &parser,
+                                      VariablesList &prop) {
   return parseWrittenVars(parser, prop);
 }
 
-static void printAbstractEquationWrittenVars(mlir::OpAsmPrinter &printer,
-                                             mlir::Operation *op,
-                                             const VariablesList &prop) {
+void printAbstractEquationWrittenVars(mlir::OpAsmPrinter &printer,
+                                      mlir::Operation *op,
+                                      const VariablesList &prop) {
   return printWrittenVars(printer, op, prop);
 }
 
-static bool parseAbstractEquationReadVars(mlir::OpAsmParser &parser,
-                                          VariablesList &prop) {
+bool parseAbstractEquationReadVars(mlir::OpAsmParser &parser,
+                                   VariablesList &prop) {
   return parseReadVars(parser, prop);
 }
 
-static void printAbstractEquationReadVars(mlir::OpAsmPrinter &printer,
-                                          mlir::Operation *op,
-                                          const VariablesList &prop) {
+void printAbstractEquationReadVars(mlir::OpAsmPrinter &printer,
+                                   mlir::Operation *op,
+                                   const VariablesList &prop) {
   return printReadVars(printer, op, prop);
 }
 
-static bool parseScheduleBlockWrittenVars(mlir::OpAsmParser &parser,
-                                          VariablesList &prop) {
+bool parseScheduleBlockWrittenVars(mlir::OpAsmParser &parser,
+                                   VariablesList &prop) {
   return parseWrittenVars(parser, prop);
 }
 
-static void printScheduleBlockWrittenVars(mlir::OpAsmPrinter &printer,
-                                          mlir::Operation *op,
-                                          const VariablesList &prop) {
+void printScheduleBlockWrittenVars(mlir::OpAsmPrinter &printer,
+                                   mlir::Operation *op,
+                                   const VariablesList &prop) {
   return printWrittenVars(printer, op, prop);
 }
 
-static bool parseScheduleBlockReadVars(mlir::OpAsmParser &parser,
-                                       VariablesList &prop) {
+bool parseScheduleBlockReadVars(mlir::OpAsmParser &parser,
+                                VariablesList &prop) {
   return parseReadVars(parser, prop);
 }
 
-static void printScheduleBlockReadVars(mlir::OpAsmPrinter &printer,
-                                       mlir::Operation *op,
-                                       const VariablesList &prop) {
+void printScheduleBlockReadVars(mlir::OpAsmPrinter &printer,
+                                mlir::Operation *op,
+                                const VariablesList &prop) {
   return printReadVars(printer, op, prop);
 }
+
+bool parseEquationCallIndices(mlir::OpAsmParser &parser, IndexSet &prop) {
+  return mlir::failed(::mlir::modeling::parse(parser, prop));
+}
+
+void printEquationCallIndices(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                              const IndexSet &prop) {
+  ::mlir::modeling::print(printer, prop);
+}
+} // namespace
 
 #define GET_OP_CLASSES
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaOps.cpp.inc"

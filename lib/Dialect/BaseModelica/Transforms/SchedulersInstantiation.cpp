@@ -226,7 +226,8 @@ mlir::LogicalResult SchedulersInstantiationPass::processDynamicOp(
                             createBeginFn, createEndFn);
 }
 
-static bool hasSingleScalarEquationCall(ScheduleBlockOp blockOp) {
+namespace {
+bool hasSingleScalarEquationCall(ScheduleBlockOp blockOp) {
   llvm::SmallVector<EquationCallOp, 1> callOps;
 
   for (EquationCallOp callOp : blockOp.getOps<EquationCallOp>()) {
@@ -237,12 +238,9 @@ static bool hasSingleScalarEquationCall(ScheduleBlockOp blockOp) {
     return false;
   }
 
-  if (auto indices = callOps[0].getIndices()) {
-    return indices->getValue().flatSize() == 1;
-  }
-
-  return true;
+  return callOps[0].getProperties().indices.flatSize() == 1;
 }
+} // namespace
 
 mlir::LogicalResult SchedulersInstantiationPass::processParallelOps(
     mlir::RewriterBase &rewriter,
@@ -393,12 +391,6 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
   builder.create<mlir::runtime::SchedulerCreateOp>(loc, schedulerName);
 
   for (EquationCallOp callOp : equationCallOps) {
-    MultidimensionalRangeAttr ranges = nullptr;
-
-    if (callOp.getIndices()) {
-      ranges = callOp.getIndicesAttr();
-    }
-
     mlir::runtime::EquationFunctionOp wrapperFunction =
         createWrapperFunction(builder, symbolTableCollection, moduleOp, callOp);
 
@@ -407,8 +399,8 @@ mlir::LogicalResult SchedulersInstantiationPass::configureScheduler(
     }
 
     builder.create<mlir::runtime::SchedulerAddEquationOp>(
-        callOp.getLoc(), schedulerName, wrapperFunction.getSymName(), ranges,
-        callOp.getParallelizable());
+        callOp.getLoc(), schedulerName, wrapperFunction.getSymName(),
+        callOp.getProperties().indices, callOp.getParallelizable());
   }
 
   return mlir::success();
@@ -433,12 +425,7 @@ SchedulersInstantiationPass::createWrapperFunction(
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
-  uint64_t numOfInductions = 0;
-
-  if (auto indicesAttr = callOp.getIndices()) {
-    numOfInductions = indicesAttr->getValue().rank();
-  }
-
+  uint64_t numOfInductions = callOp.getProperties().indices.rank();
   std::string functionName = callOp.getCallee().str() + "_wrapper";
 
   auto wrapperFunction = builder.create<mlir::runtime::EquationFunctionOp>(

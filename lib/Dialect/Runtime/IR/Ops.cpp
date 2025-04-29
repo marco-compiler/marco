@@ -6,8 +6,9 @@
 
 using namespace ::mlir::runtime;
 
-static bool parsePrintableIndicesList(mlir::OpAsmParser &parser,
-                                      PrintableIndicesList &prop) {
+namespace {
+bool parsePrintableIndicesList(mlir::OpAsmParser &parser,
+                               PrintableIndicesList &prop) {
   if (parser.parseLSquare()) {
     return true;
   }
@@ -37,9 +38,8 @@ static bool parsePrintableIndicesList(mlir::OpAsmParser &parser,
   return false;
 }
 
-static void printPrintableIndicesList(mlir::OpAsmPrinter &printer,
-                                      mlir::Operation *op,
-                                      const PrintableIndicesList &prop) {
+void printPrintableIndicesList(mlir::OpAsmPrinter &printer, mlir::Operation *op,
+                               const PrintableIndicesList &prop) {
   printer << "[";
 
   llvm::interleaveComma(prop, printer, [&](const PrintInfo &printInfo) {
@@ -53,6 +53,16 @@ static void printPrintableIndicesList(mlir::OpAsmPrinter &printer,
 
   printer << "]";
 }
+
+bool parseSchedulerEquationIndices(mlir::OpAsmParser &parser, IndexSet &prop) {
+  return mlir::failed(::mlir::modeling::parse(parser, prop));
+}
+
+void printSchedulerEquationIndices(mlir::OpAsmPrinter &printer,
+                                   mlir::Operation *op, const IndexSet &prop) {
+  ::mlir::modeling::print(printer, prop);
+}
+} // namespace
 
 #define GET_OP_CLASSES
 #include "marco/Dialect/Runtime/IR/RuntimeOps.cpp.inc"

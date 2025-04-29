@@ -8,22 +8,22 @@ module {
         bmodelica.schedule @schedule {
             bmodelica.dynamic {
                 bmodelica.schedule_block writtenVariables = [@y], readVariables = [] {
-                    bmodelica.equation_call @equation_0
+                    bmodelica.equation_call @equation_0 {}
                 } {parallelizable = true}
 
                 bmodelica.schedule_block writtenVariables = [@x], readVariables = [@y] {
-                    bmodelica.equation_call @equation_1
+                    bmodelica.equation_call @equation_1 {}
                 } {parallelizable = true}
 
                 // CHECK:       bmodelica.parallel_schedule_blocks
                 // CHECK-NEXT:      bmodelica.schedule_block writtenVariables = [@y], readVariables = []
-                // CHECK-NEXT:          bmodelica.equation_call @equation_0
+                // CHECK-NEXT:          bmodelica.equation_call @equation_0 {}
                 // CHECK-NEXT:      }
                 // CHECK-SAME:      parallelizable = true
 
                 // CHECK:       bmodelica.parallel_schedule_blocks
                 // CHECK-NEXT:      bmodelica.schedule_block writtenVariables = [@x], readVariables = [@y]
-                // CHECK-NEXT:          bmodelica.equation_call @equation_1
+                // CHECK-NEXT:          bmodelica.equation_call @equation_1 {}
                 // CHECK-NEXT:      }
                 // CHECK-SAME:      parallelizable = true
             }

@@ -3,28 +3,26 @@
 // CHECK:       bmodelica.schedule @schedule {
 // CHECK-NEXT:      bmodelica.dynamic {
 // CHECK-NEXT:          bmodelica.schedule_block writtenVariables = [<@x, {[1,9]}>], readVariables = [<@x, {[0,8]}>] {
-// CHECK-NEXT:              bmodelica.equation_call @[[eq:.*]] {indices = #modeling<multidim_range [0,8]>}
+// CHECK-NEXT:              bmodelica.equation_call @[[eq:.*]] {[1,9]}
 // CHECK-NEXT:          } {parallelizable = true}
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
 
-// CHECK:       bmodelica.equation_function @[[eq]](%[[lb:.*]]: index, %[[ub:.*]]: index) {
-// CHECK:           %[[step:.*]] = arith.constant 1 : index
-// CHECK:           scf.for %[[i0:.*]] = %[[lb]] to %[[ub]] step %[[step]] {
-// CHECK:               %[[one:.*]] = arith.constant 1 : index
-// CHECK:               %[[i0_remapped:.*]] = arith.addi %[[one]], %[[i0]]
-// CHECK:               %[[sub:.*]] = bmodelica.sub %[[i0_remapped]], %{{.*}}
-// CHECK:               %[[var:.*]] = bmodelica.qualified_variable_get @Test::@x
-// CHECK:               %[[subscription:.*]] = bmodelica.subscription %[[var]][%[[i0_remapped]]]
-// CHECK:               bmodelica.store %[[subscription]][], %{{.*}}
-// CHECK:           }
-// CHECK-NEXT:      bmodelica.yield
-// CHECK-NEXT:  }
+// CHECK:       bmodelica.equation_function @[[eq]]
+// CHECK-SAME:  (%[[lb:.*]]: index, %[[ub:.*]]: index)
+// CHECK:       %[[step:.*]] = arith.constant 1 : index
+// CHECK:       scf.for %[[i0:.*]] = %[[lb]] to %[[ub]] step %[[step]] {
+// CHECK:           bmodelica.constant 1 : index
+// CHECK:           %[[var:.*]] = bmodelica.qualified_variable_get @Test::@x
+// CHECK:           %[[subscription:.*]] = bmodelica.subscription %[[var]][%[[i0]]]
+// CHECK:           bmodelica.store %[[subscription]][], %{{.*}}
+// CHECK:       }
+// CHECK-NEXT:  bmodelica.yield
 
 bmodelica.model @Test {
     bmodelica.variable @x : !bmodelica.variable<10x!bmodelica.int>
 
-    // x[i] = x[i - 1]
+    // COM: x[i] = x[i - 1]
     %t0 = bmodelica.equation_template inductions = [%i0] attributes {id = "t0"} {
         %0 = bmodelica.variable_get @x : tensor<10x!bmodelica.int>
         %1 = bmodelica.tensor_extract %0[%i0] : tensor<10x!bmodelica.int>

@@ -252,17 +252,11 @@ mlir::LogicalResult EulerForwardPass::createUpdateStateVariablesFunction(
   return mlir::success();
 }
 
-static void getStateUpdateBlockVarWriteReadInfo(
+namespace {
+void getStateUpdateBlockVarWriteReadInfo(
     VariableOp stateVariable, VariableOp derivativeVariable,
-    MultidimensionalRangeAttr ranges,
-    llvm::SmallVectorImpl<Variable> &writtenVariables,
+    const IndexSet &indices, llvm::SmallVectorImpl<Variable> &writtenVariables,
     llvm::SmallVectorImpl<Variable> &readVariables) {
-  IndexSet indices;
-
-  if (ranges) {
-    indices += ranges.getValue();
-  }
-
   writtenVariables.emplace_back(
       mlir::SymbolRefAttr::get(stateVariable.getSymNameAttr()), indices);
 
@@ -270,16 +264,16 @@ static void getStateUpdateBlockVarWriteReadInfo(
       mlir::SymbolRefAttr::get(derivativeVariable.getSymNameAttr()), indices);
 }
 
-static void createStateUpdateFunctionCall(mlir::OpBuilder &builder,
-                                          VariableOp stateVariable,
-                                          VariableOp derivativeVariable,
-                                          MultidimensionalRangeAttr ranges,
-                                          EquationFunctionOp equationFuncOp) {
+void createStateUpdateFunctionCall(mlir::OpBuilder &builder,
+                                   VariableOp stateVariable,
+                                   VariableOp derivativeVariable,
+                                   const IndexSet &indices,
+                                   EquationFunctionOp equationFuncOp) {
   VariablesList writtenVariables;
   VariablesList readVariables;
 
-  getStateUpdateBlockVarWriteReadInfo(stateVariable, derivativeVariable, ranges,
-                                      writtenVariables, readVariables);
+  getStateUpdateBlockVarWriteReadInfo(stateVariable, derivativeVariable,
+                                      indices, writtenVariables, readVariables);
 
   auto blockOp = builder.create<ScheduleBlockOp>(
       stateVariable.getLoc(), true, writtenVariables, readVariables);
@@ -288,8 +282,9 @@ static void createStateUpdateFunctionCall(mlir::OpBuilder &builder,
   builder.setInsertionPointToStart(blockOp.getBody());
 
   builder.create<EquationCallOp>(equationFuncOp.getLoc(),
-                                 equationFuncOp.getSymName(), ranges, true);
+                                 equationFuncOp.getSymName(), indices, true);
 }
+} // namespace
 
 mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
     mlir::OpBuilder &builder,
@@ -388,19 +383,8 @@ mlir::LogicalResult EulerForwardPass::createRangedStateVariableUpdateBlocks(
 
   IndexSet indices = stateVariable.getIndices();
 
-  if (indices.empty()) {
-    createStateUpdateFunctionCall(builder, stateVariable, derivativeVariable,
-                                  nullptr, equationFuncOp);
-  } else {
-    llvm::SmallVector<MultidimensionalRange> compactRanges;
-    indices.getCompactRanges(compactRanges);
-
-    for (const MultidimensionalRange &range : compactRanges) {
-      createStateUpdateFunctionCall(
-          builder, stateVariable, derivativeVariable,
-          MultidimensionalRangeAttr::get(&getContext(), range), equationFuncOp);
-    }
-  }
+  createStateUpdateFunctionCall(builder, stateVariable, derivativeVariable,
+                                indices, equationFuncOp);
 
   return mlir::success();
 }
@@ -450,31 +434,12 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
   // Create the schedule block and call the function.
   builder.setInsertionPointToEnd(dynamicOp.getBody());
 
-  int64_t variableRank = variableType.getRank();
-
   VariablesList writtenVariables;
   VariablesList readVariables;
 
-  if (variableRank == 0) {
-    getStateUpdateBlockVarWriteReadInfo(stateVariable, derivativeVariable,
-                                        nullptr, writtenVariables,
-                                        readVariables);
-  } else {
-    for (int64_t dim = 0; dim < variableType.getRank(); ++dim) {
-      llvm::SmallVector<Range> ranges;
-
-      for (int64_t dimSize : variableType.getShape()) {
-        assert(dimSize != mlir::ShapedType::kDynamic);
-        ranges.push_back(Range(0, dimSize));
-      }
-
-      getStateUpdateBlockVarWriteReadInfo(
-          stateVariable, derivativeVariable,
-          MultidimensionalRangeAttr::get(builder.getContext(),
-                                         MultidimensionalRange(ranges)),
-          writtenVariables, readVariables);
-    }
-  }
+  getStateUpdateBlockVarWriteReadInfo(stateVariable, derivativeVariable,
+                                      stateVariable.getIndices(),
+                                      writtenVariables, readVariables);
 
   auto blockOp = builder.create<ScheduleBlockOp>(
       stateVariable.getLoc(), true, writtenVariables, readVariables);
