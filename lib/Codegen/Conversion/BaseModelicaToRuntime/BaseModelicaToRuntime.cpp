@@ -1116,7 +1116,11 @@ mlir::LogicalResult
 BaseModelicaToRuntimeConversionPass::convertTimeOp(mlir::ModuleOp moduleOp) {
   mlir::RewritePatternSet patterns(moduleOp.getContext());
   patterns.add<TimeOpLowering>(moduleOp.getContext());
-  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns));
+
+  mlir::GreedyRewriteConfig config;
+  config.fold = false;
+
+  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
 
 namespace mlir {
