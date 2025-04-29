@@ -633,7 +633,9 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::convertBaseModelicaToCFG(
 
   mlir::GreedyRewriteConfig config;
   config.useTopDownTraversal = true;
-  config.fold = true;
+  config.fold = false;
+  config.strictMode = mlir::GreedyRewriteStrictness::ExistingOps;
+  config.cseConstants = false;
 
   return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }

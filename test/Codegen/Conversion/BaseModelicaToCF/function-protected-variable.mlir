@@ -23,12 +23,12 @@ bmodelica.function @scalarVariableGet {
 // -----
 
 // CHECK-LABEL: @scalarVariableSet
-// CHECK-NEXT:      %[[value:.*]] = arith.constant 0 : i64
 // CHECK-NEXT:      cf.br ^[[bb1:.*]]
 // CHECK-NEXT:  ^[[bb1]]:
 // CHECK-NEXT:      %[[variable:.*]] = bmodelica.raw_variable {name = "x"} : tensor<i64>
 // CHECK-NEXT:      cf.br ^[[bb2:.*]]
 // CHECK-NEXT:  ^[[bb2]]:
+// CHECK-NEXT:      %[[value:.*]] = arith.constant 0 : i64
 // CHECK-NEXT:      bmodelica.raw_variable_set %[[variable]], %[[value]]
 // CHECK-NEXT:      cf.br ^{{.*}}
 // CHECK:       }
