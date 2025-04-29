@@ -210,65 +210,87 @@ private:
       mlir::PatternRewriter &rewriter, mlir::Region &region,
       const llvm::StringMap<mlir::BlockArgument> &inputVars,
       const llvm::StringMap<RawVariableOp> &outputAndProtectedVars) const {
-    region.walk([&](VariableGetOp op) {
-      rewriter.setInsertionPoint(op);
-      auto inputVarIt = inputVars.find(op.getVariable());
-
-      if (inputVarIt != inputVars.end()) {
-        rewriter.replaceOp(op, inputVarIt->getValue());
-      } else {
-        auto writableVarIt = outputAndProtectedVars.find(op.getVariable());
-        assert(writableVarIt != outputAndProtectedVars.end());
-        RawVariableOp rawVariableOp = writableVarIt->getValue();
-        rewriter.replaceOpWithNewOp<RawVariableGetOp>(op, rawVariableOp);
-      }
+    region.walk([&](mlir::Operation *op) {
+      return replaceSymbolAccess(rewriter, op, inputVars,
+                                 outputAndProtectedVars);
     });
+  }
 
-    region.walk([&](VariableSetOp op) {
-      rewriter.setInsertionPoint(op);
-      auto it = outputAndProtectedVars.find(op.getVariable());
-      assert(it != outputAndProtectedVars.end());
-      RawVariableOp rawVariableOp = it->getValue();
+  void replaceSymbolAccess(
+      mlir::PatternRewriter &rewriter, mlir::Operation *op,
+      const llvm::StringMap<mlir::BlockArgument> &inputVars,
+      const llvm::StringMap<RawVariableOp> &outputAndProtectedVars) const {
+    if (auto castedOp = mlir::dyn_cast<VariableGetOp>(op)) {
+      return replaceSymbolAccess(rewriter, castedOp, inputVars,
+                                 outputAndProtectedVars);
+    }
 
-      mlir::Value value = op.getValue();
+    if (auto castedOp = mlir::dyn_cast<VariableSetOp>(op)) {
+      return replaceSymbolAccess(rewriter, castedOp, outputAndProtectedVars);
+    }
+  }
 
-      if (auto indices = op.getIndices(); !indices.empty()) {
-        mlir::Value tensor =
-            rewriter.create<RawVariableGetOp>(op.getLoc(), rawVariableOp);
+  void replaceSymbolAccess(
+      mlir::PatternRewriter &rewriter, VariableGetOp op,
+      const llvm::StringMap<mlir::BlockArgument> &inputVars,
+      const llvm::StringMap<RawVariableOp> &outputAndProtectedVars) const {
+    rewriter.setInsertionPoint(op);
+    auto inputVarIt = inputVars.find(op.getVariable());
 
-        mlir::Type tensorElementType =
-            mlir::cast<mlir::TensorType>(tensor.getType()).getElementType();
+    if (inputVarIt != inputVars.end()) {
+      rewriter.replaceOp(op, inputVarIt->getValue());
+    } else {
+      auto writableVarIt = outputAndProtectedVars.find(op.getVariable());
+      assert(writableVarIt != outputAndProtectedVars.end());
+      RawVariableOp rawVariableOp = writableVarIt->getValue();
+      rewriter.replaceOpWithNewOp<RawVariableGetOp>(op, rawVariableOp);
+    }
+  }
 
-        if (value.getType() != tensorElementType) {
-          value =
-              rewriter.create<CastOp>(op.getLoc(), tensorElementType, value);
-        }
+  void replaceSymbolAccess(
+      mlir::PatternRewriter &rewriter, VariableSetOp op,
+      const llvm::StringMap<RawVariableOp> &outputAndProtectedVars) const {
+    rewriter.setInsertionPoint(op);
+    auto it = outputAndProtectedVars.find(op.getVariable());
+    assert(it != outputAndProtectedVars.end());
+    RawVariableOp rawVariableOp = it->getValue();
 
-        tensor = rewriter.create<TensorInsertOp>(op.getLoc(), value, tensor,
-                                                 indices);
+    mlir::Value value = op.getValue();
 
-        rewriter.replaceOpWithNewOp<RawVariableSetOp>(op, rawVariableOp,
-                                                      tensor);
-      } else {
-        auto rawVariableTensorType =
-            mlir::cast<mlir::TensorType>(rawVariableOp.getVariable().getType());
+    if (auto indices = op.getIndices(); !indices.empty()) {
+      mlir::Value tensor =
+          rewriter.create<RawVariableGetOp>(op.getLoc(), rawVariableOp);
 
-        if (rawVariableTensorType.getShape().empty()) {
-          mlir::Type elementType = rawVariableTensorType.getElementType();
+      mlir::Type tensorElementType =
+          mlir::cast<mlir::TensorType>(tensor.getType()).getElementType();
 
-          if (value.getType() != elementType) {
-            value = rewriter.create<CastOp>(op.getLoc(), elementType, value);
-          }
-        } else {
-          if (value.getType() != rawVariableTensorType) {
-            value = rewriter.create<CastOp>(op.getLoc(), rawVariableTensorType,
-                                            value);
-          }
-        }
-
-        rewriter.replaceOpWithNewOp<RawVariableSetOp>(op, rawVariableOp, value);
+      if (value.getType() != tensorElementType) {
+        value = rewriter.create<CastOp>(op.getLoc(), tensorElementType, value);
       }
-    });
+
+      tensor =
+          rewriter.create<TensorInsertOp>(op.getLoc(), value, tensor, indices);
+
+      rewriter.replaceOpWithNewOp<RawVariableSetOp>(op, rawVariableOp, tensor);
+    } else {
+      auto rawVariableTensorType =
+          mlir::cast<mlir::TensorType>(rawVariableOp.getVariable().getType());
+
+      if (rawVariableTensorType.getShape().empty()) {
+        mlir::Type elementType = rawVariableTensorType.getElementType();
+
+        if (value.getType() != elementType) {
+          value = rewriter.create<CastOp>(op.getLoc(), elementType, value);
+        }
+      } else {
+        if (value.getType() != rawVariableTensorType) {
+          value = rewriter.create<CastOp>(op.getLoc(), rawVariableTensorType,
+                                          value);
+        }
+      }
+
+      rewriter.replaceOpWithNewOp<RawVariableSetOp>(op, rawVariableOp, value);
+    }
   }
 
   mlir::LogicalResult createCFG(mlir::PatternRewriter &rewriter,
