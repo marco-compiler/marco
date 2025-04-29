@@ -147,12 +147,7 @@ def BaseModelicaToCFConversionPass
 
     let dependentDialects = [
         "mlir::bmodelica::BaseModelicaDialect",
-        "mlir::arith::ArithDialect",
-        "mlir::cf::ControlFlowDialect",
-        "mlir::func::FuncDialect",
-        "mlir::scf::SCFDialect",
-        "mlir::LLVM::LLVMDialect",
-        "mlir::memref::MemRefDialect"
+        "mlir::cf::ControlFlowDialect"
     ];
 
     let constructor = "mlir::createBaseModelicaToCFConversionPass()";
