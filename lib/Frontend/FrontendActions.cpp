@@ -1008,14 +1008,12 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addPass(createMLIRFunctionScalarizationPass());
   pm.addPass(mlir::bmodelica::createExplicitCastInsertionPass());
-  pm.addPass(mlir::createCanonicalizerPass());
 
   if (ci.getCodeGenOptions().runtimeVerification) {
     pm.addPass(mlir::createGenerateRuntimeVerificationPass());
   }
 
   if (ci.getCodeGenOptions().cse) {
-    pm.addPass(mlir::createCanonicalizerPass());
     pm.addNestedPass<mlir::bmodelica::FunctionOp>(mlir::createCSEPass());
     pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
   }
