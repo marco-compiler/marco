@@ -1877,8 +1877,6 @@ private:
                                                mlir::ModuleOp moduleOp,
                                                mlir::Location loc,
                                                IDAInstance *idaInstance) const;
-
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
 } // namespace
 
@@ -1893,10 +1891,6 @@ void IDAPass::runOnOperation() {
 
   for (ModelOp modelOp : modelOps) {
     if (mlir::failed(processModelOp(modelOp))) {
-      return signalPassFailure();
-    }
-
-    if (mlir::failed(cleanModelOp(modelOp))) {
       return signalPassFailure();
     }
   }
@@ -2401,14 +2395,6 @@ IDAPass::createGetIDATimeFunction(mlir::OpBuilder &builder,
   mlir::Value time = idaInstance->getCurrentTime(builder, loc);
   builder.create<mlir::runtime::ReturnOp>(loc, time);
   return mlir::success();
-}
-
-mlir::LogicalResult IDAPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-  mlir::GreedyRewriteConfig config;
-  config.fold = true;
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {
