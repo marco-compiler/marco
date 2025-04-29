@@ -29,8 +29,16 @@ private:
                     ModelOp modelOp, ScheduleOp scheduleOp);
 
   mlir::LogicalResult
+  processInitialOps(mlir::SymbolTableCollection &symbolTableCollection,
+                    ModelOp modelOp, llvm::ArrayRef<InitialOp> initialOps);
+
+  mlir::LogicalResult
   processInitialOp(mlir::SymbolTableCollection &symbolTableCollection,
                    ModelOp modelOp, InitialOp initialOp);
+
+  mlir::LogicalResult
+  processDynamicOps(mlir::SymbolTableCollection &symbolTableCollection,
+                    ModelOp modelOp, llvm::ArrayRef<DynamicOp> dynamicOps);
 
   mlir::LogicalResult
   processDynamicOp(mlir::SymbolTableCollection &symbolTableCollection,
@@ -91,16 +99,25 @@ mlir::LogicalResult ScheduleParallelizationPass::processScheduleOp(
     }
   }
 
+  if (mlir::failed(
+          processInitialOps(symbolTableCollection, modelOp, initialOps))) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(
+          processDynamicOps(symbolTableCollection, modelOp, dynamicOps))) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ScheduleParallelizationPass::processInitialOps(
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    llvm::ArrayRef<InitialOp> initialOps) {
   for (InitialOp initialOp : initialOps) {
     if (mlir::failed(
             processInitialOp(symbolTableCollection, modelOp, initialOp))) {
-      return mlir::failure();
-    }
-  }
-
-  for (DynamicOp dynamicOp : dynamicOps) {
-    if (mlir::failed(
-            processDynamicOp(symbolTableCollection, modelOp, dynamicOp))) {
       return mlir::failure();
     }
   }
@@ -137,6 +154,19 @@ mlir::LogicalResult ScheduleParallelizationPass::processInitialOp(
 
   // Parallelize the last chunk of blocks.
   return parallelizeBlocks(symbolTableCollection, modelOp, blocks);
+}
+
+mlir::LogicalResult ScheduleParallelizationPass::processDynamicOps(
+    mlir::SymbolTableCollection &symbolTableCollection, ModelOp modelOp,
+    llvm::ArrayRef<DynamicOp> dynamicOps) {
+  for (DynamicOp dynamicOp : dynamicOps) {
+    if (mlir::failed(
+            processDynamicOp(symbolTableCollection, modelOp, dynamicOp))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
 }
 
 mlir::LogicalResult ScheduleParallelizationPass::processDynamicOp(
@@ -186,9 +216,8 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   }
 
   // Compute the outgoing arcs and the in-degree of each block.
-  llvm::DenseMap<ScheduleBlockOp, llvm::DenseSet<ScheduleBlockOp>>
-      dependantBlocks;
-
+  using Dependencies = llvm::SetVector<ScheduleBlockOp>;
+  llvm::DenseMap<ScheduleBlockOp, Dependencies> dependantBlocks;
   llvm::DenseMap<ScheduleBlockOp, size_t> inDegrees;
 
   for (ScheduleBlockOp block : blocks) {
@@ -215,36 +244,35 @@ mlir::LogicalResult ScheduleParallelizationPass::parallelizeBlocks(
   }
 
   // Compute the sets of independent blocks.
-  llvm::SmallVector<llvm::SmallVector<ScheduleBlockOp, 10>, 10> groups;
-  llvm::DenseSet<ScheduleBlockOp> currentBlocks;
-  llvm::DenseSet<ScheduleBlockOp> newBlocks;
+  llvm::SmallVector<llvm::SmallVector<ScheduleBlockOp, 32>, 10> groups;
+  llvm::SmallVector<ScheduleBlockOp> currentBlocks;
 
   for (ScheduleBlockOp block : blocks) {
     if (inDegrees[block] == 0) {
-      currentBlocks.insert(block);
+      currentBlocks.push_back(block);
     }
   }
 
   while (!currentBlocks.empty()) {
-    llvm::SmallVector<ScheduleBlockOp, 10> independentBlocks;
+    llvm::SmallVector<ScheduleBlockOp> newBlocks;
+    llvm::SmallVector<ScheduleBlockOp, 32> independentBlocks;
 
     for (ScheduleBlockOp block : currentBlocks) {
-      if (inDegrees[block] == 0 &&
-          (maxParallelBlocks == kUnlimitedGroupBlocks ||
-           static_cast<int64_t>(independentBlocks.size()) <
-               maxParallelBlocks)) {
+      assert(inDegrees[block] == 0);
+
+      if (maxParallelBlocks == kUnlimitedGroupBlocks ||
+          static_cast<int64_t>(independentBlocks.size()) < maxParallelBlocks) {
         independentBlocks.push_back(block);
 
         for (ScheduleBlockOp dependantBlock : dependantBlocks[block]) {
           assert(inDegrees[dependantBlock] > 0);
-          inDegrees[dependantBlock]--;
-          newBlocks.insert(dependantBlock);
 
-          // Avoid visiting again the block at the next iteration.
-          newBlocks.erase(block);
+          if (--inDegrees[dependantBlock] == 0) {
+            newBlocks.push_back(dependantBlock);
+          }
         }
       } else {
-        newBlocks.insert(block);
+        newBlocks.push_back(block);
       }
     }
 

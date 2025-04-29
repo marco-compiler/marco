@@ -364,7 +364,7 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
     llvm::SmallVector<mlir::Value> lowerBounds;
     llvm::SmallVector<mlir::Value> upperBounds;
 
-    for (size_t dim = 0; dim < rank; ++dim) {
+    for (int64_t dim = 0; dim < rank; ++dim) {
       lowerBounds.push_back(eqFunc.getLowerBound(dim));
       upperBounds.push_back(eqFunc.getUpperBound(dim));
     }
@@ -374,7 +374,7 @@ EquationFunctionOp EquationExplicitationPass::createEquationFunction(
     mlir::Value oneValue = rewriter.create<mlir::arith::ConstantOp>(
         equation.getLoc(), rewriter.getIndexAttr(1));
 
-    for (size_t i = 0; i < rank; ++i) {
+    for (int64_t i = 0; i < rank; ++i) {
       auto forOp = rewriter.create<mlir::scf::ForOp>(
           equation.getLoc(), eqFunc.getLowerBound(i), eqFunc.getUpperBound(i),
           oneValue);

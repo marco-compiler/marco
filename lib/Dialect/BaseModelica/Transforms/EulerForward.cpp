@@ -398,7 +398,6 @@ mlir::LogicalResult EulerForwardPass::createMonolithicStateVariableUpdateBlock(
 
   // Create the equation function.
   builder.setInsertionPointToEnd(moduleOp.getBody());
-  auto variableType = stateVariable.getVariableType();
 
   auto funcOp = builder.create<RawFunctionOp>(
       stateVariable.getLoc(),
