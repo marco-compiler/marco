@@ -1094,33 +1094,21 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::createTimeSetterOp(
   return mlir::success();
 }
 
-namespace {
-class TimeOpLowering : public mlir::OpRewritePattern<TimeOp> {
-public:
-  using mlir::OpRewritePattern<TimeOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(TimeOp op, mlir::PatternRewriter &rewriter) const override {
-    auto timeType = op.getType();
-
-    auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
-        op.getLoc(), ArrayType::get(std::nullopt, timeType), "time");
-
-    rewriter.replaceOpWithNewOp<LoadOp>(op, globalGetOp, std::nullopt);
-    return mlir::success();
-  }
-};
-} // namespace
-
 mlir::LogicalResult
 BaseModelicaToRuntimeConversionPass::convertTimeOp(mlir::ModuleOp moduleOp) {
-  mlir::RewritePatternSet patterns(moduleOp.getContext());
-  patterns.add<TimeOpLowering>(moduleOp.getContext());
+  mlir::IRRewriter rewriter(moduleOp);
 
-  mlir::GreedyRewriteConfig config;
-  config.fold = false;
+  moduleOp.walk([&](TimeOp timeOp) {
+    rewriter.setInsertionPoint(timeOp);
+    auto timeType = timeOp.getType();
 
-  return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
+    auto globalGetOp = rewriter.create<GlobalVariableGetOp>(
+        timeOp.getLoc(), ArrayType::get(std::nullopt, timeType), "time");
+
+    rewriter.replaceOpWithNewOp<LoadOp>(timeOp, globalGetOp, std::nullopt);
+  });
+
+  return mlir::success();
 }
 
 namespace mlir {
