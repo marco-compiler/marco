@@ -72,8 +72,6 @@ private:
                  llvm::SmallVectorImpl<Variable> &readVariables,
                  mlir::SymbolTableCollection &symbolTableCollection,
                  EquationInstanceOp equationOp);
-
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
 } // namespace
 
@@ -96,10 +94,6 @@ void EquationExplicitationPass::runOnOperation() {
                                          moduleOp, modelOp, scheduleOp))) {
         return signalPassFailure();
       }
-    }
-
-    if (mlir::failed(cleanModelOp(modelOp))) {
-      return signalPassFailure();
     }
   }
 }
@@ -562,16 +556,6 @@ mlir::LogicalResult EquationExplicitationPass::getAccessAttrs(
   }
 
   return mlir::success();
-}
-
-mlir::LogicalResult EquationExplicitationPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-
-  mlir::GreedyRewriteConfig config;
-  config.fold = true;
-
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {
