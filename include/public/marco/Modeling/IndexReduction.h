@@ -7,11 +7,7 @@
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MCIM.h"
-#include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace marco::modeling {
 
@@ -212,6 +208,15 @@ public:
   using VariableVertex = internal::indexReduction::VariableVertex;
   using EquationVertex = internal::indexReduction::EquationVertex;
 
+  struct PantelidesResult {
+    llvm::SmallVector<
+        std::pair<EquationVertex::Id, llvm::SmallVector<IndexSet>>>
+        equationDerivatives;
+    llvm::SmallVector<
+        std::pair<VariableVertex::Id, llvm::SmallVector<IndexSet>>>
+        variableDerivatives;
+  };
+
 private:
   using Vertex = std::variant<VariableVertex, EquationVertex>;
   using Edge = internal::indexReduction::Edge;
@@ -324,6 +329,14 @@ private:
   void setEquationDerivative(const EquationVertex::Id id,
                              const EquationSubset &derivative) {
     equationAssociations.insert_or_assign(id, derivative);
+  }
+
+  void addVariable(const VariableBridge &variableBridge) {
+    VariableVertex variable(variableBridge);
+    VariableVertex::Id id = variable.getId();
+    assert(!hasVariableWithId(id) && "Already existing variable");
+    VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
+    variablesMap[id] = variableDescriptor;
   }
 
   /// Hide the (indices of) variables that have derivatives (of those indices).
@@ -631,70 +644,113 @@ public:
       : differentiateVariable(differentiateVariable),
         differentiateEquation(differentiateEquation) {}
 
-  /// Add a variable to the graph.
-  void addVariable(const VariableBridge &variableBridge) {
-    VariableVertex variable(variableBridge);
-    VariableVertex::Id id = variable.getId();
-    assert(!hasVariableWithId(id) && "Already existing variable");
-    VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
-    variablesMap[id] = variableDescriptor;
-  }
+  using EquationWithAccesses =
+      std::pair<EquationBridge *,
+                llvm::SmallVector<std::pair<VariableVertex::Id,
+                                            std::unique_ptr<AccessFunction>>>>;
+  using VariableDerivative =
+      std::tuple<VariableVertex::Id, VariableVertex::Id, IndexSet>;
 
-  /// Add an equation to the graph, all variables accessed by the equation must
-  /// already be present in the graph.
-  void addEquation(
-      const EquationBridge &equationBridge,
-      const llvm::ArrayRef<
-          std::pair<VariableBridge::Id, std::unique_ptr<AccessFunction>>>
-          accesses) {
-    EquationVertex eq(equationBridge, equationBridge.getIndices());
-    EquationVertex::Id id = eq.getId();
-    assert(!hasEquationWithId(id) && "Already existing equation");
-    VertexDescriptor equationDescriptor = graph.addVertex(std::move(eq));
-    equationsMap[id] = equationDescriptor;
+  /// Initialize the graph with the given variables, variable derivatives, and
+  /// equations.
+  void
+  initialize(const llvm::SmallVector<VariableBridge *> &variables,
+             const llvm::SmallVector<VariableDerivative> &variableDerivatives,
+             const llvm::SmallVector<EquationWithAccesses> &equations) {
+    for (const VariableBridge *variable : variables) {
+      addVariable(*variable);
+      initialVariables.push_back(variable->getId());
+    }
 
-    const EquationVertex &equation =
-        getVertex<EquationVertex>(equationDescriptor);
-    IndexSet equationRanges = equation.getIndices();
+    for (const auto &[variableId, derivativeId, derivedIndices] :
+         variableDerivatives) {
+      setVariableDerivative(variableId,
+                            VariableSubset{derivativeId, derivedIndices});
+    }
 
-    for (const auto &[variableId, accessFunction] : accesses) {
-      VertexDescriptor variableDescriptor = getDescriptorFromId(variableId);
-      const VariableVertex &variable =
-          getVertex<VariableVertex>(variableDescriptor);
+    for (const auto &[equationBridge, accesses] : equations) {
+      EquationVertex eq(*equationBridge, equationBridge->getIndices());
+      EquationVertex::Id id = eq.getId();
+      assert(!hasEquationWithId(id) && "Already existing equation");
+      VertexDescriptor equationDescriptor = graph.addVertex(std::move(eq));
+      equationsMap[id] = equationDescriptor;
+      initialEquations.push_back(id);
 
-      for (const MultidimensionalRange &range :
-           llvm::make_range(variable.getIndices().rangesBegin(),
-                            variable.getIndices().rangesEnd())) {
-        graph.addEdge(equationDescriptor, variableDescriptor,
-                      {variable.getId(), equationRanges, IndexSet(range),
-                       *accessFunction});
+      const EquationVertex &equation =
+          getVertex<EquationVertex>(equationDescriptor);
+      IndexSet equationRanges = equation.getIndices();
+
+      for (const auto &[variableId, accessFunction] : accesses) {
+        VertexDescriptor variableDescriptor = getDescriptorFromId(variableId);
+        const VariableVertex &variable =
+            getVertex<VariableVertex>(variableDescriptor);
+
+        for (const MultidimensionalRange &range :
+             llvm::make_range(variable.getIndices().rangesBegin(),
+                              variable.getIndices().rangesEnd())) {
+          graph.addEdge(equationDescriptor, variableDescriptor,
+                        {variable.getId(), equationRanges, IndexSet(range),
+                         *accessFunction});
+        }
       }
     }
   }
 
-  /// Establish the relationship between a variable and its derivative.
-  void setVariableDerivative(const VariableVertex::Id variableId,
-                             const VariableVertex::Id derivativeId,
-                             const IndexSet &derivedIndices) {
-    setVariableDerivative(variableId,
-                          VariableSubset{derivativeId, derivedIndices});
+  /// Collect the derivative-chains for the original equations and variables.
+  PantelidesResult buildPantelidesResult() {
+    PantelidesResult result;
+    // Collect the derivation-chain for each original equation
+    for (EquationVertex::Id equationId : initialEquations) {
+      llvm::SmallVector<IndexSet> derivativeChain;
+      std::optional<EquationSubset> derivative =
+          getEquationDerivative(equationId);
+      while (derivative) {
+        derivativeChain.push_back(derivative->indices);
+        derivative = getEquationDerivative(derivative->id);
+      }
+      if (!derivativeChain.empty()) {
+        result.equationDerivatives.emplace_back(equationId,
+                                                std::move(derivativeChain));
+      }
+    }
+
+    // Collect the derivation-chain for each original variable.
+    // The initial variables may contain both a variable and its derivative.
+    // In those cases only the former derivative chain is kept, as the latter is
+    // just a subset of it.
+    llvm::DenseSet<VariableVertex::Id> seenDerivatives;
+    for (VariableVertex::Id variableId : initialVariables) {
+      llvm::SmallVector<IndexSet> derivativeChain;
+      std::optional<VariableSubset> derivative =
+          getVariableDerivative(variableId);
+      while (derivative) {
+        derivativeChain.push_back(derivative->indices);
+        seenDerivatives.insert(derivative->id);
+        derivative = getVariableDerivative(derivative->id);
+      }
+      if (!derivativeChain.empty()) {
+        result.variableDerivatives.emplace_back(variableId,
+                                                std::move(derivativeChain));
+      }
+    }
+    // Remove the redundant derivative chains.
+    llvm::erase_if(result.variableDerivatives, [&](const auto &derivative) {
+      return seenDerivatives.contains(derivative.first);
+    });
+
+    return result;
   }
 
   /// Apply the array-aware pantelides algorithm to the graph.
   ///
   /// Returns the chain of derivations to be performed for each equation.
-  llvm::SmallVector<std::pair<EquationBridge::Id, llvm::SmallVector<IndexSet>>>
-  pantelides() {
+  PantelidesResult pantelides() {
+    // Hide indices of initially derived variables.
     hideDerivedVariables();
-
     VariableAssignments assignments;
-    const size_t numEquations = llvm::count_if(
-        getDescriptorRange<EquationVertex>(), [](auto) { return true; });
-
-    for (EquationVertex::Id eInitial = 0; eInitial < numEquations; eInitial++) {
-      EquationVertex::Id eId = eInitial;
+    for (EquationVertex::Id eId : initialEquations) {
       IndexSet eIndices =
-          getVertex<EquationVertex>(getDescriptorFromId(eInitial)).getIndices();
+          getVertex<EquationVertex>(getDescriptorFromId(eId)).getIndices();
 
       while (true) {
         const auto &e = getVertex<EquationVertex>(getDescriptorFromId(eId));
@@ -710,24 +766,7 @@ public:
       }
     }
 
-    llvm::SmallVector<
-        std::pair<EquationVertex::Id, llvm::SmallVector<IndexSet>>>
-        differentiations;
-    // Collect the derivation-chain for each original equation
-    for (EquationVertex::Id equationId = 0; equationId < numEquations;
-         equationId++) {
-      llvm::SmallVector<IndexSet> derivativeChain;
-      std::optional<EquationSubset> derivative =
-          getEquationDerivative(equationId);
-      while (derivative) {
-        derivativeChain.push_back(derivative->indices);
-        derivative = getEquationDerivative(derivative->id);
-      }
-      if (!derivativeChain.empty()) {
-        differentiations.emplace_back(equationId, std::move(derivativeChain));
-      }
-    }
-    return differentiations;
+    return buildPantelidesResult();
   }
 
   void dump(llvm::raw_ostream &os) const override {
@@ -770,6 +809,10 @@ private:
 
   llvm::DenseMap<VariableVertex::Id, VertexDescriptor> variablesMap;
   llvm::DenseMap<EquationVertex::Id, VertexDescriptor> equationsMap;
+
+  /// THe initial variables and equations added to the graph.
+  llvm::SmallVector<VariableVertex::Id> initialVariables;
+  llvm::SmallVector<EquationVertex::Id> initialEquations;
 
   /// Associates a variable with its derivative.
   /// var -> (var', indices of var)
