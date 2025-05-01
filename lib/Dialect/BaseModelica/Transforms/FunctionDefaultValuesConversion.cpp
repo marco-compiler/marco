@@ -1,7 +1,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/FunctionDefaultValuesConversion.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/IR/DefaultValuesDependencyGraph.h"
-#include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_FUNCTIONDEFAULTVALUESCONVERSIONPASS
@@ -22,23 +21,17 @@ public:
   void runOnOperation() override;
 
 private:
-  mlir::LogicalResult
-  convertInputDefaultValues(mlir::SymbolTableCollection &symbolTableCollection,
-                            llvm::ArrayRef<FunctionOp> functionOps);
-
-  mlir::LogicalResult convertProtectedAndOutputDefaultValues(
-      mlir::SymbolTableCollection &symbolTableCollection,
+  mlir::LogicalResult convertInputDefaultValues(
+      mlir::LockedSymbolTableCollection &symbolTableCollection,
       llvm::ArrayRef<FunctionOp> functionOps);
 
   mlir::LogicalResult convertProtectedAndOutputDefaultValues(
       mlir::SymbolTableCollection &symbolTableCollection,
-      std::mutex &symbolTableMutex, FunctionOp functionOp);
+      FunctionOp functionOp);
 
-  mlir::LogicalResult eraseDefaultOps(llvm::ArrayRef<FunctionOp> functionOps);
+  void eraseDefaultOps(llvm::ArrayRef<FunctionOp> functionOps);
 };
-} // namespace
 
-namespace {
 class DefaultOpComputationOrderings {
 public:
   llvm::ArrayRef<VariableOp> get(FunctionOp functionOp) const {
@@ -60,163 +53,214 @@ private:
   llvm::DenseMap<FunctionOp, llvm::SmallVector<VariableOp, 3>> orderings;
 };
 
-class CallFiller : public mlir::OpRewritePattern<CallOp> {
-public:
-  CallFiller(mlir::MLIRContext *context,
-             mlir::SymbolTableCollection &symbolTableCollection,
-             const DefaultOpComputationOrderings &orderings)
-      : mlir::OpRewritePattern<CallOp>(context),
-        symbolTableCollection(&symbolTableCollection), orderings(&orderings) {}
+void collectFunctionOps(mlir::ModuleOp moduleOp,
+                        llvm::SmallVectorImpl<FunctionOp> &functionOps) {
+  llvm::SmallVector<ClassInterface> classOps;
 
-  mlir::LogicalResult
-  matchAndRewrite(CallOp op, mlir::PatternRewriter &rewriter) const override {
-    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-
-    auto functionOp = mlir::cast<FunctionOp>(
-        op.getFunction(moduleOp, *symbolTableCollection));
-
-    // Collect the input variables.
-    llvm::SmallVector<VariableOp, 3> inputVariables;
-
-    for (VariableOp variableOp : functionOp.getVariables()) {
-      if (variableOp.isInput()) {
-        inputVariables.push_back(variableOp);
-      }
+  for (auto classOp : moduleOp.getOps<ClassInterface>()) {
+    if (auto functionOp = mlir::dyn_cast<FunctionOp>(classOp.getOperation())) {
+      functionOps.push_back(functionOp);
     }
 
-    // Map the default values.
-    llvm::DenseMap<mlir::StringAttr, DefaultOp> defaultOps;
+    classOps.push_back(classOp);
+  }
 
-    for (DefaultOp defaultOp : functionOp.getDefaultValues()) {
-      defaultOps[defaultOp.getVariableAttr()] = defaultOp;
-    }
+  while (!classOps.empty()) {
+    ClassInterface classOp = classOps.pop_back_val();
 
-    // Determine the new arguments, ordered according to the declaration
-    // of variables inside the function.
-    llvm::SmallVector<mlir::Value, 3> newArgs;
-    llvm::StringMap<mlir::Value> variables;
-
-    if (auto argNames = op.getArgNames()) {
-      for (const auto &[argName, argValue] : llvm::zip(
-               argNames->getAsRange<mlir::FlatSymbolRefAttr>(), op.getArgs())) {
-        variables[argName.getValue()] = argValue;
-      }
-
-      for (VariableOp variableOp : orderings->get(functionOp)) {
-        auto variableName = variableOp.getSymNameAttr();
-
-        if (variables.find(variableName) == variables.end()) {
-          DefaultOp defaultOp = defaultOps[variableName];
-
-          mlir::Value defaultValue =
-              cloneDefaultOpBody(rewriter, defaultOp, variables);
-
-          variables[variableName] = defaultValue;
+    for (mlir::Region &region : classOp->getRegions()) {
+      for (auto childClassOp : region.getOps<ClassInterface>()) {
+        if (auto functionOp =
+                mlir::dyn_cast<FunctionOp>(childClassOp.getOperation())) {
+          functionOps.push_back(functionOp);
         }
+
+        classOps.push_back(childClassOp);
       }
+    }
+  }
+}
+
+bool hasMissingArgs(mlir::ModuleOp moduleOp,
+                    mlir::SymbolTableCollection &symbolTableCollection,
+                    CallOp callOp) {
+  // Check if the call is legal.
+  mlir::Operation *callee = callOp.getFunction(moduleOp, symbolTableCollection);
+
+  if (!mlir::isa<FunctionOp>(callee)) {
+    return false;
+  }
+
+  auto functionOp = mlir::cast<FunctionOp>(callee);
+
+  size_t numOfInputVariables =
+      llvm::count_if(functionOp.getVariables(), [](VariableOp variableOp) {
+        return variableOp.isInput();
+      });
+
+  return callOp.getArgs().size() != numOfInputVariables;
+}
+
+mlir::Value cloneDefaultOpBody(mlir::OpBuilder &builder, DefaultOp defaultOp,
+                               const llvm::StringMap<mlir::Value> &variables) {
+  mlir::IRMapping mapping;
+
+  for (auto &op : defaultOp.getOps()) {
+    if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
+      assert(yieldOp.getValues().size() == 1);
+      return mapping.lookup(yieldOp.getValues()[0]);
+    }
+
+    if (auto getOp = mlir::dyn_cast<VariableGetOp>(op)) {
+      auto mappedVariableIt = variables.find(getOp.getVariable());
+      assert(mappedVariableIt != variables.end());
+      mapping.map(getOp.getResult(), mappedVariableIt->getValue());
     } else {
-      for (auto arg : llvm::enumerate(op.getArgs())) {
-        mlir::Value argValue = arg.value();
-        variables[inputVariables[arg.index()].getSymNameAttr()] = argValue;
-      }
-
-      auto missingVariables =
-          llvm::ArrayRef(inputVariables).drop_front(op.getArgs().size());
-
-      llvm::DenseSet<mlir::StringAttr> missingVariableNames;
-
-      for (VariableOp variableOp : missingVariables) {
-        missingVariableNames.insert(variableOp.getSymNameAttr());
-      }
-
-      for (VariableOp variableOp : orderings->get(functionOp)) {
-        auto variableName = variableOp.getSymNameAttr();
-
-        if (missingVariableNames.contains(variableName)) {
-          DefaultOp defaultOp = defaultOps[variableName];
-
-          mlir::Value defaultValue =
-              cloneDefaultOpBody(rewriter, defaultOp, variables);
-
-          variables[variableName] = defaultValue;
-        }
-      }
+      builder.clone(op, mapping);
     }
-
-    for (VariableOp variableOp : inputVariables) {
-      newArgs.push_back(variables[variableOp.getSymNameAttr()]);
-    }
-
-    // Create the new call operation.
-    assert(newArgs.size() == inputVariables.size());
-
-    rewriter.replaceOpWithNewOp<CallOp>(op, op.getCallee(), op.getResultTypes(),
-                                        newArgs);
-
-    return mlir::success();
   }
 
-private:
-  mlir::Value
-  cloneDefaultOpBody(mlir::OpBuilder &builder, DefaultOp defaultOp,
-                     const llvm::StringMap<mlir::Value> &variables) const {
-    mlir::IRMapping mapping;
+  llvm_unreachable("YieldOp not found in DefaultOp");
+  return nullptr;
+}
 
-    for (auto &op : defaultOp.getOps()) {
-      if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
-        assert(yieldOp.getValues().size() == 1);
-        return mapping.lookup(yieldOp.getValues()[0]);
-      } else if (auto getOp = mlir::dyn_cast<VariableGetOp>(op)) {
-        auto mappedVariableIt = variables.find(getOp.getVariable());
-        assert(mappedVariableIt != variables.end());
-        mapping.map(getOp.getResult(), mappedVariableIt->getValue());
-      } else {
-        builder.clone(op, mapping);
-      }
+mlir::LogicalResult
+fillCallArgs(mlir::ModuleOp moduleOp,
+             mlir::SymbolTableCollection &symbolTableCollection, CallOp callOp,
+             const DefaultOpComputationOrderings &orderings) {
+  mlir::IRRewriter rewriter(callOp);
+  rewriter.setInsertionPoint(callOp);
+
+  auto functionOp = mlir::cast<FunctionOp>(
+      callOp.getFunction(moduleOp, symbolTableCollection));
+
+  // Collect the input variables.
+  llvm::SmallVector<VariableOp, 3> inputVariables;
+
+  for (VariableOp variableOp : functionOp.getVariables()) {
+    if (variableOp.isInput()) {
+      inputVariables.push_back(variableOp);
     }
-
-    llvm_unreachable("YieldOp not found in DefaultOp");
-    return nullptr;
   }
 
-private:
-  mlir::SymbolTableCollection *symbolTableCollection;
-  const DefaultOpComputationOrderings *orderings;
-};
+  // Map the default values.
+  llvm::DenseMap<mlir::StringAttr, DefaultOp> defaultOps;
+
+  for (DefaultOp defaultOp : functionOp.getDefaultValues()) {
+    defaultOps[defaultOp.getVariableAttr()] = defaultOp;
+  }
+
+  // Determine the new arguments, ordered according to the declaration
+  // of variables inside the function.
+  llvm::SmallVector<mlir::Value, 3> newArgs;
+  llvm::StringMap<mlir::Value> variables;
+
+  if (auto argNames = callOp.getArgNames()) {
+    for (const auto &[argName, argValue] :
+         llvm::zip(argNames->getAsRange<mlir::FlatSymbolRefAttr>(),
+                   callOp.getArgs())) {
+      variables[argName.getValue()] = argValue;
+    }
+
+    for (VariableOp variableOp : orderings.get(functionOp)) {
+      auto variableName = variableOp.getSymNameAttr();
+
+      if (variables.find(variableName) == variables.end()) {
+        DefaultOp defaultOp = defaultOps[variableName];
+
+        mlir::Value defaultValue =
+            cloneDefaultOpBody(rewriter, defaultOp, variables);
+
+        variables[variableName] = defaultValue;
+      }
+    }
+  } else {
+    for (auto arg : llvm::enumerate(callOp.getArgs())) {
+      mlir::Value argValue = arg.value();
+      variables[inputVariables[arg.index()].getSymNameAttr()] = argValue;
+    }
+
+    auto missingVariables =
+        llvm::ArrayRef(inputVariables).drop_front(callOp.getArgs().size());
+
+    llvm::DenseSet<mlir::StringAttr> missingVariableNames;
+
+    for (VariableOp variableOp : missingVariables) {
+      missingVariableNames.insert(variableOp.getSymNameAttr());
+    }
+
+    for (VariableOp variableOp : orderings.get(functionOp)) {
+      auto variableName = variableOp.getSymNameAttr();
+
+      if (missingVariableNames.contains(variableName)) {
+        DefaultOp defaultOp = defaultOps[variableName];
+
+        mlir::Value defaultValue =
+            cloneDefaultOpBody(rewriter, defaultOp, variables);
+
+        variables[variableName] = defaultValue;
+      }
+    }
+  }
+
+  for (VariableOp variableOp : inputVariables) {
+    newArgs.push_back(variables[variableOp.getSymNameAttr()]);
+  }
+
+  // Create the new call operation.
+  assert(newArgs.size() == inputVariables.size());
+
+  rewriter.replaceOpWithNewOp<CallOp>(callOp, callOp.getCallee(),
+                                      callOp.getResultTypes(), newArgs);
+
+  return mlir::success();
+}
+
+AlgorithmOp getFirstAlgorithmOp(FunctionOp functionOp) {
+  for (auto &op : functionOp.getOps()) {
+    if (auto algorithmOp = mlir::dyn_cast<AlgorithmOp>(op)) {
+      return algorithmOp;
+    }
+  }
+
+  return nullptr;
+}
 } // namespace
 
 void FunctionDefaultValuesConversionPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
   mlir::SymbolTableCollection symbolTableCollection;
+  mlir::LockedSymbolTableCollection lockedSymbolTables(symbolTableCollection);
 
   // Collect the functions.
   llvm::SmallVector<FunctionOp> functionOps;
-
-  moduleOp.walk(
-      [&](FunctionOp functionOp) { functionOps.push_back(functionOp); });
+  collectFunctionOps(moduleOp, functionOps);
 
   // Add the missing arguments to function calls.
   if (mlir::failed(
-          convertInputDefaultValues(symbolTableCollection, functionOps))) {
+          convertInputDefaultValues(lockedSymbolTables, functionOps))) {
     return signalPassFailure();
   }
 
   // Copy the default assignments for output and protected variables to the
   // beginning of the function body.
-  if (mlir::failed(convertProtectedAndOutputDefaultValues(symbolTableCollection,
-                                                          functionOps))) {
+
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), functionOps,
+          [&](FunctionOp functionOp) -> mlir::LogicalResult {
+            return convertProtectedAndOutputDefaultValues(lockedSymbolTables,
+                                                          functionOp);
+          }))) {
     return signalPassFailure();
   }
 
   // Erase the DefaultOps.
-  if (mlir::failed(eraseDefaultOps(functionOps))) {
-    return signalPassFailure();
-  }
+  eraseDefaultOps(functionOps);
 }
 
 mlir::LogicalResult
 FunctionDefaultValuesConversionPass::convertInputDefaultValues(
-    mlir::SymbolTableCollection &symbolTableCollection,
+    mlir::LockedSymbolTableCollection &symbolTableCollection,
     llvm::ArrayRef<FunctionOp> functionOps) {
   mlir::ModuleOp moduleOp = getOperation();
 
@@ -247,62 +291,30 @@ FunctionDefaultValuesConversionPass::convertInputDefaultValues(
   }
 
   // Fill the calls with missing arguments.
-  mlir::ConversionTarget target(getContext());
+  llvm::MapVector<mlir::Block *, llvm::SmallVector<CallOp>> callOps;
 
-  target.markUnknownOpDynamicallyLegal(
-      [](mlir::Operation *op) { return true; });
-
-  target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-    mlir::Operation *callee = op.getFunction(moduleOp, symbolTableCollection);
-
-    if (!mlir::isa<FunctionOp>(callee)) {
-      return true;
+  moduleOp.walk([&](CallOp callOp) {
+    if (hasMissingArgs(moduleOp, symbolTableCollection, callOp)) {
+      callOps[callOp->getBlock()].push_back(callOp);
     }
-
-    auto functionOp = mlir::cast<FunctionOp>(callee);
-
-    size_t numOfInputVariables =
-        llvm::count_if(functionOp.getVariables(), [](VariableOp variableOp) {
-          return variableOp.isInput();
-        });
-
-    return op.getArgs().size() == numOfInputVariables;
   });
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.add<CallFiller>(&getContext(), symbolTableCollection, orderings);
-
-  return applyPartialConversion(moduleOp, target, std::move(patterns));
-}
-
-static AlgorithmOp getFirstAlgorithmOp(FunctionOp functionOp) {
-  for (auto &op : functionOp.getOps()) {
-    if (auto algorithmOp = mlir::dyn_cast<AlgorithmOp>(op)) {
-      return algorithmOp;
-    }
-  }
-
-  return nullptr;
-}
-
-mlir::LogicalResult
-FunctionDefaultValuesConversionPass::convertProtectedAndOutputDefaultValues(
-    mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::ArrayRef<FunctionOp> functionOps) {
-  std::mutex symbolTableCollectionMutex;
-
   return mlir::failableParallelForEach(
-      &getContext(), functionOps,
-      [&](FunctionOp functionOp) -> mlir::LogicalResult {
-        return convertProtectedAndOutputDefaultValues(
-            symbolTableCollection, symbolTableCollectionMutex, functionOp);
+      &getContext(), callOps, [&](const auto &blockEntry) {
+        for (CallOp callOp : blockEntry.second) {
+          if (mlir::failed(fillCallArgs(moduleOp, symbolTableCollection, callOp,
+                                        orderings))) {
+            return mlir::failure();
+          }
+        }
+
+        return mlir::success();
       });
 }
 
 mlir::LogicalResult
 FunctionDefaultValuesConversionPass::convertProtectedAndOutputDefaultValues(
-    mlir::SymbolTableCollection &symbolTableCollection,
-    std::mutex &symbolTableCollectionMutex, FunctionOp functionOp) {
+    mlir::SymbolTableCollection &symbolTableCollection, FunctionOp functionOp) {
   mlir::IRRewriter rewriter(&getContext());
 
   // Collect the operations computing the default values and order them so
@@ -312,7 +324,6 @@ FunctionDefaultValuesConversionPass::convertProtectedAndOutputDefaultValues(
   DefaultValuesDependencyGraph defaultValuesGraph(defaultOps);
 
   for (DefaultOp defaultOp : functionOp.getOps<DefaultOp>()) {
-    std::lock_guard<std::mutex> lockGuard(symbolTableCollectionMutex);
     VariableOp variableOp = defaultOp.getVariableOp(symbolTableCollection);
 
     if (!variableOp.isInput()) {
@@ -358,32 +369,14 @@ FunctionDefaultValuesConversionPass::convertProtectedAndOutputDefaultValues(
   return mlir::success();
 }
 
-namespace {
-struct DefaultOpRemovePattern : public mlir::OpRewritePattern<DefaultOp> {
-  using mlir::OpRewritePattern<DefaultOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(DefaultOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-} // namespace
-
-mlir::LogicalResult FunctionDefaultValuesConversionPass::eraseDefaultOps(
+void FunctionDefaultValuesConversionPass::eraseDefaultOps(
     llvm::ArrayRef<FunctionOp> functionOps) {
-  return mlir::failableParallelForEach(
-      &getContext(), functionOps,
-      [&](FunctionOp functionOp) -> mlir::LogicalResult {
-        mlir::ConversionTarget target(getContext());
-        target.addIllegalOp<DefaultOp>();
-
-        mlir::RewritePatternSet patterns(&getContext());
-        patterns.add<DefaultOpRemovePattern>(&getContext());
-
-        return applyPartialConversion(functionOp, target, std::move(patterns));
-      });
+  mlir::parallelForEach(&getContext(), functionOps, [&](FunctionOp functionOp) {
+    for (DefaultOp nestedOp :
+         llvm::make_early_inc_range(functionOp.getOps<DefaultOp>())) {
+      nestedOp.erase();
+    }
+  });
 }
 
 namespace mlir::bmodelica {
