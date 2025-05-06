@@ -476,6 +476,10 @@ bool IndexSet::contains(const IndexSet &other) const {
     return false;
   }
 
+  if (flatSize() < other.flatSize()) {
+    return false;
+  }
+
   const Node *lhsRoot = getRoot();
   const Node *rhsRoot = other.getRoot();
 
