@@ -9725,26 +9725,13 @@ mlir::LogicalResult EquationInstanceOp::setIndices(
       return mlir::failure();
     }
 
-    // Prefer the affine accesses for their faster mapping capabilities.
-    llvm::sort(writeAccesses,
-               [](const VariableAccess &first, const VariableAccess &second) {
-                 if (first.getAccessFunction().isAffine() &&
-                     !second.getAccessFunction().isAffine()) {
-                   return true;
-                 }
-
-                 if (!first.getAccessFunction().isAffine() &&
-                     second.getAccessFunction().isAffine()) {
-                   return false;
-                 }
-
-                 return first < second;
-               });
-
     assert(!writeAccesses.empty());
+    getProperties().match.indices = {};
 
-    getProperties().match.indices =
-        writeAccesses[0].getAccessFunction().map(indices);
+    for (const VariableAccess &writeAccess : writeAccesses) {
+      getProperties().match.indices +=
+          writeAccess.getAccessFunction().map(indices);
+    }
   }
 
   // Update the indices of the equation.
