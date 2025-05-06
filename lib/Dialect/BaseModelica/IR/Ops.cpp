@@ -8369,23 +8369,14 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
     return mlir::failure();
   }
 
-  llvm::SmallVector<VariableAccess, 5> filteredAccesses;
+  llvm::SmallVector<VariableAccess, 5> writeAccesses;
 
-  for (const VariableAccess &access : accesses) {
-    if (access.getVariable() != matchedVariable.name) {
-      continue;
-    }
-
-    const AccessFunction &currentAccessFunction = access.getAccessFunction();
-
-    IndexSet currentIndices = currentAccessFunction.map(equationIndices);
-
-    if (currentIndices == matchedVariable.indices) {
-      filteredAccesses.push_back(access);
-    }
+  if (mlir::failed(getWriteAccesses(writeAccesses, equationIndices, accesses,
+                                    matchedVariable))) {
+    return mlir::failure();
   }
 
-  assert(!filteredAccesses.empty());
+  assert(!writeAccesses.empty());
 
   // If there is only one access, then it is sufficient to follow the path
   // and invert the operations.
@@ -8401,8 +8392,8 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
     rewriter.setInsertionPoint(rhsOp);
   }
 
-  if (filteredAccesses.size() == 1) {
-    const EquationPath &path = filteredAccesses[0].getPath();
+  if (writeAccesses.size() == 1) {
+    const EquationPath &path = writeAccesses[0].getPath();
 
     for (size_t i = 1, e = path.size(); i < e; ++i) {
       if (mlir::failed(
@@ -8428,7 +8419,7 @@ mlir::LogicalResult EquationTemplateOp::explicitate(
 
     if (mlir::failed(groupLeftHandSide(rewriter, symbolTableCollection,
                                        equationIndices, matchedVariable,
-                                       filteredAccesses))) {
+                                       writeAccesses))) {
       return mlir::failure();
     }
   }
