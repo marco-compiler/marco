@@ -9,6 +9,7 @@
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 
@@ -100,9 +101,13 @@ public:
     incidenceMatrix->apply(accessFunction);
   }
 
+  /// List of one-to-one mappings between the indices of the two vertices.
   const std::vector<MCIM> &getMappings() const {
     if (mappings->empty()) {
       *mappings = incidenceMatrix->splitGroups();
+      assert(llvm::all_of(*mappings, [](const MCIM &m) {
+        return isValidLocalMatchingSolution(m);
+      }));
     }
     return *mappings;
   }
@@ -160,25 +165,19 @@ public:
     return IndexSet();
   }
 
-  void color(const VariableVertex &variable, const IndexSet &indices) {
+  void color(const VariableVertex::Id &variable, const IndexSet &indices) {
     if (indices.empty()) {
       return;
     }
-    assert(variable.getIndices().contains(indices) &&
-           "Colored indices must be valid for the variable");
-    if (variableColoring.contains(variable.getId())) {
-      variableColoring[variable.getId()] += indices;
+    if (variableColoring.contains(variable)) {
+      variableColoring[variable] += indices;
     } else {
-      variableColoring.insert_or_assign(variable.getId(), indices);
+      variableColoring.insert_or_assign(variable, indices);
     }
   }
 
-  void uncolor(const VariableVertex &variable, const IndexSet &indices) {
-    assert(variable.getIndices().contains(indices) &&
-           "Colored indices must be valid for the variable");
-    assert(variableColoring.contains(variable.getId()) &&
-           "Variable must be colored before uncoloring");
-    variableColoring[variable.getId()] -= indices;
+  void uncolor(const VariableVertex::Id &variable, const IndexSet &indices) {
+    variableColoring[variable] -= indices;
   }
 
   IndexSet getColoredIndices(const VariableVertex &variable) const {
@@ -202,6 +201,66 @@ private:
   llvm::DenseMap<EquationVertex::Id, IndexSet> equationColoring;
 };
 
+struct AssignmentComponent {
+  AssignmentComponent(EquationVertex::Id e, const IndexSet &indicesV,
+                      const internal::MCIM &evMapping)
+      : equationId(e), indicesV(indicesV), m(evMapping) {
+    assert(internal::isValidLocalMatchingSolution(evMapping) &&
+           "Assignment mapping must be one-to-one");
+  }
+  /// The equation that the variable is assigned to.
+  EquationVertex::Id equationId;
+  /// The indices of the variable that are assigned.
+  IndexSet indicesV;
+  /// The (one-to-one) mapping between the variable and equation.
+  internal::MCIM m;
+};
+
+class Assignments {
+public:
+  /// Get the current assignment for a variable.
+  llvm::SmallVector<AssignmentComponent> &
+  getAssignment(const VariableVertex::Id id) {
+    if (assignmentsMap.contains(id)) {
+      return assignmentsMap[id];
+    }
+    return assignmentsMap.insert({id, {}}).first->second;
+  }
+
+  void assign(const VariableVertex::Id variableId,
+              AssignmentComponent &&assignmentComponent) {
+    llvm::SmallVector<AssignmentComponent> &assignment =
+        getAssignment(variableId);
+    assert(llvm::none_of(assignment,
+                         [&](const AssignmentComponent &existingComponent) {
+                           return existingComponent.indicesV.overlaps(
+                               assignmentComponent.indicesV);
+                         }) &&
+           "Cannot assign already assigned indices");
+    assignment.push_back(std::move(assignmentComponent));
+  }
+
+  /// Get all assigned variable indices from the assignment.
+  IndexSet allAssignedVariableIndices(const VariableVertex::Id id) {
+    IndexSet result;
+    for (const AssignmentComponent &component : getAssignment(id)) {
+      result += component.indicesV;
+    }
+    return result;
+  }
+
+  /// Remove empty assignments.
+  void removeEmptyAssignments(const VariableVertex::Id id) {
+    llvm::erase_if(getAssignment(id),
+                   [](const AssignmentComponent &assignmentComponent) {
+                     return assignmentComponent.indicesV.empty();
+                   });
+  }
+
+private:
+  llvm::DenseMap<VariableVertex::Id, llvm::SmallVector<AssignmentComponent>>
+      assignmentsMap;
+};
 } // namespace internal::indexReduction
 
 class IndexReductionGraph final : public internal::Dumpable {
@@ -227,31 +286,7 @@ private:
   using EquationSubset = internal::indexReduction::EquationSubset;
   using Coloring = internal::indexReduction::Coloring;
 
-  struct AssignmentComponent {
-    AssignmentComponent(EquationVertex::Id equationId, const IndexSet &indicesE,
-                        const IndexSet &indicesV,
-                        const internal::MCIM &evMapping)
-        : equationId(equationId), indicesE(indicesE), indicesV(indicesV),
-          incidenceMatrix(evMapping) {
-      assert(indicesE.flatSize() == indicesV.flatSize() &&
-             "Indices of equation and variable must have the same size");
-      assert(internal::isValidLocalMatchingSolution(evMapping) &&
-             "Assignment mapping must be one-to-one");
-    }
-
-    /// The equation that the variable is assigned to.
-    EquationVertex::Id equationId;
-    /// The indices of the equation that are assigned.
-    IndexSet indicesE;
-    /// The indices of the variable that are assigned.
-    IndexSet indicesV;
-    /// The mapping between the variable and equation.
-    internal::MCIM incidenceMatrix;
-  };
-  /// Map from variables to their assignments.
-  using VariableAssignments =
-      llvm::DenseMap<VariableVertex::Id,
-                     llvm::SmallVector<AssignmentComponent>>;
+  using Assignments = internal::indexReduction::Assignments;
 
   template <typename VertexType>
   VertexType &getVertex(const VertexDescriptor descriptor) {
@@ -347,62 +382,32 @@ private:
     }
   }
 
-  /// Get the assignment for a variable, creating it if it does not exist.
-  static llvm::SmallVector<AssignmentComponent> &
-  getAssignment(VariableVertex::Id id, VariableAssignments &assignments) {
-    auto existingAssignment = assignments.find(id);
-    if (existingAssignment == assignments.end()) {
-      existingAssignment = assignments.insert({id, {}}).first;
-    }
-    return existingAssignment->getSecond();
-  }
-
-  /// Get all assigned variable indices from the assignment.
-  static IndexSet allAssignedVariableIndices(
-      const llvm::SmallVector<AssignmentComponent> &assignments) {
-    IndexSet result;
-    for (const AssignmentComponent &component : assignments) {
-      result += component.indicesV;
-    }
-    return result;
-  }
-
-  /// Get all assigned equation indices from the assignment.
-  static IndexSet allAssignedEquationIndices(
-      const llvm::SmallVector<AssignmentComponent> &assignments) {
-    IndexSet result;
-    for (const AssignmentComponent &component : assignments) {
-      result += component.indicesE;
-    }
-    return result;
-  }
-
+  /// Attempt to assign indices of v to the e.
+  ///
+  /// Traverses the edge `evDescriptor` from e to v, and assigns
+  /// any reachable, unassigned variable indices to e, updating
+  /// the assignment state accordingly.
+  ///
+  /// Returns the subset of `indicesE` that could not be assigned.
   IndexSet tryAssignEdge(const EdgeDescriptor &evDescriptor, IndexSet indicesE,
-                         VariableAssignments &assignments) {
+                         Assignments &assignments) {
     const auto &e = getVertex<EquationVertex>(evDescriptor.from);
     const auto &v = getVertex<VariableVertex>(evDescriptor.to);
 
-    // Get the assignment for v.
-    llvm::SmallVector<AssignmentComponent> &assignmentV =
-        getAssignment(v.getId(), assignments);
-    IndexSet assignedV = allAssignedVariableIndices(assignmentV);
+    IndexSet unassignedV = v.getVisibleIndices() -
+                           assignments.allAssignedVariableIndices(v.getId());
 
     for (const auto &m : graph[evDescriptor].getMappings()) {
-      const IndexSet &indicesV =
-          Edge::variableIndices(indicesE, m).intersect(v.getVisibleIndices());
-      assert(indicesV.flatSize() <= indicesE.flatSize() &&
-             "Each equation point should map to at most one variable point.");
-      const IndexSet &assignableV = indicesV - assignedV;
+      const IndexSet &assignableV =
+          Edge::variableIndices(indicesE, m).intersect(unassignedV);
       // No indices can be assigned to e.
       if (assignableV.empty()) {
         continue;
       }
-      const IndexSet &assignmentE =
-          m.filterColumns(assignableV).flattenColumns();
       // assignableV is not empty -> assign those indices to i.
-      assignmentV.emplace_back(e.getId(), assignmentE, assignableV, m);
-      assignedV += assignableV;
-      indicesE -= assignmentE;
+      assignments.assign(v.getId(), {e.getId(), assignableV, m});
+      unassignedV -= assignableV;
+      indicesE -= Edge::equationIndices(assignableV, m);
       if (indicesE.empty()) {
         return IndexSet();
       }
@@ -416,7 +421,7 @@ private:
   /// Look for unassigned variables reachable from the given indices of the
   /// equation. Returns the indices where an assignment could not be made.
   IndexSet tryAssignAdjacent(const EquationVertex::Id eId, IndexSet indicesE,
-                             VariableAssignments &assignments) {
+                             Assignments &assignments) {
     for (EdgeDescriptor evDescriptor :
          getEdgesRange(getDescriptorFromId(eId))) {
       indicesE = tryAssignEdge(evDescriptor, std::move(indicesE), assignments);
@@ -428,6 +433,51 @@ private:
     return indicesE;
   }
 
+  /// Attempt to augment the assignment of variable v, at indices `indicesV`.
+  ///
+  /// Reclaims previously assigned indices of v by recursively traversing
+  /// existing assignments and reassigning them elsewhere via augmenting paths.
+  /// The assignment and coloring state are updated accordingly.
+  ///
+  /// Returns the subset of `indicesV` that were successfully reassigned.
+  IndexSet tryAugmentVariable(const VariableVertex::Id v,
+                              const IndexSet &indicesV,
+                              Assignments &assignments, Coloring &coloring) {
+    IndexSet toAssignV;
+    for (auto &assignmentComponent : assignments.getAssignment(v)) {
+      // The indices of the variable that can be reassigned.
+      const IndexSet &candidatesV =
+          assignmentComponent.indicesV.intersect(indicesV - toAssignV);
+      if (candidatesV.empty()) {
+        continue;
+      }
+
+      // Traverse the edge from v to e2 (the equation that the indices are
+      // currently assigned to), to get the currently assigned indices of
+      // e2.
+      const IndexSet &candidatesE2 =
+          Edge::equationIndices(candidatesV, assignmentComponent.m);
+
+      // Recursively continue the search for an augmenting path from the
+      // candidate indices.
+      const IndexSet &augmentedE2 =
+          candidatesE2 - augmentPath(assignmentComponent.equationId,
+                                     candidatesE2, assignments, coloring);
+      // Traverse the edge from e2 to v to get the indices of v to assign.
+      const IndexSet &augmentedV =
+          Edge::variableIndices(augmentedE2, assignmentComponent.m);
+      toAssignV += augmentedV;
+      // Remove the indices from the old assignment component.
+      assignmentComponent.indicesV -= augmentedV;
+      // Uncolor the indices of v that were augmented.
+      coloring.uncolor(v, augmentedV);
+      if (indicesV == toAssignV) {
+        break;
+      }
+    }
+    return toAssignV;
+  }
+
   /// Step (3) of the augmenting path algorithm.
   ///
   /// Perform a (recursive) DFS step to build an augmenting path emenating from
@@ -437,91 +487,39 @@ private:
   /// assigned.
   ///
   /// Returns the indices where no path was found.
-  IndexSet tryAugmentAdjacent(const EquationVertex::Id eId, IndexSet indicesE,
-                              VariableAssignments &assignments,
-                              Coloring &coloring) {
-    // Look at each variable, v, accessed by e, that is also uncolored.
-    for (EdgeDescriptor evDescriptor :
-         getEdgesRange(getDescriptorFromId(eId))) {
+  IndexSet tryAugmentAdjacent(const EquationVertex::Id e, IndexSet indicesE,
+                              Assignments &assignments, Coloring &coloring) {
+    // Look at each variable, v, accessed by e, at indices that are uncolored.
+    for (EdgeDescriptor evDescriptor : getEdgesRange(getDescriptorFromId(e))) {
       VariableVertex &v = getVertex<VariableVertex>(evDescriptor.to);
 
-      // The current assignment for the indices of v.
-      llvm::SmallVector<AssignmentComponent> &existingAssignment =
-          getAssignment(v.getId(), assignments);
-
       // For each one-to-one mapping from e to v, search for augmenting paths.
-      for (const auto &m : graph[evDescriptor].getMappings()) {
-        IndexSet indicesV = Edge::variableIndices(indicesE, m)
+      for (const auto &mEV : graph[evDescriptor].getMappings()) {
+        IndexSet indicesV = Edge::variableIndices(indicesE, mEV)
                                 .intersect(v.getVisibleIndices()) -
                             coloring.getColoredIndices(v);
-        assert(indicesE.flatSize() >= indicesV.flatSize() &&
-               "Each equation point should map to at most one variable point.");
         if (indicesV.empty()) {
           continue;
         }
 
         // Color the accessed indices of v.
-        coloring.color(v, indicesV);
+        coloring.color(v.getId(), indicesV);
 
-        // The new assignment components that will be added.
-        llvm::SmallVector<AssignmentComponent> newAssignments;
-
-        for (AssignmentComponent &assignmentComponent : existingAssignment) {
-          // The indices of the variable that can be reassigned.
-          const IndexSet &candidatesV =
-              assignmentComponent.indicesV.intersect(indicesV);
-          // No reassignments can be made
-          if (candidatesV.empty()) {
-            continue;
-          }
-
-          // Traverse the edge from v to e2 (the equation that the indices are
-          // currently assigned to), to get the currently assigned indices of
-          // e2.
-          const IndexSet &candidatesE2 = Edge::equationIndices(
-              candidatesV, assignmentComponent.incidenceMatrix);
-          assert(candidatesE2.flatSize() == candidatesV.flatSize() &&
-                 "The mapping in an assignment should be 1-to-1");
-
-          // Recursively continue the search for an augmenting path from the
-          // candidate indices.
-          const IndexSet &augmentedE2 =
-              candidatesE2 - augmentPath(assignmentComponent.equationId,
-                                         candidatesE2, assignments, coloring);
-          // Traverse the edge from e2 to v to get the indices of v to assign.
-          const IndexSet &augmentedV = Edge::variableIndices(
-              augmentedE2, assignmentComponent.incidenceMatrix);
-
-          // Create a new assignment component for the successful indices.
-          const IndexSet &augmentedE = Edge::equationIndices(augmentedV, m);
-          indicesE -= augmentedE;
-          newAssignments.push_back(
-              AssignmentComponent(eId, augmentedE, augmentedV, m));
-          // Remove the indices from the old assignment component.
-          assignmentComponent.indicesV -= augmentedV;
-
-          // Uncolor the indices of v that were augmented.
-          coloring.uncolor(v, augmentedV);
-          // Remove the indices of v that were augmented.
-          indicesV -= augmentedV;
-          if (indicesV.empty()) {
-            break;
-          }
+        // Search for an augmenting path from the indices of v.
+        indicesV =
+            tryAugmentVariable(v.getId(), indicesV, assignments, coloring);
+        if (indicesV.empty()) {
+          continue;
         }
-        // Remove empty assignment components.
-        llvm::erase_if(existingAssignment,
-                       [](const AssignmentComponent &assignmentComponent) {
-                         return assignmentComponent.indicesV.empty();
-                       });
-        // Add the new assignments.
-        existingAssignment.append(newAssignments);
 
+        // Create the new assignment.
+        assignments.assign(v.getId(), {e, indicesV, mEV});
+        // Remove any assignments that have now been made empty.
+        assignments.removeEmptyAssignments(v.getId());
+        indicesE -= Edge::equationIndices(indicesV, mEV);
         if (indicesE.empty()) {
-          break;
+          return indicesE;
         }
-      }
-      if (indicesE.empty()) {
-        break;
       }
     }
 
@@ -539,7 +537,7 @@ private:
   /// If the indices are not empty, the colored vertices make up a
   /// structurally singular subset of the system.
   IndexSet augmentPath(const EquationVertex::Id e, IndexSet indicesE,
-                       VariableAssignments &assignments, Coloring &coloring) {
+                       Assignments &assignments, Coloring &coloring) {
     assert(!coloring.getColoredIndices(e).overlaps(indicesE) &&
            "Equation already colored at indices");
     assert(getVertex<EquationVertex>(getDescriptorFromId(e))
@@ -567,8 +565,7 @@ private:
   /// - coloring: the variables and equations to differentiate, according to
   /// their coloring state
   /// - variableAssignments: the current variable assignments
-  void differentiateNodes(const Coloring &coloring,
-                          VariableAssignments &variableAssignments) {
+  void differentiateNodes(const Coloring &coloring, Assignments &assignments) {
     // Differentiate colored variables
     for (const auto &[v, coloredIndices] : coloring.coloredVariables()) {
       if (auto dv = getVariableDerivative(v)) {
@@ -634,36 +631,29 @@ private:
 
     // Assign derivatives of colored variables to the
     // derivatives of their assigned equations.
-    for (const auto &[jId, coloredIndices] : coloring.coloredVariables()) {
-      IndexSet unassignedIndicesJ = coloredIndices;
-      llvm::SmallVector<AssignmentComponent> djAssignment;
-      for (const AssignmentComponent &assignmentComponent :
-           variableAssignments[jId]) {
-        // The indices of dj are a subset of the indices of j.
-        // Therefore we have to check that the indices of an assignment
-        // are valid for dj before we use it.
-        const IndexSet &assignableJ =
-            unassignedIndicesJ.intersect(assignmentComponent.indicesV);
-        if (!assignableJ.empty()) {
-          unassignedIndicesJ -= assignableJ;
-          IndexSet assignableK = Edge::equationIndices(
-              assignableJ, assignmentComponent.incidenceMatrix);
-          assert(assignableK.flatSize() == assignableJ.flatSize() &&
-                 "The mapping in an assignment should be 1-to-1");
-          djAssignment.push_back(AssignmentComponent(
-              getEquationDerivative(assignmentComponent.equationId)->id,
-              assignableK, assignableJ, assignmentComponent.incidenceMatrix));
-        }
-      }
+    for (const auto &[v, coloredIndices] : coloring.coloredVariables()) {
+      IndexSet unassignedIndicesV = coloredIndices;
+      auto dv = getVariableDerivative(v);
+      assert(dv && "Variable derivative not found");
 
-      assert(unassignedIndicesJ.empty() && "Did not assign all indices.");
-      auto dj = getVariableDerivative(jId);
-      assert(dj && "Variable derivative not found");
-      if (variableAssignments.contains(dj->id)) {
-        variableAssignments[dj->id].append(djAssignment);
-      } else {
-        variableAssignments.insert({dj->id, std::move(djAssignment)});
+      for (const auto &assignmentComponent : assignments.getAssignment(v)) {
+        // The indices of dv are a subset of the indices of v.
+        // Therefore we have to check that the indices of an assignment
+        // are valid for dv before we use it.
+        const IndexSet &assignableV =
+            unassignedIndicesV.intersect(assignmentComponent.indicesV);
+        if (assignableV.empty()) {
+          continue;
+        }
+        unassignedIndicesV -= assignableV;
+        // Because the v has been differentiated, all adjacent equations
+        // must have been differentiated as well.
+        auto de = getEquationDerivative(assignmentComponent.equationId);
+        assert(de && "Equation derivative not found");
+        assignments.assign(dv->id,
+                           {de->id, assignableV, assignmentComponent.m});
       }
+      assert(unassignedIndicesV.empty() && "Did not assign all indices.");
     }
   }
 
@@ -673,8 +663,7 @@ private:
     // Collect the derivation-chain for each original equation
     for (EquationVertex::Id equationId : initialEquations) {
       llvm::SmallVector<IndexSet> derivativeChain;
-      std::optional<EquationSubset> derivative =
-          getEquationDerivative(equationId);
+      auto derivative = getEquationDerivative(equationId);
       while (derivative) {
         derivativeChain.push_back(derivative->indices);
         derivative = getEquationDerivative(derivative->id);
@@ -688,7 +677,7 @@ private:
     // Collect the derivation-chain for each original variable.
     // The initial variables may contain both a variable and its derivative.
     // In those cases only the former derivative chain is kept, as the latter
-    // is just a subset of it.
+    // chain is just a subset.
     llvm::DenseSet<VariableVertex::Id> seenDerivatives;
     for (VariableVertex::Id variableId : initialVariables) {
       llvm::SmallVector<IndexSet> derivativeChain;
@@ -701,7 +690,7 @@ private:
       }
       if (!derivativeChain.empty()) {
         result.variableDerivatives.try_emplace(variableId,
-                                                std::move(derivativeChain));
+                                               std::move(derivativeChain));
       }
     }
     // Remove the redundant derivative chains.
@@ -720,13 +709,16 @@ public:
       : differentiateVariable(differentiateVariable),
         differentiateEquation(differentiateEquation) {}
 
-  /// Data bundle for adding equations to the graph.
+  /// Data for adding equations to the graph.
   /// Consists of an equation paired with the list of variable/access function
   /// pairs
   using EquationWithAccesses =
       std::pair<EquationBridge *,
                 llvm::SmallVector<std::pair<VariableVertex::Id,
                                             std::unique_ptr<AccessFunction>>>>;
+  /// Data for adding variable derivatives to the graph.
+  /// Consists of a variable id, the id of the derivative, and the indices for
+  /// which the variable is derived.
   using VariableDerivative =
       std::tuple<VariableVertex::Id, VariableVertex::Id, IndexSet>;
 
@@ -777,11 +769,12 @@ public:
 
   /// Apply the array-aware pantelides algorithm to the graph.
   ///
-  /// Returns the chain of derivations to be performed for each equation.
+  /// Returns the chain of derivations to be performed for each equation and
+  /// variable.
   PantelidesResult pantelides() {
     // Hide indices of initially derived variables.
     hideDerivedVariables();
-    VariableAssignments assignments;
+    Assignments assignments;
     for (EquationVertex::Id e : initialEquations) {
       IndexSet indicesE =
           getVertex<EquationVertex>(getDescriptorFromId(e)).getIndices();
@@ -847,14 +840,13 @@ private:
   llvm::SmallVector<EquationVertex::Id> initialEquations;
 
   /// Associates a variable with its derivative.
-  /// var -> (var', indices of var)
+  /// v -> (v', indices of v)
   llvm::DenseMap<VariableVertex::Id, VariableSubset> variableAssociations;
 
   /// Associates an equation with its derivative.
-  /// eq -> eq'
+  /// e -> (e', indices of e)
   llvm::DenseMap<EquationVertex::Id, EquationSubset> equationAssociations;
 };
-
 } // namespace marco::modeling
 
 #endif // MARCO_MODELING_INDEXREDUCTION_H
