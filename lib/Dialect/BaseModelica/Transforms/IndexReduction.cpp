@@ -1,13 +1,5 @@
-#include "marco/Dialect/BaseModelica/IR/DerivativesMap.h"
-#include "marco/Dialect/BaseModelica/IR/Ops.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/Operation.h"
-#include "mlir/IR/PatternMatch.h"
-#include "mlir/IR/SymbolTable.h"
-#include "mlir/Support/LLVM.h"
-#include <cstddef>
-#include <optional>
-#include <string>
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Diagnostics.h"
 #define DEBUG_TYPE "index-reduction"
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
@@ -145,35 +137,31 @@ void eraseDefChain(mlir::Operation *op, mlir::RewriterBase &rewriter) {
 mlir::LogicalResult differentiateEquationSide(EquationSideOp equationSideOp,
                                               mlir::RewriterBase &rewriter,
                                               ad::forward::State &state) {
-  mlir::SmallVector<mlir::Value> newOperands;
-  mlir::SmallVector<mlir::Value> toRemove;
-  // An equation side may be a tuple of operands.
-  //
-  // For each operand: differentiate its defining operation,
-  // replace it with the result of the differentiated operation,
-  // and erase the original operation.
-  for (mlir::Value operand : equationSideOp.getOperands()) {
-    auto *defOp = operand.getDefiningOp();
-    // The operand might be an induction variable.
-    if (!defOp) {
-      continue;
-    }
+  assert(equationSideOp->getNumOperands() == 1 &&
+         "Equation side should have one operand");
+  mlir::Value operand = equationSideOp.getOperand(0);
+  if (auto *defOp = operand.getDefiningOp()) {
+    // If the operand is defined by an operation, differentiate it.
     auto derivableOp = llvm::dyn_cast<DerivableOpInterface>(defOp);
     if (!derivableOp) {
-      derivableOp->emitOpError("is not derivable");
+      derivableOp->emitOpError("Operation is not derivable");
       return mlir::failure();
     }
     if (mlir::failed(derivableOp.createTimeDerivative(rewriter, state, true))) {
       return mlir::failure();
     }
-    newOperands.push_back(*state.getDerivative(operand));
-    toRemove.push_back(operand);
+    auto derivative = state.getDerivative(operand);
+    assert(derivative && "Newly created derivative not found");
+    equationSideOp->setOperand(0, *derivative);
+  } else if (auto derivative = state.getDerivative(operand)) {
+    // If a derivative is set for the operand, use it.
+    equationSideOp->setOperand(0, *derivative);
+  } else {
+    mlir::emitError(operand.getLoc(), "Operand is not derivable");
+    return mlir::failure();
   }
-  equationSideOp->setOperands(newOperands);
-  // Remove the original operands, along with its def-use chain.
-  for (mlir::Value operand : toRemove) {
-    eraseDefChain(operand.getDefiningOp(), rewriter);
-  }
+
+  eraseDefChain(operand.getDefiningOp(), rewriter);
   return mlir::success();
 }
 
@@ -347,6 +335,7 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
   mlir::SymbolTable symbolTable(modelOp);
   ad::forward::State state;
 
+  // Create derivative variables.
   rewriter.setInsertionPointToEnd(modelOp.getBody());
   for (const auto &[variable, derivatives] :
        pantelidesResult.variableDerivatives) {
@@ -392,6 +381,7 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
   // Update the model with the newly added derivatives.
   modelOp.setDerivativesMap(derivativesMap);
 
+  // Create derivative equations.
   llvm::SmallVector<std::pair<EquationTemplateOp, std::optional<IndexSet>>>
       equationDerivatives;
   for (const auto &[equationId, derivatives] :
@@ -405,11 +395,22 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
 
       auto derivativeTemplateOp =
           mlir::cast<EquationTemplateOp>(rewriter.clone(*current, mapping));
+      rewriter.setInsertionPointToStart(derivativeTemplateOp.getBody());
+
+      mlir::ValueRange inductions =
+          derivativeTemplateOp.getInductionVariables();
+      // If there are induction they might be derived.
+      // Therefore, create a zero-constant and map their derivatives to it.
+      if (!inductions.empty()) {
+        auto zero = rewriter.create<ConstantOp>(rewriter.getUnknownLoc(),
+                                                rewriter.getIndexAttr(0));
+        for (mlir::Value induction : inductions) {
+          state.mapDerivative(induction, zero);
+        }
+      }
 
       auto equationSidesOp = mlir::cast<EquationSidesOp>(
           derivativeTemplateOp.getBody()->getTerminator());
-
-      rewriter.setInsertionPointToStart(derivativeTemplateOp.getBody());
 
       if (mlir::failed(differentiateEquationSide(
               mlir::cast<EquationSideOp>(
@@ -469,11 +470,12 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
   mlir::IRRewriter rewriter(modelOp);
   if (mlir::failed(
           createDerivatives(modelOp, rewriter, pantelidesResult, *storage))) {
+    return mlir::failure();
   }
 
   // At this point the dummy derivatives algorithm should be applied to
-  // rebalance the model. Removing one of the newly added derivative variables
-  // per new derivative equation.
+  // rebalance the model. Removing one of the newly added scalar derivative
+  // variables per new scalar derivative equation.
 
   return mlir::success();
 }

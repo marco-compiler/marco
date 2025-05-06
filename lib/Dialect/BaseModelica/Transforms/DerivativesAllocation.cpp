@@ -248,7 +248,7 @@ getAccess(mlir::Value value,
 static void
 collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
               mlir::Value value, const EquationPath &path) {
-  if (auto definingOp = value.getDefiningOp()) {
+  if (auto *definingOp = value.getDefiningOp()) {
     if (auto derOp = mlir::dyn_cast<DerOp>(definingOp)) {
       result.emplace_back(derOp, path);
     } else {
