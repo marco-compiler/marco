@@ -274,7 +274,7 @@ collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
   }
 
   // Right-hand side of the equation.
-  for (size_t i = 0, e = lhsValues.size(); i < e; ++i) {
+  for (size_t i = 0, e = rhsValues.size(); i < e; ++i) {
     collectDerOps(result, rhsValues[i], EquationPath(EquationPath::RIGHT, i));
   }
 }
