@@ -221,11 +221,6 @@ AccessFunction::getWithGivenDimensions(uint64_t requestedDims) const {
                                getGeneralizedAccesses());
 }
 
-bool AccessFunction::isScalarIndependent(const AccessFunction &other,
-                                         const IndexSet &sourceIndices) const {
-  return false;
-}
-
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const AccessFunction &obj) {
   return obj.dump(os);

@@ -28,151 +28,6 @@ private:
 };
 } // namespace
 
-namespace {
-std::optional<size_t>
-getMatchedAccessIndex(llvm::ArrayRef<VariableAccess> accesses,
-                      const Variable &matchedVariable) {
-  std::optional<size_t> result = std::nullopt;
-
-  for (const auto &access : llvm::enumerate(accesses)) {
-    if (access.value().getVariable() != matchedVariable.name) {
-      continue;
-    }
-
-    result = access.index();
-
-    if (access.value().getAccessFunction().isInvertible()) {
-      return result;
-    }
-  }
-
-  return result;
-}
-} // namespace
-
-namespace {
-class EquationOpPattern : public mlir::OpRewritePattern<EquationInstanceOp> {
-public:
-  EquationOpPattern(mlir::MLIRContext *context,
-                    mlir::SymbolTableCollection &symbolTableCollection)
-      : mlir::OpRewritePattern<EquationInstanceOp>(context),
-        symbolTableCollection(&symbolTableCollection) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(EquationInstanceOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    const IndexSet &equationIndices = op.getProperties().indices;
-
-    if (equationIndices.empty()) {
-      return mlir::failure();
-    }
-
-    const Variable &matchedVariable = op.getProperties().match;
-    llvm::SmallVector<VariableAccess> accesses;
-
-    if (mlir::failed(op.getAccesses(accesses, *symbolTableCollection))) {
-      return mlir::failure();
-    }
-
-    std::optional<size_t> matchedAccessIndex =
-        getMatchedAccessIndex(accesses, matchedVariable);
-
-    if (!matchedAccessIndex) {
-      return mlir::failure();
-    }
-
-    const auto &matchedAccessFunction =
-        accesses[*matchedAccessIndex].getAccessFunction();
-
-    llvm::SmallVector<IndexSet, 10> partitions;
-    partitions.push_back(equationIndices);
-
-    for (const auto &access : llvm::enumerate(accesses)) {
-      if (access.index() == matchedAccessIndex) {
-        // Ignore the matched access.
-        continue;
-      }
-
-      auto accessedVariable = access.value().getVariable();
-
-      if (accessedVariable != matchedVariable.name) {
-        continue;
-      }
-
-      const AccessFunction &accessFunction = access.value().getAccessFunction();
-      IndexSet accessedVariableIndices = accessFunction.map(equationIndices);
-
-      // Restrict the read indices to the written ones.
-      accessedVariableIndices =
-          accessedVariableIndices.intersect(matchedVariable.indices);
-
-      if (accessedVariableIndices.empty()) {
-        // There is no overlap, so there's no need to split the
-        // indices of the equation.
-        continue;
-      }
-
-      // The indices of the equation that lead to a write to the
-      // variables reached by the current access.
-      IndexSet writingEquationIndices = matchedAccessFunction.inverseMap(
-          accessedVariableIndices, equationIndices);
-
-      if (matchedAccessFunction.isScalarIndependent(accessFunction,
-                                                    writingEquationIndices)) {
-        // The accesses overlap only on the array representation, but not on
-        // the actual scalar indices.
-        continue;
-      }
-
-      // Determine the new partitions.
-      llvm::SmallVector<IndexSet> newPartitions;
-
-      for (IndexSet &partition : partitions) {
-        IndexSet intersection = partition.intersect(writingEquationIndices);
-
-        if (intersection.empty()) {
-          newPartitions.push_back(std::move(partition));
-        } else {
-          IndexSet diff = partition - intersection;
-
-          if (!diff.empty()) {
-            newPartitions.push_back(std::move(diff));
-          }
-
-          newPartitions.push_back(std::move(intersection));
-        }
-      }
-
-      partitions = std::move(newPartitions);
-    }
-
-    // Check that the split indices do represent exactly the initial ones.
-    assert(std::accumulate(partitions.begin(), partitions.end(), IndexSet()) ==
-           equationIndices);
-
-    if (partitions.size() == 1) {
-      return mlir::failure();
-    }
-
-    for (const IndexSet &partition : partitions) {
-      auto clonedOp =
-          mlir::cast<EquationInstanceOp>(rewriter.clone(*op.getOperation()));
-
-      if (mlir::failed(
-              clonedOp.setIndices(partition, *symbolTableCollection))) {
-        return mlir::failure();
-      }
-    }
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-
-private:
-  mlir::SymbolTableCollection *symbolTableCollection;
-};
-} // namespace
-
 void EquationAccessSplitPass::runOnOperation() {
   llvm::SmallVector<ModelOp, 1> modelOps;
 
@@ -211,16 +66,216 @@ EquationAccessSplitPass::getCachedVariableAccessAnalysis(
   return analysisManager.getCachedChildAnalysis<VariableAccessAnalysis>(op);
 }
 
+namespace {
+void collectEquations(llvm::SmallVectorImpl<EquationInstanceOp> &equationOps,
+                      mlir::Region &region) {
+  llvm::append_range(equationOps, region.getOps<EquationInstanceOp>());
+}
+
+struct Partition {
+  IndexSet equationIndices;
+  IndexSet variableIndices;
+  llvm::SmallVector<VariableAccess> accesses;
+};
+
+mlir::LogicalResult
+splitEquationIndices(mlir::RewriterBase &rewriter,
+                     mlir::SymbolTableCollection &symbolTableCollection,
+                     EquationInstanceOp op) {
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointAfter(op);
+
+  if (op.getProperties().indices.empty()) {
+    return mlir::success();
+  }
+
+  const Variable &matchedVariable = op.getProperties().match;
+  llvm::SmallVector<VariableAccess> accesses;
+
+  if (mlir::failed(op.getAccesses(accesses, symbolTableCollection))) {
+    return mlir::failure();
+  }
+
+  llvm::SmallVector<Partition> variablePartitions;
+  variablePartitions.push_back({.variableIndices = matchedVariable.indices});
+
+  llvm::SmallVector<VariableAccess> matchAccesses;
+
+  for (const VariableAccess &access : accesses) {
+    const AccessFunction &accessFunction = access.getAccessFunction();
+
+    if (access.getVariable() != matchedVariable.name) {
+      continue;
+    }
+
+    IndexSet accessedIndices = accessFunction.map(op.getProperties().indices);
+
+    if (!matchedVariable.indices.contains(accessedIndices)) {
+      continue;
+    }
+
+    matchAccesses.push_back(access);
+    llvm::SmallVector<Partition> newVariablePartitions;
+
+    for (Partition &partition : variablePartitions) {
+      IndexSet intersection =
+          accessedIndices.intersect(partition.variableIndices);
+
+      if (intersection.empty()) {
+        newVariablePartitions.push_back(std::move(partition));
+      } else {
+        Partition &intersectionPartition = newVariablePartitions.emplace_back();
+        intersectionPartition.variableIndices = intersection;
+        intersectionPartition.accesses = partition.accesses;
+        intersectionPartition.accesses.push_back(access);
+
+        if (IndexSet diff = partition.variableIndices - intersection;
+            !diff.empty()) {
+          Partition &diffPartition = newVariablePartitions.emplace_back();
+          diffPartition.variableIndices = diff;
+          diffPartition.accesses = partition.accesses;
+        }
+      }
+    }
+
+    variablePartitions = std::move(newVariablePartitions);
+  }
+
+  if (matchAccesses.size() <= 1) {
+    return mlir::success();
+  }
+
+  llvm::SmallVector<Partition> equationPartitions;
+  equationPartitions.push_back({.equationIndices = op.getProperties().indices});
+
+  for (Partition &variablePartition : variablePartitions) {
+    llvm::SmallVector<Partition> newEquationPartitions;
+
+    IndexSet inverseMap = op.getProperties().indices;
+
+    for (const VariableAccess &access : variablePartition.accesses) {
+      const AccessFunction &accessFunction = access.getAccessFunction();
+
+      inverseMap = inverseMap.intersect(accessFunction.inverseMap(
+          variablePartition.variableIndices, op.getProperties().indices));
+    }
+
+    for (Partition &equationPartition : equationPartitions) {
+      IndexSet intersection =
+          inverseMap.intersect(equationPartition.equationIndices);
+
+      if (intersection.empty()) {
+        newEquationPartitions.push_back(std::move(equationPartition));
+      } else {
+        Partition &intersectionPartition = newEquationPartitions.emplace_back();
+        intersectionPartition.variableIndices = {};
+        intersectionPartition.equationIndices = intersection;
+        intersectionPartition.accesses = equationPartition.accesses;
+
+        llvm::append_range(intersectionPartition.accesses,
+                           variablePartition.accesses);
+
+        for (const VariableAccess &access : intersectionPartition.accesses) {
+          intersectionPartition.variableIndices +=
+              access.getAccessFunction().map(
+                  intersectionPartition.equationIndices);
+        }
+
+        if (IndexSet diff = equationPartition.equationIndices - intersection;
+            !diff.empty()) {
+          Partition &diffPartition = newEquationPartitions.emplace_back();
+          diffPartition.variableIndices = {};
+          diffPartition.equationIndices = diff;
+          diffPartition.accesses = equationPartition.accesses;
+
+          for (const VariableAccess &access : diffPartition.accesses) {
+            diffPartition.variableIndices +=
+                access.getAccessFunction().map(diffPartition.equationIndices);
+          }
+        }
+      }
+    }
+
+    equationPartitions = std::move(newEquationPartitions);
+  }
+
+  // Check that the split equation indices do represent exactly the initial set.
+  assert(std::accumulate(equationPartitions.begin(), equationPartitions.end(),
+                         IndexSet(),
+                         [](const IndexSet &acc, const auto &partition) {
+                           return acc + partition.equationIndices;
+                         }) == op.getProperties().indices);
+
+  // Check that the split variable indices do represent exactly the initial set.
+  assert(std::accumulate(equationPartitions.begin(), equationPartitions.end(),
+                         IndexSet(),
+                         [](const IndexSet &acc, const auto &partition) {
+                           return acc + partition.variableIndices;
+                         }) == op.getProperties().match.indices);
+
+  // Check that the equation indices exist exactly once in the partitions.
+  assert(llvm::all_of(op.getProperties().indices, [&](Point point) {
+    return llvm::count_if(equationPartitions, [&](const auto &partition) {
+             return partition.equationIndices.contains(point);
+           }) == 1;
+  }));
+
+  // Check that the matched variable indices exist exactly once in the
+  // partitions.
+  assert(llvm::all_of(op.getProperties().match.indices, [&](Point point) {
+    return llvm::count_if(equationPartitions, [&](const auto &partition) {
+             return partition.variableIndices.contains(point);
+           }) == 1;
+  }));
+
+  if (equationPartitions.size() == 1) {
+    return mlir::success();
+  }
+
+  for (Partition &partition : equationPartitions) {
+    assert(!partition.equationIndices.empty());
+    assert(!partition.variableIndices.empty());
+    assert(!partition.accesses.empty());
+
+    auto clonedOp =
+        mlir::cast<EquationInstanceOp>(rewriter.clone(*op.getOperation()));
+
+    clonedOp.getProperties().indices = std::move(partition.equationIndices);
+
+    clonedOp.getProperties().match.indices =
+        std::move(partition.variableIndices);
+  }
+
+  rewriter.eraseOp(op);
+  return mlir::success();
+}
+} // namespace
+
 mlir::LogicalResult EquationAccessSplitPass::processModelOp(ModelOp modelOp) {
+  llvm::SmallVector<EquationInstanceOp> equationOps;
+
+  for (mlir::Operation &nestedOp : modelOp.getOps()) {
+    if (auto initialOp = mlir::dyn_cast<InitialOp>(nestedOp)) {
+      collectEquations(equationOps, initialOp.getBodyRegion());
+    }
+
+    if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(nestedOp)) {
+      collectEquations(equationOps, dynamicOp.getBodyRegion());
+      continue;
+    }
+  }
+
+  mlir::IRRewriter rewriter(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationOpPattern>(&getContext(), symbolTableCollection);
+  for (EquationInstanceOp equationOp : equationOps) {
+    if (mlir::failed(splitEquationIndices(rewriter, symbolTableCollection,
+                                          equationOp))) {
+      return mlir::failure();
+    }
+  }
 
-  mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
-
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
+  return mlir::success();
 }
 
 namespace mlir::bmodelica {

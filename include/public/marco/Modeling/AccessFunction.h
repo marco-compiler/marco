@@ -153,10 +153,6 @@ public:
   [[nodiscard]] virtual mlir::AffineMap getExtendedAffineMap(
       DimensionAccess::FakeDimensionsMap &fakeDimensionsMap) const = 0;
 
-  [[nodiscard]] virtual bool
-  isScalarIndependent(const AccessFunction &other,
-                      const IndexSet &sourceIndices) const;
-
 private:
   Kind kind;
   mlir::MLIRContext *context;
