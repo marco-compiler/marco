@@ -4221,11 +4221,15 @@ def BaseModelica_EquationInstanceOp : BaseModelica_Op<"equation_instance",
         /// Get the equation template.
         EquationTemplateOp getTemplate();
 
-        /// Set the indices of the equation.
-        /// Automatically adjust dependant properties.
+        /// Set the indices of the equation and automatically adjust dependant
+        /// properties. An optional list of precomputed write accesses can be
+        /// given to avoid the traversal of the equation IR that would
+        /// otherwise be needed for their discovery when updating the match
+        /// information.
         mlir::LogicalResult setIndices(
             IndexSet indices,
-            mlir::SymbolTableCollection& symbolTableCollection);
+            mlir::SymbolTableCollection& symbolTableCollection,
+            llvm::ArrayRef<VariableAccess> writeAccesses = std::nullopt);
 
         /// }
         /// @name Forwarded methods.
