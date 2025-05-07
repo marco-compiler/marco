@@ -48,6 +48,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     RecordInlining.cpp
     RungeKutta.cpp
     RuntimeVerifiableOpInterfaceImpl.cpp
+    ScalarRangesEquationSplit.cpp
     SCCAbsenceVerification.cpp
     SCCDetection.cpp
     SCCSolvingBySubstitution.cpp

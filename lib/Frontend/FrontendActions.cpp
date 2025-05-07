@@ -925,6 +925,7 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(createMLIRMatchingPass());
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
+  pm.addPass(mlir::bmodelica::createScalarRangesEquationSplitPass());
 
   if (ci.getCodeGenOptions().singleValuedInductionElimination) {
     pm.addPass(mlir::bmodelica::createSingleValuedInductionEliminationPass());

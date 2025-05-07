@@ -38,6 +38,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/SCCDetection.h"
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingBySubstitution.h"
 #include "marco/Dialect/BaseModelica/Transforms/SCCSolvingWithKINSOL.h"
+#include "marco/Dialect/BaseModelica/Transforms/ScalarRangesEquationSplit.h"
 #include "marco/Dialect/BaseModelica/Transforms/ScheduleParallelization.h"
 #include "marco/Dialect/BaseModelica/Transforms/SchedulersInstantiation.h"
 #include "marco/Dialect/BaseModelica/Transforms/Scheduling.h"

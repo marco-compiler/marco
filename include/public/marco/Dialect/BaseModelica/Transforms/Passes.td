@@ -350,6 +350,17 @@ def ReadOnlyVariablesPropagationPass
     let constructor = "mlir::bmodelica::createReadOnlyVariablesPropagationPass()";
 }
 
+def ScalarRangesEquationSplitPass
+    : Pass<"scalar-ranges-equation-split", "mlir::ModuleOp">
+{
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor =
+        "mlir::bmodelica::createScalarRangesEquationSplitPass()";
+}
+
 def ScheduleParallelizationPass
     : Pass<"schedule-parallelization", "mlir::ModuleOp">
 {
