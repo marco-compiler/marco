@@ -9697,23 +9697,29 @@ EquationTemplateOp EquationInstanceOp::getTemplate() {
 }
 
 mlir::LogicalResult EquationInstanceOp::setIndices(
-    IndexSet indices, mlir::SymbolTableCollection &symbolTableCollection) {
+    IndexSet indices, mlir::SymbolTableCollection &symbolTableCollection,
+    llvm::ArrayRef<VariableAccess> writeAccesses) {
   if (indices == getProperties().indices) {
     return mlir::success();
   }
 
   if (getProperties().match) {
     // Update the indices of the matched variable.
-    llvm::SmallVector<VariableAccess> accesses;
-    llvm::SmallVector<VariableAccess> writeAccesses;
+    llvm::SmallVector<VariableAccess> writeAccessesStorage;
 
-    if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
-      return mlir::failure();
-    }
+    if (writeAccesses.empty()) {
+      llvm::SmallVector<VariableAccess> accesses;
 
-    if (mlir::failed(
-            getWriteAccesses(writeAccesses, symbolTableCollection, accesses))) {
-      return mlir::failure();
+      if (mlir::failed(getAccesses(accesses, symbolTableCollection))) {
+        return mlir::failure();
+      }
+
+      if (mlir::failed(getWriteAccesses(writeAccessesStorage,
+                                        symbolTableCollection, accesses))) {
+        return mlir::failure();
+      }
+
+      writeAccesses = llvm::ArrayRef(writeAccessesStorage);
     }
 
     assert(!writeAccesses.empty());
