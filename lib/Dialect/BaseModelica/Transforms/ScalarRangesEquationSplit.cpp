@@ -34,31 +34,46 @@ mlir::LogicalResult splitEquation(EquationInstanceOp equationOp,
     return mlir::success();
   }
 
+  llvm::SmallVector<MultidimensionalRange> scalarRanges;
   llvm::SmallVector<MultidimensionalRange> remaining;
-  bool modified = false;
 
   for (const MultidimensionalRange &range :
        llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
     if (range.flatSize() == 1) {
-      auto clonedOp = mlir::cast<EquationInstanceOp>(
-          rewriter.clone(*equationOp.getOperation()));
-
-      if (mlir::failed(clonedOp.setIndices(IndexSet(range), symbolTables))) {
-        return mlir::failure();
-      }
-
-      modified = true;
+      scalarRanges.push_back(range);
     } else {
       remaining.push_back(range);
     }
   }
 
-  if (modified) {
+  if (!scalarRanges.empty()) {
+    llvm::SmallVector<VariableAccess> accesses;
+    llvm::SmallVector<VariableAccess> writeAccesses;
+
+    if (mlir::failed(equationOp.getAccesses(accesses, symbolTables))) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(equationOp.getWriteAccesses(writeAccesses, symbolTables,
+                                                 accesses))) {
+      return mlir::failure();
+    }
+
+    for (const MultidimensionalRange &range : scalarRanges) {
+      auto clonedOp = mlir::cast<EquationInstanceOp>(
+          rewriter.clone(*equationOp.getOperation()));
+
+      if (mlir::failed(clonedOp.setIndices(IndexSet(range), symbolTables,
+                                           writeAccesses))) {
+        return mlir::failure();
+      }
+    }
+
     if (remaining.empty()) {
       rewriter.eraseOp(equationOp);
     } else {
-      if (mlir::failed(
-              equationOp.setIndices(IndexSet(remaining), symbolTables))) {
+      if (mlir::failed(equationOp.setIndices(IndexSet(remaining), symbolTables,
+                                             writeAccesses))) {
         return mlir::failure();
       }
     }
