@@ -1,11 +1,12 @@
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/Diagnostics.h"
+#include "mlir/IR/SymbolTable.h"
 #define DEBUG_TYPE "index-reduction"
 
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/IndexReduction.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Debug.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_INDEXREDUCTIONPASS
@@ -49,15 +50,16 @@ private:
                   const DerivativesMap &derivativesMap);
 
   /// Run the pantelides algorithm on the provided model.
-  mlir::LogicalResult runPantelides(ModelOp modelOp,
-                                    PantelidesResult &pantelidesResult,
-                                    bridge::Storage &storage);
+  mlir::LogicalResult
+  runPantelides(ModelOp modelOp, PantelidesResult &pantelidesResult,
+                bridge::Storage &storage,
+                mlir::SymbolTableCollection &symbolTableCollection);
 
   /// Create derivative variables and equations based on the pantelides result.
   mlir::LogicalResult
-  createDerivatives(ModelOp modelOp, mlir::RewriterBase &rewriter,
-                    const PantelidesResult &pantelidesResult,
-                    bridge::Storage &storage);
+  createDerivatives(ModelOp modelOp, const PantelidesResult &pantelidesResult,
+                    mlir::RewriterBase &rewriter, bridge::Storage &storage,
+                    mlir::SymbolTableCollection &symbolTableCollection);
 };
 
 /// Convert access to a scalar variable to a constant 0 affine map.
@@ -134,9 +136,9 @@ void eraseDefChain(mlir::Operation *op, mlir::RewriterBase &rewriter) {
 }
 
 /// Replace the operands of the equation side with their derivatives.
-mlir::LogicalResult differentiateEquationSide(EquationSideOp equationSideOp,
-                                              mlir::RewriterBase &rewriter,
-                                              ad::forward::State &state) {
+mlir::LogicalResult differentiateEquationSide(
+    EquationSideOp equationSideOp, mlir::RewriterBase &rewriter,
+    mlir::SymbolTableCollection &symbolTable, ad::forward::State &state) {
   assert(equationSideOp->getNumOperands() == 1 &&
          "Equation side should have one operand");
   mlir::Value operand = equationSideOp.getOperand(0);
@@ -147,7 +149,8 @@ mlir::LogicalResult differentiateEquationSide(EquationSideOp equationSideOp,
       derivableOp->emitOpError("Operation is not derivable");
       return mlir::failure();
     }
-    if (mlir::failed(derivableOp.createTimeDerivative(rewriter, state, true))) {
+    if (mlir::failed(derivableOp.createTimeDerivative(rewriter, symbolTable,
+                                                      state, true))) {
       return mlir::failure();
     }
     auto derivative = state.getDerivative(operand);
@@ -227,10 +230,9 @@ mlir::LogicalResult IndexReductionPass::initializeGraph(
   return mlir::success();
 }
 
-void printPantelidesResult(
+[[maybe_unused]] void printPantelidesResult(
     const IndexReductionGraph::PantelidesResult &pantelidesResult,
     const DerivativesMap &derivativesMap, const bridge::Storage &storage) {
-  // graph.dump(llvm::dbgs());
   llvm::dbgs() << "Pantelides result:\n";
   size_t index = 0;
   for (const auto &[id, derivatives] : pantelidesResult.equationDerivatives) {
@@ -274,11 +276,10 @@ void printPantelidesResult(
   }
 }
 
-mlir::LogicalResult
-IndexReductionPass::runPantelides(ModelOp modelOp,
-                                  PantelidesResult &pantelidesResult,
-                                  bridge::Storage &storage) {
-  mlir::SymbolTableCollection symbolTableCollection;
+mlir::LogicalResult IndexReductionPass::runPantelides(
+    ModelOp modelOp, PantelidesResult &pantelidesResult,
+    bridge::Storage &storage,
+    mlir::SymbolTableCollection &symbolTableCollection) {
   // Callback to build a new differentiated variable from within the graph.
   std::function differentiateVariable =
       [&](const VariableBridge::Id variableId) -> VariableBridge & {
@@ -322,6 +323,8 @@ IndexReductionPass::runPantelides(ModelOp modelOp,
     return mlir::failure();
   }
 
+  LLVM_DEBUG(graph.dump(llvm::dbgs()));
+
   pantelidesResult = graph.pantelides();
   LLVM_DEBUG(printPantelidesResult(pantelidesResult, derivativesMap, storage));
 
@@ -329,10 +332,10 @@ IndexReductionPass::runPantelides(ModelOp modelOp,
 }
 
 mlir::LogicalResult IndexReductionPass::createDerivatives(
-    ModelOp modelOp, mlir::RewriterBase &rewriter,
-    const PantelidesResult &pantelidesResult, bridge::Storage &storage) {
+    ModelOp modelOp, const PantelidesResult &pantelidesResult,
+    mlir::RewriterBase &rewriter, bridge::Storage &storage,
+    mlir::SymbolTableCollection &symbolTableCollection) {
   DerivativesMap derivativesMap = modelOp.getDerivativesMap();
-  mlir::SymbolTable symbolTable(modelOp);
   ad::forward::State state;
 
   // Create derivative variables.
@@ -342,7 +345,7 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
     mlir::SymbolRefAttr variableName =
         storage.variablesMap[variable]->getName();
     VariableOp current = mlir::cast<VariableOp>(
-        symbolTable.lookupSymbolIn(modelOp, variableName));
+        symbolTableCollection.lookupSymbolIn(modelOp, variableName));
 
     // Handle each prescribed derivation.
     for (const IndexSet &toDerive : derivatives) {
@@ -359,7 +362,8 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
           derivativesMap.addDerivedIndices(currentNameAttr, toDerive);
         }
 
-        derivative = symbolTable.lookupSymbolIn(modelOp, *existingDerivative);
+        derivative =
+            symbolTableCollection.lookupSymbolIn(modelOp, *existingDerivative);
       } else {
         // Create a new derivative variable
         std::string derivativeName = "der_" + current.getName().str();
@@ -390,6 +394,7 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
     auto current = mlir::cast<EquationTemplateOp>(
         storage.equationsMap[equationId]->getOp().getTemplate());
 
+    mlir::Value zero;
     for (const IndexSet &toDerive : derivatives) {
       rewriter.setInsertionPointToEnd(modelOp.getBody());
 
@@ -399,11 +404,15 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
 
       mlir::ValueRange inductions =
           derivativeTemplateOp.getInductionVariables();
-      // If there are induction they might be derived.
+      // If there are induction they might be differentiated.
       // Therefore, create a zero-constant and map their derivatives to it.
       if (!inductions.empty()) {
-        auto zero = rewriter.create<ConstantOp>(rewriter.getUnknownLoc(),
-                                                rewriter.getIndexAttr(0));
+        if (zero == nullptr) {
+          zero = rewriter.create<ConstantOp>(rewriter.getUnknownLoc(),
+                                             rewriter.getIndexAttr(0));
+        } else {
+          zero = mapping.lookup(zero);
+        }
         for (mlir::Value induction : inductions) {
           state.mapDerivative(induction, zero);
         }
@@ -415,14 +424,14 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
       if (mlir::failed(differentiateEquationSide(
               mlir::cast<EquationSideOp>(
                   equationSidesOp.getLhs().getDefiningOp<EquationSideOp>()),
-              rewriter, state))) {
+              rewriter, symbolTableCollection, state))) {
         return mlir::failure();
       }
 
       if (mlir::failed(differentiateEquationSide(
               mlir::cast<EquationSideOp>(
                   equationSidesOp.getRhs().getDefiningOp<EquationSideOp>()),
-              rewriter, state))) {
+              rewriter, symbolTableCollection, state))) {
         return mlir::failure();
       }
 
@@ -454,11 +463,17 @@ mlir::LogicalResult IndexReductionPass::createDerivatives(
 }
 
 mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
+  mlir::SymbolTableCollection symbolTableCollection;
   std::unique_ptr<bridge::Storage> storage = bridge::Storage::create();
   PantelidesResult pantelidesResult;
-  if (mlir::failed(runPantelides(modelOp, pantelidesResult, *storage))) {
+  if (mlir::failed(runPantelides(modelOp, pantelidesResult, *storage,
+                                 symbolTableCollection))) {
     return mlir::failure();
   }
+
+  // TODO: Remove
+  // Stop after the algorithm completes
+  return mlir::success();
 
   // If no equation derivatives are prescribed, the system has index 0 or 1, so
   // no changes are necessary.
@@ -468,8 +483,8 @@ mlir::LogicalResult IndexReductionPass::processModelOp(ModelOp modelOp) {
 
   // Create derivative equations and variables.
   mlir::IRRewriter rewriter(modelOp);
-  if (mlir::failed(
-          createDerivatives(modelOp, rewriter, pantelidesResult, *storage))) {
+  if (mlir::failed(createDerivatives(modelOp, pantelidesResult, rewriter,
+                                     *storage, symbolTableCollection))) {
     return mlir::failure();
   }
 

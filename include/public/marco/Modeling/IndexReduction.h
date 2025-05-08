@@ -8,10 +8,7 @@
 #include "marco/Modeling/LocalMatchingSolutionsImpl.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include <cassert>
+#include "llvm/Support/Debug.h"
 
 namespace marco::modeling {
 
@@ -36,6 +33,11 @@ public:
         visibleIndices(indices) {}
 
   void dump(llvm::raw_ostream &os) const override {
+    if (visibleIndices != indices) {
+      os << "Variable(id: " << getId() << ", indices: " << getIndices()
+         << ", visible indices: " << getVisibleIndices() << ")";
+      return;
+    }
     os << "Variable(id: " << getId() << ", indices: " << getIndices() << ")";
   }
 
@@ -94,23 +96,22 @@ private:
 /// An edge from an equation to a variable in the graph.
 class Edge final : public Dumpable {
 public:
-  Edge(const VariableVertex::Id variableId, const IndexSet &equationRanges,
-       const IndexSet &variableRanges, const AccessFunction &accessFunction)
-      : incidenceMatrix(std::make_shared<MCIM>(equationRanges, variableRanges)),
-        mappings(std::make_shared<std::vector<MCIM>>()) {
-    incidenceMatrix->apply(accessFunction);
-  }
+  Edge(const VariableVertex::Id variableId, const MCIM &mapping)
+      : incidenceMatrix(std::make_shared<MCIM>(mapping)),
+        mappings(std::make_shared<std::vector<MCIM>>()) {}
 
   /// List of one-to-one mappings between the indices of the two vertices.
   const std::vector<MCIM> &getMappings() const {
     if (mappings->empty()) {
       *mappings = incidenceMatrix->splitGroups();
-      assert(llvm::all_of(*mappings, [](const MCIM &m) {
-        return isValidLocalMatchingSolution(m);
-      }));
     }
+    assert(llvm::all_of(*mappings, [](const MCIM &m) {
+      return isValidLocalMatchingSolution(m);
+    }));
     return *mappings;
   }
+
+  const MCIM &getIncidenceMatrix() const { return *incidenceMatrix; }
 
   void dump(llvm::raw_ostream &os) const override {
     os << "incidence matrix:\n" << *incidenceMatrix;
@@ -144,7 +145,7 @@ struct EquationSubset {
 };
 
 /// Visitation state for a single `augmentPath`-execution.
-class Coloring final {
+class Coloring final : public Dumpable {
 public:
   void color(const EquationVertex::Id &equation, const IndexSet &indices) {
     if (indices.empty()) {
@@ -196,6 +197,16 @@ public:
     return llvm::make_range(equationColoring.begin(), equationColoring.end());
   }
 
+  void dump(llvm::raw_ostream &os) const override {
+    os << "Coloring:\n";
+    for (const auto &[id, indices] : variableColoring) {
+      os << "  Variable id: " << id << ", indices: " << indices << "\n";
+    }
+    for (const auto &[id, indices] : equationColoring) {
+      os << "  Equation id: " << id << ", indices: " << indices << "\n";
+    }
+  }
+
 private:
   llvm::DenseMap<VariableVertex::Id, IndexSet> variableColoring;
   llvm::DenseMap<EquationVertex::Id, IndexSet> equationColoring;
@@ -216,7 +227,7 @@ struct AssignmentComponent {
   internal::MCIM m;
 };
 
-class Assignments {
+class Assignments final : public Dumpable {
 public:
   /// Get the current assignment for a variable.
   llvm::SmallVector<AssignmentComponent> &
@@ -255,6 +266,20 @@ public:
                    [](const AssignmentComponent &assignmentComponent) {
                      return assignmentComponent.indicesV.empty();
                    });
+  }
+
+  void dump(llvm::raw_ostream &os) const override {
+    os << "Assignments:\n";
+    for (const auto &[id, assignments] : assignmentsMap) {
+      if (assignments.empty()) {
+        continue;
+      }
+      os << "  Variable id: " << id << "\n";
+      for (const auto &assignment : assignments) {
+        os << "    Assignment: " << assignment.equationId << ", "
+           << assignment.indicesV << "\n";
+      }
+    }
   }
 
 private:
@@ -367,7 +392,7 @@ private:
     VariableVertex::Id id = variable.getId();
     assert(!variablesMap.contains(id) && "Variable id already in the graph");
     VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
-    variablesMap[id] = variableDescriptor;
+    variablesMap.insert({id, variableDescriptor});
   }
 
   /// Hide the (indices of) variables that have derivatives (of those indices).
@@ -471,7 +496,7 @@ private:
       assignmentComponent.indicesV -= augmentedV;
       // Uncolor the indices of v that were augmented.
       coloring.uncolor(v, augmentedV);
-      if (indicesV == toAssignV) {
+      if (toAssignV == indicesV) {
         break;
       }
     }
@@ -607,22 +632,27 @@ private:
 
         // Add edges to the variables accessed by the original equation,
         // and their derivatives.
-        llvm::DenseSet<VariableVertex::Id> addedEdges;
+        llvm::DenseMap<VariableVertex::Id, internal::MCIM> toAdd;
         for (EdgeDescriptor edgeDescriptor :
              getEdgesRange(getDescriptorFromId(e))) {
-          const Edge &edge = graph[edgeDescriptor];
-          const auto &v = getVertex<VariableVertex>(edgeDescriptor.to);
+          const auto &v = getVertex<VariableVertex>(edgeDescriptor.to).getId();
+          const auto &evMapping = graph[edgeDescriptor].getIncidenceMatrix();
 
-          if (!addedEdges.contains(v.getId())) {
-            graph.addEdge(deDescriptor, edgeDescriptor.to, edge);
-            addedEdges.insert(v.getId());
+          auto [vMapping, inseted] = toAdd.try_emplace(v, evMapping);
+          if (!inseted) {
+            vMapping->second += evMapping;
           }
 
-          if (auto dv = getVariableDerivative(v.getId());
-              dv && !addedEdges.contains(dv->id)) {
-            graph.addEdge(deDescriptor, getDescriptorFromId(dv->id), edge);
-            addedEdges.insert(dv->id);
+          auto dv = getVariableDerivative(v);
+          assert(dv && "All adjacent variables should be derived.");
+          auto [dvMapping, inserted] = toAdd.try_emplace(dv->id, evMapping);
+          if (!inserted) {
+            dvMapping->second += evMapping;
           }
+        }
+        // Add edges to the graph.
+        for (auto &[v, mapping] : toAdd) {
+          graph.addEdge(deDescriptor, getDescriptorFromId(v), Edge(v, mapping));
         }
 
         setEquationDerivative(e, {de.getId(), coloredIndices});
@@ -747,24 +777,34 @@ public:
       equationsMap[id] = equationDescriptor;
       initialEquations.push_back(id);
 
-      const EquationVertex &equation =
-          getVertex<EquationVertex>(equationDescriptor);
-      IndexSet equationRanges = equation.getIndices();
+      const IndexSet &equationRanges =
+          getVertex<EquationVertex>(equationDescriptor).getIndices();
 
+      // Build the mappings for each accessed variable.
+      llvm::DenseMap<VariableVertex::Id, internal::MCIM> mappings;
       for (const auto &[variableId, accessFunction] : accesses) {
-        VertexDescriptor variableDescriptor = getDescriptorFromId(variableId);
-        const VariableVertex &variable =
-            getVertex<VariableVertex>(variableDescriptor);
+        internal::MCIM mapping(
+            equationRanges,
+            getVertex<VariableVertex>(getDescriptorFromId(variableId))
+                .getIndices());
+        mapping.apply(*accessFunction);
 
-        for (const MultidimensionalRange &range :
-             llvm::make_range(variable.getIndices().rangesBegin(),
-                              variable.getIndices().rangesEnd())) {
-          graph.addEdge(equationDescriptor, variableDescriptor,
-                        {variable.getId(), equationRanges, IndexSet(range),
-                         *accessFunction});
+        auto [existingMapping, inserted] =
+            mappings.try_emplace(variableId, mapping);
+        if (!inserted) {
+          existingMapping->second += mapping;
         }
       }
+
+      // Add one edge per accessed variable.
+      for (auto &[variableId, mapping] : mappings) {
+        graph.addEdge(equationDescriptor, getDescriptorFromId(variableId),
+                      Edge(variableId, mapping));
+      }
     }
+
+    // Hide indices of initially derived variables.
+    hideDerivedVariables();
   }
 
   /// Apply the array-aware pantelides algorithm to the graph.
@@ -772,19 +812,31 @@ public:
   /// Returns the chain of derivations to be performed for each equation and
   /// variable.
   PantelidesResult pantelides() {
-    // Hide indices of initially derived variables.
-    hideDerivedVariables();
     Assignments assignments;
     for (EquationVertex::Id e : initialEquations) {
+      LLVM_DEBUG(llvm::dbgs() << "Starting from equation: " << e << "\n");
       IndexSet indicesE =
           getVertex<EquationVertex>(getDescriptorFromId(e)).getIndices();
 
       while (true) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "---\nAugmenting path for equation: " << e
+                       << ", indices: " << indicesE << "\n";
+          assignments.dump(llvm::dbgs());
+        });
         Coloring coloring;
         indicesE = augmentPath(e, std::move(indicesE), assignments, coloring);
         if (indicesE.empty()) {
           break;
         }
+
+        LLVM_DEBUG({
+          dump(llvm::dbgs());
+          llvm::dbgs() << "Augmenting path not found\n";
+          coloring.dump(llvm::dbgs());
+          llvm::dbgs() << "---\n";
+        });
+
         differentiateNodes(coloring, assignments);
         hideDerivedVariables();
         e = getEquationDerivative(e)->id;
@@ -798,7 +850,7 @@ public:
     os << "Index Reduction Graph:\n";
 
     os << " Variables:\n";
-    for (const auto &descriptor : getDescriptorRange<EquationVertex>()) {
+    for (const auto &descriptor : getDescriptorRange<VariableVertex>()) {
       const auto &v = getVertex<VariableVertex>(descriptor);
       os << "  ", v.dump(os);
       if (auto dv = getVariableDerivative(v.getId())) {
