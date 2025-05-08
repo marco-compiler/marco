@@ -2250,18 +2250,7 @@ private:
     Frontier frontier;
 
     // Computation of the initial frontier.
-    auto equations =
-        llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
-
-    for (VertexDescriptor equationDescriptor : equations) {
-      const Equation &equation = getEquationFromDescriptor(equationDescriptor);
-
-      if (const IndexSet &unmatchedEquations = equation.getUnmatched();
-          !unmatchedEquations.empty()) {
-        frontier.emplace_back(getBaseGraph(), equationDescriptor,
-                              std::move(unmatchedEquations));
-      }
-    }
+    getInitialFrontier(frontier);
 
     // Breadth-first search.
     Frontier newFrontier;
@@ -2299,6 +2288,24 @@ private:
 
     llvm::sort(paths, sortHeuristic);
     return paths;
+  }
+
+  void getInitialFrontier(Frontier &frontier) const {
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), getEquationsBeginIt(), getEquationsEndIt(),
+        [&](VertexDescriptor equationDescriptor) {
+          const Equation &equation =
+              getEquationFromDescriptor(equationDescriptor);
+
+          if (const IndexSet &unmatchedEquations = equation.getUnmatched();
+              !unmatchedEquations.empty()) {
+            std::lock_guard lock(mutex);
+            frontier.emplace_back(getBaseGraph(), equationDescriptor,
+                                  std::move(unmatchedEquations));
+          }
+        });
   }
 
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
