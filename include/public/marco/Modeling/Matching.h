@@ -1885,28 +1885,7 @@ private:
     TraversableEdges traversableEdges;
 
     // Compute the initial set of traversable edges.
-    for (EdgeDescriptor edgeDescriptor :
-         llvm::make_range(edgesBegin(), edgesEnd())) {
-      const Edge &edge = getBaseGraph()[edgeDescriptor];
-
-      if (isEquation(edgeDescriptor.from)) {
-        if (!edge.getMatched().empty()) {
-          traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
-        }
-
-        if (!edge.getUnmatched().empty()) {
-          traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
-        }
-      } else {
-        if (!edge.getMatched().empty()) {
-          traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
-        }
-
-        if (!edge.getUnmatched().empty()) {
-          traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
-        }
-      }
-    }
+    collectTraversableEdges(traversableEdges);
 
     do {
       success = matchIteration(traversableEdges);
@@ -1927,6 +1906,38 @@ private:
     });
 
     return complete;
+  }
+
+  void collectTraversableEdges(TraversableEdges &traversableEdges) const {
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), edgesBegin(), edgesEnd(),
+        [&](EdgeDescriptor edgeDescriptor) {
+          const Edge &edge = getBaseGraph()[edgeDescriptor];
+
+          if (isEquation(edgeDescriptor.from)) {
+            if (!edge.getMatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
+            }
+
+            if (!edge.getUnmatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
+            }
+          } else {
+            if (!edge.getMatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
+            }
+
+            if (!edge.getUnmatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
+            }
+          }
+        });
   }
 
   std::optional<MatchingGraph>
