@@ -1914,10 +1914,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
         result->setAnnotationClause(std::move(*annotation));
         //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
         
-      }
-
-    return (std::move(result));  
+      }  
   }
+  return (std::move(result));
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
@@ -1926,13 +1925,13 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
 
-  //if (lookahead[0].isa<TokenKind::Dot>())
-    //{
+  if (lookahead[0].isa<TokenKind::Dot>())
+    {
       TRY(compRef, parseComponentReference());
       result->setComponentReference(std::move(*compRef));
       loc.end = (*compRef)->getLocation().end;
       EXPECT(TokenKind::Equal);
-    //}
+    }
 
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
