@@ -2509,15 +2509,15 @@ private:
     }
 
     // Update the match information stored in the vertices.
-    for (const auto &match : removedMatches) {
+    mlir::parallelForEach(getContext(), removedMatches, [&](const auto &match) {
       std::visit([&match](auto &node) { node.removeMatch(match.second); },
                  getBaseGraph()[match.first]);
-    }
+    });
 
-    for (const auto &match : newMatches) {
+    mlir::parallelForEach(getContext(), newMatches, [&](const auto &match) {
       std::visit([&match](auto &node) { node.addMatch(match.second); },
                  getBaseGraph()[match.first]);
-    }
+    });
   }
 };
 } // namespace marco::modeling
