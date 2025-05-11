@@ -4322,15 +4322,27 @@ mlir::LogicalResult DivOp::inferReturnTypes(
   mlir::Type rhsType = adaptor.getRhs().getType();
 
   if (isScalar(lhsType) && isScalar(rhsType)) {
-    returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+    if (isScalarFloatLike(lhsType) || isScalarFloatLike(rhsType)) {
+      returnTypes.push_back(getMostGenericScalarType(lhsType, rhsType));
+    } else {
+      returnTypes.push_back(RealType::get(context));
+    }
+
     return mlir::success();
   }
 
   auto lhsShapedType = mlir::dyn_cast<mlir::ShapedType>(lhsType);
 
   if (lhsShapedType && isScalar(rhsType)) {
-    mlir::Type resultElementType =
-        getMostGenericScalarType(lhsShapedType.getElementType(), rhsType);
+    mlir::Type resultElementType;
+
+    if (isScalarFloatLike(lhsShapedType.getElementType()) ||
+        isScalarFloatLike(rhsType)) {
+      resultElementType =
+          getMostGenericScalarType(lhsShapedType.getElementType(), rhsType);
+    } else {
+      resultElementType = RealType::get(context);
+    }
 
     returnTypes.push_back(mlir::RankedTensorType::get(lhsShapedType.getShape(),
                                                       resultElementType));
@@ -4342,16 +4354,30 @@ mlir::LogicalResult DivOp::inferReturnTypes(
   auto rhsRangeType = mlir::dyn_cast<RangeType>(rhsType);
 
   if (isScalar(lhsType) && rhsRangeType) {
-    mlir::Type inductionType =
-        getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+    mlir::Type inductionType;
+
+    if (isScalarFloatLike(lhsType) ||
+        isScalarFloatLike(rhsRangeType.getInductionType())) {
+      inductionType =
+          getMostGenericScalarType(lhsType, rhsRangeType.getInductionType());
+    } else {
+      inductionType = RealType::get(context);
+    }
 
     returnTypes.push_back(RangeType::get(context, inductionType));
     return mlir::success();
   }
 
   if (lhsRangeType && isScalar(rhsType)) {
-    mlir::Type inductionType =
-        getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+    mlir::Type inductionType;
+
+    if (isScalarFloatLike(lhsRangeType.getInductionType()) ||
+        isScalarFloatLike(rhsType)) {
+      inductionType =
+          getMostGenericScalarType(lhsRangeType.getInductionType(), rhsType);
+    } else {
+      inductionType = RealType::get(context);
+    }
 
     returnTypes.push_back(RangeType::get(context, inductionType));
     return mlir::success();
