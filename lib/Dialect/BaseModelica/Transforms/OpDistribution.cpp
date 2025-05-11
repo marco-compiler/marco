@@ -33,6 +33,12 @@ public:
           mlir::Value oldValue = distributableOp->getResult(i);
           mlir::Value newValue = replacements[i];
 
+          if (newValue.getType() != oldValue.getType()) {
+            builder.setInsertionPointAfterValue(newValue);
+            newValue = builder.create<CastOp>(op.getLoc(), oldValue.getType(),
+                                              newValue);
+          }
+
           if (oldValue != newValue) {
             oldValue.replaceAllUsesWith(newValue);
           }
