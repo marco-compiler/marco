@@ -5,7 +5,7 @@
 #include "mlir/Bytecode/BytecodeReader.h"
 #include "mlir/Bytecode/BytecodeWriter.h"
 #include "mlir/IR/BuiltinAttributes.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/MapVector.h"
 
 namespace mlir::bmodelica {
 class DerivativesMap {
@@ -34,7 +34,7 @@ public:
 
   bool empty() const;
 
-  llvm::DenseSet<mlir::SymbolRefAttr> getDerivedVariables() const;
+  llvm::SmallVector<mlir::SymbolRefAttr> getDerivedVariables() const;
 
   /// Get the derivative variable of a given state variable.
   std::optional<mlir::SymbolRefAttr>
@@ -58,11 +58,12 @@ public:
   getDerivedVariable(mlir::SymbolRefAttr derivative) const;
 
 private:
-  llvm::DenseMap<mlir::SymbolRefAttr, mlir::SymbolRefAttr> derivatives;
+  llvm::MapVector<mlir::SymbolRefAttr, mlir::SymbolRefAttr> derivatives;
 
-  llvm::DenseMap<mlir::SymbolRefAttr, marco::modeling::IndexSet> derivedIndices;
+  llvm::MapVector<mlir::SymbolRefAttr, marco::modeling::IndexSet>
+      derivedIndices;
 
-  llvm::DenseMap<mlir::SymbolRefAttr, mlir::SymbolRefAttr> inverseDerivatives;
+  llvm::MapVector<mlir::SymbolRefAttr, mlir::SymbolRefAttr> inverseDerivatives;
 };
 } // namespace mlir::bmodelica
 

@@ -349,7 +349,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertSchedules(
     mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
     ModelOp modelOp) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
-  llvm::DenseMap<ScheduleOp, llvm::SmallVector<RunScheduleOp, 1>> schedules;
+  llvm::MapVector<ScheduleOp, llvm::SmallVector<RunScheduleOp, 1>> schedules;
 
   moduleOp.walk([&](RunScheduleOp runScheduleOp) {
     ScheduleOp scheduleOp = runScheduleOp.getScheduleOp(symbolTableCollection);
@@ -357,7 +357,7 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::convertSchedules(
   });
 
   for (const auto &entry : schedules) {
-    ScheduleOp scheduleOp = entry.getFirst();
+    ScheduleOp scheduleOp = entry.first;
     auto qualifiedName = getSymbolRefFromRoot(scheduleOp);
 
     rewriter.setInsertionPointToEnd(moduleOp.getBody());

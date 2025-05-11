@@ -5,11 +5,31 @@
 
 using namespace ::mlir::bmodelica;
 
+namespace {
+template <typename K, typename V>
+bool mapsEqual(const llvm::MapVector<K, V> &map1,
+               const llvm::MapVector<K, V> &map2) {
+  if (map1.size() != map2.size()) {
+    return false;
+  }
+
+  for (const auto &entry : map1) {
+    auto it = map2.find(entry.first);
+
+    if (it == map2.end() || it->second != entry.second) {
+      return false;
+    }
+  }
+
+  return true;
+}
+} // namespace
+
 namespace mlir::bmodelica {
 bool DerivativesMap::operator==(const DerivativesMap &other) const {
-  return derivatives == other.derivatives &&
-         derivedIndices == other.derivedIndices &&
-         inverseDerivatives == other.inverseDerivatives;
+  return mapsEqual(derivatives, other.derivatives) &&
+         mapsEqual(derivedIndices, other.derivedIndices) &&
+         mapsEqual(inverseDerivatives, other.inverseDerivatives);
 }
 
 mlir::DictionaryAttr
@@ -23,23 +43,23 @@ DerivativesMap::asAttribute(mlir::MLIRContext *context) const {
 
   for (const auto &entry : derivatives) {
     derivativesAttrs.push_back(builder.getDictionaryAttr(
-        {builder.getNamedAttr("variable", entry.getFirst()),
-         builder.getNamedAttr("derivative", entry.getSecond())}));
+        {builder.getNamedAttr("variable", entry.first),
+         builder.getNamedAttr("derivative", entry.second)}));
   }
 
   for (const auto &entry : derivedIndices) {
     auto indexSetAttr =
-        mlir::modeling::getPropertiesAsAttribute(context, entry.getSecond());
+        mlir::modeling::getPropertiesAsAttribute(context, entry.second);
 
     derivedIndicesAttrs.push_back(builder.getDictionaryAttr(
-        {builder.getNamedAttr("variable", entry.getFirst()),
+        {builder.getNamedAttr("variable", entry.first),
          builder.getNamedAttr("indices", indexSetAttr)}));
   }
 
   for (const auto &entry : inverseDerivatives) {
     inverseDerivativesAttrs.push_back(builder.getDictionaryAttr(
-        {builder.getNamedAttr("derivative", entry.getFirst()),
-         builder.getNamedAttr("variable", entry.getSecond())}));
+        {builder.getNamedAttr("derivative", entry.first),
+         builder.getNamedAttr("variable", entry.second)}));
   }
 
   namedAttrs.push_back(builder.getNamedAttr(
@@ -246,22 +266,22 @@ void writeToMlirBytecode(mlir::DialectBytecodeWriter &writer,
   writer.writeVarInt(prop.derivatives.size());
 
   for (const auto &entry : prop.derivatives) {
-    writer.writeAttribute(entry.getFirst());
-    writer.writeAttribute(entry.getSecond());
+    writer.writeAttribute(entry.first);
+    writer.writeAttribute(entry.second);
   }
 
   writer.writeVarInt(prop.derivedIndices.size());
 
   for (const auto &entry : prop.derivedIndices) {
-    writer.writeAttribute(entry.getFirst());
-    mlir::modeling::writeToMlirBytecode(writer, entry.getSecond());
+    writer.writeAttribute(entry.first);
+    mlir::modeling::writeToMlirBytecode(writer, entry.second);
   }
 
   writer.writeVarInt(prop.inverseDerivatives.size());
 
   for (const auto &entry : prop.inverseDerivatives) {
-    writer.writeAttribute(entry.getFirst());
-    writer.writeAttribute(entry.getSecond());
+    writer.writeAttribute(entry.first);
+    writer.writeAttribute(entry.second);
   }
 }
 
@@ -318,7 +338,7 @@ void print(mlir::OpAsmPrinter &printer, const DerivativesMap &prop) {
   llvm::SmallVector<mlir::SymbolRefAttr> variables;
 
   for (const auto &entry : prop.derivatives) {
-    variables.push_back(entry.getFirst());
+    variables.push_back(entry.first);
   }
 
   llvm::sort(variables, [](mlir::SymbolRefAttr first,
@@ -360,12 +380,13 @@ void print(mlir::OpAsmPrinter &printer, const DerivativesMap &prop) {
   printer << "]";
 }
 
-llvm::DenseSet<mlir::SymbolRefAttr>
+llvm::SmallVector<mlir::SymbolRefAttr>
 DerivativesMap::getDerivedVariables() const {
-  llvm::DenseSet<mlir::SymbolRefAttr> result;
+  llvm::SmallVector<mlir::SymbolRefAttr> result;
+  result.reserve(derivatives.size());
 
   for (auto &entry : derivatives) {
-    result.insert(entry.getFirst());
+    result.push_back(entry.first);
   }
 
   return result;
@@ -381,7 +402,7 @@ DerivativesMap::getDerivative(mlir::SymbolRefAttr variable) const {
     return std::nullopt;
   }
 
-  return it->getSecond();
+  return it->second;
 }
 
 /// Set the derivative variable for a state one.
@@ -400,7 +421,7 @@ DerivativesMap::getDerivedIndices(mlir::SymbolRefAttr variable) const {
     return std::nullopt;
   }
 
-  return std::reference_wrapper(it->getSecond());
+  return std::reference_wrapper(it->second);
 }
 
 void DerivativesMap::setDerivedIndices(mlir::SymbolRefAttr variable,
@@ -421,6 +442,6 @@ DerivativesMap::getDerivedVariable(mlir::SymbolRefAttr derivative) const {
     return std::nullopt;
   }
 
-  return it->getSecond();
+  return it->second;
 }
 } // namespace mlir::bmodelica
