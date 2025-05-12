@@ -1944,16 +1944,18 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
 
-/*
+
   EXPECT(TokenKind::LPar);
+  /*
   if (! lookahead[0].isa<TokenKind::RPar>())
     {
       TRY(expressionList, parseExpressionList());
      // loc.end = expressionList->getLocation().end; //loc.end = (*expressionList)->getLocation().end;
       result->setExpressions(**expressionList);
     }
+    */
   EXPECT(TokenKind::RPar);
-*/
+
   return (std::move(result));
 }
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressionList() {
