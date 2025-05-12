@@ -424,7 +424,7 @@ TEST(Parser, external_function_call_test1) {
 
   ASSERT_TRUE((*node)->isa<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>());
 
-  auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
+ // auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
   //EXPECT_EQ(cr->->getName(), "x.y.z");
 
   //ASSERT_EQ(cr->getPathLength(), 3);
