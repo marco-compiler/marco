@@ -1940,9 +1940,10 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     EXPECT(TokenKind::AssignmentOperator);
     
   }
-
+/*
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
+  */
 /*
   EXPECT(TokenKind::LPar);
   if (! lookahead[0].isa<TokenKind::RPar>())
