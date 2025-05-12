@@ -1935,12 +1935,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
       && (lookahead[1].isa<TokenKind::LSquare>() || lookahead[1].isa<TokenKind::Dot>() || lookahead[1].isa<TokenKind::EqualityOperator>())))
   {
     TRY(compRef, parseComponentReference());
-    if (compRef.has_value())
-    {
-        result->setComponentReference(std::move(*compRef));
-        loc.end = (*compRef)->getLocation().end;
-      EXPECT(TokenKind::Equal);
-    }
+    result->setComponentReference(std::move(*compRef));
+    loc.end = compRef->getLocation().end;
+    EXPECT(TokenKind::Equal);
     
   }
 
