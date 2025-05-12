@@ -1926,7 +1926,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   
-  SourceRange loc = getLocation();
+  SourceRange loc = lookahead[0].getLocation();
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
 
@@ -1937,10 +1937,10 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     TRY(compRef, parseComponentReference());
     result->setComponentReference(std::move(*compRef));
  //   loc.end = (*compRef)->getLocation().end;
-    EXPECT(TokenKind::AssignmentOperator);
+  //  EXPECT(TokenKind::AssignmentOperator);
     
   }
-
+/*
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
 
@@ -1952,7 +1952,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
       result->setExpressions(**expressionList);
     }
   EXPECT(TokenKind::RPar);
-
+*/
   return (std::move(result));
 }
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressionList() {
