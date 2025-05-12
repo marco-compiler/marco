@@ -404,7 +404,7 @@ void testCheckForExternalTest (Parser parser, bool checkCounter,
 
 TEST(Parser, external_function_call_test1) {
 
-  auto str = R"(x)";
+  auto str = R"(x.y.z)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
