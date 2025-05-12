@@ -418,9 +418,11 @@ TEST(Parser, external_function_call_test1) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternalFunctionCall();
-  //ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
 
-  //ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>());
 
   auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference()->cast<ComponentReference>();
   //EXPECT_EQ(cr->->getName(), "x.y.z");

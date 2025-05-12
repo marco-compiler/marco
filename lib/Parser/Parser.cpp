@@ -1901,12 +1901,17 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
     auto result = std::make_unique<ExternalRef>(loc);
 
     EXPECT(TokenKind::External);
-    TRY(str, parseString());
-    result->setLanguageSpecification(str->getValue());
-    TRY(ext, parseExternalFunctionCall());
-    loc.end = (*ext)->getLocation().end;
-    result->setExternalFunctionCall(std::move(*ext));
-
+    if (lookahead[0].isa<TokenKind::String>())
+      {
+        TRY(str, parseString());
+        result->setLanguageSpecification(str->getValue());
+      }
+    if (lookahead[0].isa<TokenKind::Identifier>() || lookahead[0].isa<TokenKind::Dot>())
+    {
+      TRY(ext, parseExternalFunctionCall());
+      loc.end = (*ext)->getLocation().end;
+      result->setExternalFunctionCall(std::move(*ext)); 
+    }
     if (lookahead[0].isa<TokenKind::Annotation>()) {
       {
         TRY(annotation, parseAnnotation());
@@ -1921,26 +1926,31 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   
-    SourceRange loc = lookahead[0].getLocation();
+  SourceRange loc = lookahead[0].getLocation();
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
 
-  if (lookahead[0].isa<TokenKind::Dot>())
-    {
-      TRY(compRef, parseComponentReference());
-      result->setComponentReference(std::move(*compRef));
-      loc.end = (*compRef)->getLocation().end;
-      EXPECT(TokenKind::Equal);
-    }
+  if (lookahead[0].isa<TokenKind::Dot>() ||
+    (lookahead[0].isa<TokenKind::Identifier>()
+      && (lookahead[1].isa<TokenKind::LSquare>() || lookahead[1].isa<TokenKind::Dot>() || lookahead[1].isa<TokenKind::EqualityOperator>())))
+  {
+    TRY(compRef, parseComponentReference());
+    result->setComponentReference(std::move(*compRef));
+    loc.end = (*compRef)->getLocation().end;
+    EXPECT(TokenKind::Equal);
+  }
 
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
 
   EXPECT(TokenKind::LPar);
-  TRY(expressionList, parseExpressionList());
-  loc.end = expressionList->getLocation().end; //loc.end = (*expressionList)->getLocation().end;
-  result->setExpressions(**expressionList);
-
+  if (! lookahead[0].isa<TokenKind::RPar>())
+    {
+      TRY(expressionList, parseExpressionList());
+      loc.end = expressionList->getLocation().end; //loc.end = (*expressionList)->getLocation().end;
+      result->setExpressions(**expressionList);
+    }
+  EXPECT(TokenKind::RPar);
 
   return (std::move(result));
 }
