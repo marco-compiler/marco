@@ -1937,7 +1937,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     TRY(compRef, parseComponentReference());
     result->setComponentReference(std::move(*compRef));
  //   loc.end = (*compRef)->getLocation().end;
-    EXPECT(TokenKind::AssignmentOperator);
+    EXPECT(TokenKind::EqualityOperator);
     
   }
 /*
