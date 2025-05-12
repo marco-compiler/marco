@@ -1926,7 +1926,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   
-  SourceRange loc = lookahead[0].getLocation();
+  SourceRange loc = getLocation();
 
   auto result = std::make_unique<ExternalFunctionCall>(loc);
 
