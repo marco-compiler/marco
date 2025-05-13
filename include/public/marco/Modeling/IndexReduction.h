@@ -1,7 +1,10 @@
 #ifndef MARCO_MODELING_INDEXREDUCTION_H
 #define MARCO_MODELING_INDEXREDUCTION_H
 
-#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
+#ifndef DEBUG_TYPE
+#define DEBUG_TYPE "index-reduction"
+#endif
+
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
@@ -12,15 +15,13 @@
 
 namespace marco::modeling {
 
-using mlir::bmodelica::bridge::EquationBridge;
-using mlir::bmodelica::bridge::VariableBridge;
-
 namespace internal::indexReduction {
 
 /// A variable vertex in the graph.
+template <typename VariableData>
 class VariableVertex final : public Dumpable {
 public:
-  using Id = VariableBridge::Id;
+  using Id = typename VariableData::Id;
 
   Id getId() const { return id; }
   const IndexSet &getIndices() const { return indices; }
@@ -28,9 +29,8 @@ public:
   void hideIndices(const IndexSet &indices) { visibleIndices -= indices; }
   const IndexSet &getVisibleIndices() const { return visibleIndices; }
 
-  explicit VariableVertex(const VariableBridge &bridge)
-      : id(bridge.getId()), indices(bridge.getIndices()),
-        visibleIndices(indices) {}
+  explicit VariableVertex(const Id &id, const IndexSet &indices)
+      : id(id), indices(indices), visibleIndices(indices) {}
 
   void dump(llvm::raw_ostream &os) const override {
     if (visibleIndices != indices) {
@@ -52,9 +52,10 @@ private:
 };
 
 /// An equation vertex in the graph.
+template <typename EquationData>
 class EquationVertex final : public Dumpable {
 public:
-  using Id = EquationBridge::Id;
+  using Id = typename EquationData::Id;
 
   Id getId() const { return id; }
 
@@ -67,9 +68,9 @@ public:
     validIndices += indices;
   }
 
-  EquationVertex(const EquationBridge &bridge, const IndexSet &validIndices)
-      : id(bridge.getId()), allIndices(bridge.getIndices()),
-        validIndices(validIndices) {
+  EquationVertex(const Id &id, const IndexSet &indices,
+                 const IndexSet &validIndices)
+      : id(id), allIndices(indices), validIndices(validIndices) {
     assert(allIndices.contains(validIndices) &&
            "Valid indices must be a subset of equation indices");
   }
@@ -96,7 +97,7 @@ private:
 /// An edge from an equation to a variable in the graph.
 class Edge final : public Dumpable {
 public:
-  Edge(const VariableVertex::Id variableId, const MCIM &mapping)
+  Edge(const MCIM &mapping)
       : incidenceMatrix(std::make_shared<MCIM>(mapping)),
         mappings(std::make_shared<std::vector<MCIM>>()) {}
 
@@ -133,21 +134,24 @@ private:
 };
 
 /// A variable and a subset of its indices.
+template <typename VariableId>
 struct VariableSubset {
-  VariableVertex::Id id;
+  VariableId id;
   IndexSet indices;
 };
 
 /// An equation and a subset of its indices.
+template <typename EquationId>
 struct EquationSubset {
-  EquationVertex::Id id;
+  EquationId id;
   IndexSet indices;
 };
 
 /// Visitation state for a single `augmentPath`-execution.
+template <typename VariableId, typename EquationId>
 class Coloring final : public Dumpable {
 public:
-  void color(const EquationVertex::Id &equation, const IndexSet &indices) {
+  void color(const EquationId &equation, const IndexSet &indices) {
     if (indices.empty()) {
       return;
     }
@@ -158,7 +162,7 @@ public:
     }
   }
 
-  IndexSet getColoredIndices(const EquationVertex::Id &equation) const {
+  IndexSet getColoredIndices(const EquationId &equation) const {
     if (auto it = equationColoring.find(equation);
         it != equationColoring.end()) {
       return it->second;
@@ -166,7 +170,7 @@ public:
     return IndexSet();
   }
 
-  void color(const VariableVertex::Id &variable, const IndexSet &indices) {
+  void color(const VariableId &variable, const IndexSet &indices) {
     if (indices.empty()) {
       return;
     }
@@ -177,12 +181,12 @@ public:
     }
   }
 
-  void uncolor(const VariableVertex::Id &variable, const IndexSet &indices) {
+  void uncolor(const VariableId &variable, const IndexSet &indices) {
     variableColoring[variable] -= indices;
   }
 
-  IndexSet getColoredIndices(const VariableVertex &variable) const {
-    if (auto it = variableColoring.find(variable.getId());
+  IndexSet getColoredIndices(const VariableId &variable) const {
+    if (auto it = variableColoring.find(variable);
         it != variableColoring.end()) {
       return it->second;
     }
@@ -208,37 +212,38 @@ public:
   }
 
 private:
-  llvm::DenseMap<VariableVertex::Id, IndexSet> variableColoring;
-  llvm::DenseMap<EquationVertex::Id, IndexSet> equationColoring;
+  llvm::DenseMap<VariableId, IndexSet> variableColoring;
+  llvm::DenseMap<EquationId, IndexSet> equationColoring;
 };
 
-struct AssignmentComponent {
-  AssignmentComponent(EquationVertex::Id e, const IndexSet &indicesV,
-                      const internal::MCIM &evMapping)
-      : equationId(e), indicesV(indicesV), m(evMapping) {
-    assert(internal::isValidLocalMatchingSolution(evMapping) &&
-           "Assignment mapping must be one-to-one");
-  }
-  /// The equation that the variable is assigned to.
-  EquationVertex::Id equationId;
-  /// The indices of the variable that are assigned.
-  IndexSet indicesV;
-  /// The (one-to-one) mapping between the variable and equation.
-  internal::MCIM m;
-};
 
+template <typename VariableId, typename EquationId>
 class Assignments final : public Dumpable {
 public:
+  struct AssignmentComponent {
+    AssignmentComponent(EquationId e, const IndexSet &indicesV,
+                        const internal::MCIM &evMapping)
+        : equationId(e), indicesV(indicesV), m(evMapping) {
+      assert(internal::isValidLocalMatchingSolution(evMapping) &&
+             "Assignment mapping must be one-to-one");
+    }
+    /// The equation that the variable is assigned to.
+    EquationId equationId;
+    /// The indices of the variable that are assigned.
+    IndexSet indicesV;
+    /// The (one-to-one) mapping between the variable and equation.
+    internal::MCIM m;
+  };
+
   /// Get the current assignment for a variable.
-  llvm::SmallVector<AssignmentComponent> &
-  getAssignment(const VariableVertex::Id id) {
+  llvm::SmallVector<AssignmentComponent> &getAssignment(const VariableId id) {
     if (assignmentsMap.contains(id)) {
       return assignmentsMap[id];
     }
     return assignmentsMap.insert({id, {}}).first->second;
   }
 
-  void assign(const VariableVertex::Id variableId,
+  void assign(const VariableId variableId,
               AssignmentComponent &&assignmentComponent) {
     llvm::SmallVector<AssignmentComponent> &assignment =
         getAssignment(variableId);
@@ -252,7 +257,7 @@ public:
   }
 
   /// Get all assigned variable indices from the assignment.
-  IndexSet allAssignedVariableIndices(const VariableVertex::Id id) {
+  IndexSet allAssignedVariableIndices(const VariableId id) {
     IndexSet result;
     for (const AssignmentComponent &component : getAssignment(id)) {
       result += component.indicesV;
@@ -261,7 +266,7 @@ public:
   }
 
   /// Remove empty assignments.
-  void removeEmptyAssignments(const VariableVertex::Id id) {
+  void removeEmptyAssignments(const VariableId id) {
     llvm::erase_if(getAssignment(id),
                    [](const AssignmentComponent &assignmentComponent) {
                      return assignmentComponent.indicesV.empty();
@@ -283,35 +288,37 @@ public:
   }
 
 private:
-  llvm::DenseMap<VariableVertex::Id, llvm::SmallVector<AssignmentComponent>>
+  llvm::DenseMap<VariableId, llvm::SmallVector<AssignmentComponent>>
       assignmentsMap;
 };
 } // namespace internal::indexReduction
 
+template <typename VariableData, typename EquationData>
 class IndexReductionGraph final : public internal::Dumpable {
 public:
-  using VariableVertex = internal::indexReduction::VariableVertex;
-  using EquationVertex = internal::indexReduction::EquationVertex;
+  using VariableVertex = internal::indexReduction::VariableVertex<VariableData>;
+  using VariableId = typename VariableVertex::Id;
+  using EquationVertex = internal::indexReduction::EquationVertex<EquationData>;
+  using EquationId = typename EquationVertex::Id;
 
   struct PantelidesResult {
-    llvm::DenseMap<EquationVertex::Id, llvm::SmallVector<IndexSet>>
-        equationDerivatives;
-    llvm::DenseMap<VariableVertex::Id, llvm::SmallVector<IndexSet>>
-        variableDerivatives;
+    llvm::DenseMap<EquationId, llvm::SmallVector<IndexSet>> equationDerivatives;
+    llvm::DenseMap<VariableId, llvm::SmallVector<IndexSet>> variableDerivatives;
   };
 
 private:
   using Vertex = std::variant<VariableVertex, EquationVertex>;
   using Edge = internal::indexReduction::Edge;
   using Graph = internal::UndirectedGraph<Vertex, Edge>;
-  using VertexDescriptor = Graph::VertexDescriptor;
-  using EdgeDescriptor = Graph::EdgeDescriptor;
+  using VertexDescriptor = typename Graph::VertexDescriptor;
+  using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
-  using VariableSubset = internal::indexReduction::VariableSubset;
-  using EquationSubset = internal::indexReduction::EquationSubset;
-  using Coloring = internal::indexReduction::Coloring;
+  using VariableSubset = internal::indexReduction::VariableSubset<VariableId>;
+  using EquationSubset = internal::indexReduction::EquationSubset<EquationId>;
+  using Coloring = internal::indexReduction::Coloring<VariableId, EquationId>;
 
-  using Assignments = internal::indexReduction::Assignments;
+  using Assignments =
+      internal::indexReduction::Assignments<VariableId, EquationId>;
 
   template <typename VertexType>
   VertexType &getVertex(const VertexDescriptor descriptor) {
@@ -344,13 +351,13 @@ private:
                             graph.outgoingEdgesEnd(vertex));
   }
 
-  VertexDescriptor getDescriptorFromId(const VariableVertex::Id id) const {
+  VertexDescriptor getDescriptorFromId(const VariableId id) const {
     auto it = variablesMap.find(id);
     assert(it != variablesMap.end() && "Variable not found");
     return it->second;
   }
 
-  VertexDescriptor getDescriptorFromId(const EquationVertex::Id id) const {
+  VertexDescriptor getDescriptorFromId(const EquationId id) const {
     auto it = equationsMap.find(id);
     assert(it != equationsMap.end() && "Equation not found");
     return it->second;
@@ -359,7 +366,7 @@ private:
   /// Get the derivative of a variable if it has one, along with the derived
   /// indices.
   std::optional<VariableSubset>
-  getVariableDerivative(const VariableVertex::Id id) const {
+  getVariableDerivative(const VariableId id) const {
     if (auto it = variableAssociations.find(id);
         it != variableAssociations.end()) {
       return it->getSecond();
@@ -367,14 +374,14 @@ private:
     return std::nullopt;
   }
 
-  void setVariableDerivative(const VariableVertex::Id id,
+  void setVariableDerivative(const VariableId id,
                              const VariableSubset &derivative) {
     variableAssociations.insert_or_assign(id, derivative);
   }
 
   /// Get the derivative of an equation if it has one.
   std::optional<EquationSubset>
-  getEquationDerivative(const EquationVertex::Id id) const {
+  getEquationDerivative(const EquationId id) const {
     if (auto it = equationAssociations.find(id);
         it != equationAssociations.end()) {
       return it->getSecond();
@@ -382,14 +389,14 @@ private:
     return std::nullopt;
   }
 
-  void setEquationDerivative(const EquationVertex::Id id,
+  void setEquationDerivative(const EquationId id,
                              const EquationSubset &derivative) {
     equationAssociations.insert_or_assign(id, derivative);
   }
 
-  void addVariable(const VariableBridge &variableBridge) {
-    VariableVertex variable(variableBridge);
-    VariableVertex::Id id = variable.getId();
+  void addVariable(const VariableData &variableData) {
+    VariableVertex variable(variableData.getId(), variableData.getIndices());
+    VariableId id = variable.getId();
     assert(!variablesMap.contains(id) && "Variable id already in the graph");
     VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
     variablesMap.insert({id, variableDescriptor});
@@ -445,7 +452,7 @@ private:
   ///
   /// Look for unassigned variables reachable from the given indices of the
   /// equation. Returns the indices where an assignment could not be made.
-  IndexSet tryAssignAdjacent(const EquationVertex::Id eId, IndexSet indicesE,
+  IndexSet tryAssignAdjacent(const EquationId eId, IndexSet indicesE,
                              Assignments &assignments) {
     for (EdgeDescriptor evDescriptor :
          getEdgesRange(getDescriptorFromId(eId))) {
@@ -465,8 +472,7 @@ private:
   /// The assignment and coloring state are updated accordingly.
   ///
   /// Returns the subset of `indicesV` that were successfully reassigned.
-  IndexSet tryAugmentVariable(const VariableVertex::Id v,
-                              const IndexSet &indicesV,
+  IndexSet tryAugmentVariable(const VariableId v, const IndexSet &indicesV,
                               Assignments &assignments, Coloring &coloring) {
     IndexSet toAssignV;
     for (auto &assignmentComponent : assignments.getAssignment(v)) {
@@ -512,7 +518,7 @@ private:
   /// assigned.
   ///
   /// Returns the indices where no path was found.
-  IndexSet tryAugmentAdjacent(const EquationVertex::Id e, IndexSet indicesE,
+  IndexSet tryAugmentAdjacent(const EquationId e, IndexSet indicesE,
                               Assignments &assignments, Coloring &coloring) {
     // Look at each variable, v, accessed by e, at indices that are uncolored.
     for (EdgeDescriptor evDescriptor : getEdgesRange(getDescriptorFromId(e))) {
@@ -522,7 +528,7 @@ private:
       for (const auto &mEV : graph[evDescriptor].getMappings()) {
         IndexSet indicesV = Edge::variableIndices(indicesE, mEV)
                                 .intersect(v.getVisibleIndices()) -
-                            coloring.getColoredIndices(v);
+                            coloring.getColoredIndices(v.getId());
         if (indicesV.empty()) {
           continue;
         }
@@ -561,7 +567,7 @@ private:
   ///
   /// If the indices are not empty, the colored vertices make up a
   /// structurally singular subset of the system.
-  IndexSet augmentPath(const EquationVertex::Id e, IndexSet indicesE,
+  IndexSet augmentPath(const EquationId e, IndexSet indicesE,
                        Assignments &assignments, Coloring &coloring) {
     assert(!coloring.getColoredIndices(e).overlaps(indicesE) &&
            "Equation already colored at indices");
@@ -604,10 +610,10 @@ private:
         // The variable is a scalar or an array that is not yet
         // differentiated. Therefore, create a new variable, and establish
         // the derivative relationship.
-        const VariableBridge &dvBridge = differentiateVariable(v);
-        addVariable(dvBridge);
+        const VariableData &dvData = differentiateVariable(v);
+        addVariable(dvData);
         setVariableDerivative(v,
-                              VariableSubset{dvBridge.getId(), coloredIndices});
+                              VariableSubset{dvData.getId(), coloredIndices});
       }
     }
 
@@ -625,14 +631,15 @@ private:
             .validateIndices(coloredIndices);
       } else {
         // Create and add an equation node representing the derivative of e.
-        VertexDescriptor deDescriptor = graph.addVertex(
-            EquationVertex(differentiateEquation(e), coloredIndices));
+        const EquationData &deData = differentiateEquation(e);
+        VertexDescriptor deDescriptor = graph.addVertex(EquationVertex(
+            deData.getId(), deData.getIndices(), coloredIndices));
         EquationVertex &de = getVertex<EquationVertex>(deDescriptor);
         equationsMap[de.getId()] = deDescriptor;
 
         // Add edges to the variables accessed by the original equation,
         // and their derivatives.
-        llvm::DenseMap<VariableVertex::Id, internal::MCIM> toAdd;
+        llvm::DenseMap<VariableId, internal::MCIM> toAdd;
         for (EdgeDescriptor edgeDescriptor :
              getEdgesRange(getDescriptorFromId(e))) {
           const auto &v = getVertex<VariableVertex>(edgeDescriptor.to).getId();
@@ -652,7 +659,7 @@ private:
         }
         // Add edges to the graph.
         for (auto &[v, mapping] : toAdd) {
-          graph.addEdge(deDescriptor, getDescriptorFromId(v), Edge(v, mapping));
+          graph.addEdge(deDescriptor, getDescriptorFromId(v), Edge(mapping));
         }
 
         setEquationDerivative(e, {de.getId(), coloredIndices});
@@ -691,7 +698,7 @@ private:
   PantelidesResult buildPantelidesResult() {
     PantelidesResult result;
     // Collect the derivation-chain for each original equation
-    for (EquationVertex::Id equationId : initialEquations) {
+    for (EquationId equationId : initialEquations) {
       llvm::SmallVector<IndexSet> derivativeChain;
       auto derivative = getEquationDerivative(equationId);
       while (derivative) {
@@ -708,8 +715,8 @@ private:
     // The initial variables may contain both a variable and its derivative.
     // In those cases only the former derivative chain is kept, as the latter
     // chain is just a subset.
-    llvm::DenseSet<VariableVertex::Id> seenDerivatives;
-    for (VariableVertex::Id variableId : initialVariables) {
+    llvm::DenseSet<VariableId> seenDerivatives;
+    for (VariableId variableId : initialVariables) {
       llvm::SmallVector<IndexSet> derivativeChain;
       std::optional<VariableSubset> derivative =
           getVariableDerivative(variableId);
@@ -732,9 +739,9 @@ private:
   }
 
 public:
-  IndexReductionGraph(const std::function<VariableBridge &(VariableBridge::Id)>
+  IndexReductionGraph(const std::function<const VariableData &(VariableId)>
                           &differentiateVariable,
-                      const std::function<EquationBridge &(EquationBridge::Id)>
+                      const std::function<const EquationData &(EquationId)>
                           &differentiateEquation)
       : differentiateVariable(differentiateVariable),
         differentiateEquation(differentiateEquation) {}
@@ -743,22 +750,21 @@ public:
   /// Consists of an equation paired with the list of variable/access function
   /// pairs
   using EquationWithAccesses =
-      std::pair<EquationBridge *,
-                llvm::SmallVector<std::pair<VariableVertex::Id,
-                                            std::unique_ptr<AccessFunction>>>>;
+      std::pair<EquationData *,
+                llvm::SmallVector<
+                    std::pair<VariableId, std::unique_ptr<AccessFunction>>>>;
   /// Data for adding variable derivatives to the graph.
   /// Consists of a variable id, the id of the derivative, and the indices for
   /// which the variable is derived.
-  using VariableDerivative =
-      std::tuple<VariableVertex::Id, VariableVertex::Id, IndexSet>;
+  using VariableDerivative = std::tuple<VariableId, VariableId, IndexSet>;
 
   /// Initialize the graph with the given variables, variable derivatives, and
   /// equations.
   void
-  initialize(const llvm::SmallVector<VariableBridge *> &variables,
+  initialize(const llvm::SmallVector<VariableData *> &variables,
              const llvm::SmallVector<VariableDerivative> &variableDerivatives,
              const llvm::SmallVector<EquationWithAccesses> &equations) {
-    for (const VariableBridge *variable : variables) {
+    for (const VariableData *variable : variables) {
       addVariable(*variable);
       initialVariables.push_back(variable->getId());
     }
@@ -769,9 +775,10 @@ public:
                             VariableSubset{derivativeId, derivedIndices});
     }
 
-    for (const auto &[equationBridge, accesses] : equations) {
-      EquationVertex eq(*equationBridge, equationBridge->getIndices());
-      EquationVertex::Id id = eq.getId();
+    for (const auto &[equation, accesses] : equations) {
+      EquationVertex eq(equation->getId(), equation->getIndices(),
+                        equation->getIndices());
+      EquationId id = eq.getId();
       assert(!equationsMap.contains(id) && "Equation id already in graph");
       VertexDescriptor equationDescriptor = graph.addVertex(std::move(eq));
       equationsMap[id] = equationDescriptor;
@@ -781,7 +788,7 @@ public:
           getVertex<EquationVertex>(equationDescriptor).getIndices();
 
       // Build the mappings for each accessed variable.
-      llvm::DenseMap<VariableVertex::Id, internal::MCIM> mappings;
+      llvm::DenseMap<VariableId, internal::MCIM> mappings;
       for (const auto &[variableId, accessFunction] : accesses) {
         internal::MCIM mapping(
             equationRanges,
@@ -799,7 +806,7 @@ public:
       // Add one edge per accessed variable.
       for (auto &[variableId, mapping] : mappings) {
         graph.addEdge(equationDescriptor, getDescriptorFromId(variableId),
-                      Edge(variableId, mapping));
+                      Edge(mapping));
       }
     }
 
@@ -813,7 +820,7 @@ public:
   /// variable.
   PantelidesResult pantelides() {
     Assignments assignments;
-    for (EquationVertex::Id e : initialEquations) {
+    for (EquationId e : initialEquations) {
       LLVM_DEBUG(llvm::dbgs() << "Starting from equation: " << e << "\n");
       IndexSet indicesE =
           getVertex<EquationVertex>(getDescriptorFromId(e)).getIndices();
@@ -879,25 +886,23 @@ public:
 private:
   Graph graph;
 
-  std::function<VariableBridge &(const VariableBridge::Id)>
-      differentiateVariable;
-  std::function<EquationBridge &(const EquationBridge::Id)>
-      differentiateEquation;
+  std::function<const VariableData &(const VariableId)> differentiateVariable;
+  std::function<const EquationData &(const EquationId)> differentiateEquation;
 
-  llvm::DenseMap<VariableVertex::Id, VertexDescriptor> variablesMap;
-  llvm::DenseMap<EquationVertex::Id, VertexDescriptor> equationsMap;
+  llvm::DenseMap<VariableId, VertexDescriptor> variablesMap;
+  llvm::DenseMap<EquationId, VertexDescriptor> equationsMap;
 
   /// THe initial variables and equations added to the graph.
-  llvm::SmallVector<VariableVertex::Id> initialVariables;
-  llvm::SmallVector<EquationVertex::Id> initialEquations;
+  llvm::SmallVector<VariableId> initialVariables;
+  llvm::SmallVector<EquationId> initialEquations;
 
   /// Associates a variable with its derivative.
   /// v -> (v', indices of v)
-  llvm::DenseMap<VariableVertex::Id, VariableSubset> variableAssociations;
+  llvm::DenseMap<VariableId, VariableSubset> variableAssociations;
 
   /// Associates an equation with its derivative.
   /// e -> (e', indices of e)
-  llvm::DenseMap<EquationVertex::Id, EquationSubset> equationAssociations;
+  llvm::DenseMap<EquationId, EquationSubset> equationAssociations;
 };
 } // namespace marco::modeling
 

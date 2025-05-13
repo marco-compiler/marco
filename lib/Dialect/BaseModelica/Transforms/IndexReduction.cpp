@@ -1,10 +1,10 @@
-#include "mlir/IR/SymbolTable.h"
 #define DEBUG_TYPE "index-reduction"
 
-#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/IndexReduction.h"
+#include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/IndexReduction.h"
+#include "mlir/IR/SymbolTable.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
@@ -16,8 +16,10 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 
 namespace {
-using IndexReductionGraph = marco::modeling::IndexReductionGraph;
-using PantelidesResult = IndexReductionGraph::PantelidesResult;
+using IndexReductionGraph = marco::modeling::IndexReductionGraph<
+    mlir::bmodelica::bridge::VariableBridge,
+    mlir::bmodelica::bridge::EquationBridge>;
+using PantelidesResult = typename IndexReductionGraph::PantelidesResult;
 
 class IndexReductionPass final
     : public impl::IndexReductionPassBase<IndexReductionPass> {
@@ -231,7 +233,7 @@ mlir::LogicalResult IndexReductionPass::initializeGraph(
 }
 
 [[maybe_unused]] void printPantelidesResult(
-    const IndexReductionGraph::PantelidesResult &pantelidesResult,
+    const PantelidesResult &pantelidesResult,
     const DerivativesMap &derivativesMap, const bridge::Storage &storage) {
   llvm::dbgs() << "Pantelides result:\n";
   size_t index = 0;
