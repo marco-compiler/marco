@@ -337,8 +337,10 @@ TEST(Parser, external_test3) {
 
   auto node = parser.parseExternal();
 }
+
+*/
 TEST(Parser, external_test2) {
-  auto str = R"(external annotation())";
+  auto str = R"(external annotation(inline = true);)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -352,8 +354,21 @@ TEST(Parser, external_test2) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+  auto cr = (*node)->cast<ExternalRef>()->getAnnotationClause();
+
+  ASSERT_TRUE(cr.has_value());
+
+  ASSERT_TRUE((*cr)->isa<Annotation>());
+  EXPECT_TRUE((*cr)->cast<Annotation>()->getInlineProperty());
 }
-*/
 TEST(Parser, external_test1) {
   auto str = R"(external ;)";
 
