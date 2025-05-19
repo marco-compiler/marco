@@ -301,7 +301,6 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
   if (lookahead[0].isa<TokenKind::External>()) {
     TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
-    EXPECT(TokenKind::Semicolon);
     result->dyn_cast<Class>()->setExternalRef(std::move(*external));
   }
 
@@ -1912,16 +1911,15 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
       loc.end = (*ext)->getLocation().end;
       result->setExternalFunctionCall(std::move(*ext)); 
     }
-    if (lookahead[0].isa<TokenKind::Annotation>()) {
+    if (lookahead[0].isa<TokenKind::Annotation>())
       {
         TRY(annotation, parseAnnotation());
 
         result->setAnnotationClause(std::move(*annotation));
         //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
         
-      } 
-    EXPECT(TokenKind::Semicolon);
-  }
+      }
+  EXPECT(TokenKind::Semicolon);
   return (std::move(result));
 }
 
