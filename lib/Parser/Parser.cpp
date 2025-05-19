@@ -1919,7 +1919,8 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
         result->setAnnotationClause(std::move(*annotation));
         //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
         
-      }  
+      } 
+    EXPECT(TokenKind::Semicolon);
   }
   return (std::move(result));
 }
