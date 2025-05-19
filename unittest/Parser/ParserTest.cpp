@@ -129,48 +129,8 @@ TEST(Parser, expression_list_test2) {
 //  testCheckForExpressionListTest(parser, false, /*TO-DO);
 }
 
-TEST(Parser, external_function_call_test11) {
-  auto str = R"(abc(()))";
 
-  Parser parser = initForExternalTests(str);
 
-  //testCheckForExternalFunctionCallTest(parser, false, /*TO-DO);
-}
-TEST(Parser, external_function_call_test10) {
-  auto str = R"(abc())";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO);
-}
-TEST(Parser, external_function_call_test9) { //counter
-  auto str = R"(x.y.z x.y.z = a())";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
-TEST(Parser, external_function_call_test8) { //counter
-  auto str = R"(==)";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
-TEST(Parser, external_function_call_test7) { //counter
-  auto str = R"(x.y.z a())";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
-TEST(Parser, external_function_call_test6) { //counter
-  auto str = R"(x.y.z = a e)";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
 
 
 
@@ -182,13 +142,7 @@ TEST(Parser, external_test15) { //counter
  // testCheckForExternalTest(parser, true, /*TO-DO);
 }
 
-TEST(Parser, external_test14) { //counter
-  auto str = R"(external annotation())";
 
-  Parser parser = initForExternalTests(str);
-
-//  testCheckForExternalTest(parser, true, /*TO-DO);
-}
 
 TEST(Parser, external_test12) {
   auto str = R"(external "C" x.y.z = abc(3,4,5) annotation();)";
@@ -286,7 +240,143 @@ TEST(Parser, external_test1) {
 //  testCheckForExternalTest(parser, false, /*TO-DO);
 
 }*/
+/*
+TEST(Parser, external_test8) {
+  auto str = R"(external annotation())";
 
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test7) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test6) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test5) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test4) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test3) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+TEST(Parser, external_test2) {
+  auto str = R"(external annotation())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+}
+*/
+TEST(Parser, external_test1) {
+  auto str = R"(external ;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasExternalFunctionCall(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasAnnotationClause(), false);
+}
 TEST(Parser, external_function_call_test4) {
 
   auto str = R"(ret = abc(a or b, b and d))";
@@ -317,35 +407,9 @@ TEST(Parser, external_function_call_test4) {
   ASSERT_EQ(cr->getElement(0)->getName(), "ret");
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
-
-
 }
 
-
-TEST(Parser, external_function_call_test2) {
-
-  auto str = R"(f())";
-
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
-
-  auto diagnostics = getDiagnosticsEngine();
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExternalFunctionCall();
-
-  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
-
-  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), false);
-  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "f");
-
-}
-TEST(Parser, external_function_call_test1) {
+TEST(Parser, external_function_call_test3) {
 
   auto str = R"(x.y.z = abc())";
 
@@ -381,7 +445,7 @@ TEST(Parser, external_function_call_test1) {
 
 }
 
-TEST(Parser, external_function_call_test3) {
+TEST(Parser, external_function_call_test2) {
   auto str = R"(abc(3,4,5))";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -403,6 +467,29 @@ TEST(Parser, external_function_call_test3) {
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
   
  // ASSERT_TRUE(node->getExpression())
+}
+TEST(Parser, external_function_call_test1) {
+
+  auto str = R"(f())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), false);
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "f");
+
 }
 /*
   NELLA BUILD 85 test3 fallisce su una assert ma i log dicono che è passato
