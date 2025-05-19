@@ -309,7 +309,7 @@ TEST(Parser, external_test5) {
 
 */
 TEST(Parser, external_test4) {
-  auto str = R"(external annotation())";
+  auto str = R"(external x.y.z = abc() annotation(inline = false);)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -323,6 +323,38 @@ TEST(Parser, external_test4) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+  auto efc = (*node)->cast<ExternalRef>()->getExternalFunctionCall();
+
+  ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+  auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+  ASSERT_EQ(cr->getName(), "x.y.z");
+
+  ASSERT_EQ(cr->getPathLength(), 3);
+  ASSERT_EQ(cr->getElement(0)->getName(), "x");
+  ASSERT_EQ(cr->getElement(1)->getName(), "y");
+  ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+
+  auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
+
+  ASSERT_TRUE(ac->isa<Annotation>());
+  ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
+
 }
 TEST(Parser, external_test3) {
   auto str = R"(external x.y.z = abc() ;)";
@@ -356,7 +388,7 @@ TEST(Parser, external_test3) {
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
   auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
-  EXPECT_EQ(cr->getName(), "x.y.z");
+  ASSERT_EQ(cr->getName(), "x.y.z");
 
   ASSERT_EQ(cr->getPathLength(), 3);
   ASSERT_EQ(cr->getElement(0)->getName(), "x");
@@ -392,7 +424,7 @@ TEST(Parser, external_test2) {
   auto cr = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
   ASSERT_TRUE(cr->isa<Annotation>());
-  EXPECT_TRUE(cr->cast<Annotation>()->getInlineProperty());
+  ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
 }
 TEST(Parser, external_test1) {
   auto str = R"(external ;)";
@@ -441,7 +473,7 @@ TEST(Parser, external_function_call_test4) {
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
   auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
-  EXPECT_EQ(cr->getName(), "ret");
+  ASSERT_EQ(cr->getName(), "ret");
 
   ASSERT_EQ(cr->getPathLength(), 1);
   ASSERT_EQ(cr->getElement(0)->getName(), "ret");
