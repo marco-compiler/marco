@@ -20,7 +20,7 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
 }
 TEST(Parser, usage_of_external_test1)
   {
-    auto str = R"package Modelica
+    auto str = R"(package Modelica
                   package Math
                     function sin
                       input Real x;
@@ -29,7 +29,7 @@ TEST(Parser, usage_of_external_test1)
                       y = sin(x);
                     end sin;
                   end Math;
-                end Modelica;";
+                end Modelica;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
