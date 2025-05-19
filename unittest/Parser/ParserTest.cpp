@@ -308,6 +308,151 @@ TEST(Parser, external_test5) {
 
 
 */
+TEST(Parser, external_test8) {
+  auto str = R"(external "CIAO A TUTTI" x.y.z = abc() annotation(inline = false);)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "CIAO A TUTTI");
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+  auto efc = (*node)->cast<ExternalRef>()->getExternalFunctionCall();
+
+  ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+  auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+  ASSERT_EQ(cr->getName(), "x.y.z");
+
+  ASSERT_EQ(cr->getPathLength(), 3);
+  ASSERT_EQ(cr->getElement(0)->getName(), "x");
+  ASSERT_EQ(cr->getElement(1)->getName(), "y");
+  ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+
+  auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
+
+  ASSERT_TRUE(ac->isa<Annotation>());
+  ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
+
+}
+TEST(Parser, external_test7) {
+  auto str = R"(external "FORTRAN 77" x.y.z = abc() ;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "FORTRAN 77");
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
+
+  auto efc = (*node)->cast<ExternalRef>()->getExternalFunctionCall();
+
+  ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+  auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+  ASSERT_EQ(cr->getName(), "x.y.z");
+
+  ASSERT_EQ(cr->getPathLength(), 3);
+  ASSERT_EQ(cr->getElement(0)->getName(), "x");
+  ASSERT_EQ(cr->getElement(1)->getName(), "y");
+  ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+}
+TEST(Parser, external_test6) {
+  auto str = R"(external "builtin" annotation(inline = true);)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "builtin");
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+  auto cr = (*node)->cast<ExternalRef>()->getAnnotationClause();
+
+  ASSERT_TRUE(cr->isa<Annotation>());
+  ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
+}
+TEST(Parser, external_test5) {
+  auto str = R"(external "C";)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternal();
+
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "C");
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
+}
 TEST(Parser, external_test4) {
   auto str = R"(external x.y.z = abc() annotation(inline = false);)";
 
