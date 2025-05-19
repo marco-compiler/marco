@@ -418,19 +418,20 @@ TEST(Parser, external_function_call_test1) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternalFunctionCall();
-  //ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
 
-//  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
 
-//  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>());
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
 
- // auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
-  //EXPECT_EQ(cr->->getName(), "x.y.z");
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>());
 
-  //ASSERT_EQ(cr->getPathLength(), 3);
+  auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
+  EXPECT_EQ(cr->->getName(), "x.y.z");
+
+  ASSERT_EQ(cr->getPathLength(), 3);
 
 
-//  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
 
 }
 
@@ -457,6 +458,9 @@ TEST(Parser, external_function_call_test3) {
   
  // ASSERT_TRUE(node->getExpression())
 }
+/*
+  NELLA BUILD 85 test3 fallisce su una assert ma i log dicono che è passato
+*/
 /*
 TEST(Parser, expression_list_test1) {
   auto str = R"(012345)";
