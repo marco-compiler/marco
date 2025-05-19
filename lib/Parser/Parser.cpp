@@ -1904,21 +1904,19 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternal() {
     if (lookahead[0].isa<TokenKind::String>())
       {
         TRY(str, parseString());
+        loc.end = str->getLocation().end;
+        result -> setLocation(loc);  
         result->setLanguageSpecification(str->getValue());
       }
     if (lookahead[0].isa<TokenKind::Identifier>() || lookahead[0].isa<TokenKind::Dot>())
     {
       TRY(ext, parseExternalFunctionCall());
-      loc.end = (*ext)->getLocation().end;
       result->setExternalFunctionCall(std::move(*ext)); 
     }
     if (lookahead[0].isa<TokenKind::Annotation>()) {
       {
-        TRY(annotation, parseAnnotation());
-
+        TRY(annotation, parseAnnotation()); 
         result->setAnnotationClause(std::move(*annotation));
-        //loc.end = (*annotation)->getLocation().end; (in altri "setAnnotation" non era usato)
-        
       }  
   }
   return (std::move(result));
@@ -1936,28 +1934,28 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
   {
     TRY(compRef, parseComponentReference());
     result->setComponentReference(std::move(*compRef));
- //   loc.end = (*compRef)->getLocation().end;
-    EXPECT(TokenKind::EqualityOperator);
-    
+    EXPECT(TokenKind::EqualityOperator);    
   }
 
   TRY(id, parseIdentifier());
   result->setName(id->getValue());
-
+  loc.end = id->getLocation().end;  
+  result->setLocation(loc);
 
   EXPECT(TokenKind::LPar);
   
   if (! lookahead[0].isa<TokenKind::RPar>())
     {
       TRY(expressionList, parseExpressionList());
-     // loc.end = expressionList->getLocation().end; //loc.end = (*expressionList)->getLocation().end;
       result->setExpressions(**expressionList);
     }
   
+ 
   EXPECT(TokenKind::RPar);
 
   return (std::move(result));
 }
+
 WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressionList() {
   std::vector<std::unique_ptr<ast::ASTNode>> expressions;
 
