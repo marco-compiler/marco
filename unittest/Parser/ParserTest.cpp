@@ -314,9 +314,10 @@ TEST(Parser, external_function_call_test4) {
   EXPECT_EQ(cr->getName(), "ret");
 
   ASSERT_EQ(cr->getPathLength(), 1);
-  ASSERT_EQ(cr->getElement(0), "ret");
+  ASSERT_EQ(cr->getElement(0)->getName(), "ret");
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
+
 
 }
 
@@ -371,9 +372,9 @@ TEST(Parser, external_function_call_test1) {
   EXPECT_EQ(cr->getName(), "x.y.z");
 
   ASSERT_EQ(cr->getPathLength(), 3);
-  ASSERT_EQ(cr->getElement(0), "x");
-  ASSERT_EQ(cr->getElement(1), "y");
-  ASSERT_EQ(cr->getElement(2), "z");
+  ASSERT_EQ(cr->getElement(0)->getName(), "x");
+  ASSERT_EQ(cr->getElement(1)->getName(), "y");
+  ASSERT_EQ(cr->getElement(2)->getName(), "z");
 
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
