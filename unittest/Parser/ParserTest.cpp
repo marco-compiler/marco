@@ -171,28 +171,7 @@ TEST(Parser, external_function_call_test6) { //counter
 
  // testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
 }
-TEST(Parser, external_function_call_test5) { //counter
-  auto str = R"(x.y.z = ())";
 
-  Parser parser = initForExternalTests(str);
-
-//  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
-TEST(Parser, external_function_call_test4) { //counter
-  auto str = R"(=abc(3,4,5))";
-
-  Parser parser = initForExternalTests(str);
-
-//  testCheckForExternalFunctionCallTest(parser, true, /*TO-DO);
-}
-
-TEST(Parser, external_function_call_test2) { 
-  auto str = R"(x.y.z = abc())";
-
-  Parser parser = initForExternalTests(str);
-
- // testCheckForExternalFunctionCallTest(parser, false, /*TO-DO);
-}
 
 
 TEST(Parser, external_test15) { //counter
@@ -307,101 +286,64 @@ TEST(Parser, external_test1) {
 //  testCheckForExternalTest(parser, false, /*TO-DO);
 
 }*/
-/*
-void testCheckForExpressionListTest (Parser parser, bool checkCounter,
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> exp_el, int bl, int bc, int el, int ec)
-  {
-    auto node = parser.parseExpressionList();
 
-    if (!checkCounter)
-    {
-        ASSERT_TRUE(node.has_value());
-        EXPECT_EQ(node, exp_el);
+TEST(Parser, external_function_call_test4) {
 
-        EXPECT_EQ(node->getLocation().begin.line, bl);
-        EXPECT_EQ(node->getLocation().begin.column, bc);
+  auto str = R"(ret = abc(a or b, b and d))";
 
-        EXPECT_EQ(node->getLocation().end.line, el);
-        EXPECT_EQ(node->getLocation().end.column, ec);
-    }
-    else
-    {
-       ASSERT_FALSE(node.has_value());
-    }
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  }
-  */
-/*void testCheckForExternalFunctionCallTest (Parser parser, bool checkCounter,
-  llvm::StringRef exp_name,
-  std::unique_ptr<ASTNode> exp_cr,
-  llvm::ArrayRef<std::unique_ptr<ASTNode>> exp_el, int bl, int bc, int el, int ec)
-  {
-    auto node = parser.parseExternalFunctionCall();
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
 
-    if (!checkCounter)
-    {
-        ASSERT_TRUE(node.has_value());
-        EXPECT_EQ(node->getName(), exp_str);
-        EXPECT_EQ(node->getComponentReference(), exp_cr);
-        EXPECT_EQ(node->getExpressions(), exp_el);
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
 
-        EXPECT_EQ(node->getLocation().begin.line, bl);
-        EXPECT_EQ(node->getLocation().begin.column, bc);
+  Parser parser(*diagnostics, sourceManager, sourceFile);
 
-        EXPECT_EQ(node->getLocation().end.line, el);
-        EXPECT_EQ(node->getLocation().end.column, ec);
-    }
-    else
-    {
-       ASSERT_FALSE(node.has_value());
-    }
+  auto node = parser.parseExternalFunctionCall();
 
-  }
-  /*
-Parser initForExternalTests(auto str)
-  {
-    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
 
-    auto diagnostics = getDiagnosticsEngine();
-    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-    auto &sourceManager = fileSourceMgr.get();
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), true);
 
-    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-    sourceFile->setMemoryBuffer(buffer.get());
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
-    return (parser(*diagnostics, sourceManager, sourceFile));
-  }
-*/
-/*
-void testCheckForExternalTest (Parser parser, bool checkCounter,
-  llvm::StringRef exp_str,
-  std::unique_ptr<ASTNode> exp_efc,
-  std::unique_ptr<ASTNode> exp_ac, int bl, int bc, int el, int ec) {
+  auto cr = (*node)->cast<ExternalFunctionCall>()->getComponentReference();
+  EXPECT_EQ(cr->getName(), "ret");
 
-    auto node = parser.parseExternal();
+  ASSERT_EQ(cr->getPathLength(), 1);
+  ASSERT_EQ(cr->getElement(0), "ret");
 
-    if (!checkCounter)
-    {
-        ASSERT_TRUE(node.has_value());
-        EXPECT_EQ(node->getLanguageSpecification(), exp_str);
-        EXPECT_EQ(node->getExternalFunctionCall(), exp_efc);
-        EXPECT_EQ(node->getAnnotationClause(), exp_ac);
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
 
-        EXPECT_EQ(node->getLocation().begin.line, bl);
-        EXPECT_EQ(node->getLocation().begin.column, bc);
+}
 
-        EXPECT_EQ(node->getLocation().end.line, el);
-        EXPECT_EQ(node->getLocation().end.column, ec);
 
-    }
-    else
-    {
-       ASSERT_FALSE(node.has_value());
-    }
+TEST(Parser, external_function_call_test2) {
 
-  }
-  */
+  auto str = R"(f())";
 
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseExternalFunctionCall();
+
+  ASSERT_TRUE((*node)->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), false);
+  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "f");
+
+}
 TEST(Parser, external_function_call_test1) {
 
   auto str = R"(x.y.z = abc())";
@@ -429,6 +371,9 @@ TEST(Parser, external_function_call_test1) {
   EXPECT_EQ(cr->getName(), "x.y.z");
 
   ASSERT_EQ(cr->getPathLength(), 3);
+  ASSERT_EQ(cr->getElement(0), "x");
+  ASSERT_EQ(cr->getElement(1), "y");
+  ASSERT_EQ(cr->getElement(2), "z");
 
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
