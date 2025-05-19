@@ -305,6 +305,9 @@ TEST(Parser, external_test5) {
 
   auto node = parser.parseExternal();
 }
+
+
+*/
 TEST(Parser, external_test4) {
   auto str = R"(external annotation())";
 
@@ -322,7 +325,7 @@ TEST(Parser, external_test4) {
   auto node = parser.parseExternal();
 }
 TEST(Parser, external_test3) {
-  auto str = R"(external annotation())";
+  auto str = R"(external x.y.z = abc() ;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -336,9 +339,33 @@ TEST(Parser, external_test3) {
   Parser parser(*diagnostics, sourceManager, sourceFile);
 
   auto node = parser.parseExternal();
-}
 
-*/
+  ASSERT_TRUE((*node)->isa<ExternalRef>());
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
+
+  auto efc = (*node)->cast<ExternalRef>()->getExternalFunctionCall();
+
+  ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+  auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+  EXPECT_EQ(cr->getName(), "x.y.z");
+
+  ASSERT_EQ(cr->getPathLength(), 3);
+  ASSERT_EQ(cr->getElement(0)->getName(), "x");
+  ASSERT_EQ(cr->getElement(1)->getName(), "y");
+  ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+}
 TEST(Parser, external_test2) {
   auto str = R"(external annotation(inline = true);)";
 
