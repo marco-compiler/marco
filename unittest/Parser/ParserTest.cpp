@@ -21,14 +21,12 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
 TEST(Parser, usage_of_external_test1)
   {
     auto str = R"(package Modelica
-                  package Math
                     function sin
                       input Real x;
                       output Real y;
                     external \"builtin\"
                       y = sin(x);
                     end sin;
-                  end Math;
                 end Modelica;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
