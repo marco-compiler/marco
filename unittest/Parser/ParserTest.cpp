@@ -371,11 +371,11 @@ TEST(Parser, external_test1) {
   auto node = parser.parseExternal();
 
   ASSERT_TRUE((*node)->isa<ExternalRef>());
-  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasLanguageSpecification(), false);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), false);
 
-  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasExternalFunctionCall(), false);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
 
-  ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasAnnotationClause(), false);
+  ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
 }
 TEST(Parser, external_function_call_test4) {
 
