@@ -364,10 +364,10 @@ TEST(Parser, external_test2) {
 
   auto cr = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
-  ASSERT_TRUE(cr.has_value());
+  ASSERT_TRUE(cr->has_value());
 
-  ASSERT_TRUE((*cr)->isa<Annotation>());
-  EXPECT_TRUE((*cr)->cast<Annotation>()->getInlineProperty());
+  ASSERT_TRUE(cr->isa<Annotation>());
+  EXPECT_TRUE(cr->cast<Annotation>()->getInlineProperty());
 }
 TEST(Parser, external_test1) {
   auto str = R"(external ;)";
