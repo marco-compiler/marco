@@ -216,7 +216,6 @@ private:
   llvm::DenseMap<EquationId, IndexSet> equationColoring;
 };
 
-
 template <typename VariableId, typename EquationId>
 class Assignments final : public Dumpable {
 public:
@@ -253,16 +252,29 @@ public:
                                assignmentComponent.indicesV);
                          }) &&
            "Cannot assign already assigned indices");
+    auto [existingAssigned, inserted] =
+        assignedIndices.try_emplace(variableId, assignmentComponent.indicesV);
+    if (!inserted) {
+      existingAssigned->second += assignmentComponent.indicesV;
+    }
     assignment.push_back(std::move(assignmentComponent));
+  }
+
+  void unassign(const VariableId id, AssignmentComponent &assignmentComponent, const IndexSet &indices) {
+    assert(assignmentComponent.indicesV.contains(indices) &&
+           "Cannot unassign indices that are not assigned");
+    assert(assignedIndices.contains(id) &&
+           "Cannot unassign indices from a variable that has no assignment");
+    assignmentComponent.indicesV -= indices;
+    assignedIndices[id] -= indices;
   }
 
   /// Get all assigned variable indices from the assignment.
   IndexSet allAssignedVariableIndices(const VariableId id) {
-    IndexSet result;
-    for (const AssignmentComponent &component : getAssignment(id)) {
-      result += component.indicesV;
+    if (auto it = assignedIndices.find(id); it != assignedIndices.end()) {
+      return it->second;
     }
-    return result;
+    return IndexSet();
   }
 
   /// Remove empty assignments.
@@ -290,6 +302,7 @@ public:
 private:
   llvm::DenseMap<VariableId, llvm::SmallVector<AssignmentComponent>>
       assignmentsMap;
+  llvm::DenseMap<VariableId, IndexSet> assignedIndices;
 };
 } // namespace internal::indexReduction
 
@@ -499,7 +512,7 @@ private:
           Edge::variableIndices(augmentedE2, assignmentComponent.m);
       toAssignV += augmentedV;
       // Remove the indices from the old assignment component.
-      assignmentComponent.indicesV -= augmentedV;
+      assignments.unassign(v, assignmentComponent, augmentedV);
       // Uncolor the indices of v that were augmented.
       coloring.uncolor(v, augmentedV);
       if (toAssignV == indicesV) {
