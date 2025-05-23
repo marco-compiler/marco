@@ -1,5 +1,4 @@
 set(SOURCES
-    ExternalTest.cpp
     FloatLexerTest.cpp
     IntegerLexerTest.cpp
     LexerTest.cpp
