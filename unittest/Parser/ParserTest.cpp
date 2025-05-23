@@ -113,7 +113,7 @@ TEST(Parser, usage_of_external_test2)
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
     auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
-/*    ASSERT_EQ(cr->getName(), "x.y.z");
+   ASSERT_EQ(cr->getName(), "x.y.z");
 
     ASSERT_EQ(cr->getPathLength(), 3);
     ASSERT_EQ(cr->getElement(0)->getName(), "x");
@@ -123,10 +123,10 @@ TEST(Parser, usage_of_external_test2)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
-    auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
+    auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
     ASSERT_TRUE(ac->isa<Annotation>());
-    ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());*/
+    ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
   }
 TEST(Parser, usage_of_external_test1)
   {
