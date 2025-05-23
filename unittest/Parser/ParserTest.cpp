@@ -19,6 +19,134 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
 
+TEST(Parser, expression_list_singleExp) {
+  auto str = R"(foo())";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto expressionList_prs = parser.parseExpressionList();
+  ASSERT_TRUE(expressionList_prs.has_value());
+
+  auto expressionList = expressionList_prs -> getValue(); 
+
+  for (const auto& expression : expressionList) {
+      ASSERT_TRUE((*expression)->isa<Call>()); 
+  }
+
+  EXPECT_EQ((*expressionList_prs)->getLocation().begin.line, 1);
+  EXPECT_EQ((*expressionList_prs)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*expressionList_prs)->getLocation().end.line, 1);
+  EXPECT_EQ((*expressionList_prs)->getLocation().end.column, 5);
+}
+
+TEST(Parser, expression_list_heterogeneousList) {
+  auto str = R"(
+    foo(1, 2, 3), 
+    var,
+    not x, x and y, x or y,
+    ()
+  )";
+
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto expressionList_prs = parser.parseExpressionList();
+  ASSERT_TRUE(expressionList_prs.has_value());
+
+  auto expressionList = expressionList_prs -> getValue(); 
+
+  for (size_t i = 0; i < expressionList.size(); ++i) {
+    switch(i) {
+      case 0: 
+        ASSERT_TRUE(expressionList[i]->isa<Call>()); 
+        break; 
+      case 1: 
+        ASSERT_TRUE(expressionList[i]->isa<ComponentReference>()); 
+        break; 
+      case 2: 
+        ASSERT_TRUE(expressionList[i]->isa<Operation>()); 
+        EXPECT_EQ(expressionList[i]->cast<Operation>()->getOperationKind(), OperationKind::lnot);
+        break; 
+      case 3: 
+        ASSERT_TRUE(expressionList[i]->isa<Operation>());
+        EXPECT_EQ(expressionList[i]->cast<Operation>()->getOperationKind(), OperationKind::land);        
+        break; 
+      case 4: 
+        ASSERT_TRUE(expressionList[i]->isa<Operation>());
+        EXPECT_EQ(expressionList[i]->cast<Operation>()->getOperationKind(), OperationKind::lor);        
+        break;
+      case 5: 
+        ASSERT_TRUE(expressionList[i]->isa<Tuple>());
+        EXPECT_EQ(expressionList[i]->cast<Tuple>()->size(), 0);
+        break; 
+    }
+  }
+
+  EXPECT_EQ((*expressionList_prs)->getLocation().begin.line, 1);
+  EXPECT_EQ((*expressionList_prs)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*expressionList_prs)->getLocation().end.line, 6);
+  EXPECT_EQ((*expressionList_prs)->getLocation().end.column, 2);
+
+}
+
+TEST(Parser, expression_list_badFormatList) {
+  auto str = R"(foo(), )";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto expressionList = parser.parseExpressionList();
+  ASSERT_FALSE(expressionList.has_value());
+
+}
+
+TEST(Parser, expression_list_emptyList) {
+  auto str = R"()";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  auto diagnostics = getDiagnosticsEngine();
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto expressionList = parser.parseExpressionList();
+  ASSERT_FALSE(expressionList.has_value());
+
+}
+
 /*TEST(Parser, expression_list_test15) { //counter
   auto str = R"(, ,)";
 
@@ -504,30 +632,6 @@ TEST(Parser, external_function_call_test1) {
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "f");
 
 }
-/*
-  NELLA BUILD 85 test3 fallisce su una assert ma i log dicono che è passato
-*/
-/*
-TEST(Parser, expression_list_test1) {
-  auto str = R"(012345)";
-
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
-
-  auto diagnostics = getDiagnosticsEngine();
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto node = parser.parseExpressionList();
-  EXPECT_EQ(node.size(), 1);
-
-//  testCheckForExpressionListTest(parser, false, /*TO-DO);
-}
-*/
 
 TEST(Parser, rawValue_true) {
   auto str = R"(true)";
