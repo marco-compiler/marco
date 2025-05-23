@@ -18,6 +18,79 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
       std::move(diagOpts),
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
+TEST(Parser, usage_of_external_test5)
+  {
+    auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    algorithm
+                      y := fun();
+                    external "C"
+                      x.y.z = abc()
+                      annotation(inline = false);
+                    annotation(inline = true);
+                  end foo;)";
+
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    Parser parser(*diagnostics, sourceManager, sourceFile);
+
+    auto node = parser.parseClassDefinition();
+  }
+TEST(Parser, usage_of_external_test4)
+  {
+    auto str = R"(function foo
+                    input Real x;
+                    output Real y;
+                  external "C"
+                    x.y.z = abc()
+                    annotation(inline = false);
+                  annotation(inline = true);
+                  end foo;)";
+
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    Parser parser(*diagnostics, sourceManager, sourceFile);
+
+    auto node = parser.parseClassDefinition();
+  }
+TEST(Parser, usage_of_external_test2)
+  {
+    auto str = R"(function foo
+                    input Real x;
+                    output Real y;
+                  external "C"
+                    x.y.z = abc()
+                    annotation(inline = false);
+                  end foo;)";
+
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    Parser parser(*diagnostics, sourceManager, sourceFile);
+
+    auto node = parser.parseClassDefinition();
+  }
 TEST(Parser, usage_of_external_test1)
   {
     auto str = R"(function foo
@@ -38,7 +111,6 @@ TEST(Parser, usage_of_external_test1)
     Parser parser(*diagnostics, sourceManager, sourceFile);
 
     auto node = parser.parseClassDefinition();
-
   }
 TEST(Parser, external_test8) {
   auto str = R"(external "Haskell" x.y.z = abc() annotation(inline = false);)";
