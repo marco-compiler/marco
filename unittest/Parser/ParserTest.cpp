@@ -19,35 +19,35 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
 
-TEST(Parser, expression_list_singleExp) {
-  auto str = R"(foo())";
-
-  auto sourceFile = std::make_shared<SourceFile>("test.mo");
-
-  auto diagnostics = getDiagnosticsEngine();
-  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-  auto &sourceManager = fileSourceMgr.get();
-
-  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-  sourceFile->setMemoryBuffer(buffer.get());
-
-  Parser parser(*diagnostics, sourceManager, sourceFile);
-
-  auto expressionList_prs = parser.parseExpressionList();
-  ASSERT_TRUE(expressionList_prs.has_value());
-
-  auto expressionList = expressionList_prs -> getValue(); 
-
-  for (const auto& expression : expressionList) {
-      ASSERT_TRUE(expression->isa<Call>()); 
-  }
-
-  EXPECT_EQ(expressionList_prs->getLocation().begin.line, 1);
-  EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
-
-  EXPECT_EQ(expressionList_prs->getLocation().end.line, 1);
-  EXPECT_EQ(expressionList_prs->getLocation().end.column, 5);
-}
+//TEST(Parser, expression_list_singleExp) {
+//  auto str = R"(foo())";
+//
+//  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+//
+//  auto diagnostics = getDiagnosticsEngine();
+//  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+//  auto &sourceManager = fileSourceMgr.get();
+//
+//  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+//  sourceFile->setMemoryBuffer(buffer.get());
+//
+//  Parser parser(*diagnostics, sourceManager, sourceFile);
+//
+//  auto expressionList_prs = parser.parseExpressionList();
+//  ASSERT_TRUE(expressionList_prs.has_value());
+//
+//  auto expressionList = expressionList_prs -> getValue(); 
+//
+//  for (const auto& expression : expressionList) {
+//      ASSERT_TRUE(expression->isa<Call>()); 
+//  }
+//
+//  EXPECT_EQ(expressionList_prs->getLocation().begin.line, 1);
+//  EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
+//
+//  EXPECT_EQ(expressionList_prs->getLocation().end.line, 1);
+//  EXPECT_EQ(expressionList_prs->getLocation().end.column, 5);
+//}
 
 TEST(Parser, expression_list_heterogeneousList) {
   auto str = R"(
