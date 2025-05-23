@@ -92,7 +92,7 @@ TEST(Parser, usage_of_external_test2)
     auto node = parser.parseClassDefinition();
 
 
-  //  ASSERT_TRUE((*node)->isa<Function>());
+  ASSERT_TRUE((*node)->isa<Function>());
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
