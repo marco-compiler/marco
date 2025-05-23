@@ -112,15 +112,18 @@ TEST(Parser, usage_of_external_test1)
 
     auto node = parser.parseClassDefinition();
 
+    ASSERT_TRUE((*node)->isa<ClassDefinition>());
+
     auto er = (*node)->cast<ClassDefinition>()->getExternalRef();
 
-    ASSERT_TRUE((*er)->isa<ExternalRef>());
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasLanguageSpecification(), false);
+    ASSERT_TRUE(er->isa<ExternalRef>());
+    ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), false);
 
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
+    ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), false);
 
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasAnnotationClause(), false);
+    ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), false);
   }
+
 TEST(Parser, external_test8) {
   auto str = R"(external "Haskell" x.y.z = abc() annotation(inline = false);)";
 
