@@ -105,11 +105,11 @@ TEST(Parser, usage_of_external_test2)
     ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), true);
 
     auto efc = er->cast<ExternalRef>()->getExternalFunctionCall();
-/*
+
     ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
-
+/*
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
     auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
