@@ -39,7 +39,7 @@ TEST(Parser, expression_list_singleExp) {
   auto expressionList = expressionList_prs -> getValue(); 
 
   for (const auto& expression : expressionList) {
-      ASSERT_TRUE((*expression)->isa<Call>()); 
+      ASSERT_TRUE(expression->isa<Call>()); 
   }
 
   EXPECT_EQ((*expressionList_prs)->getLocation().begin.line, 1);
