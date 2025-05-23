@@ -23,7 +23,7 @@ TEST(Parser, usage_of_external_test1)
     auto str = R"(function foo
                     input Real x;
                     output Real y;
-                  external "C"
+                  algorithm
                     y = myFun(x);
                   end foo)";
 
