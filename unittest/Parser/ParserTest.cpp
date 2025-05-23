@@ -98,14 +98,14 @@ TEST(Parser, usage_of_external_test2)
 
     ASSERT_TRUE(er->isa<ExternalRef>());
     ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
- /*   ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
+    ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
 
     ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), true);
 
     ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), true);
 
     auto efc = er->cast<ExternalRef>()->getExternalFunctionCall();
-
+/*
     ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
