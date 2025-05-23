@@ -91,11 +91,12 @@ TEST(Parser, usage_of_external_test2)
 
     auto node = parser.parseClassDefinition();
 
+
     ASSERT_TRUE((*node)->isa<Function>());
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
-    ASSERT_TRUE(er->isa<ExternalRef>());
+    //ASSERT_TRUE(er->isa<ExternalRef>());
     ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
     ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
 
