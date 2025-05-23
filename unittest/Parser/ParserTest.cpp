@@ -107,7 +107,7 @@ TEST(Parser, usage_of_external_test3)
 
     ASSERT_TRUE((*node)->cast<Function>()->hasAnnotation());
 
-    auto fac = (*node)->cast<Function>()->getAnnotationClause();
+    auto fac = (*node)->cast<Function>()->getAnnotation();
 
     ASSERT_TRUE(fac->isa<Annotation>());
     ASSERT_TRUE(fac->cast<Annotation>()->getInlineProperty());
