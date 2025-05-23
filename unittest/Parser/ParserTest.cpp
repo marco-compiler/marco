@@ -36,7 +36,7 @@ TEST(Parser, expression_list_singleExp) {
   auto expressionList_prs = parser.parseExpressionList();
   ASSERT_TRUE(expressionList_prs.has_value());
 
-  auto expressionList = expressionList_prs -> getValue(); 
+  auto expressionList = expressionList_prs.getValue(); 
 
   for (const auto& expression : expressionList) {
       ASSERT_TRUE(expression->isa<Call>()); 
