@@ -47,12 +47,12 @@ TEST(Parser, usage_of_external_test5)
 TEST(Parser, usage_of_external_test4)
   {
     auto str = R"(function foo
-                    input Real x;
-                    output Real y;
-                  external "C"
-                    x.y.z = abc()
-                    annotation(inline = false);
-                  annotation(inline = true);
+                      input Real x;
+                      output Real y;
+                    external "C"
+                      x.y.z = abc()
+                      annotation(inline = false);
+                    annotation(inline = true);
                   end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -71,11 +71,11 @@ TEST(Parser, usage_of_external_test4)
 TEST(Parser, usage_of_external_test2)
   {
     auto str = R"(function foo
-                    input Real x;
-                    output Real y;
-                  external "C"
-                    x.y.z = abc()
-                    annotation(inline = false);
+                      input Real x;
+                      output Real y;
+                    external "C"
+                      x.y.z = abc()
+                      annotation(inline = false);
                   end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -94,9 +94,9 @@ TEST(Parser, usage_of_external_test2)
 TEST(Parser, usage_of_external_test1)
   {
     auto str = R"(function foo
-                    input Real x;
-                    output Real y;
-                  external ;
+                      input Real x;
+                      output Real y;
+                    external ;
                   end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -111,6 +111,15 @@ TEST(Parser, usage_of_external_test1)
     Parser parser(*diagnostics, sourceManager, sourceFile);
 
     auto node = parser.parseClassDefinition();
+
+    auto er = (*node)->cast<ClassDefinition>()->getExternalRef();
+
+    ASSERT_TRUE((*er)->isa<ExternalRef>());
+    ASSERT_EQ((*er)->cast<ExternalRef>()->hasLanguageSpecification(), false);
+
+    ASSERT_EQ((*er)->cast<ExternalRef>()->hasExternalFunctionCall(), false);
+
+    ASSERT_EQ((*er)->cast<ExternalRef>()->hasAnnotationClause(), false);
   }
 TEST(Parser, external_test8) {
   auto str = R"(external "Haskell" x.y.z = abc() annotation(inline = false);)";
