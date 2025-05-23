@@ -23,8 +23,7 @@ TEST(Parser, usage_of_external_test1)
     auto str = R"(function foo
                     input Real x;
                     output Real y;
-                  algorithm
-                    y := myFun(x);
+                  external ;
                   end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
