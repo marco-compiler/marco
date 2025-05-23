@@ -31,7 +31,7 @@ TEST(Parser, usage_of_external_test4)
                     annotation(inline = true);
                   end foo;)";
 
-    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+        auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
     auto diagnostics = getDiagnosticsEngine();
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
@@ -43,6 +43,54 @@ TEST(Parser, usage_of_external_test4)
     Parser parser(*diagnostics, sourceManager, sourceFile);
 
     auto node = parser.parseClassDefinition();
+
+    ASSERT_TRUE((*node)->isa<Function>());
+    ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
+
+    auto al = (*node)->cast<Function>()->getAlgorithms();
+
+    ASSERT_EQ(function->getAlgorithms().size(), 1);
+
+    auto er = (*node)->cast<Function>()->getExternalRef();
+
+    ASSERT_TRUE(er->isa<ExternalRef>());
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
+    ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+    auto efc = er->cast<ExternalRef>()->getExternalFunctionCall();
+
+    ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+    auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+    ASSERT_EQ(cr->getName(), "x.y.z");
+
+    ASSERT_EQ(cr->getPathLength(), 3);
+    ASSERT_EQ(cr->getElement(0)->getName(), "x");
+    ASSERT_EQ(cr->getElement(1)->getName(), "y");
+    ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+
+    auto ac = er->cast<ExternalRef>()->getAnnotationClause();
+
+    ASSERT_TRUE(ac->isa<Annotation>());
+    ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
+
+    ASSERT_TRUE((*node)->cast<Function>()->hasAnnotation());
+
+    auto fac = (*node)->cast<Function>()->getAnnotation();
+
+    ASSERT_TRUE(fac->isa<Annotation>());
+    ASSERT_TRUE(fac->cast<Annotation>()->getInlineProperty());
   }
 TEST(Parser, usage_of_external_test3)
   {
