@@ -73,16 +73,16 @@ TEST(Parser, usage_of_external_test3)
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
-    ASSERT_TRUE((*er)->isa<ExternalRef>());
+    ASSERT_TRUE(er->isa<ExternalRef>());
 
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasLanguageSpecification(), true);
-    ASSERT_EQ((*er)->cast<ExternalRef>()->getLanguageSpecification(), "C");
+    ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
+    ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
 
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+    ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), true);
 
-    ASSERT_EQ((*er)->cast<ExternalRef>()->hasAnnotationClause(), true);
+    ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), true);
 
-    auto efc = (*er)->cast<ExternalRef>()->getExternalFunctionCall();
+    auto efc = er->cast<ExternalRef>()->getExternalFunctionCall();
 
     ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
 
@@ -100,7 +100,7 @@ TEST(Parser, usage_of_external_test3)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
-    auto ac = (*er)->cast<ExternalRef>()->getAnnotationClause();
+    auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
     ASSERT_TRUE(ac->isa<Annotation>());
     ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
