@@ -24,8 +24,8 @@ TEST(Parser, usage_of_external_test1)
                     input Real x;
                     output Real y;
                   external "C"
-                    y = myFun();
-                  end foo;)";
+                    y = myFun(x);
+                  end foo)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -42,7 +42,7 @@ TEST(Parser, usage_of_external_test1)
 
   }
 TEST(Parser, external_test8) {
-  auto str = R"(external "CIAO A TUTTI" x.y.z = abc() annotation(inline = false);)";
+  auto str = R"(external "Haskell" x.y.z = abc() annotation(inline = false);)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -59,7 +59,7 @@ TEST(Parser, external_test8) {
 
   ASSERT_TRUE((*node)->isa<ExternalRef>());
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
-  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "CIAO A TUTTI");
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "Haskell");
 
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
 
