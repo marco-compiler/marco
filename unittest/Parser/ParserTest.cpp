@@ -45,11 +45,11 @@ TEST(Parser, usage_of_external_test4)
     auto node = parser.parseClassDefinition();
 
     ASSERT_TRUE((*node)->isa<Function>());
+
+    ASSERT_EQ((*node)->getAlgorithms().size(), 1);
+
     ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
 
-    auto al = (*node)->cast<Function>()->getAlgorithms();
-
-    ASSERT_EQ(function->getAlgorithms().size(), 1);
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
