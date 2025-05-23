@@ -42,11 +42,11 @@ TEST(Parser, expression_list_singleExp) {
       ASSERT_TRUE(expression->isa<Call>()); 
   }
 
-  EXPECT_EQ((*expressionList_prs)->getLocation().begin.line, 1);
-  EXPECT_EQ((*expressionList_prs)->getLocation().begin.column, 1);
+  EXPECT_EQ(expressionList_prs->getLocation().begin.line, 1);
+  EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
 
-  EXPECT_EQ((*expressionList_prs)->getLocation().end.line, 1);
-  EXPECT_EQ((*expressionList_prs)->getLocation().end.column, 5);
+  EXPECT_EQ(expressionList_prs->getLocation().end.line, 1);
+  EXPECT_EQ(expressionList_prs->getLocation().end.column, 5);
 }
 
 TEST(Parser, expression_list_heterogeneousList) {
