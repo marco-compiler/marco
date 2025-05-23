@@ -109,11 +109,11 @@ TEST(Parser, usage_of_external_test2)
     ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
-/*
+
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
     auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
-    ASSERT_EQ(cr->getName(), "x.y.z");
+/*    ASSERT_EQ(cr->getName(), "x.y.z");
 
     ASSERT_EQ(cr->getPathLength(), 3);
     ASSERT_EQ(cr->getElement(0)->getName(), "x");
