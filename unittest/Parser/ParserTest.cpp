@@ -46,7 +46,7 @@ TEST(Parser, usage_of_external_test4)
 
     ASSERT_TRUE((*node)->isa<Function>());
 
-    ASSERT_EQ((*node)->getAlgorithms().size(), 1);
+    ASSERT_EQ((*node)->cast<Function>()->getAlgorithms().size(), 1);
 
     ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
 
