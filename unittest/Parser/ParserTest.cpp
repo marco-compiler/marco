@@ -24,8 +24,8 @@ TEST(Parser, usage_of_external_test1)
                     input Real x;
                     output Real y;
                   algorithm
-                    y = myFun(x);
-                  end foo)";
+                    y := myFun(x);
+                  end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
