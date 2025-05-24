@@ -277,7 +277,8 @@ public:
     llvm::DenseMap<size_t, llvm::SmallVector<MultidimensionalRange>>
         printableIndicesMap;
 
-    for (const auto &printInfo : llvm::enumerate(op.getProperties().value)) {
+    for (const auto &printInfo :
+         llvm::enumerate(op.getProperties().getIndices())) {
       if (printInfo.value().isa<IndexSet>()) {
         const IndexSet &indices = printInfo.value().get<IndexSet>();
 
@@ -334,7 +335,8 @@ private:
     // Create the blocks and the switch.
     llvm::DenseSet<int64_t> printableVariables;
 
-    for (const auto &printInfo : llvm::enumerate(op.getProperties().value)) {
+    for (const auto &printInfo :
+         llvm::enumerate(op.getProperties().getIndices())) {
       if (printInfo.value().isa<bool>()) {
         if (printInfo.value().get<bool>()) {
           printableVariables.insert(printInfo.index());

@@ -162,7 +162,7 @@ void BaseModelicaToRuntimeConversionPass::runOnOperation() {
       modelOps[0]->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
   symbolTableCollection.getSymbolTable(parentSymbolTable).remove(modelOps[0]);
-  symbolTableCollection.removeSymbolTable(modelOps[0]);
+  symbolTableCollection.invalidateSymbolTable(modelOps[0]);
   rewriter.eraseOp(modelOps[0]);
 
   // Declare the time variable.

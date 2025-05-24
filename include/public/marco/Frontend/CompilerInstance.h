@@ -158,7 +158,7 @@ public:
   ///
   /// @return The new object on success, or null on failure.
   static llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> createDiagnostics(
-      llvm::vfs::FileSystem &VFS, clang::DiagnosticOptions *diagnosticOptions,
+      llvm::vfs::FileSystem &VFS, clang::DiagnosticOptions &diagnosticOptions,
       clang::DiagnosticConsumer *client = nullptr, bool shouldOwnClient = true);
 
   /// Create the file manager and replace any existing one with it.

@@ -25,7 +25,8 @@ struct RawVariableOpInterface
 
   mlir::LogicalResult bufferize(mlir::Operation *op,
                                 mlir::RewriterBase &rewriter,
-                                const BufferizationOptions &options) const {
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
     auto rawVariableOp = mlir::cast<RawVariableOp>(op);
 
     // Fold away the op if it has no uses.
@@ -80,7 +81,8 @@ struct RawVariableGetOpInterface
 
   mlir::LogicalResult bufferize(mlir::Operation *op,
                                 mlir::RewriterBase &rewriter,
-                                const BufferizationOptions &options) const {
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
     auto rawVariableGetOp = mlir::cast<RawVariableGetOp>(op);
 
     mlir::FailureOr<mlir::Value> memRef =
@@ -135,7 +137,8 @@ struct RawVariableSetOpInterface
 
   mlir::LogicalResult bufferize(mlir::Operation *op,
                                 mlir::RewriterBase &rewriter,
-                                const BufferizationOptions &options) const {
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
     auto rawVariableSetOp = mlir::cast<RawVariableSetOp>(op);
 
     mlir::FailureOr<mlir::Value> variableBuffer =

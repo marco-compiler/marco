@@ -1221,7 +1221,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   }
 
   symbolTableCollection->getSymbolTable(moduleOp).remove(functionOp);
-  symbolTableCollection->removeSymbolTable(functionOp);
+  symbolTableCollection->invalidateSymbolTable(functionOp);
   rewriter.eraseOp(functionOp);
 
   // Replace the local variables with the global ones.
@@ -1862,7 +1862,7 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   mlir::GreedyRewriteConfig config;
-  config.fold = true;
+  config.enableFolding();
   return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 

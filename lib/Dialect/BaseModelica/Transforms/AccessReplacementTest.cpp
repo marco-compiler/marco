@@ -124,7 +124,7 @@ public:
                                        equationsMap);
 
     mlir::GreedyRewriteConfig config;
-    config.fold = true;
+    config.enableFolding();
 
     if (mlir::failed(mlir::applyPatternsGreedily(modelOp, std::move(patterns),
                                                  config))) {

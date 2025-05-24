@@ -750,7 +750,7 @@ namespace marco::frontend {
 CompilerInvocationBase::CompilerInvocationBase()
     : languageOptions(llvm::makeIntrusiveRefCnt<LanguageOptions>()),
       targetOptions(std::make_shared<clang::TargetOptions>()),
-      diagnosticOptions(llvm::makeIntrusiveRefCnt<clang::DiagnosticOptions>()),
+      diagnosticOptions(std::make_shared<clang::DiagnosticOptions>()),
       fileSystemOptions(std::make_shared<clang::FileSystemOptions>()),
       frontendOptions(std::make_shared<FrontendOptions>()),
       codegenOptions(std::make_shared<CodegenOptions>()),
@@ -766,9 +766,7 @@ CompilerInvocationBase::deepCopyAssign(const CompilerInvocationBase &other) {
   if (this != &other) {
     languageOptions = makeIntrusiveRefCntCopy(other.getLanguageOptions());
     targetOptions = makeSharedCopy(other.getTargetOptions());
-
-    diagnosticOptions = makeIntrusiveRefCntCopy(other.getDiagnosticOptions());
-
+    diagnosticOptions = makeSharedCopy(other.getDiagnosticOptions());
     fileSystemOptions = makeSharedCopy(other.getFileSystemOptions());
     frontendOptions = makeSharedCopy(other.getFrontendOptions());
     codegenOptions = makeSharedCopy(other.getCodeGenOptions());

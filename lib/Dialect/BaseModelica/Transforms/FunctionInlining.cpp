@@ -735,8 +735,8 @@ void FunctionInliningPass::runOnOperation() {
                                 orderings);
 
   mlir::GreedyRewriteConfig config;
-  config.useTopDownTraversal = true;
-  config.fold = true;
+  config.setUseTopDownTraversal(true);
+  config.enableFolding();
 
   if (mlir::failed(
           mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config))) {

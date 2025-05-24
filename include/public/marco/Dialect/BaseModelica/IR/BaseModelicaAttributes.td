@@ -59,7 +59,7 @@ def BaseModelica_IntegerAttr
 
     let parameters = (ins
         AttributeSelfTypeParameter<"">:$type,
-        "::llvm::APInt":$value);
+        APIntParameter<"Value">:$value);
 
     let builders = [
         AttrBuilderWithInferredContext<(ins "Type":$type, "long":$value), [{
@@ -137,17 +137,11 @@ def BaseModelica_DenseIntegerElementsAttr
 
     let parameters = (ins
         AttributeSelfTypeParameter<"">:$type,
-        ArrayRefParameter<"::llvm::APInt", "elements">:$values);
+        ArrayRefParameter<"int64_t", "elements">:$values);
 
     let builders = [
         AttrBuilderWithInferredContext<(ins "Type":$type, "llvm::ArrayRef<int64_t>":$values), [{
-            llvm::SmallVector<llvm::APInt> data;
-
-            for (int64_t value : values) {
-                data.push_back(llvm::APInt(64, value, true));
-            }
-
-            return $_get(type.getContext(), type, data);
+            return $_get(type.getContext(), type, values);
         }]>
     ];
 

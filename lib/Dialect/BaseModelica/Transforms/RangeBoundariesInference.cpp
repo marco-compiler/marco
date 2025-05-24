@@ -151,7 +151,7 @@ public:
         &getContext());
 
     mlir::GreedyRewriteConfig config;
-    config.fold = true;
+    config.enableFolding();
 
     if (mlir::failed(mlir::applyPatternsGreedily(moduleOp, std::move(patterns),
                                                  config))) {

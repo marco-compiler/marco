@@ -55,7 +55,7 @@ mlir::ModuleOp EngineBuilder::lowerToLLVM() const {
   pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
   pm.addNestedPass<mlir::func::FuncOp>(
-      mlir::LLVM::createRequestCWrappersPass());
+      mlir::LLVM::createLLVMRequestCWrappersPass());
   pm.addPass(mlir::createConvertToLLVMPass());
   pm.addPass(mlir::createBaseModelicaToLLVMConversionPass());
   pm.addPass(mlir::createRuntimeToLLVMConversionPass());
@@ -64,7 +64,7 @@ mlir::ModuleOp EngineBuilder::lowerToLLVM() const {
       mlir::createReconcileUnrealizedCastsPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::LLVM::createLegalizeForExportPass());
+  pm.addPass(mlir::LLVM::createLLVMLegalizeForExportPass());
 
   if (mlir::failed(pm.run(loweredModule))) {
     loweredModule.emitOpError() << "Failed to lower module to LLVM";

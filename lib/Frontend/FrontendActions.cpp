@@ -1121,7 +1121,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::createCanonicalizerPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
-      mlir::LLVM::createLegalizeForExportPass());
+      mlir::LLVM::createLLVMLegalizeForExportPass());
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {

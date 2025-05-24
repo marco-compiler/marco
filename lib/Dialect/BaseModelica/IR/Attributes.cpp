@@ -62,6 +62,7 @@ void BaseModelicaDialect::registerAttributes() {
   addAttributes<
 #define GET_ATTRDEF_LIST
 #include "marco/Dialect/BaseModelica/IR/BaseModelicaAttributes.cpp.inc"
+
       >();
 }
 } // namespace mlir::bmodelica

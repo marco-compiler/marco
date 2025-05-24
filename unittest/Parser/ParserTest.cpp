@@ -8,15 +8,12 @@ using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
-  clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
-      new clang::DiagnosticOptions();
-
+std::unique_ptr<clang::DiagnosticsEngine>
+getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
   return std::make_unique<clang::DiagnosticsEngine>(
       llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(
           new clang::DiagnosticIDs()),
-      std::move(diagOpts),
-      new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
+      diagOpts, new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts));
 }
 
 TEST(Parser, rawValue_true) {
@@ -24,7 +21,8 @@ TEST(Parser, rawValue_true) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -50,7 +48,8 @@ TEST(Parser, rawValue_false) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -76,7 +75,8 @@ TEST(Parser, rawValue_integer) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -102,7 +102,8 @@ TEST(Parser, rawValue_float) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -128,7 +129,8 @@ TEST(Parser, rawValue_string) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -154,7 +156,8 @@ TEST(Parser, identifier) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -180,7 +183,8 @@ TEST(Parser, componentReference) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -222,7 +226,8 @@ TEST(Parser, algorithm_emptyBody) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -255,7 +260,8 @@ end M;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -288,7 +294,8 @@ end foo;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -319,7 +326,8 @@ TEST(Parser, partialDerFunction) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -402,7 +410,8 @@ TEST(Parser, algorithm_statementsCount) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -429,7 +438,8 @@ TEST(Parser, equalityEquation) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -469,7 +479,8 @@ TEST(Parser, statement_assignment) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -533,7 +544,8 @@ TEST(Parser, statement_assignmentWithMultipleDestinations) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -599,7 +611,8 @@ TEST(Parser, statement_assignmentWithIgnoredResults) // NOLINT
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -668,7 +681,8 @@ TEST(Parser, statement_function_call) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -707,7 +721,8 @@ end if;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -744,7 +759,8 @@ end if;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -792,7 +808,8 @@ end if;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -832,7 +849,8 @@ end for;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -865,7 +883,8 @@ end while;)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -894,7 +913,8 @@ TEST(Parser, statement_break) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -920,7 +940,8 @@ TEST(Parser, statement_return) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -946,7 +967,8 @@ TEST(Parser, expression_constant) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -973,7 +995,8 @@ TEST(Parser, expression_not) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1001,7 +1024,8 @@ TEST(Parser, expression_and) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1029,7 +1053,8 @@ TEST(Parser, expression_or) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1056,7 +1081,8 @@ TEST(Parser, expression_equal) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1084,7 +1110,8 @@ TEST(Parser, expression_notEqual) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1112,7 +1139,8 @@ TEST(Parser, expression_less) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1140,7 +1168,8 @@ TEST(Parser, expression_lessEqual) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1168,7 +1197,8 @@ TEST(Parser, expression_greater) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1196,7 +1226,8 @@ TEST(Parser, expression_greaterEqual) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1224,7 +1255,8 @@ TEST(Parser, expression_addition) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1251,7 +1283,8 @@ TEST(Parser, expression_additionElementWise) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1279,7 +1312,8 @@ TEST(Parser, expression_subtraction) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1307,7 +1341,8 @@ TEST(Parser, expression_subtractionElementWise) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1335,7 +1370,8 @@ TEST(Parser, expression_multiplication) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1363,7 +1399,8 @@ TEST(Parser, expression_multiplicationElementWise) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1391,7 +1428,8 @@ TEST(Parser, expression_division) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1419,7 +1457,8 @@ TEST(Parser, expression_divisionElementWise) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1447,7 +1486,8 @@ TEST(Parser, expression_additionAndMultiplication) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1500,7 +1540,8 @@ TEST(Parser, expression_multiplicationAndAddition) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1555,7 +1596,8 @@ TEST(Parser, expression_multiplicationAndDivision) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1610,7 +1652,8 @@ TEST(Parser, expression_divisionAndMultiplication) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1665,7 +1708,8 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1720,7 +1764,8 @@ TEST(Parser, expression_pow) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1748,7 +1793,8 @@ TEST(Parser, expression_powElementWise) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1776,7 +1822,8 @@ TEST(Parser, expression_tuple_empty) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1803,7 +1850,8 @@ TEST(Parser, expression_componentReference) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1835,7 +1883,8 @@ TEST(Parser, expression_array) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1878,7 +1927,8 @@ TEST(Parser, expression_array_induction) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -1909,7 +1959,8 @@ TEST(Parser, expression_subscription) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2006,7 +2057,8 @@ TEST(Parser, expression_subscriptionOfInlineArray) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2042,7 +2094,8 @@ TEST(Parser, expression_subscriptionOfFunctionCall) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2078,7 +2131,8 @@ TEST(Parser, expression_functionCall_noArgs) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2110,7 +2164,8 @@ TEST(Parser, expression_functionCall_unnamedArgs) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2201,7 +2256,8 @@ TEST(Parser, expression_functionCall_namedArgs) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2320,7 +2376,8 @@ TEST(Parser, expression_functionCall_reductionArg) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2402,7 +2459,8 @@ TEST(Parser, annotation_inlineTrue) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2429,7 +2487,8 @@ TEST(Parser, annotation_inlineFalse) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2456,7 +2515,8 @@ TEST(Parser, annotation_inverseFunction) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2495,7 +2555,8 @@ TEST(Parser, annotation_functionDerivativeWithOrder) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -2525,7 +2586,8 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 

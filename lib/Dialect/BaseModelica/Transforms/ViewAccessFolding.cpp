@@ -153,8 +153,8 @@ void ViewAccessFoldingPass::runOnOperation() {
   RangeStepOp::getCanonicalizationPatterns(patterns, &getContext());
 
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
-  config.fold = true;
+  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
+  config.enableFolding();
 
   if (mlir::failed(mlir::applyPatternsGreedily(getOperation(),
                                                std::move(patterns), config))) {

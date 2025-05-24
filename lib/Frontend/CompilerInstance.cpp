@@ -28,10 +28,7 @@ CompilerInstance::OutputFile::OutputFile(
     llvm::StringRef fileName, std::optional<llvm::sys::fs::TempFile> file)
     : fileName(fileName.str()), file(std::move(file)) {}
 
-CompilerInstance::CompilerInstance() : invocation(new CompilerInvocation()) {
-  clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
-      new clang::DiagnosticOptions();
-}
+CompilerInstance::CompilerInstance() : invocation(new CompilerInvocation()) {}
 
 CompilerInstance::~CompilerInstance() {
   assert(outputFiles.empty() && "Still output files in flight?");
@@ -174,12 +171,12 @@ void CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
                                          clang::DiagnosticConsumer *client,
                                          bool shouldOwnClient) {
   diagnostics =
-      createDiagnostics(VFS, &getDiagnosticOptions(), client, shouldOwnClient);
+      createDiagnostics(VFS, getDiagnosticOptions(), client, shouldOwnClient);
 }
 
 llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine>
 CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
-                                    clang::DiagnosticOptions *diagnosticOptions,
+                                    clang::DiagnosticOptions &diagnosticOptions,
                                     clang::DiagnosticConsumer *client,
                                     bool shouldOwnClient) {
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagID(
@@ -192,8 +189,7 @@ CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
   // implementing -verify.
   if (client) {
     diags->setClient(client, shouldOwnClient);
-  } else if (diagnosticOptions->getFormat() ==
-             clang::DiagnosticOptions::SARIF) {
+  } else if (diagnosticOptions.getFormat() == clang::DiagnosticOptions::SARIF) {
     diags->setClient(
         new clang::SARIFDiagnosticPrinter(llvm::errs(), diagnosticOptions));
   } else {
@@ -202,12 +198,12 @@ CompilerInstance::createDiagnostics(llvm::vfs::FileSystem &VFS,
   }
 
   // Chain in -verify checker, if requested.
-  if (diagnosticOptions->VerifyDiagnostics) {
+  if (diagnosticOptions.VerifyDiagnostics) {
     diags->setClient(new clang::VerifyDiagnosticConsumer(*diags));
   }
 
   // Configure our handling of diagnostics.
-  ProcessWarningOptions(*diags, *diagnosticOptions, VFS);
+  ProcessWarningOptions(*diags, diagnosticOptions, VFS);
 
   return diags;
 }
@@ -435,7 +431,7 @@ void CompilerInstance::setTarget(clang::TargetInfo *value) { target = value; }
 
 bool CompilerInstance::createTarget() {
   setTarget(clang::TargetInfo::CreateTargetInfo(
-      getDiagnostics(), getInvocation().getTargetOptionsPtr()));
+      getDiagnostics(), getInvocation().getTargetOptions()));
 
   return true;
 }

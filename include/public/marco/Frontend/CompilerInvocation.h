@@ -24,7 +24,7 @@ private:
   std::shared_ptr<clang::TargetOptions> targetOptions;
 
   /// Options controlling the diagnostic engine.
-  llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOptions;
+  std::shared_ptr<clang::DiagnosticOptions> diagnosticOptions;
 
   /// Options controlling file system operations.
   std::shared_ptr<clang::FileSystemOptions> fileSystemOptions;

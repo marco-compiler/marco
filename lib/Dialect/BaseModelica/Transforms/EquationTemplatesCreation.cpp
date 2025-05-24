@@ -277,7 +277,7 @@ EquationTemplatesCreationPass::createTemplates(ModelOp modelOp) {
   patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
 
   return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }

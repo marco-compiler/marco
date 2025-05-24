@@ -454,7 +454,7 @@ mlir::LogicalResult EulerForwardPass::cleanModelOp(ModelOp modelOp) {
   mlir::RewritePatternSet patterns(&getContext());
   ModelOp::getCleaningPatterns(patterns, &getContext());
   mlir::GreedyRewriteConfig config;
-  config.fold = true;
+  config.enableFolding();
   return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 

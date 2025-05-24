@@ -11,7 +11,8 @@ struct FunctionOpInterface
                                                     FunctionOp> {
   mlir::LogicalResult bufferize(mlir::Operation *op,
                                 mlir::RewriterBase &rewriter,
-                                const BufferizationOptions &options) const {
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
     auto functionOp = mlir::cast<FunctionOp>(op);
 
     llvm::SmallVector<mlir::Type> args;
@@ -90,7 +91,8 @@ struct CallOpInterface
 
   mlir::LogicalResult bufferize(mlir::Operation *op,
                                 mlir::RewriterBase &rewriter,
-                                const BufferizationOptions &options) const {
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
     auto callOp = mlir::cast<CallOp>(op);
     llvm::SmallVector<mlir::Value> args;
 

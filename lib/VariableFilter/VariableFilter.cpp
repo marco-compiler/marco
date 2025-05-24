@@ -169,18 +169,16 @@ std::optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str) {
 
   sourceManager.get().overrideFileContents(fileRef, *buffer);
 
-  clang::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
-      new clang::DiagnosticOptions();
-
-  diagOpts->ShowColors = true;
+  clang::DiagnosticOptions diagOpts;
+  diagOpts.ShowColors = true;
 
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
       new clang::DiagnosticIDs());
 
-  auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
+  auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts);
 
   auto *diagnostics =
-      new clang::DiagnosticsEngine(diagID, &*diagOpts, diagClient);
+      new clang::DiagnosticsEngine(diagID, diagOpts, diagClient);
 
   diagnostics->setSourceManager(&sourceManager.get());
   clang::LangOptions langOptions;

@@ -186,13 +186,13 @@ cleanEquationTemplates(mlir::RewriterBase &rewriter,
 
   mlir::FrozenRewritePatternSet frozenPatterns(std::move(patterns));
   mlir::GreedyRewriteConfig config;
-  config.fold = true;
+  config.enableFolding();
 
   mlir::OpBuilder::Listener *listener = rewriter.getListener();
   mlir::RewriterBase::ForwardingListener forwardingListener(listener);
 
   if (listener != nullptr) {
-    config.listener = &forwardingListener;
+    config.setListener(&forwardingListener);
   }
 
   for (EquationTemplateOp templateOp : templateOps) {

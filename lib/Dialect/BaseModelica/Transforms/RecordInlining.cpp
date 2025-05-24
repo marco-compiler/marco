@@ -1249,8 +1249,8 @@ mlir::LogicalResult RecordInliningPass::explicitateAccesses(
                                             symbolTableCollection);
 
   mlir::GreedyRewriteConfig config;
-  config.useTopDownTraversal = true;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+  config.setUseTopDownTraversal(true);
+  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
 
   return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
@@ -1333,8 +1333,8 @@ mlir::LogicalResult RecordInliningPass::unpackRecordVariables(
                                         symbolTableCollection);
 
   mlir::GreedyRewriteConfig config;
-  config.useTopDownTraversal = true;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+  config.setUseTopDownTraversal(true);
+  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
 
   return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }
@@ -1351,7 +1351,7 @@ mlir::LogicalResult RecordInliningPass::foldRecordCreateOps(
   patterns.add<RecordCreateOpFoldPattern>(&getContext());
 
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
+  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
 
   return mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config);
 }

@@ -64,17 +64,12 @@ protected:
 
     if (auto integerArrayAttr =
             mlir::dyn_cast<DenseIntegerElementsAttr>(values)) {
-      llvm::SmallVector<int64_t> casted;
-
-      for (const auto &value : integerArrayAttr.getValues()) {
-        casted.push_back(value.getSExtValue());
-      }
-
       auto elementType = this->getTypeConverter()->convertType(
           mlir::cast<ArrayType>(integerArrayAttr.getType()).getElementType());
 
       auto tensorType = mlir::RankedTensorType::get(shape, elementType);
-      return mlir::DenseIntElementsAttr::get(tensorType, casted);
+      return mlir::DenseIntElementsAttr::get(tensorType,
+                                             integerArrayAttr.getValues());
     }
 
     if (auto realArrayAttr = mlir::dyn_cast<DenseRealElementsAttr>(values)) {
@@ -216,7 +211,7 @@ class TensorToArrayOpLowering
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto memrefType = getTypeConverter()->convertType(op.getResult().getType());
 
-    rewriter.replaceOpWithNewOp<mlir::bufferization::ToMemrefOp>(
+    rewriter.replaceOpWithNewOp<mlir::bufferization::ToBufferOp>(
         op, memrefType, adaptor.getTensor());
 
     return mlir::success();

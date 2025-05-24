@@ -1496,7 +1496,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   }
 
   symbolTableCollection->getSymbolTable(moduleOp).remove(functionOp);
-  symbolTableCollection->removeSymbolTable(functionOp);
+  symbolTableCollection->invalidateSymbolTable(functionOp);
   rewriter.eraseOp(functionOp);
 
   // Replace the mapped variables with qualified accesses.

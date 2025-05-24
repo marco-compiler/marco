@@ -111,7 +111,7 @@ mlir::LogicalResult DerivativeChainRulePass::applyChainRule() {
   patterns.insert<FoldDerPattern>(&getContext(), symbolTableCollection, states);
 
   mlir::GreedyRewriteConfig config;
-  config.fold = true;
+  config.enableFolding();
 
   return mlir::applyPatternsGreedily(getOperation(), std::move(patterns),
                                      config);

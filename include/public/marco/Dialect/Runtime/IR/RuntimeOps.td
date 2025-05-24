@@ -312,9 +312,9 @@ def Runtime_PrintableIndicesOp : Runtime_Op<"printable_indices",
         ```
     }];
 
-    let arguments = (ins PrintableIndicesListProperty:$value);
+    let arguments = (ins PrintableIndicesListProperty:$indices);
 
-    let assemblyFormat = "custom<PrintableIndicesList>($value) attr-dict";
+    let assemblyFormat = "custom<PrintableIndicesList>($indices) attr-dict";
 }
 
 def Runtime_InitFunctionOp : Runtime_Op<"init_function",

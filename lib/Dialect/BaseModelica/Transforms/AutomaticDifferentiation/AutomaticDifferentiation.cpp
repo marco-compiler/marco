@@ -130,7 +130,7 @@ mlir::LogicalResult AutomaticDifferentiationPass::convertPartialDerFunction(
       symbolTableCollection.getSymbolTable(templateParentSymbolTable)
           .remove(*templateFunction);
 
-      symbolTableCollection.removeSymbolTable(*templateFunction);
+      symbolTableCollection.invalidateSymbolTable(*templateFunction);
 
       // TODO Use rewriter to erase the operation.
       templateFunction->erase();

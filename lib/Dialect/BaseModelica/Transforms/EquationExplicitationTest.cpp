@@ -56,7 +56,7 @@ void EquationExplicitationTestPass::runOnOperation() {
                                    processedEquations);
 
   mlir::GreedyRewriteConfig config;
-  config.fold = true;
+  config.enableFolding();
 
   if (mlir::failed(mlir::applyPatternsGreedily(getOperation(),
                                                std::move(patterns), config))) {
