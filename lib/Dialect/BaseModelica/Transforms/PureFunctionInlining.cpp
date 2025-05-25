@@ -607,6 +607,12 @@ void PureFunctionInliningPass::runOnOperation() {
   collectGraphEdges(callGraph, symbolTables, moduleOp, moduleOp);
 
   auto inlinableFunctions = callGraph.getInlinableFunctions();
+
+  if (inlinableFunctions.empty()) {
+    // Nothing to do.
+    return;
+  }
+
   llvm::SmallVector<CallOp> inlinedCalls;
 
   moduleOp.walk([&](CallOp callOp) {
