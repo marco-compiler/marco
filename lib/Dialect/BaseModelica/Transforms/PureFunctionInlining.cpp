@@ -1,4 +1,4 @@
-#include "marco/Dialect/BaseModelica/Transforms/FunctionInlining.h"
+#include "marco/Dialect/BaseModelica/Transforms/PureFunctionInlining.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -8,7 +8,7 @@
 #include <set>
 
 namespace mlir::bmodelica {
-#define GEN_PASS_DEF_FUNCTIONINLININGPASS
+#define GEN_PASS_DEF_PUREFUNCTIONINLININGPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
 } // namespace mlir::bmodelica
 
@@ -699,11 +699,11 @@ private:
 };
 
 namespace {
-class FunctionInliningPass
-    : public mlir::bmodelica::impl::FunctionInliningPassBase<
-          FunctionInliningPass> {
+class PureFunctionInliningPass
+    : public mlir::bmodelica::impl::PureFunctionInliningPassBase<
+          PureFunctionInliningPass> {
 public:
-  using FunctionInliningPassBase::FunctionInliningPassBase;
+  using PureFunctionInliningPassBase::PureFunctionInliningPassBase;
 
   void runOnOperation() override;
 
@@ -718,7 +718,7 @@ private:
 };
 } // namespace
 
-void FunctionInliningPass::runOnOperation() {
+void PureFunctionInliningPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
   mlir::SymbolTableCollection symbolTable;
 
@@ -744,7 +744,7 @@ void FunctionInliningPass::runOnOperation() {
   }
 }
 
-void FunctionInliningPass::collectGraphNodes(
+void PureFunctionInliningPass::collectGraphNodes(
     CallGraph &callGraph, DefaultOpComputationOrderings &orderings,
     mlir::Operation *op) const {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
@@ -780,7 +780,7 @@ void FunctionInliningPass::collectGraphNodes(
   }
 }
 
-void FunctionInliningPass::collectGraphEdges(
+void PureFunctionInliningPass::collectGraphEdges(
     CallGraph &callGraph, mlir::SymbolTableCollection &symbolTable,
     mlir::ModuleOp moduleOp, mlir::Operation *op) const {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
@@ -804,7 +804,7 @@ void FunctionInliningPass::collectGraphEdges(
 }
 
 namespace mlir::bmodelica {
-std::unique_ptr<mlir::Pass> createFunctionInliningPass() {
-  return std::make_unique<FunctionInliningPass>();
+std::unique_ptr<mlir::Pass> createPureFunctionInliningPass() {
+  return std::make_unique<PureFunctionInliningPass>();
 }
 } // namespace mlir::bmodelica

@@ -860,9 +860,9 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   pm.addPass(mlir::bmodelica::createAutomaticDifferentiationPass());
   pm.addPass(mlir::bmodelica::createDerivativeChainRulePass());
 
-  // Inline the functions marked as "inlinable", in order to enable
+  // Inline the pure functions marked as "inlinable" to possibly enable
   // simplifications for the model solving process.
-  pm.addPass(mlir::bmodelica::createFunctionInliningPass());
+  pm.addPass(mlir::bmodelica::createPureFunctionInliningPass());
 
   pm.addPass(mlir::bmodelica::createRecordInliningPass());
   pm.addPass(mlir::bmodelica::createFunctionUnwrapPass());

@@ -31,7 +31,6 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     ExplicitInitialEquationsInsertion.cpp
     ExplicitStartValueInsertion.cpp
     FunctionDefaultValuesConversion.cpp
-    FunctionInlining.cpp
     FunctionScalarization.cpp
     FunctionUnwrap.cpp
     IDA.cpp
@@ -43,6 +42,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     OpDistribution.cpp
     Passes.cpp
     PrintModelInfo.cpp
+    PureFunctionInlining.cpp
     RangeBoundariesInference.cpp
     ReadOnlyVariablesPropagation.cpp
     RecordInlining.cpp

@@ -180,21 +180,6 @@ def FunctionDefaultValuesConversionPass
         "mlir::bmodelica::createFunctionDefaultValuesConversionPass()";
 }
 
-def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp">
-{
-    let summary = "Inline Modelica functions.";
-
-    let description = [{
-        Inline modelica functions.
-    }];
-
-    let dependentDialects = [
-        "mlir::bmodelica::BaseModelicaDialect",
-    ];
-
-    let constructor = "mlir::bmodelica::createFunctionInliningPass()";
-}
-
 def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
 {
     let summary = "Scalarize";
@@ -243,6 +228,21 @@ def ModelAlgorithmConversionPass
     ];
 
     let constructor = "mlir::bmodelica::createModelAlgorithmConversionPass()";
+}
+
+def PureFunctionInliningPass : Pass<"pure-function-inlining", "mlir::ModuleOp">
+{
+    let summary = "Inline pure functions.";
+
+    let description = [{
+        Inline functions that have no side effects.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor = "mlir::bmodelica::createPureFunctionInliningPass()";
 }
 
 def RangeBoundariesInferencePass : Pass<"infer-range-boundaries", "mlir::ModuleOp">
