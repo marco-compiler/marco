@@ -141,23 +141,23 @@ private:
   getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
                                ModelOp modelOp, EquationInstanceOp equationOp);
 
-  mlir::LogicalResult createPartialDerTemplateFunction(
-      mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      EquationInstanceOp equationOp,
-      llvm::DenseMap<VariableOp, size_t> &variablesPos,
+  mlir::LogicalResult getOrCreatePartialDerTemplateFunction(
+      mlir::RewriterBase &rewriter,
+      PartialDerivativeTemplatesCollection &pderTemplates,
+      mlir::ModuleOp moduleOp, ModelOp modelOp, EquationTemplateOp templateOp,
       llvm::StringRef templateName, const ProxyMap &proxyMap);
 
   mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
       mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      EquationInstanceOp equationOp,
-      llvm::DenseMap<VariableOp, size_t> &variablesPos,
+      EquationTemplateOp templateOp,
+      llvm::MapVector<VariableOp, size_t> &variablesPos,
       llvm::StringRef templateName, const ProxyMap &proxyMap);
 
   mlir::LogicalResult createJacobianFunction(
-      mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
-      const llvm::DenseMap<VariableOp, size_t> &variablesPos,
-      VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+      mlir::OpBuilder &builder,
+      PartialDerivativeTemplatesCollection &pderTemplates,
+      mlir::ModuleOp moduleOp, ModelOp modelOp, EquationInstanceOp equationOp,
+      llvm::StringRef jacobianFunctionName, VariableOp independentVariable,
       llvm::SmallVectorImpl<int64_t> &seedSizes);
 
   mlir::LogicalResult
@@ -549,7 +549,6 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
   size_t accessFunctionsCounter = 0;
   size_t residualFunctionsCounter = 0;
   size_t jacobianFunctionsCounter = 0;
-  size_t partialDerTemplatesCounter = 0;
 
   llvm::DenseMap<VariableOp, mlir::Value> variablesMapping;
 
@@ -557,6 +556,8 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
        llvm::zip(variables, kinsolVariables)) {
     variablesMapping[variable] = kinsolVariable;
   }
+
+  PartialDerivativeTemplatesCollection pderTemplates;
 
   for (EquationInstanceOp equationOp : equations) {
     // Keep track of the accessed variables in order to reduce the amount of
@@ -615,14 +616,12 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
     }
 
     // Create the partial derivative template.
-    std::string partialDerTemplateName = getKINSOLFunctionName(
-        "pder_" + std::to_string(partialDerTemplatesCounter++));
-
-    llvm::DenseMap<VariableOp, size_t> variablesPos;
-
-    if (mlir::failed(createPartialDerTemplateFunction(
-            rewriter, moduleOp, modelOp, equationOp, variablesPos,
-            partialDerTemplateName, proxyMap))) {
+    if (mlir::failed(getOrCreatePartialDerTemplateFunction(
+            rewriter, pderTemplates, moduleOp, modelOp,
+            equationOp.getTemplate(),
+            getKINSOLFunctionName("pder_" +
+                                  std::to_string(pderTemplates.size())),
+            proxyMap))) {
       return mlir::failure();
     }
 
@@ -695,8 +694,8 @@ mlir::LogicalResult KINSOLInstance::addEquationsToKINSOL(
         llvm::SmallVector<int64_t> seedSizes;
 
         if (mlir::failed(createJacobianFunction(
-                rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
-                variablesPos, variable, partialDerTemplateName, seedSizes))) {
+                rewriter, pderTemplates, moduleOp, modelOp, equationOp,
+                jacobianFunctionName, variable, seedSizes))) {
           return mlir::failure();
         }
 
@@ -1033,17 +1032,31 @@ KINSOLInstance::getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
   return mlir::success();
 }
 
-mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
-    mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    EquationInstanceOp equationOp,
-    llvm::DenseMap<VariableOp, size_t> &variablesPos,
+mlir::LogicalResult KINSOLInstance::getOrCreatePartialDerTemplateFunction(
+    mlir::RewriterBase &rewriter,
+    PartialDerivativeTemplatesCollection &pderTemplates,
+    mlir::ModuleOp moduleOp, ModelOp modelOp, EquationTemplateOp templateOp,
     llvm::StringRef templateName, const ProxyMap &proxyMap) {
+  if (pderTemplates.hasEquationTemplate(templateOp)) {
+    LLVM_DEBUG(llvm::dbgs() << "Result already found in cache");
+    return mlir::success();
+  }
+
+  llvm::MapVector<VariableOp, size_t> variablesPos;
+
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
-      rewriter, moduleOp, modelOp, equationOp, variablesPos, templateName,
+      rewriter, moduleOp, modelOp, templateOp, variablesPos, templateName,
       proxyMap);
 
   if (!partialDerTemplate) {
     return mlir::failure();
+  }
+
+  // Cache the function to avoid duplicates.
+  pderTemplates.setDerivativeTemplate(templateOp, partialDerTemplate);
+
+  for (auto &entry : variablesPos) {
+    pderTemplates.setVariablePos(templateOp, entry.first, entry.second);
   }
 
   return mlir::success();
@@ -1052,13 +1065,13 @@ mlir::LogicalResult KINSOLInstance::createPartialDerTemplateFunction(
 mlir::bmodelica::FunctionOp
 KINSOLInstance::createPartialDerTemplateFromEquation(
     mlir::RewriterBase &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    EquationInstanceOp equationOp,
-    llvm::DenseMap<VariableOp, size_t> &variablesPos,
+    EquationTemplateOp templateOp,
+    llvm::MapVector<VariableOp, size_t> &variablesPos,
     llvm::StringRef templateName, const ProxyMap &proxyMap) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
-  mlir::Location loc = equationOp.getLoc();
+  mlir::Location loc = templateOp.getLoc();
 
   // Create the function.
   std::string functionOpName = templateName.str() + "_base";
@@ -1074,7 +1087,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   // Determine the variables needed by the equation.
   llvm::SmallVector<VariableAccess> accesses;
 
-  if (mlir::failed(equationOp.getAccesses(accesses, *symbolTableCollection))) {
+  if (mlir::failed(templateOp.getAccesses(accesses, *symbolTableCollection))) {
     return nullptr;
   }
 
@@ -1110,7 +1123,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   // Create the induction variables.
   llvm::SmallVector<VariableOp, 3> inductionVariablesOps;
 
-  size_t numOfInductions = equationOp.getInductionVariables().size();
+  size_t numOfInductions = templateOp.getInductionVariables().size();
 
   for (size_t i = 0; i < numOfInductions; ++i) {
     std::string variableName = "ind" + std::to_string(i);
@@ -1143,7 +1156,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   mlir::IRMapping mapping;
 
   // Get the values of the induction variables.
-  auto originalInductions = equationOp.getInductionVariables();
+  auto originalInductions = templateOp.getInductionVariables();
   assert(originalInductions.size() <= inductionVariablesOps.size());
 
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
@@ -1160,8 +1173,8 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   llvm::DenseSet<mlir::Operation *> toBeCloned;
   llvm::SmallVector<mlir::Operation *> toBeClonedVisitStack;
 
-  auto equationSidesOp = mlir::cast<EquationSidesOp>(
-      equationOp.getTemplate().getBody()->getTerminator());
+  auto equationSidesOp =
+      mlir::cast<EquationSidesOp>(templateOp.getBody()->getTerminator());
 
   mlir::Value lhs = equationSidesOp.getLhsValues()[0];
   mlir::Value rhs = equationSidesOp.getRhsValues()[0];
@@ -1186,7 +1199,7 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
   }
 
   // Clone the original operations and compute the residual value.
-  for (auto &op : equationOp.getTemplate().getOps()) {
+  for (auto &op : templateOp.getOps()) {
     if (!toBeCloned.contains(&op)) {
       continue;
     }
@@ -1258,17 +1271,25 @@ KINSOLInstance::createPartialDerTemplateFromEquation(
 }
 
 mlir::LogicalResult KINSOLInstance::createJacobianFunction(
-    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
-    const llvm::DenseMap<VariableOp, size_t> &variablesPos,
-    VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
+    mlir::OpBuilder &builder,
+    PartialDerivativeTemplatesCollection &pderTemplates,
+    mlir::ModuleOp moduleOp, ModelOp modelOp, EquationInstanceOp equationOp,
+    llvm::StringRef jacobianFunctionName, VariableOp independentVariable,
     llvm::SmallVectorImpl<int64_t> &seedSizes) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   mlir::Location loc = equationOp.getLoc();
 
-  size_t numOfVars = variablesPos.size();
+  // Get the partial derivative template function.
+  auto pderTemplate =
+      pderTemplates.getDerivativeTemplate(equationOp.getTemplate());
+
+  if (!pderTemplate) {
+    return mlir::failure();
+  }
+
+  size_t numOfVars = pderTemplates.getVariablesCount(equationOp.getTemplate());
   size_t numOfInductions = equationOp.getInductionVariables().size();
 
   // Create the function.
@@ -1284,15 +1305,20 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
   // Create the global seeds for the variables.
   llvm::SmallVector<mlir::Value> varSeeds(numOfVars, nullptr);
 
-  for (const auto &entry : variablesPos) {
-    VariableOp variableOp = entry.getFirst();
-    size_t pos = entry.getSecond();
+  for (VariableOp variableOp :
+       pderTemplates.getVariables(equationOp.getTemplate())) {
+    auto pos =
+        pderTemplates.getVariablePos(equationOp.getTemplate(), variableOp);
+
+    if (!pos) {
+      return mlir::failure();
+    }
 
     mlir::Value seed = builder.create<PoolVariableGetOp>(
         loc, variableOp.getVariableType().toArrayType(),
-        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[pos]);
+        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[*pos]);
 
-    varSeeds[pos] = seed;
+    varSeeds[*pos] = seed;
   }
 
   for (mlir::Value seed : varSeeds) {
@@ -1340,28 +1366,28 @@ mlir::LogicalResult KINSOLInstance::createJacobianFunction(
 
   llvm::SmallVector<mlir::Value> args;
 
-  // Perform the first call to the template function.
-  assert(variablesPos.count(independentVariable) != 0);
-
   // Set the seed of the variable to one.
-  size_t oneSeedPosition = variablesPos.lookup(independentVariable);
+  auto oneSeedPosition = pderTemplates.getVariablePos(equationOp.getTemplate(),
+                                                      independentVariable);
 
-  builder.create<StoreOp>(loc, one, varSeeds[oneSeedPosition],
+  assert(oneSeedPosition.has_value());
+
+  if (!oneSeedPosition) {
+    return mlir::failure();
+  }
+
+  builder.create<StoreOp>(loc, one, varSeeds[*oneSeedPosition],
                           jacobianFunction.getVariableIndices());
 
   // Call the template function.
   args.clear();
   collectArgsFn(args);
 
-  auto firstTemplateCall = builder.create<CallOp>(
-      loc,
-      mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
-      RealType::get(builder.getContext()), args);
-
+  auto firstTemplateCall = builder.create<CallOp>(loc, *pderTemplate, args);
   mlir::Value result = firstTemplateCall.getResult(0);
 
   // Reset the seed of the variable.
-  builder.create<StoreOp>(loc, zero, varSeeds[oneSeedPosition],
+  builder.create<StoreOp>(loc, zero, varSeeds[*oneSeedPosition],
                           jacobianFunction.getVariableIndices());
 
   // Return the result.

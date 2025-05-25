@@ -146,6 +146,78 @@ createSetterFunction(mlir::OpBuilder &builder,
   return setterOp;
 }
 
+size_t PartialDerivativeTemplatesCollection::size() const {
+  return info.size();
+}
+
+bool PartialDerivativeTemplatesCollection::hasEquationTemplate(
+    EquationTemplateOp equationTemplateOp) const {
+  return info.contains(equationTemplateOp);
+}
+
+std::optional<FunctionOp>
+PartialDerivativeTemplatesCollection::getDerivativeTemplate(
+    EquationTemplateOp equationTemplateOp) const {
+  auto infoIt = info.find(equationTemplateOp);
+
+  if (infoIt == info.end()) {
+    return std::nullopt;
+  }
+
+  return infoIt->second.funcOp;
+}
+
+size_t PartialDerivativeTemplatesCollection::getVariablesCount(
+    EquationTemplateOp equationTemplateOp) const {
+  auto infoIt = info.find(equationTemplateOp);
+
+  if (infoIt == info.end()) {
+    return 0;
+  }
+
+  return infoIt->second.variablesPos.size();
+}
+
+llvm::SetVector<VariableOp> PartialDerivativeTemplatesCollection::getVariables(
+    EquationTemplateOp equationTemplateOp) const {
+  llvm::SetVector<VariableOp> result;
+
+  if (auto it = info.find(equationTemplateOp); it != info.end()) {
+    for (const auto &entry : it->second.variablesPos) {
+      result.insert(entry.first);
+    }
+  }
+
+  return result;
+}
+
+std::optional<size_t> PartialDerivativeTemplatesCollection::getVariablePos(
+    EquationTemplateOp equationTemplateOp, VariableOp variableOp) const {
+  auto infoIt = info.find(equationTemplateOp);
+
+  if (infoIt == info.end()) {
+    return std::nullopt;
+  }
+
+  auto posIt = infoIt->second.variablesPos.find(variableOp);
+
+  if (posIt == infoIt->second.variablesPos.end()) {
+    return std::nullopt;
+  }
+
+  return posIt->second;
+}
+
+void PartialDerivativeTemplatesCollection::setDerivativeTemplate(
+    EquationTemplateOp equationTemplateOp, FunctionOp derTemplateFuncOp) {
+  info[equationTemplateOp].funcOp = derTemplateFuncOp;
+}
+
+void PartialDerivativeTemplatesCollection::setVariablePos(
+    EquationTemplateOp equationTemplateOp, VariableOp variableOp, size_t pos) {
+  info[equationTemplateOp].variablesPos[variableOp] = pos;
+}
+
 GlobalVariableOp createGlobalADSeed(mlir::OpBuilder &builder,
                                     mlir::ModuleOp moduleOp, mlir::Location loc,
                                     llvm::StringRef name, mlir::Type type) {
