@@ -1030,7 +1030,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // Lower to MLIR core dialects.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
   pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
-  pm.addPass(mlir::createIDAToFuncConversionPass());
+
+  if (ci.getSimulationOptions().solver == "ida") {
+    pm.addPass(mlir::createIDAToFuncConversionPass());
+  }
+
   pm.addPass(mlir::createKINSOLToFuncConversionPass());
   pm.addPass(mlir::createRuntimeToFuncConversionPass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
@@ -1108,7 +1112,11 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // the symbol table operations, then this separation will be not needed
   // anymore.
   pm.addPass(mlir::createBaseModelicaToLLVMConversionPass());
-  pm.addPass(mlir::createIDAToLLVMConversionPass());
+
+  if (ci.getSimulationOptions().solver == "ida") {
+    pm.addPass(mlir::createIDAToLLVMConversionPass());
+  }
+
   pm.addPass(mlir::createKINSOLToLLVMConversionPass());
   pm.addPass(mlir::createRuntimeToLLVMConversionPass());
 
