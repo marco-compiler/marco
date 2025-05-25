@@ -135,10 +135,14 @@ private:
 namespace llvm {
 template <>
 struct DenseMapInfo<::CallGraph::Node> {
-  static inline ::CallGraph::Node getEmptyKey() { return {nullptr, nullptr}; }
+  static ::CallGraph::Node getEmptyKey() {
+    return {llvm::DenseMapInfo<::CallGraph *>::getEmptyKey(),
+            llvm::DenseMapInfo<mlir::Operation *>::getEmptyKey()};
+  }
 
-  static inline ::CallGraph::Node getTombstoneKey() {
-    return {nullptr, nullptr};
+  static ::CallGraph::Node getTombstoneKey() {
+    return {llvm::DenseMapInfo<::CallGraph *>::getTombstoneKey(),
+            llvm::DenseMapInfo<mlir::Operation *>::getTombstoneKey()};
   }
 
   static unsigned getHashValue(const ::CallGraph::Node &val) {
