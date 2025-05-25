@@ -35,6 +35,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     FunctionUnwrap.cpp
     IDA.cpp
     InitialConditionsSolving.cpp
+    InliningAttributeInsertion.cpp
     InvertibleOpInterfaceImpl.cpp
     Matching.cpp
     ModelAlgorithmConversion.cpp

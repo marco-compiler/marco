@@ -1023,8 +1023,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 
   if (ci.getCodeGenOptions().inlining) {
-    // Inline the functions with the 'inline' annotation.
-    pm.addPass(mlir::createInlinerPass());
+    pm.addPass(mlir::bmodelica::createInliningAttributeInsertionPass());
   }
 
   // Lower to MLIR core dialects.

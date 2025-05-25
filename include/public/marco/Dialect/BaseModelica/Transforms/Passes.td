@@ -214,6 +214,21 @@ def FunctionUnwrapPass : Pass<"function-unwrap", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createFunctionUnwrapPass()";
 }
 
+def InliningAttributeInsertionPass : Pass<"inlining-attr-insertion", "mlir::ModuleOp">
+{
+    let summary = "Add the inlining attributes to function calls.";
+
+    let description = [{
+        Add the inlining attributes to function calls.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor = "mlir::bmodelica::createInliningAttributeInsertionPass()";
+}
+
 def ModelAlgorithmConversionPass
     : Pass<"convert-model-algorithms", "mlir::ModuleOp">
 {
