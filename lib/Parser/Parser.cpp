@@ -1953,7 +1953,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     }
   
  
-  EXPECT(TokenKind::RPar);
+//  EXPECT(TokenKind::RPar);
 
   return (std::move(result));
 }
