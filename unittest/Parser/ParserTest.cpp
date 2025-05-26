@@ -169,7 +169,7 @@ TEST(Parser, usage_of_external_test4)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
-    ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalRef());
+    ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalFunctionCall());
 
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
@@ -338,7 +338,7 @@ TEST(Parser, usage_of_external_test1)
     auto node = parser.parseClassDefinition();
 
     ASSERT_TRUE((*node)->isa<Function>());
-    ASSERT_TRUE((*node)->isa<Function>()->hasExternalRef());
+    ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
@@ -370,7 +370,7 @@ TEST(Parser, usage_of_external_test0)
     auto node = parser.parseClassDefinition();
 
     ASSERT_TRUE((*node)->isa<Function>());
-    ASSERT_FALSE((*node)->isa<Function>()->hasExternalRef());
+    ASSERT_FALSE((*node)->cast<Function>()->hasExternalRef());
   }
 
 TEST(Parser, external_test8) {
