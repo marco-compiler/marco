@@ -1953,7 +1953,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     }
   
  
-//  EXPECT(TokenKind::RPar);
+  EXPECT(TokenKind::RPar);
 
   return (std::move(result));
 }
@@ -1964,7 +1964,7 @@ WrappedParseResult<std::vector<std::unique_ptr<ASTNode>>> Parser::parseExpressio
   TRY(expression, parseExpression());
   expressions.push_back(std::move(*expression));
 
-  while (!lookahead[0].isa<TokenKind::RPar>()) {
+  while (lookahead[0].isa<TokenKind::Comma>()) {
     accept<TokenKind::Comma>();
     TRY(expression, parseExpression());
     //expression->setDummy(true);

@@ -20,7 +20,7 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
 }
 
 TEST(Parser, expression_list_singleExp) {
-  auto str = R"(foo()))";
+  auto str = R"(foo())";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
@@ -53,7 +53,7 @@ TEST(Parser, expression_list_heterogeneousList) {
   auto str = R"(foo(1, 2, 3), 
     var,
     not x, x and y, x or y,
-    ()))";
+    ())";
 
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
