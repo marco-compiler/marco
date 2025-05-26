@@ -1948,11 +1948,9 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     {
       TRY(expressionList, parseExpressionList());
       result->setExpressions(**expressionList);
-      loc.end = expressionList->getLocation().end;
-      result->setLocation(loc);
     }
-  
- 
+
+  loc.end = lookahead[0].getLocation().end;  
   EXPECT(TokenKind::RPar);
 
   return (std::move(result));
