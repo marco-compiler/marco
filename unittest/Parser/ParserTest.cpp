@@ -19,6 +19,105 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
 
+TEST(Parser, usage_of_external_test5)
+  {
+    auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    algorithm
+                      y := fun();
+                    external "C"
+                      x.y.z = abc(var, a.b.c, var)
+                      annotation(inline = false);
+                    annotation(inline = true);
+                  end foo;)";
+
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    Parser parser(*diagnostics, sourceManager, sourceFile);
+
+    auto node = parser.parseClassDefinition();
+
+    ASSERT_TRUE((*node)->isa<Function>());
+
+    ASSERT_EQ((*node)->cast<Function>()->getAlgorithms().size(), 1);
+
+    ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
+
+    auto er = (*node)->cast<Function>()->getExternalRef();
+
+    ASSERT_TRUE(er->isa<ExternalRef>());
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
+    ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+
+    ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), true);
+
+    auto efc = er->cast<ExternalRef>()->getExternalFunctionCall();
+
+    ASSERT_TRUE(efc->isa<ExternalFunctionCall>());
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->hasComponentReference(), true);
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
+
+    auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
+    ASSERT_EQ(cr->getName(), "x.y.z");
+
+    ASSERT_EQ(cr->getPathLength(), 3);
+    ASSERT_EQ(cr->getElement(0)->getName(), "x");
+    ASSERT_EQ(cr->getElement(1)->getName(), "y");
+    ASSERT_EQ(cr->getElement(2)->getName(), "z");
+
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+
+    ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalFunctionCall());
+
+    auto ac = er->cast<ExternalRef>()->getAnnotationClause();
+
+    ASSERT_TRUE(ac->isa<Annotation>());
+    ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
+
+    ASSERT_TRUE((*node)->cast<Function>()->hasAnnotation());
+
+    auto fac = (*node)->cast<Function>()->getAnnotation();
+
+    ASSERT_TRUE(fac->isa<Annotation>());
+    ASSERT_TRUE(fac->cast<Annotation>()->getInlineProperty());
+
+    auto expressionList_prs = efc->cast<ExternalFunctionCall>()->getExpressions();
+
+    ASSERT_TRUE(expressionList_prs.has_value());
+
+    const auto& expressionList = expressionList_prs -> getValue(); 
+
+    ASSERT_TRUE(expressionList.size(), 3);
+
+    ASSERT_TRUE(expressionList[0]->isa<ComponentReference>()); 
+    ASSERT_EQ(expressionList[0]->cast<ComponentReference>()->getName(), "var");
+    ASSERT_TRUE(expressionList[2]->isa<ComponentReference>()); 
+    ASSERT_EQ(expressionList[2]->cast<ComponentReference>()->getName(), "var");
+
+    
+    ASSERT_TRUE(elcr->isa<ComponentReference>());
+    auto elcr = expressionList[1]->cast<ComponentReference>();
+    ASSERT_EQ(elcr->getName(), "a.b.c");
+
+    ASSERT_EQ(elcr->getPathLength(), 3);
+    ASSERT_EQ(elcr->getElement(0)->getName(), "a");
+    ASSERT_EQ(elcr->getElement(1)->getName(), "b");
+    ASSERT_EQ(elcr->getElement(2)->getName(), "c");
+  }
+
 TEST(Parser, expression_list_singleExp) {
   auto str = R"(foo())";
 
@@ -72,6 +171,8 @@ TEST(Parser, expression_list_heterogeneousList) {
 
   const auto& expressionList = expressionList_prs -> getValue(); 
 
+  ASSERT_TRUE(expressionList.size() == 6);
+
   for (size_t i = 0; i < expressionList.size(); ++i) {
     switch(i) {
       case 0: 
@@ -99,6 +200,7 @@ TEST(Parser, expression_list_heterogeneousList) {
     }
   }
 
+
   EXPECT_EQ(expressionList_prs->getLocation().begin.line, 1);
   EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
 
@@ -106,7 +208,6 @@ TEST(Parser, expression_list_heterogeneousList) {
   EXPECT_EQ(expressionList_prs->getLocation().end.column, 6);
 
 }
-
 
 TEST(Parser, usage_of_external_test4)
   {
