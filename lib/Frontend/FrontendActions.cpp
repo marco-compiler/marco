@@ -1076,7 +1076,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Buffer deallocations placements must be performed after loop
   // optimizations because they may introduce additional heap allocations.
-  buildMLIRBufferDeallocationPipeline(pm.nest<mlir::func::FuncOp>());
+  buildMLIRBufferDeallocationPipeline(pm);
 
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertBufferizationToMemRefPass());
