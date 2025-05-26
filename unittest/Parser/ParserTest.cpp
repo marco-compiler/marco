@@ -80,6 +80,8 @@ TEST(Parser, usage_of_external_test4)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
+    ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalRef());
+
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
     ASSERT_TRUE(ac->isa<Annotation>());
@@ -148,6 +150,7 @@ TEST(Parser, usage_of_external_test3)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
+    ASSERT_TRUE(er->cast<ExternalRef>()->hasAnnotationClause());
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
     ASSERT_TRUE(ac->isa<Annotation>());
@@ -206,7 +209,7 @@ TEST(Parser, usage_of_external_test2)
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getComponentReference()->isa<ComponentReference>(), true);
 
     auto cr = efc->cast<ExternalFunctionCall>()->getComponentReference();
-   ASSERT_EQ(cr->getName(), "x.y.z");
+    ASSERT_EQ(cr->getName(), "x.y.z");
 
     ASSERT_EQ(cr->getPathLength(), 3);
     ASSERT_EQ(cr->getElement(0)->getName(), "x");
@@ -216,6 +219,7 @@ TEST(Parser, usage_of_external_test2)
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
+    ASSERT_TRUE(er->cast<ExternalRef>()->hasAnnotationClause());
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
 
     ASSERT_TRUE(ac->isa<Annotation>());
@@ -243,6 +247,7 @@ TEST(Parser, usage_of_external_test1)
     auto node = parser.parseClassDefinition();
 
     ASSERT_TRUE((*node)->isa<Function>());
+    ASSERT_TRUE((*node)->isa<Function>()->hasExternalRef());
 
     auto er = (*node)->cast<Function>()->getExternalRef();
 
@@ -252,6 +257,29 @@ TEST(Parser, usage_of_external_test1)
     ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), false);
 
     ASSERT_EQ(er->cast<ExternalRef>()->hasAnnotationClause(), false);
+  }
+TEST(Parser, usage_of_external_test0)
+  {
+    auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                  end foo;)";
+
+    auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+    auto diagnostics = getDiagnosticsEngine();
+    clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+    auto &sourceManager = fileSourceMgr.get();
+
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+    sourceFile->setMemoryBuffer(buffer.get());
+
+    Parser parser(*diagnostics, sourceManager, sourceFile);
+
+    auto node = parser.parseClassDefinition();
+
+    ASSERT_TRUE((*node)->isa<Function>());
+    ASSERT_FALSE((*node)->isa<Function>()->hasExternalRef());
   }
 
 TEST(Parser, external_test8) {
