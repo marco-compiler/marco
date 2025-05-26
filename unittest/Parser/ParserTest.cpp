@@ -103,7 +103,7 @@ TEST(Parser, expression_list_heterogeneousList) {
   EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
 
   EXPECT_EQ(expressionList_prs->getLocation().end.line, 4);
-  EXPECT_EQ(expressionList_prs->getLocation().end.column, 7);
+  EXPECT_EQ(expressionList_prs->getLocation().end.column, 6);
 
 }
 
