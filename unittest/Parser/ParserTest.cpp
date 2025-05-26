@@ -633,10 +633,10 @@ TEST(Parser, external_test5) {
 
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
 
-  EXPECT_EQ((node)->getLocation().begin.line, 1);
-  EXPECT_EQ((node)->getLocation().begin.column, 1);
-  EXPECT_EQ((node)->getLocation().end.line, 1);
-  EXPECT_EQ((node)->getLocation().end.column, 12);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 12);
 
 }
 TEST(Parser, external_test4) {
