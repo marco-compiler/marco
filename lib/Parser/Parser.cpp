@@ -1951,6 +1951,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
     }
 
   loc.end = lookahead[0].getLocation().end;  
+  result->setLocation(loc);
   EXPECT(TokenKind::RPar);
 
   return (std::move(result));
