@@ -50,12 +50,10 @@ TEST(Parser, expression_list_singleExp) {
 }
 
 TEST(Parser, expression_list_heterogeneousList) {
-  auto str = R"(
-    foo(1, 2, 3), 
+  auto str = R"(foo(1, 2, 3), 
     var,
     not x, x and y, x or y,
-    ()
-  ))";
+    ()))";
 
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -104,8 +102,8 @@ TEST(Parser, expression_list_heterogeneousList) {
   EXPECT_EQ(expressionList_prs->getLocation().begin.line, 1);
   EXPECT_EQ(expressionList_prs->getLocation().begin.column, 1);
 
-  EXPECT_EQ(expressionList_prs->getLocation().end.line, 6);
-  EXPECT_EQ(expressionList_prs->getLocation().end.column, 2);
+  EXPECT_EQ(expressionList_prs->getLocation().end.line, 4);
+  EXPECT_EQ(expressionList_prs->getLocation().end.column, 7);
 
 }
 
