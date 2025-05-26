@@ -519,11 +519,10 @@ TEST(Parser, external_test8) {
   ASSERT_TRUE(ac->isa<Annotation>());
   ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 18);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 18);
 
 }
 TEST(Parser, external_test7) {
@@ -569,11 +568,10 @@ TEST(Parser, external_test7) {
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 21);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 21);
 
 }
 TEST(Parser, external_test6) {
@@ -605,11 +603,10 @@ TEST(Parser, external_test6) {
   ASSERT_TRUE(cr->isa<Annotation>());
   ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 18);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 18);
 
 }
 TEST(Parser, external_test5) {
@@ -636,11 +633,10 @@ TEST(Parser, external_test5) {
 
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 12);
+  EXPECT_EQ((node)->getLocation().begin.line, 1);
+  EXPECT_EQ((node)->getLocation().begin.column, 1);
+  EXPECT_EQ((node)->getLocation().end.line, 1);
+  EXPECT_EQ((node)->getLocation().end.column, 12);
 
 }
 TEST(Parser, external_test4) {
@@ -690,11 +686,10 @@ TEST(Parser, external_test4) {
   ASSERT_TRUE(ac->isa<Annotation>());
   ASSERT_FALSE(ac->cast<Annotation>()->getInlineProperty());
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 8);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 8);
 
 
 }
@@ -740,12 +735,10 @@ TEST(Parser, external_test3) {
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
 
-
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 8);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 8);
 }
 
 TEST(Parser, external_test2) {
@@ -777,11 +770,10 @@ TEST(Parser, external_test2) {
   ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
 
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 8);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 8);
 
 }
 
@@ -810,11 +802,10 @@ TEST(Parser, external_test1) {
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasAnnotationClause(), false);
 
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 8);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 8);
 }
 
 
@@ -849,11 +840,10 @@ TEST(Parser, external_function_call_test4) {
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 26);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 26);
 
 }
 
@@ -891,11 +881,10 @@ TEST(Parser, external_function_call_test3) {
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 13);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 13);
 
 }
 
@@ -920,11 +909,10 @@ TEST(Parser, external_function_call_test2) {
 
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "abc");
   
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 10);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 10);
 
  // ASSERT_TRUE(node->getExpression())
 }
@@ -950,11 +938,10 @@ TEST(Parser, external_function_call_test1) {
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->hasComponentReference(), false);
   ASSERT_EQ((*node)->cast<ExternalFunctionCall>()->getName(), "f");
 
-  EXPECT_EQ(node->getLocation().begin.line, 1);
-  EXPECT_EQ(node->getLocation().begin.column, 1);
-
-  EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 3);
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 3);
 }
 
 TEST(Parser, rawValue_true) {
