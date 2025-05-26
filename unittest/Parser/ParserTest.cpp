@@ -94,22 +94,19 @@ TEST(Parser, usage_of_external_test5)
     ASSERT_TRUE(fac->isa<Annotation>());
     ASSERT_TRUE(fac->cast<Annotation>()->getInlineProperty());
 
-    auto expressionList_prs = efc->cast<ExternalFunctionCall>()->getExpressions();
+    auto expressionList = efc->cast<ExternalFunctionCall>()->getExpressions();
 
-    ASSERT_TRUE(expressionList_prs.has_value());
-
-    const auto& expressionList = expressionList_prs -> getValue(); 
-
-    ASSERT_TRUE(expressionList.size(), 3);
+    ASSERT_TRUE(expressionList.size() == 3);
 
     ASSERT_TRUE(expressionList[0]->isa<ComponentReference>()); 
     ASSERT_EQ(expressionList[0]->cast<ComponentReference>()->getName(), "var");
     ASSERT_TRUE(expressionList[2]->isa<ComponentReference>()); 
     ASSERT_EQ(expressionList[2]->cast<ComponentReference>()->getName(), "var");
 
-    
-    ASSERT_TRUE(elcr->isa<ComponentReference>());
+    ASSERT_TRUE(expressionList[1]->isa<ComponentReference>()); 
+
     auto elcr = expressionList[1]->cast<ComponentReference>();
+    
     ASSERT_EQ(elcr->getName(), "a.b.c");
 
     ASSERT_EQ(elcr->getPathLength(), 3);
