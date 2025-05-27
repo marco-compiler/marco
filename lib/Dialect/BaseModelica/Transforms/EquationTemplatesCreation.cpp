@@ -1,7 +1,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationTemplatesCreation.h"
+
+#include "marco/AST/Node/Equation.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EQUATIONTEMPLATESCREATIONPASS
@@ -10,7 +10,85 @@ namespace mlir::bmodelica {
 
 using namespace ::mlir::bmodelica;
 
-static std::vector<MultidimensionalRange> getRangesCombinations(
+namespace {
+class EquationTemplatesCreationPass
+    : public impl::EquationTemplatesCreationPassBase<
+          EquationTemplatesCreationPass> {
+public:
+  using EquationTemplatesCreationPassBase<
+      EquationTemplatesCreationPass>::EquationTemplatesCreationPassBase;
+
+  void runOnOperation() override;
+
+private:
+  void createTemplates(ModelOp modelOp);
+};
+} // namespace
+
+void EquationTemplatesCreationPass::runOnOperation() {
+  llvm::SmallVector<ModelOp, 1> modelOps;
+
+  walkClasses(getOperation(), [&](mlir::Operation *op) {
+    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
+      modelOps.push_back(modelOp);
+    }
+  });
+
+  mlir::parallelForEach(&getContext(), modelOps, [&](mlir::Operation *op) {
+    createTemplates(mlir::cast<ModelOp>(op));
+  });
+}
+
+using EquationInfo = std::pair<mlir::Operation *, EquationOp>;
+using ForEquationInfo = std::pair<mlir::Operation *, ForEquationOp>;
+
+namespace {
+void collectEquationAndForEquationOps(
+    mlir::Operation *op, mlir::Operation *dynamicOrInitialOp,
+    llvm::SmallVectorImpl<EquationInfo> &equations,
+    llvm::SmallVectorImpl<ForEquationInfo> &forEquations) {
+  for (mlir::Region &region : op->getRegions()) {
+    for (mlir::Operation &nestedOp : region.getOps()) {
+      if (auto equationOp = mlir::dyn_cast<EquationOp>(nestedOp)) {
+        equations.emplace_back(dynamicOrInitialOp, equationOp);
+        continue;
+      }
+
+      if (auto forEquationOp = mlir::dyn_cast<ForEquationOp>(nestedOp)) {
+        forEquations.emplace_back(dynamicOrInitialOp, forEquationOp);
+      }
+    }
+  }
+}
+
+void setInsertionPointToEndOfContainerOp(mlir::OpBuilder &builder,
+                                         mlir::Operation *dynamicOrInitialOp) {
+  if (auto dynamicOp = mlir::dyn_cast<DynamicOp>(dynamicOrInitialOp)) {
+    builder.setInsertionPointToEnd(dynamicOp.getBody());
+    return;
+  }
+
+  if (auto initialOp = mlir::dyn_cast<InitialOp>(dynamicOrInitialOp)) {
+    builder.setInsertionPointToStart(initialOp.getBody());
+  }
+}
+
+void getForEquationOps(EquationOp op,
+                       llvm::SmallVectorImpl<ForEquationOp> &result) {
+  llvm::SmallVector<ForEquationOp> loopsStack;
+  auto parentLoop = op->getParentOfType<ForEquationOp>();
+
+  while (parentLoop) {
+    loopsStack.push_back(parentLoop);
+    parentLoop = parentLoop->getParentOfType<ForEquationOp>();
+  }
+
+  while (!loopsStack.empty()) {
+    result.push_back(loopsStack.pop_back_val());
+  }
+}
+
+std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank, llvm::function_ref<llvm::ArrayRef<Range>(size_t)> rangesFn,
     size_t startingDimension) {
   assert(startingDimension < rank);
@@ -45,48 +123,82 @@ static std::vector<MultidimensionalRange> getRangesCombinations(
   return result;
 }
 
-static std::vector<MultidimensionalRange> getRangesCombinations(
+std::vector<MultidimensionalRange> getRangesCombinations(
     size_t rank, llvm::function_ref<llvm::ArrayRef<Range>(size_t)> rangesFn) {
   return getRangesCombinations(rank, rangesFn, 0);
 }
 
-namespace {
-class EquationTemplatesCreationPass
-    : public impl::EquationTemplatesCreationPassBase<
-          EquationTemplatesCreationPass> {
-public:
-  using EquationTemplatesCreationPassBase<
-      EquationTemplatesCreationPass>::EquationTemplatesCreationPassBase;
+IndexSet getIterationSpace(llvm::ArrayRef<ForEquationOp> loops) {
+  if (loops.empty()) {
+    return {};
+  }
 
-  void runOnOperation() override;
+  llvm::SmallVector<llvm::SmallVector<Range, 1>, 3> dimensionsRanges;
+  dimensionsRanges.resize(loops.size());
 
-private:
-  mlir::LogicalResult createTemplates(ModelOp modelOp);
-};
-} // namespace
+  size_t forEquationIndex = 0;
 
-namespace {
-class EquationOpPattern : public mlir::OpRewritePattern<EquationOp> {
-public:
-  using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+  for (ForEquationOp forEquationOp : loops) {
+    auto from = forEquationOp.getFrom().getSExtValue();
+    auto to = forEquationOp.getTo().getSExtValue();
+    auto step = forEquationOp.getStep().getSExtValue();
 
-  mlir::LogicalResult
-  matchAndRewrite(EquationOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    mlir::Location loc = op.getLoc();
-
-    // Create the equation template.
-    mlir::Operation *templateInsertionPoint = op->getParentOp();
-
-    while (templateInsertionPoint &&
-           !mlir::isa<DynamicOp, InitialOp>(templateInsertionPoint)) {
-      templateInsertionPoint = templateInsertionPoint->getParentOp();
+    if (step == 1) {
+      dimensionsRanges[forEquationIndex].emplace_back(from, to + 1);
+    } else {
+      for (auto index = from; index < to + 1; index += step) {
+        dimensionsRanges[forEquationIndex].emplace_back(index, index + 1);
+      }
     }
 
-    rewriter.setInsertionPoint(templateInsertionPoint);
+    ++forEquationIndex;
+  }
+
+  return IndexSet(getRangesCombinations(
+      dimensionsRanges.size(), [&](size_t dimension) -> llvm::ArrayRef<Range> {
+        return dimensionsRanges[dimension];
+      }));
+}
+} // namespace
+
+void EquationTemplatesCreationPass::createTemplates(ModelOp modelOp) {
+  mlir::IRRewriter rewriter(modelOp);
+
+  llvm::SmallVector<EquationInfo> equations;
+  llvm::SmallVector<ForEquationInfo> forEquations;
+  llvm::SmallVector<mlir::Operation *> toBeErased;
+
+  for (mlir::Operation &nestedOp : modelOp.getOps()) {
+    if (mlir::isa<DynamicOp, InitialOp>(nestedOp)) {
+      collectEquationAndForEquationOps(&nestedOp, &nestedOp, equations,
+                                       forEquations);
+    }
+  }
+
+  for (const EquationInfo &equation : equations) {
+    toBeErased.push_back(equation.second);
+  }
+
+  for (const ForEquationInfo &forEquation : forEquations) {
+    toBeErased.push_back(forEquation.second);
+  }
+
+  while (!forEquations.empty()) {
+    ForEquationInfo current = forEquations.pop_back_val();
+    collectEquationAndForEquationOps(current.second, current.first, equations,
+                                     forEquations);
+  }
+
+  for (const EquationInfo &equation : equations) {
+    mlir::Operation *dynamicOrInitialOp = equation.first;
+    EquationOp equationOp = equation.second;
+    mlir::Location loc = equationOp.getLoc();
+
+    // Create the equation template.
+    rewriter.setInsertionPoint(dynamicOrInitialOp);
 
     llvm::SmallVector<ForEquationOp, 3> loops;
-    getForEquationOps(op, loops);
+    getForEquationOps(equationOp, loops);
 
     llvm::SmallVector<mlir::Value, 3> oldInductions;
 
@@ -106,180 +218,21 @@ public:
 
     rewriter.setInsertionPointToStart(templateBody);
 
-    for (auto &nestedOp : op.getOps()) {
+    for (auto &nestedOp : equationOp.getOps()) {
       rewriter.clone(nestedOp, mapping);
     }
 
     // Create the equation instances.
-    mlir::Operation *instanceInsertionPoint = op.getOperation();
+    setInsertionPointToEndOfContainerOp(rewriter, dynamicOrInitialOp);
 
-    while (instanceInsertionPoint && instanceInsertionPoint->getParentOp() &&
-           !mlir::isa<DynamicOp, InitialOp>(
-               instanceInsertionPoint->getParentOp())) {
-      instanceInsertionPoint = instanceInsertionPoint->getParentOp();
-    }
+    auto instanceOp = rewriter.create<EquationInstanceOp>(loc, templateOp);
 
-    rewriter.setInsertionPoint(instanceInsertionPoint);
-    IndexSet explicitIndices = getIndices(loops);
+    instanceOp.getProperties().indices = getIterationSpace(loops);
+  }
 
-    if (mlir::failed(createEquationInstances(rewriter, op, templateOp,
-                                             explicitIndices))) {
-      return mlir::failure();
-    }
-
+  for (mlir::Operation *op : toBeErased) {
     rewriter.eraseOp(op);
-    return mlir::success();
   }
-
-private:
-  void getForEquationOps(EquationOp op,
-                         llvm::SmallVectorImpl<ForEquationOp> &result) const {
-    llvm::SmallVector<ForEquationOp> loopsStack;
-    auto parentLoop = op->template getParentOfType<ForEquationOp>();
-
-    while (parentLoop) {
-      loopsStack.push_back(parentLoop);
-      parentLoop = parentLoop->template getParentOfType<ForEquationOp>();
-    }
-
-    while (!loopsStack.empty()) {
-      result.push_back(loopsStack.pop_back_val());
-    }
-  }
-
-  IndexSet getIndices(llvm::ArrayRef<ForEquationOp> loops) const {
-    if (loops.empty()) {
-      return {};
-    }
-
-    llvm::SmallVector<llvm::SmallVector<Range, 1>, 3> dimensionsRanges;
-    dimensionsRanges.resize(loops.size());
-
-    size_t forEquationIndex = 0;
-
-    for (ForEquationOp forEquationOp : loops) {
-      auto from = forEquationOp.getFrom().getSExtValue();
-      auto to = forEquationOp.getTo().getSExtValue();
-      auto step = forEquationOp.getStep().getSExtValue();
-
-      if (step == 1) {
-        dimensionsRanges[forEquationIndex].emplace_back(from, to + 1);
-      } else {
-        for (auto index = from; index < to + 1; index += step) {
-          dimensionsRanges[forEquationIndex].emplace_back(index, index + 1);
-        }
-      }
-
-      ++forEquationIndex;
-    }
-
-    return IndexSet(
-        getRangesCombinations(dimensionsRanges.size(),
-                              [&](size_t dimension) -> llvm::ArrayRef<Range> {
-                                return dimensionsRanges[dimension];
-                              }));
-  }
-
-  mlir::LogicalResult
-  createEquationInstances(mlir::OpBuilder &builder, EquationOp equationOp,
-                          EquationTemplateOp templateOp,
-                          const IndexSet &explicitIndices) const {
-    if (!explicitIndices.empty()) {
-      if (mlir::failed(createInstanceWithExplicitIndices(builder, templateOp,
-                                                         explicitIndices))) {
-        return mlir::failure();
-      }
-    } else {
-      if (mlir::failed(createScalarInstance(builder, templateOp))) {
-        return mlir::failure();
-      }
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult
-  createScalarInstance(mlir::OpBuilder &builder,
-                       EquationTemplateOp templateOp) const {
-    auto instanceOp =
-        builder.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
-
-    if (!instanceOp) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult
-  createInstanceWithExplicitIndices(mlir::OpBuilder &builder,
-                                    EquationTemplateOp templateOp,
-                                    const IndexSet &explicitIndices) const {
-    for (const MultidimensionalRange &range : llvm::make_range(
-             explicitIndices.rangesBegin(), explicitIndices.rangesEnd())) {
-      if (mlir::failed(
-              createInstanceWithExplicitIndices(builder, templateOp, range))) {
-        return mlir::failure();
-      }
-    }
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult createInstanceWithExplicitIndices(
-      mlir::OpBuilder &builder, EquationTemplateOp templateOp,
-      const MultidimensionalRange &explicitIndices) const {
-    auto instanceOp =
-        builder.create<EquationInstanceOp>(templateOp.getLoc(), templateOp);
-
-    instanceOp.getProperties().setIndices(IndexSet(explicitIndices));
-    return mlir::success();
-  }
-};
-
-class ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp> {
-public:
-  using mlir::OpRewritePattern<ForEquationOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ForEquationOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    if (op.getOps().empty()) {
-      rewriter.eraseOp(op);
-      return mlir::success();
-    }
-
-    return mlir::failure();
-  }
-};
-} // namespace
-
-void EquationTemplatesCreationPass::runOnOperation() {
-  llvm::SmallVector<ModelOp, 1> modelOps;
-
-  walkClasses(getOperation(), [&](mlir::Operation *op) {
-    if (auto modelOp = mlir::dyn_cast<ModelOp>(op)) {
-      modelOps.push_back(modelOp);
-    }
-  });
-
-  if (mlir::failed(mlir::failableParallelForEach(
-          &getContext(), modelOps, [&](mlir::Operation *op) {
-            return createTemplates(mlir::cast<ModelOp>(op));
-          }))) {
-    return signalPassFailure();
-  }
-}
-
-mlir::LogicalResult
-EquationTemplatesCreationPass::createTemplates(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
-
-  mlir::GreedyRewriteConfig config;
-  config.setMaxIterations(mlir::GreedyRewriteConfig::kNoLimit);
-
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {
