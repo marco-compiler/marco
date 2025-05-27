@@ -3,8 +3,6 @@
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_BASEMODELICATORUNTIMECONVERSIONPASS
@@ -108,9 +106,8 @@ private:
                          llvm::StringMap<GlobalVariableOp> &globalVariablesMap);
 
   mlir::LogicalResult convertQualifiedVariableAccesses(
-      mlir::SymbolTableCollection &symbolTableCollection,
-      mlir::ModuleOp moduleOp, ModelOp modelOp,
-      llvm::StringMap<GlobalVariableOp> &globalVariablesMap);
+      mlir::SymbolTableCollection &symbolTables, mlir::ModuleOp moduleOp,
+      ModelOp modelOp, llvm::StringMap<GlobalVariableOp> &globalVariablesMap);
 
   GlobalVariableOp
   declareTimeVariable(mlir::OpBuilder &builder, mlir::ModuleOp moduleOp,
@@ -864,81 +861,71 @@ mlir::LogicalResult BaseModelicaToRuntimeConversionPass::declareGlobalVariables(
   return mlir::success();
 }
 
-namespace {
-template <typename Op>
-class QualifiedVariableOpPattern : public mlir::OpRewritePattern<Op> {
-public:
-  QualifiedVariableOpPattern(
-      mlir::MLIRContext *context,
-      mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::StringMap<GlobalVariableOp> &globalVariablesMap)
-      : mlir::OpRewritePattern<Op>(context),
-        symbolTableCollection(&symbolTableCollection),
-        globalVariablesMap(&globalVariablesMap) {}
+mlir::LogicalResult
+BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
+    mlir::SymbolTableCollection &symbolTables, mlir::ModuleOp moduleOp,
+    ModelOp modelOp, llvm::StringMap<GlobalVariableOp> &globalVariablesMap) {
+  mlir::IRRewriter rewriter(modelOp);
 
-protected:
-  mlir::SymbolTableCollection &getSymbolTableCollection() const {
-    assert(symbolTableCollection != nullptr);
-    return *symbolTableCollection;
-  }
+  auto getGlobalVariableFn = [&](VariableOp variableOp) -> GlobalVariableOp {
+    assert(globalVariablesMap.contains(variableOp.getSymName()));
+    return globalVariablesMap[variableOp.getSymName()];
+  };
 
-  [[nodiscard]] GlobalVariableOp
-  getGlobalVariable(VariableOp variableOp) const {
-    assert(globalVariablesMap != nullptr);
-    assert(globalVariablesMap->contains(variableOp.getSymName()));
-    return (*globalVariablesMap)[variableOp.getSymName()];
-  }
+  llvm::SmallVector<QualifiedVariableGetOp> getOps;
+  llvm::SmallVector<QualifiedVariableSetOp> setOps;
 
-private:
-  mlir::SymbolTableCollection *symbolTableCollection;
-  llvm::StringMap<GlobalVariableOp> *globalVariablesMap;
-};
+  moduleOp.walk([&](mlir::Operation *op) {
+    if (auto getOp = mlir::dyn_cast<QualifiedVariableGetOp>(op)) {
+      VariableOp variableOp = getOp.getVariableOp(symbolTables);
+      auto parentModelOp = variableOp->getParentOfType<ModelOp>();
 
-class QualifiedVariableGetOpPattern
-    : public QualifiedVariableOpPattern<QualifiedVariableGetOp> {
-public:
-  using QualifiedVariableOpPattern<
-      QualifiedVariableGetOp>::QualifiedVariableOpPattern;
+      if (parentModelOp && parentModelOp == modelOp) {
+        getOps.push_back(getOp);
+      }
 
-  mlir::LogicalResult
-  matchAndRewrite(QualifiedVariableGetOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
+      return;
+    }
+
+    if (auto setOp = mlir::dyn_cast<QualifiedVariableSetOp>(op)) {
+      VariableOp variableOp = setOp.getVariableOp(symbolTables);
+      auto parentModelOp = variableOp->getParentOfType<ModelOp>();
+
+      if (parentModelOp && parentModelOp == modelOp) {
+        setOps.push_back(setOp);
+      }
+    }
+  });
+
+  for (QualifiedVariableGetOp getOp : getOps) {
+    rewriter.setInsertionPoint(getOp);
+    VariableOp variableOp = getOp.getVariableOp(symbolTables);
 
     mlir::Value replacement = rewriter.create<GlobalVariableGetOp>(
-        op.getLoc(), getGlobalVariable(variableOp));
+        getOp.getLoc(), getGlobalVariableFn(variableOp));
 
     auto arrayType = mlir::cast<ArrayType>(replacement.getType());
 
     if (arrayType.isScalar()) {
       replacement = rewriter.create<LoadOp>(replacement.getLoc(), replacement,
                                             std::nullopt);
-    } else if (mlir::isa<mlir::TensorType>(op.getResult().getType())) {
+    } else if (mlir::isa<mlir::TensorType>(getOp.getResult().getType())) {
       replacement = rewriter.create<ArrayToTensorOp>(
           replacement.getLoc(), variableOp.getVariableType().toTensorType(),
           replacement);
     }
 
-    rewriter.replaceOp(op, replacement);
-    return mlir::success();
+    rewriter.replaceOp(getOp, replacement);
   }
-};
 
-class QualifiedVariableSetOpPattern
-    : public QualifiedVariableOpPattern<QualifiedVariableSetOp> {
-public:
-  using QualifiedVariableOpPattern<
-      QualifiedVariableSetOp>::QualifiedVariableOpPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(QualifiedVariableSetOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    VariableOp variableOp = op.getVariableOp(getSymbolTableCollection());
+  for (QualifiedVariableSetOp setOp : setOps) {
+    rewriter.setInsertionPoint(setOp);
+    VariableOp variableOp = setOp.getVariableOp(symbolTables);
 
     mlir::Value globalVariable = rewriter.create<GlobalVariableGetOp>(
-        op.getLoc(), getGlobalVariable(variableOp));
+        setOp.getLoc(), getGlobalVariableFn(variableOp));
 
-    mlir::Value writtenValue = op.getValue();
+    mlir::Value writtenValue = setOp.getValue();
     auto variableArrayType = mlir::cast<ArrayType>(globalVariable.getType());
 
     if (variableArrayType.isScalar()) {
@@ -948,7 +935,7 @@ public:
                                                expectedType, writtenValue);
       }
 
-      rewriter.create<StoreOp>(op.getLoc(), writtenValue, globalVariable,
+      rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, globalVariable,
                                std::nullopt);
     } else {
       if (mlir::isa<mlir::TensorType>(writtenValue.getType())) {
@@ -957,69 +944,28 @@ public:
       }
 
       mlir::Value destination = globalVariable;
-      auto indices = op.getIndices();
+      auto indices = setOp.getIndices();
 
       if (!indices.empty()) {
-        destination =
-            rewriter.create<SubscriptionOp>(op.getLoc(), destination, indices);
+        destination = rewriter.create<SubscriptionOp>(setOp.getLoc(),
+                                                      destination, indices);
       }
 
       auto destinationShapedType =
           mlir::cast<mlir::ShapedType>(destination.getType());
 
       if (destinationShapedType.getShape().empty()) {
-        rewriter.create<StoreOp>(op.getLoc(), writtenValue, destination,
+        rewriter.create<StoreOp>(setOp.getLoc(), writtenValue, destination,
                                  std::nullopt);
       } else {
-        rewriter.create<ArrayCopyOp>(op.getLoc(), writtenValue, destination);
+        rewriter.create<ArrayCopyOp>(setOp.getLoc(), writtenValue, destination);
       }
     }
 
-    rewriter.eraseOp(op);
-    return mlir::success();
+    rewriter.eraseOp(setOp);
   }
-};
-} // namespace
 
-mlir::LogicalResult
-BaseModelicaToRuntimeConversionPass::convertQualifiedVariableAccesses(
-    mlir::SymbolTableCollection &symbolTableCollection, mlir::ModuleOp moduleOp,
-    ModelOp modelOp, llvm::StringMap<GlobalVariableOp> &globalVariablesMap) {
-  mlir::ConversionTarget target(getContext());
-
-  target.addDynamicallyLegalOp<QualifiedVariableGetOp>(
-      [&](QualifiedVariableGetOp op) {
-        VariableOp variableOp = op.getVariableOp(symbolTableCollection);
-        auto parentModelOp = variableOp->getParentOfType<ModelOp>();
-
-        if (!parentModelOp || parentModelOp != modelOp) {
-          return true;
-        }
-
-        return false;
-      });
-
-  target.addDynamicallyLegalOp<QualifiedVariableSetOp>(
-      [&](QualifiedVariableSetOp op) {
-        VariableOp variableOp = op.getVariableOp(symbolTableCollection);
-        auto parentModelOp = variableOp->getParentOfType<ModelOp>();
-
-        if (!parentModelOp || parentModelOp != modelOp) {
-          return true;
-        }
-
-        return false;
-      });
-
-  target.markUnknownOpDynamicallyLegal(
-      [](mlir::Operation *op) { return true; });
-
-  mlir::RewritePatternSet patterns(&getContext());
-
-  patterns.insert<QualifiedVariableGetOpPattern, QualifiedVariableSetOpPattern>(
-      &getContext(), symbolTableCollection, globalVariablesMap);
-
-  return mlir::applyPartialConversion(moduleOp, target, std::move(patterns));
+  return mlir::success();
 }
 
 GlobalVariableOp BaseModelicaToRuntimeConversionPass::declareTimeVariable(
