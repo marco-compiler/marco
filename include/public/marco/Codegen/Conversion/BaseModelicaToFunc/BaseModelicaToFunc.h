@@ -22,9 +22,6 @@ void populateBaseModelicaRawVariablesTypeLegalizationPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter);
 
-void populateBaseModelicaRawVariablesConversionPatterns(
-    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context);
-
 std::unique_ptr<mlir::Pass> createBaseModelicaRawVariablesConversionPass();
 } // namespace mlir
 

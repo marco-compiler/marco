@@ -297,345 +297,6 @@ struct RawVariableSetOpTypePattern
   }
 };
 
-struct RawVariableScalarLowering
-    : public mlir::OpRewritePattern<RawVariableOp> {
-  using mlir::OpRewritePattern<RawVariableOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(RawVariableOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    mlir::Location loc = op.getLoc();
-
-    auto variableMemeRefType =
-        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
-
-    if (!variableMemeRefType) {
-      return rewriter.notifyMatchFailure(op, "Not a memref variable");
-    }
-
-    if (!variableMemeRefType.getShape().empty()) {
-      return rewriter.notifyMatchFailure(op, "Not a scalar variable");
-    }
-
-    mlir::Value reference =
-        createReference(rewriter, loc, variableMemeRefType, op.getHeap());
-
-    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
-      mlir::Operation *user = use.getOwner();
-
-      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
-        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
-          return mlir::failure();
-        }
-      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
-        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
-          return mlir::failure();
-        }
-      } else {
-        use.assign(reference);
-      }
-    }
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-
-  mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
-                              mlir::MemRefType memRefType, bool heap) const {
-    if (heap) {
-      auto allocOp =
-          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
-
-      return allocOp.getResult();
-    }
-
-    auto allocaOp =
-        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
-
-    return allocaOp.getResult();
-  }
-
-  mlir::LogicalResult convertGetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableGetOp op,
-                                   mlir::Value reference) const {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(op);
-
-    mlir::Value replacement = rewriter.create<mlir::memref::LoadOp>(
-        op.getLoc(), reference, std::nullopt);
-
-    rewriter.replaceOp(op, replacement);
-    return mlir::success();
-  }
-
-  mlir::LogicalResult convertSetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableSetOp op,
-                                   mlir::Value reference) const {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(op);
-
-    rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, op.getValue(),
-                                                       reference, std::nullopt);
-
-    return mlir::success();
-  }
-};
-
-struct RawVariableStaticArrayLowering
-    : public mlir::OpRewritePattern<RawVariableOp> {
-  using mlir::OpRewritePattern<RawVariableOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(RawVariableOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    mlir::Location loc = op.getLoc();
-
-    auto variableMemRefType =
-        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
-
-    if (!variableMemRefType) {
-      return rewriter.notifyMatchFailure(op, "Not a memref variable");
-    }
-
-    if (variableMemRefType.getShape().empty()) {
-      return rewriter.notifyMatchFailure(op, "Not an array variable");
-    }
-
-    if (op.getDynamicSizes().size() !=
-        static_cast<size_t>(variableMemRefType.getNumDynamicDims())) {
-      return rewriter.notifyMatchFailure(op, "Not a statically sized variable");
-    }
-
-    mlir::Value reference =
-        createReference(rewriter, loc, variableMemRefType, op.getHeap());
-
-    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
-      mlir::Operation *user = use.getOwner();
-
-      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
-        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
-          return mlir::failure();
-        }
-      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
-        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
-          return mlir::failure();
-        }
-      } else {
-        use.assign(reference);
-      }
-    }
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-
-  mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
-                              mlir::MemRefType memRefType, bool heap) const {
-    if (heap) {
-      auto allocOp =
-          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
-
-      return allocOp.getResult();
-    }
-
-    auto allocaOp =
-        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
-
-    return allocaOp.getResult();
-  }
-
-  mlir::LogicalResult convertGetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableGetOp op,
-                                   mlir::Value reference) const {
-    rewriter.replaceOp(op, reference);
-    return mlir::success();
-  }
-
-  mlir::LogicalResult convertSetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableSetOp op,
-                                   mlir::Value reference) const {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(op);
-
-    rewriter.create<mlir::memref::CopyOp>(op.getLoc(), op.getValue(),
-                                          reference);
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-
-struct RawVariableDynamicArrayLowering
-    : public mlir::OpRewritePattern<RawVariableOp> {
-  using mlir::OpRewritePattern<RawVariableOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(RawVariableOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    mlir::Location loc = op.getLoc();
-
-    auto variableMemRefType =
-        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
-
-    if (!variableMemRefType) {
-      return rewriter.notifyMatchFailure(op, "Not an memref variable");
-    }
-
-    if (variableMemRefType.getShape().empty()) {
-      return rewriter.notifyMatchFailure(op, "Not an array variable");
-    }
-
-    if (op.getDynamicSizes().size() ==
-        static_cast<size_t>(variableMemRefType.getNumDynamicDims())) {
-      return rewriter.notifyMatchFailure(op,
-                                         "Not a dynamically sized variable");
-    }
-
-    // The variable can change sizes during at runtime. Thus, we need to
-    // create a pointer to the array currently in use.
-
-    // Create the pointer to the array.
-    auto memRefOfMemRefType =
-        mlir::MemRefType::get(std::nullopt, variableMemRefType);
-
-    mlir::Value reference =
-        rewriter.create<mlir::memref::AllocaOp>(loc, memRefOfMemRefType);
-
-    // We need to allocate a fake buffer in order to allow the first free
-    // operation to operate on a valid memory area.
-
-    llvm::SmallVector<int64_t> zeroedDynDimsMemRefShape;
-
-    getZeroedDynDimsMemRefShap(zeroedDynDimsMemRefShape,
-                               variableMemRefType.getShape());
-
-    auto zeroedDynDimsMemRefType = mlir::MemRefType::get(
-        zeroedDynDimsMemRefShape, variableMemRefType.getElementType());
-
-    mlir::Value fakeArray = rewriter.create<mlir::memref::AllocOp>(
-        loc, zeroedDynDimsMemRefType, std::nullopt);
-
-    if (fakeArray.getType() != memRefOfMemRefType.getElementType()) {
-      fakeArray = rewriter.create<mlir::memref::CastOp>(
-          loc, memRefOfMemRefType.getElementType(), fakeArray);
-    }
-
-    rewriter.create<mlir::memref::StoreOp>(loc, fakeArray, reference);
-
-    // Replace the users.
-    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
-      mlir::Operation *user = use.getOwner();
-
-      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
-        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
-          return mlir::failure();
-        }
-      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
-        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
-          return mlir::failure();
-        }
-      } else {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(user);
-
-        mlir::Value memRef =
-            rewriter.create<mlir::memref::LoadOp>(user->getLoc(), reference);
-
-        if (memRef.getType() != variableMemRefType) {
-          memRef = rewriter.create<mlir::memref::CastOp>(
-              memRef.getLoc(), variableMemRefType, memRef);
-        }
-
-        use.assign(memRef);
-      }
-    }
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-
-  void getZeroedDynDimsMemRefShap(llvm::SmallVectorImpl<int64_t> &result,
-                                  llvm::ArrayRef<int64_t> shape) const {
-    for (int64_t size : shape) {
-      if (size == mlir::ShapedType::kDynamic) {
-        result.push_back(0);
-      } else {
-        result.push_back(size);
-      }
-    }
-  }
-
-  mlir::LogicalResult convertGetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableGetOp op,
-                                   mlir::Value reference) const {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(op);
-
-    auto variableMemRefType =
-        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
-
-    mlir::Value memRef =
-        rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
-
-    if (memRef.getType() != variableMemRefType) {
-      memRef = rewriter.create<mlir::memref::CastOp>(
-          op.getLoc(), variableMemRefType, memRef);
-    }
-
-    rewriter.replaceOp(op, memRef);
-    return mlir::success();
-  }
-
-  mlir::LogicalResult convertSetOp(mlir::PatternRewriter &rewriter,
-                                   RawVariableSetOp op,
-                                   mlir::Value reference) const {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPoint(op);
-
-    auto variableMemRefType =
-        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
-
-    // The destination array has dynamic and unknown sizes. Thus, the array
-    // has not been allocated yet, and we need to create a copy of the
-    // source one.
-
-    mlir::Value value = op.getValue();
-    llvm::SmallVector<mlir::Value> dynamicSizes;
-
-    for (int64_t dim = 0, rank = variableMemRefType.getRank(); dim < rank;
-         ++dim) {
-      if (variableMemRefType.getDimSize(dim) == mlir::ShapedType::kDynamic) {
-        mlir::Value dimensionSize =
-            rewriter.create<mlir::memref::DimOp>(op.getLoc(), value, dim);
-
-        dynamicSizes.push_back(dimensionSize);
-      }
-    }
-
-    mlir::Value valueCopy = rewriter.create<mlir::memref::AllocOp>(
-        op.getLoc(), variableMemRefType, dynamicSizes);
-
-    rewriter.create<mlir::memref::CopyOp>(op.getLoc(), value, valueCopy);
-
-    // Deallocate the previously allocated memory. This is only
-    // apparently in contrast with the above statements: unknown-sized
-    // arrays pointers are initialized with a pointer to a 1-element
-    // sized array, so that the initial deallocation always operates on valid
-    // memory.
-
-    mlir::Value previousMemRef =
-        rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
-
-    rewriter.create<mlir::memref::DeallocOp>(op.getLoc(), previousMemRef);
-
-    // Save the reference to the new copy.
-    rewriter.create<mlir::memref::StoreOp>(op.getLoc(), valueCopy, reference);
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-
 struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
   using mlir::OpConversionPattern<CallOp>::OpConversionPattern;
 
@@ -753,41 +414,376 @@ public:
   void runOnOperation() override;
 
 private:
-  mlir::LogicalResult convertRawVariables();
+  mlir::LogicalResult convertVariables();
+
+  mlir::LogicalResult convertVariable(RawVariableOp op);
 };
 } // namespace
 
 void BaseModelicaRawVariablesConversionPass::runOnOperation() {
-  if (mlir::failed(convertRawVariables())) {
+  if (mlir::failed(convertVariables())) {
     return signalPassFailure();
   }
 }
 
+mlir::LogicalResult BaseModelicaRawVariablesConversionPass::convertVariables() {
+  llvm::SmallVector<RawVariableOp> rawVariableOps;
+
+  getOperation()->walk([&](RawVariableOp op) {
+    if (mlir::isa<mlir::MemRefType>(op.getVariable().getType())) {
+      rawVariableOps.push_back(op);
+    }
+  });
+
+  for (RawVariableOp varOp : rawVariableOps) {
+    if (mlir::failed(convertVariable(varOp))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+namespace {
+class RawVariableConverter {
+public:
+  RawVariableConverter(mlir::RewriterBase &rewriter) : rewriter(rewriter) {}
+
+  virtual ~RawVariableConverter() = default;
+
+  virtual mlir::LogicalResult convert(RawVariableOp op) const = 0;
+
+protected:
+  mlir::RewriterBase &rewriter;
+};
+
+class RawVariableScalarConverter : public RawVariableConverter {
+public:
+  using RawVariableConverter::RawVariableConverter;
+
+  mlir::LogicalResult convert(RawVariableOp op) const override {
+    mlir::Location loc = op.getLoc();
+
+    auto variableMemRefType =
+        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
+
+    mlir::Value reference =
+        createReference(rewriter, loc, variableMemRefType, op.getHeap());
+
+    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
+      mlir::Operation *user = use.getOwner();
+
+      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
+          return mlir::failure();
+        }
+      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
+          return mlir::failure();
+        }
+      } else {
+        use.assign(reference);
+      }
+    }
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+
+  mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
+                              mlir::MemRefType memRefType, bool heap) const {
+    if (heap) {
+      auto allocOp =
+          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
+
+      return allocOp.getResult();
+    }
+
+    auto allocaOp =
+        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
+
+    return allocaOp.getResult();
+  }
+
+  mlir::LogicalResult convertGetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableGetOp op,
+                                   mlir::Value reference) const {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    mlir::Value replacement = rewriter.create<mlir::memref::LoadOp>(
+        op.getLoc(), reference, std::nullopt);
+
+    rewriter.replaceOp(op, replacement);
+    return mlir::success();
+  }
+
+  mlir::LogicalResult convertSetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableSetOp op,
+                                   mlir::Value reference) const {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, op.getValue(),
+                                                       reference, std::nullopt);
+
+    return mlir::success();
+  }
+};
+
+class RawVariableStaticArrayConverter : public RawVariableConverter {
+public:
+  using RawVariableConverter::RawVariableConverter;
+
+  mlir::LogicalResult convert(RawVariableOp op) const override {
+    mlir::Location loc = op.getLoc();
+
+    auto variableMemRefType =
+        mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
+
+    mlir::Value reference =
+        createReference(rewriter, loc, variableMemRefType, op.getHeap());
+
+    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
+      mlir::Operation *user = use.getOwner();
+
+      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
+          return mlir::failure();
+        }
+      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
+          return mlir::failure();
+        }
+      } else {
+        use.assign(reference);
+      }
+    }
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+
+  mlir::Value createReference(mlir::OpBuilder &builder, mlir::Location loc,
+                              mlir::MemRefType memRefType, bool heap) const {
+    if (heap) {
+      auto allocOp =
+          builder.create<mlir::memref::AllocOp>(loc, memRefType, std::nullopt);
+
+      return allocOp.getResult();
+    }
+
+    auto allocaOp =
+        builder.create<mlir::memref::AllocaOp>(loc, memRefType, std::nullopt);
+
+    return allocaOp.getResult();
+  }
+
+  mlir::LogicalResult convertGetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableGetOp op,
+                                   mlir::Value reference) const {
+    rewriter.replaceOp(op, reference);
+    return mlir::success();
+  }
+
+  mlir::LogicalResult convertSetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableSetOp op,
+                                   mlir::Value reference) const {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    rewriter.create<mlir::memref::CopyOp>(op.getLoc(), op.getValue(),
+                                          reference);
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
+class RawVariableDynamicArrayConverter : public RawVariableConverter {
+public:
+  using RawVariableConverter::RawVariableConverter;
+
+  mlir::LogicalResult convert(RawVariableOp op) const override {
+    mlir::Location loc = op.getLoc();
+
+    auto variableMemRefType =
+        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
+
+    if (variableMemRefType.getShape().empty()) {
+      return rewriter.notifyMatchFailure(op, "Not an array variable");
+    }
+
+    if (op.getDynamicSizes().size() ==
+        static_cast<size_t>(variableMemRefType.getNumDynamicDims())) {
+      return rewriter.notifyMatchFailure(op,
+                                         "Not a dynamically sized variable");
+    }
+
+    // The variable can change sizes during at runtime. Thus, we need to
+    // create a pointer to the array currently in use.
+
+    // Create the pointer to the array.
+    auto memRefOfMemRefType =
+        mlir::MemRefType::get(std::nullopt, variableMemRefType);
+
+    mlir::Value reference =
+        rewriter.create<mlir::memref::AllocaOp>(loc, memRefOfMemRefType);
+
+    // We need to allocate a fake buffer in order to allow the first free
+    // operation to operate on a valid memory area.
+
+    llvm::SmallVector<int64_t> zeroedDynDimsMemRefShape;
+
+    getZeroedDynDimsMemRefShap(zeroedDynDimsMemRefShape,
+                               variableMemRefType.getShape());
+
+    auto zeroedDynDimsMemRefType = mlir::MemRefType::get(
+        zeroedDynDimsMemRefShape, variableMemRefType.getElementType());
+
+    mlir::Value fakeArray = rewriter.create<mlir::memref::AllocOp>(
+        loc, zeroedDynDimsMemRefType, std::nullopt);
+
+    if (fakeArray.getType() != memRefOfMemRefType.getElementType()) {
+      fakeArray = rewriter.create<mlir::memref::CastOp>(
+          loc, memRefOfMemRefType.getElementType(), fakeArray);
+    }
+
+    rewriter.create<mlir::memref::StoreOp>(loc, fakeArray, reference);
+
+    // Replace the users.
+    for (auto &use : llvm::make_early_inc_range(op->getUses())) {
+      mlir::Operation *user = use.getOwner();
+
+      if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+        if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
+          return mlir::failure();
+        }
+      } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+        if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
+          return mlir::failure();
+        }
+      } else {
+        mlir::OpBuilder::InsertionGuard guard(rewriter);
+        rewriter.setInsertionPoint(user);
+
+        mlir::Value memRef =
+            rewriter.create<mlir::memref::LoadOp>(user->getLoc(), reference);
+
+        if (memRef.getType() != variableMemRefType) {
+          memRef = rewriter.create<mlir::memref::CastOp>(
+              memRef.getLoc(), variableMemRefType, memRef);
+        }
+
+        use.assign(memRef);
+      }
+    }
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+
+  void getZeroedDynDimsMemRefShap(llvm::SmallVectorImpl<int64_t> &result,
+                                  llvm::ArrayRef<int64_t> shape) const {
+    for (int64_t size : shape) {
+      if (size == mlir::ShapedType::kDynamic) {
+        result.push_back(0);
+      } else {
+        result.push_back(size);
+      }
+    }
+  }
+
+  mlir::LogicalResult convertGetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableGetOp op,
+                                   mlir::Value reference) const {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    auto variableMemRefType =
+        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
+
+    mlir::Value memRef =
+        rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
+
+    if (memRef.getType() != variableMemRefType) {
+      memRef = rewriter.create<mlir::memref::CastOp>(
+          op.getLoc(), variableMemRefType, memRef);
+    }
+
+    rewriter.replaceOp(op, memRef);
+    return mlir::success();
+  }
+
+  mlir::LogicalResult convertSetOp(mlir::RewriterBase &rewriter,
+                                   RawVariableSetOp op,
+                                   mlir::Value reference) const {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPoint(op);
+
+    auto variableMemRefType =
+        mlir::cast<mlir::MemRefType>(op.getVariable().getType());
+
+    // The destination array has dynamic and unknown sizes. Thus, the array
+    // has not been allocated yet, and we need to create a copy of the
+    // source one.
+
+    mlir::Value value = op.getValue();
+    llvm::SmallVector<mlir::Value> dynamicSizes;
+
+    for (int64_t dim = 0, rank = variableMemRefType.getRank(); dim < rank;
+         ++dim) {
+      if (variableMemRefType.getDimSize(dim) == mlir::ShapedType::kDynamic) {
+        mlir::Value dimensionSize =
+            rewriter.create<mlir::memref::DimOp>(op.getLoc(), value, dim);
+
+        dynamicSizes.push_back(dimensionSize);
+      }
+    }
+
+    mlir::Value valueCopy = rewriter.create<mlir::memref::AllocOp>(
+        op.getLoc(), variableMemRefType, dynamicSizes);
+
+    rewriter.create<mlir::memref::CopyOp>(op.getLoc(), value, valueCopy);
+
+    // Deallocate the previously allocated memory. This is only
+    // apparently in contrast with the above statements: unknown-sized
+    // arrays pointers are initialized with a pointer to a 1-element
+    // sized array, so that the initial deallocation always operates on valid
+    // memory.
+
+    mlir::Value previousMemRef =
+        rewriter.create<mlir::memref::LoadOp>(op.getLoc(), reference);
+
+    rewriter.create<mlir::memref::DeallocOp>(op.getLoc(), previousMemRef);
+
+    // Save the reference to the new copy.
+    rewriter.create<mlir::memref::StoreOp>(op.getLoc(), valueCopy, reference);
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+} // namespace
+
 mlir::LogicalResult
-BaseModelicaRawVariablesConversionPass::convertRawVariables() {
-  mlir::ConversionTarget target(getContext());
+BaseModelicaRawVariablesConversionPass::convertVariable(RawVariableOp op) {
+  mlir::IRRewriter rewriter(op);
+  std::unique_ptr<RawVariableConverter> converter;
 
-  target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
-                         mlir::memref::MemRefDialect>();
+  auto variableMemRefType =
+      mlir::dyn_cast<mlir::MemRefType>(op.getVariable().getType());
 
-  target.addLegalDialect<BaseModelicaDialect>();
+  if (variableMemRefType.getShape().empty()) {
+    converter = std::make_unique<RawVariableScalarConverter>(rewriter);
+  } else if (op.getDynamicSizes().size() ==
+             variableMemRefType.getNumDynamicDims()) {
+    converter = std::make_unique<RawVariableStaticArrayConverter>(rewriter);
+  } else {
+    converter = std::make_unique<RawVariableDynamicArrayConverter>(rewriter);
+  }
 
-  target.addDynamicallyLegalOp<RawVariableOp>([](RawVariableOp op) {
-    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
-  });
-
-  target.addDynamicallyLegalOp<RawVariableGetOp>([](RawVariableGetOp op) {
-    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
-  });
-
-  target.addDynamicallyLegalOp<RawVariableSetOp>([](RawVariableSetOp op) {
-    return !mlir::isa<mlir::MemRefType>(op.getVariable().getType());
-  });
-
-  mlir::RewritePatternSet patterns(&getContext());
-  populateBaseModelicaRawVariablesConversionPatterns(patterns, &getContext());
-
-  return applyPartialConversion(getOperation(), target, std::move(patterns));
+  return converter->convert(op);
 }
 
 namespace mlir {
@@ -796,12 +792,6 @@ void populateBaseModelicaRawVariablesTypeLegalizationPatterns(
     mlir::TypeConverter &typeConverter) {
   patterns.insert<RawVariableOpTypePattern, RawVariableGetOpTypePattern,
                   RawVariableSetOpTypePattern>(typeConverter, context);
-}
-
-void populateBaseModelicaRawVariablesConversionPatterns(
-    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context) {
-  patterns.insert<RawVariableScalarLowering, RawVariableStaticArrayLowering,
-                  RawVariableDynamicArrayLowering>(context);
 }
 
 std::unique_ptr<mlir::Pass> createBaseModelicaRawVariablesConversionPass() {
