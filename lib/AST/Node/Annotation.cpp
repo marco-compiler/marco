@@ -1,11 +1,28 @@
 #include "marco/AST/Node/Annotation.h"
-#include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Call.h"               // para Call
+
 #include "marco/AST/Node/ComponentReference.h"
 #include "marco/AST/Node/Constant.h"
-#include "marco/AST/Node/Expression.h"
+
 #include "marco/AST/Node/ExpressionFunctionArgument.h"
 #include "marco/AST/Node/Function.h"
 #include "marco/AST/Node/Modification.h"
+#include "marco/Parser/Location.h"
+
+
+
+#include "llvm/ADT/SmallVector.h"                 // for llvm::SmallVector
+#include "llvm/Support/JSON.h"                    // for llvm::json::Value
+
+
+#include <cassert>                                // for assert
+#include <cstdint>                                // for int64_t
+#include <memory>                                 // for std::unique_ptr
+#include <string>                                 // for std::string
+#include <utility>                                // for std::move
+
+
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -68,7 +85,7 @@ bool Annotation::getInlineProperty() const {
       if (elementModification->getName().equals_insensitive("inline") &&
           elementModification->hasModification()) {
         const auto &modification = elementModification->getModification();
-        return modification->getExpression()->cast<Constant>()->as<bool>();
+        return modification->getExpression()->template cast<Constant>()->as<bool>();
       }
     }
   }
@@ -78,7 +95,7 @@ bool Annotation::getInlineProperty() const {
 
 bool Annotation::hasDerivativeAnnotation() const {
   for (const auto &argument : getProperties()->getArguments()) {
-    if (auto *elementModification = argument->dyn_cast<ElementModification>()) {
+    if (auto *elementModification = argument->template dyn_cast<ElementModification>()) {
       if (elementModification->getName() == "derivative") {
         return true;
       }
@@ -116,14 +133,14 @@ DerivativeAnnotation Annotation::getDerivativeAnnotation() const {
   assert(hasDerivativeAnnotation());
 
   for (const auto &argument : getProperties()->getArguments()) {
-    if (auto *elementModification = argument->dyn_cast<ElementModification>()) {
+    if (auto *elementModification = argument-> template dyn_cast<ElementModification>()) {
       if (elementModification->getName() != "derivative") {
         continue;
       }
 
       auto *modification = elementModification->getModification();
       auto name =
-          modification->getExpression()->cast<ComponentReference>()->getName();
+          modification->getExpression()->template cast<ComponentReference>()->getName();
       unsigned int order = 1;
 
       if (modification->hasClassModification()) {
@@ -153,7 +170,7 @@ InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const {
   InverseFunctionAnnotation result;
 
   for (const auto &argument : getProperties()->getArguments()) {
-    if (auto *elementModification = argument->dyn_cast<ElementModification>()) {
+    if (auto *elementModification = argument->template dyn_cast<ElementModification>()) {
       if (elementModification->getName().equals_insensitive("inverse")) {
         assert(elementModification->hasModification());
         const auto &modification = elementModification->getModification();
@@ -167,12 +184,12 @@ InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const {
           const auto &callExpression =
               inverseDeclarationFullExpression->getModification();
           assert(callExpression->hasExpression());
-          const auto *call = callExpression->getExpression()->cast<Call>();
+          const auto *call = callExpression->getExpression()->template cast<Call>();
 
           llvm::SmallVector<std::string, 3> args;
 
           for (const auto &arg : call->getArguments()) {
-            args.push_back(arg->cast<ExpressionFunctionArgument>()
+            args.push_back(arg->template cast<ExpressionFunctionArgument>()
                                ->getExpression()
                                ->cast<ComponentReference>()
                                ->getName());
