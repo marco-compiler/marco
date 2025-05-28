@@ -1,13 +1,22 @@
-#ifndef MARCO_DIAGNOSTIC_LOCATION_H
-#define MARCO_DIAGNOSTIC_LOCATION_H
+//#ifndef MARCO_DIAGNOSTIC_LOCATION_H
+//#define MARCO_DIAGNOSTIC_LOCATION_H
+#ifndef PUBLIC_MARCO_PARSER_LOCATION_H
+#define PUBLIC_MARCO_PARSER_LOCATION_H
+
+
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <memory>
 
+//NEW
+#include <cstdint>   // for int64_t
+#include <string>    // for std::string
+
+
 namespace llvm {
 class raw_ostream;
-}
+} //namespace llvm
 
 namespace marco {
 class SourceFile {
@@ -52,4 +61,4 @@ public:
 };
 } // namespace marco
 
-#endif // MARCO_DIAGNOSTIC_LOCATION_H
+#endif // PUBLIC_MARCO_PARSER_LOCATION_H

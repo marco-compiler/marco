@@ -1,0 +1,221 @@
+error: no input files [clang-diagnostic-error]
+error: no such file or directory: '/workspace/lib/AST/**/*.h' [clang-diagnostic-error]
+error: unable to handle compilation, expected exactly one compiler job in '' [clang-diagnostic-error]
+/workspace/lib/AST/Node/ASTNode.cpp:1:10: error: 'marco/AST/Node/ASTNode.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ASTNode.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ASTNode.cpp:2:1: warning: included header raw_ostream.h is not used directly [misc-include-cleaner]
+    2 | #include "llvm/Support/raw_ostream.h"
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    3 | 
+/workspace/lib/AST/Node/ASTNode.cpp:7:13: warning: no header providing "std::string" is directly included [misc-include-cleaner]
+    3 | 
+    4 | using namespace ::marco;
+    5 | using namespace ::marco::ast;
+    6 | 
+    7 | static std::string toString(ASTNode::Kind kind) {
+      |             ^
+/workspace/lib/AST/Node/ASTNode.cpp:7:20: warning: function 'toString' declared 'static', move to anonymous namespace instead [misc-use-anonymous-namespace]
+    7 | static std::string toString(ASTNode::Kind kind) {
+      |                    ^
+/workspace/lib/AST/Node/Algorithm.cpp:1:10: error: 'marco/AST/Node/Algorithm.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Algorithm.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Annotation.cpp:1:10: error: 'marco/AST/Node/Annotation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Annotation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ArrayConstant.cpp:1:10: error: 'marco/AST/Node/ArrayConstant.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ArrayConstant.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ArrayDimension.cpp:1:10: error: 'marco/AST/Node/ArrayDimension.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ArrayDimension.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ArrayForGenerator.cpp:1:10: error: 'marco/AST/Node/ArrayForGenerator.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ArrayForGenerator.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ArrayGenerator.cpp:1:10: error: 'marco/AST/Node/ArrayGenerator.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ArrayGenerator.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ArrayGenerator.cpp:8:1: warning: namespace 'marco::ast' not terminated with a closing comment [llvm-namespace-comment]
+    8 | }
+      | ^
+      |   // namespace marco::ast
+/workspace/lib/AST/Node/ArrayGenerator.cpp:6:11: note: namespace 'marco::ast' starts here
+    6 | namespace marco::ast {
+      |           ^
+/workspace/lib/AST/Node/AssignmentStatement.cpp:1:10: error: 'marco/AST/Node/AssignmentStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/AssignmentStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/BreakStatement.cpp:1:10: error: 'marco/AST/Node/BreakStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/BreakStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Call.cpp:1:10: error: 'marco/AST/Node/Call.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Call.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/CallStatement.cpp:1:10: error: 'marco/AST/Node/CallStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/CallStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Class.cpp:1:10: error: 'marco/AST/Node/Class.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Class.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ComponentReference.cpp:1:10: error: 'marco/AST/Node/ComponentReference.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ComponentReference.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ComponentReferenceEntry.cpp:1:10: error: 'marco/AST/Node/ComponentReferenceEntry.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ComponentReferenceEntry.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Constant.cpp:1:10: error: 'marco/AST/Node/Constant.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Constant.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/EqualityEquation.cpp:1:10: error: 'marco/AST/Node/EqualityEquation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/EqualityEquation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Equation.cpp:1:10: error: 'marco/AST/Node/Equation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Equation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Equation.cpp:8:1: warning: namespace 'marco::ast' not terminated with a closing comment [llvm-namespace-comment]
+    8 | }
+      | ^
+      |   // namespace marco::ast
+/workspace/lib/AST/Node/Equation.cpp:6:11: note: namespace 'marco::ast' starts here
+    6 | namespace marco::ast {
+      |           ^
+/workspace/lib/AST/Node/EquationSection.cpp:1:10: error: 'marco/AST/Node/EquationSection.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/EquationSection.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Expression.cpp:1:10: error: 'marco/AST/Node/Expression.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Expression.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Expression.cpp:8:1: warning: namespace 'marco::ast' not terminated with a closing comment [llvm-namespace-comment]
+    8 | }
+      | ^
+      |   // namespace marco::ast
+/workspace/lib/AST/Node/Expression.cpp:6:11: note: namespace 'marco::ast' starts here
+    6 | namespace marco::ast {
+      |           ^
+/workspace/lib/AST/Node/ExpressionFunctionArgument.cpp:1:10: error: 'marco/AST/Node/ExpressionFunctionArgument.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ExpressionFunctionArgument.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ForEquation.cpp:1:10: error: 'marco/AST/Node/ForEquation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ForEquation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ForEquation.cpp:4:1: warning: included header memory is not used directly [misc-include-cleaner]
+    4 | #include <memory>
+      | ^~~~~~~~~~~~~~~~~
+    5 | 
+/workspace/lib/AST/Node/ForIndex.cpp:1:10: error: 'marco/AST/Node/ForIndex.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ForIndex.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ForStatement.cpp:1:10: error: 'marco/AST/Node/ForStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ForStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Function.cpp:1:10: error: 'marco/AST/Node/Function.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Function.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Function.cpp:6:1: warning: included header algorithm is not used directly [misc-include-cleaner]
+    6 | #include <algorithm>
+      | ^~~~~~~~~~~~~~~~~~~~
+    7 | #include <variant>
+/workspace/lib/AST/Node/Function.cpp:7:1: warning: included header variant is not used directly [misc-include-cleaner]
+    7 | #include <variant>
+      | ^~~~~~~~~~~~~~~~~~
+    8 | 
+/workspace/lib/AST/Node/FunctionArgument.cpp:1:10: error: 'marco/AST/Node/FunctionArgument.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/FunctionArgument.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/IfEquation.cpp:1:10: error: 'marco/AST/Node/IfEquation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/IfEquation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/IfStatement.cpp:1:10: error: 'marco/AST/Node/IfStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/IfStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Member.cpp:1:10: error: 'marco/AST/Node/Member.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Member.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Model.cpp:1:10: error: 'marco/AST/Node/Model.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Model.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Modification.cpp:1:10: error: 'marco/AST/Node/Modification.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Modification.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/NamedFunctionArgument.cpp:1:10: error: 'marco/AST/Node/NamedFunctionArgument.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/NamedFunctionArgument.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Operation.cpp:1:10: error: 'marco/AST/Node/Operation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Operation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Operation.cpp:3:1: warning: included header StringRef.h is not used directly [misc-include-cleaner]
+    3 | #include "llvm/ADT/StringRef.h"
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    4 | #include <numeric>
+/workspace/lib/AST/Node/Operation.cpp:4:1: warning: included header numeric is not used directly [misc-include-cleaner]
+    4 | #include <numeric>
+      | ^~~~~~~~~~~~~~~~~~
+    5 | 
+/workspace/lib/AST/Node/Operation.cpp:9:13: warning: no header providing "std::string" is directly included [misc-include-cleaner]
+    5 | 
+    6 | using namespace ::marco;
+    7 | using namespace ::marco::ast;
+    8 | 
+    9 | static std::string toString(OperationKind kind) {
+      |             ^
+/workspace/lib/AST/Node/Operation.cpp:9:20: warning: function 'toString' declared 'static', move to anonymous namespace instead [misc-use-anonymous-namespace]
+    9 | static std::string toString(OperationKind kind) {
+      |                    ^
+/workspace/lib/AST/Node/Operation.cpp:116:3: warning: no header providing "assert" is directly included [misc-include-cleaner]
+    4 |   assert(index < arguments.size());
+      |   ^
+/workspace/lib/AST/Node/Package.cpp:1:10: error: 'marco/AST/Node/Package.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Package.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Record.cpp:1:10: error: 'marco/AST/Node/Record.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Record.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Reduction.cpp:1:10: error: 'marco/AST/Node/Reduction.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Reduction.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ReductionFunctionArgument.cpp:1:10: error: 'marco/AST/Node/ReductionFunctionArgument.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ReductionFunctionArgument.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/ReturnStatement.cpp:1:10: error: 'marco/AST/Node/ReturnStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/ReturnStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Root.cpp:1:10: error: 'marco/AST/Node/Root.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Root.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Statement.cpp:1:10: error: 'marco/AST/Node/Statement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Statement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/StatementsBlock.cpp:1:10: error: 'marco/AST/Node/StatementsBlock.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/StatementsBlock.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Subscript.cpp:1:10: error: 'marco/AST/Node/Subscript.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Subscript.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Tuple.cpp:1:10: error: 'marco/AST/Node/Tuple.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Tuple.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Type.cpp:1:10: error: 'marco/AST/Node/Type.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/Type.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/Type.cpp:7:20: warning: function 'toString' declared 'static', move to anonymous namespace instead [misc-use-anonymous-namespace]
+    7 | static std::string toString(BuiltInType::Kind builtInTypeKind) {
+      |                    ^
+/workspace/lib/AST/Node/TypePrefix.cpp:1:10: error: 'marco/AST/Node/TypePrefix.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/TypePrefix.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/TypePrefix.cpp:6:20: warning: function 'toString' declared 'static', move to anonymous namespace instead [misc-use-anonymous-namespace]
+    6 | static std::string toString(VariabilityQualifier qualifier) {
+      |                    ^
+/workspace/lib/AST/Node/TypePrefix.cpp:22:20: warning: function 'toString' declared 'static', move to anonymous namespace instead [misc-use-anonymous-namespace]
+   22 | static std::string toString(IOQualifier qualifier) {
+      |                    ^
+/workspace/lib/AST/Node/WhenEquation.cpp:1:10: error: 'marco/AST/Node/WhenEquation.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/WhenEquation.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/WhenStatement.cpp:1:10: error: 'marco/AST/Node/WhenStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/WhenStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/lib/AST/Node/WhileStatement.cpp:1:10: error: 'marco/AST/Node/WhileStatement.h' file not found [clang-diagnostic-error]
+    1 | #include "marco/AST/Node/WhileStatement.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1,10 +1,24 @@
+// #include "marco/AST/Node/ASTNode.h"
+// #include "llvm/Support/raw_ostream.h"
+
+//New
+
+#include "llvm/Support/ErrorHandling.h"    // for llvm_unreachable
+#include "llvm/Support/JSON.h"             // for llvm::json::Object
+
+#include <string>                          // for std::string
+#include <utility>                         // for std::move
+
 #include "marco/AST/Node/ASTNode.h"
-#include "llvm/Support/raw_ostream.h"
+#include "marco/Parser/Location.h"         // for marco::SourceRange
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(ASTNode::Kind kind) {
+// static std::string toString(ASTNode::Kind kind) {
+namespace {                             // misc-use-anonymous-namespace
+std::string toString(ASTNode::Kind kind) {
+//
   switch (kind) {
   case ASTNode::Kind::Root:
     return "root";
@@ -99,6 +113,7 @@ static std::string toString(ASTNode::Kind kind) {
     return "unknown";
   }
 }
+} //namespace
 
 namespace marco::ast {
 ASTNode::ASTNode(Kind kind, SourceRange location, ASTNode *parent)
@@ -110,7 +125,8 @@ ASTNode::~ASTNode() = default;
 
 SourceRange ASTNode::getLocation() const { return location; }
 
-void ASTNode::setLocation(SourceRange loc) { this->location = std::move(loc); }
+//void ASTNode::setLocation(SourceRange loc) { this->location = std::move(loc); }
+void ASTNode::setLocation(const SourceRange &loc) { this->location = loc; }
 
 ASTNode *ASTNode::getParent() { return parent; }
 

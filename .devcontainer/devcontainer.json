@@ -1,0 +1,20 @@
+{
+    "name": "MARCO Dev Container",
+    "image": "ghcr.io/marco-compiler/marco-dev-debug-debian-12:latest",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "remoteUser": "root",
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "terminal.integrated.shell.linux": "/bin/bash"
+        },
+        "extensions": [
+          "ms-vscode.cpptools",
+          "ms-vscode.cmake-tools",
+          "ms-vscode.remote-containers"
+        ]
+      }
+    }
+  }
+  

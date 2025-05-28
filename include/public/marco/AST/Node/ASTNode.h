@@ -1,13 +1,19 @@
-#ifndef MARCO_AST_NODE_ASTNODE_H
-#define MARCO_AST_NODE_ASTNODE_H
+//#ifndef MARCO_AST_NODE_ASTNODE_H
+//#define MARCO_AST_NODE_ASTNODE_H
+#ifndef PUBLIC_MARCO_AST_NODE_ASTNODE_H
+#define PUBLIC_MARCO_AST_NODE_ASTNODE_H
 
 #include "marco/Parser/Location.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/JSON.h"
 
+//New
+#include <cassert>    // for assert
+#include <memory>     // for std::unique_ptr
+
 namespace llvm {
 class raw_ostream;
-}
+} //namespace llvm
 
 namespace marco::ast {
 class ASTNode {
@@ -108,12 +114,12 @@ public:
   }
 
   template <typename T>
-  T *dyn_cast() {
+  T *dyn_cast() { // NOLINT(readability-identifier-naming)
     return llvm::dyn_cast<T>(this);
   }
 
   template <typename T>
-  const T *dyn_cast() const {
+  const T *dyn_cast() const { // NOLINT(readability-identifier-naming)
     return llvm::dyn_cast<T>(this);
   }
 
@@ -123,7 +129,8 @@ public:
 
   SourceRange getLocation() const;
 
-  void setLocation(SourceRange loc);
+  //void setLocation(SourceRange loc);
+  void setLocation(const SourceRange &loc);
 
   ASTNode *getParent();
 
@@ -133,7 +140,8 @@ public:
 
   template <typename T>
   T *getParentOfType() {
-    ASTNode *node = parent;
+    //ASTNode *node = parent;
+    const ASTNode *node = parent;
 
     while (node != nullptr) {
       if (T *casted = node->dyn_cast<T>()) {
@@ -148,7 +156,8 @@ public:
 
   template <typename T>
   const T *getParentOfType() const {
-    ASTNode *node = parent;
+    //ASTNode *node = parent;
+    const ASTNode *node = parent;
 
     while (node != nullptr) {
       if (T *casted = node->dyn_cast<T>()) {
@@ -173,4 +182,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ASTNODE_H
+#endif // PUBLIC_MARCO_AST_NODE_ASTNODE_H
