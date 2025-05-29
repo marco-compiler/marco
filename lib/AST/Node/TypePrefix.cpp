@@ -1,4 +1,11 @@
 #include "marco/AST/Node/TypePrefix.h"
+#include <string>
+#include <llvm/Support/ErrorHandling.h>
+#include "marco/Parser/Location.h"
+#include "marco/AST/Node/ASTNode.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -38,8 +45,8 @@ TypePrefix::TypePrefix(SourceRange location)
     : ASTNode(ASTNode::Kind::TypePrefix, std::move(location)) {}
 
 TypePrefix::TypePrefix(const TypePrefix &other)
-    : ASTNode(other), variabilityQualifier(other.variabilityQualifier),
-      ioQualifier(other.ioQualifier) {}
+    
+      = default;
 
 TypePrefix::~TypePrefix() = default;
 

@@ -1,7 +1,15 @@
 #include "marco/AST/Node/ForEquation.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Equation.h"
 #include "marco/AST/Node/ForIndex.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cstddef>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
 #include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

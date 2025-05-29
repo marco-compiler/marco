@@ -1,7 +1,11 @@
-#ifndef MARCO_AST_NODE_MODEL_H
-#define MARCO_AST_NODE_MODEL_H
+#ifndef PUBLIC_MARCO_AST_NODE_MODEL_H
+#define PUBLIC_MARCO_AST_NODE_MODEL_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Class.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 class Model : public Class {
@@ -18,4 +22,4 @@ public:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_MODEL_H
+#endif // PUBLIC_MARCO_AST_NODE_MODEL_H

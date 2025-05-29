@@ -1,7 +1,11 @@
-#ifndef MARCO_AST_NODE_BREAKSTATEMENT_H
-#define MARCO_AST_NODE_BREAKSTATEMENT_H
+#ifndef PUBLIC_MARCO_AST_NODE_BREAKSTATEMENT_H
+#define PUBLIC_MARCO_AST_NODE_BREAKSTATEMENT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Statement.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 class BreakStatement : public Statement {
@@ -22,4 +26,4 @@ public:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_BREAKSTATEMENT_H
+#endif // PUBLIC_MARCO_AST_NODE_BREAKSTATEMENT_H

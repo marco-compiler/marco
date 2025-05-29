@@ -1,6 +1,13 @@
 #include "marco/AST/Node/AssignmentStatement.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Statement.h"
 #include "marco/AST/Node/Tuple.h"
+#include "marco/Parser/Location.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <cassert>
 
 using namespace ::marco;
 using namespace ::marco::ast;

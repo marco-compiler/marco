@@ -1,10 +1,19 @@
 #include "marco/AST/Node/Function.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Type.h"
-#include <algorithm>
-#include <variant>
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <cstddef>
+#include <cassert>
+#include <utility>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <string>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -90,7 +99,7 @@ StandardFunction::StandardFunction(SourceRange location)
                std::move(location)) {}
 
 StandardFunction::StandardFunction(const StandardFunction &other)
-    : Function(other), pure(other.pure) {}
+     = default;
 
 StandardFunction::~StandardFunction() = default;
 
@@ -167,7 +176,7 @@ void InverseFunctionAnnotation::addInverse(llvm::StringRef invertedArg,
                                            llvm::StringRef inverseFunctionName,
                                            llvm::ArrayRef<std::string> args) {
   assert(map.find(invertedArg) == map.end());
-  Container<std::string> c(args.begin(), args.end());
+  Container<std::string> const c(args.begin(), args.end());
   map[invertedArg] = std::make_pair(inverseFunctionName.str(), c);
 }
 } // namespace marco::ast

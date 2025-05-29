@@ -1,7 +1,11 @@
-#ifndef MARCO_AST_NODE_CALLSTATEMENT_H
-#define MARCO_AST_NODE_CALLSTATEMENT_H
+#ifndef PUBLIC_MARCO_AST_NODE_CALLSTATEMENT_H
+#define PUBLIC_MARCO_AST_NODE_CALLSTATEMENT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Statement.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 class Call;
@@ -34,4 +38,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_CALLSTATEMENT_H
+#endif // PUBLIC_MARCO_AST_NODE_CALLSTATEMENT_H

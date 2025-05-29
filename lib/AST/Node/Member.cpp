@@ -1,15 +1,23 @@
 #include "marco/AST/Node/Member.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/Type.h"
+#include "marco/Parser/Location.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/StringRef.h>
+#include <cassert>
+#include <optional>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast {
 Member::Member(SourceRange location)
-    : ASTNode(ASTNode::Kind::Member, std::move(location)), name(""),
-      isPublicMember(true) {}
+    : ASTNode(ASTNode::Kind::Member, std::move(location)), name("")
+      {}
 
 Member::Member(const Member &other)
     : ASTNode(other), name(other.name), isPublicMember(other.isPublicMember) {

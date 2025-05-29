@@ -1,5 +1,16 @@
 #include "marco/AST/Node/ComponentReference.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ComponentReferenceEntry.h"
+#include "marco/Parser/Location.h"
+#include "marco/AST/Node/Expression.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cstddef>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
+#include <string>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -7,8 +18,7 @@ using namespace ::marco::ast;
 namespace marco::ast {
 ComponentReference::ComponentReference(SourceRange location)
     : Expression(ASTNode::Kind::Expression_ComponentReference,
-                 std::move(location)),
-      dummy(false), globalLookup(false) {}
+                 std::move(location)) {}
 
 ComponentReference::ComponentReference(const ComponentReference &other)
     : Expression(other), dummy(other.dummy), globalLookup(other.globalLookup) {

@@ -1,7 +1,16 @@
 #include "marco/AST/Node/Operation.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
-#include "llvm/ADT/StringRef.h"
-#include <numeric>
+#include "marco/Parser/Location.h"
+#include <llvm/Support/ErrorHandling.h>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cstddef>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
+#include <string>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -64,8 +73,8 @@ static std::string toString(OperationKind kind) {
 
 namespace marco::ast {
 Operation::Operation(SourceRange location)
-    : Expression(ASTNode::Kind::Expression_Operation, std::move(location)),
-      kind(OperationKind::unknown) {}
+    : Expression(ASTNode::Kind::Expression_Operation, std::move(location))
+      {}
 
 Operation::Operation(const Operation &other)
     : Expression(other), kind(other.kind) {

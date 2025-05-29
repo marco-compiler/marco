@@ -1,7 +1,11 @@
-#ifndef MARCO_AST_NODE_SUBSCRIPT_H
-#define MARCO_AST_NODE_SUBSCRIPT_H
+#ifndef PUBLIC_MARCO_AST_NODE_SUBSCRIPT_H
+#define PUBLIC_MARCO_AST_NODE_SUBSCRIPT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 // Following the official Modelica grammar specification, Subscript should
@@ -35,4 +39,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_SUBSCRIPT_H
+#endif // PUBLIC_MARCO_AST_NODE_SUBSCRIPT_H

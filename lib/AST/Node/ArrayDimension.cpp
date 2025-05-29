@@ -1,5 +1,13 @@
 #include "marco/AST/Node/ArrayDimension.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include <llvm/Support/JSON.h>
+#include <cstdint>
+#include <memory>
+#include "marco/Parser/Location.h"
+#include <utility>
+#include <variant>
+#include <cassert>
 
 using namespace ::marco::ast;
 

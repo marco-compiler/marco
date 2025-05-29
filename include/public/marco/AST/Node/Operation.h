@@ -1,8 +1,13 @@
-#ifndef MARCO_AST_NODE_OPERATION_H
-#define MARCO_AST_NODE_OPERATION_H
+#ifndef PUBLIC_MARCO_AST_NODE_OPERATION_H
+#define PUBLIC_MARCO_AST_NODE_OPERATION_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
-#include "llvm/ADT/STLExtras.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
 #include <memory>
 
 namespace marco::ast {
@@ -66,9 +71,9 @@ public:
   void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
 private:
-  OperationKind kind;
+  OperationKind kind = OperationKind::unknown;
   llvm::SmallVector<std::unique_ptr<ASTNode>, 3> arguments;
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_OPERATION_H
+#endif // PUBLIC_MARCO_AST_NODE_OPERATION_H

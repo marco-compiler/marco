@@ -1,7 +1,13 @@
-#ifndef MARCO_AST_NODE_NAMEDFUNCTIONCALLARGUMENT_H
-#define MARCO_AST_NODE_NAMEDFUNCTIONCALLARGUMENT_H
+#ifndef PUBLIC_MARCO_AST_NODE_NAMEDFUNCTIONARGUMENT_H
+#define PUBLIC_MARCO_AST_NODE_NAMEDFUNCTIONARGUMENT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/FunctionArgument.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <memory>
+#include <string>
 
 namespace marco::ast {
 class Expression;
@@ -38,4 +44,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_NAMEDFUNCTIONCALLARGUMENT_H
+#endif // PUBLIC_MARCO_AST_NODE_NAMEDFUNCTIONARGUMENT_H

@@ -1,8 +1,12 @@
-#ifndef MARCO_AST_NODE_MEMBER_H
-#define MARCO_AST_NODE_MEMBER_H
+#ifndef PUBLIC_MARCO_AST_NODE_MEMBER_H
+#define PUBLIC_MARCO_AST_NODE_MEMBER_H
 
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/TypePrefix.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -87,9 +91,9 @@ private:
   std::string name;
   std::unique_ptr<ASTNode> type;
   std::unique_ptr<ASTNode> typePrefix;
-  bool isPublicMember;
+  bool isPublicMember = true;
   std::unique_ptr<ASTNode> modification;
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_MEMBER_H
+#endif // PUBLIC_MARCO_AST_NODE_MEMBER_H

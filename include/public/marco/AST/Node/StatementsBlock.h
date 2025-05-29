@@ -1,5 +1,18 @@
-#ifndef MARCO_AST_NODE_STATEMENTSBLOCK_H
-#define MARCO_AST_NODE_STATEMENTSBLOCK_H
+#ifndef PUBLIC_MARCO_AST_NODE_STATEMENTSBLOCK_H
+#define PUBLIC_MARCO_AST_NODE_STATEMENTSBLOCK_H
+
+
+#include "llvm/ADT/ArrayRef.h"             // para llvm::ArrayRef
+#include "llvm/ADT/SmallVector.h"          // para llvm::SmallVector
+#include "llvm/Support/JSON.h"             // para llvm::json::Value
+
+#include <cstddef>                         // para size_t
+#include <memory>                          // para std::unique_ptr
+
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Statement.h"
+#include "marco/Parser/Location.h"
+
 
 
 namespace marco::ast {
@@ -11,7 +24,7 @@ public:
 
   StatementsBlock(const StatementsBlock &other);
 
-  ~StatementsBlock();
+  ~StatementsBlock() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::StatementsBlock;
@@ -34,4 +47,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_STATEMENTSBLOCK_H
+#endif // PUBLIC_MARCO_AST_NODE_STATEMENTSBLOCK_H

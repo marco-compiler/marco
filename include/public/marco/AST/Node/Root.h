@@ -1,7 +1,12 @@
-#ifndef MARCO_AST_NODE_ROOT_H
-#define MARCO_AST_NODE_ROOT_H
+#ifndef PUBLIC_MARCO_AST_NODE_ROOT_H
+#define PUBLIC_MARCO_AST_NODE_ROOT_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 class Root : public ASTNode {
@@ -12,7 +17,7 @@ public:
 
   Root(const Root &other);
 
-  virtual ~Root();
+  ~Root() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::Root;
@@ -33,4 +38,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ROOT_H
+#endif // PUBLIC_MARCO_AST_NODE_ROOT_H

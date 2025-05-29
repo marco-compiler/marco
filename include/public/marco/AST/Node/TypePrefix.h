@@ -1,10 +1,10 @@
-#ifndef MARCO_AST_NODE_TYPEPREFIX_H
-#define MARCO_AST_NODE_TYPEPREFIX_H
+#ifndef PUBLIC_MARCO_AST_NODE_TYPEPREFIX_H
+#define PUBLIC_MARCO_AST_NODE_TYPEPREFIX_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "llvm/ADT/SmallVector.h"
-#include <string>
-#include <type_traits>
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <memory>
 
 namespace marco::ast {
 enum class VariabilityQualifier { discrete, parameter, constant, none };
@@ -44,4 +44,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_TYPEPREFIX_H
+#endif // PUBLIC_MARCO_AST_NODE_TYPEPREFIX_H

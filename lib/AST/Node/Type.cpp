@@ -1,5 +1,18 @@
 #include "marco/AST/Node/Type.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ArrayDimension.h"
+#include <string>
+#include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cstddef>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <llvm/ADT/STLExtras.h>
+#include <utility>
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/StringRef.h>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -88,7 +101,7 @@ BuiltInType::BuiltInType(SourceRange location)
     : VariableType(ASTNode::Kind::VariableType_BuiltIn, std::move(location)) {}
 
 BuiltInType::BuiltInType(const BuiltInType &other)
-    : VariableType(other), kind(other.kind) {}
+     = default;
 
 BuiltInType::~BuiltInType() = default;
 

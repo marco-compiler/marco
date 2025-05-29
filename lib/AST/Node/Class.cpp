@@ -1,8 +1,16 @@
 #include "marco/AST/Node/Class.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/EquationSection.h"
 #include "marco/AST/Node/Member.h"
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <cassert>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

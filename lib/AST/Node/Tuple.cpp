@@ -1,4 +1,14 @@
 #include "marco/AST/Node/Tuple.h"
+#include "marco/Parser/Location.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/ASTNode.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cstddef>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
 
 using namespace ::marco;
 using namespace ::marco::ast;

@@ -1,5 +1,21 @@
 #include "marco/AST/Node/ArrayConstant.h"
 
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/ADT/ArrayRef.h>                 // for llvm::ArrayRef
+#include <llvm/ADT/SmallVector.h>              // for llvm::SmallVector
+#include <llvm/Support/JSON.h>                 // for llvm::json::Value
+
+#include <cassert>                             // for assert
+#include <cstddef>                             // for size_t
+#include <memory>                              // for std::unique_ptr
+#include <utility>                             // for std::move
+
+
+
+
 using namespace ::marco;
 using namespace ::marco::ast;
 

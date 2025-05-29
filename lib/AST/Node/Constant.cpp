@@ -1,4 +1,15 @@
+#include <utility>
+
 #include "marco/AST/Node/Constant.h"
+#include <llvm/Support/JSON.h>
+#include <cstdint>
+#include <string>
+#include "marco/Parser/Location.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/ASTNode.h"
+#include <utility>
+#include <memory>
+#include <variant>
 
 using namespace ::marco::ast;
 
@@ -15,7 +26,7 @@ struct ConstantJsonVisitor {
   }
 
   llvm::json::Value operator()(std::string value) {
-    return llvm::json::Value(value);
+    return llvm::json::Value(std::move(value));
   }
 };
 } // namespace
@@ -25,7 +36,7 @@ Constant::Constant(SourceRange location)
     : Expression(ASTNode::Kind::Expression_Constant, std::move(location)) {}
 
 Constant::Constant(const Constant &other)
-    : Expression(other), value(other.value) {}
+     = default;
 
 Constant::~Constant() = default;
 

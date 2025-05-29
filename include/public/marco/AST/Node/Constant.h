@@ -1,7 +1,12 @@
-#ifndef MARCO_AST_NODE_CONSTANT_H
-#define MARCO_AST_NODE_CONSTANT_H
+#ifndef PUBLIC_MARCO_AST_NODE_CONSTANT_H
+#define PUBLIC_MARCO_AST_NODE_CONSTANT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <variant>
 
@@ -91,4 +96,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_CONSTANT_H
+#endif // PUBLIC_MARCO_AST_NODE_CONSTANT_H

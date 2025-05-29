@@ -1,0 +1,624 @@
+[1/47] Processing file /workspace/include/public/marco/AST/Node/ASTNode.h.
+3909 warnings generated.
+[2/47] Processing file /workspace/include/public/marco/AST/Node/Algorithm.h.
+7828 warnings generated.
+[3/47] Processing file /workspace/include/public/marco/AST/Node/Annotation.h.
+11746 warnings generated.
+[4/47] Processing file /workspace/include/public/marco/AST/Node/ArrayConstant.h.
+15665 warnings generated.
+[5/47] Processing file /workspace/include/public/marco/AST/Node/ArrayDimension.h.
+19602 warnings generated.
+[6/47] Processing file /workspace/include/public/marco/AST/Node/ArrayForGenerator.h.
+23521 warnings generated.
+[7/47] Processing file /workspace/include/public/marco/AST/Node/ArrayGenerator.h.
+27430 warnings generated.
+[8/47] Processing file /workspace/include/public/marco/AST/Node/AssignmentStatement.h.
+31349 warnings generated.
+[9/47] Processing file /workspace/include/public/marco/AST/Node/BreakStatement.h.
+35259 warnings generated.
+[10/47] Processing file /workspace/include/public/marco/AST/Node/Call.h.
+39178 warnings generated.
+[11/47] Processing file /workspace/include/public/marco/AST/Node/CallStatement.h.
+43097 warnings generated.
+[12/47] Processing file /workspace/include/public/marco/AST/Node/Class.h.
+47016 warnings generated.
+[13/47] Processing file /workspace/include/public/marco/AST/Node/ComponentReference.h.
+50935 warnings generated.
+[14/47] Processing file /workspace/include/public/marco/AST/Node/ComponentReferenceEntry.h.
+54854 warnings generated.
+[15/47] Processing file /workspace/include/public/marco/AST/Node/Constant.h.
+58783 warnings generated.
+[16/47] Processing file /workspace/include/public/marco/AST/Node/EqualityEquation.h.
+62701 warnings generated.
+[17/47] Processing file /workspace/include/public/marco/AST/Node/Equation.h.
+66610 warnings generated.
+[18/47] Processing file /workspace/include/public/marco/AST/Node/EquationSection.h.
+70529 warnings generated.
+[19/47] Processing file /workspace/include/public/marco/AST/Node/Expression.h.
+74438 warnings generated.
+[20/47] Processing file /workspace/include/public/marco/AST/Node/ExpressionFunctionArgument.h.
+78357 warnings generated.
+[21/47] Processing file /workspace/include/public/marco/AST/Node/ForEquation.h.
+82276 warnings generated.
+[22/47] Processing file /workspace/include/public/marco/AST/Node/ForIndex.h.
+86195 warnings generated.
+[23/47] Processing file /workspace/include/public/marco/AST/Node/ForStatement.h.
+90114 warnings generated.
+[24/47] Processing file /workspace/include/public/marco/AST/Node/Function.h.
+94036 warnings generated.
+[25/47] Processing file /workspace/include/public/marco/AST/Node/FunctionArgument.h.
+97945 warnings generated.
+[26/47] Processing file /workspace/include/public/marco/AST/Node/IfEquation.h.
+101864 warnings generated.
+[27/47] Processing file /workspace/include/public/marco/AST/Node/IfStatement.h.
+105783 warnings generated.
+[28/47] Processing file /workspace/include/public/marco/AST/Node/Member.h.
+109703 warnings generated.
+[29/47] Processing file /workspace/include/public/marco/AST/Node/Model.h.
+113623 warnings generated.
+[30/47] Processing file /workspace/include/public/marco/AST/Node/Modification.h.
+117542 warnings generated.
+[31/47] Processing file /workspace/include/public/marco/AST/Node/NamedFunctionArgument.h.
+121461 warnings generated.
+[32/47] Processing file /workspace/include/public/marco/AST/Node/Operation.h.
+125380 warnings generated.
+[33/47] Processing file /workspace/include/public/marco/AST/Node/Package.h.
+129300 warnings generated.
+[34/47] Processing file /workspace/include/public/marco/AST/Node/Record.h.
+133220 warnings generated.
+[35/47] Processing file /workspace/include/public/marco/AST/Node/Reduction.h.
+137139 warnings generated.
+[36/47] Processing file /workspace/include/public/marco/AST/Node/ReductionFunctionArgument.h.
+141058 warnings generated.
+[37/47] Processing file /workspace/include/public/marco/AST/Node/ReturnStatement.h.
+144968 warnings generated.
+[38/47] Processing file /workspace/include/public/marco/AST/Node/Root.h.
+148887 warnings generated.
+[39/47] Processing file /workspace/include/public/marco/AST/Node/Statement.h.
+152796 warnings generated.
+[40/47] Processing file /workspace/include/public/marco/AST/Node/StatementsBlock.h.
+156709 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/StatementsBlock.h.
+[41/47] Processing file /workspace/include/public/marco/AST/Node/Subscript.h.
+160628 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/Subscript.h.
+[42/47] Processing file /workspace/include/public/marco/AST/Node/Tuple.h.
+164547 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/Tuple.h.
+[43/47] Processing file /workspace/include/public/marco/AST/Node/Type.h.
+168466 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/Type.h.
+[44/47] Processing file /workspace/include/public/marco/AST/Node/TypePrefix.h.
+172376 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/TypePrefix.h.
+[45/47] Processing file /workspace/include/public/marco/AST/Node/WhenEquation.h.
+176295 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/WhenEquation.h.
+[46/47] Processing file /workspace/include/public/marco/AST/Node/WhenStatement.h.
+180214 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/WhenStatement.h.
+[47/47] Processing file /workspace/include/public/marco/AST/Node/WhileStatement.h.
+184133 warnings and 8 errors generated.
+Error while processing /workspace/include/public/marco/AST/Node/WhileStatement.h.
+/workspace/include/public/marco/AST/Node/Algorithm.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/ArrayConstant.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/ArrayDimension.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    7 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstdint>
+    8 | #include <cstdint>
+      |          ~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/ArrayForGenerator.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+/workspace/include/public/marco/AST/Node/AssignmentStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/BreakStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Call.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/CallStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Class.h:5:1: warning: #includes are not sorted properly [llvm-include-order]
+    5 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    6 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    7 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    8 | #include <memory>
+      |          ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    9 | #include <string>
+      |          ~~~~~~~~
+      |          <memory>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <string>
+/workspace/include/public/marco/AST/Node/ComponentReference.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/ComponentReferenceEntry.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <llvm/ADT/StringRef.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Constant.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstdint>
+    9 | #include <cstdint>
+      |          ~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/EquationSection.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/ExpressionFunctionArgument.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/ForEquation.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/ForIndex.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    7 | #include <llvm/Support/JSON.h>
+    8 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/ForStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Function.h:8:1: warning: #includes are not sorted properly [llvm-include-order]
+    8 | #include "llvm/ADT/StringMap.h"
+      | ^        ~~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+   10 | #include <memory>
+      |          ~~~~~~~~
+      |          "llvm/ADT/StringMap.h"
+   11 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+   12 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   13 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   14 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/IfEquation.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/IfStatement.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Member.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    8 | #include <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Model.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Modification.h:8:1: warning: #includes are not sorted properly [llvm-include-order]
+    8 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    9 | #include <llvm/Support/JSON.h>
+   10 | #include <optional>
+      |          ~~~~~~~~~~
+      |          <memory>
+   11 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <optional>
+/workspace/include/public/marco/AST/Node/NamedFunctionArgument.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    8 | #include <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Operation.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/Package.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Record.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <llvm/ADT/ArrayRef.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          "marco/Parser/Location.h"
+    7 | #include <memory>
+      |          ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include "marco/Parser/Location.h"
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Reduction.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/ReductionFunctionArgument.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/ReturnStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Root.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    9 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:6:1: warning: included header ArrayRef.h is not used directly [misc-include-cleaner]
+    6 | #include "llvm/ADT/ArrayRef.h"             // para llvm::ArrayRef
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    7 | #include "llvm/ADT/SmallVector.h"          // para llvm::SmallVector
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:7:1: warning: included header SmallVector.h is not used directly [misc-include-cleaner]
+    7 | #include "llvm/ADT/SmallVector.h"          // para llvm::SmallVector
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    8 | 
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:10:1: warning: included header memory is not used directly [misc-include-cleaner]
+   10 | #include <memory>                          // para std::unique_ptr
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   11 | #include <string>                          // para std::string
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:11:1: warning: included header string is not used directly [misc-include-cleaner]
+   11 | #include <string>                          // para std::string
+      | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   12 | 
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:13:1: warning: #includes are not sorted properly [llvm-include-order]
+   13 | #include "marco/Parser/Location.h"         // para marco::SourceRange
+      | ^        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |          "marco/AST/Node/StatementsBlock.h"
+   14 | #include "marco/AST/Node/StatementsBlock.h"
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |          "marco/Parser/Location.h"         // para marco::SourceRange
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:14:10: warning: direct self-inclusion of header file 'StatementsBlock.h' [misc-header-include-cycle]
+   14 | #include "marco/AST/Node/StatementsBlock.h"
+      |          ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:20:32: error: expected class name [clang-diagnostic-error]
+   20 | class StatementsBlock : public ASTNode {
+      |                                ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:26:22: error: only virtual member functions can be marked 'override' [clang-diagnostic-error]
+   26 |   ~StatementsBlock() override;
+      |                      ^~~~~~~~
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:28:29: error: unknown type name 'ASTNode' [clang-diagnostic-error]
+   28 |   static bool classof(const ASTNode *node) {
+      |                             ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:29:31: error: use of undeclared identifier 'ASTNode' [clang-diagnostic-error]
+   29 |     return node->getKind() == ASTNode::Kind::StatementsBlock;
+      |                               ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:32:19: error: use of undeclared identifier 'ASTNode' [clang-diagnostic-error]
+   32 |   std::unique_ptr<ASTNode> clone() const override;
+      |                   ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:34:36: error: only virtual member functions can be marked 'override' [clang-diagnostic-error]
+   34 |   llvm::json::Value toJSON() const override;
+      |                                    ^~~~~~~~
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:42:47: error: use of undeclared identifier 'ASTNode' [clang-diagnostic-error]
+   42 |   void setBody(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+      |                                               ^
+/workspace/include/public/marco/AST/Node/StatementsBlock.h:45:37: error: use of undeclared identifier 'ASTNode' [clang-diagnostic-error]
+   45 |   llvm::SmallVector<std::unique_ptr<ASTNode>> statements;
+      |                                     ^
+/workspace/include/public/marco/AST/Node/Subscript.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/Tuple.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+/workspace/include/public/marco/AST/Node/Type.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <llvm/Support/JSON.h>
+      | ^        ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    7 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    8 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/StringRef.h>
+    9 | #include <memory>
+      |          ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/StringRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/TypePrefix.h:6:1: warning: #includes are not sorted properly [llvm-include-order]
+    6 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/Support/JSON.h>
+    7 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/WhenEquation.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/WhenStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+/workspace/include/public/marco/AST/Node/WhileStatement.h:7:1: warning: #includes are not sorted properly [llvm-include-order]
+    7 | #include <memory>
+      | ^        ~~~~~~~~
+      |          <llvm/ADT/ArrayRef.h>
+    8 | #include <llvm/Support/JSON.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <llvm/ADT/SmallVector.h>
+    9 | #include <cstddef>
+      |          ~~~~~~~~~
+      |          <llvm/Support/JSON.h>
+   10 | #include <llvm/ADT/ArrayRef.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~
+      |          <cstddef>
+   11 | #include <llvm/ADT/SmallVector.h>
+      |          ~~~~~~~~~~~~~~~~~~~~~~~~
+      |          <memory>
+Suppressed 184176 warnings (184084 in non-user code, 92 NOLINT).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.
+Found compiler error(s).

@@ -1,11 +1,15 @@
-#ifndef MARCO_AST_NODE_MODIFICATION_H
-#define MARCO_AST_NODE_MODIFICATION_H
+#ifndef PUBLIC_MARCO_AST_NODE_MODIFICATION_H
+#define PUBLIC_MARCO_AST_NODE_MODIFICATION_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/Parser/Location.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include <variant>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <memory>
+#include <optional>
+#include <string>
 
 namespace marco::ast {
 class Argument;
@@ -162,8 +166,8 @@ public:
   void setModification(std::unique_ptr<ASTNode> node);
 
 private:
-  bool each;
-  bool final;
+  bool each = false;
+  bool final = false;
   std::string name;
   std::unique_ptr<ASTNode> modification;
 };
@@ -205,4 +209,4 @@ public:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_MODIFICATION_H
+#endif // PUBLIC_MARCO_AST_NODE_MODIFICATION_H

@@ -1,7 +1,11 @@
-#ifndef MARCO_AST_NODE_ARRAYDIMENSION_H
-#define MARCO_AST_NODE_ARRAYDIMENSION_H
+#ifndef PUBLIC_MARCO_AST_NODE_ARRAYDIMENSION_H
+#define PUBLIC_MARCO_AST_NODE_ARRAYDIMENSION_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
+#include <cstdint>
+#include <memory>
 #include <variant>
 
 namespace marco::ast {
@@ -19,7 +23,7 @@ public:
 
   ArrayDimension(const ArrayDimension &other);
 
-  ~ArrayDimension();
+  ~ArrayDimension() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::ArrayDimension;
@@ -58,4 +62,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ARRAYDIMENSION_H
+#endif // PUBLIC_MARCO_AST_NODE_ARRAYDIMENSION_H

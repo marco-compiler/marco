@@ -1,6 +1,7 @@
-#ifndef MARCO_AST_NODE_ARRAY_GENERATOR_H
-#define MARCO_AST_NODE_ARRAY_GENERATOR_H
+#ifndef PUBLIC_MARCO_AST_NODE_ARRAYGENERATOR_H
+#define PUBLIC_MARCO_AST_NODE_ARRAYGENERATOR_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
 
 namespace marco::ast {
@@ -10,7 +11,7 @@ class ArrayGenerator : public Expression {
 public:
   using Expression::Expression;
 
-  virtual ~ArrayGenerator();
+  ~ArrayGenerator() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() >= ASTNode::Kind::Expression_ArrayGenerator &&
@@ -18,8 +19,8 @@ public:
                ASTNode::Kind::Expression_ArrayGenerator_LastArrayGenerator;
   }
 
-  virtual bool isLValue() const override { return false; }
+  bool isLValue() const override { return false; }
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ARRAY_GENERATOR_H
+#endif // PUBLIC_MARCO_AST_NODE_ARRAYGENERATOR_H

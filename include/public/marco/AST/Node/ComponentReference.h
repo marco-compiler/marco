@@ -1,8 +1,14 @@
-#ifndef MARCO_AST_NODE_COMPONENTREFERENCE_H
-#define MARCO_AST_NODE_COMPONENTREFERENCE_H
+#ifndef PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCE_H
+#define PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCE_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/AST/Node/Type.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
+#include <memory>
 #include <string>
 
 namespace marco::ast {
@@ -45,10 +51,10 @@ public:
   std::string getName() const;
 
 private:
-  bool dummy;
-  bool globalLookup;
+  bool dummy = false;
+  bool globalLookup = false;
   llvm::SmallVector<std::unique_ptr<ASTNode>> path;
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_COMPONENTREFERENCE_H
+#endif // PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCE_H

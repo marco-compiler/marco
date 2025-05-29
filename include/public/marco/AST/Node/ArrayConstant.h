@@ -1,9 +1,13 @@
-#ifndef MARCO_AST_NODE_ARRAY_CONSTANT_H
-#define MARCO_AST_NODE_ARRAY_CONSTANT_H
+#ifndef PUBLIC_MARCO_AST_NODE_ARRAYCONSTANT_H
+#define PUBLIC_MARCO_AST_NODE_ARRAYCONSTANT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ArrayGenerator.h"
-#include "marco/AST/Node/Type.h"
-#include "llvm/ADT/STLExtras.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
 #include <memory>
 
 namespace marco::ast {
@@ -37,4 +41,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ARRAY_CONSTANT_H
+#endif // PUBLIC_MARCO_AST_NODE_ARRAYCONSTANT_H

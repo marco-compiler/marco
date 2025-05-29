@@ -1,5 +1,15 @@
 #include "marco/AST/Node/IfEquation.h"
+#include "marco/AST/Node/Equation.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/Parser/Location.h"
+#include <utility>
+#include <cstddef>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <llvm/ADT/SmallVector.h>
+#include <cassert>
+#include <llvm/ADT/ArrayRef.h>
 
 using namespace ::marco;
 using namespace ::marco::ast;

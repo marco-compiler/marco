@@ -1,8 +1,14 @@
-#ifndef MARCO_AST_NODE_TYPE_H
-#define MARCO_AST_NODE_TYPE_H
+#ifndef PUBLIC_MARCO_AST_NODE_TYPE_H
+#define PUBLIC_MARCO_AST_NODE_TYPE_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "llvm/ADT/STLExtras.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
+#include <memory>
 #include <string>
 
 namespace marco::ast {
@@ -21,7 +27,7 @@ public:
            node->getKind() <= ASTNode::Kind::VariableType_LastVariableType;
   }
 
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 
   size_t getRank() const;
 
@@ -51,7 +57,7 @@ public:
 
   BuiltInType(const BuiltInType &other);
 
-  ~BuiltInType();
+  ~BuiltInType() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::VariableType_BuiltIn;
@@ -77,7 +83,7 @@ public:
 
   UserDefinedType(const UserDefinedType &other);
 
-  ~UserDefinedType();
+  ~UserDefinedType() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::VariableType_UserDefined;
@@ -103,4 +109,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_TYPE_H
+#endif // PUBLIC_MARCO_AST_NODE_TYPE_H

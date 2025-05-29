@@ -1,5 +1,5 @@
-#ifndef MARCO_AST_NODE_EXPRESSION_H
-#define MARCO_AST_NODE_EXPRESSION_H
+#ifndef PUBLIC_MARCO_AST_NODE_EXPRESSION_H
+#define PUBLIC_MARCO_AST_NODE_EXPRESSION_H
 
 #include "marco/AST/Node/ASTNode.h"
 
@@ -8,7 +8,7 @@ class Expression : public ASTNode {
 public:
   using ASTNode::ASTNode;
 
-  virtual ~Expression();
+  ~Expression() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() >= ASTNode::Kind::Expression &&
@@ -19,4 +19,4 @@ public:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_EXPRESSION_H
+#endif // PUBLIC_MARCO_AST_NODE_EXPRESSION_H

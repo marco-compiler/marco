@@ -1,4 +1,10 @@
 #include "marco/AST/Node/ReturnStatement.h"
+#include "marco/Parser/Location.h"
+#include "marco/AST/Node/Statement.h"
+#include "marco/AST/Node/ASTNode.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -8,7 +14,7 @@ ReturnStatement::ReturnStatement(SourceRange location)
     : Statement(ASTNode::Kind::Statement_Return, std::move(location)) {}
 
 ReturnStatement::ReturnStatement(const ReturnStatement &other)
-    : Statement(other) {}
+     = default;
 
 ReturnStatement::~ReturnStatement() = default;
 

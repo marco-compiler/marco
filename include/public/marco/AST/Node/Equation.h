@@ -1,15 +1,14 @@
-#ifndef MARCO_AST_NODE_EQUATION_H
-#define MARCO_AST_NODE_EQUATION_H
+#ifndef PUBLIC_MARCO_AST_NODE_EQUATION_H
+#define PUBLIC_MARCO_AST_NODE_EQUATION_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include <memory>
 
 namespace marco::ast {
 class Equation : public ASTNode {
 public:
   using ASTNode::ASTNode;
 
-  virtual ~Equation();
+  ~Equation() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() >= ASTNode::Kind::Equation &&
@@ -18,4 +17,4 @@ public:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_EQUATION_H
+#endif // PUBLIC_MARCO_AST_NODE_EQUATION_H

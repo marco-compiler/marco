@@ -1,7 +1,9 @@
-#ifndef MARCO_AST_NODE_ANNOTATION_H
-#define MARCO_AST_NODE_ANNOTATION_H
+#ifndef PUBLIC_MARCO_AST_NODE_ANNOTATION_H
+#define PUBLIC_MARCO_AST_NODE_ANNOTATION_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include "marco/Parser/Location.h"
+#include <llvm/Support/JSON.h>
 #include <memory>
 
 namespace marco::ast {
@@ -43,4 +45,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_ANNOTATION_H
+#endif // PUBLIC_MARCO_AST_NODE_ANNOTATION_H

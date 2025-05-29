@@ -1,7 +1,8 @@
-#ifndef MARCO_AST_NODE_FUNCTIONARGUMENT_H
-#define MARCO_AST_NODE_FUNCTIONARGUMENT_H
+#ifndef PUBLIC_MARCO_AST_NODE_FUNCTIONARGUMENT_H
+#define PUBLIC_MARCO_AST_NODE_FUNCTIONARGUMENT_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include <llvm/Support/JSON.h>
 
 namespace marco::ast {
 class FunctionArgument : public ASTNode {
@@ -19,8 +20,8 @@ public:
   }
 
 protected:
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_FUNCTIONARGUMENT_H
+#endif // PUBLIC_MARCO_AST_NODE_FUNCTIONARGUMENT_H

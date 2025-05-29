@@ -140,11 +140,11 @@ public:
 
   template <typename T>
   T *getParentOfType() {
-    //ASTNode *node = parent;
-    const ASTNode *node = parent;
+    ASTNode *node = parent;
+    //const ASTNode *node = parent;
 
     while (node != nullptr) {
-      if (T *casted = node->dyn_cast<T>()) {
+      if (T *casted = node->template dyn_cast<T>()) {
         return casted;
       }
 
@@ -160,7 +160,7 @@ public:
     const ASTNode *node = parent;
 
     while (node != nullptr) {
-      if (T *casted = node->dyn_cast<T>()) {
+      if (const T *casted = node->template dyn_cast<T>()) {
         return casted;
       }
 

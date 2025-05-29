@@ -1,7 +1,13 @@
-#ifndef MARCO_AST_NODE_CLASS_H
-#define MARCO_AST_NODE_CLASS_H
+#ifndef PUBLIC_MARCO_AST_NODE_CLASS_H
+#define PUBLIC_MARCO_AST_NODE_CLASS_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <memory>
+#include <string>
 
 namespace marco::ast {
 class Annotation;
@@ -20,7 +26,7 @@ public:
   }
 
 protected:
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 
 public:
   /// Get the name.
@@ -71,4 +77,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_CLASS_H
+#endif // PUBLIC_MARCO_AST_NODE_CLASS_H

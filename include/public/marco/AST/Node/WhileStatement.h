@@ -1,7 +1,14 @@
-#ifndef MARCO_AST_NODE_WHILESTATEMENT_H
-#define MARCO_AST_NODE_WHILESTATEMENT_H
+#ifndef PUBLIC_MARCO_AST_NODE_WHILESTATEMENT_H
+#define PUBLIC_MARCO_AST_NODE_WHILESTATEMENT_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Statement.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
+#include <memory>
 
 namespace marco::ast {
 class Expression;
@@ -44,4 +51,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_WHILESTATEMENT_H
+#endif // PUBLIC_MARCO_AST_NODE_WHILESTATEMENT_H

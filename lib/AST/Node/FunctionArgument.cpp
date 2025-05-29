@@ -1,4 +1,6 @@
 #include "marco/AST/Node/FunctionArgument.h"
+#include <llvm/Support/JSON.h>
+#include "marco/AST/Node/ASTNode.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;

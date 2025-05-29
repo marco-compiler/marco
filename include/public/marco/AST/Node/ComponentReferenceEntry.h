@@ -1,8 +1,14 @@
-#ifndef MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
-#define MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
+#ifndef PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
+#define PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
+#include "marco/Parser/Location.h"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/JSON.h>
+#include <cstddef>
+#include <memory>
 #include <string>
 
 namespace marco::ast {
@@ -42,4 +48,4 @@ private:
 };
 } // namespace marco::ast
 
-#endif // MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H
+#endif // PUBLIC_MARCO_AST_NODE_COMPONENTREFERENCEENTRY_H

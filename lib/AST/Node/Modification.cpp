@@ -1,4 +1,5 @@
 #include "marco/AST/Node/Modification.h"
+#include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ArrayConstant.h"
 #include "marco/AST/Node/Call.h"
 #include "marco/AST/Node/ComponentReference.h"
@@ -7,6 +8,16 @@
 #include "marco/AST/Node/ExpressionFunctionArgument.h"
 #include "marco/AST/Node/FunctionArgument.h"
 #include "marco/AST/Node/Member.h"
+#include "marco/Parser/Location.h"
+#include <utility>
+#include <memory>
+#include <llvm/Support/JSON.h>
+#include <cassert>
+#include <optional>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/Support/ErrorHandling.h>
+#include <cstddef>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -230,7 +241,7 @@ const Expression *ClassModification::getStartExpression() const {
 
 std::optional<bool>
 ClassModification::isArrayUniformConstBool(const ArrayConstant *array) {
-  size_t elements = array->size();
+  size_t const elements = array->size();
   std::optional<bool> lastValue = std::nullopt;
 
   for (size_t i = 0; i < elements; i++) {
@@ -240,9 +251,8 @@ ClassModification::isArrayUniformConstBool(const ArrayConstant *array) {
       auto tmp = isArrayUniformConstBool(exp->cast<ArrayConstant>());
       if (!tmp) {
         return std::nullopt;
-      } else {
-        value = tmp.value();
-      }
+      }         value = tmp.value();
+     
     } else if (exp->isa<Constant>()) {
       value = exp->cast<Constant>()->as<bool>();
     } else {
@@ -287,14 +297,14 @@ std::optional<bool> ClassModification::getFixedProperty() const {
       return val.value();
     }
 
-    if (auto call = modificationExpression->dyn_cast<Call>()) {
+    if (const auto *call = modificationExpression->dyn_cast<Call>()) {
       // FIXME: Handle this case without special casing
-      if (auto callee = call->getCallee()->dyn_cast<ComponentReference>()) {
+      if (const auto *callee = call->getCallee()->dyn_cast<ComponentReference>()) {
         if (callee->getName() == "fill") {
-          if (auto expressionArg =
+          if (const auto *expressionArg =
                   call->getArgument(0)
                       ->dyn_cast<ExpressionFunctionArgument>()) {
-            if (auto constantArg =
+            if (const auto *constantArg =
                     expressionArg->getExpression()->dyn_cast<Constant>()) {
               return constantArg->as<bool>();
             }
@@ -325,7 +335,7 @@ bool ClassModification::getEachProperty() const {
 ElementModification::ElementModification(SourceRange location)
     : Argument(ASTNode::Kind::Argument_ElementModification,
                std::move(location)),
-      each(false), final(false), name("") {}
+       name("") {}
 
 ElementModification::ElementModification(const ElementModification &other)
     : Argument(other), each(other.each), final(other.final), name(other.name) {
@@ -393,7 +403,7 @@ ElementReplaceable::ElementReplaceable(SourceRange location)
                std::move(location)) {}
 
 ElementReplaceable::ElementReplaceable(const ElementReplaceable &other)
-    : Argument(other) {}
+     = default;
 
 ElementReplaceable::~ElementReplaceable() = default;
 
@@ -412,7 +422,7 @@ ElementRedeclaration::ElementRedeclaration(SourceRange location)
                std::move(location)) {}
 
 ElementRedeclaration::ElementRedeclaration(const ElementRedeclaration &other)
-    : Argument(other) {}
+     = default;
 
 ElementRedeclaration::~ElementRedeclaration() = default;
 
