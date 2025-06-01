@@ -19,6 +19,45 @@ std::unique_ptr<clang::DiagnosticsEngine> getDiagnosticsEngine() {
       new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts.get()));
 }
 
+TEST(Parser, usage_of_external_test6) {
+  auto str = R"(function externalLog
+                  input Integer b;
+                  input Real n;
+                  output Integer ris;
+                  external "C" ris = discreteLog(b, n)
+                  annotation(
+                    Include = "#include \"lib.c\"",
+                    Library = "myLib"
+                  );
+                end externalLog;)"; 
+
+                auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+                auto diagnostics = getDiagnosticsEngine();
+                clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+                auto &sourceManager = fileSourceMgr.get();
+            
+                auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+                sourceFile->setMemoryBuffer(buffer.get());
+            
+                Parser parser(*diagnostics, sourceManager, sourceFile);
+            
+                auto node = parser.parseClassDefinition();
+
+                ASSERT_TRUE((*node)->isa<Function>());
+
+                ASSERT_TRUE((*node)->cast<Function>()->hasExternalRef());
+
+                auto er = (*node)->cast<Function>()->getExternalRef();
+
+                ASSERT_TRUE(er->isa<ExternalRef>());
+
+                ASSERT_EQ(er->cast<ExternalRef>()->hasLanguageSpecification(), true);
+                ASSERT_EQ(er->cast<ExternalRef>()->getLanguageSpecification(), "C");
+
+                ASSERT_EQ(er->cast<ExternalRef>()->hasExternalFunctionCall(), true);
+}
+
 TEST(Parser, usage_of_external_test5)
   {
     auto str = R"(function foo
