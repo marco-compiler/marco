@@ -25,8 +25,9 @@ using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast {
-FunctionType::FunctionType(llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
-                           llvm::ArrayRef<std::unique_ptr<ASTNode>> results) {}
+FunctionType::FunctionType(llvm::ArrayRef<std::unique_ptr<ASTNode>> args, // NOLINT(bugprone-easily-swappable-parameters)
+                           llvm::ArrayRef<std::unique_ptr<ASTNode>> results // NOLINT(bugprone-easily-swappable-parameters)
+                           ) {}
 
 size_t FunctionType::getNumOfArgs() const { return args.size(); }
 

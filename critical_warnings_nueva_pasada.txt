@@ -1,0 +1,102 @@
+[1/47] Processing file /workspace/lib/AST/Node/Algorithm.cpp.
+28296 warnings generated.
+[2/47] Processing file /workspace/lib/AST/Node/Annotation.cpp.
+57258 warnings generated.
+[3/47] Processing file /workspace/lib/AST/Node/ArrayConstant.cpp.
+85554 warnings generated.
+[4/47] Processing file /workspace/lib/AST/Node/ArrayDimension.cpp.
+114509 warnings generated.
+[5/47] Processing file /workspace/lib/AST/Node/ArrayForGenerator.cpp.
+142805 warnings generated.
+[6/47] Processing file /workspace/lib/AST/Node/ArrayGenerator.cpp.
+171071 warnings generated.
+[7/47] Processing file /workspace/lib/AST/Node/AssignmentStatement.cpp.
+199381 warnings generated.
+[8/47] Processing file /workspace/lib/AST/Node/ASTNode.cpp.
+227650 warnings generated.
+[9/47] Processing file /workspace/lib/AST/Node/BreakStatement.cpp.
+255942 warnings generated.
+[10/47] Processing file /workspace/lib/AST/Node/Call.cpp.
+284238 warnings generated.
+[11/47] Processing file /workspace/lib/AST/Node/CallStatement.cpp.
+312534 warnings generated.
+[12/47] Processing file /workspace/lib/AST/Node/Class.cpp.
+340816 warnings generated.
+[13/47] Processing file /workspace/lib/AST/Node/ComponentReference.cpp.
+369112 warnings generated.
+[14/47] Processing file /workspace/lib/AST/Node/ComponentReferenceEntry.cpp.
+397408 warnings generated.
+[15/47] Processing file /workspace/lib/AST/Node/Constant.cpp.
+426364 warnings generated.
+[16/47] Processing file /workspace/lib/AST/Node/EqualityEquation.cpp.
+454660 warnings generated.
+[17/47] Processing file /workspace/lib/AST/Node/Equation.cpp.
+482926 warnings generated.
+[18/47] Processing file /workspace/lib/AST/Node/EquationSection.cpp.
+511222 warnings generated.
+[19/47] Processing file /workspace/lib/AST/Node/Expression.cpp.
+539488 warnings generated.
+[20/47] Processing file /workspace/lib/AST/Node/ExpressionFunctionArgument.cpp.
+567784 warnings generated.
+[21/47] Processing file /workspace/lib/AST/Node/ForEquation.cpp.
+596080 warnings generated.
+[22/47] Processing file /workspace/lib/AST/Node/ForIndex.cpp.
+624376 warnings generated.
+[23/47] Processing file /workspace/lib/AST/Node/ForStatement.cpp.
+652672 warnings generated.
+[24/47] Processing file /workspace/lib/AST/Node/Function.cpp.
+681016 warnings generated.
+[25/47] Processing file /workspace/lib/AST/Node/FunctionArgument.cpp.
+709282 warnings generated.
+[26/47] Processing file /workspace/lib/AST/Node/IfEquation.cpp.
+737579 warnings generated.
+[27/47] Processing file /workspace/lib/AST/Node/IfStatement.cpp.
+765875 warnings generated.
+[28/47] Processing file /workspace/lib/AST/Node/Member.cpp.
+794171 warnings generated.
+[29/47] Processing file /workspace/lib/AST/Node/Model.cpp.
+822464 warnings generated.
+[30/47] Processing file /workspace/lib/AST/Node/Modification.cpp.
+851470 warnings generated.
+[31/47] Processing file /workspace/lib/AST/Node/NamedFunctionArgument.cpp.
+879766 warnings generated.
+[32/47] Processing file /workspace/lib/AST/Node/Operation.cpp.
+908062 warnings generated.
+[33/47] Processing file /workspace/lib/AST/Node/Package.cpp.
+936355 warnings generated.
+[34/47] Processing file /workspace/lib/AST/Node/Record.cpp.
+964651 warnings generated.
+[35/47] Processing file /workspace/lib/AST/Node/Reduction.cpp.
+992947 warnings generated.
+[36/47] Processing file /workspace/lib/AST/Node/ReductionFunctionArgument.cpp.
+1021243 warnings generated.
+[37/47] Processing file /workspace/lib/AST/Node/ReturnStatement.cpp.
+1049535 warnings generated.
+[38/47] Processing file /workspace/lib/AST/Node/Root.cpp.
+1077831 warnings generated.
+[39/47] Processing file /workspace/lib/AST/Node/Statement.cpp.
+1106097 warnings generated.
+[40/47] Processing file /workspace/lib/AST/Node/StatementsBlock.cpp.
+1134393 warnings generated.
+[41/47] Processing file /workspace/lib/AST/Node/Subscript.cpp.
+1162689 warnings generated.
+[42/47] Processing file /workspace/lib/AST/Node/Tuple.cpp.
+1190985 warnings generated.
+[43/47] Processing file /workspace/lib/AST/Node/Type.cpp.
+1219953 warnings generated.
+[44/47] Processing file /workspace/lib/AST/Node/TypePrefix.cpp.
+1248245 warnings generated.
+[45/47] Processing file /workspace/lib/AST/Node/WhenEquation.cpp.
+1276542 warnings generated.
+[46/47] Processing file /workspace/lib/AST/Node/WhenStatement.cpp.
+1304838 warnings generated.
+[47/47] Processing file /workspace/lib/AST/Node/WhileStatement.cpp.
+1333134 warnings generated.
+/workspace/lib/AST/Node/Modification.cpp:301:14: warning: conversion from 'std::optional<bool>' into 'bool' and back into 'std::optional<bool>', remove potentially error-prone optional dereference [bugprone-optional-value-conversion]
+  301 |       return val.value();
+      |              ^
+/workspace/lib/AST/Node/Modification.cpp:301:18: note: remove call to 'value' to silence this warning
+  301 |       return val.value();
+      |                 ~^~~~~~~
+Suppressed 1333228 warnings (1333133 in non-user code, 95 NOLINT).
+Use -header-filter=.* to display errors from all non-system headers. Use -system-headers to display errors from system headers as well.

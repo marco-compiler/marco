@@ -298,7 +298,7 @@ std::optional<bool> ClassModification::getFixedProperty() const {
       const auto *array = modificationExpression->cast<ArrayConstant>();
       auto val = isArrayUniformConstBool(array);
       assert(val);
-      return val.value();
+      return val;
     }
 
     if (const auto *call = modificationExpression->dyn_cast<Call>()) {
