@@ -2,12 +2,14 @@
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ForIndex.h"
 #include "marco/Parser/Location.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
-#include <llvm/ADT/SmallVector.h>
-#include <cassert>
+
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
+#include <cassert>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

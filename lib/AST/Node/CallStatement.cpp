@@ -1,12 +1,17 @@
-#include "marco/AST/Node/CallStatement.h"
+
 #include "marco/AST/Node/ASTNode.h"
+
 #include "marco/AST/Node/Call.h"
-#include "marco/Parser/Location.h"
+#include "marco/AST/Node/CallStatement.h"
 #include "marco/AST/Node/Statement.h"
-#include <utility>
-#include <memory>
+
+#include "marco/Parser/Location.h"
+
 #include <llvm/Support/JSON.h>
+
 #include <cassert>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

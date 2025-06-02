@@ -1,15 +1,21 @@
-#include "marco/AST/Node/Class.h"
+#include "marco/AST/Node/Algorithm.h" 
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Algorithm.h"
+
 #include "marco/AST/Node/Annotation.h"
-#include "marco/AST/Node/EquationSection.h"
-#include "marco/AST/Node/Member.h"
-#include <llvm/Support/JSON.h>
+#include "marco/AST/Node/Class.h"
+#include "marco/AST/Node/EquationSection.h"     
+#include "marco/AST/Node/Member.h"   
+
+
+#include <llvm/ADT/ArrayRef.h>
+
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
-#include <llvm/ADT/ArrayRef.h>
-#include <memory>
+#include <llvm/Support/JSON.h>
+
 #include <cassert>
+#include <memory>
+
 #include <utility>
 
 using namespace ::marco;
@@ -76,10 +82,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getVariables() const {
 }
 
 void Class::setVariables(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newVariables) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
   variables.clear();
 
-  for (const auto &variable : newVariables) {
+  for (const auto &variable : nodes) {
     assert(variable->isa<Member>());
     auto &clone = variables.emplace_back(variable->clone());
     clone->setParent(this);
@@ -91,10 +97,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getEquationSections() const {
 }
 
 void Class::setEquationSections(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newBlocks) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
   equationSections.clear();
 
-  for (const auto &block : newBlocks) {
+  for (const auto &block : nodes) {
     assert(block->isa<EquationSection>());
     auto &clone = equationSections.emplace_back(block->clone());
     clone->setParent(this);
@@ -106,10 +112,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getAlgorithms() const {
 }
 
 void Class::setAlgorithms(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newAlgorithms) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
   algorithms.clear();
 
-  for (const auto &algorithm : newAlgorithms) {
+  for (const auto &algorithm : nodes){
     assert(algorithm->isa<Algorithm>());
     auto &clone = algorithms.emplace_back(algorithm->clone());
     clone->setParent(this);
@@ -121,10 +127,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getInnerClasses() const {
 }
 
 void Class::setInnerClasses(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newInnerClasses) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
   innerClasses.clear();
 
-  for (const auto &cls : newInnerClasses) {
+  for (const auto &cls : nodes) {
     assert(cls->isa<Class>());
     auto &clone = innerClasses.emplace_back(cls->clone());
     clone->setParent(this);

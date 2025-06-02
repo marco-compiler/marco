@@ -1,13 +1,17 @@
-#include "marco/AST/Node/Root.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Class.h"
+#include "marco/AST/Node/Root.h"
 #include "marco/Parser/Location.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
-#include <llvm/ADT/SmallVector.h>
+
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
 #include <cassert>
+#include <memory>
+#include <utility>
+
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -46,10 +50,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Root::getInnerClasses() const {
 }
 
 void Root::setInnerClasses(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newInnerClasses) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
   innerClasses.clear();
 
-  for (const auto &cls : newInnerClasses) {
+  for (const auto &cls : nodes) {
     assert(cls->isa<Class>());
     auto &clone = innerClasses.emplace_back(cls->clone());
     clone->setParent(this);

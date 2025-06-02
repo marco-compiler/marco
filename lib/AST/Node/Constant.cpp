@@ -1,16 +1,19 @@
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Constant.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/Support/JSON.h>
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
 #include <utility>
 
-#include "marco/AST/Node/Constant.h"
-#include <llvm/Support/JSON.h>
-#include <cstdint>
-#include <string>
-#include "marco/Parser/Location.h"
-#include "marco/AST/Node/Expression.h"
-#include "marco/AST/Node/ASTNode.h"
-#include <utility>
-#include <memory>
 #include <variant>
 
+using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace {

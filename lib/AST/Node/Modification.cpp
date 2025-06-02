@@ -1,4 +1,3 @@
-#include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ArrayConstant.h"
 #include "marco/AST/Node/Call.h"
@@ -8,16 +7,21 @@
 #include "marco/AST/Node/ExpressionFunctionArgument.h"
 #include "marco/AST/Node/FunctionArgument.h"
 #include "marco/AST/Node/Member.h"
+#include "marco/AST/Node/Modification.h"
 #include "marco/Parser/Location.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
-#include <cassert>
-#include <optional>
-#include <llvm/ADT/SmallVector.h>
+
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/JSON.h>
+
+#include <cassert>
 #include <cstddef>
+
+#include <memory>
+#include <optional>
+#include <utility>
+
 
 using namespace ::marco;
 using namespace ::marco::ast;

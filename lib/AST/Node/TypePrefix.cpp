@@ -1,44 +1,50 @@
-#include "marco/AST/Node/TypePrefix.h"
-#include <string>
-#include <llvm/Support/ErrorHandling.h>
-#include "marco/Parser/Location.h"
 #include "marco/AST/Node/ASTNode.h"
-#include <utility>
-#include <memory>
+#include "marco/AST/Node/TypePrefix.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/Support/ErrorHandling.h>
+
 #include <llvm/Support/JSON.h>
+
+#include <memory>
+
+#include <string>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(VariabilityQualifier qualifier) {
-  switch (qualifier) {
-  case VariabilityQualifier::discrete:
-    return "discrete";
-  case VariabilityQualifier::parameter:
-    return "parameter";
-  case VariabilityQualifier::constant:
-    return "constant";
-  case VariabilityQualifier::none:
-    return "none";
-  default:
-    llvm_unreachable("Unknown variability qualifier");
-    return "unknown";
+namespace {
+  std::string toString(VariabilityQualifier qualifier) {
+    switch (qualifier) {
+    case VariabilityQualifier::discrete:
+      return "discrete";
+    case VariabilityQualifier::parameter:
+      return "parameter";
+    case VariabilityQualifier::constant:
+      return "constant";
+    case VariabilityQualifier::none:
+      return "none";
+    default:
+      llvm_unreachable("Unknown variability qualifier");
+      return "unknown";
+    }
   }
-}
 
-static std::string toString(IOQualifier qualifier) {
-  switch (qualifier) {
-  case IOQualifier::input:
-    return "input";
-  case IOQualifier::output:
-    return "output";
-  case IOQualifier::none:
-    return "none";
-  default:
-    llvm_unreachable("Unknown I/O qualifier");
-    return "unknown";
+  std::string toString(IOQualifier qualifier) {
+    switch (qualifier) {
+    case IOQualifier::input:
+      return "input";
+    case IOQualifier::output:
+      return "output";
+    case IOQualifier::none:
+      return "none";
+    default:
+      llvm_unreachable("Unknown I/O qualifier");
+      return "unknown";
+    }
   }
-}
+} //namespace
 
 namespace marco::ast {
 TypePrefix::TypePrefix(SourceRange location)

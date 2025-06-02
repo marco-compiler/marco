@@ -1,75 +1,83 @@
-#include "marco/AST/Node/Operation.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+
+#include "marco/AST/Node/Operation.h"
 #include "marco/Parser/Location.h"
-#include <llvm/Support/ErrorHandling.h>
-#include <memory>
-#include <llvm/Support/JSON.h>
-#include <llvm/ADT/SmallVector.h>
-#include <cstddef>
-#include <cassert>
+
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+
+#include <llvm/Support/ErrorHandling.h>
+
+#include <llvm/Support/JSON.h>
+
+#include <cassert>
+#include <cstddef>
+#include <memory>
 #include <string>
 #include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(OperationKind kind) {
-  switch (kind) {
-  case OperationKind::unknown:
-    return "unknown";
-  case OperationKind::negate:
-    return "negate";
-  case OperationKind::add:
-    return "add";
-  case OperationKind::addEW:
-    return "add_ew";
-  case OperationKind::subtract:
-    return "subtract";
-  case OperationKind::subtractEW:
-    return "subtract_ew";
-  case OperationKind::multiply:
-    return "multiply";
-  case OperationKind::multiplyEW:
-    return "multiply_ew";
-  case OperationKind::divide:
-    return "divide";
-  case OperationKind::divideEW:
-    return "divide_ew";
-  case OperationKind::ifelse:
-    return "if_else";
-  case OperationKind::greater:
-    return "greater";
-  case OperationKind::greaterEqual:
-    return "greater_equal";
-  case OperationKind::equal:
-    return "equal";
-  case OperationKind::different:
-    return "different";
-  case OperationKind::lessEqual:
-    return "less_equal";
-  case OperationKind::less:
-    return "less";
-  case OperationKind::land:
-    return "land";
-  case OperationKind::lor:
-    return "lor";
-  case OperationKind::lnot:
-    return "lnot";
-  case OperationKind::subscription:
-    return "subscription";
-  case OperationKind::powerOf:
-    return "power_of";
-  case OperationKind::powerOfEW:
-    return "power_of_ew";
-  case OperationKind::range:
-    return "range";
-  default:
-    llvm_unreachable("Unknown operation kind");
-    return "unknown";
+namespace {
+  std::string toString(OperationKind kind) {
+    switch (kind) {
+    case OperationKind::unknown:
+      return "unknown";
+    case OperationKind::negate:
+      return "negate";
+    case OperationKind::add:
+      return "add";
+    case OperationKind::addEW:
+      return "add_ew";
+    case OperationKind::subtract:
+      return "subtract";
+    case OperationKind::subtractEW:
+      return "subtract_ew";
+    case OperationKind::multiply:
+      return "multiply";
+    case OperationKind::multiplyEW:
+      return "multiply_ew";
+    case OperationKind::divide:
+      return "divide";
+    case OperationKind::divideEW:
+      return "divide_ew";
+    case OperationKind::ifelse:
+      return "if_else";
+    case OperationKind::greater:
+      return "greater";
+    case OperationKind::greaterEqual:
+      return "greater_equal";
+    case OperationKind::equal:
+      return "equal";
+    case OperationKind::different:
+      return "different";
+    case OperationKind::lessEqual:
+      return "less_equal";
+    case OperationKind::less:
+      return "less";
+    case OperationKind::land:
+      return "land";
+    case OperationKind::lor:
+      return "lor";
+    case OperationKind::lnot:
+      return "lnot";
+    case OperationKind::subscription:
+      return "subscription";
+    case OperationKind::powerOf:
+      return "power_of";
+    case OperationKind::powerOfEW:
+      return "power_of_ew";
+    case OperationKind::range:
+      return "range";
+    default:
+      llvm_unreachable("Unknown operation kind");
+      return "unknown";
+    }
   }
-}
+} //namespace
 
 namespace marco::ast {
 Operation::Operation(SourceRange location)
@@ -115,8 +123,8 @@ bool Operation::isLValue() const {
 
 OperationKind Operation::getOperationKind() const { return kind; }
 
-void Operation::setOperationKind(OperationKind newKind) {
-  this->kind = newKind;
+void Operation::setOperationKind(OperationKind newOperationKind) {
+  this->kind = newOperationKind;
 }
 
 size_t Operation::getNumOfArguments() const { return arguments.size(); }

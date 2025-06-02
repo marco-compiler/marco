@@ -1,15 +1,19 @@
-#include "marco/AST/Node/WhenStatement.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/Parser/Location.h"
+
 #include "marco/AST/Node/Statement.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
+#include "marco/AST/Node/WhenStatement.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
 #include <cassert>
 #include <cstddef>
-#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -77,10 +81,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> WhenStatement::getStatements() const {
 }
 
 void WhenStatement::setStatements(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> newStatements) {
   statements.clear();
 
-  for (const auto &node : nodes) {
+  for (const auto &node : newStatements) {
     assert(node->isa<Statement>());
     auto &clone = statements.emplace_back(node->clone());
     clone->setParent(this);

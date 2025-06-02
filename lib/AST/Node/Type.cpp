@@ -1,37 +1,44 @@
-#include "marco/AST/Node/Type.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ArrayDimension.h"
-#include <string>
+#include "marco/AST/Node/Type.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/STLExtras.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/JSON.h>
-#include <llvm/ADT/SmallVector.h>
-#include <cstddef>
+
 #include <cassert>
-#include <llvm/ADT/ArrayRef.h>
+#include <cstddef>
+
 #include <memory>
-#include <llvm/ADT/STLExtras.h>
+#include <string>
 #include <utility>
-#include "marco/Parser/Location.h"
-#include <llvm/ADT/StringRef.h>
+
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(BuiltInType::Kind builtInTypeKind) {
-  switch (builtInTypeKind) {
-  case BuiltInType::Kind::Boolean:
-    return "Boolean";
-  case BuiltInType::Kind::Integer:
-    return "Integer";
-  case BuiltInType::Kind::Real:
-    return "Real";
-  case BuiltInType::Kind::String:
-    return "String";
-  default:
-    llvm_unreachable("Unknown built-in type");
-    return "unknown";
+namespace {
+  std::string toString(BuiltInType::Kind builtInTypeKind) {
+    switch (builtInTypeKind) {
+    case BuiltInType::Kind::Boolean:
+      return "Boolean";
+    case BuiltInType::Kind::Integer:
+      return "Integer";
+    case BuiltInType::Kind::Real:
+      return "Real";
+    case BuiltInType::Kind::String:
+      return "String";
+    default:
+      llvm_unreachable("Unknown built-in type");
+      return "unknown";
+    }
   }
-}
+} //namespace
 
 namespace marco::ast {
 VariableType::VariableType(const VariableType &other) : ASTNode(other) {

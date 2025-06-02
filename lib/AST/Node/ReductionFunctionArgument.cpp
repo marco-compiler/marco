@@ -1,16 +1,20 @@
-#include "marco/AST/Node/ReductionFunctionArgument.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/ForIndex.h"
-#include "marco/Parser/Location.h"
+
 #include "marco/AST/Node/FunctionArgument.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
+#include "marco/AST/Node/ReductionFunctionArgument.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
 #include <cassert>
 #include <cstddef>
-#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

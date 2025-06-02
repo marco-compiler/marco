@@ -1,14 +1,18 @@
-#include "marco/AST/Node/StatementsBlock.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Statement.h"
+
+#include "marco/AST/Node/StatementsBlock.h"
 #include "marco/Parser/Location.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
-#include <llvm/ADT/SmallVector.h>
-#include <cstddef>
-#include <cassert>
+
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;

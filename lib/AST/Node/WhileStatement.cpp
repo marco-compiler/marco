@@ -1,15 +1,19 @@
-#include "marco/AST/Node/WhileStatement.h"
+
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/Parser/Location.h"
+
 #include "marco/AST/Node/Statement.h"
-#include <utility>
-#include <memory>
-#include <llvm/Support/JSON.h>
+#include "marco/AST/Node/WhileStatement.h"
+#include "marco/Parser/Location.h"
+
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/JSON.h>
+
 #include <cassert>
 #include <cstddef>
-#include <llvm/ADT/ArrayRef.h>
+#include <memory>
+#include <utility>
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -54,9 +58,9 @@ const Expression *WhileStatement::getCondition() const {
   return condition->cast<Expression>();
 }
 
-void WhileStatement::setCondition(std::unique_ptr<ASTNode> node) {
-  assert(node->isa<Expression>());
-  condition = std::move(node);
+void WhileStatement::setCondition(std::unique_ptr<ASTNode> newCondition) {
+  assert(newCondition->isa<Expression>());
+  condition = std::move(newCondition);
   condition->setParent(this);
 }
 
@@ -77,10 +81,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> WhileStatement::getStatements() const {
 }
 
 void WhileStatement::setStatements(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> newStatements) {
   statements.clear();
 
-  for (const auto &node : nodes) {
+  for (const auto &node : newStatements) {
     assert(node->isa<Statement>());
     auto &clone = statements.emplace_back(node->clone());
     clone->setParent(this);

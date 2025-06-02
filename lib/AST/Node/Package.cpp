@@ -1,10 +1,14 @@
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Class.h"
+
 #include "marco/AST/Node/Package.h"
 #include "marco/Parser/Location.h"
-#include "marco/AST/Node/Class.h"
-#include "marco/AST/Node/ASTNode.h"
-#include <utility>
-#include <memory>
+
 #include <llvm/Support/JSON.h>
+
+#include <memory>
+#include <utility>
+
 
 using namespace ::marco;
 using namespace ::marco::ast;

@@ -1,14 +1,20 @@
-#include "marco/AST/Node/ArrayDimension.h"
-#include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Expression.h"
-#include <llvm/Support/JSON.h>
-#include <cstdint>
-#include <memory>
-#include "marco/Parser/Location.h"
-#include <utility>
-#include <variant>
-#include <cassert>
+#include "marco/AST/Node/ArrayDimension.h" // tu propia cabecera
+#include "marco/AST/Node/ASTNode.h"        // para ASTNode::cast<>(), dyn_cast<>()
+#include "marco/AST/Node/Expression.h"     // para Expression, cast<Expression>()
 
+#include "marco/Parser/Location.h"         // para marco::SourceRange
+
+#include "llvm/Support/JSON.h"    // para llvm::json::Value
+
+#include <cassert>      // para assert()
+
+#include <cstdint>      // para int64_t
+#include <memory>       // para std::unique_ptr
+#include <utility>      // para std::move
+#include <variant>      // (solo si realmente usas std::variant)
+
+
+using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace {
