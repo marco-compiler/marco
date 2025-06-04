@@ -990,6 +990,13 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
   // Export the unsolved SCCs to KINSOL.
   pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
 
+  // Check that no SCC is left unsolved.
+  pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
+}
+
+void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
+  CompilerInstance &ci = getInstance();
+
   // Parallelize the scheduled blocks.
   pm.addPass(mlir::bmodelica::createScheduleParallelizationPass());
 
@@ -997,13 +1004,6 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
     // Delegate the calls to the equation functions to the runtime library.
     pm.addPass(mlir::bmodelica::createSchedulersInstantiationPass());
   }
-
-  // Check that no SCC is left unsolved.
-  pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
-}
-
-void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
-  CompilerInstance &ci = getInstance();
 
   pm.addPass(createMLIRBaseModelicaToRuntimeConversionPass());
 
