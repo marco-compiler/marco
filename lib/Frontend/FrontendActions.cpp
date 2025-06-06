@@ -56,6 +56,8 @@ using namespace ::marco;
 using namespace ::marco::frontend;
 using namespace ::marco::io;
 
+//#define POWERGRID
+
 //===---------------------------------------------------------------------===//
 // Utility functions
 //===---------------------------------------------------------------------===//
@@ -1078,6 +1080,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // optimizations because they may introduce additional heap allocations.
   buildMLIRBufferDeallocationPipeline(pm);
 
+#ifndef POWERGRID
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertBufferizationToMemRefPass());
 
@@ -1127,6 +1130,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());
+#endif
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
