@@ -8,6 +8,7 @@
 #include "marco/Dialect/Runtime/IR/Runtime.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/Debug.h"
 
@@ -64,7 +65,19 @@ public:
                                 ProxyMap &proxyMap);
 
   mlir::LogicalResult performSolve(mlir::OpBuilder &builder, mlir::Location loc,
-                                   ModelOp modelOp, const ProxyMap &proxyMap);
+                                   mlir::ModuleOp moduleOp,
+                                   const ProxyMap &proxyMap);
+
+  mlir::func::FuncOp createCopyFromProxyFunction(
+      mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+      mlir::Location loc, mlir::ModuleOp moduleOp, VariableOp variableOp,
+      const ProxyVariable &proxy);
+
+  mlir::func::FuncOp
+  createCopyToProxyFunction(mlir::OpBuilder &builder,
+                            mlir::SymbolTableCollection &symbolTables,
+                            mlir::Location loc, mlir::ModuleOp moduleOp,
+                            VariableOp variableOp, const ProxyVariable &proxy);
 
   mlir::LogicalResult deleteInstance(mlir::OpBuilder &builder,
                                      mlir::Location loc);
@@ -300,7 +313,7 @@ buildAffineLoopNest(mlir::OpBuilder &builder, mlir::Location loc,
 
 mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
                                                  mlir::Location loc,
-                                                 ModelOp modelOp,
+                                                 mlir::ModuleOp moduleOp,
                                                  const ProxyMap &proxyMap) {
   // Copy original variables into proxy ones.
   for (VariableOp variableOp : variables) {
@@ -310,29 +323,15 @@ mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
       continue;
     }
 
-    IndexSet variableIndices = variableOp.getIndices();
-    assert(!variableIndices.empty());
-    GlobalVariableOp proxy = proxyIt->getSecond().getProxyVariable();
+    auto copyFuncOp =
+        createCopyToProxyFunction(builder, *symbolTableCollection, loc,
+                                  moduleOp, variableOp, proxyIt->getSecond());
 
-    for (const MultidimensionalRange &range : llvm::make_range(
-             variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
-      buildAffineLoopNest(
-          builder, loc, range,
-          [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
-              mlir::ValueRange indices) {
-            mlir::Value source = nestedBuilder.create<QualifiedVariableGetOp>(
-                nestedLoc, variableOp.getVariableType().toArrayType(),
-                getSymbolRefFromRoot(variableOp));
-
-            source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
-
-            mlir::Value destination =
-                nestedBuilder.create<GlobalVariableGetOp>(nestedLoc, proxy);
-
-            nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
-                                          indices);
-          });
+    if (!copyFuncOp) {
+      return mlir::failure();
     }
+
+    builder.create<mlir::func::CallOp>(loc, copyFuncOp);
   }
 
   builder.create<mlir::kinsol::SolveOp>(loc, identifier);
@@ -345,32 +344,99 @@ mlir::LogicalResult KINSOLInstance::performSolve(mlir::OpBuilder &builder,
       continue;
     }
 
-    GlobalVariableOp proxy = proxyIt->getSecond().getProxyVariable();
+    auto copyFuncOp =
+        createCopyFromProxyFunction(builder, *symbolTableCollection, loc,
+                                    moduleOp, variableOp, proxyIt->getSecond());
 
-    for (const MultidimensionalRange &range :
-         llvm::make_range(proxyIt->getSecond().getMask().rangesBegin(),
-                          proxyIt->getSecond().getMask().rangesEnd())) {
-      buildAffineLoopNest(
-          builder, loc, range,
-          [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
-              mlir::ValueRange indices) {
-            mlir::Value source =
-                nestedBuilder.create<GlobalVariableGetOp>(nestedLoc, proxy);
-
-            source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
-
-            mlir::Value destination =
-                nestedBuilder.create<QualifiedVariableGetOp>(
-                    nestedLoc, variableOp.getVariableType().toArrayType(),
-                    getSymbolRefFromRoot(variableOp));
-
-            nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
-                                          indices);
-          });
+    if (!copyFuncOp) {
+      return mlir::failure();
     }
+
+    builder.create<mlir::func::CallOp>(loc, copyFuncOp);
   }
 
   return mlir::success();
+}
+
+mlir::func::FuncOp KINSOLInstance::createCopyFromProxyFunction(
+    mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+    mlir::Location loc, mlir::ModuleOp moduleOp, VariableOp variableOp,
+    const ProxyVariable &proxy) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  std::string funcName = "proxy_copy_to_" + variableOp.getSymName().str();
+
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      loc, getKINSOLFunctionName(funcName),
+      builder.getFunctionType(std::nullopt, std::nullopt));
+
+  builder.setInsertionPointToStart(funcOp.addEntryBlock());
+
+  for (const MultidimensionalRange &range : llvm::make_range(
+           proxy.getMask().rangesBegin(), proxy.getMask().rangesEnd())) {
+    buildAffineLoopNest(
+        builder, loc, range,
+        [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
+            mlir::ValueRange indices) {
+          mlir::Value source = nestedBuilder.create<GlobalVariableGetOp>(
+              nestedLoc, proxy.getProxyVariable());
+
+          source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
+
+          mlir::Value destination =
+              nestedBuilder.create<QualifiedVariableGetOp>(
+                  nestedLoc, variableOp.getVariableType().toArrayType(),
+                  getSymbolRefFromRoot(variableOp));
+
+          nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
+                                        indices);
+        });
+  }
+
+  builder.create<mlir::func::ReturnOp>(loc);
+  return funcOp;
+}
+
+mlir::func::FuncOp KINSOLInstance::createCopyToProxyFunction(
+    mlir::OpBuilder &builder, mlir::SymbolTableCollection &symbolTables,
+    mlir::Location loc, mlir::ModuleOp moduleOp, VariableOp variableOp,
+    const ProxyVariable &proxy) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(moduleOp.getBody());
+
+  std::string funcName = "proxy_copy_from_" + variableOp.getSymName().str();
+
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      loc, getKINSOLFunctionName(funcName),
+      builder.getFunctionType(std::nullopt, std::nullopt));
+
+  builder.setInsertionPointToStart(funcOp.addEntryBlock());
+  IndexSet variableIndices = variableOp.getIndices();
+  assert(!variableIndices.empty());
+
+  for (const MultidimensionalRange &range : llvm::make_range(
+           variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
+    buildAffineLoopNest(
+        builder, loc, range,
+        [&](mlir::OpBuilder &nestedBuilder, mlir::Location nestedLoc,
+            mlir::ValueRange indices) {
+          mlir::Value source = nestedBuilder.create<QualifiedVariableGetOp>(
+              nestedLoc, variableOp.getVariableType().toArrayType(),
+              getSymbolRefFromRoot(variableOp));
+
+          source = nestedBuilder.create<LoadOp>(nestedLoc, source, indices);
+
+          mlir::Value destination = nestedBuilder.create<GlobalVariableGetOp>(
+              nestedLoc, proxy.getProxyVariable());
+
+          nestedBuilder.create<StoreOp>(nestedLoc, source, destination,
+                                        indices);
+        });
+  }
+
+  builder.create<mlir::func::ReturnOp>(loc);
+  return funcOp;
 }
 
 mlir::LogicalResult KINSOLInstance::deleteInstance(mlir::OpBuilder &builder,
@@ -1779,8 +1845,8 @@ mlir::LogicalResult SCCSolvingWithKINSOLPass::processSCC(
   rewriter.createBlock(&scheduleBlockOp.getBodyRegion());
   rewriter.setInsertionPointToStart(scheduleBlockOp.getBody());
 
-  if (mlir::failed(kinsolInstance->performSolve(rewriter, scc.getLoc(), modelOp,
-                                                proxyMap))) {
+  if (mlir::failed(kinsolInstance->performSolve(rewriter, scc.getLoc(),
+                                                moduleOp, proxyMap))) {
     return mlir::failure();
   }
 

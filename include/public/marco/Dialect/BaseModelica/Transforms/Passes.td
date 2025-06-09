@@ -689,6 +689,7 @@ def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
         "mlir::bmodelica::BaseModelicaDialect",
         "mlir::affine::AffineDialect",
         "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect",
         "mlir::kinsol::KINSOLDialect",
         "mlir::runtime::RuntimeDialect"
     ];
