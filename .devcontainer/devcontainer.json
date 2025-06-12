@@ -1,6 +1,6 @@
 {
     "name": "MARCO Dev Container",
-    "image": "ghcr.io/marco-compiler/marco-dev-debug-debian-12:latest",
+    "image": "ghcr.io/marco-compiler/marco-dev-release-debian-12:latest",
     "workspaceFolder": "/workspace",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
     "remoteUser": "root",
