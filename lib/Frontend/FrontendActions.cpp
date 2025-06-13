@@ -1101,15 +1101,22 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // patterns.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
 
-  // Perform the default conversions towards LLVM dialect.
-  pm.addPass(mlir::createConvertToLLVMPass());
-
-  // The conversion of the internal dialects to LLVM must be performed
-  // separately because it requires a symbol table for efficiency reasons.
+  // Some conversions to LLVM must be performed separately because they
+  // require a symbol table to avoid quadratic scaling.
   // If MLIR will ever provide a SymbolTableCollection within the ToLLVM
   // conversion infrastructure, or if such information will be embedded in
   // the symbol table operations, then this separation will be not needed
   // anymore.
+  pm.addPass(mlir::createConvertControlFlowToLLVMPass());
+  pm.addPass(mlir::createConvertFuncToLLVMPass());
+  pm.addPass(mlir::createConvertVectorToLLVMPass());
+  pm.addPass(mlir::createFinalizeMemRefToLLVMConversionPass());
+
+  // Perform the default conversions towards LLVM dialect.
+  pm.addPass(mlir::createConvertToLLVMPass());
+
+  // The bmodelica -> LLVM conversion is also performed separately to account
+  // for caching of symbol tables.
   pm.addPass(mlir::createBaseModelicaToLLVMConversionPass());
 
   if (ci.getSimulationOptions().solver == "ida") {
