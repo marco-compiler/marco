@@ -431,4 +431,20 @@ def BaseModelicaToRuntimeCallConversionPass
     let constructor = "mlir::createBaseModelicaToRuntimeCallConversionPass()";
 }
 
+def AllToLLVMConversionPass : Pass<"convert-all-to-llvm"> {
+    let summary = "Convert to LLVM dialect";
+
+    let description = [{
+        Convert the operations to the LLVM dialect.
+        The pass is meant to be used in the final stage of the conversion pipeline,
+        right before folding unrealized casts and legalizing the IR for export.
+    }];
+
+    let dependentDialects = [
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let constructor = "mlir::createAllToLLVMConversionPass()";
+}
+
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD
