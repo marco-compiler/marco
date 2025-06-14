@@ -10,6 +10,10 @@ namespace mlir {
 #define GEN_PASS_DECL_KINSOLTOLLVMCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
+void populateKINSOLToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::LLVMTypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTables);
+
 std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass();
 } // namespace mlir
 

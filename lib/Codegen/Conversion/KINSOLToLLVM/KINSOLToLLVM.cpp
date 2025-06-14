@@ -767,16 +767,22 @@ mlir::LogicalResult KINSOLToLLVMConversionPass::convertOperations() {
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
-  patterns.insert<InstanceOpLowering, AddEquationOpLowering,
-                  AddVariableOpLowering, AddVariableAccessOpLowering,
-                  SetResidualOpLowering, AddJacobianOpLowering, InitOpLowering,
-                  SolveOpLowering, FreeOpLowering>(typeConverter,
-                                                   symbolTableCollection);
+  mlir::populateKINSOLToLLVMConversionPatterns(patterns, typeConverter,
+                                               symbolTableCollection);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 namespace mlir {
+void populateKINSOLToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::LLVMTypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTables) {
+  patterns.insert<InstanceOpLowering, AddEquationOpLowering,
+                  AddVariableOpLowering, AddVariableAccessOpLowering,
+                  SetResidualOpLowering, AddJacobianOpLowering, InitOpLowering,
+                  SolveOpLowering, FreeOpLowering>(typeConverter, symbolTables);
+}
+
 std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass() {
   return std::make_unique<KINSOLToLLVMConversionPass>();
 }
