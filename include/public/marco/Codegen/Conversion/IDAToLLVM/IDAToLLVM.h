@@ -10,6 +10,10 @@ namespace mlir {
 #define GEN_PASS_DECL_IDATOLLVMCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
+void populateIDAToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::LLVMTypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTables);
+
 std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
 } // namespace mlir
 

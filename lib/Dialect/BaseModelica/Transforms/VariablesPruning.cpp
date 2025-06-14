@@ -5,7 +5,6 @@
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 #include "marco/Modeling/ArrayVariablesDependencyGraph.h"
 #include "marco/Modeling/SingleEntryDigraph.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Debug.h"
@@ -47,8 +46,6 @@ private:
                  mlir::SymbolTableCollection &symbolTableCollection,
                  ModelOp modelOp, EquationInstanceOp equationOp,
                  const llvm::DenseSet<VariableOp> &usedVariables);
-
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
 } // namespace
 
@@ -65,10 +62,6 @@ void VariablesPruningPass::runOnOperation() {
     auto modelOp = mlir::cast<ModelOp>(op);
 
     if (mlir::failed(processModelOp(modelOp))) {
-      return mlir::failure();
-    }
-
-    if (mlir::failed(cleanModelOp(modelOp))) {
       return mlir::failure();
     }
 
@@ -370,18 +363,15 @@ mlir::LogicalResult VariablesPruningPass::removeIfUnused(
       modelOp, equationOp.getProperties().match.name);
 
   if (!usedVariables.contains(variableOp)) {
+    EquationTemplateOp templateOp = equationOp.getTemplate();
     rewriter.eraseOp(equationOp);
+
+    if (templateOp.use_empty()) {
+      rewriter.eraseOp(templateOp);
+    }
   }
 
   return mlir::success();
-}
-
-mlir::LogicalResult VariablesPruningPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-  mlir::GreedyRewriteConfig config;
-  config.enableFolding();
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {

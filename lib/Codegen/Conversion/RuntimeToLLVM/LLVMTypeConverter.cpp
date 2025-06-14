@@ -7,9 +7,7 @@ namespace mlir::runtime {
 LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext *context,
                                      const mlir::LowerToLLVMOptions &options)
     : mlir::LLVMTypeConverter(context, options) {
-  addConversion([](StringType type) {
-    return mlir::LLVM::LLVMPointerType::get(type.getContext());
-  });
+  addConversion([&](StringType type) { return convertStringType(type); });
 
   auto addUnrealizedCast = [](mlir::OpBuilder &builder, mlir::Type type,
                               mlir::ValueRange inputs,
@@ -22,5 +20,9 @@ LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext *context,
 
   addSourceMaterialization(addUnrealizedCast);
   addTargetMaterialization(addUnrealizedCast);
+}
+
+mlir::Type LLVMTypeConverter::convertStringType(StringType type) {
+  return mlir::LLVM::LLVMPointerType::get(type.getContext());
 }
 } // namespace mlir::runtime

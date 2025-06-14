@@ -196,11 +196,12 @@ public:
         symbolTableCollection->getSymbolTable(moduleOp);
 
     // Create the global variable.
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+    auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, getVoidPtrType(), false, mlir::LLVM::Linkage::Private,
         op.getSymName(), nullptr);
 
     symbolTable.remove(op);
+    symbolTable.insert(newOp);
     return mlir::success();
   }
 };
@@ -330,12 +331,12 @@ struct SchedulerAddEquationOpLowering
     auto functionName = mangling.getMangledFunction(
         "schedulerAddEquation", mangledResultType, mangledArgsTypes);
 
-    auto funcOp = getOrDeclareFunction(rewriter, moduleOp, loc, functionName,
-                                       resultType, args);
-
     if (indices.empty()) {
       equationRangesPtrArg = declareAndGetRangesArray(
           rewriter, loc, moduleOp, std::nullopt, adaptor.getScheduler());
+
+      auto funcOp = getOrDeclareFunction(rewriter, moduleOp, loc, functionName,
+                                         resultType, args);
 
       rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
     } else {
@@ -343,6 +344,9 @@ struct SchedulerAddEquationOpLowering
            llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
         equationRangesPtrArg = declareAndGetRangesArray(
             rewriter, loc, moduleOp, range, adaptor.getScheduler());
+
+        auto funcOp = getOrDeclareFunction(rewriter, moduleOp, loc,
+                                           functionName, resultType, args);
 
         rewriter.create<mlir::LLVM::CallOp>(loc, funcOp, args);
       }

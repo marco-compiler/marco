@@ -1,6 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationSidesSplit.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EQUATIONSIDESSPLITPASS
@@ -20,6 +19,9 @@ public:
 
 private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
+
+  mlir::LogicalResult splitEquation(mlir::RewriterBase &rewriter,
+                                    EquationOp equationOp);
 };
 } // namespace
 
@@ -40,87 +42,80 @@ void EquationSidesSplitPass::runOnOperation() {
   }
 }
 
-namespace {
-class EquationSplitPattern : public mlir::OpRewritePattern<EquationOp> {
-public:
-  using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(EquationOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    auto equationSidesOp =
-        mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
-
-    auto lhsValues = equationSidesOp.getLhsValues();
-    auto rhsValues = equationSidesOp.getRhsValues();
-
-    if (lhsValues.size() != rhsValues.size()) {
-      return mlir::failure();
-    }
-
-    size_t numOfElements = lhsValues.size();
-
-    if (numOfElements <= 1) {
-      return mlir::failure();
-    }
-
-    for (size_t i = 0; i < numOfElements; ++i) {
-      mlir::IRMapping mapping;
-
-      auto clonedEquation =
-          mlir::cast<EquationOp>(rewriter.clone(*op.getOperation(), mapping));
-
-      mlir::OpBuilder::InsertionGuard guard(rewriter);
-      rewriter.setInsertionPointToEnd(clonedEquation.getBody());
-
-      auto clonedEquationSides = mlir::cast<EquationSidesOp>(
-          clonedEquation.getBody()->getTerminator());
-
-      auto clonedLhsOp = clonedEquationSides.getLhs().getDefiningOp();
-      auto clonedRhsOp = clonedEquationSides.getRhs().getDefiningOp();
-
-      mlir::Value lhs = mapping.lookup(lhsValues[i]);
-      mlir::Value rhs = mapping.lookup(rhsValues[i]);
-
-      auto newLhsOp =
-          rewriter.create<EquationSideOp>(clonedLhsOp->getLoc(), lhs);
-
-      auto newRhsOp =
-          rewriter.create<EquationSideOp>(clonedRhsOp->getLoc(), rhs);
-
-      rewriter.create<EquationSidesOp>(clonedEquationSides.getLoc(), newLhsOp,
-                                       newRhsOp);
-
-      rewriter.eraseOp(clonedEquationSides);
-      rewriter.eraseOp(clonedLhsOp);
-      rewriter.eraseOp(clonedRhsOp);
-    }
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-} // namespace
-
 mlir::LogicalResult EquationSidesSplitPass::processModelOp(ModelOp modelOp) {
-  mlir::ConversionTarget target(getContext());
+  llvm::SmallVector<EquationOp> equationOps;
 
-  target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
+  modelOp.walk([&](EquationOp equationOp) {
     auto equationSidesOp =
-        mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
+        mlir::cast<EquationSidesOp>(equationOp.getBody()->getTerminator());
 
     auto lhsValues = equationSidesOp.getLhsValues();
     auto rhsValues = equationSidesOp.getRhsValues();
 
-    return lhsValues.size() == 1 && rhsValues.size() == 1;
+    if (lhsValues.size() != 1 && lhsValues.size() == rhsValues.size()) {
+      equationOps.push_back(equationOp);
+    }
   });
 
-  target.markUnknownOpDynamicallyLegal(
-      [](mlir::Operation *op) { return true; });
+  mlir::IRRewriter rewriter(modelOp);
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationSplitPattern>(&getContext());
-  return applyPartialConversion(modelOp, target, std::move(patterns));
+  for (EquationOp equationOp : equationOps) {
+    if (mlir::failed(splitEquation(rewriter, equationOp))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult
+EquationSidesSplitPass::splitEquation(mlir::RewriterBase &rewriter,
+                                      EquationOp op) {
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+  auto equationSidesOp =
+      mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
+
+  auto lhsValues = equationSidesOp.getLhsValues();
+  auto rhsValues = equationSidesOp.getRhsValues();
+
+  if (lhsValues.size() != rhsValues.size()) {
+    return mlir::failure();
+  }
+
+  size_t numOfElements = lhsValues.size();
+
+  for (size_t i = 0; i < numOfElements; ++i) {
+    mlir::IRMapping mapping;
+    rewriter.setInsertionPointAfter(op);
+
+    auto clonedEquation =
+        mlir::cast<EquationOp>(rewriter.clone(*op.getOperation(), mapping));
+
+    rewriter.setInsertionPointToEnd(clonedEquation.getBody());
+
+    auto clonedEquationSides =
+        mlir::cast<EquationSidesOp>(clonedEquation.getBody()->getTerminator());
+
+    auto clonedLhsOp = clonedEquationSides.getLhs().getDefiningOp();
+    auto clonedRhsOp = clonedEquationSides.getRhs().getDefiningOp();
+
+    mlir::Value lhs = mapping.lookup(lhsValues[i]);
+    mlir::Value rhs = mapping.lookup(rhsValues[i]);
+
+    auto newLhsOp = rewriter.create<EquationSideOp>(clonedLhsOp->getLoc(), lhs);
+    auto newRhsOp = rewriter.create<EquationSideOp>(clonedRhsOp->getLoc(), rhs);
+
+    rewriter.create<EquationSidesOp>(clonedEquationSides.getLoc(), newLhsOp,
+                                     newRhsOp);
+
+    rewriter.eraseOp(clonedEquationSides);
+    rewriter.eraseOp(clonedLhsOp);
+    rewriter.eraseOp(clonedRhsOp);
+  }
+
+  rewriter.eraseOp(op);
+  return mlir::success();
 }
 
 namespace mlir::bmodelica {

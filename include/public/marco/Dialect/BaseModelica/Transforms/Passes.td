@@ -180,21 +180,6 @@ def FunctionDefaultValuesConversionPass
         "mlir::bmodelica::createFunctionDefaultValuesConversionPass()";
 }
 
-def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp">
-{
-    let summary = "Inline Modelica functions.";
-
-    let description = [{
-        Inline modelica functions.
-    }];
-
-    let dependentDialects = [
-        "mlir::bmodelica::BaseModelicaDialect",
-    ];
-
-    let constructor = "mlir::bmodelica::createFunctionInliningPass()";
-}
-
 def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
 {
     let summary = "Scalarize";
@@ -229,6 +214,21 @@ def FunctionUnwrapPass : Pass<"function-unwrap", "mlir::ModuleOp">
     let constructor = "mlir::bmodelica::createFunctionUnwrapPass()";
 }
 
+def InliningAttributeInsertionPass : Pass<"inlining-attr-insertion", "mlir::ModuleOp">
+{
+    let summary = "Add the inlining attributes to function calls.";
+
+    let description = [{
+        Add the inlining attributes to function calls.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor = "mlir::bmodelica::createInliningAttributeInsertionPass()";
+}
+
 def ModelAlgorithmConversionPass
     : Pass<"convert-model-algorithms", "mlir::ModuleOp">
 {
@@ -243,6 +243,21 @@ def ModelAlgorithmConversionPass
     ];
 
     let constructor = "mlir::bmodelica::createModelAlgorithmConversionPass()";
+}
+
+def PureFunctionInliningPass : Pass<"pure-function-inlining", "mlir::ModuleOp">
+{
+    let summary = "Inline pure functions.";
+
+    let description = [{
+        Inline functions that have no side effects.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect",
+    ];
+
+    let constructor = "mlir::bmodelica::createPureFunctionInliningPass()";
 }
 
 def RangeBoundariesInferencePass : Pass<"infer-range-boundaries", "mlir::ModuleOp">
@@ -674,6 +689,7 @@ def SCCSolvingWithKINSOLPass : Pass<"scc-solving-kinsol", "mlir::ModuleOp">
         "mlir::bmodelica::BaseModelicaDialect",
         "mlir::affine::AffineDialect",
         "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect",
         "mlir::kinsol::KINSOLDialect",
         "mlir::runtime::RuntimeDialect"
     ];

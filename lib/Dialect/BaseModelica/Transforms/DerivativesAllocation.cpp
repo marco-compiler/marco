@@ -30,26 +30,26 @@ private:
 
   mlir::LogicalResult collectDerivedIndices(
       ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
       DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
       EquationInstanceOp equationInstanceOp) const;
 
   mlir::LogicalResult collectDerivedIndices(
       ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
       DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
       AlgorithmOp algorithmOp) const;
 
   mlir::LogicalResult collectDerivedIndicesInAlgorithmRegion(
       ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-      llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+      llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
       DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
       mlir::Region &region) const;
 
   mlir::LogicalResult createDerivativeVariables(
       ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
       DerivativesMap &derivativesMap,
-      const llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+      const llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
       MutexCollection &mutexCollection);
 
   mlir::LogicalResult
@@ -98,7 +98,7 @@ DerivativesMaterializationPass::processModelOp(ModelOp modelOp) {
   modelOp.collectMainAlgorithms(algorithmOps);
 
   // Collect the derived indices.
-  llvm::DenseSet<mlir::SymbolRefAttr> derivedVariables;
+  llvm::SetVector<mlir::SymbolRefAttr> derivedVariables;
   DerivativesMap &derivativesMap = modelOp.getProperties().derivativesMap;
   MutexCollection mutexCollection;
 
@@ -281,7 +281,7 @@ collectDerOps(llvm::SmallVectorImpl<std::pair<DerOp, EquationPath>> &result,
 
 mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
     DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
     EquationInstanceOp equationInstanceOp) const {
   EquationTemplateOp equationTemplateOp = equationInstanceOp.getTemplate();
@@ -356,7 +356,7 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
 
 mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
     DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
     AlgorithmOp algorithmOp) const {
   return collectDerivedIndicesInAlgorithmRegion(
@@ -367,7 +367,7 @@ mlir::LogicalResult DerivativesMaterializationPass::collectDerivedIndices(
 mlir::LogicalResult
 DerivativesMaterializationPass::collectDerivedIndicesInAlgorithmRegion(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
-    llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+    llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
     DerivativesMap &derivativesMap, MutexCollection &mutexCollection,
     mlir::Region &region) const {
   llvm::SmallVector<DerOp> derOps;
@@ -414,7 +414,7 @@ static std::string getDerivativeName(mlir::SymbolRefAttr variableName) {
 mlir::LogicalResult DerivativesMaterializationPass::createDerivativeVariables(
     ModelOp modelOp, mlir::SymbolTableCollection &symbolTableCollection,
     DerivativesMap &derivativesMap,
-    const llvm::DenseSet<mlir::SymbolRefAttr> &derivedVariables,
+    const llvm::SetVector<mlir::SymbolRefAttr> &derivedVariables,
     MutexCollection &mutexCollection) {
   mlir::OpBuilder builder(modelOp);
   builder.setInsertionPointToEnd(modelOp.getBody());

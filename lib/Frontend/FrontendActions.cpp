@@ -860,9 +860,9 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   pm.addPass(mlir::bmodelica::createAutomaticDifferentiationPass());
   pm.addPass(mlir::bmodelica::createDerivativeChainRulePass());
 
-  // Inline the functions marked as "inlinable", in order to enable
+  // Inline the pure functions marked as "inlinable" to possibly enable
   // simplifications for the model solving process.
-  pm.addPass(mlir::bmodelica::createFunctionInliningPass());
+  pm.addPass(mlir::bmodelica::createPureFunctionInliningPass());
 
   pm.addPass(mlir::bmodelica::createRecordInliningPass());
   pm.addPass(mlir::bmodelica::createFunctionUnwrapPass());
@@ -990,6 +990,13 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
   // Export the unsolved SCCs to KINSOL.
   pm.addPass(createMLIRSCCSolvingWithKINSOLPass());
 
+  // Check that no SCC is left unsolved.
+  pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
+}
+
+void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
+  CompilerInstance &ci = getInstance();
+
   // Parallelize the scheduled blocks.
   pm.addPass(mlir::bmodelica::createScheduleParallelizationPass());
 
@@ -997,13 +1004,6 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
     // Delegate the calls to the equation functions to the runtime library.
     pm.addPass(mlir::bmodelica::createSchedulersInstantiationPass());
   }
-
-  // Check that no SCC is left unsolved.
-  pm.addPass(mlir::bmodelica::createSCCAbsenceVerificationPass());
-}
-
-void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
-  CompilerInstance &ci = getInstance();
 
   pm.addPass(createMLIRBaseModelicaToRuntimeConversionPass());
 
@@ -1023,14 +1023,17 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   pm.addPass(mlir::createBaseModelicaToCFConversionPass());
 
   if (ci.getCodeGenOptions().inlining) {
-    // Inline the functions with the 'inline' annotation.
-    pm.addPass(mlir::createInlinerPass());
+    pm.addPass(mlir::bmodelica::createInliningAttributeInsertionPass());
   }
 
   // Lower to MLIR core dialects.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
   pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
-  pm.addPass(mlir::createIDAToFuncConversionPass());
+
+  if (ci.getSimulationOptions().solver == "ida") {
+    pm.addPass(mlir::createIDAToFuncConversionPass());
+  }
+
   pm.addPass(mlir::createKINSOLToFuncConversionPass());
   pm.addPass(mlir::createRuntimeToFuncConversionPass());
   pm.addNestedPass<mlir::func::FuncOp>(mlir::createCanonicalizerPass());
@@ -1073,7 +1076,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Buffer deallocations placements must be performed after loop
   // optimizations because they may introduce additional heap allocations.
-  buildMLIRBufferDeallocationPipeline(pm.nest<mlir::func::FuncOp>());
+  buildMLIRBufferDeallocationPipeline(pm);
 
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertBufferizationToMemRefPass());
@@ -1098,27 +1101,14 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
   // patterns.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
 
-  // Perform the default conversions towards LLVM dialect.
+  pm.addPass(mlir::createAllToLLVMConversionPass());
   pm.addPass(mlir::createConvertToLLVMPass());
-
-  // The conversion of the internal dialects to LLVM must be performed
-  // separately because it requires a symbol table for efficiency reasons.
-  // If MLIR will ever provide a SymbolTableCollection within the ToLLVM
-  // conversion infrastructure, or if such information will be embedded in
-  // the symbol table operations, then this separation will be not needed
-  // anymore.
-  pm.addPass(mlir::createBaseModelicaToLLVMConversionPass());
-  pm.addPass(mlir::createIDAToLLVMConversionPass());
-  pm.addPass(mlir::createKINSOLToLLVMConversionPass());
-  pm.addPass(mlir::createRuntimeToLLVMConversionPass());
 
   // Finalization passes.
   pm.addPass(mlir::runtime::createHeapFunctionsReplacementPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::createReconcileUnrealizedCastsPass());
-
-  pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(mlir::createCanonicalizerPass());
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());

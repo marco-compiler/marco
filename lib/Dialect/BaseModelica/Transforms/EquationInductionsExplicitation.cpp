@@ -1,6 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/EquationInductionsExplicitation.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
-#include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir::bmodelica {
 #define GEN_PASS_DEF_EQUATIONINDUCTIONSEXPLICITATIONPASS
@@ -22,6 +21,9 @@ public:
 
 private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
+
+  mlir::LogicalResult explicitateInductions(mlir::RewriterBase &rewriter,
+                                            EquationOp equationOp);
 };
 } // namespace
 
@@ -42,118 +44,41 @@ void EquationInductionsExplicitationPass::runOnOperation() {
   }
 }
 
-namespace {
-class EquationImplicitInductionsPattern
-    : public mlir::OpRewritePattern<EquationOp> {
-public:
-  using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(EquationOp op,
-                  mlir::PatternRewriter &rewriter) const override {
-    auto equationSidesOp =
-        mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
-
-    mlir::Value lhsValue = equationSidesOp.getLhsValues()[0];
-    mlir::Value rhsValue = equationSidesOp.getRhsValues()[0];
-
-    auto lhsTensorType = mlir::cast<mlir::TensorType>(lhsValue.getType());
-    auto rhsTensorType = mlir::cast<mlir::TensorType>(rhsValue.getType());
-
-    llvm::SmallVector<mlir::Value> inductions;
-
-    for (size_t i = 0, e = lhsTensorType.getRank(); i < e; ++i) {
-      if (lhsTensorType.isDynamicDim(i)) {
-        assert(!rhsTensorType.isDynamicDim(i));
-
-        auto forOp = rewriter.create<ForEquationOp>(
-            op.getLoc(), 0, rhsTensorType.getDimSize(i) - 1, 1);
-
-        rewriter.setInsertionPointToStart(forOp.bodyBlock());
-        inductions.push_back(forOp.induction());
-      } else {
-        assert(!lhsTensorType.isDynamicDim(i));
-
-        auto forOp = rewriter.create<ForEquationOp>(
-            op.getLoc(), 0, lhsTensorType.getDimSize(i) - 1, 1);
-
-        rewriter.setInsertionPointToStart(forOp.bodyBlock());
-        inductions.push_back(forOp.induction());
-      }
-    }
-
-    mlir::IRMapping mapping;
-
-    auto clonedEquation =
-        mlir::cast<EquationOp>(rewriter.clone(*op.getOperation(), mapping));
-
-    auto clonedEquationSidesOp =
-        mlir::cast<EquationSidesOp>(clonedEquation.getBody()->getTerminator());
-
-    auto clonedLhsOp = clonedEquationSidesOp.getLhs().getDefiningOp();
-    auto clonedRhsOp = clonedEquationSidesOp.getRhs().getDefiningOp();
-
-    rewriter.setInsertionPointAfter(clonedEquationSidesOp);
-
-    assert(clonedEquationSidesOp.getLhsValues().size() == 1);
-    assert(clonedEquationSidesOp.getRhsValues().size() == 1);
-
-    auto newLhs = rewriter.create<TensorExtractOp>(
-        op.getLoc(), clonedEquationSidesOp.getLhsValues()[0], inductions);
-
-    auto newRhs = rewriter.create<TensorExtractOp>(
-        op.getLoc(), clonedEquationSidesOp.getRhsValues()[0], inductions);
-
-    auto newLhsOp = rewriter.create<EquationSideOp>(clonedLhsOp->getLoc(),
-                                                    newLhs->getResults());
-
-    auto newRhsOp = rewriter.create<EquationSideOp>(clonedRhsOp->getLoc(),
-                                                    newRhs->getResults());
-
-    rewriter.create<EquationSidesOp>(clonedEquationSidesOp.getLoc(), newLhsOp,
-                                     newRhsOp);
-
-    rewriter.eraseOp(clonedEquationSidesOp);
-    rewriter.eraseOp(clonedLhsOp);
-    rewriter.eraseOp(clonedRhsOp);
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-} // namespace
-
 mlir::LogicalResult
 EquationInductionsExplicitationPass::processModelOp(ModelOp modelOp) {
-  mlir::ConversionTarget target(getContext());
+  llvm::SmallVector<EquationOp> equationOps;
 
-  target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
+  modelOp.walk([&](EquationOp equationOp) {
     auto equationSidesOp =
-        mlir::cast<EquationSidesOp>(op.getBody()->getTerminator());
+        mlir::cast<EquationSidesOp>(equationOp.getBody()->getTerminator());
 
     auto lhsValues = equationSidesOp.getLhsValues();
     auto rhsValues = equationSidesOp.getRhsValues();
 
     if (lhsValues.size() != 1 || rhsValues.size() != 1) {
-      return true;
+      // Can't add induction variables in case of more elements on one of the
+      // equation sides. This is a safety check, as the equation sides should
+      // have been already split using the dedicated pass.
+      return;
     }
 
     auto lhsTensorType =
         mlir::dyn_cast<mlir::TensorType>(lhsValues[0].getType());
+
     auto rhsTensorType =
         mlir::dyn_cast<mlir::TensorType>(rhsValues[0].getType());
 
     if (!lhsTensorType || !rhsTensorType) {
-      return true;
+      return;
     }
 
     if (lhsTensorType.getRank() != rhsTensorType.getRank()) {
-      return true;
+      return;
     }
 
     for (size_t i = 0, e = lhsTensorType.getRank(); i < e; ++i) {
       if (lhsTensorType.isDynamicDim(i) && rhsTensorType.isDynamicDim(i)) {
-        return true;
+        return;
       }
 
       if (lhsTensorType.isDynamicDim(i) || rhsTensorType.isDynamicDim(i)) {
@@ -161,19 +86,97 @@ EquationInductionsExplicitationPass::processModelOp(ModelOp modelOp) {
       }
 
       if (lhsTensorType.getDimSize(i) != rhsTensorType.getDimSize(i)) {
-        return true;
+        return;
       }
     }
 
-    return false;
+    equationOps.push_back(equationOp);
   });
 
-  target.markUnknownOpDynamicallyLegal(
-      [](mlir::Operation *op) { return true; });
+  mlir::IRRewriter rewriter(modelOp);
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationImplicitInductionsPattern>(&getContext());
-  return applyPartialConversion(modelOp, target, std::move(patterns));
+  for (EquationOp equationOp : equationOps) {
+    if (mlir::failed(explicitateInductions(rewriter, equationOp))) {
+      return mlir::failure();
+    }
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult EquationInductionsExplicitationPass::explicitateInductions(
+    mlir::RewriterBase &rewriter, EquationOp equationOp) {
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointAfter(equationOp);
+
+  auto equationSidesOp =
+      mlir::cast<EquationSidesOp>(equationOp.getBody()->getTerminator());
+
+  mlir::Value lhsValue = equationSidesOp.getLhsValues()[0];
+  mlir::Value rhsValue = equationSidesOp.getRhsValues()[0];
+
+  auto lhsTensorType = mlir::cast<mlir::TensorType>(lhsValue.getType());
+  auto rhsTensorType = mlir::cast<mlir::TensorType>(rhsValue.getType());
+
+  llvm::SmallVector<mlir::Value> inductions;
+
+  for (size_t i = 0, e = lhsTensorType.getRank(); i < e; ++i) {
+    if (lhsTensorType.isDynamicDim(i)) {
+      assert(!rhsTensorType.isDynamicDim(i));
+
+      auto forOp = rewriter.create<ForEquationOp>(
+          equationOp.getLoc(), 0, rhsTensorType.getDimSize(i) - 1, 1);
+
+      rewriter.setInsertionPointToStart(forOp.bodyBlock());
+      inductions.push_back(forOp.induction());
+    } else {
+      assert(!lhsTensorType.isDynamicDim(i));
+
+      auto forOp = rewriter.create<ForEquationOp>(
+          equationOp.getLoc(), 0, lhsTensorType.getDimSize(i) - 1, 1);
+
+      rewriter.setInsertionPointToStart(forOp.bodyBlock());
+      inductions.push_back(forOp.induction());
+    }
+  }
+
+  mlir::IRMapping mapping;
+
+  auto clonedEquation = mlir::cast<EquationOp>(
+      rewriter.clone(*equationOp.getOperation(), mapping));
+
+  auto clonedEquationSidesOp =
+      mlir::cast<EquationSidesOp>(clonedEquation.getBody()->getTerminator());
+
+  auto clonedLhsOp = clonedEquationSidesOp.getLhs().getDefiningOp();
+  auto clonedRhsOp = clonedEquationSidesOp.getRhs().getDefiningOp();
+
+  rewriter.setInsertionPointAfter(clonedEquationSidesOp);
+
+  assert(clonedEquationSidesOp.getLhsValues().size() == 1);
+  assert(clonedEquationSidesOp.getRhsValues().size() == 1);
+
+  auto newLhs = rewriter.create<TensorExtractOp>(
+      equationOp.getLoc(), clonedEquationSidesOp.getLhsValues()[0], inductions);
+
+  auto newRhs = rewriter.create<TensorExtractOp>(
+      equationOp.getLoc(), clonedEquationSidesOp.getRhsValues()[0], inductions);
+
+  auto newLhsOp = rewriter.create<EquationSideOp>(clonedLhsOp->getLoc(),
+                                                  newLhs->getResults());
+
+  auto newRhsOp = rewriter.create<EquationSideOp>(clonedRhsOp->getLoc(),
+                                                  newRhs->getResults());
+
+  rewriter.create<EquationSidesOp>(clonedEquationSidesOp.getLoc(), newLhsOp,
+                                   newRhsOp);
+
+  rewriter.eraseOp(clonedEquationSidesOp);
+  rewriter.eraseOp(clonedLhsOp);
+  rewriter.eraseOp(clonedRhsOp);
+
+  rewriter.eraseOp(equationOp);
+  return mlir::success();
 }
 
 namespace mlir::bmodelica {

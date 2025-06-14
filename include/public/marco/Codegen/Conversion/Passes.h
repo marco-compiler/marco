@@ -1,6 +1,7 @@
 #ifndef MARCO_CODEGEN_CONVERSION_PASSES_H
 #define MARCO_CODEGEN_CONVERSION_PASSES_H
 
+#include "marco/Codegen/Conversion/AllToLLVM/AllToLLVM.h"
 #include "marco/Codegen/Conversion/BaseModelicaToArith/BaseModelicaToArith.h"
 #include "marco/Codegen/Conversion/BaseModelicaToCF/BaseModelicaToCF.h"
 #include "marco/Codegen/Conversion/BaseModelicaToFunc/BaseModelicaToFunc.h"

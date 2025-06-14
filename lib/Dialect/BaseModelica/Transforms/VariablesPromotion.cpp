@@ -2,7 +2,6 @@
 #include "marco/Dialect/BaseModelica/Analysis/VariableAccessAnalysis.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Modeling/Dependency.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -30,8 +29,6 @@ public:
 private:
   mlir::LogicalResult processModelOp(ModelOp modelOp);
 
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
-
   std::optional<std::reference_wrapper<VariableAccessAnalysis>>
   getVariableAccessAnalysis(EquationTemplateOp equationTemplate,
                             mlir::SymbolTableCollection &symbolTableCollection);
@@ -47,22 +44,9 @@ void VariablesPromotionPass::runOnOperation() {
     }
   });
 
-  auto runFn = [&](mlir::Operation *op) {
-    auto modelOp = mlir::cast<ModelOp>(op);
-
-    if (mlir::failed(processModelOp(modelOp))) {
-      return mlir::failure();
-    }
-
-    if (mlir::failed(cleanModelOp(modelOp))) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  };
-
-  if (mlir::failed(
-          mlir::failableParallelForEach(&getContext(), modelOps, runFn))) {
+  if (mlir::failed(mlir::failableParallelForEach(
+          &getContext(), modelOps,
+          [&](ModelOp modelOp) { return processModelOp(modelOp); }))) {
     return signalPassFailure();
   }
 }
@@ -652,19 +636,16 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(ModelOp modelOp) {
         }
       }
 
+      EquationTemplateOp templateOp = equationOp.getTemplate();
       rewriter.eraseOp(equationOp);
+
+      if (templateOp.use_empty()) {
+        rewriter.eraseOp(templateOp);
+      }
     }
   }
 
   return mlir::success();
-}
-
-mlir::LogicalResult VariablesPromotionPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-  mlir::GreedyRewriteConfig config;
-  config.enableFolding();
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 std::optional<std::reference_wrapper<VariableAccessAnalysis>>

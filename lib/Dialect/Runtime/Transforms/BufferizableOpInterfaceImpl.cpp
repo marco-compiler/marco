@@ -98,7 +98,7 @@ struct CallOpInterface
 
     for (mlir::Value arg : callOp.getArgs()) {
       if (mlir::isa<mlir::TensorType>(arg.getType())) {
-        auto argBuffer = getBuffer(rewriter, arg, options);
+        auto argBuffer = getBuffer(rewriter, arg, options, state);
 
         if (mlir::failed(argBuffer)) {
           return mlir::failure();

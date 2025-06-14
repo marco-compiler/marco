@@ -198,7 +198,6 @@ SCCSolvingBySubstitutionPass::processModelOp(ModelOp modelOp) {
 
   for (VariableOp variableOp : variableOps) {
     storage->addVariable(variableOp);
-    ;
   }
 
   // Perform the solving process on the 'initial conditions' model.
@@ -709,34 +708,6 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
 
       auto clonedOp = mlir::cast<EquationInstanceOp>(
           rewriter.clone(*equation->getOp().getOperation()));
-
-      llvm::SmallVector<VariableAccess> accesses;
-      llvm::SmallVector<VariableAccess> writeAccesses;
-
-      if (mlir::failed(
-              equation->getOp().getAccesses(accesses, symbolTableCollection))) {
-        return mlir::failure();
-      }
-
-      if (mlir::failed(equation->getOp().getWriteAccesses(
-              writeAccesses, symbolTableCollection, accesses))) {
-        return mlir::failure();
-      }
-
-      llvm::sort(writeAccesses,
-                 [](const VariableAccess &first, const VariableAccess &second) {
-                   if (first.getAccessFunction().isAffine() &&
-                       !second.getAccessFunction().isAffine()) {
-                     return true;
-                   }
-
-                   if (!first.getAccessFunction().isAffine() &&
-                       second.getAccessFunction().isAffine()) {
-                     return false;
-                   }
-
-                   return first < second;
-                 });
 
       if (!isScalarEquation) {
         IndexSet slicedIndices = indices.takeFirstDimensions(numOfInductions);

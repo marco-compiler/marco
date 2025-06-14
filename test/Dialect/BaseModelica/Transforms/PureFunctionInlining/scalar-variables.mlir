@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --inline-functions | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pure-function-inlining | FileCheck %s
 
 bmodelica.function @Foo attributes {inline = true} {
     bmodelica.variable @x : !bmodelica.variable<!bmodelica.real, input>

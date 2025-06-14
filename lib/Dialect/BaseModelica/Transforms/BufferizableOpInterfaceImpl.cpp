@@ -36,7 +36,8 @@ struct RawVariableOpInterface
     }
 
     mlir::FailureOr<mlir::BaseMemRefType> resultType =
-        mlir::bufferization::getBufferType(rawVariableOp.getResult(), options);
+        mlir::bufferization::getBufferType(rawVariableOp.getResult(), options,
+                                           state);
 
     if (mlir::failed(resultType)) {
       return mlir::failure();
@@ -53,6 +54,7 @@ struct RawVariableOpInterface
   mlir::FailureOr<mlir::BaseMemRefType>
   getBufferType(mlir::Operation *op, mlir::Value value,
                 const BufferizationOptions &options,
+                const BufferizationState &state,
                 llvm::SmallVector<mlir::Value> &invocationStack) const {
     auto rawVariableOp = mlir::cast<RawVariableOp>(op);
 
@@ -86,7 +88,7 @@ struct RawVariableGetOpInterface
     auto rawVariableGetOp = mlir::cast<RawVariableGetOp>(op);
 
     mlir::FailureOr<mlir::Value> memRef =
-        getBuffer(rewriter, rawVariableGetOp.getVariable(), options);
+        getBuffer(rewriter, rawVariableGetOp.getVariable(), options, state);
 
     if (mlir::failed(memRef)) {
       return mlir::failure();
@@ -142,7 +144,7 @@ struct RawVariableSetOpInterface
     auto rawVariableSetOp = mlir::cast<RawVariableSetOp>(op);
 
     mlir::FailureOr<mlir::Value> variableBuffer =
-        getBuffer(rewriter, rawVariableSetOp.getVariable(), options);
+        getBuffer(rewriter, rawVariableSetOp.getVariable(), options, state);
 
     if (mlir::failed(variableBuffer)) {
       return mlir::failure();
@@ -159,7 +161,7 @@ struct RawVariableSetOpInterface
           rewriter, op, rawVariableOp, rawVariableSetOp.getValue());
     } else {
       mlir::FailureOr<mlir::Value> valueBuffer =
-          getBuffer(rewriter, rawVariableSetOp.getValue(), options);
+          getBuffer(rewriter, rawVariableSetOp.getValue(), options, state);
 
       if (mlir::failed(valueBuffer)) {
         return mlir::failure();

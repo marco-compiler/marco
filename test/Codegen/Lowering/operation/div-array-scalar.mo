@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
-// CHECK: bmodelica.div %{{.*}}, %{{.*}} : (tensor<3x5x!bmodelica.int>, !bmodelica.int) -> tensor<3x5x!bmodelica.int>
+// CHECK: bmodelica.div %{{.*}}, %{{.*}} : (tensor<3x5x!bmodelica.int>, !bmodelica.int) -> tensor<3x5x!bmodelica.real>
 
 function Integers
     input Integer[3,5] x;

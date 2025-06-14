@@ -119,27 +119,30 @@ private:
   getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
                                ModelOp modelOp, EquationInstanceOp equationOp);
 
-  mlir::LogicalResult createPartialDerTemplateFunction(
-      mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
+  mlir::LogicalResult getOrCreatePartialDerTemplateFunction(
+      mlir::IRRewriter &rewriter,
+      PartialDerivativeTemplatesCollection &pderTemplates,
+      mlir::ModuleOp moduleOp, ModelOp modelOp,
+      llvm::ArrayRef<VariableOp> variableOps, EquationTemplateOp templateOp,
       const llvm::DenseSet<VariableOp> &independentVariables,
-      llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
       llvm::StringRef templateName);
 
   mlir::bmodelica::FunctionOp createPartialDerTemplateFromEquation(
       mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
+      llvm::ArrayRef<VariableOp> variableOps, EquationTemplateOp templateOp,
       const llvm::DenseSet<VariableOp> &independentVariables,
-      llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
+      llvm::MapVector<VariableOp, size_t> &independentVariablesPos,
       llvm::StringRef templateName);
 
-  mlir::LogicalResult createJacobianFunction(
-      mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-      EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
-      const llvm::DenseSet<VariableOp> &independentVariables,
-      const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
-      VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
-      llvm::SmallVectorImpl<int64_t> &seedSizes);
+  mlir::LogicalResult
+  createJacobianFunction(mlir::OpBuilder &builder,
+                         PartialDerivativeTemplatesCollection &pderTemplates,
+                         mlir::ModuleOp moduleOp, ModelOp modelOp,
+                         EquationInstanceOp equationOp,
+                         llvm::StringRef jacobianFunctionName,
+                         const llvm::DenseSet<VariableOp> &independentVariables,
+                         VariableOp independentVariable,
+                         llvm::SmallVectorImpl<int64_t> &seedSizes);
 
   std::string getIDAFunctionName(llvm::StringRef name) const;
 
@@ -733,7 +736,6 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   size_t accessFunctionsCounter = 0;
   size_t residualFunctionsCounter = 0;
   size_t jacobianFunctionsCounter = 0;
-  size_t partialDerTemplatesCounter = 0;
 
   llvm::DenseMap<VariableOp, mlir::Value> variablesMapping;
 
@@ -751,6 +753,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
        llvm::zip(derivativeVariables, idaStateVariables)) {
     variablesMapping[variable] = idaVariable;
   }
+
+  PartialDerivativeTemplatesCollection pderTemplates;
 
   for (EquationInstanceOp equationOp : independentEquations) {
     // Keep track of the accessed variables in order to reduce the amount of
@@ -809,15 +813,11 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     }
 
     // Create the partial derivative template.
-    std::string partialDerTemplateName = getIDAFunctionName(
-        "pder_" + std::to_string(partialDerTemplatesCounter++));
-
-    llvm::DenseMap<VariableOp, size_t> independentVariablesPos;
-
-    if (mlir::failed(createPartialDerTemplateFunction(
-            rewriter, moduleOp, modelOp, variableOps, equationOp,
-            independentVariables, independentVariablesPos,
-            partialDerTemplateName))) {
+    if (mlir::failed(getOrCreatePartialDerTemplateFunction(
+            rewriter, pderTemplates, moduleOp, modelOp, variableOps,
+            equationOp.getTemplate(), independentVariables,
+            getIDAFunctionName("pder_" +
+                               std::to_string(pderTemplates.size()))))) {
       return mlir::failure();
     }
 
@@ -890,9 +890,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         llvm::SmallVector<int64_t> seedSizes;
 
         if (mlir::failed(createJacobianFunction(
-                rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
-                independentVariables, independentVariablesPos, variable,
-                partialDerTemplateName, seedSizes))) {
+                rewriter, pderTemplates, moduleOp, modelOp, equationOp,
+                jacobianFunctionName, independentVariables, variable,
+                seedSizes))) {
           return mlir::failure();
         }
 
@@ -930,9 +930,9 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         llvm::SmallVector<int64_t> seedSizes;
 
         if (mlir::failed(createJacobianFunction(
-                rewriter, moduleOp, modelOp, equationOp, jacobianFunctionName,
-                independentVariables, independentVariablesPos, variable,
-                partialDerTemplateName, seedSizes))) {
+                rewriter, pderTemplates, moduleOp, modelOp, equationOp,
+                jacobianFunctionName, independentVariables, variable,
+                seedSizes))) {
           return mlir::failure();
         }
 
@@ -970,8 +970,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
       return idaStateVariables[stateVariablesLookup[stateVariableOp]];
     }
 
-    if (auto derivativeVariable = getDerivative(
-            mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
+    if (getDerivative(mlir::SymbolRefAttr::get(variableOp.getSymNameAttr()))) {
       return idaStateVariables[stateVariablesLookup[variableOp]];
     }
 
@@ -1240,56 +1239,44 @@ IDAInstance::getIndependentVariablesForAD(llvm::DenseSet<VariableOp> &result,
   return mlir::success();
 }
 
-mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
-    mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
+mlir::LogicalResult IDAInstance::getOrCreatePartialDerTemplateFunction(
+    mlir::IRRewriter &rewriter,
+    PartialDerivativeTemplatesCollection &pderTemplates,
+    mlir::ModuleOp moduleOp, ModelOp modelOp,
+    llvm::ArrayRef<VariableOp> variableOps, EquationTemplateOp templateOp,
     const llvm::DenseSet<VariableOp> &independentVariables,
-    llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
     llvm::StringRef templateName) {
   LLVM_DEBUG({
-    llvm::dbgs() << "Creating partial derivative function for equation:\n";
+    llvm::dbgs()
+        << "Getting or creating partial derivative function for equation:\n";
     llvm::dbgs() << "  ";
-    equationOp.printInline(llvm::dbgs());
+    templateOp.printInline(llvm::dbgs());
     llvm::dbgs() << "\n";
   });
 
+  if (pderTemplates.hasEquationTemplate(templateOp)) {
+    LLVM_DEBUG(llvm::dbgs() << "Result already found in cache");
+    return mlir::success();
+  }
+
   // TODO methanol fails because there are remains of accesses during AD. the
   // equation must be cleaned first.
-  mlir::Location loc = equationOp.getLoc();
+
+  llvm::MapVector<VariableOp, size_t> independentVariablesPos;
 
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
-      rewriter, moduleOp, modelOp, variableOps, equationOp,
+      rewriter, moduleOp, modelOp, variableOps, templateOp,
       independentVariables, independentVariablesPos, templateName);
 
   if (!partialDerTemplate) {
     return mlir::failure();
   }
 
-  // Add the time to the input variables (and signature).
-  mlir::OpBuilder::InsertionGuard guard(rewriter);
-  rewriter.setInsertionPointToStart(partialDerTemplate.getBody());
+  // Cache the function to avoid duplicates.
+  pderTemplates.setDerivativeTemplate(templateOp, partialDerTemplate);
 
-  auto timeVariable = rewriter.create<VariableOp>(
-      loc, "time",
-      VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
-                        VariabilityProperty::none, IOProperty::input));
-
-  symbolTableCollection->getSymbolTable(partialDerTemplate)
-      .insert(timeVariable, partialDerTemplate.getBody()->begin());
-
-  // Replace the TimeOp with the newly created variable.
-  llvm::SmallVector<TimeOp> timeOps;
-
-  partialDerTemplate.walk([&](TimeOp timeOp) { timeOps.push_back(timeOp); });
-
-  for (TimeOp timeOp : timeOps) {
-    rewriter.setInsertionPoint(timeOp);
-
-    mlir::Value time = rewriter.create<VariableGetOp>(
-        timeVariable.getLoc(), timeVariable.getVariableType().unwrap(),
-        timeVariable.getSymName());
-
-    rewriter.replaceOp(timeOp, time);
+  for (auto &entry : independentVariablesPos) {
+    pderTemplates.setVariablePos(templateOp, entry.first, entry.second);
   }
 
   return mlir::success();
@@ -1297,14 +1284,14 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
 
 FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     mlir::IRRewriter &rewriter, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    llvm::ArrayRef<VariableOp> variableOps, EquationInstanceOp equationOp,
+    llvm::ArrayRef<VariableOp> variableOps, EquationTemplateOp templateOp,
     const llvm::DenseSet<VariableOp> &independentVariables,
-    llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
+    llvm::MapVector<VariableOp, size_t> &independentVariablesPos,
     llvm::StringRef templateName) {
   mlir::OpBuilder::InsertionGuard guard(rewriter);
   rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
-  mlir::Location loc = equationOp.getLoc();
+  mlir::Location loc = templateOp.getLoc();
 
   // Create the function.
   LLVM_DEBUG(llvm::dbgs() << "Creating the function to be derived\n");
@@ -1361,7 +1348,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   // Create the induction variables.
   llvm::SmallVector<VariableOp, 3> inductionVariablesOps;
 
-  size_t numOfInductions = equationOp.getInductionVariables().size();
+  size_t numOfInductions = templateOp.getInductionVariables().size();
 
   for (size_t i = 0; i < numOfInductions; ++i) {
     std::string variableName = "ind" + std::to_string(i);
@@ -1396,7 +1383,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   mlir::IRMapping mapping;
 
   // Get the values of the induction variables.
-  auto originalInductions = equationOp.getInductionVariables();
+  auto originalInductions = templateOp.getInductionVariables();
   assert(originalInductions.size() <= inductionVariablesOps.size());
 
   for (size_t i = 0, e = originalInductions.size(); i < e; ++i) {
@@ -1413,8 +1400,8 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   llvm::DenseSet<mlir::Operation *> toBeCloned;
   llvm::SmallVector<mlir::Operation *> toBeClonedVisitStack;
 
-  auto equationSidesOp = mlir::cast<EquationSidesOp>(
-      equationOp.getTemplate().getBody()->getTerminator());
+  auto equationSidesOp =
+      mlir::cast<EquationSidesOp>(templateOp.getBody()->getTerminator());
 
   mlir::Value lhs = equationSidesOp.getLhsValues()[0];
   mlir::Value rhs = equationSidesOp.getRhsValues()[0];
@@ -1441,7 +1428,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   }
 
   // Clone the original operations and compute the residual value.
-  for (auto &op : equationOp.getTemplate().getOps()) {
+  for (auto &op : templateOp.getOps()) {
     if (!toBeCloned.contains(&op)) {
       continue;
     }
@@ -1524,6 +1511,32 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     rewriter.eraseOp(variableOp);
   }
 
+  // Add the time to the input variables (and signature).
+  rewriter.setInsertionPointToStart(derTemplate->getBody());
+
+  auto timeVariable = rewriter.create<VariableOp>(
+      loc, "time",
+      VariableType::get(std::nullopt, RealType::get(rewriter.getContext()),
+                        VariabilityProperty::none, IOProperty::input));
+
+  symbolTableCollection->getSymbolTable(*derTemplate)
+      .insert(timeVariable, derTemplate->getBody()->begin());
+
+  // Replace the TimeOp with the newly created variable.
+  llvm::SmallVector<TimeOp> timeOps;
+
+  derTemplate->walk([&](TimeOp timeOp) { timeOps.push_back(timeOp); });
+
+  for (TimeOp timeOp : timeOps) {
+    rewriter.setInsertionPoint(timeOp);
+
+    mlir::Value time = rewriter.create<VariableGetOp>(
+        timeVariable.getLoc(), timeVariable.getVariableType().unwrap(),
+        timeVariable.getSymName());
+
+    rewriter.replaceOp(timeOp, time);
+  }
+
   LLVM_DEBUG({
     llvm::dbgs() << "Derivative template:\n" << *derTemplate << "\n";
   });
@@ -1532,21 +1545,29 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 }
 
 mlir::LogicalResult IDAInstance::createJacobianFunction(
-    mlir::OpBuilder &builder, mlir::ModuleOp moduleOp, ModelOp modelOp,
-    EquationInstanceOp equationOp, llvm::StringRef jacobianFunctionName,
+    mlir::OpBuilder &builder,
+    PartialDerivativeTemplatesCollection &pderTemplates,
+    mlir::ModuleOp moduleOp, ModelOp modelOp, EquationInstanceOp equationOp,
+    llvm::StringRef jacobianFunctionName,
     const llvm::DenseSet<VariableOp> &independentVariables,
-    const llvm::DenseMap<VariableOp, size_t> &independentVariablesPos,
-    VariableOp independentVariable, llvm::StringRef partialDerTemplateName,
-    llvm::SmallVectorImpl<int64_t> &seedSizes) {
+    VariableOp independentVariable, llvm::SmallVectorImpl<int64_t> &seedSizes) {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToEnd(moduleOp.getBody());
 
   mlir::Location loc = equationOp.getLoc();
 
+  // Get the partial derivative template function.
+  auto pderTemplate =
+      pderTemplates.getDerivativeTemplate(equationOp.getTemplate());
+
+  if (!pderTemplate) {
+    return mlir::failure();
+  }
+
+  // Create the function.
   size_t numOfIndependentVars = independentVariables.size();
   size_t numOfInductions = equationOp.getInductionVariables().size();
 
-  // Create the function.
   auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
       loc, jacobianFunctionName, numOfInductions,
       independentVariable.getVariableType().getRank(),
@@ -1561,12 +1582,18 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   llvm::SmallVector<mlir::Value> varSeeds(numOfIndependentVars, nullptr);
 
   for (VariableOp independentVariableOp : independentVariables) {
-    assert(independentVariablesPos.count(independentVariableOp) != 0);
-    size_t pos = independentVariablesPos.lookup(independentVariableOp);
+    auto pos = pderTemplates.getVariablePos(equationOp.getTemplate(),
+                                            independentVariableOp);
+
+    if (!pos) {
+      return mlir::failure();
+    }
+
     mlir::Value seed = builder.create<PoolVariableGetOp>(
         loc, independentVariableOp.getVariableType().toArrayType(),
-        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[pos]);
-    varSeeds[pos] = seed;
+        jacobianFunction.getMemoryPool(), jacobianFunction.getADSeeds()[*pos]);
+
+    varSeeds[*pos] = seed;
   }
 
   for (mlir::Value seed : varSeeds) {
@@ -1619,8 +1646,9 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   std::optional<size_t> oneSeedPosition = std::nullopt;
   std::optional<size_t> derSeedPosition = std::nullopt;
 
-  if (independentVariablesPos.contains(independentVariable)) {
-    oneSeedPosition = independentVariablesPos.lookup(independentVariable);
+  if (auto pos = pderTemplates.getVariablePos(equationOp.getTemplate(),
+                                              independentVariable)) {
+    oneSeedPosition = *pos;
   }
 
   if (auto derivative = getDerivative(
@@ -1628,8 +1656,9 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     auto derVariableOp =
         symbolTableCollection->lookupSymbolIn<VariableOp>(modelOp, *derivative);
 
-    if (independentVariablesPos.contains(derVariableOp)) {
-      derSeedPosition = independentVariablesPos.lookup(derVariableOp);
+    if (auto pos = pderTemplates.getVariablePos(equationOp.getTemplate(),
+                                                derVariableOp)) {
+      derSeedPosition = *pos;
     }
   }
 
@@ -1656,11 +1685,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     llvm::SmallVector<mlir::Value> args;
     collectArgsFn(args);
 
-    auto templateCall = builder.create<CallOp>(
-        loc,
-        mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
-        RealType::get(builder.getContext()), args);
-
+    auto templateCall = builder.create<CallOp>(loc, *pderTemplate, args);
     mlir::Value result = templateCall.getResult(0);
 
     // Reset the seeds.
@@ -1689,11 +1714,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     args.clear();
     collectArgsFn(args);
 
-    auto firstTemplateCall = builder.create<CallOp>(
-        loc,
-        mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
-        RealType::get(builder.getContext()), args);
-
+    auto firstTemplateCall = builder.create<CallOp>(loc, *pderTemplate, args);
     mlir::Value result = firstTemplateCall.getResult(0);
 
     if (oneSeedPosition) {
@@ -1711,11 +1732,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
       args.clear();
       collectArgsFn(args);
 
-      auto secondTemplateCall = builder.create<CallOp>(
-          loc,
-          mlir::SymbolRefAttr::get(builder.getContext(),
-                                   partialDerTemplateName),
-          RealType::get(builder.getContext()), args);
+      auto secondTemplateCall =
+          builder.create<CallOp>(loc, *pderTemplate, args);
 
       // Reset the seed of the variable.
       builder.create<StoreOp>(loc, zero, varSeeds[*derSeedPosition],

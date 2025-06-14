@@ -187,6 +187,8 @@ public:
 
   const_iterator end() const { return equations.end(); }
 
+  bool empty() const { return equations.empty(); }
+
 private:
   Container equations;
 };
@@ -424,14 +426,17 @@ public:
           llvm::scc_end(static_cast<const PartitionsGraph *>(&partitionsGraph));
 
       for (auto it = sccBeginIt; it != sccEndIt; ++it) {
-        std::unique_lock<std::mutex> lock(resultMutex);
-        SCC &partitionsSCC = result.emplace_back();
-        lock.unlock();
+        std::lock_guard lock(resultMutex);
+        SCC partitionsSCC;
 
         for (auto partitionDescriptor : *it) {
           if (partitionDescriptor != partitionsGraph.getEntryNode()) {
             partitionsSCC.addEquation(partitionsGraph[partitionDescriptor]);
           }
+        }
+
+        if (!partitionsSCC.empty()) {
+          result.push_back(std::move(partitionsSCC));
         }
       }
 

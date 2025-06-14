@@ -1885,28 +1885,7 @@ private:
     TraversableEdges traversableEdges;
 
     // Compute the initial set of traversable edges.
-    for (EdgeDescriptor edgeDescriptor :
-         llvm::make_range(edgesBegin(), edgesEnd())) {
-      const Edge &edge = getBaseGraph()[edgeDescriptor];
-
-      if (isEquation(edgeDescriptor.from)) {
-        if (!edge.getMatched().empty()) {
-          traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
-        }
-
-        if (!edge.getUnmatched().empty()) {
-          traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
-        }
-      } else {
-        if (!edge.getMatched().empty()) {
-          traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
-        }
-
-        if (!edge.getUnmatched().empty()) {
-          traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
-        }
-      }
-    }
+    collectTraversableEdges(traversableEdges);
 
     do {
       success = matchIteration(traversableEdges);
@@ -1927,6 +1906,38 @@ private:
     });
 
     return complete;
+  }
+
+  void collectTraversableEdges(TraversableEdges &traversableEdges) const {
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), edgesBegin(), edgesEnd(),
+        [&](EdgeDescriptor edgeDescriptor) {
+          const Edge &edge = getBaseGraph()[edgeDescriptor];
+
+          if (isEquation(edgeDescriptor.from)) {
+            if (!edge.getMatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
+            }
+
+            if (!edge.getUnmatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
+            }
+          } else {
+            if (!edge.getMatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.from].insert(edgeDescriptor);
+            }
+
+            if (!edge.getUnmatched().empty()) {
+              std::lock_guard lock(mutex);
+              traversableEdges[edgeDescriptor.to].insert(edgeDescriptor);
+            }
+          }
+        });
   }
 
   std::optional<MatchingGraph>
@@ -2079,92 +2090,121 @@ private:
                    << "\n";
     });
 
-    // For each traversed node, keep track of the indices that have already
-    // been traversed by some augmenting path. A new candidate path can be
-    // accepted only if it does not traverse any of them.
-    llvm::DenseMap<VertexDescriptor, IndexSet> visited;
-
-    for (const std::shared_ptr<BFSStep> &pathEnd : paths) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "Candidate augmenting path: ";
-        pathEnd->dump(llvm::dbgs());
-        llvm::dbgs() << "\n";
-      });
-
-      // All the candidate paths consist in at least two nodes by construction
-      assert(pathEnd->hasPrevious());
-
-      std::list<Flow> flows;
-
-      // The path's validity is unknown, so we must avoid polluting the
-      // list of visited scalar nodes. If the path will be marked as valid,
-      // then the new visits will be merged with the already found ones.
-      llvm::DenseMap<VertexDescriptor, IndexSet> newVisits;
-
-      const BFSStep *curStep = pathEnd.get();
-      MCIM map = curStep->getMappedFlow();
-      bool validPath = true;
-
-      while (curStep && validPath) {
-        if (curStep->hasPrevious()) {
-          if (!flows.empty()) {
-            // Restrict the flow
-            const auto &prevMap = flows.front().delta;
-
-            if (isVariable(curStep->getNode())) {
-              map =
-                  curStep->getMappedFlow().filterColumns(prevMap.flattenRows());
-            } else {
-              map =
-                  curStep->getMappedFlow().filterRows(prevMap.flattenColumns());
-            }
-          }
-
-          flows.emplace(flows.begin(), getBaseGraph(),
-                        curStep->getPrevious()->getNode(), curStep->getEdge(),
-                        map);
-        }
-
-        IndexSet touchedIndices = isVariable(curStep->getNode())
-                                      ? map.flattenRows()
-                                      : map.flattenColumns();
-
-        if (auto it = visited.find(curStep->getNode()); it != visited.end()) {
-          if (touchedIndices.overlaps(it->second)) {
-            // Discard the current path, as it overlaps with another one.
-            validPath = false;
-          } else {
-            newVisits[curStep->getNode()] += touchedIndices;
-          }
-        } else {
-          newVisits[curStep->getNode()] = std::move(touchedIndices);
-        }
-
-        // Move backwards inside the candidate augmenting path.
-        curStep = curStep->getPrevious();
-      }
-
-      LLVM_DEBUG({
-        if (validPath) {
-          llvm::dbgs() << "Accepted path\n";
-        } else {
-          llvm::dbgs() << "Discarded path\n";
-        }
-      });
-
-      if (validPath) {
-        augmentingPaths.emplace_back(std::move(flows));
-
-        for (auto &p : newVisits) {
-          visited[p.first] += p.second;
-        }
-      }
-    }
+    filterCandidateAugmentingPaths(augmentingPaths, paths);
 
     LLVM_DEBUG({
       llvm::dbgs() << "Number of accepted augmenting paths: "
                    << augmentingPaths.size() << "\n";
     });
+  }
+
+  void filterCandidateAugmentingPaths(
+      std::vector<AugmentingPath> &augmentingPaths,
+      llvm::ArrayRef<std::shared_ptr<BFSStep>> candidatePaths) const {
+    // For each traversed node, keep track of the indices that have already
+    // been traversed by some augmenting path. A new candidate path can be
+    // accepted only if it does not traverse any of them.
+    llvm::DenseMap<VertexDescriptor, IndexSet> visited;
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), candidatePaths,
+        [&](const std::shared_ptr<BFSStep> &pathEnd) {
+          LLVM_DEBUG({
+            llvm::dbgs() << "Candidate augmenting path: ";
+            pathEnd->dump(llvm::dbgs());
+            llvm::dbgs() << "\n";
+          });
+
+          // All the candidate paths consist in at least two nodes by
+          // construction
+          assert(pathEnd->hasPrevious());
+
+          std::list<Flow> flows;
+
+          // The path's validity is unknown, so we must avoid polluting the
+          // list of visited scalar nodes. If the path will be marked as valid,
+          // then the new visits will be merged with the already found ones.
+          llvm::DenseMap<VertexDescriptor, IndexSet> newVisits;
+
+          const BFSStep *curStep = pathEnd.get();
+          MCIM map = curStep->getMappedFlow();
+          bool validPath = true;
+
+          while (curStep && validPath) {
+            if (curStep->hasPrevious()) {
+              if (!flows.empty()) {
+                // Restrict the flow
+                const auto &prevMap = flows.front().delta;
+
+                if (isVariable(curStep->getNode())) {
+                  map = curStep->getMappedFlow().filterColumns(
+                      prevMap.flattenRows());
+                } else {
+                  map = curStep->getMappedFlow().filterRows(
+                      prevMap.flattenColumns());
+                }
+              }
+
+              flows.emplace(flows.begin(), getBaseGraph(),
+                            curStep->getPrevious()->getNode(),
+                            curStep->getEdge(), map);
+            }
+
+            IndexSet touchedIndices = isVariable(curStep->getNode())
+                                          ? map.flattenRows()
+                                          : map.flattenColumns();
+
+            // Early check for path validity.
+            std::lock_guard lock(mutex);
+
+            if (auto it = visited.find(curStep->getNode());
+                it != visited.end()) {
+              if (touchedIndices.overlaps(it->second)) {
+                // Discard the current path, as it overlaps with another one.
+                validPath = false;
+              } else {
+                newVisits[curStep->getNode()] += touchedIndices;
+              }
+            } else {
+              newVisits[curStep->getNode()] = std::move(touchedIndices);
+            }
+
+            // Move backwards inside the candidate augmenting path.
+            curStep = curStep->getPrevious();
+          }
+
+          LLVM_DEBUG({
+            if (validPath) {
+              llvm::dbgs() << "Accepted path\n";
+            } else {
+              llvm::dbgs() << "Discarded path\n";
+            }
+          });
+
+          std::lock_guard lock(mutex);
+
+          if (validPath) {
+            // Check for path validity.
+            for (auto &newVisit : newVisits) {
+              if (auto it = visited.find(newVisit.first); it != visited.end()) {
+                if (newVisit.second.overlaps(it->second)) {
+                  // Discard the current path, as it overlaps with another one.
+                  validPath = false;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (validPath) {
+            augmentingPaths.emplace_back(std::move(flows));
+
+            for (auto &newVisit : newVisits) {
+              visited[newVisit.first] += newVisit.second;
+            }
+          }
+        });
   }
 
   int compareBFSPaths(const BFSStep &first, const BFSStep &second) const {
@@ -2239,18 +2279,7 @@ private:
     Frontier frontier;
 
     // Computation of the initial frontier.
-    auto equations =
-        llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
-
-    for (VertexDescriptor equationDescriptor : equations) {
-      const Equation &equation = getEquationFromDescriptor(equationDescriptor);
-
-      if (const IndexSet &unmatchedEquations = equation.getUnmatched();
-          !unmatchedEquations.empty()) {
-        frontier.emplace_back(getBaseGraph(), equationDescriptor,
-                              std::move(unmatchedEquations));
-      }
-    }
+    getInitialFrontier(frontier);
 
     // Breadth-first search.
     Frontier newFrontier;
@@ -2288,6 +2317,24 @@ private:
 
     llvm::sort(paths, sortHeuristic);
     return paths;
+  }
+
+  void getInitialFrontier(Frontier &frontier) const {
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), getEquationsBeginIt(), getEquationsEndIt(),
+        [&](VertexDescriptor equationDescriptor) {
+          const Equation &equation =
+              getEquationFromDescriptor(equationDescriptor);
+
+          if (const IndexSet &unmatchedEquations = equation.getUnmatched();
+              !unmatchedEquations.empty()) {
+            std::lock_guard lock(mutex);
+            frontier.emplace_back(getBaseGraph(), equationDescriptor,
+                                  std::move(unmatchedEquations));
+          }
+        });
   }
 
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
@@ -2462,15 +2509,15 @@ private:
     }
 
     // Update the match information stored in the vertices.
-    for (const auto &match : removedMatches) {
+    mlir::parallelForEach(getContext(), removedMatches, [&](const auto &match) {
       std::visit([&match](auto &node) { node.removeMatch(match.second); },
                  getBaseGraph()[match.first]);
-    }
+    });
 
-    for (const auto &match : newMatches) {
+    mlir::parallelForEach(getContext(), newMatches, [&](const auto &match) {
       std::visit([&match](auto &node) { node.addMatch(match.second); },
                  getBaseGraph()[match.first]);
-    }
+    });
   }
 };
 } // namespace marco::modeling

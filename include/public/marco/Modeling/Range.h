@@ -116,13 +116,31 @@ struct DenseMapInfo<marco::modeling::Range> {
   using Key = marco::modeling::Range;
 
   static inline Key getEmptyKey() {
-    return {llvm::DenseMapInfo<Key::data_type>::getEmptyKey() - 1,
-            llvm::DenseMapInfo<Key::data_type>::getEmptyKey()};
+    auto key = llvm::DenseMapInfo<Key::data_type>::getEmptyKey();
+
+    auto begin = key - 1;
+    auto end = key;
+
+    if (begin > end) {
+      begin = key;
+      end = key + 1;
+    }
+
+    return {begin, end};
   }
 
   static inline Key getTombstoneKey() {
-    return {llvm::DenseMapInfo<Key::data_type>::getTombstoneKey() - 1,
-            llvm::DenseMapInfo<Key::data_type>::getTombstoneKey()};
+    auto key = llvm::DenseMapInfo<Key::data_type>::getTombstoneKey();
+
+    auto begin = key - 1;
+    auto end = key;
+
+    if (begin > end) {
+      begin = key;
+      end = key + 1;
+    }
+
+    return {begin, end};
   }
 
   static unsigned getHashValue(const Key &val) { return hash_value(val); }

@@ -142,7 +142,8 @@ public:
       auto it = arrayMap.find(variable);
 
       if (it != arrayMap.end()) {
-        for (const MultidimensionalRange &variableRange : variableIndices) {
+        for (const MultidimensionalRange &variableRange : llvm::make_range(
+                 variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
           it->second.walkOverlappingObjects(
               variableRange, [&](const RTreeObject &entry) {
                 uniqueEntities[entry.writingEntity] +=
@@ -167,7 +168,8 @@ public:
     if (variableIndices.empty()) {
       scalarMap[variable] = writingEntity;
     } else {
-      for (const MultidimensionalRange &variableRange : variableIndices) {
+      for (const MultidimensionalRange &variableRange : llvm::make_range(
+               variableIndices.rangesBegin(), variableIndices.rangesEnd())) {
         arrayMap[variable].insert(RTreeObject{variableRange, writingEntity});
       }
     }

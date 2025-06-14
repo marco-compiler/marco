@@ -1,4 +1,4 @@
-#include "marco/Dialect/BaseModelica/Transforms/FunctionInlining.h"
+#include "marco/Dialect/BaseModelica/Transforms/PureFunctionInlining.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -8,7 +8,7 @@
 #include <set>
 
 namespace mlir::bmodelica {
-#define GEN_PASS_DEF_FUNCTIONINLININGPASS
+#define GEN_PASS_DEF_PUREFUNCTIONINLININGPASS
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h.inc"
 } // namespace mlir::bmodelica
 
@@ -135,10 +135,14 @@ private:
 namespace llvm {
 template <>
 struct DenseMapInfo<::CallGraph::Node> {
-  static inline ::CallGraph::Node getEmptyKey() { return {nullptr, nullptr}; }
+  static ::CallGraph::Node getEmptyKey() {
+    return {llvm::DenseMapInfo<::CallGraph *>::getEmptyKey(),
+            llvm::DenseMapInfo<mlir::Operation *>::getEmptyKey()};
+  }
 
-  static inline ::CallGraph::Node getTombstoneKey() {
-    return {nullptr, nullptr};
+  static ::CallGraph::Node getTombstoneKey() {
+    return {llvm::DenseMapInfo<::CallGraph *>::getTombstoneKey(),
+            llvm::DenseMapInfo<mlir::Operation *>::getTombstoneKey()};
   }
 
   static unsigned getHashValue(const ::CallGraph::Node &val) {
@@ -568,142 +572,12 @@ private:
 };
 } // namespace
 
-class FunctionInliner : public mlir::OpRewritePattern<CallOp> {
-public:
-  FunctionInliner(mlir::MLIRContext *context,
-                  mlir::SymbolTableCollection &symbolTable,
-                  const llvm::DenseSet<FunctionOp> &inlinableFunctions,
-                  const DefaultOpComputationOrderings &orderings)
-      : mlir::OpRewritePattern<CallOp>(context), symbolTable(&symbolTable),
-        inlinableFunctions(&inlinableFunctions), orderings(&orderings) {}
-
-  mlir::LogicalResult
-  matchAndRewrite(CallOp op, mlir::PatternRewriter &rewriter) const override {
-    auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
-
-    FunctionOp callee =
-        mlir::cast<FunctionOp>(op.getFunction(moduleOp, *symbolTable));
-
-    if (!inlinableFunctions->contains(callee)) {
-      return mlir::failure();
-    }
-
-    mlir::IRMapping mapping;
-    llvm::StringMap<mlir::Value> varMapping;
-
-    // Map the operations providing the default values for the variables.
-    llvm::DenseMap<VariableOp, DefaultOp> defaultOps;
-
-    for (DefaultOp defaultOp : callee.getDefaultValues()) {
-      VariableOp variableOp = symbolTable->lookupSymbolIn<VariableOp>(
-          callee, defaultOp.getVariableAttr());
-
-      defaultOps[variableOp] = defaultOp;
-    }
-
-    // Set the default values for variables.
-    for (VariableOp variableOp : orderings->get(callee)) {
-      auto defaultOpIt = defaultOps.find(variableOp);
-
-      if (defaultOpIt == defaultOps.end()) {
-        continue;
-      }
-
-      DefaultOp defaultOp = defaultOpIt->getSecond();
-
-      for (auto &nestedOp : defaultOp.getOps()) {
-        if (auto yieldOp = mlir::dyn_cast<YieldOp>(nestedOp)) {
-          assert(yieldOp.getValues().size() == 1);
-
-          varMapping[variableOp.getSymName()] =
-              mapping.lookup(yieldOp.getValues()[0]);
-        } else {
-          rewriter.clone(nestedOp, mapping);
-        }
-      }
-    }
-
-    // Map the call arguments to the function input variables.
-    llvm::SmallVector<VariableOp, 3> inputVariables;
-
-    for (VariableOp variableOp : callee.getVariables()) {
-      if (variableOp.isInput()) {
-        inputVariables.push_back(variableOp);
-      }
-    }
-
-    assert(op.getArgs().size() <= inputVariables.size());
-
-    for (const auto &callArg : llvm::enumerate(op.getArgs())) {
-      VariableOp variableOp = inputVariables[callArg.index()];
-      varMapping[variableOp.getSymName()] = callArg.value();
-    }
-
-    // Check that all the input variables have a value.
-    assert(llvm::all_of(inputVariables, [&](VariableOp variableOp) {
-      return varMapping.find(variableOp.getSymName()) != varMapping.end();
-    }));
-
-    // Clone the function body.
-    for (AlgorithmOp algorithmOp : callee.getOps<AlgorithmOp>()) {
-      for (auto &originalOp : algorithmOp.getOps()) {
-        cloneBodyOp(rewriter, mapping, varMapping, &originalOp);
-      }
-    }
-
-    // Determine the result values.
-    llvm::SmallVector<VariableOp, 1> outputVariables;
-
-    for (VariableOp variableOp : callee.getVariables()) {
-      if (variableOp.isOutput()) {
-        outputVariables.push_back(variableOp);
-      }
-    }
-
-    assert(op.getResults().size() == outputVariables.size());
-    llvm::SmallVector<mlir::Value, 1> newResults;
-
-    for (VariableOp variableOp : outputVariables) {
-      newResults.push_back(varMapping.lookup(variableOp.getSymName()));
-    }
-
-    rewriter.replaceOp(op, newResults);
-    return mlir::success();
-  }
-
-private:
-  void cloneBodyOp(mlir::OpBuilder &builder, mlir::IRMapping &mapping,
-                   llvm::StringMap<mlir::Value> &varMapping,
-                   mlir::Operation *op) const {
-    if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
-      mlir::Value &mappedValue = varMapping[variableGetOp.getVariable()];
-      mapping.map(variableGetOp.getResult(), mappedValue);
-      return;
-    }
-
-    if (auto variableSetOp = mlir::dyn_cast<VariableSetOp>(op)) {
-      varMapping[variableSetOp.getVariable()] =
-          mapping.lookup(variableSetOp.getValue());
-
-      return;
-    }
-
-    mlir::Operation *clonedOp = builder.clone(*op, mapping);
-    mapping.map(op->getResults(), clonedOp->getResults());
-  }
-
-private:
-  mlir::SymbolTableCollection *symbolTable;
-  const llvm::DenseSet<FunctionOp> *inlinableFunctions;
-  const DefaultOpComputationOrderings *orderings;
-};
-
 namespace {
-class FunctionInliningPass
-    : public mlir::bmodelica::impl::FunctionInliningPassBase<
-          FunctionInliningPass> {
+class PureFunctionInliningPass
+    : public mlir::bmodelica::impl::PureFunctionInliningPassBase<
+          PureFunctionInliningPass> {
 public:
-  using FunctionInliningPassBase::FunctionInliningPassBase;
+  using PureFunctionInliningPassBase::PureFunctionInliningPassBase;
 
   void runOnOperation() override;
 
@@ -715,36 +589,47 @@ private:
   void collectGraphEdges(CallGraph &callGraph,
                          mlir::SymbolTableCollection &symbolTable,
                          mlir::ModuleOp moduleOp, mlir::Operation *op) const;
+
+  void inlineFunction(CallOp callOp, mlir::ModuleOp moduleOp,
+                      mlir::SymbolTableCollection &symbolTables,
+                      const DefaultOpComputationOrderings &orderings);
 };
 } // namespace
 
-void FunctionInliningPass::runOnOperation() {
+void PureFunctionInliningPass::runOnOperation() {
   mlir::ModuleOp moduleOp = getOperation();
-  mlir::SymbolTableCollection symbolTable;
+  mlir::SymbolTableCollection symbolTables;
 
   CallGraph callGraph;
   DefaultOpComputationOrderings orderings;
 
   collectGraphNodes(callGraph, orderings, moduleOp);
-  collectGraphEdges(callGraph, symbolTable, moduleOp, moduleOp);
+  collectGraphEdges(callGraph, symbolTables, moduleOp, moduleOp);
 
-  mlir::RewritePatternSet patterns(&getContext());
   auto inlinableFunctions = callGraph.getInlinableFunctions();
 
-  patterns.add<FunctionInliner>(&getContext(), symbolTable, inlinableFunctions,
-                                orderings);
+  if (inlinableFunctions.empty()) {
+    // Nothing to do.
+    return;
+  }
 
-  mlir::GreedyRewriteConfig config;
-  config.setUseTopDownTraversal(true);
-  config.enableFolding();
+  llvm::SmallVector<CallOp> inlinedCalls;
 
-  if (mlir::failed(
-          mlir::applyPatternsGreedily(moduleOp, std::move(patterns), config))) {
-    return signalPassFailure();
+  moduleOp.walk([&](CallOp callOp) {
+    auto functionOp =
+        mlir::cast<FunctionOp>(callOp.getFunction(moduleOp, symbolTables));
+
+    if (inlinableFunctions.contains(functionOp)) {
+      inlinedCalls.push_back(callOp);
+    }
+  });
+
+  for (CallOp callOp : inlinedCalls) {
+    inlineFunction(callOp, moduleOp, symbolTables, orderings);
   }
 }
 
-void FunctionInliningPass::collectGraphNodes(
+void PureFunctionInliningPass::collectGraphNodes(
     CallGraph &callGraph, DefaultOpComputationOrderings &orderings,
     mlir::Operation *op) const {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
@@ -780,13 +665,13 @@ void FunctionInliningPass::collectGraphNodes(
   }
 }
 
-void FunctionInliningPass::collectGraphEdges(
+void PureFunctionInliningPass::collectGraphEdges(
     CallGraph &callGraph, mlir::SymbolTableCollection &symbolTable,
     mlir::ModuleOp moduleOp, mlir::Operation *op) const {
   if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
     if (callGraph.hasNode(functionOp)) {
       functionOp.walk([&](CallOp callOp) {
-        FunctionOp callee =
+        auto callee =
             mlir::cast<FunctionOp>(callOp.getFunction(moduleOp, symbolTable));
 
         if (callGraph.hasNode(callee)) {
@@ -803,8 +688,121 @@ void FunctionInliningPass::collectGraphEdges(
   }
 }
 
+namespace {
+void cloneBodyOp(mlir::OpBuilder &builder, mlir::IRMapping &mapping,
+                 llvm::StringMap<mlir::Value> &varMapping,
+                 mlir::Operation *op) {
+  if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
+    mlir::Value &mappedValue = varMapping[variableGetOp.getVariable()];
+    mapping.map(variableGetOp.getResult(), mappedValue);
+    return;
+  }
+
+  if (auto variableSetOp = mlir::dyn_cast<VariableSetOp>(op)) {
+    varMapping[variableSetOp.getVariable()] =
+        mapping.lookup(variableSetOp.getValue());
+
+    return;
+  }
+
+  mlir::Operation *clonedOp = builder.clone(*op, mapping);
+  mapping.map(op->getResults(), clonedOp->getResults());
+}
+} // namespace
+
+void PureFunctionInliningPass::inlineFunction(
+    CallOp callOp, mlir::ModuleOp moduleOp,
+    mlir::SymbolTableCollection &symbolTables,
+    const DefaultOpComputationOrderings &orderings) {
+  mlir::IRRewriter rewriter(callOp);
+
+  auto callee =
+      mlir::cast<FunctionOp>(callOp.getFunction(moduleOp, symbolTables));
+
+  mlir::IRMapping mapping;
+  llvm::StringMap<mlir::Value> varMapping;
+
+  // Map the operations providing the default values for the variables.
+  llvm::DenseMap<VariableOp, DefaultOp> defaultOps;
+
+  for (DefaultOp defaultOp : callee.getDefaultValues()) {
+    VariableOp variableOp = symbolTables.lookupSymbolIn<VariableOp>(
+        callee, defaultOp.getVariableAttr());
+
+    defaultOps[variableOp] = defaultOp;
+  }
+
+  // Set the default values for variables.
+  for (VariableOp variableOp : orderings.get(callee)) {
+    auto defaultOpIt = defaultOps.find(variableOp);
+
+    if (defaultOpIt == defaultOps.end()) {
+      continue;
+    }
+
+    DefaultOp defaultOp = defaultOpIt->getSecond();
+
+    for (auto &nestedOp : defaultOp.getOps()) {
+      if (auto yieldOp = mlir::dyn_cast<YieldOp>(nestedOp)) {
+        assert(yieldOp.getValues().size() == 1);
+
+        varMapping[variableOp.getSymName()] =
+            mapping.lookup(yieldOp.getValues()[0]);
+      } else {
+        rewriter.clone(nestedOp, mapping);
+      }
+    }
+  }
+
+  // Map the call arguments to the function input variables.
+  llvm::SmallVector<VariableOp, 3> inputVariables;
+
+  for (VariableOp variableOp : callee.getVariables()) {
+    if (variableOp.isInput()) {
+      inputVariables.push_back(variableOp);
+    }
+  }
+
+  assert(callOp.getArgs().size() <= inputVariables.size());
+
+  for (const auto &callArg : llvm::enumerate(callOp.getArgs())) {
+    VariableOp variableOp = inputVariables[callArg.index()];
+    varMapping[variableOp.getSymName()] = callArg.value();
+  }
+
+  // Check that all the input variables have a value.
+  assert(llvm::all_of(inputVariables, [&](VariableOp variableOp) {
+    return varMapping.find(variableOp.getSymName()) != varMapping.end();
+  }));
+
+  // Clone the function body.
+  for (AlgorithmOp algorithmOp : callee.getOps<AlgorithmOp>()) {
+    for (auto &originalOp : algorithmOp.getOps()) {
+      cloneBodyOp(rewriter, mapping, varMapping, &originalOp);
+    }
+  }
+
+  // Determine the result values.
+  llvm::SmallVector<VariableOp, 1> outputVariables;
+
+  for (VariableOp variableOp : callee.getVariables()) {
+    if (variableOp.isOutput()) {
+      outputVariables.push_back(variableOp);
+    }
+  }
+
+  assert(callOp.getResults().size() == outputVariables.size());
+  llvm::SmallVector<mlir::Value, 1> newResults;
+
+  for (VariableOp variableOp : outputVariables) {
+    newResults.push_back(varMapping.lookup(variableOp.getSymName()));
+  }
+
+  rewriter.replaceOp(callOp, newResults);
+}
+
 namespace mlir::bmodelica {
-std::unique_ptr<mlir::Pass> createFunctionInliningPass() {
-  return std::make_unique<FunctionInliningPass>();
+std::unique_ptr<mlir::Pass> createPureFunctionInliningPass() {
+  return std::make_unique<PureFunctionInliningPass>();
 }
 } // namespace mlir::bmodelica

@@ -1,7 +1,7 @@
 // RUN: marco -mc1 %s --omc-bypass -emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @Integers
-// CHECK: bmodelica.div %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.int) -> !bmodelica.int
+// CHECK: bmodelica.div %{{.*}}, %{{.*}} : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
 
 function Integers
     input Integer x;

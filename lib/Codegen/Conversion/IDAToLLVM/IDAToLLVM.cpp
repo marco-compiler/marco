@@ -1055,6 +1055,16 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations() {
   mlir::RewritePatternSet patterns(&getContext());
   mlir::SymbolTableCollection symbolTableCollection;
 
+  populateIDAToLLVMConversionPatterns(patterns, typeConverter,
+                                      symbolTableCollection);
+
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
+}
+
+namespace mlir {
+void populateIDAToLLVMConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::LLVMTypeConverter &typeConverter,
+    mlir::SymbolTableCollection &symbolTables) {
   patterns
       .insert<InstanceOpLowering, SetStartTimeOpLowering, SetEndTimeOpLowering,
               GetCurrentTimeOpLowering, AddEquationOpLowering,
@@ -1062,12 +1072,9 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations() {
               AddVariableAccessOpLowering, SetResidualOpLowering,
               AddJacobianOpLowering, InitOpLowering, CalcICOpLowering,
               StepOpLowering, FreeOpLowering, PrintStatisticsOpLowering>(
-          typeConverter, symbolTableCollection);
-
-  return applyPartialConversion(moduleOp, target, std::move(patterns));
+          typeConverter, symbolTables);
 }
 
-namespace mlir {
 std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass() {
   return std::make_unique<IDAToLLVMConversionPass>();
 }
