@@ -196,11 +196,12 @@ public:
         symbolTableCollection->getSymbolTable(moduleOp);
 
     // Create the global variable.
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
+    auto newOp = rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
         op, getVoidPtrType(), false, mlir::LLVM::Linkage::Private,
         op.getSymName(), nullptr);
 
     symbolTable.remove(op);
+    symbolTable.insert(newOp);
     return mlir::success();
   }
 };
