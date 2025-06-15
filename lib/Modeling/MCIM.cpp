@@ -223,7 +223,29 @@ MCIM &MCIM::operator-=(const MCIM &rhs) {
       if (group->getAccessFunction() == rhsGroup->getAccessFunction()) {
         group->removeKeys(rhsGroup->getKeys());
       } else {
-        group->removeValues(rhsGroup->getValues());
+        IndexSet commonValues =
+            rhsGroup->getValues().intersect(group->getValues());
+
+        if (commonValues.empty()) {
+          continue;
+        }
+
+        IndexSet lhsKeys = group->getAccessFunction().inverseMap(
+            commonValues, group->getKeys());
+
+        if (lhsKeys.empty()) {
+          continue;
+        }
+
+        IndexSet rhsKeys = rhsGroup->getAccessFunction().inverseMap(
+            commonValues, rhsGroup->getKeys());
+
+        if (rhsKeys.empty()) {
+          continue;
+        }
+
+        IndexSet commonKeys = lhsKeys.intersect(rhsKeys);
+        group->removeKeys(commonKeys);
       }
     }
   }
