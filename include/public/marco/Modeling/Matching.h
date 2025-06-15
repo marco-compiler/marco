@@ -637,6 +637,7 @@ public:
   const MCIM &getUnmatched() const {
     if (!updatedUnmatchedMatrix) {
       unmatchMatrix = incidenceMatrix - matchMatrix;
+      assert(matchMatrix + unmatchMatrix == incidenceMatrix);
       updatedUnmatchedMatrix = true;
     }
 
