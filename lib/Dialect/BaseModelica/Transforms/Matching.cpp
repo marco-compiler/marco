@@ -81,8 +81,6 @@ private:
                      llvm::ArrayRef<EquationInstanceOp> equationOps,
                      llvm::function_ref<std::optional<IndexSet>(VariableOp)>
                          matchableIndicesFn);
-
-  mlir::LogicalResult cleanModelOp(ModelOp modelOp);
 };
 } // namespace
 
@@ -100,10 +98,6 @@ void MatchingPass::runOnOperation() {
     LLVM_DEBUG(llvm::dbgs() << "Input model:\n" << modelOp << "\n");
 
     if (mlir::failed(processModelOp(modelOp))) {
-      return mlir::failure();
-    }
-
-    if (mlir::failed(cleanModelOp(modelOp))) {
       return mlir::failure();
     }
 
@@ -411,14 +405,6 @@ std::optional<MatchingGraphWrapper> MatchingPass::buildMatchingGraph(
   }
 
   return MatchingGraphWrapper(std::move(graph), std::move(storage));
-}
-
-mlir::LogicalResult MatchingPass::cleanModelOp(ModelOp modelOp) {
-  mlir::RewritePatternSet patterns(&getContext());
-  ModelOp::getCleaningPatterns(patterns, &getContext());
-  mlir::GreedyRewriteConfig config;
-  config.enableFolding();
-  return mlir::applyPatternsGreedily(modelOp, std::move(patterns), config);
 }
 
 namespace mlir::bmodelica {
