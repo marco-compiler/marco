@@ -1945,22 +1945,7 @@ private:
   getScalarGraph(double scalarAccessThreshold) const {
     // Determine which variables should be scalarized.
     llvm::DenseSet<VertexDescriptor> toScalarize;
-
-    for (VertexDescriptor variableDescriptor :
-         llvm::make_range(getVariablesBeginIt(), getVariablesEndIt())) {
-      const Variable &variable = getVariableFromDescriptor(variableDescriptor);
-
-      size_t variableSize = variable.getIndices().flatSize();
-
-      if (variableSize <= 1) {
-        continue;
-      }
-
-      if (getVariableScalarAccessFactor(variableDescriptor) >=
-          scalarAccessThreshold) {
-        toScalarize.insert(variableDescriptor);
-      }
-    }
+    collectVariablesToScalarize(toScalarize, scalarAccessThreshold);
 
     if (toScalarize.empty()) {
       return std::nullopt;
@@ -2036,6 +2021,36 @@ private:
     }
 
     return scalarizedGraph;
+  }
+
+  void collectVariablesToScalarize(
+      llvm::DenseSet<VertexDescriptor> &variableDescriptors,
+      double scalarAccessThreshold) const {
+    std::mutex mutex;
+
+    mlir::parallelForEach(
+        getContext(), getVariablesBeginIt(), getVariablesEndIt(),
+        [&](VertexDescriptor variableDescriptor) {
+          if (shouldVariableBeScalarized(variableDescriptor,
+                                         scalarAccessThreshold)) {
+            std::lock_guard<std::mutex> lock(mutex);
+            variableDescriptors.insert(variableDescriptor);
+          }
+        });
+  }
+
+  bool shouldVariableBeScalarized(VertexDescriptor variableDescriptor,
+                                  double scalarAccessThreshold) const {
+    const Variable &variable = getVariableFromDescriptor(variableDescriptor);
+
+    size_t variableSize = variable.getIndices().flatSize();
+
+    if (variableSize <= 1) {
+      return false;
+    }
+
+    return getVariableScalarAccessFactor(variableDescriptor) >=
+           scalarAccessThreshold;
   }
 
   double
