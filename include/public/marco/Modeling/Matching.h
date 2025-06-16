@@ -797,15 +797,22 @@ public:
 
   BFSStep &operator[](size_t index) {
     assert(index < steps.size());
-    return steps[index];
+    return *steps[index];
   }
 
   const BFSStep &operator[](size_t index) const {
+    assert(index < steps.size());
+    return *steps[index];
+  }
+
+  std::shared_ptr<BFSStep> at(size_t index) const {
     assert(index < steps.size());
     return steps[index];
   }
 
   bool empty() const { return steps.empty(); }
+
+  size_t size() const { return steps.size(); }
 
   template <typename... Args>
   void emplace_back(Args &&...args) {
@@ -2223,75 +2230,9 @@ private:
         });
   }
 
-  int compareBFSPaths(const BFSStep &first, const BFSStep &second) const {
-    // Compare the flow size.
-    size_t s1 = first.getCandidates().flatSize();
-    size_t s2 = second.getCandidates().flatSize();
-
-    if (s1 != s2) {
-      return s1 > s2 ? -1 : 1;
-    }
-
-    const BFSStep *firstPtr = &first;
-    const BFSStep *secondPtr = &second;
-
-    do {
-      // Compare the identifiers.
-      if (isEquation(firstPtr->getNode())) {
-        assert(isEquation(secondPtr->getNode()));
-
-        auto id1 = getEquationFromDescriptor(firstPtr->getNode()).getId();
-        auto id2 = getEquationFromDescriptor(secondPtr->getNode()).getId();
-
-        if (id1 != id2) {
-          return id1 < id2 ? -1 : 1;
-        }
-      } else {
-        assert(isVariable(firstPtr->getNode()) &&
-               isVariable(secondPtr->getNode()));
-
-        auto id1 = getVariableFromDescriptor(firstPtr->getNode()).getId();
-        auto id2 = getVariableFromDescriptor(secondPtr->getNode()).getId();
-
-        if (id1 != id2) {
-          return id1 < id2 ? -1 : 1;
-        }
-      }
-
-      // Compare the indices.
-      if (auto indicesCmp =
-              firstPtr->getCandidates().compare(secondPtr->getCandidates());
-          indicesCmp != 0) {
-        return indicesCmp;
-      }
-
-      // Move one step back within the path.
-      firstPtr = firstPtr->hasPrevious() ? firstPtr->getPrevious() : nullptr;
-      secondPtr = secondPtr->hasPrevious() ? secondPtr->getPrevious() : nullptr;
-    } while (firstPtr && secondPtr);
-
-    if (firstPtr == nullptr && secondPtr == nullptr) {
-      return 0;
-    }
-
-    if (firstPtr == nullptr) {
-      // First path is shorter.
-      return -1;
-    }
-
-    // Second path is shorter.
-    return 1;
-  }
-
   std::vector<std::shared_ptr<BFSStep>>
   getCandidateAugmentingPaths(const TraversableEdges &traversableEdges) const {
     std::vector<std::shared_ptr<BFSStep>> paths;
-
-    auto sortHeuristic = [&](const std::shared_ptr<BFSStep> &first,
-                             const std::shared_ptr<BFSStep> &second) {
-      return compareBFSPaths(*first, *second) < 0;
-    };
-
     Frontier frontier;
 
     // Computation of the initial frontier.
@@ -2304,7 +2245,7 @@ private:
     std::mutex pathsMutex;
 
     while (!frontier.empty() && paths.empty()) {
-      llvm::sort(frontier, sortHeuristic);
+      sortFrontier(frontier);
       LLVM_DEBUG(frontier.dump(llvm::dbgs()));
 
       auto stepFn = [&](const std::shared_ptr<BFSStep> &step) {
@@ -2331,7 +2272,7 @@ private:
       frontier = std::move(newFrontier);
     }
 
-    llvm::sort(paths, sortHeuristic);
+    sortPaths(paths);
     return paths;
   }
 
@@ -2351,6 +2292,50 @@ private:
                                   std::move(unmatchedEquations));
           }
         });
+  }
+
+  static void sortFrontier(Frontier &frontier) {
+    std::vector<std::shared_ptr<BFSStep>> paths;
+
+    for (size_t i = 0, e = frontier.size(); i < e; ++i) {
+      paths.push_back(frontier.at(i));
+    }
+
+    sortPaths(paths);
+    frontier.clear();
+
+    for (auto &path : paths) {
+      frontier.push_back(std::move(path));
+    }
+  }
+
+  static void sortPaths(std::vector<std::shared_ptr<BFSStep>> &paths) {
+    std::vector<std::shared_ptr<BFSStep>> result;
+
+    // Split the paths into partitions based on their size.
+    llvm::DenseMap<size_t, llvm::SmallVector<size_t>> pathsBySize;
+    llvm::DenseSet<size_t> pathSizes;
+
+    for (size_t i = 0, e = paths.size(); i < e; ++i) {
+      size_t size = paths[i]->getCandidates().flatSize();
+      pathsBySize[size].push_back(i);
+      pathSizes.insert(size);
+    }
+
+    llvm::SmallVector<size_t> orderedPathsSizes(pathSizes.begin(),
+                                                pathSizes.end());
+
+    // Order the partition sizes.
+    llvm::sort(orderedPathsSizes, [](size_t a, size_t b) { return a > b; });
+
+    // Merge the partitions.
+    for (size_t pathSize : orderedPathsSizes) {
+      for (size_t path : pathsBySize[pathSize]) {
+        result.push_back(std::move(paths[path]));
+      }
+    }
+
+    paths = std::move(result);
   }
 
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
