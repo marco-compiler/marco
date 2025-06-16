@@ -1626,6 +1626,21 @@ private:
     return std::distance(edges.begin(), edges.end());
   }
 
+  size_t getVertexVisibilityDegreeUpTo(VertexDescriptor vertex,
+                                       size_t limit) const {
+    auto edgesIt = visibleEdgesBegin(vertex);
+    auto edgesEndIt = visibleEdgesEnd(vertex);
+
+    size_t result = 0;
+
+    while (edgesIt != edgesEndIt && result < limit) {
+      ++result;
+      ++edgesIt;
+    }
+
+    return result;
+  }
+
   void remove(VertexDescriptor vertex) {
     std::visit([](auto &obj) -> void { obj.setVisibility(false); },
                getBaseGraph()[vertex]);
@@ -1835,7 +1850,7 @@ private:
               continue;
             }
 
-            size_t visibilityDegree = getVertexVisibilityDegree(v);
+            size_t visibilityDegree = getVertexVisibilityDegreeUpTo(v, 2);
 
             if (visibilityDegree == 0) {
               // 'v' will also be present for sure in the candidates list.
@@ -1852,7 +1867,7 @@ private:
           // When an edge is removed but one of its vertices survives, we must
           // check if the remaining vertex has an obliged match.
 
-          size_t visibilityDegree = getVertexVisibilityDegree(v2);
+          size_t visibilityDegree = getVertexVisibilityDegreeUpTo(v2, 2);
 
           if (visibilityDegree == 1) {
             candidates.push_back(v2);
@@ -1869,7 +1884,7 @@ private:
     std::mutex resultMutex;
 
     auto collectFn = [&](VertexDescriptor vertex) {
-      size_t incidentEdges = getVertexVisibilityDegree(vertex);
+      size_t incidentEdges = getVertexVisibilityDegreeUpTo(vertex, 2);
 
       if (incidentEdges == 1) {
         std::lock_guard<std::mutex> resultLockGuard(resultMutex);
