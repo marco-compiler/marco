@@ -17,6 +17,8 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::bridge;
 
+// #define LLVM_DEBUG(x) x;
+
 namespace {
 struct CyclicEquation {
   EquationInstanceOp equation;
@@ -246,11 +248,6 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
     auto &bridge = storage.addEquation(
         static_cast<int64_t>(storage.equationBridges.size()), equation,
         symbolTableCollection);
-
-    if (auto accessAnalysis = getVariableAccessAnalysis(
-            equation.getTemplate(), symbolTableCollection)) {
-      bridge.setAccessAnalysis(*accessAnalysis);
-    }
 
     equationPtrs.push_back(&bridge);
   }
