@@ -1233,8 +1233,16 @@ std::unique_ptr<mlir::Pass> CodeGenAction::createMLIROneShotBufferizePass() {
 
 void CodeGenAction::buildMLIRBufferDeallocationPipeline(
     mlir::OpPassManager &pm) {
-  mlir::bufferization::BufferDeallocationPipelineOptions options;
-  mlir::bufferization::buildBufferDeallocationPipeline(pm, options);
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::memref::createExpandReallocPass({.emitDeallocs = false}));
+
+  pm.addPass(mlir::bufferization::createOwnershipBasedBufferDeallocationPass());
+
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::bufferization::createBufferDeallocationSimplificationPass());
+
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::bufferization::createLowerDeallocationsPass());
 }
 
 void CodeGenAction::addMLIRLoopTilingPass(mlir::OpPassManager &pm) {
