@@ -605,7 +605,9 @@ public:
       : equation(std::move(equation)), variable(std::move(variable)),
         incidenceMatrix(equationIndices, variableIndices),
         matchMatrix(equationIndices, variableIndices),
-        unmatchMatrix(equationIndices, variableIndices), visible(true) {}
+        unmatchMatrix(equationIndices, variableIndices), visible(true) {
+    unmatchMatrix = incidenceMatrix;
+  }
 
   using Dumpable::dump;
 
@@ -624,25 +626,17 @@ public:
 
   void addMatch(const MCIM &match) {
     matchMatrix += match;
-    updatedUnmatchedMatrix = false;
+    unmatchMatrix -= match;
   }
 
   void removeMatch(const MCIM &match) {
     matchMatrix -= match;
-    updatedUnmatchedMatrix = false;
+    unmatchMatrix += match;
   }
 
   const MCIM &getMatched() const { return matchMatrix; }
 
-  const MCIM &getUnmatched() const {
-    if (!updatedUnmatchedMatrix) {
-      unmatchMatrix = incidenceMatrix - matchMatrix;
-      assert(matchMatrix + unmatchMatrix == incidenceMatrix);
-      updatedUnmatchedMatrix = true;
-    }
-
-    return unmatchMatrix;
-  }
+  const MCIM &getUnmatched() const { return unmatchMatrix; }
 
   bool isVisible() const { return visible; }
 
@@ -652,7 +646,7 @@ public:
     assert(accessFunction && "Null access function");
     incidenceMatrix.apply(*accessFunction);
     accessFunctions.push_back(std::move(accessFunction));
-    updatedUnmatchedMatrix = false;
+    unmatchMatrix = incidenceMatrix - matchMatrix;
   }
 
   auto getAccessFunctions() const {
@@ -668,9 +662,7 @@ private:
 
   MCIM incidenceMatrix;
   MCIM matchMatrix;
-
-  mutable bool updatedUnmatchedMatrix{false};
-  mutable MCIM unmatchMatrix;
+  MCIM unmatchMatrix;
 
   bool visible;
 
@@ -2402,8 +2394,8 @@ private:
                        << " to " << var.getId() << "\n";
         });
 
-        auto unmatchedMatrix = edge.getUnmatched();
-        auto filteredMatrix = unmatchedMatrix.filterRows(step->getCandidates());
+        const MCIM &unmatchedMatrix = edge.getUnmatched();
+        MCIM filteredMatrix = unmatchedMatrix.filterRows(step->getCandidates());
 
         internal::LocalMatchingSolutions solutions =
             internal::solveLocalMatchingProblem(filteredMatrix);
