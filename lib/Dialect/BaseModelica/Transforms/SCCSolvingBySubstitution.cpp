@@ -17,8 +17,6 @@ namespace mlir::bmodelica {
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::bridge;
 
-// #define LLVM_DEBUG(x) x;
-
 namespace {
 struct CyclicEquation {
   EquationInstanceOp equation;
