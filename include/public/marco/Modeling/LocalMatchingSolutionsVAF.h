@@ -1,11 +1,11 @@
 #ifndef MARCO_MODELING_LOCALMATCHINGSOLUTIONSVAF_H
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSVAF_H
 
+#include "LocalMatchingSolutionsImpl.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/AccessFunctionAffineConstant.h"
 #include "marco/Modeling/AccessFunctionConstant.h"
 #include "marco/Modeling/AccessFunctionRotoTranslation.h"
-#include "marco/Modeling/LocalMatchingSolutionsImpl.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"

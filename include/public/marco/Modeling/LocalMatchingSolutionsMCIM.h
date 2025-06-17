@@ -1,7 +1,7 @@
 #ifndef MARCO_MODELING_LOCALMATCHINGSOLUTIONSMCIM_H
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSMCIM_H
 
-#include "marco/Modeling/LocalMatchingSolutionsImpl.h"
+#include "LocalMatchingSolutionsImpl.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace marco::modeling::internal {

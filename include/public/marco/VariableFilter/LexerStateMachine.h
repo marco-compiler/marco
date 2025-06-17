@@ -1,10 +1,10 @@
 #ifndef MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 #define MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 
+#include "Token.h"
 #include "marco/Parser/IntegerLexer.h"
 #include "marco/Parser/Lexer.h"
 #include "marco/Parser/Location.h"
-#include "marco/VariableFilter/Token.h"
 #include "llvm/ADT/StringMap.h"
 #include <map>
 #include <memory>

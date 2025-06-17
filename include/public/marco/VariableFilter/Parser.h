@@ -1,9 +1,9 @@
 #ifndef MARCO_VARIABLEFILTER_PARSER_H
 #define MARCO_VARIABLEFILTER_PARSER_H
 
+#include "AST.h"
 #include "marco/Parser/Lexer.h"
 #include "marco/Parser/Location.h"
-#include "marco/VariableFilter/AST.h"
 #include "marco/VariableFilter/LexerStateMachine.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "clang/Basic/Diagnostic.h"
