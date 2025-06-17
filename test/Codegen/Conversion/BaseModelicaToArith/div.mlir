@@ -62,6 +62,23 @@ func.func @RealInteger(%arg0 : !bmodelica.real, %arg1 : !bmodelica.int) -> !bmod
 
 // -----
 
+// CHECK-LABEL: @IntegerOperandsAndRealResult
+// CHECK-SAME: (%[[arg0:.*]]: !bmodelica.int, %[[arg1:.*]]: !bmodelica.int) -> !bmodelica.real
+// CHECK-DAG: %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !bmodelica.int to i64
+// CHECK-DAG: %[[arg1_casted:.*]] = builtin.unrealized_conversion_cast %[[arg1]] : !bmodelica.int to i64
+// CHECK-DAG: %[[lhs:.*]] = arith.sitofp %[[arg0_casted]] : i64 to f64
+// CHECK-DAG: %[[rhs:.*]] = arith.sitofp %[[arg1_casted]] : i64 to f64
+// CHECK: %[[result:.*]] = arith.divf %[[lhs]], %[[rhs]] : f64
+// CHECK: %[[result_casted:.*]] =  builtin.unrealized_conversion_cast %[[result]] : f64 to !bmodelica.real
+// CHECK: return %[[result_casted]]
+
+func.func @IntegerOperandsAndRealResult(%arg0 : !bmodelica.int, %arg1 : !bmodelica.int) -> !bmodelica.real {
+    %0 = bmodelica.div %arg0, %arg1 : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
+    func.return %0 : !bmodelica.real
+}
+
+// -----
+
 // CHECK-LABEL: @mlirIndex
 // CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> index
 // CHECK: %[[result:.*]] = arith.divsi %[[arg0]], %[[arg1]] : index

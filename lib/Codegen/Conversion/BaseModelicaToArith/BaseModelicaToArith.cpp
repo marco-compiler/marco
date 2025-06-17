@@ -1547,21 +1547,26 @@ struct DivOpLowering : public mlir::OpConversionPattern<DivOp> {
           op, "Incompatible right-hand side operand");
     }
 
-    mlir::Type genericType =
-        getMostGenericScalarType(lhs.getType(), rhs.getType());
-
-    if (lhs.getType() != genericType) {
-      lhs = rewriter.create<CastOp>(loc, genericType, lhs);
-    }
-
-    if (rhs.getType() != genericType) {
-      rhs = rewriter.create<CastOp>(loc, genericType, rhs);
-    }
-
     mlir::Type requestedResultType =
         getTypeConverter()->convertType(op.getResult().getType());
 
-    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(genericType)) {
+    mlir::Type operandsType;
+
+    if (requestedResultType.isFloat()) {
+      operandsType = requestedResultType;
+    } else {
+      operandsType = getMostGenericScalarType(lhs.getType(), rhs.getType());
+    }
+
+    if (lhs.getType() != operandsType) {
+      lhs = rewriter.create<CastOp>(loc, operandsType, lhs);
+    }
+
+    if (rhs.getType() != operandsType) {
+      rhs = rewriter.create<CastOp>(loc, operandsType, rhs);
+    }
+
+    if (mlir::isa<mlir::IndexType, mlir::IntegerType>(operandsType)) {
       mlir::Value result = rewriter.create<mlir::arith::DivSIOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
@@ -1573,7 +1578,7 @@ struct DivOpLowering : public mlir::OpConversionPattern<DivOp> {
       return mlir::success();
     }
 
-    if (mlir::isa<mlir::FloatType>(genericType)) {
+    if (mlir::isa<mlir::FloatType>(operandsType)) {
       mlir::Value result = rewriter.create<mlir::arith::DivFOp>(loc, lhs, rhs);
 
       if (result.getType() != requestedResultType) {
