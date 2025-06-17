@@ -4,6 +4,7 @@ Checks:
   clang-diagnostic-*,
   llvm-*,
   misc-*,
+  -misc-include-cleaner,
   -misc-unused-parameters,
   -misc-non-private-member-variables-in-classes,
   -misc-no-recursion,
