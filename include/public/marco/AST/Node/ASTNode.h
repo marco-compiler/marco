@@ -7,7 +7,7 @@
 
 namespace llvm {
 class raw_ostream;
-}
+} // namespace llvm
 
 namespace marco::ast {
 class ASTNode {
@@ -108,11 +108,13 @@ public:
   }
 
   template <typename T>
+  // NOLINTNEXTLINE(readability-identifier-naming)
   T *dyn_cast() {
     return llvm::dyn_cast<T>(this);
   }
 
   template <typename T>
+  // NOLINTNEXTLINE(readability-identifier-naming)
   const T *dyn_cast() const {
     return llvm::dyn_cast<T>(this);
   }
@@ -133,7 +135,7 @@ public:
 
   template <typename T>
   T *getParentOfType() {
-    ASTNode *node = parent;
+    const ASTNode *node = parent;
 
     while (node != nullptr) {
       if (T *casted = node->dyn_cast<T>()) {
@@ -148,10 +150,10 @@ public:
 
   template <typename T>
   const T *getParentOfType() const {
-    ASTNode *node = parent;
+    const ASTNode *node = parent;
 
     while (node != nullptr) {
-      if (T *casted = node->dyn_cast<T>()) {
+      if (const T *casted = node->dyn_cast<T>()) {
         return casted;
       }
 

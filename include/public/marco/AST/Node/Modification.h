@@ -162,8 +162,8 @@ public:
   void setModification(std::unique_ptr<ASTNode> node);
 
 private:
-  bool each;
-  bool final;
+  bool each{false};
+  bool final{false};
   std::string name;
   std::unique_ptr<ASTNode> modification;
 };

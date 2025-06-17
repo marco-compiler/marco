@@ -7,8 +7,7 @@ namespace marco::ast {
 BreakStatement::BreakStatement(SourceRange location)
     : Statement(ASTNode::Kind::Statement_Break, std::move(location)) {}
 
-BreakStatement::BreakStatement(const BreakStatement &other)
-    : Statement(other) {}
+BreakStatement::BreakStatement(const BreakStatement &other) = default;
 
 BreakStatement::~BreakStatement() = default;
 

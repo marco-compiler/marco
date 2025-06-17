@@ -21,7 +21,7 @@ public:
            node->getKind() <= ASTNode::Kind::VariableType_LastVariableType;
   }
 
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 
   size_t getRank() const;
 
@@ -51,7 +51,7 @@ public:
 
   BuiltInType(const BuiltInType &other);
 
-  ~BuiltInType();
+  ~BuiltInType() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::VariableType_BuiltIn;
@@ -77,7 +77,7 @@ public:
 
   UserDefinedType(const UserDefinedType &other);
 
-  ~UserDefinedType();
+  ~UserDefinedType() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::VariableType_UserDefined;

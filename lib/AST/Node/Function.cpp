@@ -11,7 +11,15 @@ using namespace ::marco::ast;
 
 namespace marco::ast {
 FunctionType::FunctionType(llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
-                           llvm::ArrayRef<std::unique_ptr<ASTNode>> results) {}
+                           llvm::ArrayRef<std::unique_ptr<ASTNode>> results) {
+  for (const auto &arg : args) {
+    this->args.push_back(arg->clone());
+  }
+
+  for (const auto &result : results) {
+    this->results.push_back(result->clone());
+  }
+}
 
 size_t FunctionType::getNumOfArgs() const { return args.size(); }
 
@@ -89,8 +97,7 @@ StandardFunction::StandardFunction(SourceRange location)
     : Function(ASTNode::Kind::Class_Function_StandardFunction,
                std::move(location)) {}
 
-StandardFunction::StandardFunction(const StandardFunction &other)
-    : Function(other), pure(other.pure) {}
+StandardFunction::StandardFunction(const StandardFunction &other) = default;
 
 StandardFunction::~StandardFunction() = default;
 
@@ -168,6 +175,6 @@ void InverseFunctionAnnotation::addInverse(llvm::StringRef invertedArg,
                                            llvm::ArrayRef<std::string> args) {
   assert(map.find(invertedArg) == map.end());
   Container<std::string> c(args.begin(), args.end());
-  map[invertedArg] = std::make_pair(inverseFunctionName.str(), c);
+  map[invertedArg] = std::make_pair(inverseFunctionName.str(), std::move(c));
 }
 } // namespace marco::ast

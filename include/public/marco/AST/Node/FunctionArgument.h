@@ -19,7 +19,7 @@ public:
   }
 
 protected:
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 };
 } // namespace marco::ast
 

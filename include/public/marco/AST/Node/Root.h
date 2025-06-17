@@ -12,7 +12,7 @@ public:
 
   Root(const Root &other);
 
-  virtual ~Root();
+  ~Root() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::Root;
@@ -26,7 +26,8 @@ public:
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getInnerClasses() const;
 
   /// Set the inner classes.
-  void setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void
+  setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> newInnerClasses);
 
 private:
   llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;

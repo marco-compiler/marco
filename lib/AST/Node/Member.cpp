@@ -8,8 +8,7 @@ using namespace ::marco::ast;
 
 namespace marco::ast {
 Member::Member(SourceRange location)
-    : ASTNode(ASTNode::Kind::Member, std::move(location)), name(""),
-      isPublicMember(true) {}
+    : ASTNode(ASTNode::Kind::Member, std::move(location)), name("") {}
 
 Member::Member(const Member &other)
     : ASTNode(other), name(other.name), isPublicMember(other.isPublicMember) {

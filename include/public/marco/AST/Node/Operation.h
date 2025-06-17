@@ -66,7 +66,7 @@ public:
   void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
 private:
-  OperationKind kind;
+  OperationKind kind{OperationKind::unknown};
   llvm::SmallVector<std::unique_ptr<ASTNode>, 3> arguments;
 };
 } // namespace marco::ast

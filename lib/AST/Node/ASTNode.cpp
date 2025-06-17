@@ -4,7 +4,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(ASTNode::Kind kind) {
+namespace {
+std::string toString(ASTNode::Kind kind) {
   switch (kind) {
   case ASTNode::Kind::Root:
     return "root";
@@ -99,6 +100,7 @@ static std::string toString(ASTNode::Kind kind) {
     return "unknown";
   }
 }
+} // namespace
 
 namespace marco::ast {
 ASTNode::ASTNode(Kind kind, SourceRange location, ASTNode *parent)

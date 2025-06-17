@@ -6,7 +6,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(OperationKind kind) {
+namespace {
+std::string toString(OperationKind kind) {
   switch (kind) {
   case OperationKind::unknown:
     return "unknown";
@@ -56,16 +57,16 @@ static std::string toString(OperationKind kind) {
     return "power_of_ew";
   case OperationKind::range:
     return "range";
-  default:
-    llvm_unreachable("Unknown operation kind");
-    return "unknown";
   }
+
+  llvm_unreachable("Unknown operation kind");
+  return "unknown";
 }
+} // namespace
 
 namespace marco::ast {
 Operation::Operation(SourceRange location)
-    : Expression(ASTNode::Kind::Expression_Operation, std::move(location)),
-      kind(OperationKind::unknown) {}
+    : Expression(ASTNode::Kind::Expression_Operation, std::move(location)) {}
 
 Operation::Operation(const Operation &other)
     : Expression(other), kind(other.kind) {
@@ -106,8 +107,8 @@ bool Operation::isLValue() const {
 
 OperationKind Operation::getOperationKind() const { return kind; }
 
-void Operation::setOperationKind(OperationKind newKind) {
-  this->kind = newKind;
+void Operation::setOperationKind(OperationKind newOperationKind) {
+  this->kind = newOperationKind;
 }
 
 size_t Operation::getNumOfArguments() const { return arguments.size(); }

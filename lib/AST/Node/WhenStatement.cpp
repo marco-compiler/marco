@@ -67,10 +67,10 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> WhenStatement::getStatements() const {
 }
 
 void WhenStatement::setStatements(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> newStatements) {
   statements.clear();
 
-  for (const auto &node : nodes) {
+  for (const auto &node : newStatements) {
     assert(node->isa<Statement>());
     auto &clone = statements.emplace_back(node->clone());
     clone->setParent(this);

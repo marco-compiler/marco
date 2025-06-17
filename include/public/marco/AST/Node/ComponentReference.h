@@ -45,8 +45,8 @@ public:
   std::string getName() const;
 
 private:
-  bool dummy;
-  bool globalLookup;
+  bool dummy{false};
+  bool globalLookup{false};
   llvm::SmallVector<std::unique_ptr<ASTNode>> path;
 };
 } // namespace marco::ast

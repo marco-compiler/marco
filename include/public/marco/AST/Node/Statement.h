@@ -2,7 +2,6 @@
 #define MARCO_AST_NODE_STATEMENT_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "llvm/ADT/STLExtras.h"
 
 namespace marco::ast {
 class Statement : public ASTNode {
@@ -11,7 +10,7 @@ public:
 
   Statement(const Statement &other);
 
-  ~Statement();
+  ~Statement() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() >= ASTNode::Kind::Statement &&

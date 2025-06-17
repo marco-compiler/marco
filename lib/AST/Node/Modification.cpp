@@ -230,7 +230,7 @@ const Expression *ClassModification::getStartExpression() const {
 
 std::optional<bool>
 ClassModification::isArrayUniformConstBool(const ArrayConstant *array) {
-  size_t elements = array->size();
+  const size_t elements = array->size();
   std::optional<bool> lastValue = std::nullopt;
 
   for (size_t i = 0; i < elements; i++) {
@@ -240,9 +240,9 @@ ClassModification::isArrayUniformConstBool(const ArrayConstant *array) {
       auto tmp = isArrayUniformConstBool(exp->cast<ArrayConstant>());
       if (!tmp) {
         return std::nullopt;
-      } else {
-        value = tmp.value();
       }
+
+      value = tmp.value();
     } else if (exp->isa<Constant>()) {
       value = exp->cast<Constant>()->as<bool>();
     } else {
@@ -284,17 +284,18 @@ std::optional<bool> ClassModification::getFixedProperty() const {
       const auto *array = modificationExpression->cast<ArrayConstant>();
       auto val = isArrayUniformConstBool(array);
       assert(val);
-      return val.value();
+      return val;
     }
 
-    if (auto call = modificationExpression->dyn_cast<Call>()) {
+    if (const auto *call = modificationExpression->dyn_cast<Call>()) {
       // FIXME: Handle this case without special casing
-      if (auto callee = call->getCallee()->dyn_cast<ComponentReference>()) {
+      if (const auto *callee =
+              call->getCallee()->dyn_cast<ComponentReference>()) {
         if (callee->getName() == "fill") {
-          if (auto expressionArg =
+          if (const auto *expressionArg =
                   call->getArgument(0)
                       ->dyn_cast<ExpressionFunctionArgument>()) {
-            if (auto constantArg =
+            if (const auto *constantArg =
                     expressionArg->getExpression()->dyn_cast<Constant>()) {
               return constantArg->as<bool>();
             }
@@ -325,7 +326,7 @@ bool ClassModification::getEachProperty() const {
 ElementModification::ElementModification(SourceRange location)
     : Argument(ASTNode::Kind::Argument_ElementModification,
                std::move(location)),
-      each(false), final(false), name("") {}
+      name("") {}
 
 ElementModification::ElementModification(const ElementModification &other)
     : Argument(other), each(other.each), final(other.final), name(other.name) {
@@ -392,8 +393,8 @@ ElementReplaceable::ElementReplaceable(SourceRange location)
     : Argument(ASTNode::Kind::Argument_ElementReplaceable,
                std::move(location)) {}
 
-ElementReplaceable::ElementReplaceable(const ElementReplaceable &other)
-    : Argument(other) {}
+ElementReplaceable::ElementReplaceable(const ElementReplaceable &other) =
+    default;
 
 ElementReplaceable::~ElementReplaceable() = default;
 
@@ -411,8 +412,8 @@ ElementRedeclaration::ElementRedeclaration(SourceRange location)
     : Argument(ASTNode::Kind::Argument_ElementRedeclaration,
                std::move(location)) {}
 
-ElementRedeclaration::ElementRedeclaration(const ElementRedeclaration &other)
-    : Argument(other) {}
+ElementRedeclaration::ElementRedeclaration(const ElementRedeclaration &other) =
+    default;
 
 ElementRedeclaration::~ElementRedeclaration() = default;
 

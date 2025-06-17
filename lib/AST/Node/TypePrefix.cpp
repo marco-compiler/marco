@@ -3,7 +3,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(VariabilityQualifier qualifier) {
+namespace {
+std::string toString(VariabilityQualifier qualifier) {
   switch (qualifier) {
   case VariabilityQualifier::discrete:
     return "discrete";
@@ -13,13 +14,13 @@ static std::string toString(VariabilityQualifier qualifier) {
     return "constant";
   case VariabilityQualifier::none:
     return "none";
-  default:
-    llvm_unreachable("Unknown variability qualifier");
-    return "unknown";
   }
+
+  llvm_unreachable("Unknown variability qualifier");
+  return "unknown";
 }
 
-static std::string toString(IOQualifier qualifier) {
+std::string toString(IOQualifier qualifier) {
   switch (qualifier) {
   case IOQualifier::input:
     return "input";
@@ -27,19 +28,18 @@ static std::string toString(IOQualifier qualifier) {
     return "output";
   case IOQualifier::none:
     return "none";
-  default:
-    llvm_unreachable("Unknown I/O qualifier");
-    return "unknown";
   }
+
+  llvm_unreachable("Unknown I/O qualifier");
+  return "unknown";
 }
+} // namespace
 
 namespace marco::ast {
 TypePrefix::TypePrefix(SourceRange location)
     : ASTNode(ASTNode::Kind::TypePrefix, std::move(location)) {}
 
-TypePrefix::TypePrefix(const TypePrefix &other)
-    : ASTNode(other), variabilityQualifier(other.variabilityQualifier),
-      ioQualifier(other.ioQualifier) {}
+TypePrefix::TypePrefix(const TypePrefix &other) = default;
 
 TypePrefix::~TypePrefix() = default;
 

@@ -15,7 +15,7 @@ struct ConstantJsonVisitor {
   }
 
   llvm::json::Value operator()(std::string value) {
-    return llvm::json::Value(value);
+    return llvm::json::Value(std::move(value));
   }
 };
 } // namespace
@@ -24,8 +24,7 @@ namespace marco::ast {
 Constant::Constant(SourceRange location)
     : Expression(ASTNode::Kind::Expression_Constant, std::move(location)) {}
 
-Constant::Constant(const Constant &other)
-    : Expression(other), value(other.value) {}
+Constant::Constant(const Constant &other) = default;
 
 Constant::~Constant() = default;
 

@@ -87,7 +87,7 @@ private:
   std::string name;
   std::unique_ptr<ASTNode> type;
   std::unique_ptr<ASTNode> typePrefix;
-  bool isPublicMember;
+  bool isPublicMember{true};
   std::unique_ptr<ASTNode> modification;
 };
 } // namespace marco::ast

@@ -44,9 +44,9 @@ const Expression *WhileStatement::getCondition() const {
   return condition->cast<Expression>();
 }
 
-void WhileStatement::setCondition(std::unique_ptr<ASTNode> node) {
-  assert(node->isa<Expression>());
-  condition = std::move(node);
+void WhileStatement::setCondition(std::unique_ptr<ASTNode> newCondition) {
+  assert(newCondition->isa<Expression>());
+  condition = std::move(newCondition);
   condition->setParent(this);
 }
 
@@ -67,12 +67,12 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> WhileStatement::getStatements() const {
 }
 
 void WhileStatement::setStatements(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> newStatements) {
   statements.clear();
 
-  for (const auto &node : nodes) {
-    assert(node->isa<Statement>());
-    auto &clone = statements.emplace_back(node->clone());
+  for (const auto &statement : newStatements) {
+    assert(statement->isa<Statement>());
+    auto &clone = statements.emplace_back(statement->clone());
     clone->setParent(this);
   }
 }

@@ -83,12 +83,12 @@ llvm::ArrayRef<std::unique_ptr<ASTNode>> Class::getEquationSections() const {
 }
 
 void Class::setEquationSections(
-    llvm::ArrayRef<std::unique_ptr<ASTNode>> newBlocks) {
+    llvm::ArrayRef<std::unique_ptr<ASTNode>> newEquationSections) {
   equationSections.clear();
 
-  for (const auto &block : newBlocks) {
-    assert(block->isa<EquationSection>());
-    auto &clone = equationSections.emplace_back(block->clone());
+  for (const auto &equationSection : newEquationSections) {
+    assert(equationSection->isa<EquationSection>());
+    auto &clone = equationSections.emplace_back(equationSection->clone());
     clone->setParent(this);
   }
 }

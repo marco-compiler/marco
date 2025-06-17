@@ -13,7 +13,7 @@ public:
 
   StatementsBlock(const StatementsBlock &other);
 
-  ~StatementsBlock();
+  ~StatementsBlock() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() == ASTNode::Kind::StatementsBlock;

@@ -7,8 +7,7 @@ namespace marco::ast {
 ReturnStatement::ReturnStatement(SourceRange location)
     : Statement(ASTNode::Kind::Statement_Return, std::move(location)) {}
 
-ReturnStatement::ReturnStatement(const ReturnStatement &other)
-    : Statement(other) {}
+ReturnStatement::ReturnStatement(const ReturnStatement &other) = default;
 
 ReturnStatement::~ReturnStatement() = default;
 

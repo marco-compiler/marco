@@ -5,4 +5,4 @@ using namespace ::marco::ast;
 
 namespace marco::ast {
 Expression::~Expression() = default;
-}
+} // namespace marco::ast

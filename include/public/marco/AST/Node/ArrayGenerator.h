@@ -10,7 +10,7 @@ class ArrayGenerator : public Expression {
 public:
   using Expression::Expression;
 
-  virtual ~ArrayGenerator();
+  ~ArrayGenerator() override;
 
   static bool classof(const ASTNode *node) {
     return node->getKind() >= ASTNode::Kind::Expression_ArrayGenerator &&
@@ -18,7 +18,7 @@ public:
                ASTNode::Kind::Expression_ArrayGenerator_LastArrayGenerator;
   }
 
-  virtual bool isLValue() const override { return false; }
+  bool isLValue() const override { return false; }
 };
 } // namespace marco::ast
 

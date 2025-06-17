@@ -4,7 +4,8 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
-static std::string toString(BuiltInType::Kind builtInTypeKind) {
+namespace {
+std::string toString(BuiltInType::Kind builtInTypeKind) {
   switch (builtInTypeKind) {
   case BuiltInType::Kind::Boolean:
     return "Boolean";
@@ -14,11 +15,12 @@ static std::string toString(BuiltInType::Kind builtInTypeKind) {
     return "Real";
   case BuiltInType::Kind::String:
     return "String";
-  default:
-    llvm_unreachable("Unknown built-in type");
-    return "unknown";
   }
+
+  llvm_unreachable("Unknown built-in type");
+  return "unknown";
 }
+} // namespace
 
 namespace marco::ast {
 VariableType::VariableType(const VariableType &other) : ASTNode(other) {
@@ -81,14 +83,13 @@ std::unique_ptr<ASTNode> VariableType::subscript(size_t times) const {
   result->cast<VariableType>()->setDimensions(
       llvm::ArrayRef(dimensions).drop_front(times));
 
-  return std::move(result);
+  return result;
 }
 
 BuiltInType::BuiltInType(SourceRange location)
     : VariableType(ASTNode::Kind::VariableType_BuiltIn, std::move(location)) {}
 
-BuiltInType::BuiltInType(const BuiltInType &other)
-    : VariableType(other), kind(other.kind) {}
+BuiltInType::BuiltInType(const BuiltInType &other) = default;
 
 BuiltInType::~BuiltInType() = default;
 

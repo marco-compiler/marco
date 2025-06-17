@@ -7,8 +7,7 @@ using namespace ::marco::ast;
 namespace marco::ast {
 ComponentReference::ComponentReference(SourceRange location)
     : Expression(ASTNode::Kind::Expression_ComponentReference,
-                 std::move(location)),
-      dummy(false), globalLookup(false) {}
+                 std::move(location)) {}
 
 ComponentReference::ComponentReference(const ComponentReference &other)
     : Expression(other), dummy(other.dummy), globalLookup(other.globalLookup) {

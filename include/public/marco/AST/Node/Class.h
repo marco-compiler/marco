@@ -20,7 +20,7 @@ public:
   }
 
 protected:
-  virtual void addJSONProperties(llvm::json::Object &obj) const override;
+  void addJSONProperties(llvm::json::Object &obj) const override;
 
 public:
   /// Get the name.
@@ -33,25 +33,27 @@ public:
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getVariables() const;
 
   /// Set the variables.
-  void setVariables(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setVariables(llvm::ArrayRef<std::unique_ptr<ASTNode>> newVariables);
 
   /// Get the equation sections.
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquationSections() const;
 
   /// Set the equation sections.
-  void setEquationSections(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setEquationSections(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> newEquationSections);
 
   /// Get the 'algorithm' blocks.
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getAlgorithms() const;
 
   /// Set the 'algorithm' blocks.
-  void setAlgorithms(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void setAlgorithms(llvm::ArrayRef<std::unique_ptr<ASTNode>> newAlgorithms);
 
   /// Get the inner classes.
   llvm::ArrayRef<std::unique_ptr<ASTNode>> getInnerClasses() const;
 
   /// Set the inner classes.
-  void setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+  void
+  setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> newInnerClasses);
 
   bool hasAnnotation() const;
 
