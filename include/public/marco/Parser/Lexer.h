@@ -1,10 +1,12 @@
-#ifndef MARCO_PARSER_LEXER_H
-#define MARCO_PARSER_LEXER_H
+#ifndef PUBLIC_MARCO_PARSER_LEXER_H
+#define PUBLIC_MARCO_PARSER_LEXER_H
 
 #include "marco/Parser/Location.h"
-#include "llvm/ADT/StringRef.h"
+#include <cstddef>
 #include <functional>
+#include <iterator>
 #include <memory>
+#include <optional>
 
 namespace marco {
 namespace detail {
@@ -106,4 +108,4 @@ private:
 };
 } // namespace marco
 
-#endif // MARCO_PARSER_LEXER_H
+#endif // PUBLIC_MARCO_PARSER_LEXER_H

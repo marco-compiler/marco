@@ -1,8 +1,9 @@
-#ifndef MARCO_PARSER_FLOATLEXER_H
-#define MARCO_PARSER_FLOATLEXER_H
+#ifndef PUBLIC_MARCO_PARSER_FLOATLEXER_H
+#define PUBLIC_MARCO_PARSER_FLOATLEXER_H
 
 #include "marco/Parser/IntegerLexer.h"
 #include <cmath>
+#include <cstdint>
 
 namespace marco {
 /// Used to build floats in the form upper.lower * (base ^ exponent) as
@@ -87,4 +88,4 @@ private:
 };
 } // namespace marco
 
-#endif // MARCO_PARSER_FLOATLEXER_H
+#endif // PUBLIC_MARCO_PARSER_FLOATLEXER_H

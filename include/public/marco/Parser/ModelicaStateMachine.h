@@ -1,13 +1,19 @@
-#ifndef MARCO_PARSER_MODELICASTATEMACHINE_H
-#define MARCO_PARSER_MODELICASTATEMACHINE_H
+#ifndef PUBLIC_MARCO_PARSER_MODELICASTATEMACHINE_H
+#define PUBLIC_MARCO_PARSER_MODELICASTATEMACHINE_H
+
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+
+#include <llvm/ADT/StringMap.h>
+#include <llvm/ADT/StringRef.h>
 
 #include "marco/Parser/FloatLexer.h"
 #include "marco/Parser/Lexer.h"
 #include "marco/Parser/Location.h"
 #include "marco/Parser/Token.h"
-#include "llvm/ADT/StringMap.h"
-#include <memory>
-#include <string>
+
 
 namespace marco::lexer {
 template <>
@@ -50,7 +56,7 @@ public:
     IgnoredCharacter
   };
 
-  ModelicaStateMachine(std::shared_ptr<SourceFile> file, char first);
+  ModelicaStateMachine(const std::shared_ptr<SourceFile>& file, char first);
 
 public:
   /// Returns the last seen identifier, or the one being built if the
@@ -106,15 +112,15 @@ private:
   Token makeToken(TokenKind kind);
 
   template <typename T>
-  Token makeToken(TokenKind kind, T value) {
+  Token makeToken(TokenKind kind, const T& value) {
     return {kind, SourceRange(beginPosition, endPosition), std::move(value)};
   }
 
 private:
   llvm::StringMap<TokenKind> reservedKeywords;
-  State state;
+  State state = State::Normal;
 
-  char current;
+  char current = '\0';
   char next;
 
   std::string identifier;
@@ -128,4 +134,4 @@ private:
 };
 } // namespace marco::parser
 
-#endif // MARCO_PARSER_MODELICASTATEMACHINE_H
+#endif // PUBLIC_MARCO_PARSER_MODELICASTATEMACHINE_H

@@ -1,13 +1,26 @@
-#ifndef MARCO_PARSER_PARSER_H
-#define MARCO_PARSER_PARSER_H
+#ifndef PUBLIC_MARCO_PARSER_PARSER_H
+#define PUBLIC_MARCO_PARSER_PARSER_H
 
-#include "marco/AST/AST.h"
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <clang/Basic/Diagnostic.h>
+#include <clang/Basic/SourceLocation.h>
+#include <clang/Basic/SourceManager.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+
+#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Operation.h"
+#include "marco/Parser/Lexer.h"
 #include "marco/Parser/Location.h"
 #include "marco/Parser/ModelicaStateMachine.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/SourceManager.h"
-#include "llvm/ADT/SmallVector.h"
-#include <memory>
+#include "marco/Parser/Token.h"
+
 
 namespace marco::parser {
 template <typename T>
@@ -51,7 +64,7 @@ class Parser {
 public:
   Parser(clang::DiagnosticsEngine &diagnosticsEngine,
          clang::SourceManager &sourceManager,
-         std::shared_ptr<SourceFile> source);
+         std::shared_ptr<SourceFile> file);
 
   ParseResult<std::unique_ptr<ast::ASTNode>> parseRoot();
 
@@ -293,4 +306,4 @@ private:
 };
 } // namespace marco::parser
 
-#endif // MARCO_PARSER_PARSER_H
+#endif // PUBLIC_MARCO_PARSER_PARSER_H

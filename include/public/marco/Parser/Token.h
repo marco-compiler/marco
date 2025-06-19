@@ -1,15 +1,18 @@
-#ifndef MARCO_PARSER_TOKEN_H
-#define MARCO_PARSER_TOKEN_H
+#ifndef PUBLIC_MARCO_PARSER_TOKEN_H
+#define PUBLIC_MARCO_PARSER_TOKEN_H
 
-#include "marco/Parser/Location.h"
-#include "llvm/ADT/StringRef.h"
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <variant>
 
+#include "llvm/ADT/StringRef.h"
+
+#include "marco/Parser/Location.h"
+
 namespace llvm {
 class raw_ostream;
-}
+} // namespace llvm
 
 namespace marco::parser {
 enum class TokenKind {
@@ -158,4 +161,4 @@ std::string toString(const Token &obj);
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Token &obj);
 } // namespace marco::parser
 
-#endif // MARCO_PARSER_TOKEN_H
+#endif // PUBLIC_MARCO_PARSER_TOKEN_H
