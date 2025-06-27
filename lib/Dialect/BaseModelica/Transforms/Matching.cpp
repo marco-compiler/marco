@@ -332,7 +332,7 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     size_t equationRank =
         equationBridge->getOp().getInductionVariables().size();
 
-    size_t variableRank = variableBridge->getIndices().rank();
+    size_t variableRank = variableBridge->getOriginalIndices().rank();
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(equationBridge->getOp());
