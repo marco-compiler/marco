@@ -9,6 +9,32 @@ std::unique_ptr<Storage> Storage::create() {
   return std::make_unique<StorageImpl>();
 }
 
+bool Storage::hasVariable(VariableBridge::Id id) const {
+  return variablesMap.contains(id);
+}
+
+VariableBridge &Storage::getVariable(VariableBridge::Id id) const {
+  assert(hasVariable(id));
+  return *variablesMap.lookup(id);
+}
+
+llvm::ArrayRef<std::unique_ptr<VariableBridge>> Storage::getVariables() const {
+  return variableBridges;
+}
+
+bool Storage::hasEquation(EquationBridge::Id id) const {
+  return equationsMap.contains(id);
+}
+
+EquationBridge &Storage::getEquation(EquationBridge::Id id) const {
+  assert(hasEquation(id));
+  return *equationsMap.lookup(id);
+}
+
+llvm::ArrayRef<std::unique_ptr<EquationBridge>> Storage::getEquations() const {
+  return equationBridges;
+}
+
 void Storage::clear() {
   clearVariables();
   clearEquations();
