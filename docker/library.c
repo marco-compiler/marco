@@ -1,3 +1,7 @@
+
+__attribute__((used)) static char big_padding[0x20000] = {}; // ~128KB
+
+
 int discreteLog (int base, int val)
 /**
  *  input : base (>= 2), it is the logarithm base 
