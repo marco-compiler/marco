@@ -35,6 +35,12 @@ public:
   addEquation(uint64_t id, EquationInstanceOp op,
               mlir::SymbolTableCollection &symbolTableCollection);
 
+  SCCBridge &
+  addSCC(SCCOp op, mlir::SymbolTableCollection &symbolTables,
+         WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
+         WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
+         llvm::DenseMap<EquationInstanceOp, EquationBridge *> &equationsMap);
+
   void clear();
 
   void clearVariables();

@@ -1,4 +1,5 @@
 #include "marco/Dialect/BaseModelica/Transforms/Modeling/SCCBridge.h"
+#include "marco/Dialect/BaseModelica/Transforms/Modeling/Bridge.h"
 
 using namespace ::mlir::bmodelica;
 using namespace ::mlir::bmodelica::bridge;
@@ -12,6 +13,15 @@ SCCBridge::SCCBridge(
     : op(op), symbolTable(&symbolTable),
       matchedEqsWritesMap(&matchedEqsWritesMap),
       startEqsWritesMap(&startEqsWritesMap), equationsMap(&equationsMap) {}
+
+SCCBridge &Storage::addSCC(
+    SCCOp op, mlir::SymbolTableCollection &symbolTables,
+    WritesMap<VariableOp, EquationInstanceOp> &matchedEqsWritesMap,
+    WritesMap<VariableOp, StartEquationInstanceOp> &startEqsWritesMap,
+    llvm::DenseMap<EquationInstanceOp, EquationBridge *> &equationsMap) {
+  return *sccBridges.emplace_back(SCCBridge::build(
+      op, symbolTables, matchedEqsWritesMap, startEqsWritesMap, equationsMap));
+}
 } // namespace mlir::bmodelica::bridge
 
 namespace marco::modeling::dependency {

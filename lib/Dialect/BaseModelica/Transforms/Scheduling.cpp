@@ -309,11 +309,9 @@ mlir::LogicalResult SchedulingPass::schedule(
       continue;
     }
 
-    auto &sccBridge = storage->sccBridges.emplace_back(
-        SCCBridge::build(scc, symbolTableCollection, matchedEquationsWritesMap,
+    sccBridgePtrs.push_back(
+        &storage->addSCC(scc, symbolTableCollection, matchedEquationsWritesMap,
                          startEquationsWritesMap, equationsMap));
-
-    sccBridgePtrs.push_back(sccBridge.get());
 
     for (EquationInstanceOp equation : equations) {
       auto &equationBridge = storage->addEquation(
