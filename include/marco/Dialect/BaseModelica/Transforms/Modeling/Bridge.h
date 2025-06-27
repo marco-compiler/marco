@@ -31,9 +31,17 @@ public:
   VariableBridge &addVariable(mlir::SymbolRefAttr name, IndexSet indices);
   VariableBridge &addVariable(VariableOp variableOp);
 
+  bool hasVariable(VariableBridge::Id id) const;
+  VariableBridge &getVariable(VariableBridge::Id id) const;
+  llvm::ArrayRef<std::unique_ptr<VariableBridge>> getVariables() const;
+
   EquationBridge &
   addEquation(uint64_t id, EquationInstanceOp op,
               mlir::SymbolTableCollection &symbolTableCollection);
+
+  bool hasEquation(EquationBridge::Id id) const;
+  EquationBridge &getEquation(EquationBridge::Id id) const;
+  llvm::ArrayRef<std::unique_ptr<EquationBridge>> getEquations() const;
 
   SCCBridge &
   addSCC(SCCOp op, mlir::SymbolTableCollection &symbolTables,
