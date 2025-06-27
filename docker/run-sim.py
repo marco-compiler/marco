@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 DOCKER_SOCKET = "/var/run/docker.sock"
-DOCKER_IMAGE = "ghcr.io/marco-compiler/marco-prod-debian-12"
+DOCKER_IMAGE = "marco-local-3"
 
 def main():
     # Make sure the Docker client is installed.
@@ -21,18 +21,18 @@ def main():
         exit(1)
 
     # Pull the Docker image.
-    proc = subprocess.Popen(
-        ["docker", "pull", DOCKER_IMAGE],
-        stdout = subprocess.PIPE,
-        stderr = subprocess.STDOUT)
+   # proc = subprocess.Popen(
+    #    ["docker", "pull", DOCKER_IMAGE],
+     #   stdout = subprocess.PIPE,
+      #  stderr = subprocess.STDOUT)
 
-    proc.wait()
+   # proc.wait()
 
-    for line in proc.stdout:
-        print(line.decode("utf-8"), end = "")
+    #for line in proc.stdout:
+     #   print(line.decode("utf-8"), end = "")
 
-    if proc.returncode != 0:
-        exit(proc.returncode)
+    #if proc.returncode != 0:
+     #   exit(proc.returncode)
 
     # Prepare the arguments for running MARCO inside a container.
     cmd = ["docker", "run", "--rm", "-it"]
