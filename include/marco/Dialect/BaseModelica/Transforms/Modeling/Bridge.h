@@ -7,7 +7,6 @@
 
 namespace mlir::bmodelica::bridge {
 class Storage {
-public:
   llvm::SmallVector<std::unique_ptr<VariableBridge>> variableBridges;
   VariablesMap variablesMap;
   llvm::SmallVector<std::unique_ptr<EquationBridge>> equationBridges;

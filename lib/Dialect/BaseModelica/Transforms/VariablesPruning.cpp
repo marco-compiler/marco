@@ -292,8 +292,8 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
     walkDerivedVariables(
         modelOp, variable->getName(), [&](mlir::SymbolRefAttr derivedVarName) {
           graph.addEdge(variable->getId(),
-                        storage->variablesMap[derivedVarName]->getId());
-          graph.addEdge(storage->variablesMap[derivedVarName]->getId(),
+                        storage->getVariable(derivedVarName).getId());
+          graph.addEdge(storage->getVariable(derivedVarName).getId(),
                         variable->getId());
         });
 
@@ -301,8 +301,8 @@ mlir::LogicalResult VariablesPruningPass::collectUsedVariables(
         modelOp, variable->getName(),
         [&](mlir::SymbolRefAttr derivativeVarName) {
           graph.addEdge(variable->getId(),
-                        storage->variablesMap[derivativeVarName]->getId());
-          graph.addEdge(storage->variablesMap[derivativeVarName]->getId(),
+                        storage->getVariable(derivativeVarName).getId());
+          graph.addEdge(storage->getVariable(derivativeVarName).getId(),
                         variable->getId());
         });
   }

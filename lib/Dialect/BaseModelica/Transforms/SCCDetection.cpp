@@ -152,7 +152,7 @@ mlir::LogicalResult SCCDetectionPass::computeSCCs(
 
   for (EquationInstanceOp equation : equations) {
     auto &bridge = storage->addEquation(
-        static_cast<int64_t>(storage->equationBridges.size()), equation,
+        static_cast<int64_t>(storage->getEquations().size()), equation,
         symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(
