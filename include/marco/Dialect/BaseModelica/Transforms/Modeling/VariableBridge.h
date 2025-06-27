@@ -65,7 +65,9 @@ public:
 
   mlir::SymbolRefAttr getName() const { return name; }
 
-  const IndexSet &getIndices() const { return indices; }
+  const IndexSet &getOriginalIndices() const;
+
+  IndexSet getIndices() const;
 
   /// }
 };
