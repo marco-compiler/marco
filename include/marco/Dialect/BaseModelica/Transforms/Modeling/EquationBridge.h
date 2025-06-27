@@ -86,8 +86,6 @@ public:
 
   const VariableAccessAnalysis &getAccessAnalysis() const;
 
-  const VariablesMap &getVariablesMap() const;
-
   /// }
   /// @name Setters.
   /// {

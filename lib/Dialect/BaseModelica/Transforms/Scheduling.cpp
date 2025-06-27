@@ -315,7 +315,7 @@ mlir::LogicalResult SchedulingPass::schedule(
 
     for (EquationInstanceOp equation : equations) {
       auto &equationBridge = storage->addEquation(
-          static_cast<int64_t>(storage->equationBridges.size()), equation,
+          static_cast<int64_t>(storage->getEquations().size()), equation,
           symbolTableCollection);
 
       equationsMap[equation] = &equationBridge;

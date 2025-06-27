@@ -98,10 +98,6 @@ const VariableAccessAnalysis &EquationBridge::getAccessAnalysis() const {
   return *accessAnalysis;
 }
 
-const VariablesMap &EquationBridge::getVariablesMap() const {
-  return storage.variablesMap;
-}
-
 void EquationBridge::setAccessAnalysis(VariableAccessAnalysis &accessAnalysis) {
   this->accessAnalysis = &accessAnalysis;
 }
@@ -180,10 +176,10 @@ IndexSet EquationBridge::getIndices() const {
 void EquationBridge::walkAccesses(AccessWalkFn callbackFn) {
   for (const VariableAccess &access : getOriginalAccesses()) {
     auto accessFunction = convertAccessFunction(getOp().getContext(), access);
-    auto variableIt = getVariablesMap().find(access.getVariable());
+    mlir::SymbolRefAttr variable = access.getVariable();
 
-    if (variableIt != getVariablesMap().end()) {
-      callbackFn(access, variableIt->second, *accessFunction);
+    if (storage.hasVariable(variable)) {
+      callbackFn(access, &storage.getVariable(variable), *accessFunction);
     }
   }
 }
@@ -191,10 +187,10 @@ void EquationBridge::walkAccesses(AccessWalkFn callbackFn) {
 void EquationBridge::walkWriteAccesses(AccessWalkFn callbackFn) {
   for (const VariableAccess &access : getOriginalWriteAccesses()) {
     auto accessFunction = convertAccessFunction(getOp().getContext(), access);
-    auto variableIt = getVariablesMap().find(access.getVariable());
+    mlir::SymbolRefAttr variable = access.getVariable();
 
-    if (variableIt != getVariablesMap().end()) {
-      callbackFn(access, variableIt->second, *accessFunction);
+    if (storage.hasVariable(variable)) {
+      callbackFn(access, &storage.getVariable(variable), *accessFunction);
     }
   }
 }
@@ -202,10 +198,10 @@ void EquationBridge::walkWriteAccesses(AccessWalkFn callbackFn) {
 void EquationBridge::walkReadAccesses(AccessWalkFn callbackFn) {
   for (const VariableAccess &access : getOriginalReadAccesses()) {
     auto accessFunction = convertAccessFunction(getOp().getContext(), access);
-    auto variableIt = getVariablesMap().find(access.getVariable());
+    mlir::SymbolRefAttr variable = access.getVariable();
 
-    if (variableIt != getVariablesMap().end()) {
-      callbackFn(access, variableIt->second, *accessFunction);
+    if (storage.hasVariable(variable)) {
+      callbackFn(access, &storage.getVariable(variable), *accessFunction);
     }
   }
 }

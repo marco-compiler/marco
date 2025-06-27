@@ -243,9 +243,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::getCycles(
   storage.clearEquations();
 
   for (EquationInstanceOp equation : equations) {
-    auto &bridge = storage.addEquation(
-        static_cast<int64_t>(storage.equationBridges.size()), equation,
-        symbolTableCollection);
+    auto &bridge =
+        storage.addEquation(static_cast<int64_t>(storage.getEquations().size()),
+                            equation, symbolTableCollection);
 
     equationPtrs.push_back(&bridge);
   }
@@ -665,9 +665,9 @@ mlir::LogicalResult SCCSolvingBySubstitutionPass::createSCCs(
   storage.clearEquations();
 
   for (EquationInstanceOp equation : equations) {
-    auto &bridge = storage.addEquation(
-        static_cast<int64_t>(storage.equationBridges.size()), equation,
-        symbolTableCollection);
+    auto &bridge =
+        storage.addEquation(static_cast<int64_t>(storage.getEquations().size()),
+                            equation, symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(
             equation.getTemplate(), symbolTableCollection)) {

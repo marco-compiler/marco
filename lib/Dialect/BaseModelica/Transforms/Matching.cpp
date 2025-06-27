@@ -323,25 +323,23 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
     assert(!solution.getEquationIndices().empty());
     assert(!solution.getVariableIndices().empty());
 
-    auto equationBridge =
-        matchingGraph.getStorage().equationsMap[solution.getEquation()];
+    EquationBridge &equationBridge =
+        matchingGraph.getStorage().getEquation(solution.getEquation());
 
-    auto variableBridge =
-        matchingGraph.getStorage().variablesMap[solution.getVariable()];
+    VariableBridge &variableBridge =
+        matchingGraph.getStorage().getVariable(solution.getVariable());
 
-    size_t equationRank =
-        equationBridge->getOp().getInductionVariables().size();
+    size_t equationRank = equationBridge.getOp().getInductionVariables().size();
 
-    size_t variableRank = variableBridge->getOriginalIndices().rank();
+    size_t variableRank = variableBridge.getOriginalIndices().rank();
 
     mlir::OpBuilder::InsertionGuard guard(rewriter);
-    rewriter.setInsertionPointAfter(equationBridge->getOp());
+    rewriter.setInsertionPointAfter(equationBridge.getOp());
 
     auto matchedEquationOp = rewriter.create<EquationInstanceOp>(
-        equationBridge->getOp().getLoc(),
-        equationBridge->getOp().getTemplate());
+        equationBridge.getOp().getLoc(), equationBridge.getOp().getTemplate());
 
-    matchedEquationOp.getProperties() = equationBridge->getOp().getProperties();
+    matchedEquationOp.getProperties() = equationBridge.getOp().getProperties();
 
     if (equationRank != 0) {
       if (mlir::failed(matchedEquationOp.setIndices(
@@ -354,14 +352,14 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
 
     if (variableRank == 0) {
       matchedEquationOp.getProperties().match =
-          Variable(variableBridge->getName(), {});
+          Variable(variableBridge.getName(), {});
     } else {
       matchedEquationOp.getProperties().match =
-          Variable(variableBridge->getName(), solution.getVariableIndices());
+          Variable(variableBridge.getName(), solution.getVariableIndices());
     }
 
     // Mark the old instance as obsolete.
-    toBeErased.insert(equationBridge->getOp());
+    toBeErased.insert(equationBridge.getOp());
   }
 
   // Erase the old equation instances.
@@ -393,7 +391,7 @@ std::optional<MatchingGraphWrapper> MatchingPass::buildMatchingGraph(
 
   for (EquationInstanceOp equationOp : equationOps) {
     auto &bridge = storage->addEquation(
-        static_cast<int64_t>(storage->equationBridges.size()), equationOp,
+        static_cast<int64_t>(storage->getEquations().size()), equationOp,
         symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(

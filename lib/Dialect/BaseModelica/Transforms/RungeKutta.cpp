@@ -2017,7 +2017,7 @@ RungeKuttaPass::computeSCCs(mlir::RewriterBase &rewriter,
 
   for (EquationInstanceOp equation : equationOps) {
     auto &bridge = storage->addEquation(
-        static_cast<int64_t>(storage->equationBridges.size()), equation,
+        static_cast<int64_t>(storage->getEquations().size()), equation,
         symbolTableCollection);
 
     if (auto accessAnalysis = getVariableAccessAnalysis(
