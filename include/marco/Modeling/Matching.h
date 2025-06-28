@@ -1196,12 +1196,12 @@ public:
     return hasEquationWithId(id);
   }
 
-  EquationProperty &getEquation(typename Equation::Id id) {
+  EquationProperty *getEquation(typename Equation::Id id) {
     std::lock_guard<std::mutex> lockGuard(mutex);
     return getEquationPropertyFromId(id);
   }
 
-  const EquationProperty &getEquation(typename Equation::Id id) const {
+  const EquationProperty *getEquation(typename Equation::Id id) const {
     std::lock_guard<std::mutex> lockGuard(mutex);
     return getEquationPropertyFromId(id);
   }
