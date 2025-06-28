@@ -641,6 +641,11 @@ public:
     return VertexDescriptor(this, ptr, id);
   }
 
+  /// Get the vertices of the graph.
+  auto getVertices() const {
+    return llvm::make_range(verticesBegin(), verticesEnd());
+  }
+
   /// Get the begin iterator for the vertices of the graph.
   VertexIterator verticesBegin() const {
     return VertexIterator::begin(*this, graph);
@@ -712,6 +717,12 @@ public:
     return EdgeDescriptor(this, from, to, ptr);
   }
 
+  /// Get the edges of the graph.
+  /// If the graph is undirected, then the edge between two nodes is
+  /// returned only once and its source / destination order is casual,
+  /// as it is indeed conceptually irrelevant.
+  auto getEdges() const { return llvm::make_range(edgesBegin(), edgesEnd()); }
+
   /// Get the begin iterator for all the edges of the graph.
   /// If the graph is undirected, then the edge between two nodes is
   /// returned only once and its source / destination order is casual,
@@ -762,6 +773,12 @@ public:
     return FilteredEdgeIterator(edgesEnd(), edgesEnd(), filter);
   }
 
+  /// Get the edges exiting from a node.
+  auto getOutgoingEdges(VertexDescriptor vertex) const {
+    return llvm::make_range(outgoingEdgesBegin(vertex),
+                            outgoingEdgesEnd(vertex));
+  }
+
   /// Get the begin iterator for the edges exiting from a node.
   IncidentEdgeIterator outgoingEdgesBegin(VertexDescriptor vertex) const {
     const Vertex &v = getVertexFromDescriptor(vertex);
@@ -772,6 +789,14 @@ public:
   IncidentEdgeIterator outgoingEdgesEnd(VertexDescriptor vertex) const {
     const Vertex &v = getVertexFromDescriptor(vertex);
     return IncidentEdgeIterator::end(*this, graph, v, vertex);
+  }
+
+  /// Get the edges exiting from a node that match a certain property.
+  auto
+  getOutgoingEdges(VertexDescriptor vertex,
+                   std::function<bool(const EdgeProperty &)> visibilityFn) {
+    return llvm::make_range(outgoingEdgesBegin(vertex, visibilityFn),
+                            outgoingEdgesEnd(vertex, visibilityFn));
   }
 
   /// Get the begin iterator for the edges exiting from a node that
@@ -810,7 +835,13 @@ public:
                                         outgoingEdgesEnd(vertex), filter);
   }
 
-  /// Get the begin iterator for the vertices connected to a node.
+  /// Get the vertices connected to a given vertex.
+  auto getLinkedVertices(VertexDescriptor vertex) const {
+    return llvm::make_range(linkedVerticesBegin(vertex),
+                            linkedVerticesEnd(vertex));
+  }
+
+  /// Get the begin iterator for the vertices connected to a vertex.
   LinkedVerticesIterator linkedVerticesBegin(VertexDescriptor vertex) const {
     const Vertex &v = getVertexFromDescriptor(vertex);
     return LinkedVerticesIterator::begin(*this, graph, v);
@@ -822,7 +853,16 @@ public:
     return LinkedVerticesIterator::end(*this, graph, v);
   }
 
-  /// Get the begin iterator for the vertices connected to a node
+  /// Get the vertices connected to a given vertex that match a certain
+  /// property.
+  auto getLinkedVertices(
+      VertexDescriptor vertex,
+      std::function<bool(const VertexProperty &)> visibilityFn) const {
+    return llvm::make_range(linkedVerticesBegin(vertex, visibilityFn),
+                            linkedVerticesEnd(vertex, visibilityFn));
+  }
+
+  /// Get the begin iterator for the vertices connected to a vertex
   /// that match a certain property.
   ///
   /// @param vertex        source vertex
