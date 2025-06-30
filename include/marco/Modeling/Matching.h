@@ -965,48 +965,44 @@ private:
   VariableId variable;
   IndexSet variableIndices;
 };
-} // namespace internal::matching
 
-template <typename VariableProperty, typename EquationProperty>
-class MatchingGraph : public internal::Dumpable {
+template <typename Derived, typename VariableProperty,
+          typename EquationProperty>
+class MatchingGraphCRTP : public Dumpable {
 public:
-  using Variable = internal::matching::VariableVertex<VariableProperty>;
-  using Equation = internal::matching::EquationVertex<EquationProperty>;
+  using Variable = VariableVertex<VariableProperty>;
+  using Equation = EquationVertex<EquationProperty>;
   using Vertex = std::variant<Variable, Equation>;
-  using Edge = internal::matching::Edge<Variable, Equation>;
+  using Edge = Edge<Variable, Equation>;
 
 private:
-  using Graph = internal::UndirectedGraph<Vertex, Edge>;
+  using Graph = UndirectedGraph<Vertex, Edge>;
 
 public:
   using VertexDescriptor = typename Graph::VertexDescriptor;
   using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
-private:
+protected:
   using VertexIterator = typename Graph::VertexIterator;
   using EdgeIterator = typename Graph::EdgeIterator;
 
   using VisibleIncidentEdgeIterator =
       typename Graph::FilteredIncidentEdgeIterator;
 
-  using MCIM = internal::MCIM;
-
   using TraversableEdges =
       llvm::MapVector<VertexDescriptor, llvm::SetVector<EdgeDescriptor>>;
 
-  using BFSStep = internal::matching::BFSStep<Graph, Variable, Equation>;
-  using Frontier = internal::matching::Frontier<BFSStep>;
-  using Flow = internal::matching::Flow<Graph, Variable, Equation>;
-  using AugmentingPath = internal::matching::AugmentingPath<Flow>;
+  using BFSStep = BFSStep<Graph, Variable, Equation>;
+  using Frontier = Frontier<BFSStep>;
+  using Flow = Flow<Graph, Variable, Equation>;
+  using AugmentingPath = AugmentingPath<Flow>;
 
 public:
   using VariableIterator = typename Graph::FilteredVertexIterator;
   using EquationIterator = typename Graph::FilteredVertexIterator;
 
-  using Access = matching::Access<typename Variable::Id>;
-
-  using MatchingSolution =
-      internal::matching::MatchingSolution<EquationProperty, VariableProperty>;
+  using Access = modeling::matching::Access<typename Variable::Id>;
+  using MatchingSolution = MatchingSolution<EquationProperty, VariableProperty>;
 
 private:
   mlir::MLIRContext *context;
@@ -1020,12 +1016,12 @@ private:
   mutable std::mutex mutex;
 
 public:
-  explicit MatchingGraph(mlir::MLIRContext *context)
+  explicit MatchingGraphCRTP(mlir::MLIRContext *context)
       : context(context), graph(std::make_unique<Graph>()) {}
 
-  MatchingGraph(const MatchingGraph &other) = delete;
+  MatchingGraphCRTP(const MatchingGraphCRTP &other) = delete;
 
-  MatchingGraph(MatchingGraph &&other) noexcept {
+  MatchingGraphCRTP(MatchingGraphCRTP &&other) noexcept {
     std::lock_guard<std::mutex> lockGuard(other.mutex);
 
     context = std::move(other.context);
@@ -1034,11 +1030,11 @@ public:
     equationsMap = std::move(other.equationsMap);
   }
 
-  ~MatchingGraph() override = default;
+  ~MatchingGraphCRTP() override = default;
 
-  MatchingGraph &operator=(const MatchingGraph &other) = delete;
+  MatchingGraphCRTP &operator=(const MatchingGraphCRTP &other) = delete;
 
-  MatchingGraph &operator=(MatchingGraph &&other) noexcept {
+  MatchingGraphCRTP &operator=(MatchingGraphCRTP &&other) noexcept {
     std::lock_guard<std::mutex> lockGuard(other.mutex);
 
     context = std::move(other.context);
@@ -1048,6 +1044,8 @@ public:
 
     return *this;
   }
+
+  virtual Derived newInstance() const = 0;
 
   using Dumpable::dump;
 
@@ -1382,7 +1380,7 @@ private:
     }
 
     // Operate only on the nodes that are not fully matched.
-    MatchingGraph unmatchedGraph = getUnmatchedGraph();
+    Derived unmatchedGraph = getUnmatchedGraph();
 
     if (enableScalarization) {
       if (auto scalarGraph =
@@ -1403,8 +1401,8 @@ private:
   }
 
   /// Build a graph containing only the nodes that are not fully matched.
-  MatchingGraph getUnmatchedGraph() const {
-    MatchingGraph result(getContext());
+  Derived getUnmatchedGraph() const {
+    Derived result = this->newInstance();
 
     for (VertexDescriptor variableDescriptor :
          llvm::make_range(getVariablesBeginIt(), getVariablesEndIt())) {
@@ -1955,8 +1953,7 @@ private:
         });
   }
 
-  std::optional<MatchingGraph>
-  getScalarGraph(double scalarAccessThreshold) const {
+  std::optional<Derived> getScalarGraph(double scalarAccessThreshold) const {
     // Determine which variables should be scalarized.
     llvm::DenseSet<VertexDescriptor> toScalarize;
     collectVariablesToScalarize(toScalarize, scalarAccessThreshold);
@@ -1966,7 +1963,7 @@ private:
     }
 
     // Build the graph with scalarized variables.
-    MatchingGraph scalarizedGraph(getContext());
+    Derived scalarizedGraph(getContext());
 
     auto scalarVariablesMap =
         std::make_shared<typename Equation::ScalarVariablesMap>();
@@ -1980,8 +1977,9 @@ private:
         for (Point point : variable.getIndices()) {
           auto scalarizedVariable = variable.withMask(point);
 
-          auto baseId = matching::VariableTraits<VariableProperty>::getId(
-              &variable.getProperty());
+          auto baseId =
+              modeling::matching::VariableTraits<VariableProperty>::getId(
+                  &variable.getProperty());
 
           (*scalarVariablesMap)[baseId].insert(
               {point, scalarizedVariable.getId()});
@@ -2526,6 +2524,20 @@ private:
       std::visit([&match](auto &node) { node.addMatch(match.second); },
                  getBaseGraph()[match.first]);
     });
+  }
+};
+} // namespace internal::matching
+
+template <typename VariableProperty, typename EquationProperty>
+class MatchingGraph : public internal::matching::MatchingGraphCRTP<
+                          MatchingGraph<VariableProperty, EquationProperty>,
+                          VariableProperty, EquationProperty> {
+public:
+  using internal::matching::MatchingGraphCRTP<
+      MatchingGraph, VariableProperty, EquationProperty>::MatchingGraphCRTP;
+
+  MatchingGraph newInstance() const override {
+    return MatchingGraph{this->getContext()};
   }
 };
 } // namespace marco::modeling
