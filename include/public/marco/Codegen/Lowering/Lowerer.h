@@ -182,6 +182,7 @@ protected:
   [[nodiscard]] virtual bool lower(const ast::Algorithm &node) override;
 
   [[nodiscard]] virtual bool lower(const ast::Statement &node) override;
+  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call) override;
 
   [[nodiscard]] virtual bool
   lower(const ast::AssignmentStatement &statement) override;

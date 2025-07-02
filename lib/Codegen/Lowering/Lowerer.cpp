@@ -388,8 +388,8 @@ bool Lowerer::lower(const ast::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::ExternalFunctionCall &efc) {
-  return bridge->lower(efc);
+bool Lowerer::lower(const ast::ExternalFunctionCall &call) {
+  return bridge->lower(call);
 }
 
 void Lowerer::emitIdentifierError(
