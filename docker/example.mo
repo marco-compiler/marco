@@ -1,4 +1,3 @@
-package ExternalFunctions
   
   function externalLog
     input Integer b;
@@ -15,8 +14,3 @@ package ExternalFunctions
     der(x) = 4-externalLog(2,256);
   end SimpleFirstOrder;
   
-  
-
-  
-
-end ExternalFunctions;
