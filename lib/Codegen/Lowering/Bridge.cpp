@@ -112,6 +112,8 @@ public:
   std::optional<Results> lower(const ast::ArrayGenerator &node) override;
 
   std::optional<Results> lower(const ast::Call &node) override;
+  std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
+
 
   std::optional<Results> lower(const ast::Constant &constant) override;
 
@@ -153,7 +155,6 @@ public:
   [[nodiscard]] bool lower(const ast::WhenStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::WhileStatement &statement) override;
-  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &er) override;
 
 private:
   std::unique_ptr<LoweringContext> context;
@@ -535,9 +536,9 @@ bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
 }
-bool Bridge::Impl::lower(const ast::ExternalFunctionCall &er) {
+std::optional<Results> Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
   assert(externalFunctionCallLowerer != nullptr);
-  return externalFunctionCallLowerer->lower(er);
+  return externalFunctionCallLowerer->lower(call);
 }
 
 Bridge::Bridge(mlir::MLIRContext &context)

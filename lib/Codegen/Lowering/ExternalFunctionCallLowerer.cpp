@@ -19,6 +19,7 @@ using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
 namespace marco::codegen::lowering {
+  
 ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {

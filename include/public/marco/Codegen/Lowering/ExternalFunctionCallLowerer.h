@@ -17,7 +17,6 @@ namespace marco::codegen::lowering {
   protected:
     using Lowerer::lower;
 
-  private:
   };
 }
 
