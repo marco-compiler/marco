@@ -310,6 +310,9 @@ std::optional<Results> Lowerer::lower(const ast::ArrayGenerator &array) {
 std::optional<Results> Lowerer::lower(const ast::Call &call) {
   return bridge->lower(call);
 }
+std::optional<Results> Lowerer::lower(const ast::ExternalFunctionCall &call) {
+  return bridge->lower(call);
+}
 
 std::optional<Results> Lowerer::lower(const ast::Constant &constant) {
   return bridge->lower(constant);
@@ -388,9 +391,7 @@ bool Lowerer::lower(const ast::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 
-std::optional<Results> Lowerer::lower(const ast::ExternalFunctionCall &call) {
-  return bridge->lower(call);
-}
+
 
 void Lowerer::emitIdentifierError(
     IdentifierError::IdentifierType identifierType, llvm::StringRef name,

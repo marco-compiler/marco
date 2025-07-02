@@ -152,6 +152,8 @@ protected:
   lower(const ast::ArrayGenerator &node) override;
 
   virtual std::optional<Results> lower(const ast::Call &node) override;
+  virtual std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
+
 
   virtual std::optional<Results> lower(const ast::Constant &constant) override;
 
@@ -183,7 +185,6 @@ protected:
 
   [[nodiscard]] virtual bool lower(const ast::Statement &node) override;
 
-  virtual std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
 
   [[nodiscard]] virtual bool
   lower(const ast::AssignmentStatement &statement) override;
