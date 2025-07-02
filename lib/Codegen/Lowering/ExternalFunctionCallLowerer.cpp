@@ -19,13 +19,17 @@ using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
 namespace marco::codegen::lowering {
-  
+
 ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
 
       // Create the record operation.
       auto functionOp = builder().create<FunctionOp>(0, call.getName());
+
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().createBlock(&functionOp.getBodyRegion());
+      builder().setInsertionPointToStart(functionOp.getBody());
 
 
       return std::nullopt;
