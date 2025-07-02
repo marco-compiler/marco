@@ -74,6 +74,8 @@ public:
   virtual std::optional<Results> lower(const ast::ArrayGenerator &array) = 0;
 
   virtual std::optional<Results> lower(const ast::Call &call) = 0;
+  
+  virtual std::optional<Results> lower(const ast::ExternalFunctionCall &call) = 0;
 
   virtual std::optional<Results> lower(const ast::Constant &constant) = 0;
 
