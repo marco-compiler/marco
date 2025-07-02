@@ -388,7 +388,7 @@ bool Lowerer::lower(const ast::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 
-bool Lowerer::lower(const ast::ExternalFunctionCall &call) {
+std::optional<Results> Lowerer::lower(const ast::ExternalFunctionCall &call) {
   return bridge->lower(call);
 }
 
