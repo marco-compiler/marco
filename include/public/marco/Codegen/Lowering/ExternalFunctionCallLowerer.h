@@ -18,6 +18,7 @@ namespace marco::codegen::lowering {
     using Lowerer::lower;
 
   private:
+  };
 }
 
 #endif // MARCO_CODEGEN_LOWERING_EXTERNALFUNCTIONCALLLOWERER_H
