@@ -30,7 +30,7 @@
 #include "marco/Codegen/Lowering/WhenEquationLowerer.h"
 #include "marco/Codegen/Lowering/WhenStatementLowerer.h"
 #include "marco/Codegen/Lowering/WhileStatementLowerer.h"
-#include "marco/Codegen/Lowering/externalFunctionCallLowerer.h"
+#include "marco/Codegen/Lowering/ExternalFunctionCallLowerer.h"
 #include <memory>
 
 using namespace ::marco;
@@ -153,7 +153,7 @@ public:
   [[nodiscard]] bool lower(const ast::WhenStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::WhileStatement &statement) override;
-  [[nodiscard]] bool lower(const ast::externalFunctionCall &er) override;
+  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &er) override;
 
 private:
   std::unique_ptr<LoweringContext> context;
@@ -344,10 +344,6 @@ bool Bridge::Impl::declareVariables(const ast::Class &cls) {
 bool Bridge::Impl::declareVariables(const ast::Model &model) {
   assert(modelLowerer != nullptr);
   return modelLowerer->declareVariables(model);
-}
-bool Bridge::Impl::declareVariables(const ast::External_Ref &er) {
-  assert(modelLowerer != nullptr);
-  return modelLowerer->declareVariables(er);
 }
 
 bool Bridge::Impl::declareVariables(const ast::Package &package) {

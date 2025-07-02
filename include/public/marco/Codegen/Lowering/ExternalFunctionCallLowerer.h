@@ -6,15 +6,18 @@
 #include "marco/Codegen/Lowering/Lowerer.h"
 
 namespace marco::codegen::lowering {
-class External_RefLowerer : public Lowerer {
-public:
-  explicit ExternalFunctionCallLowerer(BridgeInterface *bridge);
+ class ExpressionLowerer;
 
-  [[nodiscard]] bool lower(const ast::External_Ref &er) override;
+  class ExternalFunctionCallLowerer : public Lowerer {
+  public: 
+    explicit ExternalFunctionCallLowerer(BridgeInterface *bridge);
 
-protected:
-  using Lowerer::lower;
-};
-} // namespace marco::codegen::lowering
+    virtual std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
+  
+  protected:
+    using Lowerer::lower;
+
+  private:
+}
 
 #endif // MARCO_CODEGEN_LOWERING_EXTERNALFUNCTIONCALLLOWERER_H

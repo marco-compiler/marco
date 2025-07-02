@@ -388,6 +388,10 @@ bool Lowerer::lower(const ast::WhileStatement &statement) {
   return bridge->lower(statement);
 }
 
+bool Lowerer::lower(const ast::ExternalFunctionCall &efc) {
+  return bridge->lower(efc);
+}
+
 void Lowerer::emitIdentifierError(
     IdentifierError::IdentifierType identifierType, llvm::StringRef name,
     const std::set<std::string> &declaredIdentifiers,
