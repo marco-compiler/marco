@@ -111,7 +111,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       llvm::SmallVector<VariableOp> inputVariables;
 
-      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*result)) {
+      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
         getCustomFunctionInputVariables(inputVariables, functionOp);
       }
 
@@ -132,7 +132,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
-                              loc(call.getLocation()),
+                              call.getCallee()->cast<ast::ComponentReference>()->getComponentReference()->getElement(0)->getLocation(),
                               argValues.size(), expectedArgRanks.size());
         return std::nullopt;
       }
