@@ -24,7 +24,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
       
-  mlir::Operation *result = resolveSymbolName(call->getFatherName(), getLookupScope());
+  mlir::Operation *result = resolveSymbolName(call.getFatherName(), getLookupScope());
 
     result = getSymbolTable().lookupSymbolIn(result, builder().getStringAttr(call->getFatherName()));
 
