@@ -74,7 +74,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     // Process the unnamed arguments.
     for (size_t i = 0 ; i < args.size() ; i++){
         
-      auto argValue = lowerArg((*args[i])->cast<ast::Expression>());
+      auto argValue = lowerArg(*args[i]->cast<ast::Expression>());
 
       if (!argValue) {
         return false;
