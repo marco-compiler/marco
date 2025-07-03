@@ -21,7 +21,7 @@ namespace marco::codegen::lowering {
     std::optional<mlir::Operation *>
   resolveCallee(const ast::ComponentReference &callee);
 
-  std::optional<mlir::Value> lowerArg(const ast::Expression expression);
+  std::optional<mlir::Value> lowerArg(const ast::Expression &expression);
 
   void getCustomFunctionInputVariables(
       llvm::SmallVectorImpl<mlir::bmodelica::VariableOp> &inputVariables,

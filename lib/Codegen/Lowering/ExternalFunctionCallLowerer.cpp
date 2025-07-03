@@ -52,9 +52,9 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       return;
     }
   }
-  std::optional<mlir::Value> ExternalFunctionCallLowerer::lowerArg(const ast::Expression expression) {
-    mlir::Location location = loc(expression->getLocation());
-    auto loweredExpression = lower(&expression);
+  std::optional<mlir::Value> ExternalFunctionCallLowerer::lowerArg(const ast::Expression &expression) {
+    mlir::Location location = loc(expression.getLocation());
+    auto loweredExpression = lower(expression);
     if (!loweredExpression) {
       return std::nullopt;
     }
@@ -74,7 +74,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     // Process the unnamed arguments.
     for (size_t i = 0 ; i < args.size() ; i++){
         
-      auto argValue = lowerArg(args[i]->cast<ast::Expression>());
+      auto argValue = lowerArg((*args[i])->cast<ast::Expression>());
 
       if (!argValue) {
         return false;
