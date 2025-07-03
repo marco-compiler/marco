@@ -72,7 +72,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     auto args = call.getExpressions();
 
     // Process the unnamed arguments.
-    for (int i = 0 ; i < args.size() ; i++){
+    for (size_t i = 0 ; i < args.size() ; i++){
         
       auto argValue = lowerArg(args.get(i));
 
@@ -107,9 +107,9 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
       
-      mlir::Operation *result = resolveSymbolName(call.getFatherName(), getLookupScope());
+      mlir::Operation *calleeOp = resolveSymbolName(call.getFatherName(), getLookupScope());
 
-      result = getSymbolTable().lookupSymbolIn(result, builder().getStringAttr(call.getFatherName()));
+      calleeOp = getSymbolTable().lookupSymbolIn(calleeOp, builder().getStringAttr(call.getFatherName()));
 
       llvm::SmallVector<VariableOp> inputVariables;
 
@@ -134,7 +134,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
-                              callee->getElement(0)->getLocation(),
+                              0,
                               argValues.size(), expectedArgRanks.size());
         return std::nullopt;
       }
