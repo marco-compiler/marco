@@ -34,7 +34,7 @@ public:
   bool hasComponentReference() const;
 
   void getFatherName(llvm::StringRef name); 
-  llvm::StringRef getFatherName() const; 
+  llvm::StringRef setFatherName() const; 
 
 
 private:
