@@ -103,13 +103,11 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         function.str() + ": expected " + std::to_string(expectedNum) +
         " argument(s) but got " + std::to_string(actualNum) + ".";
     mlir::emitError(loc(location)) << errorString;
-  }
+      }
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
       
-      mlir::Operation *calleeOp = resolveSymbolName(call.getFatherName(), getLookupScope());
-
-      calleeOp = getSymbolTable().lookupSymbolIn(calleeOp, builder().getStringAttr(call.getFatherName()));
+      std::optional<mlir::Operation *> calleeOp = resolveSymbolName(call.getFatherName(), getLookupScope());
 
       llvm::SmallVector<VariableOp> inputVariables;
 
@@ -134,7 +132,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
-                              0,
+                              loc(call.getLocation()),
                               argValues.size(), expectedArgRanks.size());
         return std::nullopt;
       }
