@@ -1,11 +1,9 @@
-  
   function externalLog
     input Integer b;
     input Integer n;
     output Integer ris;
-    
   external "C"
-      ris = discreteLog(b,n);
+    ris = discreteLog(b,n);
   end externalLog;
 
   model SimpleFirstOrder

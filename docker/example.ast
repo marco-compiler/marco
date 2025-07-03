@@ -1,0 +1,247 @@
+{
+  "inner_classes": [
+    {
+      "algorithms": [],
+      "equation_sections": [],
+      "external_ref": {
+        "external_function_call": {
+          "component_reference": {
+            "dummy": false,
+            "global_lookup": false,
+            "node_type": "component_reference",
+            "path": [
+              {
+                "name": "ris",
+                "node_type": "component_reference_entry",
+                "subscripts": []
+              }
+            ]
+          },
+          "expressions": [
+            {
+              "dummy": false,
+              "global_lookup": false,
+              "node_type": "component_reference",
+              "path": [
+                {
+                  "name": "b",
+                  "node_type": "component_reference_entry",
+                  "subscripts": []
+                }
+              ]
+            },
+            {
+              "dummy": false,
+              "global_lookup": false,
+              "node_type": "component_reference",
+              "path": [
+                {
+                  "name": "n",
+                  "node_type": "component_reference_entry",
+                  "subscripts": []
+                }
+              ]
+            }
+          ],
+          "name": "discreteLog",
+          "node_type": "external_function_call"
+        },
+        "language_specification": "C",
+        "node_type": "external_ref"
+      },
+      "inner_classes": [],
+      "name": "externalLog",
+      "node_type": "standard_function",
+      "pure": true,
+      "variables": [
+        {
+          "name": "b",
+          "node_type": "member",
+          "public": true,
+          "type": {
+            "dimensions": [],
+            "node_type": "builtin_type",
+            "type": "Integer"
+          },
+          "type_prefix": {
+            "io": "input",
+            "node_type": "type_prefix",
+            "variability": "none"
+          }
+        },
+        {
+          "name": "n",
+          "node_type": "member",
+          "public": true,
+          "type": {
+            "dimensions": [],
+            "node_type": "builtin_type",
+            "type": "Integer"
+          },
+          "type_prefix": {
+            "io": "input",
+            "node_type": "type_prefix",
+            "variability": "none"
+          }
+        },
+        {
+          "name": "ris",
+          "node_type": "member",
+          "public": true,
+          "type": {
+            "dimensions": [],
+            "node_type": "builtin_type",
+            "type": "Integer"
+          },
+          "type_prefix": {
+            "io": "output",
+            "node_type": "type_prefix",
+            "variability": "none"
+          }
+        }
+      ]
+    },
+    {
+      "algorithms": [],
+      "equation_sections": [
+        {
+          "equations": [
+            {
+              "lhs": {
+                "args": [
+                  {
+                    "expression": {
+                      "dummy": false,
+                      "global_lookup": false,
+                      "node_type": "component_reference",
+                      "path": [
+                        {
+                          "name": "x",
+                          "node_type": "component_reference_entry",
+                          "subscripts": []
+                        }
+                      ]
+                    },
+                    "node_type": "function_argument_expression"
+                  }
+                ],
+                "callee": {
+                  "dummy": false,
+                  "global_lookup": false,
+                  "node_type": "component_reference",
+                  "path": [
+                    {
+                      "name": "der",
+                      "node_type": "component_reference_entry",
+                      "subscripts": []
+                    }
+                  ]
+                },
+                "node_type": "call"
+              },
+              "node_type": "equation_equality",
+              "rhs": {
+                "args": [
+                  {
+                    "node_type": "constant",
+                    "value": 4
+                  },
+                  {
+                    "args": [
+                      {
+                        "expression": {
+                          "node_type": "constant",
+                          "value": 2
+                        },
+                        "node_type": "function_argument_expression"
+                      },
+                      {
+                        "expression": {
+                          "node_type": "constant",
+                          "value": 256
+                        },
+                        "node_type": "function_argument_expression"
+                      }
+                    ],
+                    "callee": {
+                      "dummy": false,
+                      "global_lookup": false,
+                      "node_type": "component_reference",
+                      "path": [
+                        {
+                          "name": "externalLog",
+                          "node_type": "component_reference_entry",
+                          "subscripts": []
+                        }
+                      ]
+                    },
+                    "node_type": "call"
+                  }
+                ],
+                "node_type": "operation",
+                "operation_kind": "subtract"
+              }
+            }
+          ],
+          "initial": false,
+          "node_type": "equation_section"
+        }
+      ],
+      "inner_classes": [],
+      "name": "SimpleFirstOrder",
+      "node_type": "model",
+      "variables": [
+        {
+          "modification": {
+            "class_modification": {
+              "arguments": [
+                {
+                  "each": false,
+                  "final": false,
+                  "modification": {
+                    "expression": {
+                      "node_type": "constant",
+                      "value": 0
+                    },
+                    "node_type": "modification"
+                  },
+                  "name": "start",
+                  "node_type": "element_modification"
+                },
+                {
+                  "each": false,
+                  "final": false,
+                  "modification": {
+                    "expression": {
+                      "node_type": "constant",
+                      "value": true
+                    },
+                    "node_type": "modification"
+                  },
+                  "name": "fixed",
+                  "node_type": "element_modification"
+                }
+              ],
+              "node_type": "class_modification"
+            },
+            "node_type": "modification"
+          },
+          "name": "x",
+          "node_type": "member",
+          "public": true,
+          "type": {
+            "dimensions": [],
+            "node_type": "builtin_type",
+            "type": "Real"
+          },
+          "type_prefix": {
+            "io": "none",
+            "node_type": "type_prefix",
+            "variability": "none"
+          }
+        }
+      ]
+    }
+  ],
+  "node_type": "root"
+}

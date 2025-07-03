@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 DOCKER_SOCKET = "/var/run/docker.sock"
-DOCKER_IMAGE = "marco-local-3"
+DOCKER_IMAGE = "marco-local-13:latest"
 
 def main():
     # Make sure the Docker client is installed.

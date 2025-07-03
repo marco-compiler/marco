@@ -23,16 +23,49 @@ namespace marco::codegen::lowering {
 ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
   std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
+      
+  mlir::Operation *result = resolveSymbolName(calle->getFatherName(), getLookupScope());
 
-      // Create the record operation.
-      auto functionOp = builder().create<FunctionOp>(0, call.getName());
+    result = getSymbolTable().lookupSymbolIn(result, builder().getStringAttr(callee.getElement(i)->getName()));
 
-      mlir::OpBuilder::InsertionGuard guard(builder());
-      builder().createBlock(&functionOp.getBodyRegion());
-      builder().setInsertionPointToStart(functionOp.getBody());
+      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*result)) {
+        getCustomFunctionInputVariables(inputVariables, functionOp);
+      }
+
+      llvm::SmallVector<std::string, 3> argNames;
+      llvm::SmallVector<mlir::Value, 3> argValues;
+
+      if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
+        return std::nullopt;
+      }
+
+      llvm::SmallVector<int64_t, 3> expectedArgRanks;
+      getFunctionExpectedArgRanks(*calleeOp, expectedArgRanks);
+
+      llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+      getFunctionResultTypes(*calleeOp, scalarizedResultTypes);
+
+      llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+      if (argValues.size() != expectedArgRanks.size()) {
+        emitErrorNumArguments(call->getName(),
+                              callee->getElement(0)->getLocation(),
+                              argValues.size(), expectedArgRanks.size());
+        return std::nullopt;
+      }
 
 
-      return std::nullopt;
-  }
+      auto callOp = builder().create<CallOp>(loc(call.getLocation()),
+                                             getSymbolRefFromRoot(*calleeOp),
+                                             resultTypes, argValues);
+
+      std::vector<Reference> results;
+
+      for (auto result : callOp->getResults()) {
+        results.push_back(Reference::ssa(builder(), result));
+      }
+
+      return Results(results.begin(), results.end());
+    }
 }
 

@@ -23,6 +23,7 @@ std::unique_ptr<ASTNode> ExternalFunctionCall::clone() const {
 
 llvm::json::Value ExternalFunctionCall::toJSON() const {
   llvm::json::Object result; 
+  result["fatherName"] = getFatherName();
   result["name"] = getName();
   if (hasComponentReference()) {
     result["component_reference"] = getComponentReference()->toJSON(); 
@@ -40,8 +41,16 @@ void ExternalFunctionCall::setName(llvm::StringRef newName) {
   name = newName.str(); 
 }
 
+void ExternalFunctionCall::setFatherName(llvm::StringRef newName) {
+  fatherName = newName.str(); 
+}
+
 llvm::StringRef ExternalFunctionCall::getName() const {
   return name; 
+}
+
+llvm::StringRef ExternalFunctionCall::getFatherName() const {
+  return fatherName; 
 }
 
 void ExternalFunctionCall::setComponentReference(std::unique_ptr<ASTNode> node) {
