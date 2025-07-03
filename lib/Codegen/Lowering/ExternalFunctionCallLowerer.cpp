@@ -74,7 +74,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     // Process the unnamed arguments.
     for (size_t i = 0 ; i < args.size() ; i++){
         
-      auto argValue = lowerArg(args.get(i));
+      auto argValue = lowerArg(args[i]);
 
       if (!argValue) {
         return false;
@@ -132,7 +132,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
-                              call.getCallee()->cast<ast::ComponentReference>()->getComponentReference()->getElement(0)->getLocation(),
+                              call.getComponentReference()->cast<ast::ComponentReference>()->getElement(0)->getLocation(),
                               argValues.size(), expectedArgRanks.size());
         return std::nullopt;
       }
