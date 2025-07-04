@@ -536,7 +536,7 @@ bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
 }
-bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
+bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) {
   assert(externalFunctionCallLowerer != nullptr);
   return externalFunctionCallLowerer->lower(call, calleeOp);
 }
