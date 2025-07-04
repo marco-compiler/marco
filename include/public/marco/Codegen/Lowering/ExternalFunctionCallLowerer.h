@@ -33,6 +33,7 @@ namespace marco::codegen::lowering {
       llvm::SmallVectorImpl<std::string> &argNames,
       llvm::SmallVectorImpl<mlir::Value> &argValues);
 
+  mlir::SymbolRefAttr getSym(mlir::bmodelica::Operation *symbol);
 
   /// Get the argument expected ranks of a user-defined function.
   void getFunctionExpectedArgRanks(mlir::Operation *op,
