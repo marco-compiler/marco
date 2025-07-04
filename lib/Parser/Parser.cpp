@@ -301,7 +301,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
    
 
-  if (lookahead[0].isa<TokenKind::External>()) {
+  if (lookahead[0].isa<TokenKind::External>() && result->isa<StandardFunction>()) {
     TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
     result->dyn_cast<Class>()->setExternalRef(std::move(*external));
     
