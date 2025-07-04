@@ -12,7 +12,7 @@ namespace marco::codegen::lowering {
   public: 
     explicit ExternalFunctionCallLowerer(BridgeInterface *bridge);
 
-    virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
+    virtual bool lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) override;
   
   protected:
     using Lowerer::lower;
