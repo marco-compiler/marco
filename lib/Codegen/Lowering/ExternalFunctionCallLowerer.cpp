@@ -142,7 +142,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       clonedFunc->setAttr(mlir::SymbolTable::getSymbolAttrName(),builder().getStringAttr(call.getName()));
 
       if (auto symbolOp = llvm::dyn_cast<mlir::SymbolOpInterface>(clonedFunc)) {
-        symbolOp.setVisibility(mlir::SymbolTable::Visibility::Private);
+        symbolOp.setVisibility(mlir::SymbolTable::Visibility::Nested);
       }
 
       auto module = calleeOp->getParentOfType<mlir::ModuleOp>();
