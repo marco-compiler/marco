@@ -207,7 +207,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     }
   }
 
-  if (function.hasExternalRef() && function.getExternalRef()->funchasExternalFunctionCall())
+  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall())
     {
       lower(function->getExternalRef()->getExternalFunctionCall(), functionOp);
     }
