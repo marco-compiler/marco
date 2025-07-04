@@ -118,7 +118,7 @@ TEST(Parser, usage_of_external_test5)
     ASSERT_EQ(cr->getElement(2)->getName(), "z");
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
-    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), "foo");
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), "ciao");
 
     ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalFunctionCall());
 

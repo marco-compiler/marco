@@ -43,6 +43,7 @@
               ]
             }
           ],
+          "fatherName": "",
           "name": "discreteLog",
           "node_type": "external_function_call"
         },
@@ -201,11 +202,11 @@
                   "modification": {
                     "expression": {
                       "node_type": "constant",
-                      "value": 0
+                      "value": true
                     },
                     "node_type": "modification"
                   },
-                  "name": "start",
+                  "name": "fixed",
                   "node_type": "element_modification"
                 },
                 {
@@ -214,11 +215,11 @@
                   "modification": {
                     "expression": {
                       "node_type": "constant",
-                      "value": true
+                      "value": 0
                     },
                     "node_type": "modification"
                   },
-                  "name": "fixed",
+                  "name": "start",
                   "node_type": "element_modification"
                 }
               ],
