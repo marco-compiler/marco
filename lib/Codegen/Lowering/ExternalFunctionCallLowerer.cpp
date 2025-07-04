@@ -137,6 +137,8 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto clonedFunc = builder().clone(*calleeOp);
 
+      clonedFunc->setAttr("llvm.linkage", builder().getStringAttr("external"));
+
       clonedFunc->setAttr(mlir::SymbolTable::getSymbolAttrName(),builder().getStringAttr(call.getName()));
 
       if (auto symbolOp = llvm::dyn_cast<mlir::SymbolOpInterface>(clonedFunc)) {
