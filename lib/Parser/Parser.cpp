@@ -303,7 +303,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
     if ((*external)->cast<ExternalRef>()->hasExternalFunctionCall())
     {
-      (*external)->cast<ExternalRef>()->getExternalFunctionCall()->setFatherName(result->isa<StandardFunction>()->getName());
+      (*external)->cast<ExternalRef>()->getExternalFunctionCall()->setFatherName(result->isa<StandardFunction>()->cast<StandardFunction>()->getName());
       
     }
     result->dyn_cast<Class>()->setExternalRef(std::move(*external));
