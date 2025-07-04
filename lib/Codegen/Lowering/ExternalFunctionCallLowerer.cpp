@@ -126,8 +126,6 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
       getFunctionResultTypes(calleeOp, scalarizedResultTypes);
 
-      llvm::SmallVector<mlir::Type, 1> resultTypes;
-
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
                               call.getComponentReference()->cast<ast::ComponentReference>()->getElement(0)->getLocation(),
@@ -137,10 +135,22 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto ref = mlir::SymbolRefAttr::get(builder().getContext(), call.getName());
 
+      auto clonedFunc = builder.clone(calleeOp);
+
+      clonedFunc->setAttr(mlir::SymbolTable::getSymbolAttrName(),builder().getStringAttr(call.getName()));
+
+      if (auto symbolOp = llvm::dyn_cast<mlir::SymbolOpInterface>(clonedFunc)) {
+        symbolOp.setVisibility(mlir::SymbolTable::Visibility::Private);
+      }
+
+      auto module = originalFunc.getParentOfType<mlir::ModuleOp>();
+      mlir::SymbolTable symbolTable(module);
+      symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
+
+
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              ref,
                                              scalarizedResultTypes, argValues);
-
       return true;
 
       /*std::vector<Reference> results;
