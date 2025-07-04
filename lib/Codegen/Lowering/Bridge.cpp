@@ -1,4 +1,4 @@
-#include "marco/Codegen/Lowering/Bridge.h"
+#include "marco/Codegen/Lowering/Bridge.h" 
 #include "marco/Codegen/Lowering/AlgorithmLowerer.h"
 #include "marco/Codegen/Lowering/ArrayGeneratorLowerer.h"
 #include "marco/Codegen/Lowering/AssignmentStatementLowerer.h"
@@ -112,7 +112,7 @@ public:
   std::optional<Results> lower(const ast::ArrayGenerator &node) override;
 
   std::optional<Results> lower(const ast::Call &node) override;
-  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &call, mlir::Operation *functionOp) override;
+  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
 
 
   std::optional<Results> lower(const ast::Constant &constant) override;
@@ -536,9 +536,9 @@ bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
 }
-bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) {
+bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
   assert(externalFunctionCallLowerer != nullptr);
-  return externalFunctionCallLowerer->lower(call, functionOp);
+  return externalFunctionCallLowerer->lower(call, calleeOp);
 }
 
 Bridge::Bridge(mlir::MLIRContext &context)

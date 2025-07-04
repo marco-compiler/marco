@@ -8,11 +8,11 @@
 namespace marco::codegen::lowering {
  class ExpressionLowerer;
 
-  class ExternalFunctionCallLowerer : public Lowerer {
+  class ExternalFunctionCallLowerer : public Lowerer { 
   public: 
     explicit ExternalFunctionCallLowerer(BridgeInterface *bridge);
 
-    virtual bool lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) override;
+    virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
   
   protected:
     using Lowerer::lower;

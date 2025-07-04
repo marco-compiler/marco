@@ -11,7 +11,7 @@ namespace marco::codegen::lowering {
 class BridgeInterface {
 public:
   virtual ~BridgeInterface();
-
+ 
   virtual LoweringContext &getContext() = 0;
 
   virtual const LoweringContext &getContext() const = 0;
@@ -75,7 +75,7 @@ public:
 
   virtual std::optional<Results> lower(const ast::Call &call) = 0;
   
-  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) = 0;
+  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) = 0;
 
   virtual std::optional<Results> lower(const ast::Constant &constant) = 0;
 

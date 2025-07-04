@@ -1,4 +1,4 @@
-#include "marco/Codegen/Lowering/Lowerer.h"
+#include "marco/Codegen/Lowering/Lowerer.h" 
 #include "marco/Codegen/Lowering/ClassDependencyGraph.h"
 #include "mlir/IR/BuiltinOps.h"
 
@@ -310,8 +310,8 @@ std::optional<Results> Lowerer::lower(const ast::ArrayGenerator &array) {
 std::optional<Results> Lowerer::lower(const ast::Call &call) {
   return bridge->lower(call);
 }
-bool Lowerer::lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) {
-  return bridge->lower(call, functionOp);
+bool Lowerer::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
+  return bridge->lower(call, calleeOp);
 }
 
 std::optional<Results> Lowerer::lower(const ast::Constant &constant) {

@@ -105,25 +105,26 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) {
+  std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
       
       llvm::SmallVector<VariableOp> inputVariables;
 
-        getCustomFunctionInputVariables(inputVariables, *functionOp);
-    
+      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
+        getCustomFunctionInputVariables(inputVariables, functionOp);
+      }
 
       llvm::SmallVector<std::string, 3> argNames;
       llvm::SmallVector<mlir::Value, 3> argValues;
 
       if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
-        return false;
+        return std::nullopt;
       }
 
       llvm::SmallVector<int64_t, 3> expectedArgRanks;
-      getFunctionExpectedArgRanks(*functionOp, expectedArgRanks);
+      getFunctionExpectedArgRanks(*calleeOp, expectedArgRanks);
 
       llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
-      getFunctionResultTypes(*functionOp, scalarizedResultTypes);
+      getFunctionResultTypes(*calleeOp, scalarizedResultTypes);
 
       llvm::SmallVector<mlir::Type, 1> resultTypes;
 
@@ -131,52 +132,20 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         emitErrorNumArguments(call.getName(),
                               call.getComponentReference()->cast<ast::ComponentReference>()->getElement(0)->getLocation(),
                               argValues.size(), expectedArgRanks.size());
-        return false;
+        return std::nullopt;
       }
 
 
-
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             getSymbolRefFromRoot(functionOp->getOperation()),
+                                             getSymbolRefFromRoot(*calleeOp),
                                              resultTypes, argValues);
 
-      return true;
-      /*std::vector<Reference> results;
+      std::vector<Reference> results;
 
       for (auto result : callOp->getResults()) {
         results.push_back(Reference::ssa(builder(), result));
       }
 
-      return Results(results.begin(), results.end());*/
+      return Results(results.begin(), results.end());
     }
-
-/*
-  mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSym(mlir::bmodelica::FunctionOp *symbol) {
-    llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
-
-    flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
-        builder().getContext(),
-        mlir::cast<mlir::bmodelica::SymbolOpInterface>(symbol)/*->getName()));
-
-    mlir::Operation *parent = symbol->getParentOp();
-
-    while (parent != nullptr) {
-      if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
-        flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
-            builder().getContext(),
-            mlir::cast<mlir::SymbolOpInterface>(classInterface.getOperation())
-                .getName()));
-      }
-
-      parent = parent->getParentOp();
-    }
-
-    std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
-
-    return mlir::SymbolRefAttr::get(builder().getContext(),
-                                    flatSymbolAttrs[0].getValue(),
-                                    llvm::ArrayRef(flatSymbolAttrs).drop_front());
-  }
-  */
 }
-

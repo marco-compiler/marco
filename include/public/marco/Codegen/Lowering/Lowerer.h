@@ -149,10 +149,10 @@ protected:
   lower(const ast::Expression &expression) override;
 
   virtual std::optional<Results>
-  lower(const ast::ArrayGenerator &node) override;
+  lower(const ast::ArrayGenerator &node) override;Exte
 
   virtual std::optional<Results> lower(const ast::Call &node) override;
-  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) override;
+  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
 
 
   virtual std::optional<Results> lower(const ast::Constant &constant) override;
