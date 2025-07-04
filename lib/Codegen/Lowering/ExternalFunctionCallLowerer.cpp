@@ -109,9 +109,8 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       
       llvm::SmallVector<VariableOp> inputVariables;
 
-      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
         getCustomFunctionInputVariables(inputVariables, functionOp);
-      }
+    
 
       llvm::SmallVector<std::string, 3> argNames;
       llvm::SmallVector<mlir::Value, 3> argValues;
