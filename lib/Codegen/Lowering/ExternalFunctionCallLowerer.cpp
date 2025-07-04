@@ -150,19 +150,19 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     }
 
   mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSym(mlir::bmodelica::FunctionOp *symbol) {
-    llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
+    llvm::SmallVector<mlir::bmodelica::FlatSymbolRefAttr> flatSymbolAttrs;
 
-    flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+    flatSymbolAttrs.push_back(mlir::bmodelica::FlatSymbolRefAttr::get(
         builder().getContext(),
-        mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
+        mlir::cast<mlir::bmodelica::SymbolOpInterface>(symbol).getName()));
 
-    mlir::Operation *parent = symbol->getParentOp();
+    mlir::bmodelica::Operation *parent = symbol->getParentOp();
 
     while (parent != nullptr) {
       if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
         flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
             builder().getContext(),
-            mlir::cast<mlir::SymbolOpInterface>(classInterface.getOperation())
+            mlir::cast<mlir::bmodelica::SymbolOpInterface>(classInterface.getOperation())
                 .getName()));
       }
 
@@ -171,7 +171,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
     std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
 
-    return mlir::SymbolRefAttr::get(builder().getContext(),
+    return mlir::bmodelica::SymbolRefAttr::get(builder().getContext(),
                                     flatSymbolAttrs[0].getValue(),
                                     llvm::ArrayRef(flatSymbolAttrs).drop_front());
   }
