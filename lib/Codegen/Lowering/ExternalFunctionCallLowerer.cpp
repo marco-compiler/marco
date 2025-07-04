@@ -105,16 +105,10 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
+  std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation functionOp) {
       
-      std::optional<mlir::Operation *> calleeOp = resolveSymbolName(call.getFatherName(), getLookupScope());
-
-      llvm::SmallVector<VariableOp> inputVariables;
-
-      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
-        getCustomFunctionInputVariables(inputVariables, functionOp);
-      }
-
+      getCustomFunctionInputVariables(inputVariables, functionOp);
+      
       llvm::SmallVector<std::string, 3> argNames;
       llvm::SmallVector<mlir::Value, 3> argValues;
 
