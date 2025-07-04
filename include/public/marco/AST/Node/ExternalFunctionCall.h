@@ -33,13 +33,8 @@ public:
   
   bool hasComponentReference() const;
 
-  void setFatherName(llvm::StringRef name); 
-  llvm::StringRef getFatherName() const; 
-
-
 private:
   std::string name;
-  std::string fatherName;
   std::unique_ptr<ASTNode> componentReference; 
   llvm::SmallVector<std::unique_ptr<ASTNode>> expressions; 
 };
