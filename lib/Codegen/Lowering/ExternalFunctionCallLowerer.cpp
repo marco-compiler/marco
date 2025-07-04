@@ -135,8 +135,9 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       }
 
 
+
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             getSym(functionOp),
+                                             getSymbolRefFromRoot(functionOp.getOperation()),
                                              resultTypes, argValues);
 
       return true;
@@ -149,12 +150,13 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       return Results(results.begin(), results.end());*/
     }
 
+/*
   mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSym(mlir::bmodelica::FunctionOp *symbol) {
     llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
 
     flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
         builder().getContext(),
-        mlir::cast<mlir::bmodelica::SymbolOpInterface>(symbol)/*->getName()*/));
+        mlir::cast<mlir::bmodelica::SymbolOpInterface>(symbol)/*->getName()));
 
     mlir::Operation *parent = symbol->getParentOp();
 
@@ -175,5 +177,6 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
                                     flatSymbolAttrs[0].getValue(),
                                     llvm::ArrayRef(flatSymbolAttrs).drop_front());
   }
+  */
 }
 
