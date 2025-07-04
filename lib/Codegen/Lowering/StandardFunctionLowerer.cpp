@@ -209,7 +209,8 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall())
     {
-      lower(*(function.getExternalRef()->getExternalFunctionCall()), &functionOp);
+
+      lower(*(function.getExternalRef()->getExternalFunctionCall()), &(mlir::cast<Operation>(functionOp)));
     }
 
   return true;
