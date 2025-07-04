@@ -105,7 +105,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation functionOp) {
+  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation functionOp) {
       
       getCustomFunctionInputVariables(inputVariables, functionOp);
       
@@ -113,7 +113,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       llvm::SmallVector<mlir::Value, 3> argValues;
 
       if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
-        return std::nullopt;
+        return (false);
       }
 
       llvm::SmallVector<int64_t, 3> expectedArgRanks;
@@ -128,7 +128,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         emitErrorNumArguments(call.getName(),
                               call.getComponentReference()->cast<ast::ComponentReference>()->getElement(0)->getLocation(),
                               argValues.size(), expectedArgRanks.size());
-        return std::nullopt;
+        return (false);
       }
 
 
@@ -136,6 +136,8 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
                                              getSymbolRefFromRoot(*calleeOp),
                                              resultTypes, argValues);
 
+      return (true);
+/*
       std::vector<Reference> results;
 
       for (auto result : callOp->getResults()) {
@@ -143,6 +145,6 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       }
 
       return Results(results.begin(), results.end());
-    }
+    }*/
 }
 
