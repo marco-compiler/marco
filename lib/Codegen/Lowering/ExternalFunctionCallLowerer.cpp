@@ -109,7 +109,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       
       llvm::SmallVector<VariableOp> inputVariables;
 
-        getCustomFunctionInputVariables(inputVariables, functionOp);
+        getCustomFunctionInputVariables(inputVariables, &functionOp);
     
 
       llvm::SmallVector<std::string, 3> argNames;
@@ -120,10 +120,10 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       }
 
       llvm::SmallVector<int64_t, 3> expectedArgRanks;
-      getFunctionExpectedArgRanks(*calleeOp, expectedArgRanks);
+      getFunctionExpectedArgRanks(functionOp, expectedArgRanks);
 
       llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
-      getFunctionResultTypes(*calleeOp, scalarizedResultTypes);
+      getFunctionResultTypes(functionOp, scalarizedResultTypes);
 
       llvm::SmallVector<mlir::Type, 1> resultTypes;
 
@@ -136,7 +136,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             getSymbolRefFromRoot(*calleeOp),
+                                             getSymbolRefFromRoot(functionOp),
                                              resultTypes, argValues);
 
       return true;
