@@ -310,7 +310,7 @@ std::optional<Results> Lowerer::lower(const ast::ArrayGenerator &array) {
 std::optional<Results> Lowerer::lower(const ast::Call &call) {
   return bridge->lower(call);
 }
-bool Lowerer::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
+bool Lowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) {
   return bridge->lower(call, calleeOp);
 }
 

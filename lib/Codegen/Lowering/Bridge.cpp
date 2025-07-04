@@ -112,7 +112,7 @@ public:
   std::optional<Results> lower(const ast::ArrayGenerator &node) override;
 
   std::optional<Results> lower(const ast::Call &node) override;
-  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
+  [[nodiscard]] bool lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) override;
 
 
   std::optional<Results> lower(const ast::Constant &constant) override;

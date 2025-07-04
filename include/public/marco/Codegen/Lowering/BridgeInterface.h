@@ -75,7 +75,7 @@ public:
 
   virtual std::optional<Results> lower(const ast::Call &call) = 0;
   
-  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) = 0;
+  [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) = 0;
 
   virtual std::optional<Results> lower(const ast::Constant &constant) = 0;
 

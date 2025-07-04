@@ -105,7 +105,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) {
+  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) {
       
       llvm::SmallVector<VariableOp> inputVariables;
 
