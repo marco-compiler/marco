@@ -105,15 +105,21 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation functionOp) {
+  std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation functionOp) {
       
-      getCustomFunctionInputVariables(inputVariables, functionOp);
-      
+      std::optional<mlir::Operation *> calleeOp = functionOp;
+
+      llvm::SmallVector<VariableOp> inputVariables;
+
+      if (auto functionOp = mlir::dyn_cast<FunctionOp>(*calleeOp)) {
+        getCustomFunctionInputVariables(inputVariables, functionOp);
+      }
+
       llvm::SmallVector<std::string, 3> argNames;
       llvm::SmallVector<mlir::Value, 3> argValues;
 
       if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
-        return (false);
+        return false;
       }
 
       llvm::SmallVector<int64_t, 3> expectedArgRanks;
@@ -128,7 +134,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         emitErrorNumArguments(call.getName(),
                               call.getComponentReference()->cast<ast::ComponentReference>()->getElement(0)->getLocation(),
                               argValues.size(), expectedArgRanks.size());
-        return (false);
+        return false;
       }
 
 
@@ -136,15 +142,14 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
                                              getSymbolRefFromRoot(*calleeOp),
                                              resultTypes, argValues);
 
-      return (true);
-/*
-      std::vector<Reference> results;
+      return true;
+      /*std::vector<Reference> results;
 
       for (auto result : callOp->getResults()) {
         results.push_back(Reference::ssa(builder(), result));
       }
 
-      return Results(results.begin(), results.end());
-    }*/
+      return Results(results.begin(), results.end());*/
+    }
 }
 
