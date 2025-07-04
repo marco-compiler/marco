@@ -299,11 +299,13 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     }
   }
 
+    result->dyn_cast<Class>()->setName(name->getValue());
+
   if (lookahead[0].isa<TokenKind::External>()) {
     TRY(external, parseExternal()); //embedeed all the stuff related to "external" in a proper function
     if ((*external)->cast<ExternalRef>()->hasExternalFunctionCall())
     {
-      (*external)->cast<ExternalRef>()->getExternalFunctionCall()->setFatherName(result->getName());
+      (*external)->cast<ExternalRef>()->getExternalFunctionCall()->setFatherName(result->cast<StandardFunction>()->getName());
       
     }
     result->dyn_cast<Class>()->setExternalRef(std::move(*external));
@@ -330,7 +332,6 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
   EXPECT(TokenKind::Semicolon);
 
-  result->dyn_cast<Class>()->setName(name->getValue());
   result->dyn_cast<Class>()->setVariables(members);
   result->dyn_cast<Class>()->setEquationSections(equationSections);
   result->dyn_cast<Class>()->setAlgorithms(algorithms);
