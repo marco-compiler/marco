@@ -306,6 +306,7 @@ TEST(Parser, usage_of_external_test4)
     ASSERT_EQ(cr->getElement(2)->getName(), "z");
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), "foo");
 
     ASSERT_TRUE(er->cast<ExternalRef>()->hasExternalFunctionCall());
 
@@ -377,6 +378,7 @@ TEST(Parser, usage_of_external_test3)
     ASSERT_EQ(cr->getElement(2)->getName(), "z");
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), "foo");
 
     ASSERT_TRUE(er->cast<ExternalRef>()->hasAnnotationClause());
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
@@ -446,6 +448,7 @@ TEST(Parser, usage_of_external_test2)
 
 
     ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+    ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), "foo");
 
     ASSERT_TRUE(er->cast<ExternalRef>()->hasAnnotationClause());
     auto ac = er->cast<ExternalRef>()->getAnnotationClause();
@@ -553,6 +556,7 @@ TEST(Parser, external_test8) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), null);
 
   auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
@@ -607,6 +611,7 @@ TEST(Parser, external_test7) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), null);
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -720,6 +725,7 @@ TEST(Parser, external_test4) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
+  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), null);
 
   auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
