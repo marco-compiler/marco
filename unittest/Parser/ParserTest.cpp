@@ -114,6 +114,7 @@ TEST(Parser, usage_of_external_test5)
 
     ASSERT_EQ(cr->getPathLength(), 3);
     ASSERT_EQ(cr->getElement(0)->getName(), "x");
+    ASSERT_EQ(cr->getElement(0)->getName(), "a");
     ASSERT_EQ(cr->getElement(1)->getName(), "y");
     ASSERT_EQ(cr->getElement(2)->getName(), "z");
 
