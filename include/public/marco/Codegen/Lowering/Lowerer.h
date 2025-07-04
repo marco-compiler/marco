@@ -149,7 +149,7 @@ protected:
   lower(const ast::Expression &expression) override;
 
   virtual std::optional<Results>
-  lower(const ast::ArrayGenerator &node) override;Exte
+  lower(const ast::ArrayGenerator &node) override;
 
   virtual std::optional<Results> lower(const ast::Call &node) override;
   [[nodiscard]] virtual bool lower(const ast::ExternalFunctionCall &call, const mlir::Operation * calleeOp) override;
