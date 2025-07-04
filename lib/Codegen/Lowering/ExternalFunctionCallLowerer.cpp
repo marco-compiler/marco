@@ -135,7 +135,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         return false;
       }
 
-      auto ref = mlir::SymbolRefAttr::get(call.getName(), builder().getContext());
+      auto ref = mlir::SymbolRefAttr::get(builder().getContext(), call.getName());
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              ref,
