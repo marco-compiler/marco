@@ -148,5 +148,32 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       return Results(results.begin(), results.end());*/
     }
+
+  mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSymbolRefFromRoot(mlir::bmodelica::Operation *symbol) {
+    llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
+
+    flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+        builder().getContext(),
+        mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
+
+    mlir::Operation *parent = symbol->getParentOp();
+
+    while (parent != nullptr) {
+      if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
+        flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+            builder().getContext(),
+            mlir::cast<mlir::SymbolOpInterface>(classInterface.getOperation())
+                .getName()));
+      }
+
+      parent = parent->getParentOp();
+    }
+
+    std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
+
+    return mlir::SymbolRefAttr::get(builder().getContext(),
+                                    flatSymbolAttrs[0].getValue(),
+                                    llvm::ArrayRef(flatSymbolAttrs).drop_front());
+  }
 }
 
