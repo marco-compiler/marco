@@ -105,7 +105,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation *functionOp) {
+  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::bmodelica::FunctionOp *functionOp) {
       
       std::optional<mlir::Operation *> calleeOp = functionOp;
 
