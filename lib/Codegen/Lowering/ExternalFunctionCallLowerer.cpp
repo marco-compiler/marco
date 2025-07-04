@@ -149,7 +149,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       return Results(results.begin(), results.end());*/
     }
 
-  mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSym(mlir::bmodelica::Operation *symbol) {
+  mlir::SymbolRefAttr ExternalFunctionCallLowerer::getSym(mlir::bmodelica::FunctionOp *symbol) {
     llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
 
     flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
