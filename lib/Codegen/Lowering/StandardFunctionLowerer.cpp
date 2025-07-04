@@ -210,7 +210,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall())
     {
       auto app = std::move(functionOp.getOperation());
-      app.setAttr("name", function.getExternalRef()->getExternalFunctionCall()->getName());
+      app->setAttr("name", function.getExternalRef()->getExternalFunctionCall()->getName());
       lower(*(function.getExternalRef()->getExternalFunctionCall()), app);
     }
 
