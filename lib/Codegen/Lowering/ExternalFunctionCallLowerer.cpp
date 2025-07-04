@@ -137,7 +137,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             getSymbolRefFromRoot(functionOp.getOperation()),
+                                             getSymbolRefFromRoot(functionOp->getOperation()),
                                              resultTypes, argValues);
 
       return true;
