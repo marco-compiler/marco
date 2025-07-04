@@ -207,7 +207,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     }
   }
 
-  if (function->cast<ast::Class>()->hasExternalRef())
+  if (function.hasExternalRef())
     {
 
     }
