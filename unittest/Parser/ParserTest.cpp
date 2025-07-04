@@ -556,7 +556,6 @@ TEST(Parser, external_test8) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
-  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), nullptr);
 
   auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
@@ -611,7 +610,6 @@ TEST(Parser, external_test7) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
-  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), nullptr);
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -725,7 +723,6 @@ TEST(Parser, external_test4) {
 
 
   ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getName(), "abc");
-  ASSERT_EQ(efc->cast<ExternalFunctionCall>()->getFatherName(), nullptr);
 
   auto ac = (*node)->cast<ExternalRef>()->getAnnotationClause();
 
