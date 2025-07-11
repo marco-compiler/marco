@@ -149,10 +149,15 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       mlir::SymbolTable symbolTable(module);
       symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
 
-      auto nestedRef = mlir::SymbolRefAttr::get(
-                  parentOp->getName(), 
-                  {mlir::FlatSymbolRefAttr::get(builder().getContext(), call.getName())}
-                );
+    auto parentNameAttr = mlir::StringAttr::get(builder().getContext(), parentOp->getSymName());
+
+    auto calleeNameAttr = mlir::StringAttr::get(builder().getContext(), call.getName());
+
+    auto nestedRef = mlir::SymbolRefAttr::get(
+      builder().getContext(),
+      parentNameAttr, // Ora è del tipo corretto (StringAttr)
+      {mlir::FlatSymbolRefAttr::get(calleeNameAttr)} // Anche qui usiamo l'attributo
+  );
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              nestedRef,
