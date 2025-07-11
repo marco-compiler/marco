@@ -255,7 +255,7 @@ FunctionDefaultValuesConversionPass::convertInputDefaultValues(
   target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
     mlir::Operation *callee = op.getFunction(moduleOp, symbolTableCollection);
 
-    if (!mlir::isa<FunctionOp>(callee)) {
+    if (!callee || !mlir::isa<FunctionOp>(callee)) {
       return true;
     }
 
