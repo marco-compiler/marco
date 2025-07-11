@@ -153,7 +153,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
     auto calleeNameAttr = mlir::StringAttr::get(builder().getContext(), call.getName());
 
-    auto nestedRef = getSymbolRefFromRoot(&clonedFunc);
+    auto nestedRef = getSymbolRefFromRoot(clonedFunc);
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              nestedRef,
