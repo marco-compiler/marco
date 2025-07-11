@@ -149,13 +149,13 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       mlir::SymbolTable symbolTable(module);
       symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
 
-      auto nestedRef = mlir::SymbolRefAttr::get(builder().getContext(),
+      auto nestedRef = mlir::SymbolRefAttr::get(
                   parentOp->getName(), 
                   {mlir::FlatSymbolRefAttr::get(builder().getContext(), call.getName())}
                 );
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             ref,
+                                             nestedRef,
                                              scalarizedResultTypes, argValues);
       return true;
 
