@@ -135,7 +135,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto ref = mlir::SymbolRefAttr::get(builder().getContext(), call.getName());
 
-      auto clonedFunc = builder().clone(*ParentOp);
+      auto clonedFunc = builder().clone(*parentOp);
 
       clonedFunc->setAttr("llvm.linkage", builder().getStringAttr("external"));
 
@@ -149,9 +149,9 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       mlir::SymbolTable symbolTable(module);
       symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
 
-      auto nestedRef = SymbolRefAttr::get(builder().getContext(),
-                  parentOp.getSymName().str(), 
-                  {FlatSymbolRefAttr::get(builder().getContext(), call.getName())}
+      auto nestedRef = mlir::SymbolRefAttr::get(builder().getContext(),
+                  parentOp->getSymName().str(), 
+                  {mlir::FlatSymbolRefAttr::get(builder().getContext(), call.getName())}
                 );
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
