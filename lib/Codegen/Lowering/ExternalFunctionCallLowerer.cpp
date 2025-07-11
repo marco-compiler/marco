@@ -149,7 +149,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       mlir::SymbolTable symbolTable(module);
       symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
 
-      auto parentNameAttr = mlir::StringAttr::get(builder().getContext(), builder().getStringAttr(parentOp->getName().getStringRef()));
+      auto parentNameAttr = getSymbolRefFromRoot(parentOp);
 
       auto calleeNameAttr = mlir::StringAttr::get(builder().getContext(), call.getName());
 
