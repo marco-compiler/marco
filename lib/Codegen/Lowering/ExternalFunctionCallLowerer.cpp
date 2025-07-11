@@ -105,11 +105,11 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
     mlir::emitError(loc(location)) << errorString;
       }
 
-  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * calleeOp) {
+  bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * parentOp) {
       
       llvm::SmallVector<VariableOp> inputVariables;
 
-      if (auto functionOp = mlir::dyn_cast<FunctionOp>(calleeOp)) {
+      if (auto functionOp = mlir::dyn_cast<FunctionOp>(parentOp)) {
         getCustomFunctionInputVariables(inputVariables, functionOp);
       }
 
@@ -121,10 +121,10 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       }
 
       llvm::SmallVector<int64_t, 3> expectedArgRanks;
-      getFunctionExpectedArgRanks(calleeOp, expectedArgRanks);
+      getFunctionExpectedArgRanks(parentOp, expectedArgRanks);
 
       llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
-      getFunctionResultTypes(calleeOp, scalarizedResultTypes);
+      getFunctionResultTypes(parentOp, scalarizedResultTypes);
 
       if (argValues.size() != expectedArgRanks.size()) {
         emitErrorNumArguments(call.getName(),
@@ -135,7 +135,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto ref = mlir::SymbolRefAttr::get(builder().getContext(), call.getName());
 
-      auto clonedFunc = builder().clone(*calleeOp);
+      auto clonedFunc = builder().clone(*ParentOp);
 
       clonedFunc->setAttr("llvm.linkage", builder().getStringAttr("external"));
 
@@ -145,22 +145,19 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
         symbolOp.setVisibility(mlir::SymbolTable::Visibility::Nested);
       }
 
-      auto module = calleeOp->getParentOfType<mlir::ModuleOp>();
+      auto module = parentOp->getParentOfType<mlir::ModuleOp>();
       mlir::SymbolTable symbolTable(module);
       symbolTable.insert(mlir::cast<mlir::FunctionOpInterface>(clonedFunc));
 
+      auto nestedRef = SymbolRefAttr::get(builder().getContext(),
+                  parentOp.getSymName().str(), 
+                  {FlatSymbolRefAttr::get(builder().getContext(), call.getName())}
+                );
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              ref,
                                              scalarizedResultTypes, argValues);
       return true;
 
-      /*std::vector<Reference> results;
-
-      for (auto result : callOp->getResults()) {
-        results.push_back(Reference::ssa(builder(), result));
-      }
-
-      return Results(results.begin(), results.end());*/
     }
 }

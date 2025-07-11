@@ -255,7 +255,7 @@ FunctionDefaultValuesConversionPass::convertInputDefaultValues(
   target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
     mlir::Operation *callee = op.getFunction(moduleOp, symbolTableCollection);
 
-    if (!callee || !mlir::isa<FunctionOp>(callee)) {
+    if (!mlir::isa<FunctionOp>(callee)) {
       return true;
     }
 
@@ -273,6 +273,7 @@ FunctionDefaultValuesConversionPass::convertInputDefaultValues(
   patterns.add<CallFiller>(&getContext(), symbolTableCollection, orderings);
 
   return applyPartialConversion(moduleOp, target, std::move(patterns));
+
 }
 
 static AlgorithmOp getFirstAlgorithmOp(FunctionOp functionOp) {

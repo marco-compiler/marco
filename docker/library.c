@@ -1,4 +1,4 @@
-int _ZNK5marco7runtime9profiling5Timer12totalElapsedEv (int base, int val)
+int discreteLog (int base, int val)
 /**
  *  input : base (>= 2), it is the logarithm base 
  *          val (> 0), it is the value which we want to calculate the logarithm of
