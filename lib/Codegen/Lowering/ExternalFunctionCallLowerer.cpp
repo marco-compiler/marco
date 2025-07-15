@@ -106,8 +106,40 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       }
 
   bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * parentOp) {
-      
-      VariableOp app;
+
+    llvm::SmallVector<mlir::Type> inputTypes;
+    llvm::SmallVector<mlir::Type> outputTypes;
+    
+    llvm::SmallVector<VariableOp> inputVariables;
+
+    auto parentFuncOp = mlir::cast<FunctionOp>(*parentOp);
+    for (VariableOp variable : parentFuncOp.getVariables()) {
+      auto varType = mlir::cast<VariableType>(variable.getType()).getElementType();
+      if (variable.isInput()) {
+        inputTypes.push_back(varType);
+        inputVariables.push_back(variable); 
+      } else if (variable.isOutput()) {
+        outputTypes.push_back(varType);
+      }
+    }
+
+    auto funcType = mlir::FunctionType::get(builder().getContext(), inputTypes, outputTypes);
+    auto funcTypeAttr = mlir::TypeAttr::get(funcType);
+    auto externalFuncOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), funcTypeAttr);
+
+    llvm::SmallVector<std::string> argNames;
+    llvm::SmallVector<mlir::Value> argValues;
+
+    if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
+      return false;
+    }
+
+    auto callOp = builder().create<CallOp>(loc(call.getLocation()),
+                                           externalFunctionOp,
+                                           argValues);   
+    return true;
+
+    /*VariableOp app;
 
       auto fo = mlir::cast<FunctionOp>(*parentOp);
 
@@ -169,11 +201,6 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto nestedRef = getSymbolRefFromRoot(clonedFunc);*/
 
-      auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             getSymbolRefFromRoot(externalFunctionOp),
-                                             scalarizedResultTypes, argValues);
-
-      return true;
 
     }
 }
