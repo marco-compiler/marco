@@ -107,8 +107,20 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
   bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * parentOp) {
       
+      auto app;
+
+      for (VariableOp variable : parentOp->getVariables()) {
+        if (variable.isOutput()) {
+           app = std::move(variable);
+        }
+      }
+
       llvm::SmallVector<VariableOp> inputVariables;
 
+      auto functionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), app);
+      auto callOp = builder().create<CallOp>(loc(call.getLocation()),functionOp);
+
+/*
       if (auto functionOp = mlir::dyn_cast<FunctionOp>(parentOp)) {
         getCustomFunctionInputVariables(inputVariables, functionOp);
       }
@@ -157,7 +169,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                              nestedRef,
-                                             scalarizedResultTypes, argValues);
+                                             scalarizedResultTypes, argValues);*/
       return true;
 
     }
