@@ -107,7 +107,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
   bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call, mlir::Operation * parentOp) {
       
-      auto app = nullptr;
+      VariableOp app;
 
       auto fo = mlir::cast<FunctionOp>(*parentOp);
 
