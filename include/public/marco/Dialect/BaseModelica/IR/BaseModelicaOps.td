@@ -1216,6 +1216,7 @@ def BaseModelica_VariableOp : BaseModelica_Op<"variable",
     }];
 }
 
+
 def BaseModelica_VariableGetOp : BaseModelica_Op<"variable_get",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     NoMemoryEffect]>
@@ -4469,6 +4470,37 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
         }
 
         /// }
+    }];
+}
+
+def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
+    [IsolatedFromAbove, Symbol]> 
+{
+    let summary = "Declares an external function.";
+
+    let description = [{
+        Represents a declaration of a function that is defined externally,
+        for example in a C library. This operation has no body and serves as a
+        target for `bmodelica.call` operations.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+    );
+
+    let regions = (region); 
+
+    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
+
+    let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name)>
+    ];
+
+    let extraClassDeclaration = [{
+        // Metodo chiave per l'interfaccia Symbol
+        bool isDeclaration() {
+            return true;
+        }
     }];
 }
 
