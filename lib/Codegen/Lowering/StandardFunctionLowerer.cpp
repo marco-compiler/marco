@@ -69,7 +69,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     insertVariable(variableOp.getSymName(),
                    Reference::variable(builder(), variableOp->getLoc(),
                                        variableOp.getSymName(),
-                                       mlir::TypeAttr::get(variableOp)));
+                                       variableOp.getVariableType().unwrap()));
   }
 
   // Lower the annotations.
@@ -209,8 +209,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall())
     {
-       lower(*(function.getExternalRef()->getExternalFunctionCall()), functionOp.getOperation());
-
+      lower(*(function.getExternalRef()->getExternalFunctionCall()), functionOp.getOperation());
     }
 
   return true;
