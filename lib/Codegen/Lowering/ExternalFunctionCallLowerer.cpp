@@ -128,8 +128,8 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
     {
       auto module = parentOp->getParentOfType<mlir::ModuleOp>();
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPointToStart(module.getBody());
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().setInsertionPointToStart(module.getBody());
       auto externalFunctionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), funcTypeAttr);
       externalFunctionOp.setPrivate();
     }
