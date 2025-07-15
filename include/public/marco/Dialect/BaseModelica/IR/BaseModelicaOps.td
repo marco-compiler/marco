@@ -4836,17 +4836,17 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
             CArg<"mlir::ValueRange", "{}">:$args,
             CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames), 
             [{
-                $_state.addOperands($args);
+                $_state.addOperands(args);
 
                 $_state.addAttribute(
                     "callee",
-                    ::mlir::SymbolRefAttr::get($_builder.getContext(), $callee.getSymName())
+                    ::mlir::SymbolRefAttr::get($_builder.getContext(), callee.getSymName())
                 );
 
-                $_state.addTypes($callee.getFunctionType().getResults());
+                $_state.addTypes(callee.getFunctionType().getResults());
 
                 if ($argNames) {
-                    $_state.addAttribute("argNames", *$argNames);
+                    $_state.addAttribute("argNames", *argNames);
                 }
             }]>,
         OpBuilder<(ins
