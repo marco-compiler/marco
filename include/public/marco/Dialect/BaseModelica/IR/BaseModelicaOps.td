@@ -4485,16 +4485,24 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     }];
 
     let arguments = (ins
-        SymbolNameAttr:$sym_name
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
     );
 
     let regions = (region); 
-    
+
+    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
+
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name)>
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::FunctionType":$type)>
     ];
 
+    // Dichiarazioni C++ minimaliste e corrette
     let extraClassDeclaration = [{
+        mlir::FunctionType getFunctionType() {
+            return mlir::cast<mlir::FunctionType>(getFunction_type().getValue());
+        }
+
         // Metodo chiave per l'interfaccia Symbol
         bool isDeclaration() {
             return true;
