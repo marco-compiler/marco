@@ -4489,9 +4489,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     );
 
     let regions = (region); 
-
-    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
-
+    
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$name)>
     ];
