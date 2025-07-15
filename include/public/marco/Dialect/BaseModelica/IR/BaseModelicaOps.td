@@ -4494,7 +4494,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$name, "mlir::TypeAttr":$type), [{
             $_state.addAttribute("sym_name", $_builder.getStringAttr(name));
-            $_state.addAttribute("function_type", $type);
+            $_state.addAttribute("function_type", type);
         }]>
     ];
 
