@@ -109,7 +109,9 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       
       auto app = nullptr;
 
-      for (VariableOp variable : parentOp->getVariables()) {
+      auto fo = mlir::cast<FunctionOp>(*parentOp);
+
+      for (VariableOp variable : fo.getVariables()) {
         if (variable.isOutput()) {
            app = std::move(variable);
         }
