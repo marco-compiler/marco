@@ -125,7 +125,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
     auto funcType = mlir::FunctionType::get(builder().getContext(), inputTypes, outputTypes);
     auto funcTypeAttr = mlir::TypeAttr::get(funcType);
-    auto externalFuncOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), funcTypeAttr);
+    auto externalFunctionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), funcTypeAttr);
 
     llvm::SmallVector<std::string> argNames;
     llvm::SmallVector<mlir::Value> argValues;
