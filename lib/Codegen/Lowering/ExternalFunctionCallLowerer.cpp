@@ -170,7 +170,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       auto nestedRef = getSymbolRefFromRoot(clonedFunc);*/
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             functionOp,
+                                             getSymbolRefFromRoot(functionOp),
                                              scalarizedResultTypes, argValues);
 
       return true;
