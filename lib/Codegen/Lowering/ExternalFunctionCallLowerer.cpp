@@ -119,10 +119,10 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       llvm::SmallVector<VariableOp> inputVariables;
 
-      auto functionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), app.getTypeAttr());
-      auto callOp = builder().create<CallOp>(loc(call.getLocation()),functionOp);
+     auto functionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), app.getTypeAttr());
+      //auto callOp = builder().create<CallOp>(loc(call.getLocation()),functionOp);
 
-/*
+
       if (auto functionOp = mlir::dyn_cast<FunctionOp>(parentOp)) {
         getCustomFunctionInputVariables(inputVariables, functionOp);
       }
@@ -149,7 +149,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto ref = mlir::SymbolRefAttr::get(builder().getContext(), call.getName());
 
-      auto clonedFunc = builder().clone(*parentOp);
+      /*auto clonedFunc = builder().clone(*parentOp);
 
       clonedFunc->setAttr("llvm.linkage", builder().getStringAttr("external"));
 
@@ -167,11 +167,12 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       auto calleeNameAttr = mlir::StringAttr::get(builder().getContext(), call.getName());
 
-      auto nestedRef = getSymbolRefFromRoot(clonedFunc);
+      auto nestedRef = getSymbolRefFromRoot(clonedFunc);*/
 
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                             nestedRef,
-                                             scalarizedResultTypes, argValues);*/
+                                             functionOp,
+                                             scalarizedResultTypes, argValues);
+
       return true;
 
     }
