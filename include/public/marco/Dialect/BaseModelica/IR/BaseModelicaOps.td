@@ -4837,6 +4837,8 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
             "EquationFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,
         OpBuilder<(ins
+            "ExternalFunctionOp":$callee,
+        OpBuilder<(ins
             "mlir::SymbolRefAttr":$callee,
             "mlir::TypeRange":$results,
             CArg<"mlir::ValueRange", "{}">:$args,
