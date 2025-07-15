@@ -69,7 +69,7 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     insertVariable(variableOp.getSymName(),
                    Reference::variable(builder(), variableOp->getLoc(),
                                        variableOp.getSymName(),
-                                       variableOp.getVariableType().unwrap()));
+                                       mlir::TypeAttr::get(variableOp.getVariableType().unwrap())));
   }
 
   // Lower the annotations.
