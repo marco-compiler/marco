@@ -4499,11 +4499,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
 
     // Dichiarazioni C++ minimaliste e corrette
     let extraClassDeclaration = [{
-        mlir::FunctionType getFunctionType() {
-            return mlir::cast<mlir::FunctionType>(getFunction_type().getValue());
-        }
-
-        // Metodo chiave per l'interfaccia Symbol
         bool isDeclaration() {
             return true;
         }
