@@ -4845,7 +4845,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
 
                 $_state.addTypes(callee.getFunctionType().getResults());
 
-                if ($argNames) {
+                if (argNames) {
                     $_state.addAttribute("argNames", *argNames);
                 }
             }]>,
