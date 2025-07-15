@@ -4485,7 +4485,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     }];
 
     let arguments = (ins
-        SymbolNameAttr:$sym_name,
+        SymbolNameAttr:$sym_name
     );
 
     let regions = (region); 
