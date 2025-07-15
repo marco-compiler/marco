@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=marco-compiler/marco-dev-release-debian-12:latest
+ARG BASE_IMAGE=marco-compiler/marco-dev-release-debian-32:latest
 FROM $BASE_IMAGE
 
 ARG MARCO_COMMIT=master
