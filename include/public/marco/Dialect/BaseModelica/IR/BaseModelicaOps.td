@@ -4494,7 +4494,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name>
+        OpBuilder<(ins "llvm::StringRef":$name)>
     ];
 
     // Dichiarazioni C++ minimaliste e corrette
