@@ -119,7 +119,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
       llvm::SmallVector<VariableOp> inputVariables;
 
-      auto functionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), app);
+      auto functionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), app.getVariableType().unwrap());
       auto callOp = builder().create<CallOp>(loc(call.getLocation()),functionOp);
 
 /*
