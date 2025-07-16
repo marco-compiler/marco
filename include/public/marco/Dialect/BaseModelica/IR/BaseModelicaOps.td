@@ -4518,6 +4518,14 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         llvm::ArrayRef<mlir::Type> getCallableResults() {
             return getFunctionType().getResults();
         }
+
+        mlir::ArrayAttr getArgAttrsAttr() { return nullptr; }
+        void setArgAttrsAttr(mlir::ArrayAttr attrs) { /* non supportato */ }
+        void removeArgAttrsAttr() { /* non supportato */ }
+
+        mlir::ArrayAttr getResAttrsAttr() { return nullptr; }
+        void setResAttrsAttr(mlir::ArrayAttr attrs) { /* non supportato */ }
+        void removeResAttrsAttr() { /* non supportato */ }
     }];
 }
 
