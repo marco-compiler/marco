@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [IsolatedFromAbove, Symbol]> 
+    [IsolatedFromAbove, Symbol, FunctionOpInterface, CallableOpInterface]> 
 {
     let summary = "Declares an external function.";
 
@@ -4498,10 +4498,29 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         }]>
     ];
 
-    // Dichiarazioni C++ minimaliste e corrette
     let extraClassDeclaration = [{
         bool isDeclaration() {
             return true;
+        }
+
+        mlir::FunctionType getFunctionType() {
+            return mlir::cast<mlir::FunctionType>(getFunction_type().getValue());
+        }
+
+        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
+
+        llvm::ArrayRef<mlir::Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
+
+        mlir::Region *getCallableRegion() {
+            return nullptr;
+        }
+
+        llvm::ArrayRef<mlir::Type> getCallableResults() {
+            return getFunctionType().getResults();
         }
     }];
 }
