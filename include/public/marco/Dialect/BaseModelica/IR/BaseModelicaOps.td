@@ -4503,13 +4503,17 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
             return true;
         }
 
-        mlir::Region *getCallableRegion() {
-            return nullptr;
-        }
+        mlir::Region *getCallableRegion() { return nullptr; }
 
-        llvm::ArrayRef<mlir::Type> getCallableResults() {
-            return getFunctionType().getResults();
-        }
+        llvm::ArrayRef<mlir::Type> getCallableResults() { return getFunctionType().getResults(); }
+        
+        mlir::ArrayAttr getArgAttrsAttr() { return nullptr; }
+        void setArgAttrsAttr(mlir::ArrayAttr attrs) { assert(false && "Not supported"); }
+        mlir::Attribute removeArgAttrsAttr() { return nullptr; }
+
+        mlir::ArrayAttr getResAttrsAttr() { return nullptr; }
+        void setResAttrsAttr(mlir::ArrayAttr attrs) { assert(false && "Not supported"); }
+        mlir::Attribute removeResAttrsAttr() { return nullptr; }
     }];
 }
 
