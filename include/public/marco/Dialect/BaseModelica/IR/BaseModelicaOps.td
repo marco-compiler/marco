@@ -4520,12 +4520,16 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         }
 
         mlir::ArrayAttr getArgAttrsAttr() { return nullptr; }
-        void setArgAttrsAttr(mlir::ArrayAttr attrs) { /* non supportato */ }
-        void removeArgAttrsAttr() { /* non supportato */ }
+        void setArgAttrsAttr(mlir::ArrayAttr attrs) { 
+            assert(false && "setting arg_attrs is not supported on external functions"); 
+        }
+        mlir::Attribute removeArgAttrsAttr() { return nullptr; }
 
         mlir::ArrayAttr getResAttrsAttr() { return nullptr; }
-        void setResAttrsAttr(mlir::ArrayAttr attrs) { /* non supportato */ }
-        void removeResAttrsAttr() { /* non supportato */ }
+        void setResAttrsAttr(mlir::ArrayAttr attrs) { 
+            assert(false && "setting res_attrs is not supported on external functions"); 
+        }
+        mlir::Attribute removeResAttrsAttr() { return nullptr; }
     }];
 }
 
