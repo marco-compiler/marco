@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [IsolatedFromAbove, Symbol, FunctionOpInterface, CallableOpInterface]> 
+    [IsolatedFromAbove, Symbol, CallableOpInterface]> 
 {
     let summary = "Declares an external function.";
 
@@ -4503,14 +4503,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
             return true;
         }
 
-        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
-
-        llvm::ArrayRef<mlir::Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
-
         mlir::Region *getCallableRegion() {
             return nullptr;
         }
@@ -4518,18 +4510,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         llvm::ArrayRef<mlir::Type> getCallableResults() {
             return getFunctionType().getResults();
         }
-
-        mlir::ArrayAttr getArgAttrsAttr() { return nullptr; }
-        void setArgAttrsAttr(mlir::ArrayAttr attrs) { 
-            assert(false && "setting arg_attrs is not supported on external functions"); 
-        }
-        mlir::Attribute removeArgAttrsAttr() { return nullptr; }
-
-        mlir::ArrayAttr getResAttrsAttr() { return nullptr; }
-        void setResAttrsAttr(mlir::ArrayAttr attrs) { 
-            assert(false && "setting res_attrs is not supported on external functions"); 
-        }
-        mlir::Attribute removeResAttrsAttr() { return nullptr; }
     }];
 }
 
