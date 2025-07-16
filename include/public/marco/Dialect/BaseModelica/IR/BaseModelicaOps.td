@@ -4503,10 +4503,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
             return true;
         }
 
-        mlir::FunctionType getFunctionType() {
-            return mlir::cast<mlir::FunctionType>(getFunction_type().getValue());
-        }
-
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
             return getFunctionType().getInputs();
         }
