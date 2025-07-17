@@ -85,6 +85,25 @@ public:
   }
 };
 
+struct ExternalFunctionOpLowering
+    : public FunctionLoweringPattern<ExternalFunctionOp> {
+  using FunctionLoweringPattern<ExternalFunctionOp>::FunctionLoweringPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto functionType = op.getFunctionType();
+    
+    auto funcOp = rewriter.create<mlir::func::FuncOp>(
+        op.getLoc(), op.getSymName(), functionType);
+
+    funcOp.setVisibility(op.getVisibility());
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
 struct EquationFunctionOpLowering
     : public FunctionLoweringPattern<EquationFunctionOp> {
   using FunctionLoweringPattern<EquationFunctionOp>::FunctionLoweringPattern;
@@ -700,7 +719,7 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
-                      RawReturnOp, CallOp>();
+                      RawReturnOp, CallOp, ExternalFunctionOp>();
 
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
@@ -722,7 +741,7 @@ void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
+  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering, ExternalFunctionOpLowering>(
       typeConverter, context, symbolTableCollection);
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
