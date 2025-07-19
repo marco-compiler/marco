@@ -15,7 +15,6 @@ namespace mlir {
 } // namespace mlir
 
 using namespace ::mlir::bmodelica;
-using namespace ::mlir::LLVM; 
 
 namespace {
 /// Generic rewrite pattern that provides some utility functions.
@@ -112,10 +111,13 @@ struct ExternalFunctionOpLowering
         op.getLoc(), op.getSymName(), functionType);
 
     funcOp.setVisibility(op.getVisibility());
+    
+    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
 
-    funcOp->setAttr("llvm.calling_conv", 
-                        mlir::LLVM::CConvAttr::get(op.getContext(), mlir::LLVM::CConv::C));
+    symbolTable.remove(op);
 
+    symbolTable.insert(funcOp);
 
     rewriter.eraseOp(op);
     return mlir::success();
