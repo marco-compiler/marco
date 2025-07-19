@@ -92,8 +92,21 @@ struct ExternalFunctionOpLowering
   mlir::LogicalResult
   matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto functionType = op.getFunctionType();
     
+    auto originalFunctionType = op.getFunctionType();
+    llvm::SmallVector<mlir::Type> argsTypes;
+    llvm::SmallVector<mlir::Type> resultsTypes;
+
+    for (mlir::Type argType : originalFunctionType.getInputs()) {
+      argsTypes.push_back(getTypeConverter()->convertType(argType));
+    }
+
+    for (mlir::Type resultType : originalFunctionType.getResults()) {
+      resultsTypes.push_back(getTypeConverter()->convertType(resultType));
+    }
+
+    auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);
 
