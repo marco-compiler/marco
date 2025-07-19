@@ -15,6 +15,7 @@ namespace mlir {
 } // namespace mlir
 
 using namespace ::mlir::bmodelica;
+using namespace ::mlir::LLVM; 
 
 namespace {
 /// Generic rewrite pattern that provides some utility functions.
