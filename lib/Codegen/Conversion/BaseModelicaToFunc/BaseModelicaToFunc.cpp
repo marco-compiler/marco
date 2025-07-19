@@ -112,6 +112,10 @@ struct ExternalFunctionOpLowering
 
     funcOp.setVisibility(op.getVisibility());
 
+    funcOp->setAttr("llvm.calling_conv", 
+                        mlir::LLVM::CConvAttr::get(op.getContext(), mlir::LLVM::CConv::C));
+
+
     rewriter.eraseOp(op);
     return mlir::success();
   }

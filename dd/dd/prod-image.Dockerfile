@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=marco-local-47:latest
+ARG BASE_IMAGE=marco-local-48:latest
 FROM $BASE_IMAGE
 
 ARG MARCO_COMMIT=Bellani_Bruno-external_functions

@@ -1,4 +1,4 @@
-module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.mangling_mode" = "e", "dlti.stack_alignment" = 128 : i64, "dlti.endianness" = "little", i32 = dense<32> : vector<2xi64>, i64 = dense<64> : vector<2xi64>, i128 = dense<128> : vector<2xi64>, i16 = dense<16> : vector<2xi64>, i8 = dense<8> : vector<2xi64>, i1 = dense<8> : vector<2xi64>, f128 = dense<128> : vector<2xi64>, f64 = dense<64> : vector<2xi64>, !bmodelica.real = ["size", 64], !bmodelica.int = ["size", 64], f80 = dense<128> : vector<2xi64>, f16 = dense<16> : vector<2xi64>, !llvm.ptr<270> = dense<32> : vector<4xi64>, !llvm.ptr<272> = dense<64> : vector<4xi64>, !llvm.ptr<271> = dense<32> : vector<4xi64>, !llvm.ptr = dense<64> : vector<4xi64>>, llvm.data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", llvm.target_triple = "x86_64-unknown-linux-gnu"} {
+module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.stack_alignment" = 128 : i64, "dlti.endianness" = "little", "dlti.mangling_mode" = "e", f80 = dense<128> : vector<2xi64>, f128 = dense<128> : vector<2xi64>, f16 = dense<16> : vector<2xi64>, f64 = dense<64> : vector<2xi64>, i1 = dense<8> : vector<2xi64>, i32 = dense<32> : vector<2xi64>, i16 = dense<16> : vector<2xi64>, i8 = dense<8> : vector<2xi64>, i128 = dense<128> : vector<2xi64>, i64 = dense<64> : vector<2xi64>, !llvm.ptr = dense<64> : vector<4xi64>, !llvm.ptr<271> = dense<32> : vector<4xi64>, !llvm.ptr<270> = dense<32> : vector<4xi64>, !llvm.ptr<272> = dense<64> : vector<4xi64>, !bmodelica.real = ["size", 64], !bmodelica.int = ["size", 64]>, llvm.data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", llvm.target_triple = "x86_64-unknown-linux-gnu"} {
   llvm.func @marco_free(!llvm.ptr)
   llvm.func @marco_malloc(i64) -> !llvm.ptr
   llvm.mlir.global internal constant @var_name_1("der_x\00") {addr_space = 0 : i32}
@@ -17,6 +17,7 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.mangling_mode" = "e", "dlt
     %0 = llvm.mlir.undef : f64
     llvm.return %0 : f64
   }
+  llvm.func @discreteLog(i64, i64) -> i64 attributes {sym_visibility = "private"}
   llvm.mlir.global private @timeStep() {addr_space = 0 : i32} : f64 {
     %0 = llvm.mlir.undef : f64
     llvm.return %0 : f64
@@ -61,13 +62,13 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.mangling_mode" = "e", "dlt
     llvm.store %6, %0 : f64, !llvm.ptr
     llvm.return
   }
-  llvm.func @SimpleFirstOrder_schedule_state_variables() {
-    llvm.call @euler_state_update_x() : () -> ()
-    llvm.return
-  }
   llvm.func @SimpleFirstOrder_ic() {
     llvm.call @equation_0() : () -> ()
     llvm.call @equation_1() : () -> ()
+    llvm.return
+  }
+  llvm.func @SimpleFirstOrder_schedule_state_variables() {
+    llvm.call @euler_state_update_x() : () -> ()
     llvm.return
   }
   llvm.func @SimpleFirstOrder_dynamic() {
@@ -189,15 +190,6 @@ module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.mangling_mode" = "e", "dlt
     llvm.return %3 : f64
   }
   llvm.func @externalLog(%arg0: i64, %arg1: i64) -> i64 {
-    %0 = llvm.mlir.zero : !llvm.ptr
-    %1 = llvm.getelementptr %0[1] : (!llvm.ptr) -> !llvm.ptr, i64
-    %2 = llvm.ptrtoint %1 : !llvm.ptr to i64
-    %3 = llvm.call @marco_malloc(%2) : (i64) -> !llvm.ptr
-    %4 = llvm.load %3 : !llvm.ptr -> i64
-    llvm.call @marco_free(%3) : (!llvm.ptr) -> ()
-    llvm.return %4 : i64
-  }
-  llvm.func @externalLog_discreteLog(%arg0: i64, %arg1: i64) -> i64 {
     %0 = llvm.mlir.zero : !llvm.ptr
     %1 = llvm.getelementptr %0[1] : (!llvm.ptr) -> !llvm.ptr, i64
     %2 = llvm.ptrtoint %1 : !llvm.ptr to i64
