@@ -633,11 +633,9 @@ public:
   VertexDescriptor addVertex(VertexProperty property) {
     uint64_t id = nextVertexId++;
     auto *ptr = new Vertex(std::move(property), id);
-    vertices.push_back(ptr);
-
+    vertices.insert(ptr);
     [[maybe_unused]] bool vertexInsertion = graph.addUniqueNode(*ptr);
     assert(vertexInsertion);
-
     return VertexDescriptor(this, ptr, id);
   }
 
@@ -696,10 +694,9 @@ public:
     // Allocate the property on the heap, so that it can be shared between
     // both the edges, in case of undirected graph.
     auto *edgeProperty = new EdgeProperty(std::move(property));
-    edgeProperties.push_back(edgeProperty);
-
+    edgeProperties.insert(edgeProperty);
     auto *ptr = new Edge(dest, edgeProperty);
-    edges.push_back(ptr);
+    edges.insert(ptr);
     [[maybe_unused]] bool edgeInsertion = graph.connect(src, dest, *ptr);
     assert(edgeInsertion);
 
@@ -708,9 +705,11 @@ public:
       // destination to the source.
 
       auto *inversePtr = new Edge(src, edgeProperty);
-      edges.push_back(inversePtr);
+      edges.insert(inversePtr);
+
       [[maybe_unused]] bool inverseEdgeInsertion =
           graph.connect(dest, src, *inversePtr);
+
       assert(inverseEdgeInsertion);
     }
 
@@ -1013,10 +1012,10 @@ private:
 
 private:
   bool directed;
-  std::vector<Vertex *> vertices;
+  llvm::SetVector<Vertex *> vertices;
   uint64_t nextVertexId{0};
-  std::vector<Edge *> edges;
-  std::vector<EdgeProperty *> edgeProperties;
+  llvm::SetVector<Edge *> edges;
+  llvm::SetVector<EdgeProperty *> edgeProperties;
   typename Traits::Base graph;
 };
 
