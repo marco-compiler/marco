@@ -4489,7 +4489,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         TypeAttrOf<FunctionType>:$function_type
     );
 
-    let regions = (region SizedRegion<0>:$_dummy_region);
+    let regions = (region SizedRegion<0>:_dummy_region);
 
     let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
