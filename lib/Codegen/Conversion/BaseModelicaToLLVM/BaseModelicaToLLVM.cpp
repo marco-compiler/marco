@@ -232,11 +232,11 @@ public:
   }
 };
 
-class ExternalFuncOpLowering : public BaseModelicaOpConversion<ExternalFuncOp> {
+class ExternalFunctionOpLowering : public BaseModelicaOpConversion<ExternalFunctionOp> {
 public:
-    using BaseModelicaOpConversion<ExternalFuncOp>::BaseModelicaOpConversion;
+    using BaseModelicaOpConversion<ExternalFunctionOp>::BaseModelicaOpConversion;
 
-    mlir::LogicalResult matchAndRewrite(ExternalFuncOp op,
+    mlir::LogicalResult matchAndRewrite(ExternalFunctionOp op,
                                   OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const override {
 
@@ -384,7 +384,7 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   target.addIllegalOp<PoolVariableGetOp>();
 
-  target.addIllegalOp<ExternalFuncOp>()
+  target.addIllegalOp<ExternalFunctionOp>()
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
     return !mlir::isa<mlir::MemRefType>(op.getType());
@@ -418,7 +418,7 @@ void populateBaseModelicaToLLVMConversionPatterns(
   // Range operations.
   patterns
       .insert<ConstantOpRangeLowering, RangeOpLowering, RangeBeginOpLowering,
-              RangeEndOpLowering, RangeStepOpLowering, ExternalFuncOpLowering>(typeConverter,
+              RangeEndOpLowering, RangeStepOpLowering, ExternalFunctionOpLowering>(typeConverter,
                                                        symbolTableCollection);
 
   // Variable operations.
