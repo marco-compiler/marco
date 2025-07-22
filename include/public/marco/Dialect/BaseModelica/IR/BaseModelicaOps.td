@@ -4491,7 +4491,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
 
     let regions = (region SizedRegion<0>:_dummy_region);
 
-    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
+    let assemblyFormat = "$sym_name attr-dict `:` $function_type printer";
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$name, "mlir::TypeAttr":$type), [{
