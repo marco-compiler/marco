@@ -232,7 +232,7 @@ public:
   }
 };
 
-class ExternalFuncOpLowering : public ConversionPattern<ExternalFuncOp> {
+class ExternalFuncOpLowering : public BaseModelicaOpConversion<ExternalFuncOp> {
 public:
     using ConversionPattern::ConversionPattern;
 
