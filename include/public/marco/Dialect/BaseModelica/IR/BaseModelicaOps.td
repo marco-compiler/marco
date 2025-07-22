@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [IsolatedFromAbove, Symbol, CallableOpInterface]> 
+    [IsolatedFromAbove, Symbol, CallableOpInterface, FunctionOpInterface]> 
 {
     let summary = "Declares an external function.";
 
@@ -4499,9 +4499,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     ];
 
     let extraClassDeclaration = [{
-        bool isDeclaration() {
-            return true;
-        }
 
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
             return getFunctionType().getInputs();

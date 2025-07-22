@@ -133,7 +133,6 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
       mlir::OpBuilder::InsertionGuard guard(builder());
       builder().setInsertionPointToStart(module.getBody());
       externalFunctionOp = builder().create<ExternalFunctionOp>(loc(call.getLocation()), call.getName(), funcTypeAttr);
-      externalFunctionOp.setLinkage(mlir::LLVM::Linkage::External);
     }
 
     llvm::SmallVector<std::string> argNames;
