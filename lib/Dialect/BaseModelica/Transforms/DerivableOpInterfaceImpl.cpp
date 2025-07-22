@@ -1794,8 +1794,11 @@ struct PowOpInterface
       mlir::Value pow =
           builder.create<PowOp>(loc, *resultType, castedOp.getBase(), exponent);
 
-      auto derivedOp =
+      auto mulWithDer =
           builder.create<MulOp>(loc, *resultType, pow, *derivedBase);
+
+      auto derivedOp = builder.create<MulOp>(loc, *resultType, mulWithDer,
+                                             castedOp.getExponent());
 
       state.mapDerivative(castedOp, derivedOp);
       return mlir::success();
