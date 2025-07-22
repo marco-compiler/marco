@@ -75,6 +75,12 @@ struct EquationTraits {
 
   using Id = typename EquationType::UnknownEquationTypeError;
 };
+
+struct MatchingOptions {
+  bool enableLeafNodesSimplification{true};
+  bool enableScalarization{true};
+  double scalarAccessThreshold{0.5};
+};
 } // namespace matching
 
 namespace internal {
@@ -1002,6 +1008,7 @@ public:
   using EquationIterator = typename Graph::FilteredVertexIterator;
 
   using Access = modeling::matching::Access<typename Variable::Id>;
+  using MatchingOptions = modeling::matching::MatchingOptions;
   using MatchingSolution = MatchingSolution<EquationProperty, VariableProperty>;
 
 private:
@@ -1346,17 +1353,14 @@ public:
   /// Compute a maximum matching between variables and equations.
   /// Returns true if a full match is obtained, false otherwise.
   bool match(llvm::SmallVectorImpl<MatchingSolution> &result,
-             bool enableLeafNodesSimplification = true,
-             bool enableScalarization = true,
-             double scalarAccessThreshold = 0.5) {
-    assert(scalarAccessThreshold >= 0 &&
+             const MatchingOptions &options = MatchingOptions()) {
+    assert(options.scalarAccessThreshold >= 0 &&
            "The scalarization threshold must be greater or equal to zero");
 
     std::lock_guard<std::mutex> lockGuard(mutex);
     MatchingSolutions matchingSolutions;
 
-    if (!match(matchingSolutions, enableLeafNodesSimplification,
-               enableScalarization, scalarAccessThreshold)) {
+    if (!match(matchingSolutions, options)) {
       return false;
     }
 
@@ -1372,9 +1376,8 @@ public:
 
 private:
   bool match(MatchingSolutions &matchingSolutions,
-             bool enableLeafNodesSimplification, bool enableScalarization,
-             double scalarAccessThreshold) {
-    if (enableLeafNodesSimplification) {
+             const MatchingOptions &options) {
+    if (options.enableLeafNodesSimplification) {
       matchLeafNodes();
       collectMatches(matchingSolutions);
     }
@@ -1382,12 +1385,14 @@ private:
     // Operate only on the nodes that are not fully matched.
     Derived unmatchedGraph = getUnmatchedGraph();
 
-    if (enableScalarization) {
+    if (options.enableScalarization) {
       if (auto scalarGraph =
-              unmatchedGraph.getScalarGraph(scalarAccessThreshold)) {
+              unmatchedGraph.getScalarGraph(options.scalarAccessThreshold)) {
+        MatchingOptions disabledScalarizationOptions(options);
+        disabledScalarizationOptions.enableScalarization = false;
+
         return scalarGraph->match(matchingSolutions,
-                                  enableLeafNodesSimplification, false,
-                                  scalarAccessThreshold);
+                                  disabledScalarizationOptions);
       }
     }
 

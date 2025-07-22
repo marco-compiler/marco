@@ -302,11 +302,15 @@ MatchingPass::match(mlir::IRRewriter &rewriter, ModelOp modelOp,
   }
 
   // Apply the matching algorithm.
+  MatchingGraph::MatchingOptions matchingOptions;
+  matchingOptions.enableLeafNodesSimplification = enableSimplificationAlgorithm;
+  matchingOptions.enableScalarization = enableScalarization;
+  matchingOptions.scalarAccessThreshold = scalarAccessThreshold;
+
   using MatchingSolution = MatchingGraph::MatchingSolution;
   llvm::SmallVector<MatchingSolution> matchingSolutions;
 
-  if (!matchingGraph->match(matchingSolutions, enableSimplificationAlgorithm,
-                            enableScalarization, scalarAccessThreshold)) {
+  if (!matchingGraph->match(matchingSolutions, matchingOptions)) {
     modelOp.emitError()
         << "Matching algorithm could not solve the matching problem";
 
