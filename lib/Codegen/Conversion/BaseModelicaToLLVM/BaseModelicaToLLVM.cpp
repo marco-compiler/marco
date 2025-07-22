@@ -241,8 +241,17 @@ public:
                                   OpAdaptor adaptor,
                                   mlir::ConversionPatternRewriter &rewriter) const override {
 
-      auto llvmFuncType = mlir::cast<mlir::LLVM::LLVMFunctionType>(
-        static_cast<const mlir::LLVMTypeConverter *>(getTypeConverter())->convertFunctionType(op.getFunctionType()));
+      auto *llvmTypeConverter = static_cast<const mlir::LLVMTypeConverter *>(getTypeConverter());
+
+      auto funcType = op.getFunctionType();
+      llvm::SmallVector<mlir::Type> argTypes;
+      for (mllir::Type t : funcType.getInputs())
+        argTypes.push_back(llvmTypeConverter->convertType(t));
+
+      mlir::Type resultType = llvmTypeConverter->packFunctionResults(funcType.getResults());
+
+      auto llvmFuncType = mlir::LLVM::LLVMFunctionType::get(resultType, argTypes, false);
+
 
         auto funcOp = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(),
