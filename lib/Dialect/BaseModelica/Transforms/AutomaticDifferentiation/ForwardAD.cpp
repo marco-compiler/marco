@@ -110,6 +110,62 @@ std::optional<FunctionOp> createFunctionPartialDerivative(
   return derivedFunctionOp;
 }
 
+EquationTemplateOp
+createEquationTimeDerivative(mlir::OpBuilder &builder,
+                             mlir::SymbolTableCollection &symbolTables,
+                             State &state, EquationTemplateOp templateOp) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointAfter(templateOp);
+
+  auto newTemplateOp = builder.create<EquationTemplateOp>(templateOp.getLoc());
+  newTemplateOp.createBody(templateOp.getInductionVariables().size());
+
+  mlir::IRMapping mapping;
+
+  for (auto [oldInduction, newInduction] :
+       llvm::zip(templateOp.getInductionVariables(),
+                 newTemplateOp.getInductionVariables())) {
+    mapping.map(oldInduction, newInduction);
+  }
+
+  // Create the derivatives for the induction variables.
+  builder.setInsertionPointToStart(newTemplateOp.getBody());
+
+  for (mlir::Value induction : templateOp.getInductionVariables()) {
+    auto zero = builder.create<ConstantOp>(
+        induction.getLoc(), RealAttr::get(builder.getContext(), 0));
+
+    state.mapDerivative(induction, zero);
+  }
+
+  for (mlir::Operation &op : templateOp.getOps()) {
+    if (auto equationSidesOp = mlir::dyn_cast<EquationSidesOp>(op)) {
+      auto lhs = state.getDerivative(mapping.lookup(equationSidesOp.getLhs()));
+      auto rhs = state.getDerivative(mapping.lookup(equationSidesOp.getRhs()));
+
+      if (!lhs || !rhs) {
+        return nullptr;
+      }
+
+      builder.create<EquationSidesOp>(equationSidesOp.getLoc(), *lhs, *rhs);
+      continue;
+    }
+
+    mlir::Operation *cloneOp = builder.clone(op, mapping);
+
+    if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(cloneOp)) {
+      if (mlir::failed(derivableOp.createTimeDerivative(builder, symbolTables,
+                                                        state, false))) {
+        return nullptr;
+      }
+    } else {
+      return nullptr;
+    }
+  }
+
+  return newTemplateOp;
+}
+
 std::string getTimeDerFunctionName(llvm::StringRef baseName) {
   return "timeder_" + baseName.str();
 }

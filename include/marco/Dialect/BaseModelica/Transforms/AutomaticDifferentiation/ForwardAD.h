@@ -17,6 +17,11 @@ std::optional<FunctionOp> createFunctionPartialDerivative(
     mlir::SymbolTableCollection &symbolTableCollection, State &state,
     FunctionOp functionOp, llvm::StringRef derivativeName);
 
+EquationTemplateOp
+createEquationTimeDerivative(mlir::OpBuilder &builder,
+                             mlir::SymbolTableCollection &symbolTables,
+                             State &state, EquationTemplateOp templateOp);
+
 std::string getTimeDerFunctionName(llvm::StringRef baseName);
 
 /// Compose the full derivative member name according to the derivative order.
