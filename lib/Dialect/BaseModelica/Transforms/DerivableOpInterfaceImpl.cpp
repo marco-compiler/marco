@@ -108,6 +108,62 @@ struct TimeOpInterface
   }
 };
 
+struct EquationSideOpInterface
+    : public DerivableOpInterface::ExternalModel<EquationSideOpInterface,
+                                                 EquationSideOp> {
+  mlir::LogicalResult
+  createPartialDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                          mlir::SymbolTableCollection &symbolTableCollection,
+                          State &state) const {
+    return createDerivative(op, builder, state);
+  }
+
+  mlir::LogicalResult
+  createTimeDerivative(mlir::Operation *op, mlir::OpBuilder &builder,
+                       mlir::SymbolTableCollection &symbolTableCollection,
+                       State &state, bool deriveDependencies) const {
+    auto castedOp = mlir::cast<EquationSideOp>(op);
+
+    if (deriveDependencies) {
+      for (mlir::Value value : castedOp.getValues()) {
+        if (mlir::failed(createValueTimeDerivative(
+                builder, symbolTableCollection, state, value))) {
+          return mlir::failure();
+        }
+      }
+    }
+
+    return createDerivative(op, builder, state);
+  }
+
+  mlir::LogicalResult createDerivative(mlir::Operation *op,
+                                       mlir::OpBuilder &builder,
+                                       State &state) const {
+    auto castedOp = mlir::cast<EquationSideOp>(op);
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointAfter(castedOp);
+
+    llvm::SmallVector<mlir::Value> derivedValues;
+
+    for (mlir::Value value : castedOp.getValues()) {
+      auto derivedValue = getDerivative(state, value);
+
+      if (!derivedValue) {
+        return mlir::failure();
+      }
+
+      derivedValues.push_back(*derivedValue);
+    }
+
+    auto derivedOp =
+        builder.create<EquationSideOp>(castedOp.getLoc(), derivedValues);
+
+    state.mapDerivative(castedOp, derivedOp);
+    return mlir::success();
+  }
+};
+
 struct TensorFromElementsOpInterface
     : public DerivableOpInterface::ExternalModel<TensorFromElementsOpInterface,
                                                  TensorFromElementsOp> {
@@ -3337,6 +3393,7 @@ void registerDerivableOpInterfaceExternalModels(
   registry.addExtension(+[](mlir::MLIRContext *context,
                             BaseModelicaDialect *dialect) {
     // clang-format off
+    EquationSideOp::attachInterface<::EquationSideOpInterface>(*context);
     TimeOp::attachInterface<::TimeOpInterface>(*context);
 
     // Tensor operations.
