@@ -80,13 +80,15 @@ void AdditionalInductions::addDimensionDependency(uint64_t iterationSpace,
 } // namespace mlir::bmodelica
 
 namespace mlir::bmodelica::ad::forward {
-State::State() = default;
+State::State(Options options) : options(std::move(options)) {}
 
 State::State(State &&other) = default;
 
 State::~State() = default;
 
 State &State::operator=(State &&other) = default;
+
+const Options &State::getOptions() const { return options; }
 
 void State::mapDerivative(mlir::Value original, mlir::Value mapped) {
   valueMapping.map(original, mapped);
