@@ -108,13 +108,28 @@ class VertexWrapper
     : public PropertyWrapper<VertexProperty>,
       public llvm::DGNode<VertexWrapper<VertexProperty, EdgeProperty>,
                           EdgeWrapper<VertexProperty, EdgeProperty>> {
+  using EdgeWrapper = EdgeWrapper<VertexProperty, EdgeProperty>;
+
   uint64_t id;
+  llvm::SetVector<EdgeWrapper *> incomingEdges;
 
 public:
   explicit VertexWrapper(VertexProperty property, uint64_t id)
       : PropertyWrapper<VertexProperty>(std::move(property)), id(id) {}
 
   uint64_t getId() const { return id; }
+
+  auto getIncomingEdges() {
+    return llvm::make_range(incomingEdges.begin(), incomingEdges.end());
+  }
+
+  auto getIncomingEdges() const {
+    return llvm::make_range(incomingEdges.begin(), incomingEdges.end());
+  }
+
+  void addIncomingEdge(EdgeWrapper *edge) { incomingEdges.insert(edge); }
+
+  void removeIncomingEdge(EdgeWrapper *edge) { incomingEdges.remove(edge); }
 };
 
 template <typename VertexProperty, typename EdgeProperty>
@@ -639,6 +654,51 @@ public:
     return VertexDescriptor(this, ptr, id);
   }
 
+  /// Remove a vertex from the graph.
+  void removeVertex(VertexDescriptor vertexDescriptor) {
+    Vertex &vertex = getVertexFromDescriptor(vertexDescriptor);
+
+    // Remove the incoming edges.
+    for (Edge *edge : vertex.getIncomingEdges()) {
+      // Remove the edge from the outgoing set of edges of the other vertex.
+      Vertex &otherVertex = edge->getTargetNode();
+      otherVertex.removeEdge(*edge);
+
+      if (directed) {
+        // Deallocate the edge property only in case of directed graph. In case
+        // of undirected graph, the edge property will be deallocated while
+        // visiting the outgoing edges (in an undirected graph the edge property
+        // is shared between the wrapper, and a double deallocation would
+        // otherwise occur).
+        edgeProperties.remove(**edge);
+        delete **edge;
+      }
+
+      // Deallocate the edge wrapper.
+      edges.remove(edge);
+      delete edge;
+    }
+
+    // Remove the outgoing edges.
+    for (Edge *edge : vertex) {
+      // Remove the edge from the incoming set of edges of the other vertex.
+      Vertex &otherVertex = edge->getTargetNode();
+      otherVertex.removeIncomingEdge(edge);
+
+      // Deallocate the edge property.
+      edgeProperties.remove(**edge);
+      delete **edge;
+
+      // Deallocate the edge wrapper.
+      edges.remove(edge);
+      delete edge;
+    }
+
+    // Remove the vertex.
+    vertices.remove(vertexDescriptor.value);
+    delete vertexDescriptor.value;
+  }
+
   /// Get the vertices of the graph.
   auto getVertices() const {
     return llvm::make_range(verticesBegin(), verticesEnd());
@@ -699,11 +759,11 @@ public:
     edges.insert(ptr);
     [[maybe_unused]] bool edgeInsertion = graph.connect(src, dest, *ptr);
     assert(edgeInsertion);
+    dest.addIncomingEdge(ptr);
 
     if (!directed) {
       // If the graph is undirected, add also the edge going from the
       // destination to the source.
-
       auto *inversePtr = new Edge(src, edgeProperty);
       edges.insert(inversePtr);
 
@@ -711,6 +771,7 @@ public:
           graph.connect(dest, src, *inversePtr);
 
       assert(inverseEdgeInsertion);
+      src.addIncomingEdge(inversePtr);
     }
 
     return EdgeDescriptor(this, from, to, ptr);
