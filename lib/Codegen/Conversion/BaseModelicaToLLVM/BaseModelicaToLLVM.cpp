@@ -243,7 +243,7 @@ public:
         auto funcOp = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(),
             op.getName(),
-            typeConverter->convertFunctionSignature(op.getFunctionType(), false)
+            typeConverter->convertFunctionType(op.getFunctionType())
         );
         
         funcOp.setLinkage(mlir::LLVM::Linkage::External);
@@ -384,7 +384,7 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   target.addIllegalOp<PoolVariableGetOp>();
 
-  target.addIllegalOp<ExternalFunctionOp>()
+  target.addIllegalOp<ExternalFunctionOp>();
 
   target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
     return !mlir::isa<mlir::MemRefType>(op.getType());
