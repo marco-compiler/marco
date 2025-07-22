@@ -245,7 +245,7 @@ public:
 
       auto funcType = op.getFunctionType();
       llvm::SmallVector<mlir::Type> argTypes;
-      for (mllir::Type t : funcType.getInputs())
+      for (mlir::Type t : funcType.getInputs())
         argTypes.push_back(llvmTypeConverter->convertType(t));
 
       mlir::Type resultType = llvmTypeConverter->packFunctionResults(funcType.getResults());
