@@ -70,9 +70,13 @@ private:
 };
 
 namespace ad::forward {
+struct Options {
+  bool unknowVariablesAsConstants{false};
+};
+
 class State {
 public:
-  State();
+  explicit State(Options options = Options());
 
   State(const State &other) = delete;
 
@@ -83,6 +87,8 @@ public:
   State &operator=(const State &other) = delete;
 
   State &operator=(State &&other);
+
+  const Options &getOptions() const;
 
   void mapDerivative(mlir::Value original, mlir::Value mapped);
 
@@ -102,6 +108,7 @@ public:
   getGenericOpDerivative(mlir::Operation *original) const;
 
 private:
+  Options options;
   mlir::IRMapping valueMapping;
   llvm::DenseMap<mlir::Operation *, mlir::Operation *> generalOpMapping;
 };

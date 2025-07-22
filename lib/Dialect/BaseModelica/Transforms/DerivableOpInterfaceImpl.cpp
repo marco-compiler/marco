@@ -803,16 +803,43 @@ struct VariableGetOpInterface
         parentClass, castedOp.getVariableAttr());
 
     assert(variableOp && "Variable lookup failed");
-    auto derivativeVariableOp = getGenericOpDerivative(state, variableOp);
+    auto derivativeVariableOp = state.getGenericOpDerivative(variableOp);
 
-    if (!derivativeVariableOp) {
+    if (derivativeVariableOp) {
+      auto derivedOp = builder.create<VariableGetOp>(
+          castedOp.getLoc(), mlir::cast<VariableOp>(*derivativeVariableOp));
+
+      state.mapDerivative(castedOp, derivedOp);
+    } else if (state.getOptions().unknowVariablesAsConstants) {
+      auto derivableType = mlir::dyn_cast<DerivableTypeInterface>(
+          castedOp.getResult().getType());
+
+      if (!derivableType) {
+        return mlir::failure();
+      }
+
+      auto derivedType = derivableType.derive();
+
+      if (mlir::failed(derivedType)) {
+        return mlir::failure();
+      }
+
+      auto materializableType =
+          mlir::dyn_cast<ConstantMaterializableTypeInterface>(*derivedType);
+
+      if (!materializableType) {
+        return mlir::failure();
+      }
+
+      mlir::Value zero = materializableType.materializeIntConstant(
+          builder, castedOp.getLoc(), 0);
+
+      state.mapDerivative(castedOp, zero);
+    } else {
+      mlir::emitError(castedOp.getLoc()) << "Can't get derivative";
       return mlir::failure();
     }
 
-    auto derivedOp = builder.create<VariableGetOp>(
-        castedOp.getLoc(), mlir::cast<VariableOp>(*derivativeVariableOp));
-
-    state.mapDerivative(castedOp, derivedOp);
     return mlir::success();
   }
 };
