@@ -240,13 +240,13 @@ public:
                                   OpAdaptor adaptor,
                                   mlir::ConversionPatternRewriter &rewriter) const override {
 
-        auto funcOp = rewriter.create<LLVM::LLVMFuncOp>(
+        auto funcOp = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(),
             op.getName(),
             typeConverter->convertFunctionSignature(op.getFunctionType(), false)
         );
         
-        funcOp.setLinkage(LLVM::Linkage::External);
+        funcOp.setLinkage(mlir::LLVM::Linkage::External);
 
         rewriter.eraseOp(op);
 
