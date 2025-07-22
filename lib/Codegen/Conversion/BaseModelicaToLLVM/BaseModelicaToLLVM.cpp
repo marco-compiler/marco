@@ -238,7 +238,7 @@ public:
 
     mlir::LogicalResult matchAndRewrite(ExternalFunctionOp op,
                                   OpAdaptor adaptor,
-                                  ConversionPatternRewriter &rewriter) const override {
+                                  mlir::ConversionPatternRewriter &rewriter) const override {
 
         auto funcOp = rewriter.create<LLVM::LLVMFuncOp>(
             op.getLoc(),
