@@ -4,11 +4,11 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DirectedGraph.h"
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include <functional>
-#include <map>
 #include <memory>
 
 namespace marco::modeling::internal {
@@ -108,10 +108,10 @@ class VertexWrapper
     : public PropertyWrapper<VertexProperty>,
       public llvm::DGNode<VertexWrapper<VertexProperty, EdgeProperty>,
                           EdgeWrapper<VertexProperty, EdgeProperty>> {
-  using EdgeWrapper = EdgeWrapper<VertexProperty, EdgeProperty>;
+  using EW = EdgeWrapper<VertexProperty, EdgeProperty>;
 
   uint64_t id;
-  llvm::SetVector<EdgeWrapper *> incomingEdges;
+  llvm::MapVector<VertexWrapper *, llvm::SetVector<EW *>> incomingEdges;
 
 public:
   explicit VertexWrapper(VertexProperty property, uint64_t id)
@@ -127,9 +127,15 @@ public:
     return llvm::make_range(incomingEdges.begin(), incomingEdges.end());
   }
 
-  void addIncomingEdge(EdgeWrapper *edge) { incomingEdges.insert(edge); }
+  void addIncomingEdge(VertexWrapper *from, EW *edge) {
+    assert(edge->getTargetNode() == *this);
+    incomingEdges[from].insert(edge);
+  }
 
-  void removeIncomingEdge(EdgeWrapper *edge) { incomingEdges.remove(edge); }
+  void removeIncomingEdge(VertexWrapper *from, EW *edge) {
+    assert(incomingEdges[from].contains(edge));
+    incomingEdges[from].remove(edge);
+  }
 };
 
 template <typename VertexProperty, typename EdgeProperty>
@@ -170,6 +176,17 @@ struct GraphTraits {
       // search for duplicates.
       this->Nodes.push_back(&node);
       return true;
+    }
+
+    /// Remove a vertex from the list of vertices.
+    void removeNodeOnly(Vertex &node) {
+      auto it = llvm::find_if(this->Nodes, [&node](const Vertex *current) {
+        return *current == node;
+      });
+
+      if (it != this->Nodes.end()) {
+        this->Nodes.erase(it);
+      }
     }
   };
 
@@ -659,31 +676,34 @@ public:
     Vertex &vertex = getVertexFromDescriptor(vertexDescriptor);
 
     // Remove the incoming edges.
-    for (Edge *edge : vertex.getIncomingEdges()) {
+    for (auto &incomingEdges : vertex.getIncomingEdges()) {
       // Remove the edge from the outgoing set of edges of the other vertex.
-      Vertex &otherVertex = edge->getTargetNode();
-      otherVertex.removeEdge(*edge);
+      Vertex &otherVertex = *incomingEdges.first;
 
-      if (directed) {
-        // Deallocate the edge property only in case of directed graph. In case
-        // of undirected graph, the edge property will be deallocated while
-        // visiting the outgoing edges (in an undirected graph the edge property
-        // is shared between the wrapper, and a double deallocation would
-        // otherwise occur).
-        edgeProperties.remove(**edge);
-        delete **edge;
+      for (Edge *incomingEdge : incomingEdges.second) {
+        otherVertex.removeEdge(*incomingEdge);
+
+        if (directed) {
+          // Deallocate the edge property only in case of directed graph. In
+          // case of undirected graph, the edge property will be deallocated
+          // while visiting the outgoing edges (in an undirected graph the edge
+          // property is shared between the wrapper, and a double deallocation
+          // would otherwise occur).
+          edgeProperties.remove(**incomingEdge);
+          delete **incomingEdge;
+        }
+
+        // Deallocate the edge wrapper.
+        edges.remove(incomingEdge);
+        delete incomingEdge;
       }
-
-      // Deallocate the edge wrapper.
-      edges.remove(edge);
-      delete edge;
     }
 
     // Remove the outgoing edges.
     for (Edge *edge : vertex) {
       // Remove the edge from the incoming set of edges of the other vertex.
       Vertex &otherVertex = edge->getTargetNode();
-      otherVertex.removeIncomingEdge(edge);
+      otherVertex.removeIncomingEdge(&vertex, edge);
 
       // Deallocate the edge property.
       edgeProperties.remove(**edge);
@@ -695,6 +715,7 @@ public:
     }
 
     // Remove the vertex.
+    graph.removeNodeOnly(vertex);
     vertices.remove(vertexDescriptor.value);
     delete vertexDescriptor.value;
   }
@@ -759,7 +780,7 @@ public:
     edges.insert(ptr);
     [[maybe_unused]] bool edgeInsertion = graph.connect(src, dest, *ptr);
     assert(edgeInsertion);
-    dest.addIncomingEdge(ptr);
+    dest.addIncomingEdge(&src, ptr);
 
     if (!directed) {
       // If the graph is undirected, add also the edge going from the
@@ -771,7 +792,7 @@ public:
           graph.connect(dest, src, *inversePtr);
 
       assert(inverseEdgeInsertion);
-      src.addIncomingEdge(inversePtr);
+      src.addIncomingEdge(&dest, inversePtr);
     }
 
     return EdgeDescriptor(this, from, to, ptr);
