@@ -184,6 +184,7 @@ public:
 };
 
 class RangeOpLowering : public BaseModelicaOpConversion<RangeOp> {
+
 public:
   using BaseModelicaOpConversion<RangeOp>::BaseModelicaOpConversion;
 
@@ -240,17 +241,20 @@ public:
                                   OpAdaptor adaptor,
                                   mlir::ConversionPatternRewriter &rewriter) const override {
 
+      auto llvmFuncType = mlir::cast<mlir::LLVM::LLVMFunctionType>(
+        static_cast<const mlir::LLVMTypeConverter *>(getTypeConverter())->convertFunctionType(op.getFunctionType()));
+
         auto funcOp = rewriter.create<mlir::LLVM::LLVMFuncOp>(
             op.getLoc(),
             op.getName(),
-            typeConverter->convertFunctionType(op.getFunctionType())
-        );
+            llvmFuncType
+          );
         
         funcOp.setLinkage(mlir::LLVM::Linkage::External);
 
         rewriter.eraseOp(op);
 
-        return success();
+        return mlir::success();
     }
 };
 
