@@ -234,9 +234,9 @@ public:
 
 class ExternalFuncOpLowering : public BaseModelicaOpConversion<ExternalFuncOp> {
 public:
-    using ConversionPattern::ConversionPattern;
+    using BaseModelicaOpConversion<ExternalFuncOp>::BaseModelicaOpConversion;
 
-    LogicalResult matchAndRewrite(BModelica::ExternalFuncOp op,
+    mlir::LogicalResult matchAndRewrite(ExternalFuncOp op,
                                   OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const override {
 
@@ -248,7 +248,6 @@ public:
         
         funcOp.setLinkage(LLVM::Linkage::External);
 
-        // 3. Rimuovi l'operazione originale
         rewriter.eraseOp(op);
 
         return success();
