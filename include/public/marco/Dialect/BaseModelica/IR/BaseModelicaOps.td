@@ -4489,6 +4489,8 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         TypeAttrOf<FunctionType>:$function_type
     );
 
+    let regions = (region SizedRegion<0>:$_dummy_region);
+
     let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
     let builders = [
@@ -4499,8 +4501,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     ];
 
     let extraClassDeclaration = [{
-
-        void verifyBody() override {}
 
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
             return getFunctionType().getInputs();
