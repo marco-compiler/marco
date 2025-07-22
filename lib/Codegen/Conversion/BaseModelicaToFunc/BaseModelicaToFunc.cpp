@@ -85,45 +85,6 @@ public:
   }
 };
 
-struct ExternalFunctionOpLowering
-    : public FunctionLoweringPattern<ExternalFunctionOp> {
-  using FunctionLoweringPattern<ExternalFunctionOp>::FunctionLoweringPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    
-    auto originalFunctionType = op.getFunctionType();
-    llvm::SmallVector<mlir::Type> argsTypes;
-    llvm::SmallVector<mlir::Type> resultsTypes;
-
-    for (mlir::Type argType : originalFunctionType.getInputs()) {
-      argsTypes.push_back(getTypeConverter()->convertType(argType));
-    }
-
-    for (mlir::Type resultType : originalFunctionType.getResults()) {
-      resultsTypes.push_back(getTypeConverter()->convertType(resultType));
-    }
-
-    auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
-
-    auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), op.getSymName(), functionType);
-
-    funcOp.setVisibility(op.getVisibility());
-    
-    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
-        op->getParentOfType<mlir::ModuleOp>());
-
-    symbolTable.remove(op);
-
-    symbolTable.insert(funcOp);
-
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
-
 struct EquationFunctionOpLowering
     : public FunctionLoweringPattern<EquationFunctionOp> {
   using FunctionLoweringPattern<EquationFunctionOp>::FunctionLoweringPattern;
@@ -739,7 +700,7 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
-                      RawReturnOp, CallOp, ExternalFunctionOp>();
+                      RawReturnOp, CallOp>();
 
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
@@ -761,7 +722,7 @@ void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering, ExternalFunctionOpLowering>(
+  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
       typeConverter, context, symbolTableCollection);
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(

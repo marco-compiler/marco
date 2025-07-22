@@ -232,6 +232,29 @@ public:
   }
 };
 
+class ExternalFuncOpLowering : public ConversionPattern<BModelica::ExternalFuncOp> {
+public:
+    using ConversionPattern::ConversionPattern;
+
+    LogicalResult matchAndRewrite(BModelica::ExternalFuncOp op,
+                                  OpAdaptor adaptor,
+                                  ConversionPatternRewriter &rewriter) const override {
+
+        auto funcOp = rewriter.create<LLVM::LLVMFuncOp>(
+            op.getLoc(),
+            op.getName(),
+            typeConverter->convertFunctionSignature(op.getFunctionType(), false)
+        );
+        
+        funcOp.setLinkage(LLVM::Linkage::External);
+
+        // 3. Rimuovi l'operazione originale
+        rewriter.eraseOp(op);
+
+        return success();
+    }
+};
+
 struct RangeBeginOpLowering : public BaseModelicaOpConversion<RangeBeginOp> {
   using BaseModelicaOpConversion<RangeBeginOp>::BaseModelicaOpConversion;
 
@@ -362,6 +385,8 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   target.addIllegalOp<PoolVariableGetOp>();
 
+  target.addIllegalOp<ExternalFuncOp>()
+
   target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
     return !mlir::isa<mlir::MemRefType>(op.getType());
   });
@@ -394,7 +419,7 @@ void populateBaseModelicaToLLVMConversionPatterns(
   // Range operations.
   patterns
       .insert<ConstantOpRangeLowering, RangeOpLowering, RangeBeginOpLowering,
-              RangeEndOpLowering, RangeStepOpLowering>(typeConverter,
+              RangeEndOpLowering, RangeStepOpLowering, ExternalFuncOpLowering>(typeConverter,
                                                        symbolTableCollection);
 
   // Variable operations.

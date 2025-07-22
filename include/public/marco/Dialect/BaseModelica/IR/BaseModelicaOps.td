@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [IsolatedFromAbove, Symbol, CallableOpInterface, FunctionOpInterface]> 
+    [Symbol, CallableOpInterface]> 
 {
     let summary = "Declares an external function.";
 
@@ -4489,9 +4489,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         TypeAttrOf<FunctionType>:$function_type
     );
 
-    let regions = (region SizedRegion<0>:$_dummy_region);
-
-    let assemblyFormat = "$sym_name attr-dict `:` $function_type printer";
+    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$name, "mlir::TypeAttr":$type), [{
@@ -4501,6 +4499,9 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     ];
 
     let extraClassDeclaration = [{
+        bool isDeclaration() {
+            return true;
+        }
 
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
             return getFunctionType().getInputs();
