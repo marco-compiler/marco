@@ -4500,6 +4500,11 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
         }]>
     ];
 
+    let methods = [
+        Method<"void", "verifyBody", (ins), [{ return; }>,
+               /*isOverride=*/true>
+    ];
+
     let extraClassDeclaration = [{
 
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
