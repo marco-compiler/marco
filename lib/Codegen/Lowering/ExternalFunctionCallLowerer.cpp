@@ -26,7 +26,7 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
   llvm::SmallVector<std::string, 3> argNames;
   llvm::SmallVector<mlir::Value, 3> argValues;
 
-  if (!FunctionArgs(call, inputVariables, argNames, argValues)) {
+  if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
     return std::nullopt;
   }
 
