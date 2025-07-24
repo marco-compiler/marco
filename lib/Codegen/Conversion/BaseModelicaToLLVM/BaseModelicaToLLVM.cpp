@@ -233,39 +233,6 @@ public:
   }
 };
 
-class ExternalFunctionOpLowering : public BaseModelicaOpConversion<ExternalFunctionOp> {
-public:
-    using BaseModelicaOpConversion<ExternalFunctionOp>::BaseModelicaOpConversion;
-
-    mlir::LogicalResult matchAndRewrite(ExternalFunctionOp op,
-                                  OpAdaptor adaptor,
-                                  mlir::ConversionPatternRewriter &rewriter) const override {
-
-      auto *llvmTypeConverter = static_cast<const mlir::LLVMTypeConverter *>(getTypeConverter());
-
-      auto funcType = op.getFunctionType();
-      llvm::SmallVector<mlir::Type> argTypes;
-      for (mlir::Type t : funcType.getInputs())
-        argTypes.push_back(llvmTypeConverter->convertType(t));
-
-      mlir::Type resultType = llvmTypeConverter->packFunctionResults(funcType.getResults());
-
-      auto llvmFuncType = mlir::LLVM::LLVMFunctionType::get(resultType, argTypes, false);
-
-
-        auto funcOp = rewriter.create<mlir::LLVM::LLVMFuncOp>(
-            op.getLoc(),
-            op.getName(),
-            llvmFuncType
-          );
-        
-        funcOp.setLinkage(mlir::LLVM::Linkage::External);
-
-        rewriter.eraseOp(op);
-
-        return mlir::success();
-    }
-};
 
 struct RangeBeginOpLowering : public BaseModelicaOpConversion<RangeBeginOp> {
   using BaseModelicaOpConversion<RangeBeginOp>::BaseModelicaOpConversion;
@@ -397,8 +364,6 @@ mlir::LogicalResult BaseModelicaToLLVMConversionPass::convertOperations() {
 
   target.addIllegalOp<PoolVariableGetOp>();
 
-  target.addIllegalOp<ExternalFunctionOp>();
-
   target.addDynamicallyLegalOp<PoolVariableGetOp>([](PoolVariableGetOp op) {
     return !mlir::isa<mlir::MemRefType>(op.getType());
   });
@@ -431,7 +396,7 @@ void populateBaseModelicaToLLVMConversionPatterns(
   // Range operations.
   patterns
       .insert<ConstantOpRangeLowering, RangeOpLowering, RangeBeginOpLowering,
-              RangeEndOpLowering, RangeStepOpLowering, ExternalFunctionOpLowering>(typeConverter,
+              RangeEndOpLowering, RangeStepOpLowering>(typeConverter,
                                                        symbolTableCollection);
 
   // Variable operations.

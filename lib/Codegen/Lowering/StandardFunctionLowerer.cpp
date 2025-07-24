@@ -11,6 +11,54 @@ StandardFunctionLowerer::StandardFunctionLowerer(BridgeInterface *bridge)
 void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   mlir::Location location = loc(function.getLocation());
 
+  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
+    llvm::SmallVector<mlir::Type> inputTypes;
+    llvm::SmallVector<mlir::Type> outputTypes;
+
+    for (const auto &variableNode : function.getVariables()) {
+      const auto* member = variableNode->cast<ast::Member>();
+
+      const ast::VariableType* astVariableType = member->getType();
+      const ast::TypePrefix* astTypePrefix = member->getTypePrefix();
+      
+      if (!astVariableType || !astTypePrefix) {
+        return;
+      }   
+
+      std::optional<VariableType> mlirVariableType = 
+        getVariableType(*astVariableType, *astTypePrefix);
+
+      if (!mlirVariableType) {
+        return;
+      }
+
+      if (member->isInput()) {
+        inputTypes.push_back(mlirVariableType->unwrap());
+      } else if (member->isOutput()) {
+        outputTypes.push_back(mlirVariableType->unwrap());
+      }
+    }
+
+    mlir::FunctionType funcType = mlir::FunctionType::get(
+      builder().getContext(), 
+      inputTypes,             
+      outputTypes         
+    );
+
+    auto funcTypeAttr = mlir::TypeAttr::get(funcType);
+
+    ExternalFunctionOp externalFunctionOp; 
+    
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().setInsertionPointToEnd(getContext().getModuleOp()->getBody());      
+      externalFunctionOp = builder().create<ExternalFunctionOp>(location, function.getName(), funcTypeAttr);
+      externalFunctionOp.setPublic(); 
+    }
+
+    return;
+  }
+
   // Create the record operation.
   auto functionOp = builder().create<FunctionOp>(location, function.getName());
 
@@ -26,6 +74,9 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
 
 bool StandardFunctionLowerer::declareVariables(
     const ast::StandardFunction &function) {
+  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
+    return true; 
+  }
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -52,6 +103,9 @@ bool StandardFunctionLowerer::declareVariables(
 }
 
 bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
+  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
+    return true; 
+  }
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
@@ -245,4 +299,75 @@ bool StandardFunctionLowerer::isRecordConstructor(
     const ast::StandardFunction &function) {
   return function.getName().contains("'constructor'");
 }
+
+std::optional<VariableType>
+StandardFunctionLowerer::getVariableType(const ast::VariableType &variableType,
+                              const ast::TypePrefix &typePrefix) {
+  llvm::SmallVector<int64_t, 3> shape;
+
+  for (size_t i = 0, rank = variableType.getRank(); i < rank; ++i) {
+    const ast::ArrayDimension *dimension = variableType[i];
+
+    if (dimension->isDynamic()) {
+      shape.push_back(VariableType::kDynamic);
+    } else {
+      shape.push_back(dimension->getNumericSize());
+    }
+  }
+
+  mlir::Type baseType;
+
+  if (auto builtInType = variableType.dyn_cast<ast::BuiltInType>()) {
+    if (builtInType->getBuiltInTypeKind() == ast::BuiltInType::Kind::Boolean) {
+      baseType = BooleanType::get(builder().getContext());
+    } else if (builtInType->getBuiltInTypeKind() ==
+               ast::BuiltInType::Kind::Integer) {
+      baseType = IntegerType::get(builder().getContext());
+    } else if (builtInType->getBuiltInTypeKind() ==
+               ast::BuiltInType::Kind::Real) {
+      baseType = RealType::get(builder().getContext());
+    } else {
+      llvm_unreachable("Unknown built-in type");
+      return nullptr;
+    }
+  } else if (auto userDefinedType =
+                 variableType.dyn_cast<ast::UserDefinedType>()) {
+    auto symbolOp = resolveType(*userDefinedType, getLookupScope());
+
+    if (!symbolOp) {
+      return std::nullopt;
+    }
+
+    if (mlir::isa<RecordOp>(*symbolOp)) {
+      baseType = RecordType::get(builder().getContext(),
+                                 getSymbolRefFromRoot(*symbolOp));
+    } else {
+      llvm_unreachable("Unknown variable type");
+      return nullptr;
+    }
+  } else {
+    llvm_unreachable("Unknown variable type");
+    return nullptr;
+  }
+
+  VariabilityProperty variabilityProperty = VariabilityProperty::none;
+  IOProperty ioProperty = IOProperty::none;
+
+  if (typePrefix.isDiscrete()) {
+    variabilityProperty = VariabilityProperty::discrete;
+  } else if (typePrefix.isParameter()) {
+    variabilityProperty = VariabilityProperty::parameter;
+  } else if (typePrefix.isConstant()) {
+    variabilityProperty = VariabilityProperty::constant;
+  }
+
+  if (typePrefix.isInput()) {
+    ioProperty = IOProperty::input;
+  } else if (typePrefix.isOutput()) {
+    ioProperty = IOProperty::output;
+  }
+
+  return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
+}
+
 } // namespace marco::codegen::lowering

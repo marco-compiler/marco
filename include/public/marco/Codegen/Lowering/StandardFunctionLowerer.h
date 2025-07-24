@@ -22,6 +22,10 @@ protected:
   using Lowerer::declareVariables;
   using Lowerer::lower;
 
+  std::optional<mlir::bmodelica::VariableType>
+  getVariableType(const ast::VariableType &type,
+                  const ast::TypePrefix &typePrefix);
+
 private:
   [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member &variable);
 
