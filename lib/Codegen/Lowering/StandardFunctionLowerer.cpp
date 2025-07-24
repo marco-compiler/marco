@@ -18,11 +18,6 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   builder().createBlock(&functionOp.getBodyRegion());
   builder().setInsertionPointToStart(functionOp.getBody());
 
-  // Declare the inner classes.
-  for (const auto &innerClassNode : function.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
-  }
-
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
     llvm::SmallVector<mlir::Type> inputTypes;
     llvm::SmallVector<mlir::Type> outputTypes;
@@ -68,6 +63,11 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcTypeAttr);
       externalFunctionOp.setPrivate();
     }
+  }
+
+    // Declare the inner classes.
+  for (const auto &innerClassNode : function.getInnerClasses()) {
+    declare(*innerClassNode->cast<ast::Class>());
   }
 
 }
@@ -248,6 +248,10 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
     builder().create<VariableSetOp>(location, resultVariables[0], record);
     builder().setInsertionPointAfter(algorithmOp);
+  }
+
+  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
+    lower(function.getExternalRef()->getExternalFunctionCall());
   }
 
   // Lower the inner classes.
