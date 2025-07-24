@@ -31,7 +31,7 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
   }
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                        externalFunctionCallOp,
+                                        calleeOp,
                                         argValues);
 
   std::vector<Reference> results;
