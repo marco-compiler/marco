@@ -15,7 +15,7 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
 
   llvm::SmallVector<VariableOp> inputVariables;
 
-//  auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionCallOp>(*calleeOp);
+  auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionCallOp>(*calleeOp);
   const ast::ASTNode *grandparent = call.getParent()->getParent();
   auto parentClassNode = grandparent->dyn_cast<const ast::Class>();
 
@@ -29,13 +29,11 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
   if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
     return std::nullopt;
   }
-
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                        getSymbolRefFromRoot(*calleeOp),
+                                        externalFunctionCallOp,
                                         argValues);
 
-  
   std::vector<Reference> results;
 
   for (auto result : callOp->getResults()) {
