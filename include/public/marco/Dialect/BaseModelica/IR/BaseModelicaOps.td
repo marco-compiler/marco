@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [Symbol, CallableOpInterface]> 
+    [Symbol]> 
 {
     let summary = "Declares an external function.";
 
@@ -4501,40 +4501,6 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     let extraClassDeclaration = [{
         bool isDeclaration() {
             return true;
-        }
-
-        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
-        llvm::ArrayRef<mlir::Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
-    
-        mlir::Region *getCallableRegion() {
-            return nullptr;
-        }
-        llvm::ArrayRef<mlir::Type> getCallableResults() {
-            return getResultTypes(); // Possiamo riutilizzare il metodo sopra
-        }
-    
-        mlir::ArrayAttr getArgAttrsAttr() { 
-            return nullptr; 
-        }
-        void setArgAttrsAttr(mlir::ArrayAttr attrs) { 
-            assert(false && "Not supported on ExternalFunctionOp"); 
-        }
-        mlir::Attribute removeArgAttrsAttr() { 
-            return nullptr; 
-        }
-    
-        mlir::ArrayAttr getResAttrsAttr() { 
-            return nullptr; 
-        }
-        void setResAttrsAttr(mlir::ArrayAttr attrs) { 
-            assert(false && "Not supported on ExternalFunctionOp"); 
-        }
-        mlir::Attribute removeResAttrsAttr() { 
-            return nullptr; 
         }
     }];
 }
