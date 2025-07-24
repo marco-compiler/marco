@@ -5019,6 +5019,87 @@ DivEWOp::distributeDivOp(llvm::SmallVectorImpl<mlir::Value> &results,
 //===---------------------------------------------------------------------===//
 // PowOp
 
+namespace {
+template <auto Constant>
+struct PowConstantExponentPattern : public mlir::OpRewritePattern<PowOp> {
+  using ConstantType = decltype(Constant);
+  using mlir::OpRewritePattern<PowOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(PowOp op, mlir::PatternRewriter &rewriter) const override {
+    mlir::Value base = op.getBase();
+    mlir::Value exponent = op.getExponent();
+
+    if (isScalarConstant(exponent)) {
+      mlir::Value replacement = createReplacement(rewriter, base);
+      replacement = castIfNeeded(rewriter, replacement, op.getType());
+      rewriter.replaceOp(op, replacement);
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  virtual mlir::Value createReplacement(mlir::RewriterBase &rewriter,
+                                        mlir::Value base) const = 0;
+
+  bool isScalarConstant(mlir::Value value) const {
+    auto constantOp = value.getDefiningOp<ConstantOp>();
+
+    if (!constantOp || !isScalar(constantOp.getType())) {
+      return false;
+    }
+
+    auto valueAttr = mlir::cast<mlir::Attribute>(constantOp.getValue());
+
+    if constexpr (std::is_integral_v<ConstantType>) {
+      if (isScalarIntegerLike(valueAttr)) {
+        return getScalarIntegerLikeValue(valueAttr) ==
+               static_cast<int64_t>(Constant);
+      }
+
+      if (isScalarFloatLike(valueAttr)) {
+        return getScalarFloatLikeValue(valueAttr) ==
+               static_cast<double>(Constant);
+      }
+    } else if constexpr (std::is_floating_point_v<ConstantType>) {
+      auto actualValue = getScalarAttributeValue<double>(valueAttr);
+      return actualValue && *actualValue == static_cast<double>(Constant);
+    }
+
+    return false;
+  }
+
+  mlir::Value castIfNeeded(mlir::OpBuilder &builder, mlir::Value value,
+                           mlir::Type type) const {
+    if (value.getType() != type) {
+      return builder.create<CastOp>(value.getLoc(), type, value);
+    }
+
+    return value;
+  }
+};
+
+struct PowExponentZeroPattern : public PowConstantExponentPattern<0> {
+  using PowConstantExponentPattern::PowConstantExponentPattern;
+
+  mlir::Value createReplacement(mlir::RewriterBase &rewriter,
+                                mlir::Value base) const override {
+    return rewriter.create<ConstantOp>(
+        base.getLoc(), IntegerAttr::get(rewriter.getContext(), 1));
+  }
+};
+
+struct PowExponentOnePattern : public PowConstantExponentPattern<1> {
+  using PowConstantExponentPattern::PowConstantExponentPattern;
+
+  mlir::Value createReplacement(mlir::RewriterBase &rewriter,
+                                mlir::Value base) const override {
+    return base;
+  }
+};
+} // namespace
+
 namespace mlir::bmodelica {
 mlir::LogicalResult PowOp::inferReturnTypes(
     mlir::MLIRContext *context, std::optional<mlir::Location> location,
@@ -5118,6 +5199,11 @@ mlir::OpFoldResult PowOp::fold(FoldAdaptor adaptor) {
   }
 
   return {};
+}
+
+void PowOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                        mlir::MLIRContext *context) {
+  patterns.add<PowExponentZeroPattern, PowExponentOnePattern>(context);
 }
 } // namespace mlir::bmodelica
 
