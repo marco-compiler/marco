@@ -48,7 +48,7 @@ mlir::Operation * ExternalFunctionCallLowerer::resolveCallee(llvm::StringRef cal
 
   mlir::Operation *rootScope = getRoot();
   
-  mlir::Operation *foundOp = resolveSymbolName(symbolName, rootScope);
+  mlir::Operation *foundOp = resolveSymbolName(calleeName, rootScope);
 
   return foundOp;
 }
