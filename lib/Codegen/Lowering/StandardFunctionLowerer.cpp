@@ -51,7 +51,6 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     
     {
       mlir::OpBuilder::InsertionGuard guard(builder());
-      builder().setInsertionPointToEnd(getContext().getModuleOp()->getBody());      
       externalFunctionOp = builder().create<ExternalFunctionOp>(location, function.getName(), funcTypeAttr);
       externalFunctionOp.setPublic(); 
     }
