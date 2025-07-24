@@ -3588,6 +3588,84 @@ SubEWOp::distributeDivOp(llvm::SmallVectorImpl<mlir::Value> &results,
 //===---------------------------------------------------------------------===//
 // MulOp
 
+namespace {
+template <auto Constant>
+struct MulByConstantPattern : public mlir::OpRewritePattern<MulOp> {
+  using ConstantType = decltype(Constant);
+  using mlir::OpRewritePattern<MulOp>::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(MulOp op, mlir::PatternRewriter &rewriter) const override {
+    mlir::Value lhs = op.getLhs();
+    mlir::Value rhs = op.getRhs();
+
+    if (isScalarConstant(lhs)) {
+      mlir::Value replacement = createReplacement(rewriter, rhs);
+      replacement = castIfNeeded(rewriter, replacement, op.getType());
+      rewriter.replaceOp(op, replacement);
+      return mlir::success();
+    }
+
+    if (isScalarConstant(rhs)) {
+      mlir::Value replacement = createReplacement(rewriter, lhs);
+      replacement = castIfNeeded(rewriter, replacement, op.getType());
+      rewriter.replaceOp(op, replacement);
+      return mlir::success();
+    }
+
+    return mlir::failure();
+  }
+
+  virtual mlir::Value createReplacement(mlir::RewriterBase &rewriter,
+                                        mlir::Value otherValue) const = 0;
+
+  bool isScalarConstant(mlir::Value value) const {
+    auto constantOp = value.getDefiningOp<ConstantOp>();
+
+    if (!constantOp || !isScalar(constantOp.getType())) {
+      return false;
+    }
+
+    auto valueAttr = mlir::cast<mlir::Attribute>(constantOp.getValue());
+
+    if constexpr (std::is_integral_v<ConstantType>) {
+      if (isScalarIntegerLike(valueAttr)) {
+        return getScalarIntegerLikeValue(valueAttr) ==
+               static_cast<int64_t>(Constant);
+      }
+
+      if (isScalarFloatLike(valueAttr)) {
+        return getScalarFloatLikeValue(valueAttr) ==
+               static_cast<double>(Constant);
+      }
+    } else if constexpr (std::is_floating_point_v<ConstantType>) {
+      auto actualValue = getScalarAttributeValue<double>(valueAttr);
+      return actualValue && *actualValue == static_cast<double>(Constant);
+    }
+
+    return false;
+  }
+
+  mlir::Value castIfNeeded(mlir::OpBuilder &builder, mlir::Value value,
+                           mlir::Type type) const {
+    if (value.getType() != type) {
+      return builder.create<CastOp>(value.getLoc(), type, value);
+    }
+
+    return value;
+  }
+};
+
+struct MulByOnePattern : public MulByConstantPattern<1> {
+  using MulByConstantPattern::MulByConstantPattern;
+
+  mlir::Value createReplacement(mlir::RewriterBase &rewriter,
+                                mlir::Value otherValue) const override {
+    return otherValue;
+  }
+};
+} // namespace
+
 namespace mlir::bmodelica {
 mlir::LogicalResult MulOp::inferReturnTypes(
     mlir::MLIRContext *context, std::optional<mlir::Location> location,
@@ -3732,6 +3810,11 @@ mlir::OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
   }
 
   return {};
+}
+
+void MulOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                        mlir::MLIRContext *context) {
+  patterns.add<MulByOnePattern>(context);
 }
 
 mlir::LogicalResult
@@ -5022,6 +5105,16 @@ mlir::OpFoldResult PowOp::fold(FoldAdaptor adaptor) {
 
       return getAttr(resultType, std::pow(baseValue, exponentValue));
     }
+  }
+
+  if (exponent && isScalar(exponent) &&
+      getScalarAttributeValue<double>(exponent) == 0) {
+    return getAttr(resultType, static_cast<int64_t>(0));
+  }
+
+  if (exponent && isScalar(exponent) &&
+      getScalarAttributeValue<double>(exponent) == 1) {
+    return base;
   }
 
   return {};
