@@ -11,6 +11,18 @@ StandardFunctionLowerer::StandardFunctionLowerer(BridgeInterface *bridge)
 void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   mlir::Location location = loc(function.getLocation());
 
+  // Create the record operation.
+  auto functionOp = builder().create<FunctionOp>(location, function.getName());
+
+  mlir::OpBuilder::InsertionGuard guard(builder());
+  builder().createBlock(&functionOp.getBodyRegion());
+  builder().setInsertionPointToStart(functionOp.getBody());
+
+  // Declare the inner classes.
+  for (const auto &innerClassNode : function.getInnerClasses()) {
+    declare(*innerClassNode->cast<ast::Class>());
+  }
+
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
     llvm::SmallVector<mlir::Type> inputTypes;
     llvm::SmallVector<mlir::Type> outputTypes;
@@ -50,31 +62,18 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     ExternalFunctionOp externalFunctionOp; 
     
     {
+      auto module = functionOp->getParentOfType<mlir::ModuleOp>();
       mlir::OpBuilder::InsertionGuard guard(builder());
-      externalFunctionOp = builder().create<ExternalFunctionOp>(location, function.getName(), funcTypeAttr);
+      builder().setInsertionPointToStart(module.getBody());
+      externalFunctionOp = builder().create<ExternalFunctionOp>(function.getExternalRef().getExternalFunctionCall().getLocation(), function.getExternalRef().getExternalFunctionCall().getName(), funcTypeAttr);
     }
-
-    return;
   }
 
-  // Create the record operation.
-  auto functionOp = builder().create<FunctionOp>(location, function.getName());
-
-  mlir::OpBuilder::InsertionGuard guard(builder());
-  builder().createBlock(&functionOp.getBodyRegion());
-  builder().setInsertionPointToStart(functionOp.getBody());
-
-  // Declare the inner classes.
-  for (const auto &innerClassNode : function.getInnerClasses()) {
-    declare(*innerClassNode->cast<ast::Class>());
-  }
 }
 
 bool StandardFunctionLowerer::declareVariables(
     const ast::StandardFunction &function) {
-  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
-    return true; 
-  }
+
   mlir::OpBuilder::InsertionGuard guard(builder());
   LookupScopeGuard lookupScopeGuard(&getContext());
 
@@ -101,9 +100,7 @@ bool StandardFunctionLowerer::declareVariables(
 }
 
 bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
-  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
-    return true; 
-  }
+  
   mlir::OpBuilder::InsertionGuard guard(builder());
 
   VariablesSymbolTable::VariablesScope varScope(getVariablesSymbolTable());
