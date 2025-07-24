@@ -65,7 +65,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       auto module = functionOp->getParentOfType<mlir::ModuleOp>();
       mlir::OpBuilder::InsertionGuard guard(builder());
       builder().setInsertionPointToStart(module.getBody());
-      externalFunctionOp = builder().create<ExternalFunctionOp>(function.getExternalRef().getExternalFunctionCall().getLocation(), function.getExternalRef().getExternalFunctionCall().getName(), funcTypeAttr);
+      externalFunctionOp = builder().create<ExternalFunctionOp>(function.getExternalRef()->getExternalFunctionCall().getLocation(), function.getExternalRef()->getExternalFunctionCall().getName(), funcTypeAttr);
     }
   }
 
@@ -255,11 +255,6 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
       return false;
     }
   }
-
-  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall())
-    {
-      lower(*(function.getExternalRef()->getExternalFunctionCall()), functionOp.getOperation());
-    }
 
   return true;
 }
