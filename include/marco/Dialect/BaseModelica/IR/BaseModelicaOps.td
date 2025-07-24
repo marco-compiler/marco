@@ -1746,6 +1746,7 @@ def BaseModelica_MulOp : BaseModelica_Op<"mul",
     }];
 
     let hasFolder = 1;
+    let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(
