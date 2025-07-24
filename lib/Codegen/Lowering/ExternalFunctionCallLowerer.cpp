@@ -77,67 +77,28 @@ void ExternalFunctionCallLowerer::getCustomFunctionInputVariables(
   }
 }
 
-bool ExternalFunctionCallLowerer::lowerCustomFunctionArgs(
-    const ast::Call &call, llvm::ArrayRef<VariableOp> calleeInputs,
-    llvm::SmallVectorImpl<std::string> &argNames,
-    llvm::SmallVectorImpl<mlir::Value> &argValues) {
-  size_t numOfArgs = call.getNumOfArguments();
+ bool ExternalFunctionCallLowerer::lowerCustomFunctionArgs(
+      const ast::ExternalFunctionCall &call, llvm::ArrayRef<VariableOp> calleeInputs,
+      llvm::SmallVectorImpl<std::string> &argNames,
+      llvm::SmallVectorImpl<mlir::Value> &argValues) {
 
-  if (numOfArgs != 0) {
-    if (call.getArgument(0)->dyn_cast<ast::ReductionFunctionArgument>()) {
-      assert(call.getNumOfArguments() == 1);
-      llvm_unreachable("ReductionOp has not been implemented yet");
-      return false;
+
+    auto args = call.getExpressions();
+
+    // Process the unnamed arguments.
+    for (size_t i = 0 ; i < args.size() ; i++){
+        
+      auto argValue = lowerArg(*args[i]->cast<ast::Expression>());
+
+      if (!argValue) {
+        return false;
+      }
+
+      argValues.push_back(*argValue);
     }
+
+    return true;
   }
 
-  bool existsNamedArgument = false;
-
-  for (size_t i = 0; i < numOfArgs && !existsNamedArgument; ++i) {
-    if (call.getArgument(i)->isa<ast::NamedFunctionArgument>()) {
-      existsNamedArgument = true;
-    }
-  }
-
-  size_t argIndex = 0;
-
-  // Process the unnamed arguments.
-  while (argIndex < numOfArgs &&
-         !call.getArgument(argIndex)->isa<ast::NamedFunctionArgument>()) {
-    auto arg =
-        call.getArgument(argIndex)->cast<ast::ExpressionFunctionArgument>();
-
-    auto argValue = lowerArg(*arg->getExpression());
-    if (!argValue) {
-      return false;
-    }
-    argValues.push_back(*argValue);
-
-    if (existsNamedArgument) {
-      VariableOp variableOp = calleeInputs[argIndex];
-      argNames.push_back(variableOp.getSymName().str());
-    }
-
-    ++argIndex;
-  }
-
-  // Process the named arguments.
-  while (argIndex < numOfArgs) {
-    auto arg = call.getArgument(argIndex)->cast<ast::NamedFunctionArgument>();
-
-    auto argValue = lowerArg(*arg->getValue()
-                                  ->cast<ast::ExpressionFunctionArgument>()
-                                  ->getExpression());
-    if (!argValue) {
-      return false;
-    }
-    argValues.push_back(*argValue);
-
-    argNames.push_back(arg->getName().str());
-    ++argIndex;
-  }
-
-  return true;
-}
 
 } // namespace marco::codegen::lowering

@@ -31,7 +31,7 @@ private:
 
 
   [[nodiscard]] bool lowerCustomFunctionArgs(
-      const ast::Call &call,
+      const ast::ExternalFunctionCall &call,
       llvm::ArrayRef<mlir::bmodelica::VariableOp> calleeInputs,
       llvm::SmallVectorImpl<std::string> &argNames,
       llvm::SmallVectorImpl<mlir::Value> &argValues);
