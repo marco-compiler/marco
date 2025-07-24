@@ -20,8 +20,7 @@ protected:
   using Lowerer::lower;
 
 private:
-  std::optional<mlir::Operation *>
-  resolveCallee(llvm::StringRef calleeName);
+  mlir::Operation * resolveCallee(llvm::StringRef calleeName);
 
   std::optional<mlir::Value> lowerArg(const ast::Expression &expression);
 

@@ -44,16 +44,13 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
 
 }
 
-std::optional<mlir::Operation *>
-ExternalFunctionCallLowerer::resolveCallee(llvm::StringRef calleeName) {
+mlir::Operation * ExternalFunctionCallLowerer::resolveCallee(llvm::StringRef calleeName) {
 
-  mlir::Operation *result =
-      resolveSymbolName(calleeName, getLookupScope());
+  mlir::Operation *rootScope = getRoot();
+  
+  mlir::Operation *foundOp = resolveSymbolName(symbolName, rootScope);
 
-  result = getSymbolTable().lookupSymbolIn(
-    result, builder().getStringAttr(calleeName));
-
-  return result;
+  return foundOp;
 }
 
 std::optional<mlir::Value>
