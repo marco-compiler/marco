@@ -30,11 +30,10 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
     return std::nullopt;
   }
 
-  llvm::SmallVector<mlir::Type, 1> resultTypes;
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                         getSymbolRefFromRoot(*calleeOp),
-                                        resultTypes, argValues);
+                                        argValues);
 
   
   std::vector<Reference> results;

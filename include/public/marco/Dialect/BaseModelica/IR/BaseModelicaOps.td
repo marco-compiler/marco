@@ -4491,6 +4491,13 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
 
     let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
+    let builders = [
+        OpBuilder<(ins "llvm::StringRef":$name, "mlir::TypeAttr":$type), [{
+            $_state.addAttribute("sym_name", $_builder.getStringAttr(name));
+            $_state.addAttribute("function_type", type);
+        }]>
+    ];
+
     let extraClassDeclaration = [{
         bool isDeclaration() {
             return true;
