@@ -11,7 +11,7 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
 std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
 
-  std::optional<mlir::Operation *> calleeOp = resolveCallee(call.getName());
+  mlir::Operation * calleeOp = resolveCallee(call.getName());
 
   llvm::SmallVector<VariableOp> inputVariables;
 
