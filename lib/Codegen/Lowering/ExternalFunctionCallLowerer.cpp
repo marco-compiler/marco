@@ -35,6 +35,8 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
                                         resultTypes, argValues);
 
   
+  std::vector<Reference> results;
+
   for (auto result : callOp->getResults()) {
     results.push_back(Reference::ssa(builder(), result));
   }
