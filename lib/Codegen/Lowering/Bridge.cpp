@@ -435,6 +435,10 @@ std::optional<Results> Bridge::Impl::lower(const ast::Call &call) {
   assert(callLowerer != nullptr);
   return callLowerer->lower(call);
 }
+std::optional<Results> Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
+  assert(externalFunctionCallLowerer != nullptr);
+  return externalFunctionCallLowerer->lower(call);
+}
 
 std::optional<Results> Bridge::Impl::lower(const ast::Constant &constant) {
   assert(constantLowerer != nullptr);
@@ -536,10 +540,7 @@ bool Bridge::Impl::lower(const ast::WhileStatement &statement) {
   assert(whileStatementLowerer != nullptr);
   return whileStatementLowerer->lower(statement);
 }
-bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
-  assert(externalFunctionCallLowerer != nullptr);
-  return externalFunctionCallLowerer->lower(call);
-}
+
 
 Bridge::Bridge(mlir::MLIRContext &context)
     : impl(std::make_unique<Impl>(context)) {}
