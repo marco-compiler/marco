@@ -1,3 +1,3 @@
-void discreteLog (int base, int val, int * res) {
-    *res = 2; 
+int discreteLog (int base, int val) {
+    return 2; 
 }
