@@ -1,4 +1,4 @@
-#include "marco/Codegen/Lowering/CallLowerer.h"
+#include "marco/Codegen/Lowering/ExternalFunctionCallLowerer.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace ::marco;
@@ -16,7 +16,7 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
 
   auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionCallOp>(*calleeOp);
 
-  auto parentFunctionOp = mlir::cast<FunctionOp>(getClass(call.getParent().getParent()));
+  auto parentFunctionOp = mlir::cast<FunctionOp>(getClass(call.getParent()->getParent()));
 
   getCustomFunctionInputVariables(inputVariables, parentFunctionOp);
 
