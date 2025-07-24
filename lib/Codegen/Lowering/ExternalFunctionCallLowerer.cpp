@@ -5,6 +5,7 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::bmodelica;
 
+
 namespace marco::codegen::lowering {
 ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
@@ -16,7 +17,7 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
 
 //  auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionCallOp>(*calleeOp);
   const ast::ASTNode *grandparent = call.getParent()->getParent();
-  auto parentClassNode = ast::dyn_cast<const ast::Class>(grandparent);
+  auto parentClassNode = grandparent->dyn_cast<const ast::Class>();
 
   auto parentFunctionOp = mlir::cast<FunctionOp>(getClass(*parentClassNode));
 
