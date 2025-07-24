@@ -1903,6 +1903,7 @@ def BaseModelica_PowOp : BaseModelica_Op<"pow",
     }];
 
     let hasFolder = 1;
+    let hasCanonicalizer = 1;
 
     let extraClassDeclaration = [{
         static bool isCompatibleReturnTypes(
