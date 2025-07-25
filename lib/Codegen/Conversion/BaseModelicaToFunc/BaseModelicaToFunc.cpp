@@ -213,42 +213,40 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
   }
 };
 
-struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFunctionOp> {
-    using mlir::OpConversionPattern<ExternalFunctionOp>::OpConversionPattern;
+struct ExternalFunctionOpLowering : public FunctionLoweringPattern<ExternalFunctionOp> {
+  using FunctionLoweringPattern<ExternalFunctionOp>::FunctionLoweringPattern;
 
-    mlir::LogicalResult
-    matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
-                    mlir::ConversionPatternRewriter &rewriter) const override {
-        
-        const auto *typeConverter = getTypeConverter();
-        mlir::FunctionType oldFuncType = op.getFunctionType();
+  mlir::LogicalResult
+  matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto originalFunctionType = op.getFunctionType();
+    llvm::SmallVector<mlir::Type> argsTypes;
+    llvm::SmallVector<mlir::Type> resultsTypes;
 
-        llvm::SmallVector<mlir::Type> convertedInputs;
-        if (mlir::failed(typeConverter->convertTypes(oldFuncType.getInputs(), convertedInputs))) {
-            return mlir::failure("failed to convert function input types");
-        }
-
-        llvm::SmallVector<mlir::Type> convertedResults;
-        if (mlir::failed(typeConverter->convertTypes(oldFuncType.getResults(), convertedResults))) {
-            return mlir::failure("failed to convert function result types");
-        }
-
-        auto newFuncType = rewriter.getFunctionType(convertedInputs, convertedResults);
-
-        auto funcOp = rewriter.create<mlir::func::FuncOp>(
-            op.getLoc(), op.getSymName(), newFuncType);
-
-        funcOp->setAttr("llvm.linkage",
-            mlir::LLVM::LinkageAttr::get(rewriter.getContext(), mlir::LLVM::Linkage::External));
-
-        symbolTable.remove(op);
-        symbolTable.insert(funcOp);
-
-        rewriter.eraseOp(op);
-        
-        return mlir::success();
+    for (mlir::Type argType : originalFunctionType.getInputs()) {
+      argsTypes.push_back(getTypeConverter()->convertType(argType));
     }
+
+    for (mlir::Type resultType : originalFunctionType.getResults()) {
+      resultsTypes.push_back(getTypeConverter()->convertType(resultType));
+    }
+
+    auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
+    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+
+    auto funcOp = rewriter.create<mlir::func::FuncOp>(
+        op.getLoc(), op.getSymName(), functionType);
+
+    symbolTable.remove(op);
+    symbolTable.insert(funcOp);
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
 };
+
 
 struct RawReturnOpLowering : public mlir::OpConversionPattern<RawReturnOp> {
   using mlir::OpConversionPattern<RawReturnOp>::OpConversionPattern;
