@@ -221,20 +221,26 @@ struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFun
                     mlir::ConversionPatternRewriter &rewriter) const override {
         
         const auto *typeConverter = getTypeConverter();
-        mlir::FunctionType oldType = op.getFunctionType();
-        mlir::Type newType;
+        mlir::FunctionType oldFuncType = op.getFunctionType();
 
-        if (mlir::failed(typeConverter->convertType(oldType, newType))) {
-            return mlir::failure();
+        llvm::SmallVector<mlir::Type> convertedInputs;
+        if (mlir::failed(typeConverter->convertTypes(oldFuncType.getInputs(), convertedInputs))) {
+            return mlir::failure("failed to convert function input types");
         }
-        
-        auto funcType = mlir::cast<mlir::FunctionType>(newType);
 
-        auto funcOp = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getSymName(), funcType);
+        llvm::SmallVector<mlir::Type> convertedResults;
+        if (mlir::failed(typeConverter->convertTypes(oldFuncType.getResults(), convertedResults))) {
+            return mlir::failure("failed to convert function result types");
+        }
+
+        auto newFuncType = rewriter.getFunctionType(convertedInputs, convertedResults);
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getSymName(), newFuncType);
+
         funcOp.setPrivate(); 
         
-        if (op.getSymVisibilityAttr()) {
-            funcOp.setSymVisibility(op.getSymVisibilityAttr());
+        if (auto viz = op.getSymVisibilityAttr()) {
+            funcOp.setSymVisibility(viz);
         }
 
         rewriter.eraseOp(op);
