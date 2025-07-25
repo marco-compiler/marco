@@ -3,6 +3,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/AutomaticDifferentiation.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/ADT/STLExtras.h"
 
 using namespace ::marco;
@@ -20,6 +21,29 @@ unsigned int numDigits(T number) {
   }
 
   return digits;
+}
+
+mlir::LogicalResult canonicalize(mlir::RewriterBase &rewriter,
+                                 mlir::Operation *op) {
+  mlir::RewritePatternSet patterns(rewriter.getContext());
+
+  for (mlir::RegisteredOperationName registeredOp :
+       rewriter.getContext()->getRegisteredOperations()) {
+    registeredOp.getCanonicalizationPatterns(patterns, rewriter.getContext());
+  }
+
+  mlir::FrozenRewritePatternSet frozenPatterns(std::move(patterns));
+  mlir::GreedyRewriteConfig config;
+  config.enableFolding();
+
+  mlir::OpBuilder::Listener *listener = rewriter.getListener();
+  mlir::RewriterBase::ForwardingListener forwardingListener(listener);
+
+  if (listener != nullptr) {
+    config.setListener(&forwardingListener);
+  }
+
+  return mlir::applyPatternsGreedily(op, frozenPatterns, config);
 }
 } // namespace
 
@@ -111,13 +135,13 @@ std::optional<FunctionOp> createFunctionPartialDerivative(
 }
 
 EquationTemplateOp
-createEquationTimeDerivative(mlir::OpBuilder &builder,
+createEquationTimeDerivative(mlir::RewriterBase &rewriter,
                              mlir::SymbolTableCollection &symbolTables,
                              State &state, EquationTemplateOp templateOp) {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointAfter(templateOp);
+  mlir::OpBuilder::InsertionGuard guard(rewriter);
+  rewriter.setInsertionPointAfter(templateOp);
 
-  auto newTemplateOp = builder.create<EquationTemplateOp>(templateOp.getLoc());
+  auto newTemplateOp = rewriter.create<EquationTemplateOp>(templateOp.getLoc());
   newTemplateOp.createBody(templateOp.getInductionVariables().size());
 
   mlir::IRMapping mapping;
@@ -129,11 +153,11 @@ createEquationTimeDerivative(mlir::OpBuilder &builder,
   }
 
   // Create the derivatives for the induction variables.
-  builder.setInsertionPointToStart(newTemplateOp.getBody());
+  rewriter.setInsertionPointToStart(newTemplateOp.getBody());
 
   for (mlir::Value induction : templateOp.getInductionVariables()) {
-    auto zero = builder.create<ConstantOp>(
-        induction.getLoc(), RealAttr::get(builder.getContext(), 0));
+    auto zero = rewriter.create<ConstantOp>(
+        induction.getLoc(), RealAttr::get(rewriter.getContext(), 0));
 
     state.mapDerivative(induction, zero);
   }
@@ -147,20 +171,25 @@ createEquationTimeDerivative(mlir::OpBuilder &builder,
         return nullptr;
       }
 
-      builder.create<EquationSidesOp>(equationSidesOp.getLoc(), *lhs, *rhs);
+      rewriter.create<EquationSidesOp>(equationSidesOp.getLoc(), *lhs, *rhs);
       continue;
     }
 
-    mlir::Operation *cloneOp = builder.clone(op, mapping);
+    mlir::Operation *cloneOp = rewriter.clone(op, mapping);
 
     if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(cloneOp)) {
-      if (mlir::failed(derivableOp.createTimeDerivative(builder, symbolTables,
+      if (mlir::failed(derivableOp.createTimeDerivative(rewriter, symbolTables,
                                                         state, false))) {
         return nullptr;
       }
     } else {
       return nullptr;
     }
+  }
+
+  // Canonicalize the equation body.
+  if (mlir::failed(canonicalize(rewriter, newTemplateOp))) {
+    return nullptr;
   }
 
   return newTemplateOp;

@@ -18,7 +18,7 @@ std::optional<FunctionOp> createFunctionPartialDerivative(
     FunctionOp functionOp, llvm::StringRef derivativeName);
 
 EquationTemplateOp
-createEquationTimeDerivative(mlir::OpBuilder &builder,
+createEquationTimeDerivative(mlir::RewriterBase &rewriter,
                              mlir::SymbolTableCollection &symbolTables,
                              State &state, EquationTemplateOp templateOp);
 
