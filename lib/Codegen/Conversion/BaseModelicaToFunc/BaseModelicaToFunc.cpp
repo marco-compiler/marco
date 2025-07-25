@@ -238,10 +238,6 @@ struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFun
         auto funcOp = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getSymName(), newFuncType);
 
         funcOp.setPrivate(); 
-        
-        if (auto viz = op.getVisibility()) {
-            funcOp.setSymVisibility(viz);
-        }
 
         rewriter.eraseOp(op);
         
