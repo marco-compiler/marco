@@ -34,13 +34,27 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
                                         externalFunctionCallOp,
                                         argValues);
 
-  std::vector<Reference> results;
+
+
+  mlir::Value returnValue = callOp.getResult(0);
+  const ast::ComponentReference* targetNode = call.getComponentReference();
+  std::string outputVarName = targetNode->getName(); 
+  auto outputVarOp = parentFunctionOp.lookupSymbol<VariableOp>(outputVarName);
+  builder().create<VariableSetOp>(
+      loc(call.getLocation()),
+      outputVarOp,
+      mlir::ValueRange{}, 
+      returnValue
+  );
+
+  /*std::vector<Reference> results;
 
   for (auto result : callOp->getResults()) {
     results.push_back(Reference::ssa(builder(), result));
   }
-  
-  return Results(results.begin(), results.end());
+
+  return Results(results.begin(), results.end());*/
+  return Results{}; 
 
 }
 
