@@ -1,3 +1,3 @@
-int discreteLog (int base, int val) {
-    return 2; 
+double discreteLog (int base, int val) {
+    return 2.0; 
 }
