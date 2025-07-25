@@ -239,7 +239,7 @@ struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFun
 
         funcOp.setPrivate(); 
         
-        if (auto viz = op.getSymVisibilityAttr()) {
+        if (auto viz = op.getVisibility()) {
             funcOp.setSymVisibility(viz);
         }
 
@@ -685,29 +685,6 @@ struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
   }
 };
 
-struct ExternalFunctionCallOpLowering : public mlir::OpConversionPattern<ExternalFunctionCallOp> {
-  using mlir::OpConversionPattern<ExternalFunctionCallOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(ExternalFunctionCallOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    
-    llvm::SmallVector<mlir::Type, 3> convertedResultTypes;
-    if (mlir::failed(getTypeConverter()->convertTypes(op->getResultTypes(),
-                                                      convertedResultTypes))) {
-      return mlir::failure("failed to convert result types");
-    }
-
-    rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
-        op,
-        op.getCallee(),     
-        convertedResultTypes,    
-        adaptor.getOperands()   
-    );
-
-    return mlir::success();
-  }
-};
 } // namespace
 
 namespace {
@@ -760,7 +737,7 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
-                      RawReturnOp, CallOp, ExternalFunctionOp, ExternalFunctionCallOp>();
+                      RawReturnOp, CallOp, ExternalFunctionOp>();
 
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
@@ -789,7 +766,6 @@ void populateBaseModelicaToFuncConversionPatterns(
       typeConverter, context);
 
   patterns.insert<ExternalFunctionOpLowering>(typeConverter, context);
-  patterns.insert<ExternalFunctionCallOpLowering>(typeConverter, context);
 }
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass() {
