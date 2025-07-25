@@ -91,22 +91,41 @@ int main(int argc, const char **argv) {
 
   llvm::BumpPtrAllocator a;
   llvm::StringSaver saver(a);
-  ExpandResponseFiles(saver, args);
+
+
+  llvm::SmallVector<const char *, 256> processedArgs;
+  llvm::SmallVector<const char *, 32> objectFiles;
+  
+  // Il primo argomento è sempre il nome dell'eseguibile, lo manteniamo
+  processedArgs.push_back(args[0]);
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    llvm::StringRef arg(args[i]);
+    if (arg.ends_with(".o")) {
+      objectFiles.push_back(args[i]);
+    } else {
+      processedArgs.push_back(args[i]);
+    }
+  }
+
+  processedArgs.append(objectFiles.begin(), objectFiles.end());
+
+  ExpandResponseFiles(saver, processedArgs);
 
   llvm::setBugReportMsg(BugReportMsg);
 
   // Check if marco is in the frontend mode
-  auto firstArg = std::find_if(args.begin() + 1, args.end(),
+  auto firstArg = std::find_if(processedArgs.begin() + 1, processedArgs.end(),
                                [](const char *a) { return a != nullptr; });
-  if (firstArg != args.end()) {
+  if (firstArg != processedArgs.end()) {
     // Call mc1 frontend.
-    if (llvm::StringRef(args[1]) == "-mc1") {
-      return executeMC1Tool(args);
+    if (llvm::StringRef(processedArgs[1]) == "-mc1") {
+      return executeMC1Tool(processedArgs);
     }
 
     // Call cc1 frontend.
-    if (llvm::StringRef(args[1]) == "-cc1") {
-      return executeCC1Tool(args, (void *)(intptr_t)(driverPath.data()));
+    if (llvm::StringRef(processedArgs[1]) == "-cc1") {
+      return executeCC1Tool(processedArgs, (void *)(intptr_t)(driverPath.data()));
     }
   }
 
@@ -114,7 +133,7 @@ int main(int argc, const char **argv) {
 
   // Create DiagnosticsEngine for the compiler driver
   llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
-      createAndPopulateDiagOpts(args);
+      createAndPopulateDiagOpts(processedArgs);
 
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
       new clang::DiagnosticIDs());
@@ -122,7 +141,7 @@ int main(int argc, const char **argv) {
   auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
 
   diagClient->setPrefix(
-      std::string(llvm::sys::path::stem(getExecutablePath(args[0]))));
+      std::string(llvm::sys::path::stem(getExecutablePath(processedArgs[0]))));
 
   clang::DiagnosticsEngine diags(diagID, &*diagOpts, diagClient);
 
@@ -133,7 +152,7 @@ int main(int argc, const char **argv) {
   theDriver.setTargetAndMode(targetAndMode);
 
   std::unique_ptr<clang::driver::Compilation> c(
-      theDriver.BuildCompilation(args));
+      theDriver.BuildCompilation(processedArgs));
 
   llvm::SmallVector<std::pair<int, const clang::driver::Command *>, 4>
       failingCommands;
