@@ -171,6 +171,40 @@ struct EquationCallOpLowering
   }
 };
 
+struct ExternalFunctionOpLowering : public FunctionLoweringPattern<ExternalFunctionOp> {
+  using FunctionLoweringPattern<ExternalFunctionOp>::FunctionLoweringPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto originalFunctionType = op.getFunctionType();
+    llvm::SmallVector<mlir::Type> argsTypes;
+    llvm::SmallVector<mlir::Type> resultsTypes;
+
+    for (mlir::Type argType : originalFunctionType.getInputs()) {
+      argsTypes.push_back(getTypeConverter()->convertType(argType));
+    }
+
+    for (mlir::Type resultType : originalFunctionType.getResults()) {
+      resultsTypes.push_back(getTypeConverter()->convertType(resultType));
+    }
+
+    auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
+    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
+        op->getParentOfType<mlir::ModuleOp>());
+
+    auto funcOp = rewriter.create<mlir::func::FuncOp>(
+        op.getLoc(), op.getSymName(), functionType);
+
+    symbolTable.remove(op);
+    symbolTable.insert(funcOp);
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
 struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
   using FunctionLoweringPattern<RawFunctionOp>::FunctionLoweringPattern;
 
@@ -213,36 +247,15 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
   }
 };
 
-struct ExternalFunctionOpLowering : public FunctionLoweringPattern<ExternalFunctionOp> {
-  using FunctionLoweringPattern<ExternalFunctionOp>::FunctionLoweringPattern;
+struct RawReturnOpLowering : public mlir::OpConversionPattern<RawReturnOp> {
+  using mlir::OpConversionPattern<RawReturnOp>::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
+  matchAndRewrite(RawReturnOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto originalFunctionType = op.getFunctionType();
-    llvm::SmallVector<mlir::Type> argsTypes;
-    llvm::SmallVector<mlir::Type> resultsTypes;
+    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op,
+                                                      adaptor.getOperands());
 
-    for (mlir::Type argType : originalFunctionType.getInputs()) {
-      argsTypes.push_back(getTypeConverter()->convertType(argType));
-    }
-
-    for (mlir::Type resultType : originalFunctionType.getResults()) {
-      resultsTypes.push_back(getTypeConverter()->convertType(resultType));
-    }
-
-    auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
-
-    mlir::SymbolTable &symbolTable = getSymbolTableCollection().getSymbolTable(
-        op->getParentOfType<mlir::ModuleOp>());
-
-    auto funcOp = rewriter.create<mlir::func::FuncOp>(
-        op.getLoc(), op.getSymName(), functionType);
-
-    symbolTable.remove(op);
-    symbolTable.insert(funcOp);
-
-    rewriter.eraseOp(op);
     return mlir::success();
   }
 };
@@ -669,7 +682,6 @@ struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
     return mlir::success();
   }
 };
-
 } // namespace
 
 namespace {
