@@ -4,6 +4,7 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Options.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -28,26 +29,6 @@ std::string getExecutablePath(const char *argv0) {
   // This just needs to be some symbol in the binary
   void *p = (void *)(intptr_t)getExecutablePath;
   return llvm::sys::fs::getMainExecutable(argv0, p);
-}
-
-// This lets us create the DiagnosticsEngine with a properly-filled-out
-// DiagnosticOptions instance
-static clang::DiagnosticOptions *
-createAndPopulateDiagOpts(llvm::ArrayRef<const char *> argv) {
-  auto *diagOpts = new clang::DiagnosticOptions;
-
-  // Ignore missingArgCount and the return value of ParseDiagnosticArgs.
-  // Any errors that would be diagnosed here will also be diagnosed later,
-  // when the DiagnosticsEngine actually exists.
-  unsigned missingArgIndex, missingArgCount;
-  llvm::opt::InputArgList args = clang::driver::getDriverOptTable().ParseArgs(
-      argv.slice(1), missingArgIndex, missingArgCount,
-      llvm::opt::Visibility(clang::driver::options::MarcoOption));
-
-  // This is used by flang, but we don't use it
-  //(void)marco::frontend::parseDiagnosticArgs(*diagOpts, args);
-
-  return diagOpts;
 }
 
 static void ExpandResponseFiles(llvm::StringSaver &saver,
@@ -85,31 +66,25 @@ int main(int argc, const char **argv) {
   // Initialize variables to call the driver
   llvm::InitLLVM x(argc, argv);
   llvm::SmallVector<const char *, 256> args(argv, argv + argc);
-
-  clang::driver::ParsedClangName targetAndMode("marco", "--driver-mode=marco");
-  std::string driverPath = getExecutablePath(args[0]);
-
-  llvm::BumpPtrAllocator a;
-  llvm::StringSaver saver(a);
-
-
-  llvm::SmallVector<const char *, 256> processedArgs;
-  llvm::SmallVector<const char *, 32> objectFiles;
   
-  // Il primo argomento è sempre il nome dell'eseguibile, lo manteniamo
-  processedArgs.push_back(args[0]);
+  llvm::SmallVector<const char *, 256> processedArgs;
+  processedArgs.push_back(args[0]); // Nome eseguibile
 
   for (size_t i = 1; i < args.size(); ++i) {
     llvm::StringRef arg(args[i]);
     if (arg.ends_with(".o")) {
-      objectFiles.push_back(args[i]);
+      processedArgs.push_back("-Xlinker");
+      processedArgs.push_back(args[i]);
     } else {
       processedArgs.push_back(args[i]);
     }
   }
 
-  processedArgs.append(objectFiles.begin(), objectFiles.end());
+  clang::driver::ParsedClangName targetAndMode("marco", "--driver-mode=marco");
+  std::string driverPath = getExecutablePath(processedArgs[0]);
 
+  llvm::BumpPtrAllocator a;
+  llvm::StringSaver saver(a);
   ExpandResponseFiles(saver, processedArgs);
 
   llvm::setBugReportMsg(BugReportMsg);
@@ -131,19 +106,19 @@ int main(int argc, const char **argv) {
 
   // Not in the frontend mode - continue in the compiler driver mode.
 
-  // Create DiagnosticsEngine for the compiler driver
-  llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts =
-      createAndPopulateDiagOpts(processedArgs);
+  // Create DiagnosticsEngine for the compiler driver.
+  std::unique_ptr<clang::DiagnosticOptions> diagOpts =
+      clang::CreateAndPopulateDiagOpts(processedArgs);
 
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(
       new clang::DiagnosticIDs());
 
-  auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
+  auto *diagClient = new clang::TextDiagnosticPrinter(llvm::errs(), *diagOpts);
 
   diagClient->setPrefix(
       std::string(llvm::sys::path::stem(getExecutablePath(processedArgs[0]))));
 
-  clang::DiagnosticsEngine diags(diagID, &*diagOpts, diagClient);
+  clang::DiagnosticsEngine diags(diagID, *diagOpts, diagClient);
 
   // Prepare the driver
   clang::driver::Driver theDriver(
