@@ -213,6 +213,36 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
   }
 };
 
+struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFunctionOp> {
+    using mlir::OpConversionPattern<ExternalFunctionOp>::OpConversionPattern;
+
+    mlir::LogicalResult
+    matchAndRewrite(ExternalFunctionOp op, OpAdaptor adaptor,
+                    mlir::ConversionPatternRewriter &rewriter) const override {
+        
+        const auto *typeConverter = getTypeConverter();
+        mlir::FunctionType oldType = op.getFunctionType();
+        mlir::Type newType;
+
+        if (mlir::failed(typeConverter->convertType(oldType, newType))) {
+            return mlir::failure();
+        }
+        
+        auto funcType = mlir::cast<mlir::FunctionType>(newType);
+
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getSymName(), funcType);
+        funcOp.setPrivate(); 
+        
+        if (op.getSymVisibilityAttr()) {
+            funcOp.setSymVisibility(op.getSymVisibilityAttr());
+        }
+
+        rewriter.eraseOp(op);
+        
+        return mlir::success();
+    }
+};
+
 struct RawReturnOpLowering : public mlir::OpConversionPattern<RawReturnOp> {
   using mlir::OpConversionPattern<RawReturnOp>::OpConversionPattern;
 
@@ -648,6 +678,30 @@ struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
     return mlir::success();
   }
 };
+
+struct ExternalFunctionCallOpLowering : public mlir::OpConversionPattern<ExternalFunctionCallOp> {
+  using mlir::OpConversionPattern<ExternalFunctionCallOp>::OpConversionPattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalFunctionCallOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    
+    llvm::SmallVector<mlir::Type, 3> convertedResultTypes;
+    if (mlir::failed(getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      convertedResultTypes))) {
+      return mlir::failure("failed to convert result types");
+    }
+
+    rewriter.replaceOpWithNewOp<mlir::func::CallOp>(
+        op,
+        op.getCallee(),     
+        convertedResultTypes,    
+        adaptor.getOperands()   
+    );
+
+    return mlir::success();
+  }
+};
 } // namespace
 
 namespace {
@@ -700,7 +754,7 @@ mlir::LogicalResult BaseModelicaToFuncConversionPass::convertRawFunctions() {
   mlir::ConversionTarget target(getContext());
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
-                      RawReturnOp, CallOp>();
+                      RawReturnOp, CallOp, ExternalFunctionOp, ExternalFunctionCallOp>();
 
   target.markUnknownOpDynamicallyLegal(
       [](mlir::Operation *op) { return true; });
@@ -727,6 +781,9 @@ void populateBaseModelicaToFuncConversionPatterns(
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
       typeConverter, context);
+
+  patterns.insert<ExternalFunctionOpLowering>(typeConverter, context);
+  patterns.insert<ExternalFunctionCallOpLowering>(typeConverter, context);
 }
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass() {
