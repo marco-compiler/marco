@@ -247,20 +247,6 @@ struct ExternalFunctionOpLowering : public FunctionLoweringPattern<ExternalFunct
   }
 };
 
-
-struct RawReturnOpLowering : public mlir::OpConversionPattern<RawReturnOp> {
-  using mlir::OpConversionPattern<RawReturnOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(RawReturnOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op,
-                                                      adaptor.getOperands());
-
-    return mlir::success();
-  }
-};
-
 struct RawVariableOpTypePattern
     : public mlir::OpConversionPattern<RawVariableOp> {
   using mlir::OpConversionPattern<RawVariableOp>::OpConversionPattern;
@@ -758,13 +744,11 @@ void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
     mlir::SymbolTableCollection &symbolTableCollection) {
-  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
+  patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering, ExternalFunctionOpLowering>(
       typeConverter, context, symbolTableCollection);
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
       typeConverter, context);
-
-  patterns.insert<ExternalFunctionOpLowering>(typeConverter, context);
 }
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass() {
