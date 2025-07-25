@@ -235,7 +235,14 @@ struct ExternalFunctionOpLowering : public mlir::OpConversionPattern<ExternalFun
 
         auto newFuncType = rewriter.getFunctionType(convertedInputs, convertedResults);
 
-        auto funcOp = rewriter.create<mlir::func::FuncOp>(op.getLoc(), op.getSymName(), newFuncType);
+        auto funcOp = rewriter.create<mlir::func::FuncOp>(
+            op.getLoc(), op.getSymName(), newFuncType);
+
+        funcOp->setAttr("llvm.linkage",
+            mlir::LLVM::LinkageAttr::get(rewriter.getContext(), mlir::LLVM::Linkage::External));
+
+        symbolTable.remove(op);
+        symbolTable.insert(funcOp);
 
         rewriter.eraseOp(op);
         

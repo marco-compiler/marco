@@ -9,5 +9,5 @@ end externalLogReal;
 model SimpleFirstOrder
   Real x(start = 0, fixed = true);
 equation
-  der(x) = 4 - externalLogReal(2, 256);
+  der(x) = 10 - externalLogReal(2, 256);
 end SimpleFirstOrder;
