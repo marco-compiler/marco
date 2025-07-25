@@ -22,11 +22,11 @@ Full set of compiler flags
 --------------------------
 Array based models:
 ```
---baseModelica --newBackend -d=evaluateAllParameters
+--baseModelica --newBackend -d=evaluateAllParameters,arrayConnect
 ```
 Automatic vectorization of model with many scalar instances of the same components:
 ```
---baseModelica --newBackend -d=mergeComponents,evaluateAllParameters
+--baseModelica --newBackend -d=mergeComponents,evaluateAllParameters,arrayConnect
 ```
 If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag.
 
