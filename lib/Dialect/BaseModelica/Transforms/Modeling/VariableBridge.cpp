@@ -80,6 +80,10 @@ llvm::hash_code hash_value(const VariableBridge &val) {
   return hash_value(val.id);
 }
 
+size_t VariableBridge::getOriginalRank() const {
+  return getOriginalIndices().rank();
+}
+
 const IndexSet &VariableBridge::getOriginalIndices() const { return indices; }
 
 IndexSet VariableBridge::getIndices() const {

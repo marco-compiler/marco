@@ -65,6 +65,8 @@ public:
 
   mlir::SymbolRefAttr getName() const { return name; }
 
+  size_t getOriginalRank() const;
+
   const IndexSet &getOriginalIndices() const;
 
   IndexSet getIndices() const;
