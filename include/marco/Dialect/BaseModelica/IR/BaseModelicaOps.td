@@ -4366,7 +4366,7 @@ def BaseModelica_EquationOp : BaseModelica_Op<"equation",
 }
 
 def BaseModelica_EquationSideOp : BaseModelica_Op<"equation_side",
-    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>]>
+    [ParentOneOf<["EquationTemplateOp", "EquationOp"]>, NoMemoryEffect]>
 {
     let summary = "Equation side.";
 
