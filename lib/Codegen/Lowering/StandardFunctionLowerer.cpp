@@ -252,6 +252,8 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
 
+    mlir::Location location = loc(function.getLocation());
+
     auto algorithmOp = builder().create<AlgorithmOp>(location);
 
     mlir::OpBuilder::InsertionGuard bodyGuard(builder()); 
