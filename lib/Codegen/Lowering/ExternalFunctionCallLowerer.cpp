@@ -29,12 +29,14 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
   if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
     return false;
   }
+
+  mlir::SymbolRefAttr calleeAttr = mlir::SymbolRefAttr::get(getContext(), externalFunctionOp.getSymName());
+  mlir::TypeRange resultTypes = externalFunctionOp.getFunctionType().getResults();
+
+  auto callOp = builder().create<CallOp>(loc(call.getLocation()), 
+                  calleeAttr, 
+                  resultTypes, argValues);
   
-  auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                        externalFunctionCallOp,
-                                        argValues);
-
-
 
   mlir::Value returnValue = callOp.getResult(0);
   const ast::ComponentReference* targetNode = call.getComponentReference();
