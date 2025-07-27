@@ -27,12 +27,12 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
   llvm::SmallVector<mlir::Value, 3> argValues;
 
   if (!lowerCustomFunctionArgs(call, inputVariables, argNames, argValues)) {
-    return std::nullopt;
+    return false;
   }
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
                                         //externalFunctionCallOp,
-                                        getSymbolRefFromRoot(*calleeOp),
+                                        getSymbolRefFromRoot(calleeOp),
                                         argValues);
 
 
