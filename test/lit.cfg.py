@@ -72,7 +72,6 @@ tool_dirs = [
 ]
 
 tools = [
-    "mlir-cpu-runner",
     "marco",
     "modelica-opt"
 ]
