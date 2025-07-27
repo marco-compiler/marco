@@ -7,7 +7,7 @@ external "C"
 end externalLogReal;
 
 model SimpleFirstOrder
-  Real x(start = 0, fixed = true);
+  Real x;
 equation
-  der(x) = 10 - externalLogReal(2, 256);
+  x = externalLogReal(2, 100);
 end SimpleFirstOrder;

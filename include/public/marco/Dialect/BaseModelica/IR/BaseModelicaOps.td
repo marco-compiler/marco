@@ -4492,10 +4492,7 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name, "mlir::TypeAttr":$type), [{
-            $_state.addAttribute("sym_name", $_builder.getStringAttr(name));
-            $_state.addAttribute("function_type", type);
-        }]>
+        OpBuilder<(ins "llvm::StringRef":$sym_name, "mlir::TypeAttr":$function_type)>
     ];
 
     let extraClassDeclaration = [{
@@ -4833,21 +4830,7 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
         OpBuilder<(ins
             "ExternalFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args,
-            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames), 
-            [{
-                $_state.addOperands(args);
-
-                $_state.addAttribute(
-                    "callee",
-                    ::mlir::SymbolRefAttr::get($_builder.getContext(), callee.getSymName())
-                );
-
-                $_state.addTypes(callee.getFunctionType().getResults());
-
-                if (argNames) {
-                    $_state.addAttribute("argNames", *argNames);
-                }
-            }]>,
+            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins
             "RawFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args)>,

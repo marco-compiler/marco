@@ -112,8 +112,8 @@ public:
   std::optional<Results> lower(const ast::ArrayGenerator &node) override;
 
   std::optional<Results> lower(const ast::Call &node) override;
-  std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
-
+  
+  bool lower(const ast::ExternalFunctionCall &call) override;
 
   std::optional<Results> lower(const ast::Constant &constant) override;
 
@@ -435,7 +435,8 @@ std::optional<Results> Bridge::Impl::lower(const ast::Call &call) {
   assert(callLowerer != nullptr);
   return callLowerer->lower(call);
 }
-std::optional<Results> Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
+
+bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
   assert(externalFunctionCallLowerer != nullptr);
   return externalFunctionCallLowerer->lower(call);
 }

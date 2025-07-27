@@ -9,17 +9,17 @@ using namespace ::mlir::bmodelica;
 namespace marco::codegen::lowering {
 ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge) : Lowerer(bridge) {}
 
-std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
+bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
 
   mlir::Operation * calleeOp = resolveCallee(call.getName());
 
   llvm::SmallVector<VariableOp> inputVariables;
 
   auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionOp>(*calleeOp);
-  const ast::ASTNode *grandparent = call.getParent()->getParent();
-  auto parentClassNode = grandparent->dyn_cast<const ast::Class>();
+  const ast::ASTNode *parentFunctionNode = call.getParent()->getParent();
+  auto parentFunctionClass = parentFunctionNode->dyn_cast<const ast::Class>();
 
-  auto parentFunctionOp = mlir::cast<FunctionOp>(getClass(*parentClassNode));
+  auto parentFunctionOp = mlir::cast<FunctionOp>(getClass(*parentFunctionClass));
 
   getCustomFunctionInputVariables(inputVariables, parentFunctionOp);
 
@@ -31,7 +31,8 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
   }
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                        externalFunctionCallOp,
+                                        //externalFunctionCallOp,
+                                        getSymbolRefFromRoot(*calleeOp),
                                         argValues);
 
 
@@ -43,18 +44,9 @@ std::optional<Results> ExternalFunctionCallLowerer::lower(const ast::ExternalFun
   builder().create<VariableSetOp>(
       loc(call.getLocation()),
       outputVarOp,
-      mlir::ValueRange{}, 
       returnValue
   );
-
-  /*std::vector<Reference> results;
-
-  for (auto result : callOp->getResults()) {
-    results.push_back(Reference::ssa(builder(), result));
-  }
-
-  return Results(results.begin(), results.end());*/
-  return Results{}; 
+  return true; 
 
 }
 

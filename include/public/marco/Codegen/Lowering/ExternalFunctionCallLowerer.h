@@ -14,7 +14,7 @@ class ExternalFunctionCallLowerer : public Lowerer {
 public:
   explicit ExternalFunctionCallLowerer(BridgeInterface *bridge);
 
-  virtual std::optional<Results> lower(const ast::ExternalFunctionCall &call) override;
+  virtual bool lower(const ast::ExternalFunctionCall &call) override;
 
 protected:
   using Lowerer::lower;
