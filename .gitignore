@@ -92,6 +92,7 @@ fabric.properties
 dist
 /build*
 .cache
+.devcontainer
 
 # Sundials libraries
 sundials_libraries/install

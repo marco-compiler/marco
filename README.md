@@ -57,6 +57,8 @@ The images different in the build characteristics of the installed software:
 | `marco-dev-debug-debian-12`   | Release + assertions | Debug             | Release       |
 | `marco-dev-release-debian-12` | Release              | Release           | Release       |
 
+A Visual Studio Code Dev Container can be set up using the [`docs/devcontainer.json`](docs/devcontainer.json) file.
+
 Of course, it is also possible to build MARCO natively.
 Directions to obtain the required dependencies and compile the project can be found [here](docs/BuildOnLinuxMacOS.md).
 

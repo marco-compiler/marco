@@ -1,0 +1,50 @@
+{
+  "name": "MARCO Dev Container",
+  "image": "ghcr.io/marco-compiler/marco-dev-debug-debian-12:latest",
+  "remoteUser": "marco",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "cmakeExplorer.suiteDelimiter": ".",
+        "cmakeExplorer.debugConfig": "(gdb) Launch",
+        "editor.formatOnSave": true,
+        "cmake.buildDirectory": "${workspaceFolder}/build",
+        "cmake.generator": "Ninja",
+        "cmake.defaultVariants": {
+          "buildType": {
+            "default": "reldeb",
+            "description": "The build type.",
+            "choices": {
+              "debug": {
+                "short": "Debug",
+                "long": "Disable optimizations - include debug information.",
+                "buildType": "Debug"
+              },
+              "release": {
+                "short": "Release",
+                "long": "Optimize for speed - exclude debug information.",
+                "buildType": "Release"
+              },
+              "minsize": {
+                "short": "MinSizeRel",
+                "long": "Optimize for smallest binary size - exclude debug information.",
+                "buildType": "MinSizeRel"
+              },
+              "reldeb": {
+                "short": "RelWithDebInfo",
+                "long": "Optimize for speed - include debug information.",
+                "buildType": "RelWithDebInfo"
+              }
+            }
+          }
+        }
+      },
+      "extensions": [
+        "ms-vscode.cmake-tools"
+      ]
+    }
+  }
+}
