@@ -9,7 +9,7 @@
 
 namespace llvm {
 class raw_ostream;
-}
+} // namespace llvm
 
 namespace marco::parser {
 enum class TokenKind {

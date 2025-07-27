@@ -3,17 +3,18 @@
 using namespace ::marco;
 using namespace ::marco::parser;
 
-static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
+namespace {
+bool isDigit(char c) { return ('0' <= c && c <= '9'); }
 
-static bool isNonDigit(char c) {
+bool isNonDigit(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
 /// Get the escaped version of a character, but ony if that escaped version has
 /// a special meaning in the ASCII table.
 /// For example, the escaped version of 'n' is a new line, but the escaped
-/// version of 'z' means nothing special and thus only 'z' is returned.
-static char escapedChar(char c) {
+/// version of 'z' means nothing special and thus only 'z' is returned
+char escapedChar(char c) {
   constexpr int alert = 7;
   constexpr int backspace = 8;
   constexpr int fromFeed = 12;
@@ -44,10 +45,11 @@ static char escapedChar(char c) {
     return c;
   }
 }
+} // namespace
 
 namespace marco::parser {
-ModelicaStateMachine::ModelicaStateMachine(std::shared_ptr<SourceFile> file,
-                                           char first)
+ModelicaStateMachine::ModelicaStateMachine(
+    const std::shared_ptr<SourceFile> &file, char first)
     : state(State::Normal), current('\0'), next(first), identifier(""),
       stringValue(""), currentPosition(SourcePosition(file, 1, 0)),
       beginPosition(SourcePosition(file, 1, 0)),

@@ -1,5 +1,5 @@
-#ifndef MARCO_DIAGNOSTIC_LOCATION_H
-#define MARCO_DIAGNOSTIC_LOCATION_H
+#ifndef MARCO_PARSER_LOCATION_H
+#define MARCO_PARSER_LOCATION_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -7,7 +7,7 @@
 
 namespace llvm {
 class raw_ostream;
-}
+} // namespace llvm
 
 namespace marco {
 class SourceFile {
@@ -52,4 +52,4 @@ public:
 };
 } // namespace marco
 
-#endif // MARCO_DIAGNOSTIC_LOCATION_H
+#endif // MARCO_PARSER_LOCATION_H

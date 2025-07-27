@@ -12,8 +12,8 @@ using namespace ::marco::parser;
   static_assert(true)
 
 #define TRY(outVar, expression)                                                \
-  auto outVar = expression;                                                    \
-  if (!outVar.has_value()) {                                                   \
+  auto(outVar) = expression;                                                   \
+  if (!(outVar).has_value()) {                                                 \
     return std::nullopt;                                                       \
   }                                                                            \
   static_assert(true)
@@ -21,9 +21,9 @@ using namespace ::marco::parser;
 namespace marco::parser {
 Parser::Parser(clang::DiagnosticsEngine &diagnosticsEngine,
                clang::SourceManager &sourceManager,
-               std::shared_ptr<SourceFile> file)
+               std::shared_ptr<SourceFile> source)
     : diagnosticsEngine(&diagnosticsEngine), sourceManager(&sourceManager),
-      lexer(std::move(file)) {
+      lexer(std::move(source)) {
   for (size_t i = 0, e = lookahead.size(); i < e; ++i) {
     advance();
   }
@@ -178,7 +178,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     result = std::make_unique<Model>(loc);
   }
 
-  if (auto standardFunction = result->dyn_cast<StandardFunction>()) {
+  if (auto *standardFunction = result->dyn_cast<StandardFunction>()) {
     standardFunction->setPure(isPure);
   }
 
@@ -389,8 +389,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseArgument() {
     return std::move(*elementRedeclaration);
   }
 
-  bool each = accept<TokenKind::Each>();
-  bool final = accept<TokenKind::Final>();
+  const bool each = accept<TokenKind::Each>();
+  const bool final = accept<TokenKind::Final>();
 
   if (lookahead[0].isa<TokenKind::Replaceable>()) {
     TRY(elementReplaceable, parseElementReplaceable(each, final));
@@ -404,7 +404,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseArgument() {
 ParseResult<std::unique_ptr<ASTNode>>
 Parser::parseElementModification(bool each, bool final) {
   EXPECT(TokenKind::Identifier);
-  std::string name = getString();
+  const std::string name = getString();
 
   SourceRange loc = getLocation();
 
@@ -463,8 +463,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseAlgorithmSection() {
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseEquationSection() {
-  SourceRange loc = lookahead[0].getLocation();
-  bool initial = accept<TokenKind::Initial>();
+  const SourceRange loc = lookahead[0].getLocation();
+  const bool initial = accept<TokenKind::Initial>();
   EXPECT(TokenKind::Equation);
 
   llvm::SmallVector<std::unique_ptr<ast::ASTNode>> equations;
@@ -1061,7 +1061,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalTerm() {
 }
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseLogicalFactor() {
-  bool negated = accept<TokenKind::Not>();
+  const bool negated = accept<TokenKind::Not>();
   SourceRange loc = getLocation();
 
   TRY(relation, parseRelation());
@@ -1401,7 +1401,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parsePrimary() {
 
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseComponentReference() {
   SourceRange loc = lookahead[0].getLocation();
-  bool globalLookup = accept<TokenKind::Dot>();
+  const bool globalLookup = accept<TokenKind::Dot>();
 
   llvm::SmallVector<std::unique_ptr<ASTNode>> path;
 
@@ -1603,7 +1603,7 @@ Parser::parseNamedArguments() {
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseNamedArgument() {
   EXPECT(TokenKind::Identifier);
   SourceRange loc = getLocation();
-  std::string identifier = getString();
+  const std::string identifier = getString();
   EXPECT(TokenKind::EqualityOperator);
 
   TRY(expression, parseFunctionArgument());
@@ -1631,7 +1631,7 @@ Parser::parseOutputExpressionList() {
   std::vector<std::unique_ptr<ast::ASTNode>> expressions;
 
   while (!lookahead[0].isa<TokenKind::RPar>()) {
-    SourceRange loc = lookahead[0].getLocation();
+    const SourceRange loc = lookahead[0].getLocation();
 
     if (accept<TokenKind::Comma>()) {
       auto expression = std::make_unique<ComponentReference>(loc);
@@ -1797,8 +1797,8 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTypePrefix() {
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
   std::unique_ptr<ast::ASTNode> result;
 
-  bool globalLookup = accept<TokenKind::Dot>();
-  std::string name = lookahead[0].getString();
+  const bool globalLookup = accept<TokenKind::Dot>();
+  const std::string name = lookahead[0].getString();
   EXPECT(TokenKind::Identifier);
   SourceRange loc = getLocation();
 
@@ -1849,7 +1849,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType() {
 }
 
 ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension() {
-  SourceRange loc = lookahead[0].getLocation();
+  const SourceRange loc = lookahead[0].getLocation();
   auto result = std::make_unique<ArrayDimension>(loc);
 
   if (accept<TokenKind::Colon>()) {
@@ -1872,7 +1872,7 @@ ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseTermModification() {
 
   do {
     accept<TokenKind::Each>();
-    std::string lastIndentifier = lookahead[0].getString();
+    const std::string lastIndentifier = lookahead[0].getString();
     EXPECT(TokenKind::Identifier);
     EXPECT(TokenKind::EqualityOperator);
 

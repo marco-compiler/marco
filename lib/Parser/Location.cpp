@@ -16,11 +16,13 @@ llvm::MemoryBuffer *SourceFile::getBuffer() const {
   return buffer;
 }
 
-void SourceFile::setMemoryBuffer(llvm::MemoryBuffer *value) { buffer = value; }
+void SourceFile::setMemoryBuffer(llvm::MemoryBuffer *buffer) {
+  this->buffer = buffer;
+}
 
 SourcePosition::SourcePosition(std::shared_ptr<SourceFile> file, int64_t line,
                                int64_t column)
-    : file(file), line(line), column(column) {}
+    : file(std::move(file)), line(line), column(column) {}
 
 SourcePosition SourcePosition::unknown() {
   auto file = std::make_unique<SourceFile>("-");

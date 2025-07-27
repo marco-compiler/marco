@@ -50,7 +50,7 @@ public:
     IgnoredCharacter
   };
 
-  ModelicaStateMachine(std::shared_ptr<SourceFile> file, char first);
+  ModelicaStateMachine(const std::shared_ptr<SourceFile> &file, char first);
 
 public:
   /// Returns the last seen identifier, or the one being built if the
