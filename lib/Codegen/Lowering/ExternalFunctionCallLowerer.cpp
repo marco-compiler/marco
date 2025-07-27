@@ -11,11 +11,11 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 
 bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
 
-  mlir::Operation * calleeOp = resolveCallee(call.getName());
+  mlir::Operation * calleeOpRaw = resolveCallee(call.getName());
+  auto calleeOp = mlir::dyn_cast<ExternalFunctionOp>(calleeOpRaw);
 
   llvm::SmallVector<VariableOp> inputVariables;
 
-  auto externalFunctionCallOp = mlir::dyn_cast<ExternalFunctionOp>(*calleeOp);
   const ast::ASTNode *parentFunctionNode = call.getParent()->getParent();
   auto parentFunctionClass = parentFunctionNode->dyn_cast<const ast::Class>();
 
@@ -30,8 +30,8 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
     return false;
   }
 
-  mlir::TypeRange resultTypes = externalFunctionOp.getFunctionType().getResults();
-  mlir::SymbolRefAttr calleeAttr = mlir::SymbolRefAttr::get(getContext(), externalFunctionOp.getSymName());
+  mlir::TypeRange resultTypes = calleeOp.getFunctionType().getResults();
+  mlir::SymbolRefAttr calleeAttr = mlir::SymbolRefAttr::get(getContext(), calleeOp.getSymName());
 
   auto callOp = builder().create<CallOp>(loc(call.getLocation()), 
                   calleeAttr, 
