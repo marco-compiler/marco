@@ -30,8 +30,8 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
     return false;
   }
 
-  mlir::SymbolRefAttr calleeAttr = mlir::SymbolRefAttr::get(getContext(), externalFunctionOp.getSymName());
   mlir::TypeRange resultTypes = externalFunctionOp.getFunctionType().getResults();
+  mlir::SymbolRefAttr calleeAttr = mlir::SymbolRefAttr::get(getContext(), externalFunctionOp.getSymName());
 
   auto callOp = builder().create<CallOp>(loc(call.getLocation()), 
                   calleeAttr, 
