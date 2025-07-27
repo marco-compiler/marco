@@ -48,5 +48,5 @@ RUN apt update -y && \
 RUN pip install nltk
 
 # Reduce image size.
-RUN apt-get clean && \
+RUN apt clean && \
     rm -rf /var/lib/apt/lists/*

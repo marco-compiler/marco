@@ -62,5 +62,5 @@ RUN apt update -y && \
     apt install -y gettext-base
 
 # Reduce image size.
-RUN apt-get clean && \
+RUN apt clean && \
     rm -rf /var/lib/apt/lists/*
