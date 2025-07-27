@@ -31,8 +31,7 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
   }
   
   auto callOp = builder().create<CallOp>(loc(call.getLocation()),
-                                        //externalFunctionCallOp,
-                                        getSymbolRefFromRoot(calleeOp),
+                                        externalFunctionCallOp,
                                         argValues);
 
 
