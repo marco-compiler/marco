@@ -76,7 +76,14 @@ public:
 
   const IndexSet &getEquationSpace() const;
 
+  void setEquationSpace(std::shared_ptr<const IndexSet> newEquationSpace);
+
   const IndexSet &getVariableSpace() const;
+
+  void setVariableSpace(std::shared_ptr<const IndexSet> newVariableSpace);
+
+  void setSpaces(std::shared_ptr<const IndexSet> newEquationSpace,
+                 std::shared_ptr<const IndexSet> variableSpace);
 
   IndicesIterator indicesBegin() const;
 

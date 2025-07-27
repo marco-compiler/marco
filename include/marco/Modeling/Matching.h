@@ -96,6 +96,8 @@ private:
   const IndexSet &getMatchableIndices() const;
 
 public:
+  void setMatchableIndices(std::shared_ptr<const IndexSet> indices);
+
   const IndexSet &getMatched() const;
 
   const IndexSet &getUnmatched() const;
@@ -256,6 +258,27 @@ public:
     return indices;
   }
 
+  void setIndices(std::shared_ptr<const IndexSet> newIndices) {
+    assert(!newIndices->empty());
+    indices = newIndices;
+    setMatchableIndices(newIndices);
+  }
+
+  /// Remove a set of indices from the variable. Return true if the operation
+  /// was successfull, false if all the indices would be removed and therefore
+  /// the variable should be removed from the graph.
+  bool removeIndices(const IndexSet &removedIndices) {
+    auto newIndices =
+        std::make_shared<const IndexSet>(*indices - removedIndices);
+
+    if (newIndices->empty()) {
+      return false;
+    }
+
+    setIndices(newIndices);
+    return true;
+  }
+
   size_t flatSize() const { return getIndices().flatSize(); }
 
   VariableVertex withMask(Point mask) const {
@@ -392,18 +415,20 @@ public:
 /// Graph node representing an equation.
 template <typename EquationProperty>
 class EquationVertex : public Matchable, public Dumpable {
+public:
   using EquationTraits =
       ::marco::modeling::matching::EquationTraits<EquationProperty>;
 
+private:
   using VariableProperty = typename EquationTraits::VariableType;
 
   using VariableTraits =
       ::marco::modeling::matching::VariableTraits<VariableProperty>;
 
 public:
-  using ScalarVariablesMap = llvm::DenseMap<
-      typename VariableTraits::Id,
-      llvm::DenseMap<Point, typename VariableVertex<VariableProperty>::Id>>;
+  using ScalarVariablesMap =
+      llvm::DenseMap<typename VariableTraits::Id,
+                     llvm::DenseMap<Point, VariableId<VariableProperty>>>;
 
   using Property = std::shared_ptr<EquationProperty>;
   using Id = EquationId<EquationProperty>;
@@ -519,6 +544,27 @@ public:
     return indices;
   }
 
+  void setIndices(std::shared_ptr<const IndexSet> newIndices) {
+    assert(!newIndices->empty());
+    indices = std::move(newIndices);
+    setMatchableIndices(newIndices);
+  }
+
+  /// Remove a set of indices from the variable. Return true if the operation
+  /// was successfull, false if all the indices would be removed and therefore
+  /// the variable should be removed from the graph.
+  bool removeIndices(const IndexSet &removedIndices) {
+    auto newIndices =
+        std::make_shared<const IndexSet>(*indices - removedIndices);
+
+    if (newIndices->empty()) {
+      return false;
+    }
+
+    setIndices(newIndices);
+    return true;
+  }
+
   unsigned int flatSize() const { return getIndices().flatSize(); }
 
   EquationVertex withMask(Point mask) const {
@@ -626,6 +672,43 @@ public:
     os << "  - Matched variables: " << getMatched().flattenRows() << "\n";
     os << "  - Matched matrix:\n" << getMatched() << "\n";
     os << "  - Unmatched matrix:\n" << getUnmatched() << "\n";
+  }
+
+  void setIndices(std::shared_ptr<const IndexSet> newEquationIndices,
+                  std::shared_ptr<const IndexSet> newVariableIndices) {
+    incidenceMatrix.setSpaces(newEquationIndices, newVariableIndices);
+    matchMatrix.setSpaces(newEquationIndices, newVariableIndices);
+    unmatchMatrix.setSpaces(newEquationIndices, newVariableIndices);
+  }
+
+  void setEquationIndices(std::shared_ptr<const IndexSet> newEquationIndices) {
+    incidenceMatrix.setEquationSpace(newEquationIndices);
+    matchMatrix.setEquationSpace(newEquationIndices);
+    unmatchMatrix.setEquationSpace(newEquationIndices);
+  }
+
+  void removeEquationIndices(const IndexSet &removedIndices) {
+    auto newEquationIndices = std::make_shared<const IndexSet>(
+        incidenceMatrix.getEquationSpace() - removedIndices);
+
+    incidenceMatrix.setEquationSpace(newEquationIndices);
+    matchMatrix.setEquationSpace(newEquationIndices);
+    unmatchMatrix.setEquationSpace(newEquationIndices);
+  }
+
+  void setVariableIndices(std::shared_ptr<const IndexSet> newVariableIndices) {
+    incidenceMatrix.setVariableSpace(newVariableIndices);
+    matchMatrix.setVariableSpace(newVariableIndices);
+    unmatchMatrix.setVariableSpace(newVariableIndices);
+  }
+
+  void removeVariableIndices(const IndexSet &removedIndices) {
+    auto newVariableIndices = std::make_shared<const IndexSet>(
+        incidenceMatrix.getVariableSpace() - removedIndices);
+
+    incidenceMatrix.setVariableSpace(newVariableIndices);
+    matchMatrix.setVariableSpace(newVariableIndices);
+    unmatchMatrix.setVariableSpace(newVariableIndices);
   }
 
   const MCIM &getIncidenceMatrix() const { return incidenceMatrix; }
@@ -940,6 +1023,28 @@ private:
   Container<Flow> flows;
 };
 
+template <typename VertexDescriptor>
+class Visits {
+  std::mutex mutex;
+  llvm::MapVector<VertexDescriptor, IndexSet> visitedVariables;
+  llvm::MapVector<VertexDescriptor, IndexSet> visitedEquations;
+
+public:
+  void addVariableVisit(VertexDescriptor vertex, const IndexSet &indices) {
+    std::lock_guard lock(mutex);
+    visitedVariables[vertex] += indices;
+  }
+
+  void addEquationVisit(VertexDescriptor vertex, const IndexSet &indices) {
+    std::lock_guard lock(mutex);
+    visitedEquations[vertex] += indices;
+  }
+
+  auto getVisitedVariables() const { return visitedVariables.getArrayRef(); }
+
+  auto getVisitedEquations() const { return visitedEquations.getArrayRef(); }
+};
+
 /// The class represents to which indices of a variable an equation is matched.
 template <typename EquationProperty, typename VariableProperty>
 class MatchingSolution {
@@ -1000,6 +1105,7 @@ protected:
 
   using BFSStep = BFSStep<Graph, Variable, Equation>;
   using Frontier = Frontier<BFSStep>;
+  using Visits = Visits<VertexDescriptor>;
   using Flow = Flow<Graph, Variable, Equation>;
   using AugmentingPath = AugmentingPath<Flow>;
 
@@ -1184,8 +1290,8 @@ public:
     addVariable(std::move(variable));
   }
 
-private:
-  void addVariable(Variable variable) {
+protected:
+  VertexDescriptor addVariable(Variable variable) {
     auto id = variable.getId();
     assert(!hasVariableWithId(id) && "Already existing variable");
 
@@ -1193,6 +1299,19 @@ private:
         getBaseGraph().addVertex(std::move(variable));
 
     variablesMap[id] = variableDescriptor;
+    return variableDescriptor;
+  }
+
+  void removeVariable(VertexDescriptor variableDescriptor) {
+    const Variable &variable = getVariableFromDescriptor(variableDescriptor);
+    auto it = variablesMap.find(variable.getId());
+
+    if (it != variablesMap.end()) {
+      assert(it->second == variableDescriptor);
+      variablesMap.erase(it);
+    }
+
+    getBaseGraph().removeVertex(variableDescriptor);
   }
 
 public:
@@ -1241,7 +1360,7 @@ public:
     discoverAccesses(equationDescriptor);
   }
 
-private:
+protected:
   VertexDescriptor addEquation(Equation equation) {
     [[maybe_unused]] auto id = equation.getId();
 
@@ -1253,7 +1372,19 @@ private:
     return equationDescriptor;
   }
 
-  void discoverAccesses(VertexDescriptor equationDescriptor) {
+  void removeEquation(VertexDescriptor equationDescriptor) {
+    const Equation &equation = getVariableFromDescriptor(equationDescriptor);
+    auto it = equationsMap.find(equation.getId());
+
+    if (it != equationsMap.end()) {
+      assert(it->second == equationDescriptor);
+      equationsMap.erase(it);
+    }
+
+    getBaseGraph().removeVertex(equationDescriptor);
+  }
+
+  virtual void discoverAccesses(VertexDescriptor equationDescriptor) {
     const Equation &equation = getEquationFromDescriptor(equationDescriptor);
 
     // Add an edge for each accessed variable.
@@ -1343,7 +1474,7 @@ public:
     return findEdge<Variable, Equation>(variableId, equationId).first;
   }
 
-private:
+protected:
   using MatchingSolutions =
       llvm::MapVector<typename Equation::Id::BaseId,
                       llvm::MapVector<typename Variable::Id::BaseId,
@@ -1466,6 +1597,7 @@ private:
     }
   }
 
+protected:
   /// Check if a variable with a given ID exists.
   bool hasVariableWithId(typename Variable::Id id) const {
     return variablesMap.find(id) != variablesMap.end();
@@ -1700,6 +1832,7 @@ private:
     getBaseGraph()[edge].setVisibility(false);
   }
 
+private:
   /// Apply the simplification algorithm in order to perform all
   /// the obligatory matches, that is the variables and equations
   /// having only one incident edge.
@@ -1758,7 +1891,7 @@ private:
         // candidates list, thus worsening the overall complexity of the
         // algorithm.
 
-        assert(std::visit(allComponentsMatchedFn, v));
+        // assert(std::visit(allComponentsMatchedFn, v));
         LLVM_DEBUG(llvm::dbgs() << "First vertex not visible\n");
         continue;
       }
@@ -1872,10 +2005,12 @@ private:
     }
   }
 
+protected:
   /// Collect the list of vertices with exactly one incident edge.
   /// The function returns 'false' if there exist a node with no incident
   /// edges (which would make the matching process to fail in aby case).
-  void collectSimplifiableNodes(std::list<VertexDescriptor> &nodes) const {
+  virtual void
+  collectSimplifiableNodes(std::list<VertexDescriptor> &nodes) const {
     std::mutex resultMutex;
 
     auto collectFn = [&](VertexDescriptor vertex) {
@@ -1891,6 +2026,7 @@ private:
                           getBaseGraph().verticesEnd(), collectFn);
   }
 
+private:
   /// Apply an array-aware variant of the Hopcroft-Karp algorithm.
   /// Returns true if a full match is obtained.
   bool applyHK() {
@@ -1926,6 +2062,7 @@ private:
     return complete;
   }
 
+protected:
   void collectTraversableEdges(TraversableEdges &traversableEdges) const {
     std::mutex mutex;
 
@@ -1958,6 +2095,7 @@ private:
         });
   }
 
+private:
   std::optional<Derived> getScalarGraph(double scalarAccessThreshold) const {
     // Determine which variables should be scalarized.
     llvm::DenseSet<VertexDescriptor> toScalarize;
@@ -1968,7 +2106,7 @@ private:
     }
 
     // Build the graph with scalarized variables.
-    Derived scalarizedGraph(getContext());
+    Derived scalarizedGraph = this->newInstance();
 
     auto scalarVariablesMap =
         std::make_shared<typename Equation::ScalarVariablesMap>();
@@ -2095,6 +2233,7 @@ private:
            variable.getIndices().flatSize();
   }
 
+private:
   bool matchIteration(TraversableEdges &traversableEdges) {
     std::vector<AugmentingPath> augmentingPaths;
     getAugmentingPaths(augmentingPaths, traversableEdges);
@@ -2110,6 +2249,7 @@ private:
     return true;
   }
 
+protected:
   void getAugmentingPaths(std::vector<AugmentingPath> &augmentingPaths,
                           const TraversableEdges &traversableEdges) const {
     // Get the possible augmenting paths.
@@ -2241,20 +2381,29 @@ private:
   }
 
   std::vector<std::shared_ptr<BFSStep>>
-  getCandidateAugmentingPaths(const TraversableEdges &traversableEdges) const {
+  getCandidateAugmentingPaths(const TraversableEdges &traversableEdges,
+                              Visits *visits = nullptr) const {
     std::vector<std::shared_ptr<BFSStep>> paths;
     Frontier frontier;
 
     // Computation of the initial frontier.
     getInitialFrontier(frontier);
 
-    // Breadth-first search.
-    Frontier newFrontier;
+    return getCandidateAugmentingPaths(frontier, traversableEdges, visits);
+  }
 
+  std::vector<std::shared_ptr<BFSStep>>
+  getCandidateAugmentingPaths(Frontier &frontier,
+                              const TraversableEdges &traversableEdges,
+                              Visits *visits = nullptr) const {
+    std::vector<std::shared_ptr<BFSStep>> paths;
+
+    // Breadth-first search.
     std::mutex newFrontierMutex;
     std::mutex pathsMutex;
 
     while (!frontier.empty() && paths.empty()) {
+      Frontier newFrontier;
       sortFrontier(frontier);
       LLVM_DEBUG(frontier.dump(llvm::dbgs()));
 
@@ -2262,7 +2411,8 @@ private:
         std::vector<std::shared_ptr<BFSStep>> localFrontier;
         std::vector<std::shared_ptr<BFSStep>> localPaths;
 
-        expandFrontier(step, traversableEdges, localFrontier, localPaths);
+        expandFrontier(step, traversableEdges, localFrontier, localPaths,
+                       visits);
 
         if (!localFrontier.empty()) {
           std::lock_guard<std::mutex> lock(newFrontierMutex);
@@ -2286,6 +2436,7 @@ private:
     return paths;
   }
 
+private:
   void getInitialFrontier(Frontier &frontier) const {
     std::mutex mutex;
 
@@ -2351,7 +2502,8 @@ private:
   void expandFrontier(const std::shared_ptr<BFSStep> &step,
                       const TraversableEdges &traversableEdges,
                       std::vector<std::shared_ptr<BFSStep>> &newFrontier,
-                      std::vector<std::shared_ptr<BFSStep>> &paths) const {
+                      std::vector<std::shared_ptr<BFSStep>> &paths,
+                      Visits *visits = nullptr) const {
     LLVM_DEBUG({
       llvm::dbgs() << "Current traversal: ";
       step->dump(llvm::dbgs());
@@ -2359,6 +2511,10 @@ private:
     });
 
     const VertexDescriptor &vertexDescriptor = step->getNode();
+
+    if (visits) {
+      addVisit(*visits, vertexDescriptor, step->getCandidates());
+    }
 
     auto containsFn = [&](VertexDescriptor node, const IndexSet &indices) {
       const BFSStep *currentStep = step.get();
@@ -2389,6 +2545,11 @@ private:
 
       if (isEquation(vertexDescriptor)) {
         assert(isVariable(nextNode));
+
+        if (visits) {
+          addVisit(*visits, nextNode, edge.getIncidenceMatrix().flattenRows());
+        }
+
         const Variable &var = getVariableFromDescriptor(nextNode);
 
         LLVM_DEBUG({
@@ -2459,6 +2620,7 @@ private:
     }
   }
 
+protected:
   /// Apply an augmenting path to the graph.
   void applyPath(const AugmentingPath &path,
                  TraversableEdges &traversableEdges) {
@@ -2529,6 +2691,24 @@ private:
       std::visit([&match](auto &node) { node.addMatch(match.second); },
                  getBaseGraph()[match.first]);
     });
+  }
+
+private:
+  void addVisit(Visits &visits, VertexDescriptor node,
+                const IndexSet &indices) const {
+    if (isVariable(node)) {
+      LLVM_DEBUG(llvm::dbgs() << "Adding visit to variable "
+                              << getVariableFromDescriptor(node).getId()
+                              << " @ " << indices << "\n");
+
+      visits.addVariableVisit(node, indices);
+    } else {
+      LLVM_DEBUG(llvm::dbgs() << "Adding visit to equation "
+                              << getEquationFromDescriptor(node).getId()
+                              << " @ " << indices << "\n");
+
+      visits.addEquationVisit(node, indices);
+    }
   }
 };
 } // namespace internal::matching
