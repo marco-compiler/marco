@@ -310,9 +310,6 @@ std::optional<Results> Lowerer::lower(const ast::ArrayGenerator &array) {
 std::optional<Results> Lowerer::lower(const ast::Call &call) {
   return bridge->lower(call);
 }
-std::optional<Results> Lowerer::lower(const ast::ExternalFunctionCall &call) {
-  return bridge->lower(call);
-}
 
 std::optional<Results> Lowerer::lower(const ast::Constant &constant) {
   return bridge->lower(constant);
@@ -333,6 +330,10 @@ std::optional<Results> Lowerer::lower(const ast::Tuple &tuple) {
 
 std::optional<Results> Lowerer::lower(const ast::Subscript &subscript) {
   return bridge->lower(subscript);
+}
+
+bool Lowerer::lower(const ast::ExternalFunctionCall &call) {
+  return bridge->lower(call);
 }
 
 bool Lowerer::lower(const ast::EquationSection &node) {
