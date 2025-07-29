@@ -19,38 +19,6 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   builder().setInsertionPointToStart(functionOp.getBody());
 
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
-    llvm::SmallVector<mlir::Type> inputTypes;
-    llvm::SmallVector<mlir::Type> outputTypes;
-
-    for (const auto &variableNode : function.getVariables()) {
-      const auto* member = variableNode->cast<ast::Member>();
-
-      const ast::VariableType* astVariableType = member->getType();
-      const ast::TypePrefix* astTypePrefix = member->getTypePrefix();
-      
-      if (!astVariableType || !astTypePrefix) {
-        return;
-      }   
-
-      std::optional<VariableType> mlirVariableType = 
-        getVariableType(*astVariableType, *astTypePrefix);
-
-      if (!mlirVariableType) {
-        return;
-      }
-
-      if (member->isInput()) {
-        inputTypes.push_back(mlirVariableType->unwrap());
-      } else if (member->isOutput()) {
-        outputTypes.push_back(mlirVariableType->unwrap());
-      }
-    }
-
-    mlir::FunctionType funcType = mlir::FunctionType::get(
-      builder().getContext(), 
-      inputTypes,             
-      outputTypes         
-    );
 
     ExternalFunctionOp externalFunctionOp; 
     
@@ -58,7 +26,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       auto module = functionOp->getParentOfType<mlir::ModuleOp>();
       mlir::OpBuilder::InsertionGuard guard(builder());
       builder().setInsertionPointToStart(module.getBody());
-      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
+      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName());
       externalFunctionOp.setPrivate();
     }
   }

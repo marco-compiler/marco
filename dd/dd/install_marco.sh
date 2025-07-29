@@ -1,11 +1,6 @@
 #!/bin/bash
 
-rm -rf marco
-git clone https://github.com/marco-compiler/marco.git
-cd marco || exit 1
-git checkout ${MARCO_COMMIT}
-
-mkdir build
+cd marco
 
 cmake \
   -S . \
@@ -17,4 +12,3 @@ cmake \
   || exit 1
 
 cmake --build build --target install || exit 1
-rm -rf build
