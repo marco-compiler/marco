@@ -38,14 +38,18 @@ bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
   
 
   mlir::Value returnValue = callOp.getResult(0);
-  const ast::ComponentReference* targetNode = call.getComponentReference();
-  std::string outputVarName = targetNode->getName(); 
-  auto outputVarOp = parentFunctionOp.lookupSymbol<VariableOp>(outputVarName);
-  builder().create<VariableSetOp>(
+
+  if (call.hasComponentReference()) {
+    const ast::ComponentReference* componentReferenceNode = call.getComponentReference();
+    std::string componentReferenceName = componentReferenceNode->getName(); 
+    auto outputVarOp = parentFunctionOp.lookupSymbol<VariableOp>(componentReferenceName);
+    builder().create<VariableSetOp>(
       loc(call.getLocation()),
       outputVarOp,
       returnValue
-  );
+    );
+  }
+
   return true; 
 
 }
