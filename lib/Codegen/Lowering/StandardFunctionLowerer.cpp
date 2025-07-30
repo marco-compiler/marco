@@ -23,28 +23,28 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     llvm::SmallVector<mlir::Type> inputTypes;
     llvm::SmallVector<mlir::Type> outputTypes;
 
-    for (const auto &variableNode : function.getVariables()) {
-      const auto* member = variableNode->cast<ast::Member>();
-      const ast::VariableType* astVariableType = member->getType();
-      const ast::TypePrefix* astTypePrefix = member->getTypePrefix();
-      if (!astVariableType || !astTypePrefix) {
-        return;
-      }   
-      std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
-      if (!mlirVariableType) {
-        return;
-      }
-      if (member->isInput()) {
-        inputTypes.push_back(mlirVariableType->unwrap());
-      } else if (member->isOutput()) {
-        outputTypes.push_back(mlirVariableType->unwrap());
-      }
-    }
+    //for (const auto &variableNode : function.getVariables()) {
+    //  const auto* member = variableNode->cast<ast::Member>();
+    //  const ast::VariableType* astVariableType = member->getType();
+    //  const ast::TypePrefix* astTypePrefix = member->getTypePrefix();
+    //  if (!astVariableType || !astTypePrefix) {
+    //    return;
+    //  }   
+    //  std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
+    //  if (!mlirVariableType) {
+    //    return;
+    //  }
+    //  if (member->isInput()) {
+    //    inputTypes.push_back(mlirVariableType->unwrap());
+    //  } else if (member->isOutput()) {
+    //    outputTypes.push_back(mlirVariableType->unwrap());
+    //  }
+    //}
+
     mlir::FunctionType funcType = mlir::FunctionType::get(
       builder().getContext(), 
-      {},             
-      {}, 
-      true         
+      inputTypes,             
+      outputTypes         
     );
 
     ExternalFunctionOp externalFunctionOp; 
