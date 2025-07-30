@@ -42,8 +42,9 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     }
     mlir::FunctionType funcType = mlir::FunctionType::get(
       builder().getContext(), 
-      inputTypes,             
-      outputTypes         
+      {},             
+      {}, 
+      true         
     );
 
     ExternalFunctionOp externalFunctionOp; 
