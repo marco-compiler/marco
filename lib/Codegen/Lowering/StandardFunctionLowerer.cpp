@@ -52,7 +52,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       auto module = functionOp->getParentOfType<mlir::ModuleOp>();
       mlir::OpBuilder::InsertionGuard guard(builder());
       builder().setInsertionPointToStart(module.getBody());
-      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName());
+      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
       externalFunctionOp.setPrivate();
     }
   }
