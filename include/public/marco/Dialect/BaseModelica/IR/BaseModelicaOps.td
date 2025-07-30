@@ -4474,7 +4474,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 }
 
 def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [Symbol]> 
+    [Symbol, DeclareOpInterface]> 
 {
     let summary = "Declares an external function.";
 
