@@ -4485,13 +4485,14 @@ def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
     }];
 
     let arguments = (ins
-        SymbolNameAttr:$sym_name
+        SymbolNameAttr:$sym_name, 
+        TypeAttrOf<FunctionType>:$function_type
     );
 
-    let assemblyFormat = "$sym_name attr-dict";
+    let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$sym_name)>
+        OpBuilder<(ins "llvm::StringRef":$sym_name, "mlir::TypeAttr":$function_type)>
     ];
 
     let extraClassDeclaration = [{
