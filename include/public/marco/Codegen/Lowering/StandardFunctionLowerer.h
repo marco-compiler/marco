@@ -17,6 +17,7 @@ public:
 
   [[nodiscard]] bool lower(const ast::StandardFunction &function) override;
 
+
 protected:
   using Lowerer::declare;
   using Lowerer::declareVariables;
@@ -30,6 +31,8 @@ private:
   [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member &variable);
 
   bool isRecordConstructor(const ast::StandardFunction &function);
+  mlir::Type lowerArg(const ast::Expression &expression); 
+
 };
 } // namespace marco::codegen::lowering
 

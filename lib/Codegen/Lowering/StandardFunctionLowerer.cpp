@@ -23,13 +23,6 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     llvm::SmallVector<mlir::Type> inputTypes;
     llvm::SmallVector<mlir::Type> outputTypes;
 
-    auto args = function.getExternalRef()->getExternalFunctionCall()->getExpressions(); 
-
-    for (size_t i = 0; i < args.size(); i++){
-      auto argType = lowerArg(*args[i]->cast<ast::Expression>());
-      inputTypes.push_back(argType); 
-    }
-
     for (const auto &variableNode : function.getVariables()) {
       const auto* member = variableNode->cast<ast::Member>();
       if (member->isOutput()) {
@@ -38,6 +31,13 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
         std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
         outputTypes.push_back(mlirVariableType->unwrap());
       }
+    }
+
+    auto args = function.getExternalRef()->getExternalFunctionCall()->getExpressions(); 
+
+    for (size_t i = 0; i < args.size(); i++){
+      auto argType = lowerArg(*args[i]->cast<ast::Expression>());
+      inputTypes.push_back(argType); 
     }
     
     mlir::FunctionType funcType = mlir::FunctionType::get(
@@ -55,7 +55,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
       externalFunctionOp.setPrivate();
     }
-    
+
   }
 
     // Declare the inner classes.
