@@ -1,28 +1,194 @@
-module attributes {dlti.dl_spec = #dlti.dl_spec<"dlti.stack_alignment" = 128 : i64, "dlti.mangling_mode" = "e", "dlti.endianness" = "little", !llvm.ptr = dense<64> : vector<4xi64>, !llvm.ptr<271> = dense<32> : vector<4xi64>, !llvm.ptr<272> = dense<64> : vector<4xi64>, !llvm.ptr<270> = dense<32> : vector<4xi64>, f80 = dense<128> : vector<2xi64>, f128 = dense<128> : vector<2xi64>, f16 = dense<16> : vector<2xi64>, f64 = dense<64> : vector<2xi64>, i1 = dense<8> : vector<2xi64>, i128 = dense<128> : vector<2xi64>, i64 = dense<64> : vector<2xi64>, i32 = dense<32> : vector<2xi64>, i8 = dense<8> : vector<2xi64>, i16 = dense<16> : vector<2xi64>, !bmodelica.real = ["size", 64], !bmodelica.int = ["size", 64]>, llvm.data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", llvm.target_triple = "x86_64-unknown-linux-gnu"} {
-  bmodelica.external_function @discreteLog {sym_visibility = "private"} : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
-  bmodelica.function @externalLogReal {
-    bmodelica.variable @b : !bmodelica.variable<!bmodelica.int, input>
-    bmodelica.variable @n : !bmodelica.variable<!bmodelica.int, input>
-    bmodelica.variable @ris : !bmodelica.variable<!bmodelica.real, output>
-    bmodelica.algorithm {
-      %0 = bmodelica.variable_get @b : !bmodelica.int
-      %1 = bmodelica.variable_get @n : !bmodelica.int
-      %2 = bmodelica.variable_get @ris : !bmodelica.real
-      %3 = bmodelica.call @discreteLog(%0, %1, %2) : (!bmodelica.int, !bmodelica.int, !bmodelica.real) -> !bmodelica.real
-    }
-  }
-  bmodelica.model @SimpleFirstOrder  {
-    bmodelica.variable @x : !bmodelica.variable<!bmodelica.real>
-    bmodelica.dynamic {
-      bmodelica.equation {
-        %0 = bmodelica.variable_get @x : !bmodelica.real
-        %1 = bmodelica.constant #bmodelica<int 2> : !bmodelica.int
-        %2 = bmodelica.constant #bmodelica<int 100> : !bmodelica.int
-        %3 = bmodelica.call @externalLogReal(%1, %2) : (!bmodelica.int, !bmodelica.int) -> !bmodelica.real
-        %4 = bmodelica.equation_side %0 : tuple<!bmodelica.real>
-        %5 = bmodelica.equation_side %3 : tuple<!bmodelica.real>
-        bmodelica.equation_sides %4, %5 : tuple<!bmodelica.real>, tuple<!bmodelica.real>
-      }
-    }
-  }
-}
+"builtin.module"() ({
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void (ptr)>, linkage = #llvm.linkage<external>, sym_name = "marco_free", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<ptr (i64)>, linkage = #llvm.linkage<external>, sym_name = "marco_malloc", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, constant, global_type = !llvm.array<2 x i8>, linkage = #llvm.linkage<internal>, sym_name = "var_name_0", value = "x\00", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, constant, global_type = !llvm.array<1 x i8>, linkage = #llvm.linkage<internal>, sym_name = "var_name_unknown", value = "\00", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, constant, global_type = !llvm.array<17 x i8>, linkage = #llvm.linkage<internal>, sym_name = "modelName", value = "SimpleFirstOrder\00", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, global_type = f64, linkage = #llvm.linkage<private>, sym_name = "time", visibility_ = 0 : i64}> ({
+    %48 = "llvm.mlir.undef"() : () -> f64
+    "llvm.return"(%48) : (f64) -> ()
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, global_type = f64, linkage = #llvm.linkage<private>, sym_name = "var", visibility_ = 0 : i64}> ({
+    %47 = "llvm.mlir.undef"() : () -> f64
+    "llvm.return"(%47) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "discreteLog", visibility_ = 0 : i64}> ({
+  }) : () -> ()
+  "llvm.mlir.global"() <{addr_space = 0 : i32, global_type = f64, linkage = #llvm.linkage<private>, sym_name = "timeStep", visibility_ = 0 : i64}> ({
+    %46 = "llvm.mlir.undef"() : () -> f64
+    "llvm.return"(%46) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "equation", visibility_ = 0 : i64}> ({
+    %42 = "llvm.mlir.addressof"() <{global_name = @var}> : () -> !llvm.ptr
+    %43 = "llvm.mlir.constant"() <{value = 100 : i64}> : () -> i64
+    %44 = "llvm.mlir.constant"() <{value = 2 : i64}> : () -> i64
+    %45 = "llvm.call"(%44, %43) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @externalLogReal, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 2, 0>}> : (i64, i64) -> f64
+    "llvm.store"(%45, %42) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "equation_0", visibility_ = 0 : i64}> ({
+    %38 = "llvm.mlir.addressof"() <{global_name = @var}> : () -> !llvm.ptr
+    %39 = "llvm.mlir.constant"() <{value = 100 : i64}> : () -> i64
+    %40 = "llvm.mlir.constant"() <{value = 2 : i64}> : () -> i64
+    %41 = "llvm.call"(%40, %39) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @externalLogReal, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 2, 0>}> : (i64, i64) -> f64
+    "llvm.store"(%41, %38) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "SimpleFirstOrder_ic", visibility_ = 0 : i64}> ({
+    "llvm.call"() <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @equation_0, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 0, 0>}> : () -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "SimpleFirstOrder_dynamic", visibility_ = 0 : i64}> ({
+    "llvm.call"() <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @equation, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 0, 0>}> : () -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<ptr ()>, linkage = #llvm.linkage<external>, sym_name = "getModelName", visibility_ = 0 : i64}> ({
+    %36 = "llvm.mlir.addressof"() <{global_name = @modelName}> : () -> !llvm.ptr
+    %37 = "llvm.getelementptr"(%36) <{elem_type = !llvm.array<17 x i8>, rawConstantIndices = array<i32: 0, 0>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.return"(%37) : (!llvm.ptr) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 ()>, linkage = #llvm.linkage<external>, sym_name = "getNumOfVariables", visibility_ = 0 : i64}> ({
+    %35 = "llvm.mlir.constant"() <{value = 1 : i64}> : () -> i64
+    "llvm.return"(%35) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<ptr (i64)>, linkage = #llvm.linkage<external>, sym_name = "getVariableName", visibility_ = 0 : i64}> ({
+  ^bb0(%arg17: i64):
+    %30 = "llvm.mlir.addressof"() <{global_name = @var_name_0}> : () -> !llvm.ptr
+    %31 = "llvm.mlir.addressof"() <{global_name = @var_name_unknown}> : () -> !llvm.ptr
+    %32 = "llvm.getelementptr"(%31) <{elem_type = !llvm.array<1 x i8>, rawConstantIndices = array<i32: 0, 0>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.switch"(%arg17, %32)[^bb2, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<0> : tensor<1xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, !llvm.ptr) -> ()
+  ^bb1:  // pred: ^bb0
+    %33 = "llvm.getelementptr"(%30) <{elem_type = !llvm.array<2 x i8>, rawConstantIndices = array<i32: 0, 0>}> : (!llvm.ptr) -> !llvm.ptr
+    "llvm.br"(%33)[^bb2] : (!llvm.ptr) -> ()
+  ^bb2(%34: !llvm.ptr):  // 2 preds: ^bb0, ^bb1
+    "llvm.return"(%34) : (!llvm.ptr) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 (i64)>, linkage = #llvm.linkage<external>, sym_name = "getVariableRank", visibility_ = 0 : i64}> ({
+  ^bb0(%arg16: i64):
+    %28 = "llvm.mlir.constant"() <{value = 0 : i64}> : () -> i64
+    "llvm.switch"(%arg16, %28)[^bb2, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<0> : tensor<1xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i64) -> ()
+  ^bb1:  // pred: ^bb0
+    "llvm.br"(%28)[^bb2] : (i64) -> ()
+  ^bb2(%29: i64):  // 2 preds: ^bb0, ^bb1
+    "llvm.return"(%29) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i1 (i64)>, linkage = #llvm.linkage<external>, sym_name = "isPrintable", visibility_ = 0 : i64}> ({
+  ^bb0(%arg15: i64):
+    %25 = "llvm.mlir.constant"() <{value = true}> : () -> i1
+    %26 = "llvm.mlir.constant"() <{value = false}> : () -> i1
+    "llvm.switch"(%arg15, %26)[^bb2, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<0> : tensor<1xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i1) -> ()
+  ^bb1:  // pred: ^bb0
+    "llvm.br"(%25)[^bb2] : (i1) -> ()
+  ^bb2(%27: i1):  // 2 preds: ^bb0, ^bb1
+    "llvm.return"(%27) : (i1) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 (i64)>, linkage = #llvm.linkage<external>, sym_name = "getVariableNumOfPrintableRanges", visibility_ = 0 : i64}> ({
+  ^bb0(%arg14: i64):
+    %23 = "llvm.mlir.constant"() <{value = 0 : i64}> : () -> i64
+    "llvm.switch"(%arg14, %23)[^bb1] <{case_operand_segments = array<i32>, case_values = dense<> : tensor<0xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i64) -> ()
+  ^bb1(%24: i64):  // pred: ^bb0
+    "llvm.return"(%24) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 (i64, i64, i64)>, linkage = #llvm.linkage<external>, sym_name = "getVariablePrintableRangeBegin", visibility_ = 0 : i64}> ({
+  ^bb0(%arg11: i64, %arg12: i64, %arg13: i64):
+    %21 = "llvm.mlir.constant"() <{value = -1 : i64}> : () -> i64
+    "llvm.switch"(%arg11, %21)[^bb1] <{case_operand_segments = array<i32>, case_values = dense<> : tensor<0xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i64) -> ()
+  ^bb1(%22: i64):  // pred: ^bb0
+    "llvm.return"(%22) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 (i64, i64, i64)>, linkage = #llvm.linkage<external>, sym_name = "getVariablePrintableRangeEnd", visibility_ = 0 : i64}> ({
+  ^bb0(%arg8: i64, %arg9: i64, %arg10: i64):
+    %19 = "llvm.mlir.constant"() <{value = -1 : i64}> : () -> i64
+    "llvm.switch"(%arg8, %19)[^bb1] <{case_operand_segments = array<i32>, case_values = dense<> : tensor<0xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i64) -> ()
+  ^bb1(%20: i64):  // pred: ^bb0
+    "llvm.return"(%20) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<i64 (i64)>, linkage = #llvm.linkage<external>, sym_name = "getDerivative", visibility_ = 0 : i64}> ({
+  ^bb0(%arg7: i64):
+    %17 = "llvm.mlir.constant"() <{value = -1 : i64}> : () -> i64
+    "llvm.switch"(%arg7, %17)[^bb2, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<0> : tensor<1xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, i64) -> ()
+  ^bb1:  // pred: ^bb0
+    "llvm.br"(%17)[^bb2] : (i64) -> ()
+  ^bb2(%18: i64):  // 2 preds: ^bb0, ^bb1
+    "llvm.return"(%18) : (i64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<f64 (ptr)>, linkage = #llvm.linkage<external>, sym_name = "var_getter_0", visibility_ = 0 : i64}> ({
+  ^bb0(%arg6: !llvm.ptr):
+    %15 = "llvm.mlir.addressof"() <{global_name = @var}> : () -> !llvm.ptr
+    %16 = "llvm.load"(%15) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
+    "llvm.return"(%16) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<f64 (i64, ptr)>, linkage = #llvm.linkage<external>, sym_name = "getVariableValue", visibility_ = 0 : i64}> ({
+  ^bb0(%arg4: i64, %arg5: !llvm.ptr):
+    %12 = "llvm.mlir.constant"() <{value = 0.000000e+00 : f64}> : () -> f64
+    "llvm.switch"(%arg4, %12)[^bb2, ^bb1] <{case_operand_segments = array<i32: 0>, case_values = dense<0> : tensor<1xi64>, operandSegmentSizes = array<i32: 1, 1, 0>}> : (i64, f64) -> ()
+  ^bb1:  // pred: ^bb0
+    %13 = "llvm.call"(%arg5) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @var_getter_0, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> f64
+    "llvm.br"(%13)[^bb2] : (f64) -> ()
+  ^bb2(%14: f64):  // 2 preds: ^bb0, ^bb1
+    "llvm.return"(%14) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<f64 (i64, i64)>, linkage = #llvm.linkage<external>, sym_name = "externalLogReal", visibility_ = 0 : i64}> ({
+  ^bb0(%arg2: i64, %arg3: i64):
+    %6 = "llvm.mlir.zero"() : () -> !llvm.ptr
+    %7 = "llvm.getelementptr"(%6) <{elem_type = f64, rawConstantIndices = array<i32: 1>}> : (!llvm.ptr) -> !llvm.ptr
+    %8 = "llvm.ptrtoint"(%7) : (!llvm.ptr) -> i64
+    %9 = "llvm.call"(%8) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @marco_malloc, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (i64) -> !llvm.ptr
+    %10 = "llvm.load"(%9) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
+    "llvm.call"(%arg2, %arg3, %10) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @discreteLog, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 3, 0>}> : (i64, i64, f64) -> ()
+    %11 = "llvm.load"(%9) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
+    "llvm.call"(%9) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @marco_free, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    "llvm.return"(%11) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "updateNonStateVariables", visibility_ = 0 : i64}> ({
+    "llvm.call"() <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @SimpleFirstOrder_dynamic, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 0, 0>}> : () -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void (f64)>, linkage = #llvm.linkage<external>, sym_name = "updateStateVariables", visibility_ = 0 : i64}> ({
+  ^bb0(%arg1: f64):
+    %5 = "llvm.mlir.addressof"() <{global_name = @timeStep}> : () -> !llvm.ptr
+    "llvm.store"(%arg1, %5) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "solveICModel", visibility_ = 0 : i64}> ({
+    "llvm.call"() <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @SimpleFirstOrder_ic, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 0, 0>}> : () -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "icModelBegin", visibility_ = 0 : i64}> ({
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "icModelEnd", visibility_ = 0 : i64}> ({
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "dynamicModelBegin", visibility_ = 0 : i64}> ({
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "dynamicModelEnd", visibility_ = 0 : i64}> ({
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "init", visibility_ = 0 : i64}> ({
+    %3 = "llvm.mlir.addressof"() <{global_name = @var}> : () -> !llvm.ptr
+    %4 = "llvm.mlir.constant"() <{value = 0.000000e+00 : f64}> : () -> f64
+    "llvm.store"(%4, %3) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void ()>, linkage = #llvm.linkage<external>, sym_name = "deinit", visibility_ = 0 : i64}> ({
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<f64 ()>, linkage = #llvm.linkage<external>, sym_name = "getTime", visibility_ = 0 : i64}> ({
+    %1 = "llvm.mlir.addressof"() <{global_name = @time}> : () -> !llvm.ptr
+    %2 = "llvm.load"(%1) <{ordering = 0 : i64}> : (!llvm.ptr) -> f64
+    "llvm.return"(%2) : (f64) -> ()
+  }) : () -> ()
+  "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void (f64)>, linkage = #llvm.linkage<external>, sym_name = "setTime", visibility_ = 0 : i64}> ({
+  ^bb0(%arg0: f64):
+    %0 = "llvm.mlir.addressof"() <{global_name = @time}> : () -> !llvm.ptr
+    "llvm.store"(%arg0, %0) <{ordering = 0 : i64}> : (f64, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+}) {dlti.dl_spec = #dlti.dl_spec<"dlti.mangling_mode" = "e", "dlti.endianness" = "little", "dlti.stack_alignment" = 128 : i64, !llvm.ptr<272> = dense<64> : vector<4xi64>, !llvm.ptr<271> = dense<32> : vector<4xi64>, !llvm.ptr<270> = dense<32> : vector<4xi64>, !llvm.ptr = dense<64> : vector<4xi64>, f64 = dense<64> : vector<2xi64>, f128 = dense<128> : vector<2xi64>, f16 = dense<16> : vector<2xi64>, f80 = dense<128> : vector<2xi64>, i128 = dense<128> : vector<2xi64>, i64 = dense<64> : vector<2xi64>, i32 = dense<32> : vector<2xi64>, i8 = dense<8> : vector<2xi64>, i16 = dense<16> : vector<2xi64>, i1 = dense<8> : vector<2xi64>, !bmodelica.real = ["size", 64], !bmodelica.int = ["size", 64]>, llvm.data_layout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", llvm.target_triple = "x86_64-unknown-linux-gnu"} : () -> ()

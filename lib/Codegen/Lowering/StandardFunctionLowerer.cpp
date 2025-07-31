@@ -23,24 +23,23 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     llvm::SmallVector<mlir::Type> inputTypes;
     llvm::SmallVector<mlir::Type> outputTypes;
 
-    //for (const auto &variableNode : function.getVariables()) {
-    //  const auto* member = variableNode->cast<ast::Member>();
-    //  const ast::VariableType* astVariableType = member->getType();
-    //  const ast::TypePrefix* astTypePrefix = member->getTypePrefix();
-    //  if (!astVariableType || !astTypePrefix) {
-    //    return;
-    //  }   
-    //  std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
-    //  if (!mlirVariableType) {
-    //    return;
-    //  }
-    //  if (member->isInput()) {
-    //    inputTypes.push_back(mlirVariableType->unwrap());
-    //  } else if (member->isOutput()) {
-    //    outputTypes.push_back(mlirVariableType->unwrap());
-    //  }
-    //}
+    auto args = function.getExternalRef()->getExternalFunctionCall()->getExpressions(); 
 
+    for (size_t i = 0; i < args.size(); i++){
+      auto argType = lowerArg(*args[i]->cast<ast::Expression>());
+      inputTypes.push_back(argType); 
+    }
+
+    for (const auto &variableNode : function.getVariables()) {
+      const auto* member = variableNode->cast<ast::Member>();
+      if (member->isOutput()) {
+        const ast::VariableType* astVariableType = member->getType();
+        const ast::TypePrefix* astTypePrefix = member->getTypePrefix();  
+        std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
+        outputTypes.push_back(mlirVariableType->unwrap());
+      }
+    }
+    
     mlir::FunctionType funcType = mlir::FunctionType::get(
       builder().getContext(), 
       inputTypes,             
@@ -56,6 +55,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
       externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
       externalFunctionOp.setPrivate();
     }
+    
   }
 
     // Declare the inner classes.
@@ -365,6 +365,14 @@ StandardFunctionLowerer::getVariableType(const ast::VariableType &variableType,
   }
 
   return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
+}
+
+mlir::Type StandardFunctionLowerer::lowerArg(const ast::Expression &expression) {
+  mlir::Location location = loc(expression.getLocation());
+  auto loweredExpression = lower(expression);
+  auto &results = *loweredExpression;
+  assert(results.size() == 1);
+  return results[0].get(location).getType();
 }
 
 } // namespace marco::codegen::lowering
