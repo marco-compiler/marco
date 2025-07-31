@@ -18,47 +18,7 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   builder().createBlock(&functionOp.getBodyRegion());
   builder().setInsertionPointToStart(functionOp.getBody());
 
-  if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
-
-    llvm::SmallVector<mlir::Type> inputTypes;
-    llvm::SmallVector<mlir::Type> outputTypes;
-
-    for (const auto &variableNode : function.getVariables()) {
-      const auto* member = variableNode->cast<ast::Member>();
-      if (member->isOutput()) {
-        const ast::VariableType* astVariableType = member->getType();
-        const ast::TypePrefix* astTypePrefix = member->getTypePrefix();  
-        std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
-        outputTypes.push_back(mlirVariableType->unwrap());
-      }
-    }
-
-    auto args = function.getExternalRef()->getExternalFunctionCall()->getExpressions(); 
-
-    for (size_t i = 0; i < args.size(); i++){
-      auto argType = lowerArg(*args[i]->cast<ast::Expression>());
-      inputTypes.push_back(argType); 
-    }
-    
-    mlir::FunctionType funcType = mlir::FunctionType::get(
-      builder().getContext(), 
-      inputTypes,             
-      outputTypes         
-    );
-
-    ExternalFunctionOp externalFunctionOp; 
-    
-    {
-      auto module = functionOp->getParentOfType<mlir::ModuleOp>();
-      mlir::OpBuilder::InsertionGuard guard(builder());
-      builder().setInsertionPointToStart(module.getBody());
-      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
-      externalFunctionOp.setPrivate();
-    }
-
-  }
-
-    // Declare the inner classes.
+  // Declare the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
     declare(*innerClassNode->cast<ast::Class>());
   }
@@ -244,6 +204,42 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
   }
 
   if (function.hasExternalRef() && function.getExternalRef()->hasExternalFunctionCall()){
+
+    llvm::SmallVector<mlir::Type> inputTypes;
+    llvm::SmallVector<mlir::Type> outputTypes;
+
+    for (const auto &variableNode : function.getVariables()) {
+      const auto* member = variableNode->cast<ast::Member>();
+      if (member->isOutput()) {
+        const ast::VariableType* astVariableType = member->getType();
+        const ast::TypePrefix* astTypePrefix = member->getTypePrefix();  
+        std::optional<VariableType> mlirVariableType = getVariableType(*astVariableType, *astTypePrefix);
+        outputTypes.push_back(mlirVariableType->unwrap());
+      }
+    }
+
+    auto args = function.getExternalRef()->getExternalFunctionCall()->getExpressions(); 
+
+    for (size_t i = 0; i < args.size(); i++){
+      auto argType = lowerArg(*args[i]->cast<ast::Expression>());
+      inputTypes.push_back(argType); 
+    }
+    
+    mlir::FunctionType funcType = mlir::FunctionType::get(
+      builder().getContext(), 
+      inputTypes,             
+      outputTypes         
+    );
+
+    ExternalFunctionOp externalFunctionOp; 
+    
+    {
+      auto module = functionOp->getParentOfType<mlir::ModuleOp>();
+      mlir::OpBuilder::InsertionGuard guard(builder());
+      builder().setInsertionPointToStart(module.getBody());
+      externalFunctionOp = builder().create<ExternalFunctionOp>(loc(function.getExternalRef()->getExternalFunctionCall()->getLocation()), function.getExternalRef()->getExternalFunctionCall()->getName(), funcType);
+      externalFunctionOp.setPrivate();
+    }
 
     mlir::Location location = loc(function.getLocation());
 

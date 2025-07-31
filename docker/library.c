@@ -1,9 +1,10 @@
-void discreteLog (int base, int val, int * res)
+double discreteLog (int base, int val, int aa)
     {
-        * res = 0.0; 
+        double res = 0.0; 
         while (val > 1)
             {
-                *res = *res + 1; 
+                res = res + 1; 
                 val = val/base;
             }   
+        return res; 
     }

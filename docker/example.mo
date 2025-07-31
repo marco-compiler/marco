@@ -3,7 +3,7 @@ function externalLogReal
   input Integer n;
   output Real ris; 
 external "C"
-  discreteLog(b, n, b + n);
+  ris = discreteLog(b, n, b + n);
 end externalLogReal;
 
 model SimpleFirstOrder
