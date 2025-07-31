@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=marco-local-73:latest
+ARG BASE_IMAGE=marco-local-2:latest
 FROM $BASE_IMAGE
 
 ARG MARCO_COMMIT=Bellani_Bruno-external_functions
@@ -13,3 +13,5 @@ RUN chmod +x /tmp/install_marco.sh && \
     cd /root && \
     MARCO_BUILD_TYPE=Release \
     /tmp/install_marco.sh
+
+COPY ./install_openmodelica.sh /tmp/

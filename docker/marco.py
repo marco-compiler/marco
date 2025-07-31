@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 DOCKER_SOCKET = "/var/run/docker.sock"
-DOCKER_IMAGE = "marco-local-74:latest"
+DOCKER_IMAGE = "marco-local-3:latest"
 INPUT_FILE_TYPES = (".mo", ".bmo", ".c", ".mlir", ".ll", ".o")
 
 def main():

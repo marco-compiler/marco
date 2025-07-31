@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=marco-local-2:latest
+ARG BASE_IMAGE=marco-local:latest
 FROM $BASE_IMAGE
 
 LABEL org.opencontainers.image.source="https://github.com/marco-compiler/marco"

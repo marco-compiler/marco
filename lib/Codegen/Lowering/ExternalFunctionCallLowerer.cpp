@@ -12,7 +12,16 @@ ExternalFunctionCallLowerer::ExternalFunctionCallLowerer(BridgeInterface *bridge
 bool ExternalFunctionCallLowerer::lower(const ast::ExternalFunctionCall &call) {
 
   mlir::Operation * calleeOpRaw = resolveCallee(call.getName());
+
+  if (!calleeOpRaw) {
+    std::cout << "no calleeOpRaw" << std::endl; 
+  }
+
   auto calleeOp = mlir::dyn_cast<ExternalFunctionOp>(calleeOpRaw);
+
+  if (!calleeOp) {
+    std::cout << "no calleeOp" << std::endl; 
+  }
 
   llvm::SmallVector<VariableOp> inputVariables;
 
