@@ -519,7 +519,7 @@ TEST(Parser, usage_of_external_test0)
   }
 
 TEST(Parser, external_test8) {
-  auto str = R"(external "Haskell" x.y.z = abc() annotation(inline = false);)";
+  auto str = R"(external "C" x.y.z = abc() annotation(inline = false);)";
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
