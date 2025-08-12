@@ -61,6 +61,10 @@ std::string toString(ASTNode::Kind kind) {
     return "subscript";
   case ASTNode::Kind::Expression_Tuple:
     return "tuple";
+  case ASTNode::Kind::External_Function_Call: 
+    return "external_function_call"; 
+  case ASTNode::Kind::External_Ref: 
+    return "external_ref"; 
   case ASTNode::Kind::ForIndex:
     return "for_index";
   case ASTNode::Kind::FunctionArgument_Expression:

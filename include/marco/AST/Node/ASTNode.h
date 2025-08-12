@@ -53,6 +53,8 @@ public:
     Expression_Subscript,
     Expression_Tuple,
     Expression_LastExpression,
+    External_Function_Call,
+    External_Ref, 
     ForIndex,
     FunctionArgument,
     FunctionArgument_Expression,
