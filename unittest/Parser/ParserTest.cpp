@@ -30,7 +30,8 @@ TEST(Parser, usage_of_external_test6) {
 
                 auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-                auto diagnostics = getDiagnosticsEngine();
+                clang::DiagnosticOptions diagOpts;
+                auto diagnostics = getDiagnosticsEngine(diagOpts);
                 clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
                 auto &sourceManager = fileSourceMgr.get();
             
@@ -70,7 +71,8 @@ TEST(Parser, usage_of_external_test5)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -156,7 +158,8 @@ TEST(Parser, expression_list_singleExp) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -190,7 +193,8 @@ TEST(Parser, expression_list_heterogeneousList) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -257,7 +261,8 @@ TEST(Parser, usage_of_external_test4)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -331,7 +336,8 @@ TEST(Parser, usage_of_external_test3)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -399,7 +405,8 @@ TEST(Parser, usage_of_external_test2)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -460,7 +467,9 @@ TEST(Parser, usage_of_external_test1)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -492,7 +501,9 @@ TEST(Parser, usage_of_external_test0)
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-    auto diagnostics = getDiagnosticsEngine();
+    
+    clang::DiagnosticOptions diagOpts;
+    auto diagnostics = getDiagnosticsEngine(diagOpts);
     clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
     auto &sourceManager = fileSourceMgr.get();
 
@@ -512,7 +523,9 @@ TEST(Parser, external_test8) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -566,7 +579,9 @@ TEST(Parser, external_test7) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -615,7 +630,9 @@ TEST(Parser, external_test6) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -650,7 +667,9 @@ TEST(Parser, external_test5) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -680,7 +699,9 @@ TEST(Parser, external_test4) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -734,7 +755,9 @@ TEST(Parser, external_test3) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -782,7 +805,9 @@ TEST(Parser, external_test2) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -819,7 +844,9 @@ TEST(Parser, external_test1) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -851,7 +878,9 @@ TEST(Parser, external_function_call_test4) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -889,7 +918,9 @@ TEST(Parser, external_function_call_test3) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -929,7 +960,9 @@ TEST(Parser, external_function_call_test2) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
@@ -958,7 +991,9 @@ TEST(Parser, external_function_call_test1) {
 
   auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-  auto diagnostics = getDiagnosticsEngine();
+  
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
   clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
   auto &sourceManager = fileSourceMgr.get();
 
