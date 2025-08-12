@@ -1714,6 +1714,7 @@ Parser::parseElementList(bool publicSection) {
   std::vector<std::unique_ptr<ast::ASTNode>> members;
 
   while (!lookahead[0].isa<TokenKind::Public>() &&
+         !lookahead[0].isa<TokenKind::External>() &&
          !lookahead[0].isa<TokenKind::Protected>() &&
          !lookahead[0].isa<TokenKind::Function>() &&
          !lookahead[0].isa<TokenKind::Equation>() &&
