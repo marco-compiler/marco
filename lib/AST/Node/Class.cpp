@@ -3,6 +3,7 @@
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/EquationSection.h"
 #include "marco/AST/Node/Member.h"
+#include "marco/AST/Node/ExternalRef.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -13,7 +14,9 @@ Class::Class(const Class &other) : ASTNode(other), name(other.name) {
   setEquationSections(other.equationSections);
   setAlgorithms(other.algorithms);
   setInnerClasses(other.innerClasses);
-
+  if (other.hasExternalRef()) {
+    setExternalRef(other.externalRef->clone()); 
+  }
   if (other.hasAnnotation()) {
     setAnnotation(other.annotation->clone());
   }
@@ -55,6 +58,10 @@ void Class::addJSONProperties(llvm::json::Object &obj) const {
   }
 
   obj["inner_classes"] = llvm::json::Array(innerClassesJson);
+
+  if (hasExternalRef()) {
+    obj["external_ref"] = getExternalRef() -> toJSON(); 
+  }
 
   ASTNode::addJSONProperties(obj);
 }
@@ -125,6 +132,9 @@ void Class::setInnerClasses(
 
 bool Class::hasAnnotation() const { return annotation != nullptr; }
 
+bool Class::hasExternalRef() const { return externalRef != nullptr; }
+
+
 Annotation *Class::getAnnotation() {
   assert(annotation != nullptr && "Annotation not set");
   return annotation->cast<Annotation>();
@@ -140,4 +150,19 @@ void Class::setAnnotation(std::unique_ptr<ASTNode> node) {
   annotation = std::move(node);
   annotation->setParent(this);
 }
+
+void Class::setExternalRef(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<ExternalRef>()); 
+  externalRef = std::move(node); 
+  externalRef -> setParent(this); 
+}
+
+ExternalRef *Class::getExternalRef() {
+  return externalRef->cast<ExternalRef>();
+}
+
+const ExternalRef *Class::getExternalRef() const {
+  return externalRef->cast<ExternalRef>();
+}
+
 } // namespace marco::ast
