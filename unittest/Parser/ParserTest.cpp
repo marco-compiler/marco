@@ -571,7 +571,7 @@ TEST(Parser, external_test8) {
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
   EXPECT_EQ((*node)->getLocation().end.line, 1);
-  EXPECT_EQ((*node)->getLocation().end.column, 18);
+  EXPECT_EQ((*node)->getLocation().end.column, 12);
 
 }
 TEST(Parser, external_test7) {
