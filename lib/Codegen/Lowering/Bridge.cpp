@@ -31,6 +31,7 @@
 #include "marco/Codegen/Lowering/WhenEquationLowerer.h"
 #include "marco/Codegen/Lowering/WhenStatementLowerer.h"
 #include "marco/Codegen/Lowering/WhileStatementLowerer.h"
+#include "marco/Codegen/Lowering/ExternalFunctionCallLowerer.h"
 #include <memory>
 
 using namespace ::marco;
@@ -113,6 +114,8 @@ public:
 
   std::optional<Results> lower(const ast::Call &node) override;
 
+  bool lower(const ast::ExternalFunctionCall &call) override;
+
   std::optional<Results> lower(const ast::Constant &constant) override;
 
   std::optional<Results> lower(const ast::Operation &operation) override;
@@ -163,6 +166,7 @@ private:
   std::unique_ptr<mlir::ModuleOp> module;
 
   // Lowerers.
+  std::unique_ptr<ExternalFunctionCallLowerer> externalFunctionCallLowerer;
   std::unique_ptr<ClassLowerer> classLowerer;
   std::unique_ptr<ModelLowerer> modelLowerer;
   std::unique_ptr<PackageLowerer> packageLowerer;
@@ -253,6 +257,8 @@ Bridge::Impl::Impl(mlir::MLIRContext &context) {
   this->whenStatementLowerer = std::make_unique<WhenStatementLowerer>(this);
 
   this->whileStatementLowerer = std::make_unique<WhileStatementLowerer>(this);
+
+  this->externalFunctionCallLowerer = std::make_unique<ExternalFunctionCallLowerer>(this);
 }
 
 Bridge::Impl::~Impl() {
@@ -378,6 +384,11 @@ bool Bridge::Impl::lower(const ast::Class &cls) {
 bool Bridge::Impl::lower(const ast::Model &model) {
   assert(modelLowerer != nullptr);
   return modelLowerer->lower(model);
+}
+
+bool Bridge::Impl::lower(const ast::ExternalFunctionCall &call) {
+  assert(externalFunctionCallLowerer != nullptr);
+  return externalFunctionCallLowerer->lower(call);
 }
 
 bool Bridge::Impl::lower(const ast::Package &package) {
