@@ -538,7 +538,7 @@ TEST(Parser, external_test8) {
 
   ASSERT_TRUE((*node)->isa<ExternalRef>());
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasLanguageSpecification(), true);
-  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "Haskell");
+  ASSERT_EQ((*node)->cast<ExternalRef>()->getLanguageSpecification(), "C");
 
   ASSERT_EQ((*node)->cast<ExternalRef>()->hasExternalFunctionCall(), true);
 
