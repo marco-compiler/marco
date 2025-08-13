@@ -201,8 +201,12 @@ public:
       auto sccElements = SCCTraits::getElements(&scc);
 
       if (sccElements.size() == 1) {
+        const auto &equation = sccElements[0];
         llvm::SmallVector<DirectionPossibility, 3> directionPossibilities;
         getSchedulingDirections(scc, directionPossibilities);
+
+        assert(directionPossibilities.size() ==
+               EquationTraits::getNumOfIterationVars(&equation));
 
         bool isSchedulableAsRange = llvm::all_of(
             directionPossibilities, [](DirectionPossibility direction) {
@@ -212,8 +216,6 @@ public:
             });
 
         if (isSchedulableAsRange) {
-          const auto &equation = sccElements[0];
-
           llvm::SmallVector<scheduling::Direction> directions;
 
           for (DirectionPossibility direction : directionPossibilities) {
@@ -313,76 +315,41 @@ private:
           return access.getAccessFunction().isInvertible();
         });
 
-    auto writtenVariable = writeAccess.getVariable();
-
-    auto readAccesses = EquationTraits::getReads(&equation);
-
-    bool hasSelfLoop = llvm::any_of(readAccesses, [&](const auto &readAccess) {
-      return writtenVariable == readAccess.getVariable();
-    });
-
-    if (!hasSelfLoop) {
-      // If there is no cycle, then the iteration direction of the equation
-      // is irrelevant. We prefer the forward direction for simplicity.
-      directions.append(rank, DirectionPossibility::Any);
-      return;
-    }
-
-    // If all the dependencies have the same direction, then we can set
-    // the induction variable to increase or decrease accordingly.
     IndexSet equationIndices = EquationTraits::getIterationRanges(&equation);
 
+    auto writtenVariable = writeAccess.getVariable();
     const AccessFunction &writeAccessFunction = writeAccess.getAccessFunction();
-
     IndexSet writtenIndices(writeAccessFunction.map(equationIndices));
 
-    for (const auto &read : readAccesses) {
+    llvm::SmallVector<std::unique_ptr<AccessFunction>>
+        overlappingReadAccessFunctions;
+
+    for (auto &readAccess : EquationTraits::getReads(&equation)) {
       // The access is considered only if it reads the same variable it is
       // being defined by the equation and the ranges overlap.
-      const auto &readVariable = read.getVariable();
+      const auto &readVariable = readAccess.getVariable();
 
       if (writtenVariable != readVariable) {
         continue;
       }
 
-      const AccessFunction &readAccessFunction = read.getAccessFunction();
+      const AccessFunction &readAccessFunction = readAccess.getAccessFunction();
       IndexSet readIndices(readAccessFunction.map(equationIndices));
 
-      if (!readIndices.overlaps(writtenIndices)) {
-        continue;
-      }
-
-      llvm::SmallVector<DirectionPossibility, 3> accessDirections;
-      auto inverseWriteAccess = writeAccessFunction.inverse();
-
-      if (inverseWriteAccess) {
-        auto relativeAccess = inverseWriteAccess->combine(readAccessFunction);
-
-        getAccessFunctionDirections(*relativeAccess, accessDirections);
-      } else {
-        accessDirections.append(
-            EquationTraits::getNumOfIterationVars(&equation),
-            DirectionPossibility::Scalar);
-      }
-
-      if (directions.empty()) {
-        directions = std::move(accessDirections);
-      } else {
-        mergeDirectionPossibilities(directions, accessDirections);
-      }
-
-      // If all the inductions have been scalarized, then the situation
-      // can't get better anymore.
-      if (llvm::all_of(directions, [](DirectionPossibility direction) {
-            return direction == DirectionPossibility::Scalar;
-          })) {
-        return;
+      if (readIndices.overlaps(writtenIndices)) {
+        overlappingReadAccessFunctions.push_back(readAccessFunction.clone());
       }
     }
 
-    for (size_t i = directions.size(); i < rank; ++i) {
-      directions.push_back(DirectionPossibility::Any);
+    if (overlappingReadAccessFunctions.empty()) {
+      // If there is no self-loop, then the iteration direction of the equation
+      // is irrelevant.
+      directions.append(rank, DirectionPossibility::Any);
+      return;
     }
+
+    return getSchedulingDirections(directions, writeAccessFunction,
+                                   overlappingReadAccessFunctions);
   }
 
   const Access &getAccessWithProperty(
@@ -398,49 +365,104 @@ private:
     return *it;
   }
 
-  /// Get the access direction of an access function.
-  /// For example, an access consisting in [i0 + 1][i1 + 2] has a forward
-  /// direction, meaning that it requires variables that will be defined
-  /// later in the loop execution. A [i0 - 1][i1 -2] access function has a
-  /// backward direction and a [i0 + 1][i1 - 2] has a mixed one.
-  /// The indices of the above induction variables refer to the order in
-  /// which the induction variables have been defined, meaning that i0 is
-  /// the outer-most induction, i1 the second outer-most one, etc.
-  void getAccessFunctionDirections(
-      const AccessFunction &accessFunction,
-      llvm::SmallVectorImpl<DirectionPossibility> &directions) const {
-    if (auto rotoTranslation =
-            accessFunction.dyn_cast<AccessFunctionRotoTranslation>()) {
-      return getAccessFunctionDirections(*rotoTranslation, directions);
+  void getSchedulingDirections(
+      llvm::SmallVectorImpl<DirectionPossibility> &directions,
+      const AccessFunction &writeAccess,
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> readAccesses) const {
+    if (auto rotoTranslationWriteAccess =
+            writeAccess.dyn_cast<AccessFunctionRotoTranslation>()) {
+      if (getSchedulingDirections(directions, *rotoTranslationWriteAccess,
+                                  readAccesses)) {
+        return;
+      }
     }
 
-    directions.append(accessFunction.getNumOfDims(),
-                      DirectionPossibility::Scalar);
+    directions.clear();
+    directions.resize(writeAccess.getNumOfDims(), DirectionPossibility::Scalar);
   }
 
-  void getAccessFunctionDirections(
-      const AccessFunctionRotoTranslation &accessFunction,
-      llvm::SmallVectorImpl<DirectionPossibility> &directions) const {
-    if (accessFunction.isIdentityLike()) {
-      // Examine the offset of the individual dimension access.
-      for (size_t i = 0, e = accessFunction.getNumOfResults(); i < e; ++i) {
-        auto offset = accessFunction.getOffset(i);
+  bool getSchedulingDirections(
+      llvm::SmallVectorImpl<DirectionPossibility> &directions,
+      const AccessFunctionRotoTranslation &writeAccess,
+      llvm::ArrayRef<std::unique_ptr<AccessFunction>> readAccesses) const {
+    auto inverseWriteAccess = writeAccess.inverse();
+
+    if (!inverseWriteAccess) {
+      return false;
+    }
+
+    auto inverseRotoTranslationWriteAccess =
+        inverseWriteAccess->dyn_cast<AccessFunctionRotoTranslation>();
+
+    if (!inverseRotoTranslationWriteAccess) {
+      return false;
+    }
+
+    for (const auto &readAccess : readAccesses) {
+      llvm::SmallVector<DirectionPossibility, 3> accessDirections;
+      auto relativeAccess = inverseWriteAccess->combine(*readAccess);
+
+      auto rotoTranslationRelativeAccess =
+          relativeAccess->dyn_cast<AccessFunctionRotoTranslation>();
+
+      if (!rotoTranslationRelativeAccess) {
+        return false;
+      }
+
+      if (!rotoTranslationRelativeAccess->isIdentityLike()) {
+        // If the iteration indices are out of order, then some accesses will
+        // refer to future written variables and others to past written ones.
+        return false;
+      }
+
+      // Analyze the offset of the individual dimension access.
+      for (size_t i = 0, e = rotoTranslationRelativeAccess->getNumOfResults();
+           i < e; ++i) {
+        auto offset = rotoTranslationRelativeAccess->getOffset(i);
 
         if (offset == 0) {
-          directions.push_back(DirectionPossibility::Any);
+          accessDirections.push_back(DirectionPossibility::Any);
         } else if (offset > 0) {
-          directions.push_back(DirectionPossibility::Backward);
+          accessDirections.push_back(DirectionPossibility::Backward);
         } else {
-          directions.push_back(DirectionPossibility::Forward);
+          accessDirections.push_back(DirectionPossibility::Forward);
         }
       }
-    } else {
-      // If the iteration indices are out of order, then some accesses will
-      // refer to future written variables and others to past written ones.
 
-      directions.append(accessFunction.getNumOfDims(),
-                        DirectionPossibility::Scalar);
+      // Rotate the access directions to match the original dimensions.
+      llvm::SmallVector<DirectionPossibility, 3> rotatedAccessDirections;
+      rotatedAccessDirections.resize(writeAccess.getNumOfDims(),
+                                     DirectionPossibility::Scalar);
+
+      for (size_t i = 0,
+                  e = inverseRotoTranslationWriteAccess->getNumOfResults();
+           i < e; ++i) {
+        auto dimensionIndex =
+            inverseRotoTranslationWriteAccess->getInductionVariableIndex(i);
+
+        if (!dimensionIndex) {
+          return false;
+        }
+
+        rotatedAccessDirections[i] = accessDirections[*dimensionIndex];
+      }
+
+      if (directions.empty()) {
+        llvm::append_range(directions, rotatedAccessDirections);
+      } else {
+        mergeDirectionPossibilities(directions, rotatedAccessDirections);
+      }
+
+      // If all the inductions have been scalarized, then the situation
+      // can't get better anymore.
+      if (llvm::all_of(directions, [](DirectionPossibility direction) {
+            return direction == DirectionPossibility::Scalar;
+          })) {
+        return false;
+      }
     }
+
+    return true;
   }
 
   void mergeDirectionPossibilities(
