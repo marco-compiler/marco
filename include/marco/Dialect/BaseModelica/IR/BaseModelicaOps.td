@@ -4512,6 +4512,31 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     }];
 }
 
+def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
+    [Symbol]> 
+{
+    let summary = "Declares an external function.";
+
+    let description = [{
+        Represents a declaration of a function that is defined externally,
+        for example in a C library. This operation has no body and serves as a
+        target for `bmodelica.call` operations.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name, 
+        OptionalAttr<TypeAttrOf<FunctionType>>:$function_type
+    );
+
+    let assemblyFormat = "$sym_name attr-dict";
+
+    let extraClassDeclaration = [{
+        bool isDeclaration() {
+            return true;
+        }
+    }];
+}
+
 def BaseModelica_DerFunctionOp : BaseModelica_Op<"der_function",
     [IsolatedFromAbove, Symbol]>
 {
@@ -4835,6 +4860,10 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     let builders = [
         OpBuilder<(ins
             "FunctionOp":$callee,
+            CArg<"mlir::ValueRange", "{}">:$args,
+            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
+        OpBuilder<(ins
+            "ExternalFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args,
             CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins
