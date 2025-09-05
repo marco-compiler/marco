@@ -97,7 +97,19 @@ StandardFunction::StandardFunction(SourceRange location)
     : Function(ASTNode::Kind::Class_Function_StandardFunction,
                std::move(location)) {}
 
-StandardFunction::StandardFunction(const StandardFunction &other) = default;
+StandardFunction::StandardFunction(const StandardFunction &other) 
+    : Function(other) {
+
+  pure = other.pure;
+  efc_languageSpecification = other.efc_languageSpecification;
+
+  if (other.efc_assignmentStatement) {
+      setEFCAssignmentStatement(other.efc_assignmentStatement->clone());
+  }
+  if (other.efc_annotationClause) {
+      setEFCAnnotationClause(other.efc_annotationClause->clone());
+  }      
+}
 
 StandardFunction::~StandardFunction() = default;
 
@@ -111,6 +123,15 @@ llvm::json::Value StandardFunction::toJSON() const {
 
   if (hasAnnotation()) {
     result["annotation"] = getAnnotation()->toJSON();
+  }
+  if (hasEFCLanguageSpecification()) {
+    result["efc_language_specification"] = getEFCLanguageSpecification();
+  }
+  if (hasEFCAssignmentStatement()) {
+    result["efc_assignment_statement"] = getEFCAssignmentStatement() -> toJSON();
+  }
+  if (hasEFCAnnotationClause()) {
+    result["efc_annotation_clause"] = getEFCAnnotationClause() -> toJSON();
   }
 
   addJSONProperties(result);
@@ -141,6 +162,55 @@ FunctionType StandardFunction::getType() const {
 
   return FunctionType(args, results);
 }
+
+void StandardFunction::setEFCLanguageSpecification(std::string newLanguageSpecification) {
+  efc_languageSpecification = newLanguageSpecification; 
+}
+
+std::string StandardFunction::getEFCLanguageSpecification() const {
+  return efc_languageSpecification; 
+}
+
+void StandardFunction::setEFCAssignmentStatement(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<AssignmentStatement>()); 
+  efc_assignmentStatement = std::move(node); 
+  efc_assignmentStatement -> setParent(this); 
+} 
+
+const AssignmentStatement *StandardFunction::getEFCAssignmentStatement() const{
+  return efc_assignmentStatement->cast<AssignmentStatement>();
+} 
+
+AssignmentStatement *StandardFunction::getEFCAssignmentStatement() {
+  return efc_assignmentStatement->cast<AssignmentStatement>();
+}
+
+void StandardFunction::setEFCAnnotationClause(std::unique_ptr<ASTNode> node){
+  assert(node->isa<Annotation>()); 
+  efc_annotationClause = std::move(node); 
+  efc_annotationClause -> setParent(this); 
+}
+
+const Annotation *StandardFunction::getEFCAnnotationClause() const {
+  return efc_annotationClause->cast<Annotation>();
+}
+
+Annotation *StandardFunction::getEFCAnnotationClause(){
+  return efc_annotationClause->cast<Annotation>();
+} 
+
+bool StandardFunction::hasEFCLanguageSpecification() const {
+  return !efc_languageSpecification.empty();
+}
+
+bool StandardFunction::hasEFCAssignmentStatement() const {
+  return efc_assignmentStatement != nullptr;
+}
+
+bool StandardFunction::hasEFCAnnotationClause() const {
+  return efc_annotationClause != nullptr;
+}
+
 
 DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name,
                                            unsigned int order)

@@ -4469,6 +4469,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
+        OptionalAttr<BoolAttr>:$isExternal,
         OptionalAttr<FunctionDerivativeAttr>:$derivative,
         DefaultValuedAttr<I64Attr, "0">:$timeDerivativeOrder);
 
@@ -4476,7 +4477,8 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name)>
+        OpBuilder<(ins "llvm::StringRef":$name)>, 
+        OpBuilder<(ins "llvm::StringRef":$name, "bool":$isExternal)>
     ];
 
     let extraClassDeclaration = [{
@@ -4508,32 +4510,11 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
             return false;
         }
 
-        /// }
-    }];
-}
-
-def BaseModelica_ExternalFunctionOp : BaseModelica_Op<"external_function",
-    [Symbol]> 
-{
-    let summary = "Declares an external function.";
-
-    let description = [{
-        Represents a declaration of a function that is defined externally,
-        for example in a C library. This operation has no body and serves as a
-        target for `bmodelica.call` operations.
-    }];
-
-    let arguments = (ins
-        SymbolNameAttr:$sym_name, 
-        OptionalAttr<TypeAttrOf<FunctionType>>:$function_type
-    );
-
-    let assemblyFormat = "$sym_name attr-dict";
-
-    let extraClassDeclaration = [{
-        bool isDeclaration() {
-            return true;
+        bool isExternal() {
+            return getIsExternal() ? *getIsExternal() : false;
         }
+
+        /// }
     }];
 }
 
@@ -4860,10 +4841,6 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     let builders = [
         OpBuilder<(ins
             "FunctionOp":$callee,
-            CArg<"mlir::ValueRange", "{}">:$args,
-            CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
-        OpBuilder<(ins
-            "ExternalFunctionOp":$callee,
             CArg<"mlir::ValueRange", "{}">:$args,
             CArg<"std::optional<mlir::ArrayAttr>", "std::nullopt">:$argNames)>,
         OpBuilder<(ins

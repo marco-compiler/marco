@@ -15,7 +15,6 @@ set(SOURCES
     EquationLowerer.cpp
     EquationSectionLowerer.cpp
     ExpressionLowerer.cpp
-    ExternalFunctionCallLowerer.cpp
     ForEquationLowerer.cpp
     ForStatementLowerer.cpp
     IdentifierError.cpp

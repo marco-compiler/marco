@@ -23,9 +23,16 @@ protected:
   using Lowerer::lower;
 
 private:
+  llvm::DenseSet<llvm::StringRef> externalFunctionOpsTable;
+
+
   [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member &variable);
 
+
   bool isRecordConstructor(const ast::StandardFunction &function);
+
+  bool insertIntoExternalFunctionOpsTable(const llvm::StringRef name);
+
 };
 } // namespace marco::codegen::lowering
 

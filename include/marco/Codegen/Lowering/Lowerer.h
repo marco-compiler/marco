@@ -153,8 +153,6 @@ protected:
 
   virtual std::optional<Results> lower(const ast::Call &node) override;
 
-  virtual bool lower(const ast::ExternalFunctionCall &call) override;
-
   virtual std::optional<Results> lower(const ast::Constant &constant) override;
 
   virtual std::optional<Results>

@@ -12,6 +12,8 @@ class Algorithm;
 class Annotation;
 class Member;
 class VariableType;
+class AssignmentStatement;
+
 
 class FunctionType {
 public:
@@ -94,8 +96,28 @@ public:
 
   FunctionType getType() const;
 
+  void setEFCLanguageSpecification(std::string languageSpecification); 
+  std::string getEFCLanguageSpecification() const ; 
+
+  void setEFCAssignmentStatement(std::unique_ptr<ASTNode> node); 
+  const AssignmentStatement *getEFCAssignmentStatement() const; 
+  AssignmentStatement *getEFCAssignmentStatement(); 
+
+  void setEFCAnnotationClause(std::unique_ptr<ASTNode> node); 
+  const Annotation *getEFCAnnotationClause() const; 
+  Annotation *getEFCAnnotationClause();
+
+  bool hasEFCLanguageSpecification() const ;
+  bool hasEFCAssignmentStatement() const ;
+  bool hasEFCAnnotationClause() const ; 
+
 private:
   bool pure;
+
+    //attributes for supporting externally defined functions
+  std::string efc_languageSpecification;
+  std::unique_ptr<ASTNode> efc_assignmentStatement;
+  std::unique_ptr<ASTNode> efc_annotationClause; 
 };
 
 class DerivativeAnnotation {

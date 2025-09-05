@@ -352,10 +352,6 @@ bool Lowerer::lower(const ast::WhenEquation &node) {
   return bridge->lower(node);
 }
 
-bool Lowerer::lower(const ast::ExternalFunctionCall &call) {
-  return bridge->lower(call);
-}
-
 bool Lowerer::lower(const ast::Algorithm &algorithm) {
   return bridge->lower(algorithm);
 }

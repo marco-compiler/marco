@@ -226,15 +226,6 @@ public:
   /// Parse the 'annotation' symbol.
   ParseResult<std::unique_ptr<ast::ASTNode>> parseAnnotation();
 
-  /// Parse the 'external' symbol (additional non-terminal, w.r.t. modelica's grammar, which embeds
-  /// the entire external function call section (language-specification + external-function-call + annotation-clause)
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternal();
-
-  /// Parse the 'expression-list' symbol.
-  WrappedParseResult<std::vector<std::unique_ptr<ast::ASTNode>>> parseExpressionList();
-
-  /// Parse the 'external-function-call' symbol.
-  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternalFunctionCall();
 
 private:
   std::optional<std::vector<std::unique_ptr<ast::ASTNode>>>
