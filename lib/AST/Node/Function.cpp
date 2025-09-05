@@ -3,6 +3,7 @@
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Type.h"
+#include "marco/AST/Node/AssignmentStatement.h"
 #include <algorithm>
 #include <variant>
 
@@ -210,7 +211,6 @@ bool StandardFunction::hasEFCAssignmentStatement() const {
 bool StandardFunction::hasEFCAnnotationClause() const {
   return efc_annotationClause != nullptr;
 }
-
 
 DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name,
                                            unsigned int order)
