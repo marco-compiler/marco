@@ -1,4 +1,4 @@
-// RUN: marco %s ./ExternalFunctionTestsLibraries/newCLibrary.o --omc-bypass --model=Fact --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
+// RUN: marco %s %S/ExternalFunctionTestsLibraries/newCLibrary.o --omc-bypass --model=Fact --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
 // RUN: ./%basename_t --end-time=1 --time-step=1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x","y"
