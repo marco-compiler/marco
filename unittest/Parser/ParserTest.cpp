@@ -53,7 +53,7 @@ TEST(Parser, usage_of_external_test_1)
     auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
 
     auto *destinations = statement->getDestinations()->cast<Tuple>();
-    ASSERT_EQ(destinations->size(), 3);
+    ASSERT_EQ(destinations->size(), 1);
 
     auto *expression = statement->getExpression()->cast<Call>();
     ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "abc");
@@ -203,7 +203,8 @@ TEST(Parser, usage_of_external_test_5)
   {
     auto str = R"(function foo
                       input Real x;
-                    external "C";
+                    external "C"
+                      abc(x);
                   end foo;)";
 
     auto sourceFile = std::make_shared<SourceFile>("test.mo");
@@ -224,19 +225,8 @@ TEST(Parser, usage_of_external_test_5)
     ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
     ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
 
-/*
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
-
-    auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
-
-    auto *destinations = statement->getDestinations()->cast<Tuple>();
-    ASSERT_EQ(destinations->size(), 0);
-
-    auto *expression = statement->getExpression()->cast<Call>();
-    ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "abc");
-    auto args = expression->getArguments();
-    ASSERT_EQ(args.size(), 1);
-*/
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
+    
     ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), false);
   }
 

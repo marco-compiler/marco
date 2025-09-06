@@ -1,3 +1,22 @@
+long long arraySum(void* allocatedPtr, void* alignedDataPtr, long offset, long dim0_size, long dim0_stride)
+/**
+ * It computes the sum between all element of the given array
+ * @param alignedDataPtr the actual pointer to the array
+ * @param dim0_size array size
+ *
+ * @return sum between each element of "alignedDataPtr"
+ */
+	{
+	    long long* arr = (long long*) alignedDataPtr;
+	    long long sum = 0;
+	    
+	    for (int i = 0; i < dim0_size; ++i)
+		    {
+		        sum += arr[i];
+		    }
+	    
+	    return sum;
+	}
 int integerLog (int base, int val)
 /**
  * It computes the integer logarithm
