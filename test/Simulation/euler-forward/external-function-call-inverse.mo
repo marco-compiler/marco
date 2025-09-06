@@ -6,7 +6,7 @@
 // CHECK: 1.000000,0.500000
 
 function externalInverse
-	input Integer x;
+	input Real x;
 	output Real ris;
 	external "C"
 		ris = inverse(x);
