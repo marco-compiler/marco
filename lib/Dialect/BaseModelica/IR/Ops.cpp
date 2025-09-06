@@ -10825,10 +10825,6 @@ CallOp::verifySymbolUses(mlir::SymbolTableCollection &symbolTable) {
     return mlir::success();
   }
 
-  if (auto rawFunctionOp = mlir::dyn_cast<ExternalFunctionOp>(callee)) {
-    return mlir::success();
-  }
-
   return emitOpError() << "'" << getCallee()
                        << "' does not reference a valid function";
 }
