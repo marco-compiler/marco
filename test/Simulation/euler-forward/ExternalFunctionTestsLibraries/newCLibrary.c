@@ -106,7 +106,7 @@ double min (double x, double y)
 	{
 		return (x<=y ? x : y);
 	}
-int factorial(int n)
+double factorial(int n)
 /**
  * It computes factorial of a given number
  * @param n the given number

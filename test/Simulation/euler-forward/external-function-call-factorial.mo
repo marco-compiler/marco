@@ -1,19 +1,22 @@
 // RUN: marco %s %S/ExternalFunctionTestsLibraries/newCLibrary.o --omc-bypass --model=Fact --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
-// RUN: ./%basename_t --end-time=1 --time-step=1 --precision=6 | FileCheck %s
+// RUN: ./%basename_t --end-time=2 --time-step=0.5 --precision=6 | FileCheck %s
 
-// CHECK: "time","x","y"
-// CHECK:  0.000000, 5.000000, 120.000000
+// CHECK: "time","x"
+// CHECK: 0.000000,0.000000
+// CHECK: 0.500000,60.000000
+// CHECK: 1.000000,120.000000
+// CHECK: 1.500000,180.000000
+// CHECK: 2.000000,240.000000
 
 function externalFactorial
 	input Integer x;
-	output Integer ris;
+	output Real ris;
 	external "C"
 		ris = factorial(x);
 end externalFactorial;
-
+ 
 model Fact
-	Integer x(start = 5, fixed = true);
-	Integer y;
+	Real x(start = 0, fixed = true);
 equation
-	y = externalFactorial(x);
+	der(x) = externalFactorial(5);
 end Fact;

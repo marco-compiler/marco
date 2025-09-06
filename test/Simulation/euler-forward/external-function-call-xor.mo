@@ -1,5 +1,5 @@
 // RUN: marco %s %S/ExternalFunctionTestsLibraries/newCLibrary.o --omc-bypass --model=LogicComponent --solver=euler-forward -o %basename_t -L %runtime_lib_dir -Wl,-rpath %runtime_lib_dir
-// RUN: ./%basename_t --end-time=4 --time-step=1| FileCheck %s
+// RUN: ./%basename_t --end-time=1 --time-step=1 --precision=6| FileCheck %s
 
 // CHECK: "time","x","y","ris"
 // CHECK: 0.000000, 0, 1, 1  
@@ -8,21 +8,26 @@
 // CHECK: 3.000000, 1, 1, 0
 // CHECK: 4.000000, 0, 1, 1
 
-function externalXorPort
-	input Boolean a;
-	input Boolean b;
-	output Boolean ris;
-	external "C"
-		ris = logicXor(a,b);
-end externalXorPort;
+// CHECK: "time","ris_1","ris_2","ris_3","ris_4"
+// CHECK: 0.000000,0.000000,1.000000,1.000000,0.000000
+// CHECK: 1.000000,0.000000,1.000000,1.000000,0.000000
 
+function externalXorPort
+  input Boolean a;
+  input Boolean b;
+  output Boolean ris;
+  external "C"
+    ris = logicXor(a,b);
+end externalXorPort;
+ 
 model LogicComponent
-  Boolean x(start=false);
-  Boolean y(start=true);
-  Boolean ris;
+  Boolean ris_1;
+  Boolean ris_2; 
+  Boolean ris_3; 
+  Boolean ris_4; 
 equation
-  when {initial(), sample(0, 1)} then
-    ris = externalXorPort(x, y); 
-    x   = not pre(ris);
-  end when;
+  ris_1 = externalXorPort(0, 0); 
+  ris_2 = externalXorPort(0, 1); 
+  ris_3 = externalXorPort(1, 0); 
+  ris_4 = externalXorPort(1, 1); 
 end LogicComponent;
