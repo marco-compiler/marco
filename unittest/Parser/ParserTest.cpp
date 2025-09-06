@@ -103,7 +103,9 @@ R"(function externalLog
   auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
 
   EXPECT_EQ(statement->getLocation().begin.line, 6);
-  EXPECT_EQ(statement->getLocation().begin.column, 9);
+  EXPECT_EQ(statement->getLocation().begin.column, 5);
+  EXPECT_EQ(statement->getLocation().end.line, 6);
+  EXPECT_EQ(statement->getLocation().end.column, 26);
 
   auto *destinations = statement->getDestinations()->cast<Tuple>();
   ASSERT_EQ(destinations->size(), 1);
