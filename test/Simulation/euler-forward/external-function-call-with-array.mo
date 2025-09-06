@@ -8,7 +8,7 @@ function mySum
   input Integer x[:];   
   output Integer s;
 external "C" 
-    s = mySum_c(x);
+    s = arraySum(x);
 end mySum;
 
 
