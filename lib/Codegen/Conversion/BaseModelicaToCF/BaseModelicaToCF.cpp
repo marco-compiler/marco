@@ -166,13 +166,14 @@ void BaseModelicaToCFConversionPass::runOnOperation() {
 
 mlir::LogicalResult BaseModelicaToCFConversionPass::moveAndConvertFunctionBody(
     const ConversionInstance &conversionInstance) {
+  
   FunctionOp functionOp = conversionInstance.functionOp;
+  RawFunctionOp rawFunctionOp = conversionInstance.rawFunctionOp;
   
   if (functionOp.isExternal()) {
+    rawFunctionOp.setPrivate();     
     return mlir::success(); 
   }
-
-  RawFunctionOp rawFunctionOp = conversionInstance.rawFunctionOp;
 
   mlir::IRRewriter rewriter(rawFunctionOp);
   mlir::Location loc = functionOp.getLoc();
