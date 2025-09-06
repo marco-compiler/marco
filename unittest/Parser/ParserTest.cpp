@@ -68,51 +68,52 @@ TEST(Parser, usage_of_external_test_1)
   }
 
 TEST(Parser, usage_of_external_test_2) {
-  auto str = R"(function externalLog
-                  input Integer b;
-                  input Real n;
-                  output Integer ris;
-                  external "C"
-                    ris = discreteLog(b, n)
-                    annotation(
-                      Include = "#include \"lib.c\"",
-                      Library = "myLib"
-                    );
-                end externalLog;)"; 
+  auto str = 
+R"(function externalLog
+    input Integer b;
+    input Real n;
+    output Integer ris;
+  external "C"
+    ris = discreteLog(b, n)
+    annotation(
+      Include = "#include \"lib.c\"",
+      Library = "myLib"
+    );
+  end externalLog;)"; 
 
-                auto sourceFile = std::make_shared<SourceFile>("test.mo");
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
 
-                clang::DiagnosticOptions diagOpts;
-                auto diagnostics = getDiagnosticsEngine(diagOpts);
-                clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
-                auto &sourceManager = fileSourceMgr.get();
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
             
-                auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
-                sourceFile->setMemoryBuffer(buffer.get());
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
             
-                Parser parser(*diagnostics, sourceManager, sourceFile);
+  Parser parser(*diagnostics, sourceManager, sourceFile);
             
-                auto node = parser.parseClassDefinition();
+  auto node = parser.parseClassDefinition();
 
-                ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-                ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
 
-                ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
 
-                auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
+  auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
 
-                EXPECT_EQ(statement->getLocation().begin.line, 6);
-                EXPECT_EQ(statement->getLocation().begin.column, 5);
+  EXPECT_EQ(statement->getLocation().begin.line, 6);
+  EXPECT_EQ(statement->getLocation().begin.column, 9);
 
-                auto *destinations = statement->getDestinations()->cast<Tuple>();
-                ASSERT_EQ(destinations->size(), 1);
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
+  ASSERT_EQ(destinations->size(), 1);
 
-                auto *expression = statement->getExpression()->cast<Call>();
-                ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "discreteLog");
-                auto args = expression->getArguments();
-                ASSERT_EQ(args.size(), 2);
+  auto *expression = statement->getExpression()->cast<Call>();
+  ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "discreteLog");
+  auto args = expression->getArguments();
+  ASSERT_EQ(args.size(), 2);
 
-                ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);            
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);            
 }
 
 TEST(Parser, usage_of_external_test_3)

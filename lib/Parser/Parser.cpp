@@ -313,9 +313,11 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
             (lookahead[0].isa<TokenKind::Identifier>()
               && (lookahead[1].isa<TokenKind::LSquare>() || lookahead[1].isa<TokenKind::Dot>() || lookahead[1].isa<TokenKind::EqualityOperator>())))
           {
-            SourceRange loc = getLocation();
-            
+
             TRY(compRef, parseComponentReference());
+
+            SourceRange loc = compRef->getLocation();
+
             EXPECT(TokenKind::EqualityOperator);
 
             auto function = std::make_unique<ComponentReference>(loc);
