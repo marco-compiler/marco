@@ -316,7 +316,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
 
             TRY(compRef, parseComponentReference());
 
-            SourceRange loc = compRef->getLocation();
+            SourceRange loc = (*compRef)->getLocation();
 
             EXPECT(TokenKind::EqualityOperator);
 
