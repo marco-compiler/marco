@@ -171,7 +171,7 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::moveAndConvertFunctionBody(
   RawFunctionOp rawFunctionOp = conversionInstance.rawFunctionOp;
   
   if (functionOp.isExternal()) {
-    rawFunctionOp.setPrivate();     
+    rawFunctionOp.setVisibility(mlir::SymbolTable::Visibility::Private);
     return mlir::success(); 
   }
 
