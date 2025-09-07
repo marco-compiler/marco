@@ -204,6 +204,10 @@ struct RawFunctionOpLowering : public FunctionLoweringPattern<RawFunctionOp> {
     auto funcOp = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getSymName(), functionType);
 
+    if(op.isDeclaration()) {
+      funcOp.setPrivate(); 
+    }
+
     symbolTable.remove(op);
     symbolTable.insert(funcOp);
 

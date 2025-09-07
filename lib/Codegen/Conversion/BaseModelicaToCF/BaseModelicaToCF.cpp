@@ -169,6 +169,11 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::moveAndConvertFunctionBody(
   FunctionOp functionOp = conversionInstance.functionOp;
   RawFunctionOp rawFunctionOp = conversionInstance.rawFunctionOp;
 
+  if (functionOp.isExternal()) {
+    rawFunctionOp.setPrivate();
+    return mlir::success(); 
+  }
+
   mlir::IRRewriter rewriter(rawFunctionOp);
   mlir::Location loc = functionOp.getLoc();
   mlir::SymbolTable symbolTable(functionOp.getOperation());
