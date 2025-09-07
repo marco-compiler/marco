@@ -73,6 +73,9 @@ public:
   /// Parse the 'class-definition' symbol.
   ParseResult<std::unique_ptr<ast::ASTNode>> parseClassDefinition();
 
+  /// Parse the 'external-function-call' symbol.
+  ParseResult<std::unique_ptr<ast::ASTNode>> parseExternalFunctionCall();
+
   /// Parse the 'modification' symbol.
   ParseResult<std::unique_ptr<ast::ASTNode>> parseModification();
 

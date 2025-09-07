@@ -326,6 +326,54 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   return std::move(result);
 }
 
+ParseResult<std::unique_ptr<ast::ASTNode>> Parser::parseExternalFunctionCall() {
+  SourceRange loc = getLocation();
+
+  auto result = std::make_unique<ExternalFunctionCall>(loc);
+
+  // Optional destination.
+  bool hasDestination = !(lookahead[0].isa<TokenKind::Identifier>() &&
+                          lookahead[1].isa<TokenKind::LPar>());
+
+  if (hasDestination) {
+    TRY(destination, parseComponentReference());
+    loc = (*destination)->getLocation();
+    result->setDestination(std::move(*destination));
+    EXPECT(TokenKind::EqualityOperator);
+  }
+
+  // Callee.
+  TRY(callee, parseIdentifier());
+
+  if (!result->hasDestination()) {
+    loc = callee->getLocation();
+  }
+
+  result->setCallee(callee->getValue());
+
+  EXPECT(TokenKind::LPar);
+
+  // Function arguments.
+  llvm::SmallVector<std::unique_ptr<ast::ASTNode>> args;
+
+  while (!lookahead[0].isa<TokenKind::RPar>()) {
+    TRY(arg, parseExpression());
+    args.push_back(std::move(*arg));
+
+    if (!lookahead[0].isa<TokenKind::RPar>()) {
+      EXPECT(TokenKind::Comma);
+    }
+  }
+
+  result->setArguments(std::move(args));
+  EXPECT(TokenKind::RPar);
+
+  loc.end = getLocation().end;
+  result->setLocation(loc);
+
+  return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+}
+
 ParseResult<std::unique_ptr<ASTNode>> Parser::parseModification() {
   if (accept<TokenKind::EqualityOperator>() ||
       accept<TokenKind::AssignmentOperator>()) {
