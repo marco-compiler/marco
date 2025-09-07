@@ -23,8 +23,8 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
     declare(*innerClassNode->cast<ast::Class>());
   }
 
-  if (function.hasEFCAssignmentStatement()){
-    auto callee = function.getEFCAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
+  if (function.hasExternalFunctionAssignmentStatement()){
+    auto callee = function.getExternalFunctionAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
     llvm::StringRef externalFunctionName = callee->getElement(0)->getName();  
     if (insertIntoExternalFunctionOpsTable(externalFunctionName)){
       auto module = functionOp->getParentOfType<mlir::ModuleOp>();
@@ -59,8 +59,8 @@ bool StandardFunctionLowerer::declareVariables(
     }
   }
 
-  if (function.hasEFCAssignmentStatement()){
-    auto callee = function.getEFCAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
+  if (function.hasExternalFunctionAssignmentStatement()){
+    auto callee = function.getExternalFunctionAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
     auto externalFunctionOp = mlir::cast<FunctionOp>(resolveClassName(callee->getElement(0)->getName(), functionOp->getParentOfType<mlir::ModuleOp>()));
     pushLookupScope(externalFunctionOp);
     builder().setInsertionPointToEnd(externalFunctionOp.getBody());
@@ -223,13 +223,13 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     builder().setInsertionPointAfter(algorithmOp);
   }
 
-  if (function.hasEFCAssignmentStatement()){
-    mlir::Location location = loc(function.getEFCAssignmentStatement()->getLocation());
+  if (function.hasExternalFunctionAssignmentStatement()){
+    mlir::Location location = loc(function.getExternalFunctionAssignmentStatement()->getLocation());
     auto algorithmOp = builder().create<AlgorithmOp>(location);
     mlir::OpBuilder::InsertionGuard bodyGuard(builder()); 
     builder().createBlock(&algorithmOp.getBodyRegion());
     builder().setInsertionPointToStart(algorithmOp.getBody());
-    lower(*(function.getEFCAssignmentStatement()));
+    lower(*(function.getExternalFunctionAssignmentStatement()));
   }
 
   // Lower the inner classes.

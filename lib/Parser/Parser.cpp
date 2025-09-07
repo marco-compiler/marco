@@ -305,7 +305,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     if (lookahead[0].isa<TokenKind::String>())
         {
           TRY(str, parseString());
-          result->dyn_cast<StandardFunction>()->setEFCLanguageSpecification(str->getValue());
+          result->dyn_cast<StandardFunction>()->setExternalFunctionLanguageSpecification(str->getValue());
         }
     if (lookahead[0].isa<TokenKind::Identifier>() || lookahead[0].isa<TokenKind::Dot>())
       {
@@ -346,7 +346,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
             as->setDestinations(std::move(*compRef));
             as->setExpression(std::move(call));
 
-            result->dyn_cast<StandardFunction>()->setEFCAssignmentStatement(std::move(as));
+            result->dyn_cast<StandardFunction>()->setExternalFunctionAssignmentStatement(std::move(as));
           }
         else              
           {
@@ -357,7 +357,7 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
     if (lookahead[0].isa<TokenKind::Annotation>())
       {
         TRY(annotation, parseAnnotation()); 
-        result->dyn_cast<StandardFunction>()->setEFCAnnotationClause(std::move(*annotation));
+        result->dyn_cast<StandardFunction>()->setExternalFunctionAnnotationClause(std::move(*annotation));
       }
 
     EXPECT(TokenKind::Semicolon);

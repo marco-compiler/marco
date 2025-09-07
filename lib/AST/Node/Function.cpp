@@ -102,13 +102,13 @@ StandardFunction::StandardFunction(const StandardFunction &other)
     : Function(other) {
 
   pure = other.pure;
-  efc_languageSpecification = other.efc_languageSpecification;
+  externalFunctionLanguageSpecification = other.externalFunctionLanguageSpecification;
 
-  if (other.efc_assignmentStatement) {
-      setEFCAssignmentStatement(other.efc_assignmentStatement->clone());
+  if (other.externalFunctionAssignmentStatement) {
+      setExternalFunctionAssignmentStatement(other.externalFunctionAssignmentStatement->clone());
   }
-  if (other.efc_annotationClause) {
-      setEFCAnnotationClause(other.efc_annotationClause->clone());
+  if (other.externalFunctionAnnotationClause) {
+      setExternalFunctionAnnotationClause(other.externalFunctionAnnotationClause->clone());
   }      
 }
 
@@ -125,14 +125,14 @@ llvm::json::Value StandardFunction::toJSON() const {
   if (hasAnnotation()) {
     result["annotation"] = getAnnotation()->toJSON();
   }
-  if (hasEFCLanguageSpecification()) {
-    result["efc_language_specification"] = getEFCLanguageSpecification();
+  if (hasExternalFunctionLanguageSpecification()) {
+    result["externalFunction_Language_specification"] = getExternalFunctionLanguageSpecification();
   }
-  if (hasEFCAssignmentStatement()) {
-    result["efc_assignment_statement"] = getEFCAssignmentStatement() -> toJSON();
+  if (hasExternalFunctionAssignmentStatement()) {
+    result["externalFunction_Assignment_statement"] = getExternalFunctionAssignmentStatement() -> toJSON();
   }
-  if (hasEFCAnnotationClause()) {
-    result["efc_annotation_clause"] = getEFCAnnotationClause() -> toJSON();
+  if (hasExternalFunctionAnnotationClause()) {
+    result["externalFunction_Annotation_clause"] = getExternalFunctionAnnotationClause() -> toJSON();
   }
 
   addJSONProperties(result);
@@ -164,52 +164,52 @@ FunctionType StandardFunction::getType() const {
   return FunctionType(args, results);
 }
 
-void StandardFunction::setEFCLanguageSpecification(std::string newLanguageSpecification) {
-  efc_languageSpecification = newLanguageSpecification; 
+void StandardFunction::setExternalFunctionLanguageSpecification(std::string newLanguageSpecification) {
+  externalFunctionLanguageSpecification = newLanguageSpecification; 
 }
 
-std::string StandardFunction::getEFCLanguageSpecification() const {
-  return efc_languageSpecification; 
+std::string StandardFunction::getExternalFunctionLanguageSpecification() const {
+  return externalFunctionLanguageSpecification; 
 }
 
-void StandardFunction::setEFCAssignmentStatement(std::unique_ptr<ASTNode> node) {
+void StandardFunction::setExternalFunctionAssignmentStatement(std::unique_ptr<ASTNode> node) {
   assert(node->isa<AssignmentStatement>()); 
-  efc_assignmentStatement = std::move(node); 
-  efc_assignmentStatement -> setParent(this); 
+  externalFunctionAssignmentStatement = std::move(node); 
+  externalFunctionAssignmentStatement -> setParent(this); 
 } 
 
-const AssignmentStatement *StandardFunction::getEFCAssignmentStatement() const{
-  return efc_assignmentStatement->cast<AssignmentStatement>();
+const AssignmentStatement *StandardFunction::getExternalFunctionAssignmentStatement() const{
+  return externalFunctionAssignmentStatement->cast<AssignmentStatement>();
 } 
 
-AssignmentStatement *StandardFunction::getEFCAssignmentStatement() {
-  return efc_assignmentStatement->cast<AssignmentStatement>();
+AssignmentStatement *StandardFunction::getExternalFunctionAssignmentStatement() {
+  return externalFunctionAssignmentStatement->cast<AssignmentStatement>();
 }
 
-void StandardFunction::setEFCAnnotationClause(std::unique_ptr<ASTNode> node){
+void StandardFunction::setExternalFunctionAnnotationClause(std::unique_ptr<ASTNode> node){
   assert(node->isa<Annotation>()); 
-  efc_annotationClause = std::move(node); 
-  efc_annotationClause -> setParent(this); 
+  externalFunctionAnnotationClause = std::move(node); 
+  externalFunctionAnnotationClause -> setParent(this); 
 }
 
-const Annotation *StandardFunction::getEFCAnnotationClause() const {
-  return efc_annotationClause->cast<Annotation>();
+const Annotation *StandardFunction::getExternalFunctionAnnotationClause() const {
+  return externalFunctionAnnotationClause->cast<Annotation>();
 }
 
-Annotation *StandardFunction::getEFCAnnotationClause(){
-  return efc_annotationClause->cast<Annotation>();
+Annotation *StandardFunction::getExternalFunctionAnnotationClause(){
+  return externalFunctionAnnotationClause->cast<Annotation>();
 } 
 
-bool StandardFunction::hasEFCLanguageSpecification() const {
-  return !efc_languageSpecification.empty();
+bool StandardFunction::hasExternalFunctionLanguageSpecification() const {
+  return !externalFunctionLanguageSpecification.empty();
 }
 
-bool StandardFunction::hasEFCAssignmentStatement() const {
-  return efc_assignmentStatement != nullptr;
+bool StandardFunction::hasExternalFunctionAssignmentStatement() const {
+  return externalFunctionAssignmentStatement != nullptr;
 }
 
-bool StandardFunction::hasEFCAnnotationClause() const {
-  return efc_annotationClause != nullptr;
+bool StandardFunction::hasExternalFunctionAnnotationClause() const {
+  return externalFunctionAnnotationClause != nullptr;
 }
 
 DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name,

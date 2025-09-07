@@ -11,7 +11,7 @@ using namespace ::marco::parser;
 std::unique_ptr<clang::DiagnosticsEngine>
 getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
   return std::make_unique<clang::DiagnosticsEngine>(
-      llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(
+      llvm::IntrusiveRExternalFunctionntPtr<clang::DiagnosticIDs>(
           new clang::DiagnosticIDs()),
       diagOpts, new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts));
 }
@@ -45,12 +45,12 @@ TEST(Parser, usage_of_external_test_1)
 
     ASSERT_EQ((*node)->cast<StandardFunction>()->getAlgorithms().size(), 1);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
 
-    auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
+    auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
 
     auto *destinations = statement->getDestinations()->cast<Tuple>();
     ASSERT_EQ(destinations->size(), 1);
@@ -60,9 +60,9 @@ TEST(Parser, usage_of_external_test_1)
     auto args = expression->getArguments();
     ASSERT_EQ(args.size(), 3);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
 
-    auto cr = (*node)->cast<StandardFunction>()->getEFCAnnotationClause();
+    auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
 
     ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
   }
@@ -95,12 +95,12 @@ R"(function externalLog
             
   auto node = parser.parseClassDefinition();
 
-  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-  ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
 
-  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
 
-  auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
+  auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
 
   EXPECT_EQ(statement->getLocation().begin.line, 6);
   EXPECT_EQ(statement->getLocation().begin.column, 5);
@@ -115,7 +115,7 @@ R"(function externalLog
   auto args = expression->getArguments();
   ASSERT_EQ(args.size(), 2);
 
-  ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);            
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);            
 }
 
 TEST(Parser, usage_of_external_test_3)
@@ -144,11 +144,11 @@ TEST(Parser, usage_of_external_test_3)
 
     auto node = parser.parseClassDefinition();
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
 
-    auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
+    auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
 
     auto *destinations = statement->getDestinations()->cast<Tuple>();
     ASSERT_EQ(destinations->size(), 1);
@@ -158,9 +158,9 @@ TEST(Parser, usage_of_external_test_3)
     auto args = expression->getArguments();
     ASSERT_EQ(args.size(), 2);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
 
-    auto cr = (*node)->cast<StandardFunction>()->getEFCAnnotationClause();
+    auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
 
     ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
   }
@@ -189,14 +189,14 @@ TEST(Parser, usage_of_external_test_4)
 
     auto node = parser.parseClassDefinition();
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
 
-    auto cr = (*node)->cast<StandardFunction>()->getEFCAnnotationClause();
+    auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
 
     ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
   }
@@ -224,12 +224,12 @@ TEST(Parser, usage_of_external_test_5)
 
     auto node = parser.parseClassDefinition();
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
     
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
   }
 
 TEST(Parser, usage_of_external_test_6)
@@ -256,13 +256,13 @@ TEST(Parser, usage_of_external_test_6)
 
     auto node = parser.parseClassDefinition();
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
 
-    auto cr = (*node)->cast<StandardFunction>()->getEFCAnnotationClause();
+    auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
 
     ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
   }
@@ -290,11 +290,11 @@ TEST(Parser, usage_of_external_test_7)
 
     auto node = parser.parseClassDefinition();
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
 
-    auto statement = (*node)->cast<StandardFunction>()->getEFCAssignmentStatement();
+    auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
 
     auto *destinations = statement->getDestinations()->cast<Tuple>();
     ASSERT_EQ(destinations->size(), 1);
@@ -304,7 +304,7 @@ TEST(Parser, usage_of_external_test_7)
     auto args = expression->getArguments();
     ASSERT_TRUE(args.empty());
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
   }
 
 TEST(Parser, usage_of_external_test_8)
@@ -332,12 +332,12 @@ TEST(Parser, usage_of_external_test_8)
 
     ASSERT_TRUE((*node)->isa<StandardFunction>());
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), true);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->getEFCLanguageSpecification(), "C");
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
 
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
   }
 
 TEST(Parser, usage_of_external_test_9)
@@ -365,9 +365,9 @@ TEST(Parser, usage_of_external_test_9)
 
     ASSERT_TRUE((*node)->isa<StandardFunction>());
 
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCLanguageSpecification(), false);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAssignmentStatement(), false);
-    ASSERT_EQ((*node)->cast<StandardFunction>()->hasEFCAnnotationClause(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+    ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
   }
 
 TEST(Parser, rawValue_true) {

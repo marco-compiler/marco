@@ -96,28 +96,28 @@ public:
 
   FunctionType getType() const;
 
-  void setEFCLanguageSpecification(std::string languageSpecification); 
-  std::string getEFCLanguageSpecification() const ; 
+  void setExternalFunctionLanguageSpecification(std::string languageSpecification); 
+  std::string getExternalFunctionLanguageSpecification() const ; 
 
-  void setEFCAssignmentStatement(std::unique_ptr<ASTNode> node); 
-  const AssignmentStatement *getEFCAssignmentStatement() const; 
-  AssignmentStatement *getEFCAssignmentStatement(); 
+  void setExternalFunctionAssignmentStatement(std::unique_ptr<ASTNode> node); 
+  const AssignmentStatement *getExternalFunctionAssignmentStatement() const; 
+  AssignmentStatement *getExternalFunctionAssignmentStatement(); 
 
-  void setEFCAnnotationClause(std::unique_ptr<ASTNode> node); 
-  const Annotation *getEFCAnnotationClause() const; 
-  Annotation *getEFCAnnotationClause();
+  void setExternalFunctionAnnotationClause(std::unique_ptr<ASTNode> node); 
+  const Annotation *getExternalFunctionAnnotationClause() const; 
+  Annotation *getExternalFunctionAnnotationClause();
 
-  bool hasEFCLanguageSpecification() const ;
-  bool hasEFCAssignmentStatement() const ;
-  bool hasEFCAnnotationClause() const ; 
+  bool hasExternalFunctionLanguageSpecification() const ;
+  bool hasExternalFunctionAssignmentStatement() const ;
+  bool hasExternalFunctionAnnotationClause() const ; 
 
 private:
   bool pure;
 
     //attributes for supporting externally defined functions
-  std::string efc_languageSpecification;
-  std::unique_ptr<ASTNode> efc_assignmentStatement;
-  std::unique_ptr<ASTNode> efc_annotationClause; 
+  std::string externalFunctionLanguageSpecification;
+  std::unique_ptr<ASTNode> externalFunctionAssignmentStatement;
+  std::unique_ptr<ASTNode> externalFunctionAnnotationClause; 
 };
 
 class DerivativeAnnotation {
