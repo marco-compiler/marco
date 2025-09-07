@@ -2611,3 +2611,349 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder) {
   EXPECT_EQ(annotation.getName(), "foo1");
   EXPECT_EQ(annotation.getOrder(), 1);
 }
+
+TEST(Parser, usage_of_external_test_1) {
+  auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    algorithm
+                      y := fun();
+                    external "C"
+                      x.y.z = abc(var, a.b.c, var)
+                      annotation(inline = false);
+                    annotation(inline = true);
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getAlgorithms().size(), 1);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
+
+  auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
+
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
+  ASSERT_EQ(destinations->size(), 1);
+
+  auto *expression = statement->getExpression()->cast<Call>();
+  ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "abc");
+  auto args = expression->getArguments();
+  ASSERT_EQ(args.size(), 3);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
+
+  auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
+
+  ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
+}
+
+TEST(Parser, usage_of_external_test_2) {
+  auto str = 
+R"(function externalLog
+    input Integer b;
+    input Real n;
+    output Integer ris;
+  external "C"
+    ris = discreteLog(b, n)
+    annotation(
+      Include = "#include \"lib.c\"",
+      Library = "myLib"
+    );
+  end externalLog;)"; 
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+            
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+            
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+            
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
+
+  auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
+
+  EXPECT_EQ(statement->getLocation().begin.line, 6);
+  EXPECT_EQ(statement->getLocation().begin.column, 5);
+  EXPECT_EQ(statement->getLocation().end.line, 6);
+  EXPECT_EQ(statement->getLocation().end.column, 27);
+
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
+  ASSERT_EQ(destinations->size(), 1);
+
+  auto *expression = statement->getExpression()->cast<Call>();
+  ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "discreteLog");
+  auto args = expression->getArguments();
+  ASSERT_EQ(args.size(), 2);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);            
+}
+
+TEST(Parser, usage_of_external_test_3) {
+  auto str = R"(function foo
+                      input Real x;
+                      input Real y;
+                      output Real z;
+                    external
+                      z = abc(x,y)
+                      annotation(inline = false);
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
+
+  auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
+
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
+  ASSERT_EQ(destinations->size(), 1);
+
+  auto *expression = statement->getExpression()->cast<Call>();
+  ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "abc");
+  auto args = expression->getArguments();
+  ASSERT_EQ(args.size(), 2);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
+
+  auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
+
+  ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
+}
+
+TEST(Parser, usage_of_external_test_4) {
+  auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    external "C"
+                      annotation(inline = false);
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
+
+  auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
+
+  ASSERT_FALSE(cr->cast<Annotation>()->getInlineProperty());
+}
+
+TEST(Parser, usage_of_external_test_5) {
+  auto str = R"(function foo
+                      input Real x;
+                    external "C"
+                      abc(x);
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+    
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
+}
+
+TEST(Parser, usage_of_external_test_6) {
+  auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    external
+                      annotation(inline = true);
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), true);
+
+  auto cr = (*node)->cast<StandardFunction>()->getExternalFunctionAnnotationClause();
+
+  ASSERT_TRUE(cr->cast<Annotation>()->getInlineProperty());
+}
+
+TEST(Parser, usage_of_external_test_7) {
+  auto str = R"(function foo
+                      output Boolean ris;
+                    external
+                      ris = abc();
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), true);
+
+  auto statement = (*node)->cast<StandardFunction>()->getExternalFunctionAssignmentStatement();
+
+  auto *destinations = statement->getDestinations()->cast<Tuple>();
+  ASSERT_EQ(destinations->size(), 1);
+
+  auto *expression = statement->getExpression()->cast<Call>();
+  ASSERT_EQ(expression->getCallee()->cast<ComponentReference>()->getElement(0)->getName(), "abc");
+  auto args = expression->getArguments();
+  ASSERT_TRUE(args.empty());
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
+}
+
+TEST(Parser, usage_of_external_test_8) {
+  auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    external "C";
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_TRUE((*node)->isa<StandardFunction>());
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), true);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->getExternalFunctionLanguageSpecification(), "C");
+
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
+}
+
+TEST(Parser, usage_of_external_test_9) {
+  auto str = R"(function foo
+                      input Real x;
+                      output Real y;
+                    external ;
+                  end foo;)";
+
+  auto sourceFile = std::make_shared<SourceFile>("test.mo");
+
+
+  clang::DiagnosticOptions diagOpts;
+  auto diagnostics = getDiagnosticsEngine(diagOpts);
+  clang::SourceManagerForFile fileSourceMgr(sourceFile->getFileName(), str);
+  auto &sourceManager = fileSourceMgr.get();
+
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(str);
+  sourceFile->setMemoryBuffer(buffer.get());
+
+  Parser parser(*diagnostics, sourceManager, sourceFile);
+
+  auto node = parser.parseClassDefinition();
+
+  ASSERT_TRUE((*node)->isa<StandardFunction>());
+
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionLanguageSpecification(), false);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAssignmentStatement(), false);
+  ASSERT_EQ((*node)->cast<StandardFunction>()->hasExternalFunctionAnnotationClause(), false);
+}
