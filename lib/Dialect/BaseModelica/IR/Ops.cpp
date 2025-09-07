@@ -10078,7 +10078,12 @@ mlir::LogicalResult EquationSidesOp::verify() {
 namespace mlir::bmodelica {
 void FunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
                        llvm::StringRef name) {
-  build(builder, state, name, nullptr);
+  build(builder, state, name, nullptr, nullptr);
+}
+
+void FunctionOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
+                       llvm::StringRef name, bool isExternal) {
+  build(builder, state, name, builder.getBoolAttr(isExternal), nullptr);
 }
 
 llvm::SmallVector<mlir::Type> FunctionOp::getArgumentTypes() {

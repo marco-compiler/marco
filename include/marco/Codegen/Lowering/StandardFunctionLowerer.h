@@ -26,6 +26,9 @@ private:
   [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member &variable);
 
   bool isRecordConstructor(const ast::StandardFunction &function);
+
+  llvm::DenseSet<llvm::StringRef> externalFunctionOpsTable;
+  bool insertIntoExternalFunctionOpsTable(const llvm::StringRef name);
 };
 } // namespace marco::codegen::lowering
 

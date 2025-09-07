@@ -22,6 +22,17 @@ void StandardFunctionLowerer::declare(const ast::StandardFunction &function) {
   for (const auto &innerClassNode : function.getInnerClasses()) {
     declare(*innerClassNode->cast<ast::Class>());
   }
+
+  if (function.hasExternalFunctionAssignmentStatement()){
+    auto callee = function.getExternalFunctionAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
+    llvm::StringRef externalFunctionName = callee->getElement(0)->getName();  
+    if (insertIntoExternalFunctionOpsTable(externalFunctionName)){
+      auto module = functionOp->getParentOfType<mlir::ModuleOp>();
+      builder().setInsertionPointToStart(module.getBody());
+      auto externalFunctionOp = builder().create<FunctionOp>(loc(callee->getLocation()), externalFunctionName, true);
+      builder().createBlock(&externalFunctionOp.getBodyRegion());
+    }
+  }
 }
 
 bool StandardFunctionLowerer::declareVariables(
@@ -45,6 +56,18 @@ bool StandardFunctionLowerer::declareVariables(
   for (const auto &innerClassNode : function.getInnerClasses()) {
     if (!declareVariables(*innerClassNode->cast<ast::Class>())) {
       return false;
+    }
+  }
+
+  if (function.hasExternalFunctionAssignmentStatement()){
+    auto callee = function.getExternalFunctionAssignmentStatement()->getExpression()->dyn_cast<ast::Call>()->getCallee()->dyn_cast<ast::ComponentReference>(); 
+    auto externalFunctionOp = mlir::cast<FunctionOp>(resolveClassName(callee->getElement(0)->getName(), functionOp->getParentOfType<mlir::ModuleOp>()));
+    pushLookupScope(externalFunctionOp);
+    builder().setInsertionPointToEnd(externalFunctionOp.getBody());
+    for (const auto &variable : function.getVariables()) {
+      if (!declare(*variable->cast<ast::Member>())) {
+        return false;
+      }
     }
   }
 
@@ -200,6 +223,19 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
     builder().setInsertionPointAfter(algorithmOp);
   }
 
+  // An "AssignmentStatement" whose "Expression" is a call to an external function is lowered
+  // into an AlgorithmOp wrapper. This meets the expectations
+  // of the downstream BaseModelicaToCFConversionPass.
+  // (This approach avoids invasive modifications)
+  if (function.hasExternalFunctionAssignmentStatement()){
+    mlir::Location location = loc(function.getExternalFunctionAssignmentStatement()->getLocation());
+    auto algorithmOp = builder().create<AlgorithmOp>(location);
+    mlir::OpBuilder::InsertionGuard bodyGuard(builder()); 
+    builder().createBlock(&algorithmOp.getBodyRegion());
+    builder().setInsertionPointToStart(algorithmOp.getBody());
+    lower(*(function.getExternalFunctionAssignmentStatement()));
+  }
+
   // Lower the inner classes.
   for (const auto &innerClassNode : function.getInnerClasses()) {
     if (!lower(*innerClassNode->cast<ast::Class>())) {
@@ -239,5 +275,15 @@ bool StandardFunctionLowerer::lowerVariableDefaultValue(
 bool StandardFunctionLowerer::isRecordConstructor(
     const ast::StandardFunction &function) {
   return function.getName().contains("'constructor'");
+}
+
+bool StandardFunctionLowerer::insertIntoExternalFunctionOpsTable (const llvm::StringRef name) {
+  if (externalFunctionOpsTable.contains(name)){
+    return false;
+  }
+  else {
+    externalFunctionOpsTable.insert(name);
+    return true;
+  }
 }
 } // namespace marco::codegen::lowering

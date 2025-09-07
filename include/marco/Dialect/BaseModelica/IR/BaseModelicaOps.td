@@ -4469,6 +4469,7 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
+        OptionalAttr<BoolAttr>:$isExternal,
         OptionalAttr<FunctionDerivativeAttr>:$derivative,
         DefaultValuedAttr<I64Attr, "0">:$timeDerivativeOrder);
 
@@ -4476,7 +4477,8 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     let assemblyFormat = "$sym_name attr-dict-with-keyword $bodyRegion";
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name)>
+        OpBuilder<(ins "llvm::StringRef":$name)>,
+        OpBuilder<(ins "llvm::StringRef":$name, "bool":$isExternal)>
     ];
 
     let extraClassDeclaration = [{
@@ -4506,6 +4508,11 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
         bool isDeclaration()
         {
             return false;
+        }
+
+        bool isExternal() 
+        {
+            return getIsExternal() ? *getIsExternal() : false;
         }
 
         /// }
