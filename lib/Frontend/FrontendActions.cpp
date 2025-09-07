@@ -4,6 +4,7 @@
 #include "marco/Codegen/Verifier.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "marco/Dialect/BaseModelica/Transforms/AllInterfaces.h"
+#include "marco/Dialect/BaseModelica/Transforms/DerivativesMaterialization.h"
 #include "marco/Dialect/BaseModelica/Transforms/Passes.h"
 #include "marco/Dialect/IDA/IR/IDA.h"
 #include "marco/Dialect/KINSOL/IR/KINSOL.h"
@@ -893,9 +894,6 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
   // Materialize the derivatives.
   pm.addPass(mlir::bmodelica::createDerivativesMaterializationPass());
 
-  // Initialize derivative variables.
-  pm.addPass(mlir::bmodelica::createDerivativesInitializationPass());
-
   // Legalize the model.
   pm.addPass(mlir::bmodelica::createBindingEquationConversionPass());
   pm.addPass(mlir::bmodelica::createExplicitStartValueInsertionPass());
@@ -923,6 +921,17 @@ void CodeGenAction::buildMLIRModelSolvingPipeline(mlir::PassManager &pm) {
 
   // Solve the model.
   pm.addPass(mlir::createCanonicalizerPass());
+
+  // Perform index reduction.
+  //pm.addPass(mlir::bmodelica::createIndexReductionPass());
+
+  // Handle the derivatives introduced by the index reduction pass.
+  pm.addPass(mlir::bmodelica::createDerivativesMaterializationPass());
+
+  // Initialize the derivative variables. This can be done only after index
+  // reduction, so not to pollute its analysis with dummy equations.
+  pm.addPass(mlir::bmodelica::createDerivativesInitializationPass());
+
   pm.addPass(createMLIRMatchingPass());
   pm.addPass(mlir::bmodelica::createEquationAccessSplitPass());
   pm.addPass(mlir::bmodelica::createScalarRangesEquationSplitPass());

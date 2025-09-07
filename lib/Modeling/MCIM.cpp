@@ -120,7 +120,86 @@ void swap(MCIM &first, MCIM &second) {
 
 const IndexSet &MCIM::getEquationSpace() const { return *equationSpace; }
 
+void MCIM::setEquationSpace(std::shared_ptr<const IndexSet> newEquationSpace) {
+  assert(newEquationSpace->rank() == getEquationSpace().rank() &&
+         "New equation space must have the same rank as the current one");
+
+  equationSpace = newEquationSpace;
+  std::vector<std::unique_ptr<MCIMGroup>> newGroups;
+
+  for (auto &group : groups) {
+    IndexSet newKeys = group->getKeys().intersect(*newEquationSpace);
+
+    if (!newKeys.empty()) {
+      group->setKeys(std::move(newKeys));
+      newGroups.push_back(std::move(group));
+    }
+  }
+
+  groups = std::move(newGroups);
+  IndexSet newPoints;
+
+  for (const MultidimensionalRange &multidimRange :
+       llvm::make_range(points.rangesBegin(), points.rangesEnd())) {
+    llvm::SmallVector<Range> ranges;
+
+    IndexSet intersection = newEquationSpace->intersect(
+        multidimRange.takeFirstDimensions(newEquationSpace->rank()));
+
+    for (const MultidimensionalRange &intersectionMultidimRange :
+         llvm::make_range(intersection.rangesBegin(),
+                          intersection.rangesEnd())) {
+      newPoints +=
+          intersectionMultidimRange.append(multidimRange.takeLastDimensions(
+              points.rank() - newEquationSpace->rank()));
+    }
+  }
+
+  points = std::move(newPoints);
+}
+
 const IndexSet &MCIM::getVariableSpace() const { return *variableSpace; }
+
+void MCIM::setVariableSpace(std::shared_ptr<const IndexSet> newVariableSpace) {
+  assert(newVariableSpace->rank() == getVariableSpace().rank() &&
+         "New equation space must have the same rank as the current one");
+
+  variableSpace = newVariableSpace;
+  std::vector<std::unique_ptr<MCIMGroup>> newGroups;
+
+  for (auto &group : groups) {
+    const AccessFunction &accessFunction = group->getAccessFunction();
+
+    IndexSet newKeys = accessFunction.inverseMap(
+        group->getValues().intersect(*newVariableSpace), group->getKeys());
+
+    if (!newKeys.empty()) {
+      group->setKeys(std::move(newKeys));
+      newGroups.push_back(std::move(group));
+    }
+  }
+
+  groups = std::move(newGroups);
+  IndexSet newPoints;
+
+  for (const MultidimensionalRange &multidimRange :
+       llvm::make_range(points.rangesBegin(), points.rangesEnd())) {
+    llvm::SmallVector<Range> ranges;
+
+    IndexSet intersection = newVariableSpace->intersect(
+        multidimRange.takeFirstDimensions(newVariableSpace->rank()));
+
+    for (const MultidimensionalRange &intersectionMultidimRange :
+         llvm::make_range(intersection.rangesBegin(),
+                          intersection.rangesEnd())) {
+      newPoints +=
+          intersectionMultidimRange.append(multidimRange.takeLastDimensions(
+              points.rank() - newVariableSpace->rank()));
+    }
+  }
+
+  points = std::move(newPoints);
+}
 
 bool MCIM::operator==(const MCIM &rhs) const {
   if (getEquationSpace() != rhs.getEquationSpace()) {
