@@ -12,6 +12,7 @@ class Algorithm;
 class Annotation;
 class Member;
 class VariableType;
+class AssignmentStatement;
 
 class FunctionType {
 public:
@@ -94,8 +95,28 @@ public:
 
   FunctionType getType() const;
 
+  void setExternalFunctionLanguageSpecification(std::string languageSpecification); 
+  std::string getExternalFunctionLanguageSpecification() const ; 
+
+  void setExternalFunctionAssignmentStatement(std::unique_ptr<ASTNode> node); 
+  const AssignmentStatement *getExternalFunctionAssignmentStatement() const; 
+  AssignmentStatement *getExternalFunctionAssignmentStatement(); 
+
+  void setExternalFunctionAnnotationClause(std::unique_ptr<ASTNode> node); 
+  const Annotation *getExternalFunctionAnnotationClause() const; 
+  Annotation *getExternalFunctionAnnotationClause();
+
+  bool hasExternalFunctionLanguageSpecification() const ;
+  bool hasExternalFunctionAssignmentStatement() const ;
+  bool hasExternalFunctionAnnotationClause() const ;
+
 private:
   bool pure;
+
+  //attributes for supporting externally defined functions
+  std::string externalFunctionLanguageSpecification;
+  std::unique_ptr<ASTNode> externalFunctionAssignmentStatement;
+  std::unique_ptr<ASTNode> externalFunctionAnnotationClause; 
 };
 
 class DerivativeAnnotation {

@@ -3,6 +3,7 @@
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Type.h"
+#include "marco/AST/Node/AssignmentStatement.h"
 #include <algorithm>
 #include <variant>
 
@@ -97,7 +98,19 @@ StandardFunction::StandardFunction(SourceRange location)
     : Function(ASTNode::Kind::Class_Function_StandardFunction,
                std::move(location)) {}
 
-StandardFunction::StandardFunction(const StandardFunction &other) = default;
+StandardFunction::StandardFunction(const StandardFunction &other)
+    : Function(other) {
+
+  pure = other.pure;
+  externalFunctionLanguageSpecification = other.externalFunctionLanguageSpecification;
+
+  if (other.externalFunctionAssignmentStatement) {
+      setExternalFunctionAssignmentStatement(other.externalFunctionAssignmentStatement->clone());
+  }
+  if (other.externalFunctionAnnotationClause) {
+      setExternalFunctionAnnotationClause(other.externalFunctionAnnotationClause->clone());
+  }      
+}
 
 StandardFunction::~StandardFunction() = default;
 
@@ -111,6 +124,15 @@ llvm::json::Value StandardFunction::toJSON() const {
 
   if (hasAnnotation()) {
     result["annotation"] = getAnnotation()->toJSON();
+  }
+  if (hasExternalFunctionLanguageSpecification()) {
+    result["externalFunction_Language_specification"] = getExternalFunctionLanguageSpecification();
+  }
+  if (hasExternalFunctionAssignmentStatement()) {
+    result["externalFunction_Assignment_statement"] = getExternalFunctionAssignmentStatement() -> toJSON();
+  }
+  if (hasExternalFunctionAnnotationClause()) {
+    result["externalFunction_Annotation_clause"] = getExternalFunctionAnnotationClause() -> toJSON();
   }
 
   addJSONProperties(result);
@@ -140,6 +162,54 @@ FunctionType StandardFunction::getType() const {
   }
 
   return FunctionType(args, results);
+}
+
+void StandardFunction::setExternalFunctionLanguageSpecification(std::string newLanguageSpecification) {
+  externalFunctionLanguageSpecification = newLanguageSpecification; 
+}
+
+std::string StandardFunction::getExternalFunctionLanguageSpecification() const {
+  return externalFunctionLanguageSpecification; 
+}
+
+void StandardFunction::setExternalFunctionAssignmentStatement(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<AssignmentStatement>()); 
+  externalFunctionAssignmentStatement = std::move(node); 
+  externalFunctionAssignmentStatement -> setParent(this); 
+} 
+
+const AssignmentStatement *StandardFunction::getExternalFunctionAssignmentStatement() const{
+  return externalFunctionAssignmentStatement->cast<AssignmentStatement>();
+} 
+
+AssignmentStatement *StandardFunction::getExternalFunctionAssignmentStatement() {
+  return externalFunctionAssignmentStatement->cast<AssignmentStatement>();
+}
+
+void StandardFunction::setExternalFunctionAnnotationClause(std::unique_ptr<ASTNode> node){
+  assert(node->isa<Annotation>()); 
+  externalFunctionAnnotationClause = std::move(node); 
+  externalFunctionAnnotationClause -> setParent(this); 
+}
+
+const Annotation *StandardFunction::getExternalFunctionAnnotationClause() const {
+  return externalFunctionAnnotationClause->cast<Annotation>();
+}
+
+Annotation *StandardFunction::getExternalFunctionAnnotationClause(){
+  return externalFunctionAnnotationClause->cast<Annotation>();
+} 
+
+bool StandardFunction::hasExternalFunctionLanguageSpecification() const {
+  return !externalFunctionLanguageSpecification.empty();
+}
+
+bool StandardFunction::hasExternalFunctionAssignmentStatement() const {
+  return externalFunctionAssignmentStatement != nullptr;
+}
+
+bool StandardFunction::hasExternalFunctionAnnotationClause() const {
+  return externalFunctionAnnotationClause != nullptr;
 }
 
 DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name,
