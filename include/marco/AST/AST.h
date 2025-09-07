@@ -22,6 +22,7 @@
 #include "marco/AST/Node/EquationSection.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/ExpressionFunctionArgument.h"
+#include "marco/AST/Node/ExternalFunctionCall.h"
 #include "marco/AST/Node/ForEquation.h"
 #include "marco/AST/Node/ForIndex.h"
 #include "marco/AST/Node/ForStatement.h"
