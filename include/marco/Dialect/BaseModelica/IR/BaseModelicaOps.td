@@ -4507,13 +4507,9 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
 
         bool isDeclaration()
         {
-            return false;
+            return getIsExternal() ? *getIsExternal() : false;        
         }
-
-        bool isExternal() {
-            return getIsExternal() ? *getIsExternal() : false;
-        }
-
+        
         /// }
     }];
 }

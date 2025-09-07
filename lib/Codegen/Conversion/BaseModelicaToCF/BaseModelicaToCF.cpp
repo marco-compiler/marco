@@ -170,7 +170,7 @@ mlir::LogicalResult BaseModelicaToCFConversionPass::moveAndConvertFunctionBody(
   FunctionOp functionOp = conversionInstance.functionOp;
   RawFunctionOp rawFunctionOp = conversionInstance.rawFunctionOp;
   
-  if (functionOp.isExternal()) {
+  if (functionOp.isDeclaration()) {
     rawFunctionOp.setPrivate();
     return mlir::success(); 
   }
