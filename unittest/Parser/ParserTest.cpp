@@ -11,7 +11,7 @@ using namespace ::marco::parser;
 std::unique_ptr<clang::DiagnosticsEngine>
 getDiagnosticsEngine(clang::DiagnosticOptions &diagOpts) {
   return std::make_unique<clang::DiagnosticsEngine>(
-      llvm::IntrusiveRExternalFunctionntPtr<clang::DiagnosticIDs>(
+      llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(
           new clang::DiagnosticIDs()),
       diagOpts, new clang::TextDiagnosticPrinter(llvm::errs(), diagOpts));
 }
