@@ -9,6 +9,7 @@ add_mlir_dialect_library(MLIRRuntimeTransforms
 
     DEPENDS
     MLIRRuntimeTransformsIncGen
+    MLIRBaseModelicaIncGen
 
     LINK_LIBS PUBLIC
     MLIRRuntime)
