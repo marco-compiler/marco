@@ -229,7 +229,8 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
   bool firstElementListParsable = true;
 
   while (!lookahead[0].isa<TokenKind::End>() &&
-         !lookahead[0].isa<TokenKind::Annotation>()) {
+         !lookahead[0].isa<TokenKind::Annotation>() &&
+         !lookahead[0].isa<TokenKind::External>()) {
     if (lookahead[0].isa<TokenKind::Initial>() &&
         lookahead[1].isa<TokenKind::Equation>()) {
       TRY(section, parseEquationSection());
@@ -295,6 +296,29 @@ ParseResult<std::unique_ptr<ASTNode>> Parser::parseClassDefinition() {
         members.push_back(std::move(element));
       }
     }
+  }
+
+  // Parse the optional 'external'-related information.
+  if (lookahead[0].isa<TokenKind::External>()) {
+    EXPECT(TokenKind::External);
+    result->cast<Class>()->setExternal(true);
+
+    if (lookahead[0].isa<TokenKind::Dot>() ||
+        lookahead[0].isa<TokenKind::Identifier>()) {
+      TRY(externalFunctionCall, parseExternalFunctionCall());
+
+      result->cast<Class>()->setExternalFunctionCall(
+          std::move(*externalFunctionCall));
+    }
+
+    if (!lookahead[0].isa<TokenKind::Semicolon>()) {
+      TRY(externalFunctionAnnotation, parseAnnotation());
+
+      result->cast<Class>()->setExternalAnnotation(
+          std::move(*externalFunctionAnnotation));
+    }
+
+    EXPECT(TokenKind::Semicolon);
   }
 
   // Parse an optional annotation.
@@ -1762,7 +1786,8 @@ Parser::parseElementList(bool publicSection) {
          !lookahead[0].isa<TokenKind::Function>() &&
          !lookahead[0].isa<TokenKind::Model>() &&
          !lookahead[0].isa<TokenKind::Package>() &&
-         !lookahead[0].isa<TokenKind::Record>()) {
+         !lookahead[0].isa<TokenKind::Record>() &&
+         !lookahead[0].isa<TokenKind::External>()) {
     TRY(member, parseElement(publicSection));
     EXPECT(TokenKind::Semicolon);
     members.push_back(std::move(*member));

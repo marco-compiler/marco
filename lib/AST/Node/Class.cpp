@@ -2,17 +2,27 @@
 #include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/EquationSection.h"
+#include "marco/AST/Node/ExternalFunctionCall.h"
 #include "marco/AST/Node/Member.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast {
-Class::Class(const Class &other) : ASTNode(other), name(other.name) {
+Class::Class(const Class &other)
+    : ASTNode(other), name(other.name), external(other.external) {
   setVariables(other.variables);
   setEquationSections(other.equationSections);
   setAlgorithms(other.algorithms);
   setInnerClasses(other.innerClasses);
+
+  if (other.hasExternalFunctionCall()) {
+    setExternalFunctionCall(other.externalFunctionCall->clone());
+  }
+
+  if (other.hasExternalAnnotation()) {
+    setExternalAnnotation(other.externalAnnotation->clone());
+  }
 
   if (other.hasAnnotation()) {
     setAnnotation(other.annotation->clone());
@@ -121,6 +131,50 @@ void Class::setInnerClasses(
     auto &clone = innerClasses.emplace_back(cls->clone());
     clone->setParent(this);
   }
+}
+
+bool Class::isExternal() const { return external; }
+
+void Class::setExternal(bool isExternal) { external = isExternal; }
+
+bool Class::hasExternalFunctionCall() const {
+  return externalFunctionCall != nullptr;
+}
+
+ExternalFunctionCall *Class::getExternalFunctionCall() {
+  assert(externalFunctionCall != nullptr && "External function call not set");
+  return externalFunctionCall->cast<ExternalFunctionCall>();
+}
+
+const ExternalFunctionCall *Class::getExternalFunctionCall() const {
+  assert(externalFunctionCall != nullptr && "External function call not set");
+  return externalFunctionCall->cast<ExternalFunctionCall>();
+}
+
+void Class::setExternalFunctionCall(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<ExternalFunctionCall>());
+  externalFunctionCall = std::move(node);
+  externalFunctionCall->setParent(this);
+}
+
+bool Class::hasExternalAnnotation() const {
+  return externalAnnotation != nullptr;
+}
+
+Annotation *Class::getExternalAnnotation() {
+  assert(externalAnnotation != nullptr && "External annotation not set");
+  return externalAnnotation->cast<Annotation>();
+}
+
+const Annotation *Class::getExternalAnnotation() const {
+  assert(externalAnnotation != nullptr && "External annotation not set");
+  return externalAnnotation->cast<Annotation>();
+}
+
+void Class::setExternalAnnotation(std::unique_ptr<ASTNode> node) {
+  assert(node->isa<Annotation>());
+  externalAnnotation = std::move(node);
+  externalAnnotation->setParent(this);
 }
 
 bool Class::hasAnnotation() const { return annotation != nullptr; }
