@@ -31,6 +31,7 @@ add_mlir_dialect_library(MLIRBaseModelicaTransforms
     ExplicitInitialEquationsInsertion.cpp
     ExplicitStartValueInsertion.cpp
     FunctionDefaultValuesConversion.cpp
+    FunctionMangling.cpp
     FunctionScalarization.cpp
     FunctionUnwrap.cpp
     IDA.cpp

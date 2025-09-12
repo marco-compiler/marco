@@ -180,6 +180,21 @@ def FunctionDefaultValuesConversionPass
         "mlir::bmodelica::createFunctionDefaultValuesConversionPass()";
 }
 
+def FunctionManglingPass : Pass<"function-mangling", "mlir::ModuleOp">
+{
+    let summary = "Mangle the function names.";
+
+    let description = [{
+        Mangle each function and function call call.
+    }];
+
+    let dependentDialects = [
+        "mlir::bmodelica::BaseModelicaDialect"
+    ];
+
+    let constructor = "mlir::bmodelica::createFunctionManglingPass()";
+}
+
 def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp">
 {
     let summary = "Scalarize";

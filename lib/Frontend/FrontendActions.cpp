@@ -866,6 +866,7 @@ void CodeGenAction::buildMLIRModelCanonicalizationPipeline(
 
   pm.addPass(mlir::bmodelica::createRecordInliningPass());
   pm.addPass(mlir::bmodelica::createFunctionUnwrapPass());
+  pm.addPass(mlir::bmodelica::createFunctionManglingPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   // Infer the range boundaries for subscriptions.

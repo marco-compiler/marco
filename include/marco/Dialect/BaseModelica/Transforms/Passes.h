@@ -20,6 +20,7 @@
 #include "marco/Dialect/BaseModelica/Transforms/ExplicitInitialEquationsInsertion.h"
 #include "marco/Dialect/BaseModelica/Transforms/ExplicitStartValueInsertion.h"
 #include "marco/Dialect/BaseModelica/Transforms/FunctionDefaultValuesConversion.h"
+#include "marco/Dialect/BaseModelica/Transforms/FunctionMangling.h"
 #include "marco/Dialect/BaseModelica/Transforms/FunctionScalarization.h"
 #include "marco/Dialect/BaseModelica/Transforms/FunctionUnwrap.h"
 #include "marco/Dialect/BaseModelica/Transforms/IDA.h"
