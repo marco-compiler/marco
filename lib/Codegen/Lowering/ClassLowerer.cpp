@@ -210,6 +210,19 @@ bool ClassLowerer::lowerClassBody(const ast::Class &cls) {
     }
   }
 
+  // Lower the external specification.
+  if (cls.isExternal()) {
+    if (cls.hasExternalFunctionCall()) {
+      if (!lowerExternalFunctionCall(*cls.getExternalFunctionCall())) {
+        return false;
+      }
+    } else {
+      if (!createImplicitExternalFunctionCall(cls)) {
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -306,6 +319,98 @@ bool ClassLowerer::lowerVariableDimensionConstraints(
 
     builder().create<YieldOp>(location, fixedDimensions);
   }
+
+  return true;
+}
+
+bool ClassLowerer::lowerExternalFunctionCall(
+    const ast::ExternalFunctionCall &externalFunctionCall) {
+  auto externalOp =
+      builder().create<ExternalOp>(loc(externalFunctionCall.getLocation()), "C",
+                                   externalFunctionCall.getCallee());
+
+  // Arguments.
+  builder().setInsertionPointToStart(
+      builder().createBlock(&externalOp.getArgsRegion()));
+
+  llvm::SmallVector<mlir::Value> args;
+
+  for (const auto &arg : externalFunctionCall.getArguments()) {
+    auto loweredArg = lower(*arg->cast<ast::Expression>());
+
+    if (!loweredArg) {
+      return false;
+    }
+
+    for (const auto &loweredArgResult : *loweredArg) {
+      args.push_back(loweredArgResult.get(loweredArgResult.getLoc()));
+    }
+  }
+
+  builder().create<YieldOp>(loc(externalFunctionCall.getLocation()), args);
+
+  // Destination.
+  builder().setInsertionPointToStart(
+      builder().createBlock(&externalOp.getResultsRegion()));
+
+  llvm::SmallVector<mlir::Value> destinations;
+
+  if (externalFunctionCall.hasDestination()) {
+    auto loweredDestination = lower(*externalFunctionCall.getDestination());
+
+    if (!loweredDestination) {
+      return false;
+    }
+
+    for (const auto &loweredDestinationResult : *loweredDestination) {
+      destinations.push_back(
+          loweredDestinationResult.get(loweredDestinationResult.getLoc()));
+    }
+  }
+
+  builder().create<YieldOp>(loc(externalFunctionCall.getLocation()),
+                            destinations);
+
+  return true;
+}
+
+bool ClassLowerer::createImplicitExternalFunctionCall(const ast::Class &cls) {
+  auto externalOp =
+      builder().create<ExternalOp>(loc(cls.getLocation()), "C", cls.getName());
+
+  // Arguments.
+  builder().setInsertionPointToStart(
+      builder().createBlock(&externalOp.getArgsRegion()));
+
+  llvm::SmallVector<mlir::Value> args;
+
+  for (const auto &variable : cls.getVariables()) {
+    if (variable->cast<ast::Member>()->isOutput()) {
+      continue;
+    }
+
+    auto variableRef = lookupVariable(variable->cast<ast::Member>()->getName());
+    args.push_back(variableRef->get(variableRef->getLoc()));
+  }
+
+  builder().create<YieldOp>(loc(cls.getLocation()), args);
+
+  // Destination.
+  builder().setInsertionPointToStart(
+      builder().createBlock(&externalOp.getResultsRegion()));
+
+  llvm::SmallVector<mlir::Value> destinations;
+
+  for (const auto &variable : cls.getVariables()) {
+    if (!variable->cast<ast::Member>()->isOutput()) {
+      continue;
+    }
+
+    auto variableRef = lookupVariable(variable->cast<ast::Member>()->getName());
+    destinations.push_back(variableRef->get(variableRef->getLoc()));
+  }
+
+  builder().create<YieldOp>(loc(cls.getLocation()), destinations);
 
   return true;
 }

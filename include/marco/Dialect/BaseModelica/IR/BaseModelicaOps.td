@@ -4512,6 +4512,23 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     }];
 }
 
+def BaseModelica_ExternalOp : BaseModelica_Op<"external",
+    [IsolatedFromAbove, ParentOneOf<["FunctionOp"]>, NoTerminator]>
+{
+    let arguments = (ins
+        DefaultValuedStrAttr<StrAttr, "C">:$language,
+        StrAttr:$functionName);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$argsRegion,
+        SizedRegion<1>:$resultsRegion
+    );
+
+    let assemblyFormat = "$functionName attr-dict-with-keyword $argsRegion `to` $resultsRegion";
+}
+
 def BaseModelica_DerFunctionOp : BaseModelica_Op<"der_function",
     [IsolatedFromAbove, Symbol]>
 {
