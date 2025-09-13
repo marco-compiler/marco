@@ -79,10 +79,7 @@ By contributing, you acknowledge and agree that your contributions are provided 
 
 3. **Acceptance criteria**  
    Contributions will be reviewed on technical, legal, and project-governance grounds.  
-   Contributions may be accepted, modified, or rejected at the maintainers’ discretion.
-
-4. **No obligation to merge**  
-   The maintainers are under no obligation to merge or otherwise incorporate modifications submitted by third parties into the official repository.
+   Contributions may be accepted, modified, or rejected at the maintainers' discretion.
 
 ### Reporting Issues and Suggesting Enhancements
 
