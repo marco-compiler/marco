@@ -186,6 +186,75 @@ struct RawVariableSetOpInterface
     return {};
   }
 };
+
+/*
+struct ExternalCallOpInterface
+    : public BufferizableOpInterface::ExternalModel<ExternalCallOpInterface,
+                                                    ExternalCallOp> {
+  bool bufferizesToAllocation(mlir::Operation *op, mlir::Value value) const {
+    return false;
+  }
+
+  bool bufferizesToMemoryRead(mlir::Operation *op, mlir::OpOperand &opOperand,
+                              const AnalysisState &state) const {
+    return true;
+  }
+
+  bool bufferizesToMemoryWrite(mlir::Operation *op, mlir::OpOperand &opOperand,
+                               const AnalysisState &state) const {
+    return true;
+  }
+
+  mlir::LogicalResult bufferize(mlir::Operation *op,
+                                mlir::RewriterBase &rewriter,
+                                const BufferizationOptions &options,
+                                BufferizationState &state) const {
+    auto externalCallOp = mlir::cast<ExternalCallOp>(op);
+
+    mlir::FailureOr<mlir::Value> variableBuffer =
+        getBuffer(rewriter, rawVariableSetOp.getVariable(), options, state);
+
+    if (mlir::failed(variableBuffer)) {
+      return mlir::failure();
+    }
+
+    auto rawVariableOp = variableBuffer->getDefiningOp<RawVariableOp>();
+
+    if (!rawVariableOp) {
+      return mlir::failure();
+    }
+
+    if (rawVariableSetOp.isScalarVariable()) {
+      replaceOpWithNewBufferizedOp<RawVariableSetOp>(
+          rewriter, op, rawVariableOp, rawVariableSetOp.getValue());
+    } else {
+      mlir::FailureOr<mlir::Value> valueBuffer =
+          getBuffer(rewriter, rawVariableSetOp.getValue(), options, state);
+
+      if (mlir::failed(valueBuffer)) {
+        return mlir::failure();
+      }
+
+      replaceOpWithNewBufferizedOp<RawVariableSetOp>(
+          rewriter, op, rawVariableOp, *valueBuffer);
+    }
+
+    return mlir::success();
+  }
+
+  AliasingValueList getAliasingValues(mlir::Operation *op,
+                                      mlir::OpOperand &opOperand,
+                                      const AnalysisState &state) const {
+    auto rawVariableSetOp = mlir::cast<RawVariableSetOp>(op);
+
+    if (opOperand == rawVariableSetOp.getVariableMutable()) {
+      return {{rawVariableSetOp.getVariable(), BufferRelation::Equivalent}};
+    }
+
+    return {};
+  }
+};
+*/
 } // namespace
 
 namespace mlir::bmodelica {
@@ -196,6 +265,7 @@ void registerBufferizableOpInterfaceExternalModels(
     RawVariableOp::attachInterface<::RawVariableOpInterface>(*context);
     RawVariableGetOp::attachInterface<::RawVariableGetOpInterface>(*context);
     RawVariableSetOp::attachInterface<::RawVariableSetOpInterface>(*context);
+    //ExternalCallOp::attachInterface<::ExternalCallOpInterface>(*context);
   });
 }
 } // namespace mlir::bmodelica

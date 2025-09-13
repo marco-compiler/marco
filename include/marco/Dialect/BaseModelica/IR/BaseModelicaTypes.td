@@ -160,6 +160,22 @@ def UnrankedArrayType : BaseModelica_Type<"UnrankedArray",
     let genVerifyDecl = 1;
 }
 
+def PointerType : BaseModelica_Type<"Pointer">
+{
+    let summary = "Pointer type";
+    let mnemonic = "ptr";
+
+    let description = [{
+        Pointer type.
+    }];
+
+    let parameters = (ins
+        "mlir::Type":$pointeeType
+    );
+
+    let assemblyFormat = "$pointeeType";
+}
+
 def Modelica_RecordType : BaseModelica_Type<"Record">
 {
     let summary = "Record type";

@@ -846,6 +846,31 @@ def Modelica_ArrayCastOp : BaseModelica_Op<"array_cast",
     }];
 }
 
+def Modelica_ArrayAddressOp : BaseModelica_Op<"array_address",
+    [TypesMatchWith<"pointee type matches element type of 'array'",
+                    "array", "result",
+                    "PointerType::get($_self.getContext(), mlir::cast<ArrayType>($_self).getElementType())">,
+    NoMemoryEffect]>
+{
+    let summary = "Get the memory address of an array.";
+
+    let description = [{
+        Get the memory address of an array.
+        This is intended to be used only for interoperation with external C.
+
+        Example:
+
+        ```mlir
+        %array = ... : !modelica.array<?x!modelica.int>
+        %dim = modelica.array_address %array : !modelica.array<?x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins AnyBaseModelicaArray:$array);
+    let results = (outs PointerType:$result);
+    let assemblyFormat = "$array attr-dict `:` type($array)";
+}
+
 def Modelica_DimOp : BaseModelica_Op<"dim", [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
@@ -4896,7 +4921,28 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
     }];
 }
 
-def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call", []>
+/*
+def BaseModelica_ReferenceOp : BaseModelica_Op<"reference", [NoMemoryEffect]>
+{
+    let summary = "Get the reference to a value.";
+
+    let description = [{
+        The operation implements a bridge between value semantics and memory
+        semantics. It is intended to be used in the context of external
+        functions, where output variables are passed by address.
+    }];
+
+    let arguments = (ins AnyType:$value);
+    let results = (outs AnyReference:$address);
+
+    let assemblyFormat = [{
+        $value attr-dict `:` type($address)
+    }];
+}
+*/
+
+def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "External call operation.";
 

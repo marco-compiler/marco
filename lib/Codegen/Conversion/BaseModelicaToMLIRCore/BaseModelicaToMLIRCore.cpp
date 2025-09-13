@@ -11,6 +11,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -52,13 +53,14 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
 
   mlir::DataLayout dataLayout(moduleOp);
   TypeConverter typeConverter(&getContext(), dataLayout);
+  CTypeConverter CTypeConverter(&getContext(), dataLayout);
 
-  target.addLegalDialect<mlir::BuiltinDialect, mlir::arith::ArithDialect,
-                         mlir::bufferization::BufferizationDialect,
-                         mlir::func::FuncDialect, mlir::linalg::LinalgDialect,
-                         mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
-                         mlir::runtime::RuntimeDialect,
-                         mlir::tensor::TensorDialect>();
+  target.addLegalDialect<
+      mlir::BuiltinDialect, mlir::arith::ArithDialect,
+      mlir::bufferization::BufferizationDialect, mlir::func::FuncDialect,
+      mlir::LLVM::LLVMDialect, mlir::linalg::LinalgDialect,
+      mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
+      mlir::runtime::RuntimeDialect, mlir::tensor::TensorDialect>();
 
   target.addDynamicallyLegalOp<mlir::tensor::DimOp>([](mlir::tensor::DimOp op) {
     return !mlir::isa<BooleanType, IntegerType, RealType>(
@@ -99,7 +101,7 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
                       ArrayCastOp, ArrayFillOp, ArrayCopyOp>();
 
   target.addIllegalOp<EquationFunctionOp, EquationCallOp, RawFunctionOp,
-                      RawReturnOp, CallOp>();
+                      RawReturnOp, CallOp, ExternalCallOp>();
 
   target.addDynamicallyLegalOp<RawVariableOp>([&](RawVariableOp op) {
     mlir::Type variableType = op.getVariable().getType();
@@ -140,6 +142,9 @@ mlir::LogicalResult BaseModelicaToMLIRCoreConversionPass::convertOperations() {
 
   populateBaseModelicaToFuncConversionPatterns(
       patterns, &getContext(), typeConverter, symbolTableCollection);
+
+  mlir::populateBaseModelicaExternalCallConversionPatterns(
+      patterns, &getContext(), CTypeConverter, symbolTableCollection);
 
   populateBaseModelicaRawVariablesTypeLegalizationPatterns(
       patterns, &getContext(), typeConverter);

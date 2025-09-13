@@ -1,4 +1,5 @@
 #include "marco/Codegen/Conversion/BaseModelicaToFunc/BaseModelicaToFunc.h"
+#include "marco/Codegen/Conversion/BaseModelicaCommon/CTypeConverter.h"
 #include "marco/Codegen/Conversion/BaseModelicaCommon/TypeConverter.h"
 #include "marco/Dialect/BaseModelica/IR/BaseModelica.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -297,6 +298,125 @@ struct RawVariableSetOpTypePattern
   }
 };
 
+class ExternalCallOpCLowering
+    : public mlir::OpConversionPattern<ExternalCallOp> {
+  mlir::SymbolTableCollection &symbolTables;
+
+public:
+  ExternalCallOpCLowering(mlir::TypeConverter &typeConverter,
+                          mlir::MLIRContext *context,
+                          mlir::SymbolTableCollection &symbolTables)
+      : mlir::OpConversionPattern<ExternalCallOp>(typeConverter, context),
+        symbolTables(symbolTables) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(ExternalCallOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    if (op.getLanguage() != "C") {
+      return rewriter.notifyMatchFailure(op, "Not a C function");
+    }
+
+    /*
+    mlir::DataLayout dataLayout(op->getParentOfType<mlir::ModuleOp>());
+    CTypeConverter CTypeConverter(getContext(), dataLayout);
+
+    llvm::SmallVector<mlir::Value> convertedArguments;
+
+    for (mlir::Value argument : adaptor.getOperands()) {
+      llvm::SmallVector<mlir::Type, 3> convertedType;
+
+      if (mlir::failed(
+              CTypeConverter.convertType(argument.getType(), convertedType))) {
+        return rewriter.notifyMatchFailure(op, "Failed to convert argument");
+      }
+
+      if (convertedType.size() == 1) {
+        convertedArguments.push_back(CTypeConverter.materializeTargetConversion(
+            rewriter, op.getLoc(), convertedType[0], argument));
+      } else if (convertedType.size() > 1) {
+        llvm::SmallVector<mlir::Value> materializedArgs =
+            CTypeConverter.materializeTargetConversion(rewriter, op.getLoc(),
+                                                       convertedType, argument);
+
+        llvm::append_range(convertedArguments, materializedArgs);
+      }
+    }
+    */
+
+    llvm::SmallVector<mlir::Type> convertedResultTypes;
+
+    for (mlir::Type resultType : op.getResultTypes()) {
+      mlir::Type convertedType = getTypeConverter()->convertType(resultType);
+
+      if (!convertedType) {
+        return rewriter.notifyMatchFailure(op, "Failed to convert result type");
+      }
+
+      convertedResultTypes.push_back(convertedType);
+    }
+
+    auto newFuncOp = getOrDeclareExternalFunction(
+        rewriter, op->getParentOfType<mlir::ModuleOp>(), op.getLoc(),
+        adaptor.getCallee(), adaptor.getArgs(), convertedResultTypes);
+
+    rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op, newFuncOp,
+                                                    adaptor.getArgs());
+
+    /*
+    llvm::SmallVector<mlir::Value> replacements;
+
+    for (auto [oldResult, newResult] :
+         llvm::zip(op.getResults(), callOp.getResults())) {
+      mlir::Type oldType = getTypeConverter()->convertType(oldResult.getType());
+      mlir::Value replacement = newResult;
+
+      if (replacement.getType() != oldType) {
+        replacement = CTypeConverter.materializeSourceConversion(
+            rewriter, op.getLoc(), oldType, replacement);
+      }
+
+      replacements.push_back(replacement);
+    }
+
+    rewriter.replaceOp(op, replacements);
+    */
+    return mlir::success();
+  }
+
+  mlir::func::FuncOp
+  getOrDeclareExternalFunction(mlir::OpBuilder &builder,
+                               mlir::ModuleOp moduleOp, mlir::Location loc,
+                               llvm::StringRef name, mlir::ValueRange args,
+                               mlir::TypeRange resultTypes) const {
+    return getOrDeclareExternalFunction(builder, moduleOp, loc, name,
+                                        args.getTypes(), resultTypes);
+  }
+
+  mlir::func::FuncOp
+  getOrDeclareExternalFunction(mlir::OpBuilder &builder,
+                               mlir::ModuleOp moduleOp, mlir::Location loc,
+                               llvm::StringRef name, mlir::TypeRange argTypes,
+                               mlir::TypeRange resultTypes) const {
+    auto funcOp = symbolTables.lookupSymbolIn<mlir::func::FuncOp>(
+        moduleOp, builder.getStringAttr(name));
+
+    if (funcOp) {
+      return funcOp;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(moduleOp.getBody());
+
+    auto newFuncOp = builder.create<mlir::func::FuncOp>(
+        loc, name, builder.getFunctionType(argTypes, resultTypes));
+
+    newFuncOp.setPrivate();
+
+    symbolTables.getSymbolTable(moduleOp).insert(newFuncOp);
+    return newFuncOp;
+  }
+};
+
 struct CallOpLowering : public mlir::OpConversionPattern<CallOp> {
   using mlir::OpConversionPattern<CallOp>::OpConversionPattern;
 
@@ -389,12 +509,19 @@ namespace mlir {
 void populateBaseModelicaToFuncConversionPatterns(
     mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
     mlir::TypeConverter &typeConverter,
-    mlir::SymbolTableCollection &symbolTableCollection) {
+    mlir::SymbolTableCollection &symbolTables) {
   patterns.insert<EquationFunctionOpLowering, RawFunctionOpLowering>(
-      typeConverter, context, symbolTableCollection);
+      typeConverter, context, symbolTables);
 
   patterns.insert<EquationCallOpLowering, RawReturnOpLowering, CallOpLowering>(
       typeConverter, context);
+}
+
+void populateBaseModelicaExternalCallConversionPatterns(
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *context,
+    CTypeConverter &CTypeConverter, mlir::SymbolTableCollection &symbolTables) {
+  patterns.insert<ExternalCallOpCLowering>(CTypeConverter, context,
+                                           symbolTables);
 }
 
 std::unique_ptr<mlir::Pass> createBaseModelicaToFuncConversionPass() {

@@ -28,7 +28,8 @@ private:
   bool isRecordConstructor(const ast::StandardFunction &function);
 
   [[nodiscard]] bool lowerExternalFunctionCall(
-      const ast::ExternalFunctionCall &externalFunctionCall);
+      const ast::ExternalFunctionCall &externalFunctionCall,
+      mlir::bmodelica::FunctionOp functionOp);
 
   [[nodiscard]] bool
   createImplicitExternalFunctionCall(const ast::Function &function);

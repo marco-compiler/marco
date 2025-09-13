@@ -10864,6 +10864,35 @@ mlir::Operation *CallOp::getFunction(mlir::ModuleOp moduleOp,
 } // namespace mlir::bmodelica
 
 //===---------------------------------------------------------------------===//
+// ExternalCallOp
+
+void ExternalCallOp::getEffects(
+    mlir::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       mlir::SideEffects::DefaultResource::get());
+
+  for (unsigned int i = 0, e = getNumOperands(); i < e; ++i) {
+    if (mlir::isa<ArrayType, mlir::MemRefType>(getOperand(i).getType())) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(),
+                           &getArgsMutable()[i],
+                           mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  for (mlir::OpResult result : getResults()) {
+    if (mlir::isa<ArrayType, mlir::MemRefType>(result.getType())) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), result,
+                           mlir::SideEffects::DefaultResource::get());
+
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), result,
+                           mlir::SideEffects::DefaultResource::get());
+    }
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // ScheduleOp
 
 namespace mlir::bmodelica {

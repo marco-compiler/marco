@@ -174,7 +174,8 @@ bool StandardFunctionLowerer::lower(const ast::StandardFunction &function) {
 
   if (function.isExternal()) {
     if (function.hasExternalFunctionCall()) {
-      if (!lowerExternalFunctionCall(*function.getExternalFunctionCall())) {
+      if (!lowerExternalFunctionCall(*function.getExternalFunctionCall(),
+                                     functionOp)) {
         return false;
       }
     } else {
@@ -254,7 +255,9 @@ bool StandardFunctionLowerer::isRecordConstructor(
 }
 
 bool StandardFunctionLowerer::lowerExternalFunctionCall(
-    const ast::ExternalFunctionCall &externalFunctionCall) {
+    const ast::ExternalFunctionCall &externalFunctionCall, FunctionOp funcOp) {
+  mlir::SymbolTable symbolTable(funcOp);
+
   auto algorithmOp =
       builder().create<AlgorithmOp>(loc(externalFunctionCall.getLocation()));
 
@@ -281,13 +284,53 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
     algorithmOp.getBodyRegion().front().clear();
   }
 
-  assert(expectedResultTypes.size() == 1);
-
   // Create the call to the external function.
   builder().setInsertionPointToStart(&algorithmOp.getBodyRegion().front());
   llvm::SmallVector<mlir::Value> callArgs;
 
+  llvm::SmallVector<std::pair<ast::ComponentReference *, mlir::Value>>
+      temporaryArrays;
+
   for (const auto &arg : externalFunctionCall.getArguments()) {
+    if (auto componentReference = arg->dyn_cast<ast::ComponentReference>()) {
+      // Special handling for protected and output variables, which can be
+      // modified by the external function.
+      auto variableOp = symbolTable.lookup<VariableOp>(
+          componentReference->getElement(0)->getName());
+
+      if (!variableOp) {
+        emitIdentifierError(IdentifierError::IdentifierType::VARIABLE,
+                            componentReference->getElement(0)->getName(),
+                            getVariablesSymbolTable().getVariables(),
+                            componentReference->getLocation());
+        return false;
+      }
+
+      if (!variableOp.isInput() && variableOp.getVariableType().isScalar()) {
+        // Extract the previous value and store it into temporary memory.
+        auto loweredArg = lower(*arg->cast<ast::Expression>());
+
+        if (!loweredArg) {
+          return false;
+        }
+
+        mlir::Value currentValue =
+            (*loweredArg)[0].get((*loweredArg)[0].getLoc());
+
+        auto allocOp = builder().create<AllocOp>(
+            currentValue.getLoc(),
+            ArrayType::get(std::nullopt, currentValue.getType()), std::nullopt);
+
+        builder().create<StoreOp>(currentValue.getLoc(), currentValue, allocOp,
+                                  std::nullopt);
+
+        callArgs.push_back(allocOp);
+        temporaryArrays.emplace_back(componentReference, allocOp);
+        continue;
+      }
+    }
+
+    // Read-only argument.
     auto loweredArg = lower(*arg->cast<ast::Expression>());
 
     if (!loweredArg) {
@@ -295,13 +338,41 @@ bool StandardFunctionLowerer::lowerExternalFunctionCall(
     }
 
     for (const auto &loweredArgResult : *loweredArg) {
-      callArgs.push_back(loweredArgResult.get(loweredArgResult.getLoc()));
+      mlir::Value arg = loweredArgResult.get(loweredArgResult.getLoc());
+
+      if (auto tensorType = mlir::dyn_cast<mlir::TensorType>(arg.getType())) {
+        arg = builder().create<TensorToArrayOp>(
+            arg.getLoc(),
+            ArrayType::get(tensorType.getShape(), tensorType.getElementType()),
+            arg);
+      }
+
+      callArgs.push_back(arg);
     }
   }
 
+  // Create the call to the external function.
   auto callOp = builder().create<ExternalCallOp>(
       loc(externalFunctionCall.getLocation()), expectedResultTypes,
       externalFunctionCall.getCallee(), callArgs);
+
+  // Copy the modified scalar arguments back to the original variable.
+  for (auto &[componentRef, array] : temporaryArrays) {
+    auto loweredDestination = lower(*componentRef);
+
+    if (!loweredDestination) {
+      return false;
+    }
+
+    mlir::Value loadedValue =
+        builder().create<LoadOp>(array.getLoc(), array, std::nullopt);
+
+    if (!this->lowerAssignmentToComponentReference(
+            loc(externalFunctionCall.getLocation()), *componentRef,
+            loadedValue)) {
+      return false;
+    }
+  }
 
   // Assign the result of the call to the left-hand side variable.
   if (externalFunctionCall.hasDestination()) {

@@ -1029,6 +1029,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   // Lower to MLIR core dialects.
   pm.addPass(mlir::createBaseModelicaToMLIRCoreConversionPass());
+  /*
   pm.addPass(mlir::createSUNDIALSToFuncConversionPass());
 
   if (ci.getSimulationOptions().solver == "ida") {
@@ -1113,6 +1114,7 @@ void CodeGenAction::buildMLIRLoweringPipeline(mlir::PassManager &pm) {
 
   pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
       mlir::LLVM::createLLVMLegalizeForExportPass());
+      */
 }
 
 std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRMatchingPass() {
