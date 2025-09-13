@@ -40,11 +40,6 @@ protected:
   [[nodiscard]] bool
   lowerVariableDimensionConstraints(mlir::SymbolTable &symbolTable,
                                     const ast::Member &variable);
-
-  [[nodiscard]] bool lowerExternalFunctionCall(
-      const ast::ExternalFunctionCall &externalFunctionCall);
-
-  [[nodiscard]] bool createImplicitExternalFunctionCall(const ast::Class &cls);
 };
 } // namespace marco::codegen::lowering
 

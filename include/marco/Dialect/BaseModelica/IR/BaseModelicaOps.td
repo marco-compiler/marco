@@ -4512,23 +4512,6 @@ def BaseModelica_FunctionOp : BaseModelica_Op<"function",
     }];
 }
 
-def BaseModelica_ExternalOp : BaseModelica_Op<"external",
-    [IsolatedFromAbove, ParentOneOf<["FunctionOp"]>, NoTerminator]>
-{
-    let arguments = (ins
-        DefaultValuedStrAttr<StrAttr, "C">:$language,
-        StrAttr:$functionName);
-
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$argsRegion,
-        SizedRegion<1>:$resultsRegion
-    );
-
-    let assemblyFormat = "$functionName attr-dict-with-keyword $argsRegion `to` $resultsRegion";
-}
-
 def BaseModelica_DerFunctionOp : BaseModelica_Op<"der_function",
     [IsolatedFromAbove, Symbol]>
 {
@@ -4910,6 +4893,32 @@ def BaseModelica_CallOp : BaseModelica_Op<"call",
 
         mlir::Operation* getFunction(
             mlir::ModuleOp moduleOp, mlir::SymbolTableCollection& symbolTable);
+    }];
+}
+
+def BaseModelica_ExternalCallOp : BaseModelica_Op<"external_call", []>
+{
+    let summary = "External call operation.";
+
+    let description = [{
+        The operation represents a direct call to an externally-defined function.
+
+        Example:
+
+        ```mlir
+        %2 = bmodelica.external_call @foo(%0, %1) {language = "C"} : (!bmodelica.int, !bmodelica.real) -> !bmodelica.real
+        ```
+    }];
+
+    let arguments = (ins
+        FlatSymbolRefAttr:$callee,
+        Variadic<AnyType>:$args,
+        DefaultValuedStrAttr<StrAttr, "C">:$language);
+
+    let results = (outs Variadic<AnyType>);
+
+    let assemblyFormat = [{
+        $callee `(` $args `)` attr-dict `:` functional-type($args, results)
     }];
 }
 

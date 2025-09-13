@@ -26,6 +26,12 @@ private:
   [[nodiscard]] bool lowerVariableDefaultValue(const ast::Member &variable);
 
   bool isRecordConstructor(const ast::StandardFunction &function);
+
+  [[nodiscard]] bool lowerExternalFunctionCall(
+      const ast::ExternalFunctionCall &externalFunctionCall);
+
+  [[nodiscard]] bool
+  createImplicitExternalFunctionCall(const ast::Function &function);
 };
 } // namespace marco::codegen::lowering
 

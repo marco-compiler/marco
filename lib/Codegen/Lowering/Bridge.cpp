@@ -142,6 +142,10 @@ public:
 
   [[nodiscard]] bool lower(const ast::AssignmentStatement &statement) override;
 
+  [[nodiscard]] bool lowerAssignmentToComponentReference(
+      mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+      mlir::Value value) override;
+
   [[nodiscard]] bool lower(const ast::BreakStatement &statement) override;
 
   [[nodiscard]] bool lower(const ast::CallStatement &statement) override;
@@ -503,6 +507,14 @@ bool Bridge::Impl::lower(const ast::Statement &statement) {
 bool Bridge::Impl::lower(const ast::AssignmentStatement &statement) {
   assert(assignmentStatementLowerer != nullptr);
   return assignmentStatementLowerer->lower(statement);
+}
+
+[[nodiscard]] bool Bridge::Impl::lowerAssignmentToComponentReference(
+    mlir::Location assignmentLoc, const ast::ComponentReference &destination,
+    mlir::Value value) {
+  assert(assignmentStatementLowerer != nullptr);
+  return assignmentStatementLowerer->lowerAssignmentToComponentReference(
+      assignmentLoc, destination, value);
 }
 
 bool Bridge::Impl::lower(const ast::BreakStatement &statement) {
