@@ -63,5 +63,30 @@ Of course, it is also possible to build MARCO natively.
 Directions to obtain the required dependencies and compile the project can be found [here](docs/BuildOnLinuxMacOS.md).
 
 ## Contributing
-Contributions from the community are welcome and encouraged, both in the form of pull requests and issues reporting bugs or errors.
-Feature requests can also be posted on the dedicated [discussion category](https://github.com/marco-compiler/marco/discussions/categories/features).
+This project is licensed under the GNU Lesser General Public License (LGPL).
+Under the terms of this license, you are free to use, study, modify, and redistribute the code, provided you comply with the obligations of the LGPL.
+
+By contributing, you acknowledge and agree that your contributions are provided under the same LGPL license as the rest of the project, unless explicitly stated otherwise.
+
+### Contribution Policy
+
+1. **Upstream repository control**  
+   The copyright holders and maintainers retain full control over the contents of the official repository.  
+   Submitting a patch, pull request, or other contribution does not imply acceptance.
+
+2. **Modifications outside this repository**  
+   You are free to make and distribute modifications in your own copies or forks, provided that such distribution complies with the LGPL (including, but not limited to, providing source code and preserving notices).
+
+3. **Acceptance criteria**  
+   Contributions will be reviewed on technical, legal, and project-governance grounds.  
+   Contributions may be accepted, modified, or rejected at the maintainers’ discretion.
+
+4. **No obligation to merge**  
+   The maintainers are under no obligation to merge or otherwise incorporate modifications submitted by third parties into the official repository.
+
+### Reporting Issues and Suggesting Enhancements
+
+We welcome and encourage community participation.  
+You can contribute not only through pull requests but also by reporting bugs, documenting errors, or suggesting improvements.
+
+If you have ideas for new features, please share them in the dedicated [discussion category](https://github.com/marco-compiler/marco/discussions/categories/features).
