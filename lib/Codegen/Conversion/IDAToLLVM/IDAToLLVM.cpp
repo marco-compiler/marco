@@ -316,11 +316,12 @@ struct InstanceOpLowering : public IDAOpConversion<InstanceOp> {
         symbolTableCollection->getSymbolTable(moduleOp);
 
     // Create the global variable.
-    rewriter.replaceOpWithNewOp<mlir::LLVM::GlobalOp>(
-        op, getPtrType(), false, mlir::LLVM::Linkage::Private, op.getSymName(),
-        nullptr);
+    auto newOp = rewriter.create<mlir::LLVM::GlobalOp>(
+        op.getLoc(), getPtrType(), false, mlir::LLVM::Linkage::Private,
+        op.getSymName(), nullptr);
 
     symbolTable.remove(op);
+    rewriter.replaceOp(op, newOp);
     return mlir::success();
   }
 };
